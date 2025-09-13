@@ -1,0 +1,1407 @@
+# ContentEngineAI Video Production Configuration
+# This file controls all aspects of the video generation pipeline, from media gathering
+# to final video assembly. Each setting is documented with its purpose and impact.
+
+# ============================================================================
+# GLOBAL OUTPUT CONFIGURATION
+# Controls where all generated files are stored and organized
+# ============================================================================
+
+# Base directory for all output files (videos, logs, intermediate files)
+global_output_directory: "outputs"
+
+# ============================================================================
+# SIMPLIFIED PRODUCT-ORIENTED OUTPUT STRUCTURE
+# Flat, product-centric organization for better usability
+# ============================================================================
+output_structure:
+  # ---- Product-Centric Organization ----
+  # Each product gets its own flat directory: outputs/{product_id}/
+  product_directory_pattern: "{product_id}"
+
+  # ---- Per-Product Files (all in product root) ----
+  product_files:
+    # Scraped product data (JSON)
+    scraped_data: "data.json"
+
+    # Generated script text
+    script: "script.txt"
+
+    # Generated voiceover audio
+    voiceover: "voiceover.wav"
+
+    # Generated subtitles
+    subtitles: "subtitles.srt"
+
+    # Final generated video
+    final_video: "video_{profile}.mp4"
+
+    # Pipeline metadata and performance
+    metadata: "metadata.json"
+
+    # FFmpeg command log
+    ffmpeg_log: "ffmpeg_command.log"
+
+    # Performance metrics
+    performance: "performance.json"
+
+  # ---- Per-Product Subdirectories ----
+  product_subdirs:
+    # Product images (scraped + stock)
+    images: "images"
+
+    # Product videos (scraped)
+    videos: "videos"
+
+    # Downloaded background music
+    music: "music"
+
+    # Temporary processing files (optional)
+    temp: "temp"
+
+  # ---- Global Directories (shared across all products) ----
+  global_dirs:
+    # Global cache (API responses, models, etc.)
+    cache: "cache"
+
+    # Global logs (application, errors)
+    logs: "logs"
+
+    # Global reports (coverage, linting, performance)
+    reports: "reports"
+
+    # Global temporary files
+    temp: "temp"
+
+# ============================================================================
+# PATH BUILDING CONFIGURATION
+# Functions for building paths dynamically
+# ============================================================================
+path_config:
+  # Enable product-oriented flat structure
+  use_product_oriented_structure: true
+
+  # Variables available for path patterns
+  # {product_id} - Product identifier (e.g., B0BTYCRJSS)
+  # {profile} - Video profile name (e.g., slideshow_images)
+  # {platform} - Platform name (e.g., amazon)
+  # {timestamp} - Current timestamp
+  # {ext} - File extension
+
+  # Cleanup settings
+  cleanup:
+    # Remove temp files after successful pipeline completion
+    remove_temp_on_success: true
+
+    # Keep temp files for debugging on failure
+    keep_temp_on_failure: true
+
+    # Maximum age for cache files (hours)
+    cache_max_age_hours: 168  # 7 days
+
+    # Debug file patterns to clean when --clean flag is used
+    debug_file_patterns:
+      - "incomplete_script_*.txt"        # AI model attempt files
+      - "voiceover_whisper_*.json"       # Whisper debug outputs
+      - "voiceover_whisper_*.txt"        # Whisper comparison files
+      - "*_ffmpeg_command.log"           # FFmpeg command logs
+
+  # ---- Text Files ----
+
+  # Pattern for script files
+  script: "script.txt"
+
+  # Pattern for attribution files
+  attribution: "attributions.txt"
+
+  # Pattern for metadata files
+  metadata: "{name}.json"
+
+  # ---- Log Files ----
+
+  # Pattern for timestamped log files
+  timestamped_log: "{component}_{timestamp}.log"
+
+  # Pattern for main log files (overwritten each run)
+  main_log: "{component}.log"
+
+  # ---- Internal Files ----
+
+  # Gathered visuals metadata file
+  gathered_visuals: "gathered_visuals.json"
+
+  # ---- Directory Names ----
+
+  # Temporary files directory
+  temp_dir: "temp"
+
+  # Music files directory
+  music_dir: "music"
+
+# ============================================================================
+# PIPELINE CONFIGURATION
+# Core pipeline settings and timeouts
+# ============================================================================
+
+# Total pipeline execution timeout in seconds
+# Maximum time allowed for complete video generation process
+# 900s = 15 minutes, prevents hanging on complex videos or system issues
+pipeline_timeout_sec: 900
+
+# Duration padding added to prevent audio cutoff in seconds
+# Added to voiceover duration to ensure complete audio playback
+# 0.5s = half-second buffer to account for FFmpeg timing precision
+duration_padding_sec: 0.5
+
+# NOTE: cleanup_settings section was removed as it was unused in the codebase
+
+# ============================================================================
+# VIDEO SETTINGS
+# Core video output specifications and visual processing parameters
+# ============================================================================
+video_settings:
+  # Output video resolution [width, height] in pixels
+  # [1080, 1920] = 9:16 vertical format for mobile/social media
+  # [1920, 1080] = 16:9 horizontal format for desktop/TV
+  resolution: [1080, 1920]
+
+  # Video frame rate in frames per second
+  # 30fps = smooth motion, good for most content
+  # 24fps = cinematic look, 60fps = very smooth (larger files)
+  frame_rate: 30
+
+  # FFmpeg video codec for encoding final output
+  # libx264 = H.264, widely compatible, good compression
+  # libx265 = H.265, better compression but larger CPU usage
+  output_codec: "libx264"
+
+  # Pixel format for color encoding
+  # yuv420p = most compatible format for web/mobile playback
+  output_pixel_format: "yuv420p"
+
+  # FFmpeg encoding preset balancing speed vs quality/size
+  # ultrafast = fastest encoding, larger files
+  # medium = balanced speed/quality, fast = faster encoding
+  # slow/slower = better quality/compression, much slower
+  output_preset: "medium"
+
+  # Default duration for individual image segments in seconds
+  # When using multiple images, each shows for this duration
+  # Overridden by dynamic calculation based on voiceover length
+  default_image_duration_sec: 3.0
+
+  # Duration of crossfade transitions between visual segments
+  # 0.5s = smooth transition, 0 = hard cuts, 1.0s = slower fade
+  # Applied between all images/videos in the sequence
+  transition_duration_sec: 0.5
+
+  # Maximum allowed total video duration in seconds
+  # Videos longer than this will be truncated
+  # Prevents extremely long videos from script generation errors
+  total_duration_limit_sec: 90
+
+  # Aspect ratio preservation for images/videos
+  # true = maintain original proportions (recommended)
+  # false = stretch to fill frame (may distort content)
+  preserve_aspect_ratio: true
+
+  # Width of images as percentage of video frame width
+  # 0.8 = images fill 80% of frame width, leaving margins
+  # 1.0 = full width, 0.6 = smaller images with more padding
+  image_width_percent: 0.8
+
+  # Vertical position of images as percentage from top
+  # 0.05 = images start 5% from top, 0.0 = top-aligned
+  # 0.15 = more space above images for text/branding
+  image_top_position_percent: 0.05
+
+  # Tolerance for video duration verification in seconds
+  # If actual duration differs from expected by more than this,
+  # warning is logged but video is still considered valid
+  video_duration_tolerance_sec: 1.0
+
+  # Minimum acceptable file size for output video in MB
+  # Videos smaller than this trigger warnings as they may be corrupted
+  # 0.1MB = very small threshold, 1.0MB = more conservative
+  min_video_file_size_mb: 0.1
+
+  # Font size limits for subtitle text rendering
+  # Prevents subtitles from being too small to read or too large for frame
+  subtitle_min_font_size: 16  # Minimum readable font size in pixels
+  subtitle_max_font_size: 100  # Maximum font size to prevent overflow
+
+  # Random delay range between processing multiple products
+  # Helps avoid API rate limits and reduces server load
+  # Random delay chosen between min and max values
+  inter_product_delay_min_sec: 1.5
+  inter_product_delay_max_sec: 4.0
+
+  # Minimum duration for any visual segment in seconds
+  # Prevents extremely short flashes that are hard to see
+  # Applied when calculating dynamic image durations
+  min_visual_segment_duration_sec: 0.1
+
+  # Timeout for FFprobe video verification operations
+  # How long to wait when checking output video properties
+  verification_probe_timeout_sec: 30
+
+  # NOTE: dynamic_image_count_limit removed as it was unused in codebase
+
+  # ---- Assembler-specific settings (used by FFmpeg) ----
+
+  # Default maximum characters per line for subtitle wrapping
+  # Used when automatic calculation fails or as fallback
+  # Affects subtitle readability and line breaks
+  default_max_chars_per_line: 20
+
+  # Border width around subtitle text boxes in pixels
+  # Creates padding between subtitle text and box edge
+  # Higher values = more spacing around text
+  subtitle_box_border_width: 5
+
+  # Number of times to loop static images in FFmpeg
+  # 1 = no looping (recommended), higher values repeat image
+  # Used internally by FFmpeg for image processing
+  image_loop: 1
+
+  # Background color for padding around scaled images
+  # "black" = black bars, "white" = white bars
+  # Can use hex colors like "#FF0000" for red
+  pad_color: "black"
+
+# ============================================================================
+# MEDIA SETTINGS
+# Controls gathering and processing of product and stock media
+# ============================================================================
+media_settings:
+  # Temporary directory name for downloaded media assets
+  # Created within working_files directory during processing
+  # Contains product images, stock media, and attribution info
+  temp_media_dir: "downloaded_media_assets"
+
+  # Keywords used to search for relevant stock media
+  # Multiple keywords increase variety and relevance
+  # Should match product type and desired video style
+  stock_media_keywords:
+    ["product showcase", "modern lifestyle", "technology", "happy customer"]
+
+  # Minimum duration for stock video clips in seconds
+  # Videos shorter than this are filtered out
+  # Ensures clips are long enough to be useful in final video
+  stock_video_min_duration_sec: 5
+
+  # Maximum duration for stock video clips in seconds
+  # Videos longer than this are filtered out
+  # Prevents extremely long clips that would dominate the video
+  stock_video_max_duration_sec: 20
+
+  # Minimum length for keywords extracted from product titles
+  # Words shorter than this are ignored when generating search terms
+  # Filters out articles, prepositions, and very short words
+  product_title_keyword_min_length: 3
+
+# ============================================================================
+# AUDIO SETTINGS
+# Controls all audio processing including TTS, music, and mixing
+# ============================================================================
+audio_settings:
+  # Background music volume in decibels (negative = quieter)
+  # -20dB = quiet background music that doesn't overpower voice
+  # -10dB = louder music, -30dB = very quiet music
+  music_volume_db: -20.0
+
+  # Voiceover volume in decibels (can be positive for boost)
+  # 3dB = slight boost to ensure voice is clear and prominent
+  # 0dB = no change, 6dB = noticeable boost, -3dB = slight reduction
+  voiceover_volume_db: 3.0
+
+  # How to handle audio mixing duration when combining tracks
+  # "longest" = extend shorter audio to match longest track
+  # "shortest" = cut all audio to match shortest track
+  # "first" = use duration of first audio track
+  audio_mix_duration: "longest"
+
+  # Local fallback music files used when Freesound API fails
+  # These files should exist in the static directory
+  # Provide offline capability and guaranteed background music
+  background_music_paths:
+    - "static/background-music-calm-soft-334182.mp3"
+    - "static/background-music-happy-333014.mp3"
+    - "static/background-music-upbeat-energetic-333016.mp3"
+
+  # ---- Freesound API Configuration ----
+  # Environment variable names for Freesound API credentials
+  # Set these in your .env file or system environment
+
+  # Basic API key for searching and downloading previews
+  freesound_api_key_env_var: "FREESOUND_API_KEY"
+
+  # OAuth2 credentials for downloading full-quality audio files
+  # Required only for full downloads, not for preview downloads
+  freesound_client_id_env_var: "FREESOUND_CLIENT_ID"
+  freesound_client_secret_env_var: "FREESOUND_CLIENT_SECRET"
+  freesound_refresh_token_env_var: "FREESOUND_REFRESH_TOKEN"
+
+  # Sort order for Freesound search results
+  # "rating_desc" = highest rated first, "downloads_desc" = most popular
+  # "created_desc" = newest first, "duration_asc" = shortest first
+  freesound_sort: "rating_desc"
+
+  # Search query for finding background music on Freesound
+  # Should describe the mood and style you want
+  # "upbeat instrumental corporate" = professional, energetic music
+  freesound_search_query: "upbeat instrumental corporate"
+
+  # Freesound filter criteria for search results
+  # "duration:[60 TO 180]" = find tracks between 60-180 seconds
+  # Can filter by license, tags, etc. See Freesound API docs
+  freesound_filters: "duration:[60 TO 180]"
+
+  # Maximum number of search results to consider
+  # Higher numbers = more variety but slower processing
+  # 15 = good balance of variety and speed
+  freesound_max_results: 15
+
+  # Maximum duration for Freesound search in seconds
+  # 9999 = effectively no limit, use smaller values to exclude very long tracks
+  freesound_max_search_duration_sec: 9999
+
+  # Freesound API timeout for search requests in seconds
+  # 30s = good balance between responsiveness and allowing slow responses
+  freesound_api_timeout_sec: 30
+
+  # Freesound download timeout for large audio files in seconds
+  # 300s = 5 minutes, sufficient for downloading most audio files
+  freesound_download_timeout_sec: 300
+
+  # OAuth2 token expiry time in seconds
+  # 3600s = 1 hour, standard OAuth2 token lifetime
+  freesound_token_expiry_sec: 3600
+
+  # Buffer time before token refresh in seconds
+  # 60s = refresh token 1 minute before expiry to avoid errors
+  freesound_token_refresh_buffer_sec: 60
+
+  # Download chunk size for streaming large files
+  # 32768 = 32KB chunks, good balance of memory usage and speed
+  freesound_download_chunk_size: 32768
+
+  # ---- Audio Encoding Settings ----
+
+  # Audio codec for final video output
+  # "aac" = widely compatible, good compression
+  # "mp3" = also compatible but less efficient
+  output_audio_codec: "aac"
+
+  # Audio bitrate for final video output
+  # "192k" = good quality, "128k" = smaller files, "256k" = higher quality
+  output_audio_bitrate: "192k"
+
+  # Duration of fade-in effect for background music in seconds
+  # Music gradually increases from silence to full volume
+  # 2.0s = smooth fade-in, 0 = no fade (abrupt start)
+  music_fade_in_duration: 2.0
+
+  # Duration of fade-out effect for background music in seconds
+  # Music gradually decreases to silence at video end
+  # 3.0s = smooth fade-out, 0 = abrupt cut
+  music_fade_out_duration: 3.0
+
+  # User agent string for HTTP requests
+  # Used for API calls and media downloads to identify the application
+  user_agent: "ContentEngineAI/1.0"
+
+# ============================================================================
+# SUBTITLE SETTINGS
+# Controls subtitle generation, formatting, and visual styling
+# ============================================================================
+# UNIFIED SUBTITLE CONFIGURATION (Simplified from complex multi-mode system)
+# ============================================================================
+subtitle_settings:
+  # Whether to generate and embed subtitles in the video
+  enabled: true
+
+  # ---- UNIFIED POSITIONING (replaces static/dynamic/absolute modes) ----
+  # Content-aware positioning that automatically adapts to visual layout
+
+  # Anchor point for subtitle positioning
+  # "top" = top of frame, "center" = center of frame, "bottom" = bottom of frame
+  # "above_content" = above visual content, "below_content" = below visual content
+  anchor: "below_content"
+
+  # Margin as fraction of frame height (0.0-0.5)
+  # 0.08 = 8% gap below images, creates clear separation from visual content
+  margin: 0.08
+
+  # Enable content-aware positioning (adjusts based on visual elements)
+  content_aware: true
+
+  # ---- LEGACY DYNAMIC POSITIONING SETTINGS (for backward compatibility) ----
+  # Used by _create_dynamic_ass_file method in assembler
+  dynamic_positioning:
+    # Spacing between bottom of image and top of subtitle (as fraction of frame height)
+    # 0.15 = 15% of frame height = ~288px spacing for clear gap between images and text
+    image_bottom_to_subtitle_top_spacing_percent: 0.17
+    # Horizontal margin for subtitles (as fraction of frame width)
+    subtitle_horizontal_margin_percent: 0.05
+    # Safety margin at bottom of frame (as fraction of frame height)
+    subtitle_box_bottom_padding_percent: 0.02
+
+  # ---- SIMPLIFIED STYLING (replaces complex color/font randomization) ----
+  # Style preset determines overall appearance
+  # "minimal" = clean/simple, "modern" = contemporary with effects
+  # "dynamic" = full animations, "classic" = traditional, "bold" = high contrast
+  style_preset: "dynamic"
+
+  # Font size scale factor (0.5-2.0)
+  # 1.0 = default size, 1.5 = 50% larger, 0.8 = 20% smaller
+  font_size_scale: 1.0
+
+  # Text alignment: left, center, right
+  horizontal_alignment: "center"
+
+  # ---- ESSENTIAL TEXT FORMATTING ----
+
+  # Maximum characters per subtitle line
+  max_line_length: 30
+
+  # Maximum duration for any subtitle segment (seconds)
+  max_duration: 4.5
+
+  # Minimum duration for any subtitle segment (seconds)
+  min_duration: 0.4
+
+  # Fade in/out duration for subtitle transitions (milliseconds)
+  # Controls how smoothly subtitles appear and disappear
+  # 300ms = smooth fade, 0 = instant appearance/disappearance
+  fade_duration_ms: 300
+
+  # Probability of applying random animation effects (0.0-1.0)
+  # 0.3 = 30% chance of animation, 0 = no animations, 1 = always animate
+  animation_probability: 0.3
+
+  # ---- OPTIONAL RANDOMIZATION (simplified) ----
+
+  # Use random color combinations from preset palette
+  randomize_colors: false
+
+  # Use random animation effects when available
+  randomize_effects: false
+
+  # ---- OUTPUT FORMAT ----
+
+  # Subtitle file format: "srt" or "ass"
+  subtitle_format: "ass"
+
+  # ---- LEGACY COMPATIBILITY SETTINGS ----
+  # These maintain compatibility with existing code during transition
+
+  # Font settings (used by legacy functions)
+  font_directory: "static/fonts"
+  font_name: "Gabarito"
+  font_size_percent: 0.2
+  font_width_to_height_ratio: 0.55
+
+  # Color settings (used by legacy functions)
+  font_color: "&H00FFFFFF"
+  outline_color: "&HFF000000"
+  back_color: "&H99000000"
+
+  # Visual styling (used by legacy functions)
+  bold: true
+  outline_thickness: 1
+  shadow: true
+
+  # Script fallback paths
+  script_paths: ["info/script.txt"]
+
+  # Quality thresholds (used by validation functions)
+  subtitle_similarity_threshold: 0.70
+  subtitle_overlap_threshold: 65.0
+  word_timestamp_pause_threshold: 0.4
+  subtitle_split_on_punctuation: true
+  punctuation_marks: [".", "!", "?", ";", ":", ","]
+
+# ============================================================================
+# TEXT-TO-SPEECH (TTS) CONFIGURATION
+# Controls voice generation from script text
+# ============================================================================
+tts_config:
+  # Order of TTS providers to try (first to last)
+  # System attempts each provider until one succeeds
+  # "google_cloud" = high quality, requires API key
+  # "coqui" = local processing, no API required
+  provider_order: ["google_cloud", "coqui"]
+
+  # ---- Google Cloud Text-to-Speech Settings ----
+  google_cloud:
+    # Specific voice model to use (if available)
+    # "en-US-Chirp3-HD" = high-definition English voice (default for best quality)
+    # Other options: "en-US-Chirp2-HD", "en-US-Chirp-HD", "" (auto-select)
+    # Leave empty to rely entirely on voice_selection_criteria
+    model_name: "en-US-Chirp3-HD"
+
+    # Primary language code for voice selection
+    # "en-US" = American English, "en-GB" = British English
+    language_code: "en-US"
+
+    # Criteria for automatic voice selection (tried in order)
+    # System picks first available voice matching criteria
+    # 
+    # CUSTOMIZATION GUIDE:
+    # - Chirp 3 HD: Latest, highest quality voices with natural intonation
+    # - Chirp 2/1: Previous generation Chirp voices, still high quality
+    # - Neural2: High-quality standard voices, widely available
+    # - Standard: Basic voices, good for testing or low-priority content
+    #
+    # To customize: Reorder criteria, change name_contains filters, or modify genders
+    voice_selection_criteria:
+      # Primary: Chirp 3 HD voices (highest quality)
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }  # Prefer female Chirp 3 HD
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }    # Male Chirp 3 HD fallback
+      # Secondary: Any Chirp voices if Chirp 3 not available
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "FEMALE" }   # Any female Chirp voice
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "MALE" }     # Any male Chirp voice
+      # Tertiary: High-quality Neural2 voices
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "FEMALE" } # Neural2 female
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "MALE" }   # Neural2 male
+      # Final fallback: Any US English voice
+      - { language_code: "en-US", ssml_gender: "FEMALE" }  # Any female voice
+      - { language_code: "en-US", ssml_gender: "MALE" }    # Any male voice
+
+    # Speech rate multiplier (0.25 to 4.0)
+    # 1.0 = normal speed, 1.2 = 20% faster, 0.8 = 20% slower
+    speaking_rate: 1.0
+
+    # Voice pitch adjustment in semitones (-20.0 to 20.0)
+    # 0.0 = normal pitch, +5 = higher pitch, -5 = lower pitch
+    pitch: 0.0
+
+    # Volume gain in decibels
+    # 0.0 = no change, +6 = double volume, -6 = half volume
+    volume_gain_db: 0.0
+
+    # Enable debug logging for TTS operations
+    # true = verbose logs for troubleshooting
+    debug: false
+
+    # API request timeout in seconds
+    # How long to wait for TTS API response
+    api_timeout_sec: 60
+
+    # Maximum number of retry attempts on API failure
+    # 2 = try up to 3 times total (1 initial + 2 retries)
+    api_max_retries: 2
+
+    # Delay between retry attempts in seconds
+    # Prevents overwhelming API with rapid retries
+    api_retry_delay_sec: 5
+
+    # Buffer time added after last word timing in seconds
+    # Ensures subtitles don't cut off before speech ends
+    # 0.3s = small buffer for natural speech timing
+    last_word_buffer_sec: 0.3
+
+  # ---- Coqui TTS Settings (Local Processing) ----
+  coqui:
+    # Coqui TTS model identifier
+    # "tts_models/en/ljspeech/vits" = English VITS model
+    # See Coqui TTS documentation for available models
+    model_name: "tts_models/en/ljspeech/vits"
+
+    # Speaker name for multi-speaker models
+    # null = use default speaker, specify name for voice selection
+    speaker_name: null
+
+# ============================================================================
+# LARGE LANGUAGE MODEL (LLM) SETTINGS
+# Controls AI script generation from product data
+# ============================================================================
+llm_settings:
+  # LLM provider service
+  # "openrouter" = OpenRouter API (supports multiple models)
+  provider: "openrouter"
+
+  # Environment variable containing API key
+  # Set OPENROUTER_API_KEY in .env file or system environment
+  api_key_env_var: "OPENROUTER_API_KEY"
+
+  # Whether to automatically select free models when available
+  # true = tries free models first to reduce costs
+  # false = uses models in exact order specified
+  auto_select_free_model: true
+
+  # List of LLM models to try (in priority order)
+  # System attempts each model until one succeeds
+  models:
+    - "openai/gpt-3.5-turbo"              # OpenAI GPT-3.5 (paid)
+    - "deepseek/deepseek-chat-v3-0324:free"  # DeepSeek free tier
+    - "meta-llama/llama-3-8b-instruct:free"  # Llama 3 free tier
+
+  # API base URL for LLM provider
+  # OpenRouter endpoint for accessing multiple models
+  base_url: "https://openrouter.ai/api/v1"
+
+  # Target audience description for script personalization
+  # Influences tone, language, and content style
+  # "Tech-savvy young adults" = modern, energetic, technical language
+  target_audience: "Tech-savvy young adults"
+
+  # Path to prompt template file for script generation
+  # Template contains instructions and format for LLM
+  # Variables like {PRODUCT_NAME} are replaced with actual data
+  prompt_template_path: "src/ai/prompts/video_script.md"
+
+  # Maximum tokens (words/characters) for LLM response
+  # 350 = concise script suitable for short videos
+  # Higher values = longer scripts, more detailed content
+  max_tokens: 350
+
+  # Script validation thresholds
+  # Minimum character count for valid scripts
+  min_script_chars: 200
+  # Minimum word count for valid scripts  
+  min_script_words: 50
+
+  # Creativity/randomness of LLM output (0.0 to 2.0)
+  # 0.7 = balanced creativity, 0.0 = very consistent, 1.0+ = more creative
+  temperature: 0.7
+
+  # API request timeout in seconds
+  # How long to wait for LLM response
+  timeout_seconds: 90
+
+# ============================================================================
+# STOCK MEDIA SETTINGS
+# Controls fetching of images/videos from external sources
+# ============================================================================
+stock_media_settings:
+  # Environment variable containing Pexels API key
+  # Get free API key from https://www.pexels.com/api/
+  pexels_api_key_env_var: "PEXELS_API_KEY"
+
+  # Source attribution name for downloaded media
+  # Used in attribution files and video credits
+  source: "Pexels"
+
+# ============================================================================
+# FFMPEG SETTINGS
+# Controls video encoding and processing operations
+# ============================================================================
+ffmpeg_settings:
+  # Path to FFmpeg executable (empty = use system PATH)
+  # Specify full path if FFmpeg not in system PATH
+  # Example: "/usr/local/bin/ffmpeg" or "C:/ffmpeg/bin/ffmpeg.exe"
+  executable_path: ""
+
+  # Temporary directory for FFmpeg intermediate files
+  # Used during video assembly process
+  temp_ffmpeg_dir: "ffmpeg_work"
+
+  # FFmpeg preset for intermediate processing
+  # "ultrafast" = fastest processing for temporary files
+  # Quality doesn't matter for intermediate steps
+  intermediate_segment_preset: "ultrafast"
+
+  # Maximum time to wait for final video assembly in seconds
+  # Prevents hanging on complex videos or system issues
+  # 300s = 5 minutes should be sufficient for most videos
+  final_assembly_timeout_sec: 600
+
+  # FFmpeg I/O timeout in microseconds (30 seconds = 30,000,000 microseconds)
+  # Prevents hanging on file I/O operations during video processing
+  rw_timeout_microseconds: 30000000
+
+# ============================================================================
+# WHISPER SETTINGS
+# Controls OpenAI Whisper speech-to-text for subtitle generation
+# ============================================================================
+whisper_settings:
+  # Whether Whisper is available for subtitle generation
+  # true = use Whisper for accurate timing, false = skip Whisper
+  enabled: true
+
+  # Whisper model size balancing accuracy vs speed/memory
+  # "tiny" = fastest, least accurate, "small" = balanced
+  # "medium" = better accuracy, "large" = best accuracy, slowest
+  model_size: "small"
+
+  # Device for Whisper processing
+  # "cpu" = use CPU (compatible), "cuda" = use GPU (faster if available)
+  model_device: "cpu"
+
+  # Whether to keep model in memory between uses
+  # true = faster repeated use, more memory usage
+  # false = reload each time, slower but less memory
+  model_in_memory: false
+
+  # Directory for downloading Whisper models
+  # Empty = use default cache directory (~/.cache/whisper)
+  model_download_root: ""
+
+  # Temperature for Whisper transcription (0.0 to 1.0)
+  # 0.0 = most deterministic output, higher = more variation
+  temperature: 0.0
+
+  # Language code for transcription
+  # "en" = English, "es" = Spanish, "fr" = French, etc.
+  # Helps Whisper focus on correct language
+  language: "en"
+
+  # Beam size for Whisper search algorithm
+  # 5 = good balance of accuracy and speed
+  # Higher values = more accurate but slower
+  beam_size: 5
+
+  # Whether to use 16-bit floating point precision
+  # false = use 32-bit (more compatible), true = faster on some GPUs
+  fp16: false
+
+  # Threshold for compression ratio to detect repetitive text
+  # 2.4 = default, higher = more lenient with repetitive content
+  compression_ratio_threshold: 2.4
+
+  # Threshold for log probability to filter low-confidence words
+  # -1.0 = include most words, higher = only high-confidence words
+  logprob_threshold: -1.0
+
+  # Threshold for detecting silence vs speech
+  # 0.5 = balanced detection, higher = stricter speech detection
+  # Lowered from 0.5 to 0.2 to capture speech that may have background noise or low volume
+  no_speech_threshold: 0.2
+
+  # Whether to use previous text context for better accuracy
+  # true = more coherent transcription, false = each segment independent
+  condition_on_previous_text: true
+
+  # Whisper task type
+  # "transcribe" = speech to text, "translate" = translate to English
+  task: "transcribe"
+
+  # Patience parameter for beam search (null = auto)
+  # Higher values = more thorough search, slower processing
+  patience: null
+
+  # Timeout settings for Whisper processing
+  # Base timeout in seconds (minimum timeout regardless of audio duration)
+  base_timeout_sec: 120
+
+  # Timeout multiplier based on audio duration (timeout = base + duration * multiplier)
+  # 3.0 = allow 3 seconds of processing time per second of audio (conservative)
+  duration_multiplier: 3.0
+
+  # Maximum allowed timeout in seconds (prevents extremely long timeouts)
+  max_timeout_sec: 600  # 10 minutes for reasonable limits
+
+  # Progress monitoring interval in seconds (how often to log resource usage)
+  progress_monitor_interval_sec: 30
+
+  # Enable detailed resource monitoring during transcription
+  enable_resource_monitoring: true
+
+  # Enable automatic resource cleanup after processing
+  enable_resource_cleanup: true
+
+# ============================================================================
+# GOOGLE CLOUD SPEECH-TO-TEXT SETTINGS
+# Alternative to Whisper for subtitle generation
+# ============================================================================
+google_cloud_stt_settings:
+  # Whether Google Cloud STT is available
+  # Requires GOOGLE_APPLICATION_CREDENTIALS environment variable
+  enabled: true
+
+  # Language code for speech recognition
+  # "en-US" = American English, "en-GB" = British English
+  language_code: "en-US"
+
+  # Audio encoding format for processing
+  # "LINEAR16" = uncompressed PCM, "FLAC" = lossless compression
+  encoding: "LINEAR16"
+
+  # Audio sample rate in Hz
+  # 24000 = high quality, 16000 = standard, 8000 = phone quality
+  sample_rate_hertz: 24000
+
+  # Whether to use enhanced speech recognition models
+  # true = better accuracy for video content, may cost more
+  use_enhanced: true
+
+  # API request timeout in seconds
+  # Longer audio files need more time to process
+  api_timeout_sec: 120
+
+  # Maximum retry attempts on API failure
+  api_max_retries: 2
+
+  # Delay between retry attempts in seconds
+  api_retry_delay_sec: 10
+
+  # Whether to use speech adaptation with script text
+  # true = improves accuracy by providing expected content
+  use_speech_adaptation_if_script_provided: true
+
+  # Boost value for speech adaptation (1-20)
+  # 15 = strong boost for script words, improves recognition
+  adaptation_boost_value: 15.0
+
+# ============================================================================
+# ATTRIBUTION SETTINGS
+# Controls generation of media attribution files
+# ============================================================================
+attribution_settings:
+  # Filename for attribution text file saved with video
+  # Contains credits for all third-party media used
+  attribution_file_name: "ATTRIBUTIONS.txt"
+
+  # Template for overall attribution file format
+  # Variables replaced with actual product and media information
+  attribution_template: |
+    Original Product URL: {PRODUCT_URL}
+    Affiliate Link: {AFFILIATE_LINK}
+    Media Attributions for "{PRODUCT_NAME}":
+    {ATTRIBUTIONS_LIST}
+
+  # Template for individual media attribution entries
+  # Each stock image/video gets one entry using this format
+  attribution_entry_template: |
+    - **{TYPE}** from {SOURCE}
+      Creator: {AUTHOR}
+      Link: {URL}
+
+# ============================================================================
+# VIDEO PROFILES
+# Predefined strategies for media selection and video style
+# ============================================================================
+video_profiles:
+  # Profile focusing on product images with dynamic timing
+  # NOTE: This profile intentionally skips products with insufficient scraped media
+  # Requires minimum 3 total media items and 5 images if no videos available
+  slideshow_images:
+    description: "Dynamically uses scraped product images to match voiceover duration. Skips products with insufficient media."
+    use_scraped_images: true      # Include product images from scraping
+    use_scraped_videos: false     # Exclude product videos
+    use_stock_images: false       # No additional stock images
+    use_stock_videos: false       # No stock videos
+    stock_image_count: 0          # Number of stock images (ignored when false)
+    stock_video_count: 0          # Number of stock videos (ignored when false)
+    use_dynamic_image_count: true # Adjust image count to match voiceover duration
+
+    # Subtitle positioning for slideshow profile (relative to content)
+    subtitle_positioning:
+      anchor: "below_content"     # Position subtitles below images
+      margin: 0.08                # 8% gap below images for clear separation
+      content_aware: true         # Use image bounds for positioning
+
+  # Profile combining product videos and images
+  scraped_videos_then_images:
+    description: "Prioritizes scraped product videos, then scraped images."
+    use_scraped_images: true      # Include product images as secondary content
+    use_scraped_videos: true      # Use product videos as primary content
+    use_stock_images: false       # No external stock images
+    use_stock_videos: false       # No external stock videos
+    stock_image_count: 0
+    stock_video_count: 0
+    use_dynamic_image_count: true # Adjust count based on voiceover length
+
+    # Subtitle positioning for mixed media profile (relative to content)
+    subtitle_positioning:
+      anchor: "below_content"     # Position subtitles below mixed video/image content
+      margin: 0.06                # 6% gap - slightly less for mixed media
+      content_aware: true         # Use content bounds for positioning
+
+  # Profile using only stock media, ignoring product media
+  stock_focus_short:
+    description: "Focuses on a few stock videos and images, ignoring scraped product media."
+    use_scraped_images: false     # Ignore product images
+    use_scraped_videos: false     # Ignore product videos
+    use_stock_images: true        # Use external stock images
+    use_stock_videos: true        # Use external stock videos
+    stock_image_count: 2          # Exactly 2 stock images
+    stock_video_count: 1          # Exactly 1 stock video
+    use_dynamic_image_count: false # Use fixed counts, not dynamic
+
+# ============================================================================
+# API AND NETWORK CONFIGURATION
+# Controls timeouts, retries, and network behavior
+# ============================================================================
+api_settings:
+  # ---- LLM API specific settings ----
+
+  # Timeout for fetching available LLM models in seconds
+  # Used when auto_select_free_model is enabled
+  llm_model_fetch_timeout_sec: 15
+
+  # Number of retry attempts for LLM API calls
+  # 3 = try up to 4 times total (1 initial + 3 retries)
+  llm_retry_attempts: 3
+
+  # Minimum wait time between LLM retries in seconds
+  # Exponential backoff starts with this value
+  llm_retry_min_wait_sec: 2
+
+  # Maximum wait time between LLM retries in seconds
+  # Exponential backoff caps at this value
+  llm_retry_max_wait_sec: 30
+
+  # Multiplier for exponential backoff retry delays
+  # 1 = linear increase, 2 = double each retry
+  llm_retry_multiplier: 1
+
+  # ---- Stock media API settings ----
+
+  # Maximum concurrent downloads for stock media
+  # 5 = download up to 5 files simultaneously
+  # Higher values = faster but more network load
+  stock_media_concurrent_downloads: 5
+
+  # Multiplier for stock media search results
+  # 2 = fetch 2x more results than needed for better selection
+  # Higher values = more choice but more API calls
+  stock_media_search_multiplier: 2
+
+  # Maximum results per API page for stock media
+  # 80 = fetch up to 80 items per request
+  # API limits may override this value
+  stock_media_max_per_page: 80
+
+  # ---- General API settings ----
+
+  # Default timeout for API requests in seconds
+  # Used when specific timeout not specified
+  default_request_timeout_sec: 15
+
+  # Default number of retry attempts for API failures
+  # Applied to APIs without specific retry configuration
+  default_retry_attempts: 3
+
+  # Default delay between retry attempts in seconds
+  # Simple fixed delay for general API retries
+  default_retry_delay_sec: 5
+
+  # ---- Download and HTTP settings ----
+
+  # Default timeout for HTTP downloads in seconds
+  # Used for stock media, Freesound previews, and other file downloads
+  download_timeout_sec: 30
+
+  # Number of retry attempts for failed downloads
+  # 3 = try up to 4 times total (1 initial + 3 retries)
+  download_retry_attempts: 3
+
+  # Minimum wait time between download retries in seconds
+  # Exponential backoff starts with this value
+  download_retry_min_wait_sec: 2
+
+  # Maximum wait time between download retries in seconds
+  # Exponential backoff caps at this value
+  download_retry_max_wait_sec: 10
+
+# ============================================================================
+# TEXT PROCESSING CONFIGURATION
+# Controls text analysis and subtitle generation
+# ============================================================================
+text_processing:
+  # ---- Script estimation and processing ----
+
+  # Estimated characters per second for speech rate
+  # Used to estimate duration when actual timing unavailable
+  # 15 = typical conversational speed
+  script_chars_per_second_estimate: 15
+
+  # Speaking rate for subtitle timing estimation (words per second)
+  # Used when generating subtitles without precise timing data
+  # 2.5 = average conversational speed
+  speaking_rate_words_per_sec: 2.5
+
+  # Fallback character duration in seconds
+  # Used when timing calculation fails completely
+  # 0.05s = 20 characters per second minimum rate
+  script_min_duration_sec: 0.05
+
+  # ---- Subtitle text processing ----
+
+  # Minimum confidence threshold for Whisper word-level timing
+  # 0.5 = include words with 50%+ confidence
+  # Higher values = fewer but more accurate words
+  subtitle_text_similarity_min_confidence: 0.5
+
+  # Minimum duration for subtitle segments in seconds
+  # Segments shorter than this may be combined
+  subtitle_min_segment_duration_sec: 0.1
+
+  # Maximum duration for subtitle segments in seconds
+  # Segments longer than this are split for readability
+  subtitle_max_segment_duration_sec: 5.0
+
+  # Minimum words per subtitle segment
+  # Prevents very short segments with single words
+  subtitle_min_words_per_segment: 3
+
+  # Maximum words per subtitle segment
+  # Prevents overcrowded subtitles that are hard to read
+  subtitle_max_words_per_segment: 10
+
+  # Maximum characters per line in subtitle text
+  # Similar to max_line_length but for internal processing
+  subtitle_max_chars_per_line: 42
+
+  # Minimum gap between subtitle segments in seconds
+  # Prevents subtitles from appearing too rapidly
+  subtitle_min_segment_gap_sec: 0.1
+
+# ============================================================================
+# AUDIO PROCESSING CONFIGURATION
+# Controls audio generation and validation
+# ============================================================================
+audio_processing:
+  # ---- TTS and audio generation ----
+
+  # NOTE: coqui_gpu_enabled removed as unused in TTS integration
+
+  # Audio encoding format for Google TTS output
+  # "LINEAR16" = uncompressed PCM, "MP3" = compressed
+  # Currently hardcoded in tts.py, will be configurable
+  google_tts_audio_encoding: "LINEAR16"
+
+  # ---- Audio file validation ----
+
+  # Minimum valid audio file size in bytes
+  # Files smaller than this are considered corrupt
+  # 100 bytes = very small threshold for basic validation
+  min_audio_file_size_bytes: 100
+
+  # Timeout for audio validation operations in seconds
+  # How long to wait when checking audio file properties
+  audio_validation_timeout_sec: 30
+
+# ============================================================================
+# VIDEO PROCESSING CONFIGURATION
+# Controls FFmpeg operations and video validation
+# ============================================================================
+video_processing:
+  # ---- FFmpeg and video assembly ----
+
+  # Stream selector for FFprobe video analysis
+  # "v:0" = first video stream, "v:1" = second video stream
+  # Used when extracting video dimensions and properties
+  ffmpeg_probe_streams: "v:0"
+
+  # Properties to extract with FFprobe
+  # "stream=width,height" = get video dimensions
+  # Can include duration, codec, etc.
+  ffmpeg_probe_entries: "stream=width,height"
+
+  # Output format for FFprobe results
+  # "csv=s=x:p=0" = CSV format with 'x' separator, no headers
+  # Results in format like "1920x1080"
+  ffmpeg_probe_format: "csv=s=x:p=0"
+
+  # ---- Video validation ----
+
+  # Timeout for video stream analysis in seconds
+  # How long to wait when checking output video properties
+  video_stream_check_timeout_sec: 30
+
+  # NOTE: min_frame_count removed as unused in video validation
+
+  # ---- Visual processing ----
+
+  # Tolerance for aspect ratio calculations
+  # 0.01 = 1% tolerance for floating point precision
+  # Used when comparing and calculating aspect ratios
+  visual_aspect_ratio_tolerance: 0.01
+
+  # Decimal places for visual scaling calculations
+  # 2 = round to hundredths (e.g., 1.23)
+  # Higher precision = more accurate but longer calculations
+  visual_scaling_precision: 2
+
+# ============================================================================
+# FILE SYSTEM CONFIGURATION
+# Controls file operations and supported formats
+# ============================================================================
+filesystem:
+  # ---- Directory and file management ----
+
+  # Delay before cleaning up temporary files in seconds
+  # 5s = brief delay to ensure files not in use
+  # 0 = immediate cleanup, higher = longer retention
+  temp_file_cleanup_delay_sec: 5
+
+  # Timeout for file operations in seconds
+  # How long to wait for file copy, move, delete operations
+  file_operation_timeout_sec: 30
+
+  # Maximum length for generated filenames
+  # 255 = typical filesystem limit, but using 200 for safety margin
+  # Prevents errors from overly long product names
+  max_filename_length: 200
+
+  # ---- Media file extensions ----
+
+  # Supported image file formats
+  # Files with these extensions are treated as images
+  supported_image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+
+  # Supported video file formats
+  # Files with these extensions are treated as videos
+  supported_video_extensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+
+  # Supported audio file formats
+  # Files with these extensions are treated as audio
+  supported_audio_extensions: [".wav", ".mp3", ".aac", ".flac"]
+
+# ============================================================================
+# SCRAPER SETTINGS
+# Controls web scraping behavior and browser configuration
+# ============================================================================
+scraper_settings:
+  # Default monitor resolution for browser windows
+  # Used when no monitor information is available
+  default_monitor_width: 1920
+  default_monitor_height: 1080
+  
+  # Browser window positioning timeout (seconds)
+  window_setup_timeout_sec: 10
+
+# ============================================================================
+# OPTIMIZATION SETTINGS
+# Controls performance optimization features and parameters
+# ============================================================================
+optimization_settings:
+  # ---- Background Processing Configuration ----
+
+  # Maximum number of concurrent background tasks
+  # Controls how many background operations can run simultaneously
+  # 3 = balanced performance, higher values use more system resources
+  background_max_concurrent_tasks: 3
+
+  # Maximum number of worker threads for background processing
+  # 2 = sufficient for most operations, higher values for heavy workloads
+  background_thread_pool_workers: 2
+
+  # Cache TTL for background task results in seconds
+  # 600s = 10 minutes, cached results valid for this duration
+  background_cache_ttl_sec: 600
+
+  # Priority values for background tasks (lower = higher priority)
+  # Stock media pre-fetching priority
+  stock_media_prefetch_priority: 2
+
+  # TTS model warming priority
+  tts_warming_priority: 3
+
+  # Maximum number of recent completed tasks to track
+  # 5 = keep last 5 completed tasks for reporting
+  background_max_recent_completed: 5
+
+  # Cleanup timeout for background processor shutdown
+  # 5.0s = time to wait for graceful shutdown
+  background_cleanup_timeout_sec: 5.0
+
+  # Stock media prefetch limits
+  # Maximum number of stock images to prefetch
+  stock_prefetch_max_images: 3
+
+  # Maximum number of stock videos to prefetch
+  stock_prefetch_max_videos: 2
+
+  # Maximum number of keywords to use for stock media search
+  # 5 = balanced variety vs performance
+  stock_prefetch_max_keywords: 5
+
+  # Number of top keywords to use for search queries
+  # 2 = focused search with most relevant terms
+  stock_prefetch_top_keywords: 2
+
+  # Minimum word length for extracting keywords from product titles
+  # 3 = filter out articles and short words
+  stock_keyword_min_length: 3
+
+  # Maximum number of descriptive words to extract
+  # 3 = top most descriptive terms
+  stock_max_descriptive_words: 3
+
+  # ---- Performance Monitoring Configuration ----
+
+  # Maximum number of pipeline runs to keep in history
+  # 100 = balance between history retention and storage
+  performance_history_max_runs: 100
+
+  # Performance monitoring check interval in seconds
+  # 0.1s = 100ms intervals for CPU/memory sampling
+  performance_monitoring_interval_sec: 0.1
+
+  # Memory calculation constants for MB conversion
+  # Division factors for byte-to-MB conversion (1024 * 1024)
+  memory_mb_conversion_factor: 1048576
+
+  # Performance report default limits
+  # Default number of runs for summary reports
+  performance_report_summary_limit: 50
+
+  # Default number of runs for detailed reports
+  performance_report_detailed_limit: 20
+
+  # Default number of days for trends reports
+  performance_report_trends_days: 30
+
+  # Default number of recent runs to analyze
+  performance_report_recent_runs: 10
+
+  # Maximum number of runs for report generation
+  performance_report_max_runs: 1000
+
+  # ---- Connection Pooling Configuration ----
+
+  # Total connection pool size across all hosts
+  # 100 = sufficient for most workloads
+  connection_pool_total_limit: 100
+
+  # Maximum connections per individual host
+  # 20 = prevents overwhelming single servers
+  connection_pool_host_limit: 20
+
+  # DNS cache TTL in seconds
+  # 300s = 5 minutes, balances performance vs DNS changes
+  connection_pool_dns_ttl_sec: 300
+
+  # Keep-alive timeout for connections in seconds
+  # 60s = standard HTTP keep-alive duration
+  connection_pool_keepalive_timeout_sec: 60
+
+  # Connection pool cleanup interval in seconds
+  # 300s = 5 minutes between cleanup operations
+  connection_pool_cleanup_interval_sec: 300
+
+  # HTTP timeout settings for connection pool
+  # Total request timeout in seconds
+  connection_pool_total_timeout_sec: 300
+
+  # Connection establishment timeout in seconds
+  connection_pool_connect_timeout_sec: 30
+
+  # Socket read timeout in seconds
+  connection_pool_read_timeout_sec: 60
+
+  # Maximum concurrent downloads for shared download manager
+  # 5 = balanced download performance
+  download_manager_max_concurrent: 5
+
+  # Download chunk size for streaming in bytes
+  # 8192 = 8KB chunks, good balance of memory vs throughput
+  download_chunk_size_bytes: 8192
+
+  # ---- Memory-Mapped I/O Configuration ----
+  # NOTE: Memory-mapped I/O settings removed as unused in current implementation
+
+  # ---- Async I/O Configuration ----
+
+  # Maximum concurrent FFmpeg operations
+  # 2 = FFmpeg is CPU intensive, avoid overload
+  async_ffmpeg_max_concurrent: 2
+
+  # Maximum concurrent I/O operations
+  # 8 = good parallelism for file operations
+  async_io_max_concurrent: 8
+
+  # Maximum concurrent network operations
+  # 4 = balanced network concurrency
+  async_network_max_concurrent: 4
+
+  # Default timeout for async operations in seconds
+  # 300s = 5 minutes for complex operations
+  async_default_timeout_sec: 300
+
+  # FFprobe timeout for media analysis in seconds
+  # 30s = sufficient for most media files
+  async_ffprobe_timeout_sec: 30
+
+  # ---- Caching Configuration ----
+
+  # Default cache TTL for media metadata in seconds
+  # 86400s = 24 hours for media metadata
+  cache_media_metadata_ttl_sec: 86400
+
+  # Default cache TTL for general API responses in seconds
+  # 3600s = 1 hour for API responses
+  cache_api_response_ttl_sec: 3600
+
+  # Maximum cache key length for filename generation
+  # 16 = short hash keys for filesystem compatibility
+  cache_key_max_length: 16
+
+  # Background task cache settings
+  # TTL for background processing cache entries (10 minutes)
+  background_processing_cache_ttl_sec: 600
+
+  # Memory usage threshold for subtitle generation (GB)
+  # Systems with less available memory may skip memory-intensive operations
+  memory_threshold_gb: 8.0
+
+# ============================================================================
+# DEBUG AND DEVELOPMENT CONFIGURATION
+# Controls debugging output and development features
+# ============================================================================
+debug_settings:
+  # ---- Debug output and logging ----
+
+  # Maximum length for individual log lines
+  # 200 = truncate very long lines to prevent log spam
+  # 0 = no limit, higher = allow longer lines
+  max_log_line_length: 200
+
+  # How long to keep debug files in days
+  # 7 = keep debug files for one week
+  # 0 = delete immediately, -1 = keep forever
+  debug_file_retention_days: 7
+
+  # Whether to automatically clean up intermediate files
+  # true = clean up after successful completion
+  # false = keep all files for inspection
+  intermediate_file_cleanup: true
+
+  # ---- Debug file generation controls ----
+
+  # Media validation JSON reports (validation summaries)
+  create_media_validation_reports: true
+
+  # FFmpeg execution logs (command logs and output)
+  create_ffmpeg_command_logs: true
+
+  # Pipeline state JSON files (metadata.json)
+  create_pipeline_metadata: true
+
+  # Performance timing JSON files (performance.json)
+  create_performance_metrics: true
+
+  # Whisper transcription debug files (raw results, word lists, comparisons)
+  create_whisper_debug_files: true
+
+  # Temporary processing files (temp/ directory contents)
+  create_temp_files: true
+
+  # ---- Cleanup configuration ----
+
+  # Clean up debug files on successful completion
+  cleanup_on_success: false
+
+  # Keep temporary files after processing
+  retain_temp_files: false
+
+  # Clean up Whisper debug files specifically
+  cleanup_whisper_files: false
+
+
+  # ---- Performance monitoring ----
+
+  # Threshold for logging slow operations in seconds
+  # Operations taking longer than this are logged as warnings
+  # 5.0s = log operations taking more than 5 seconds
+  operation_timing_threshold_sec: 5.0
+
+  # Memory usage warning threshold in MB
+  # Log warning if process uses more memory than this
+  # 1000MB = 1GB threshold for memory usage alerts
+  memory_usage_warning_mb: 1000

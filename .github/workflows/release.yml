@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Install dependencies
+      run: poetry install --no-interaction
+
+    - name: Run tests
+      run: poetry run pytest
+
+    - name: Run linting
+      run: |
+        poetry run ruff check .
+        poetry run mypy .
+
+    - name: Build package
+      run: poetry build
+
+    - name: Extract release notes
+      id: extract-release-notes
+      run: |
+        # Extract release notes from CHANGELOG.md for current version
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+        # Extract changelog section for this version
+        awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > release-notes.md
+
+        # If no release notes found, create a basic one
+        if [ ! -s release-notes.md ]; then
+          echo "Release $VERSION" > release-notes.md
+          echo "" >> release-notes.md
+          echo "See [CHANGELOG.md](CHANGELOG.md) for details." >> release-notes.md
+        fi
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ steps.extract-release-notes.outputs.VERSION }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/
+        asset_name: contentengineai-${{ steps.extract-release-notes.outputs.VERSION }}.tar.gz
+        asset_content_type: application/gzip

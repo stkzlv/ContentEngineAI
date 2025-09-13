@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/ContentEngineAI/ContentEngineAI/blob/main/README.md
+    about: Check our comprehensive documentation for setup and usage guides
+  - name: ❓ General Questions
+    url: https://github.com/ContentEngineAI/ContentEngineAI/discussions
+    about: Ask questions and discuss ContentEngineAI with the community
+  - name: 🔒 Security Issues
+    url: https://github.com/ContentEngineAI/ContentEngineAI/security
+    about: Report security vulnerabilities privately

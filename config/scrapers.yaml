@@ -1,0 +1,319 @@
+# ContentEngineAI Web Scraper Configuration
+# This file controls all aspects of the web scraping pipeline for e-commerce platforms.
+# Each setting is documented with its purpose and impact on scraping behavior.
+
+# ============================================================================
+# GLOBAL SETTINGS
+# Default settings applied to all scrapers unless overridden by platform-specific config
+# ============================================================================
+global_settings:
+  # Global debug mode - affects all scraping operations
+  # true = debug mode (show browser, pause on errors, save debug files)
+  # false = production mode (headless, close on crash, minimal output)
+  # Can be overridden by CLI --debug flag
+  debug_mode: true
+
+  # ---- Output Directory Configuration ----
+  # Configurable paths for all scraper outputs
+  output_config:
+    # Base directory for ALL outputs (scraper data, videos, logs)
+    # This creates the root directory structure for the entire project
+    base_directory: "outputs"
+
+    # File naming patterns
+    file_patterns:
+      # Product JSON file naming: {keyword}_products.json
+      product_file: "{keyword}_products.json"
+      # Image file naming: {asin}_image_{index}.{ext}
+      image_file: "{asin}_image_{index}.{ext}"
+      # Video file naming: {asin}_video_{index}.{ext}
+      video_file: "{asin}_video_{index}.{ext}"
+
+  # ---- Retry and Exponential Backoff Configuration ----
+  retry_config:
+    # Default number of retry attempts for most operations
+    default_max_retries: 3
+    # Base delay in seconds for exponential backoff
+    base_delay: 1.0
+    # Maximum delay in seconds (caps exponential growth)
+    max_delay: 60.0
+    # Multiplier for each retry attempt (exponential factor)
+    backoff_factor: 2.0
+    # Whether to add random jitter to prevent thundering herd
+    use_jitter: true
+    # Jitter range factor (0.5 = +/- 50% randomness)
+    jitter_factor: 0.5
+
+  # ---- Rate Limiting and Delays ----
+  rate_limiting:
+    # Random delay range for video URL validation (seconds)
+    video_validation_delay: [0.5, 1.5]
+    # Debug pause duration (seconds)
+    debug_pause_duration: 5
+
+  # ---- Image Processing Configuration ----
+  image_config:
+    # Minimum dimension for considering image as high-res
+    min_high_res_dimension: 1500
+    # Minimum file size for high-res images (bytes) - filters out thumbnails
+    min_high_res_file_size: 10000  # 10KB minimum
+    # Very high-res threshold - images above this are trusted without validation
+    very_high_res_dimension: 2000
+
+  # ---- Debug File Generation Controls ----
+  debug_settings:
+    # Media validation JSON reports (validation summaries)
+    create_media_validation_reports: true
+
+  # ---- Video Processing Configuration ----
+  video_config:
+    # Minimum dimension for considering video as acceptable quality
+    min_dimension: 640
+    # Minimum duration for videos (seconds) - filters out very short clips
+    min_duration: 1.0
+    # Maximum videos to extract per product
+    max_videos_per_product: 5
+    # Mute video tabs to prevent audio overlap during extraction
+    mute_video_tabs: true
+
+  # ---- Download Configuration ----
+  download_config:
+    # HTTP request timeout for downloads (seconds)
+    download_timeout: 30
+    # Chunk size for streaming downloads (bytes)
+    download_chunk_size: 8192
+    # Range header for video validation (minimize bandwidth)
+    validation_range_bytes: "0-1023"
+
+  # ---- System Timeouts ----
+  system_timeouts:
+    # Timeout for system commands like xrandr (seconds)
+    system_command_timeout: 5
+    # Default timeout for HTTP HEAD requests (seconds)
+    head_request_timeout: 10
+
+  # ---- Media Configuration ----
+  media_config:
+    # Default image extension for generated filenames
+    default_image_extension: ".jpg"
+    # Amazon media domains for validation
+    amazon_media_domains: ["images-amazon.com", "m.media-amazon.com", "media-amazon.com"]
+    # Image resolution upgrade suffix for Amazon images
+    amazon_high_res_suffix: "._AC_SL2000_.jpg"
+    # High-res upgrade dimension (used in URL modification)
+    high_res_upgrade_dimension: 2000
+
+  # ---- Debug Configuration ----
+  debug_config:
+    # String truncation lengths for debug output
+    title_preview_length: 50         # Length for product title previews
+    url_preview_length: 100          # Length for URL previews
+    result_preview_length: 100       # Length for result object previews
+
+  # ---- Enhanced Product Collection Configuration ----
+  # Controls how products are counted and validated (requirements #16 & #20)
+  validation_config:
+    # List of fields that must be present for a product to be considered valid
+    # Available fields: ['title', 'price', 'description', 'asin', 'rating']
+    # Default: [] (only title and price required)
+    # Set to [] to disable validation and allow products with missing fields
+    essential_fields: []
+
+  # Product collection behavior
+  # true = count products with media files up to max_products limit
+  # false = count all valid products up to max_products limit (default)
+  count_products_with_media: true
+
+  # ---- Browser Configuration ----
+  browser_config:
+    # Default browser window dimensions for debugging
+    debug_window_width: 1920
+    debug_window_height: 1200
+    # Browser window position calculation
+    fallback_window_position: [0, 0, 1920, 1080]
+    # Search result waiting timeout (seconds)
+    search_result_timeout: 10
+    # Maximum products to extract from search
+    max_products_per_search: 5
+
+  # ---- CSS Selectors Configuration ----
+  css_selectors:
+    # Product title selectors (in priority order)
+    product_title_selectors:
+      - "#productTitle"
+      - "h1.a-size-large"
+      - ".product-title"
+      - "h1[data-automation-id='product-title']"
+    # Search result selectors
+    search_result_card: "div[data-component-type='s-search-result']"
+
+
+  # ---- ASIN Validation Patterns ----
+  asin_patterns:
+    # Modern ASIN format: B0 followed by 8 alphanumeric characters
+    modern_asin_pattern: "^B0[A-Z0-9]{8}$"
+    # Legacy ASIN format: 10 alphanumeric characters
+    legacy_asin_pattern: "^[A-Z0-9]{10}$"
+    # ASIN extraction pattern from URLs
+    url_asin_pattern: "/dp/([A-Z0-9]{10})"
+
+# ============================================================================
+# PLATFORM-SPECIFIC SCRAPERS
+# Configuration for individual e-commerce platforms
+# Each platform follows the same structure for consistency:
+# - enabled: whether the platform is available
+# - base_url: platform's main URL
+# - keywords: list of search terms or product IDs
+# - max_products: limit per search
+# - default_search_parameters: platform-specific search settings
+# - filter_parameters: platform-specific internal codes
+# - http_headers: platform-specific request headers
+# ============================================================================
+scrapers:
+  # ---- Amazon Scraper Configuration ----
+  amazon:
+    # Whether this scraper is available for use
+    # false = skip this platform entirely, true = enable scraping
+    enabled: true
+
+    # Base URL for the platform (without trailing slash)
+    # Used to construct search URLs and resolve relative links
+    # Different Amazon domains: amazon.com, amazon.co.uk, amazon.de, etc.
+    base_url: "https://www.amazon.com"
+
+    # List of search keywords or direct product ASINs to scrape
+    # Keywords: general search terms like "wireless earbuds"
+    # ASINs: specific product IDs like "B0BTYCRJSS" for direct access
+    # Mix both types for comprehensive product coverage
+    keywords: ["headphones"]
+
+    # Maximum number of products to scrape per keyword/search
+    # 3 = scrape up to 3 products from each search results page
+    # Higher values = more data but longer scraping time
+    # Consider API rate limits and politeness when setting this
+    max_products: 3
+
+    # Amazon Associates affiliate tag for monetization
+    # Added to all product URLs as "?tag=your-tag" parameter
+    # Leave empty ("") to disable affiliate linking
+    # Must be valid Amazon Associates tag to earn commissions
+    associate_tag: "stealtech06-20"
+
+    # ---- Default Search Parameters ----
+    # Default values for Amazon search filtering and sorting
+    # These can be overridden by CLI arguments when running the scraper
+    default_search_parameters:
+      # Price filtering (in USD, set to null to disable)
+      min_price: null              # Minimum price filter (e.g., 10.99)
+      max_price: 100               # Maximum price filter (e.g., 99.99)
+
+      # Quality filtering (1-5 stars, set to null to disable)
+      min_rating: null             # Minimum rating filter (e.g., 4 for 4+ stars)
+
+      # Shipping and service filters
+      prime_only: false            # Filter for Prime eligible items only
+      free_shipping: false         # Filter for items with free shipping
+
+      # Brand filtering (list of brand names, empty list means no filter)
+      brands: []                   # Brand names to filter by (e.g., ["Apple", "Samsung"])
+
+      # Sort order for search results
+      # Available options: relevanceblender (default), price-asc-rank,
+      # price-desc-rank, review-rank, date-desc-rank, featured-rank
+      sort_order: "relevanceblender"
+
+      # Category filtering (Amazon category ID, null means all categories)
+      category: null               # Category ID for filtering (advanced usage)
+
+      # Search behavior settings
+      include_sponsored: false     # Include sponsored/ad results in extraction
+      skip_unavailable: true       # Skip products marked as unavailable
+
+    # ---- Amazon Filter Parameters ----
+    # Internal Amazon filter codes for search refinement
+    # These are Amazon's internal parameter codes - change only if Amazon updates them
+    filter_parameters:
+      # Price conversion factor (dollars to cents)
+      price_to_cents_multiplier: 100
+
+      # Amazon rating filter codes (p_72 parameter values)
+      rating_codes:
+        4.0: "2661618011"  # 4 stars & up
+        3.0: "2661617011"  # 3 stars & up
+        2.0: "2661616011"  # 2 stars & up
+        1.0: "2661615011"  # 1 star & up
+
+      # Amazon Prime filter code
+      prime_filter_code: "p_85:2470955011"
+
+      # Amazon free shipping filter code
+      free_shipping_filter_code: "p_76:419122011"
+
+    # ---- HTTP Headers Configuration ----
+    # Headers used for different types of requests
+    http_headers:
+      # Headers for video validation requests
+      video_validation:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        Accept: "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
+        Accept-Language: "en-US,en;q=0.9"
+        Accept-Encoding: "identity"
+        Referer: "https://www.amazon.com/"
+
+      # Headers for media downloads
+      media_download:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        Accept: "image/webp,image/apng,image/*,*/*;q=0.8"
+        Accept-Language: "en-US,en;q=0.9"
+        Referer: "https://www.amazon.com/"
+
+      # Standard User-Agent for general requests
+      standard:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+
+# ============================================================================
+# CONFIGURATION USAGE NOTES
+# ============================================================================
+
+# OUTPUT CONFIGURATION:
+# - All output paths are configurable via output_config section
+# - Supports variable substitution: {platform}, {keyword}, {asin}, {index}, {ext}
+# - Directory structure automatically created as needed
+# - File naming patterns ensure consistent organization
+
+# SEARCH PARAMETERS:
+# - default_search_parameters apply to all searches unless overridden by CLI
+# - CLI arguments take precedence over config file settings
+# - Price filters converted to Amazon's internal cent-based format
+# - Rating filters mapped to Amazon's rating code system
+
+# RETRY STRATEGY:
+# - exponential_backoff_retry decorator uses retry_config values
+# - Automatic retries for transient failures (network, timeouts)
+# - Graceful degradation when optional elements missing
+
+# STEALTH FEATURES:
+# - Botasaurus framework handles user agent rotation automatically
+# - Random delays between operations mimic human browsing
+# - Dynamic resource blocking reduces detectible traffic patterns
+
+# MEDIA COLLECTION:
+# - JavaScript extraction tries to find high-resolution images from page data
+# - Falls back to HTML attribute extraction if JS fails
+# - Filters images by minimum resolution (min_high_res_dimension)
+# - Downloads videos from <video> elements and embedded sources
+
+# ERROR HANDLING:
+# - Automatic retries for transient failures (network, timeouts)
+# - Graceful degradation when optional elements missing
+# - Debug mode captures screenshots and HTML for troubleshooting
+# - CAPTCHA detection stops scraping to avoid account issues
+
+# CURRENT STRUCTURE (Product-Centric via Botasaurus):
+# outputs/
+# ├── {ASIN}/                    # Product-specific directories
+# │   ├── data.json             # Scraped product data
+# │   ├── images/               # Product images
+# │   └── videos/               # Product videos
+# ├── cache/                    # Global cache (Botasaurus, downloads)
+# └── logs/                     # Global logs

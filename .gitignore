@@ -1,0 +1,67 @@
+# Python-specific ignores
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Poetry virtual environment
+.env/
+venv/
+.venv/
+
+# Poetry lock file (optional, include if you want to commit it)
+# poetry.lock
+
+# Build and distribution files
+dist/
+build/
+*.egg-info/
+*.eggs/
+
+# Cache and temporary files
+.pytest_cache/
+.coverage
+coverage.xml
+*.cache
+*.log
+*.tmp
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Local environment files
+.env
+.env.local
+*.env
+
+# Testing and profiling (coverage reports now in outputs/coverage/)
+.profile
+*.prof
+
+# MacOS system files
+.DS_Store
+
+# Miscellaneous
+*.bak
+*.swp
+*~
+
+# Test samples
+samples/
+
+# Jupyter notebooks checkpoints (if applicable)
+.ipynb_checkpoints/
+
+# Debug and output
+debug/
+outputs/
+
+# Subtitle files
+*.srt
+temp_subtitles/
+
+output/
+cache/
