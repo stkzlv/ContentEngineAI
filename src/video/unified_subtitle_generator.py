@@ -131,7 +131,7 @@ class UnifiedSubtitleGenerator:
                     format=format_type,
                     errors=[f"Failed to generate {format_type.upper()} file"],
                 )
-            
+
             return result
 
         except Exception as e:
@@ -212,7 +212,7 @@ class UnifiedSubtitleGenerator:
                     format=format_type,
                     segments_created=len(segments),
                     generation_method="script_based",
-                    timing_source="estimated"
+                    timing_source="estimated",
                 )
             else:
                 return SubtitleResult(
@@ -377,7 +377,7 @@ class UnifiedSubtitleGenerator:
         # Get speaking rate from configuration with fallback
         speaking_rate = (
             self.config.speaking_rate_words_per_sec
-            if hasattr(self.config, 'speaking_rate_words_per_sec')
+            if hasattr(self.config, "speaking_rate_words_per_sec")
             else 2.5  # Fallback to default
         )
         estimated_duration = len(words) / speaking_rate
@@ -406,7 +406,7 @@ class UnifiedSubtitleGenerator:
                 should_break = True
 
             # 2. Natural sentence breaks
-            elif word.endswith(('.', '!', '?')) and len(current_segment_words) >= 3:
+            elif word.endswith((".", "!", "?")) and len(current_segment_words) >= 3:
                 # Add this word to current segment before breaking
                 current_segment_words.append(word)
                 current_segment_text = potential_text
@@ -429,15 +429,17 @@ class UnifiedSubtitleGenerator:
                     word_duration = duration - current_time
 
                 if word_duration > 0:
-                    segments.append({
-                        "text": current_segment_text,
-                        "start": current_time,
-                        "end": current_time + word_duration,
-                    })
+                    segments.append(
+                        {
+                            "text": current_segment_text,
+                            "start": current_time,
+                            "end": current_time + word_duration,
+                        }
+                    )
                     current_time += word_duration
 
                 # Start new segment
-                if not word.endswith(('.', '!', '?')):  # Not just added
+                if not word.endswith((".", "!", "?")):  # Not just added
                     current_segment_words = [word]
                     current_segment_text = word
                 else:
@@ -452,16 +454,17 @@ class UnifiedSubtitleGenerator:
         if current_segment_words and current_segment_text:
             remaining_time = duration - current_time
             final_duration = max(
-                self.config.min_duration,
-                min(remaining_time, self.config.max_duration)
+                self.config.min_duration, min(remaining_time, self.config.max_duration)
             )
 
             if final_duration > 0:
-                segments.append({
-                    "text": current_segment_text,
-                    "start": current_time,
-                    "end": current_time + final_duration,
-                })
+                segments.append(
+                    {
+                        "text": current_segment_text,
+                        "start": current_time,
+                        "end": current_time + final_duration,
+                    }
+                )
 
         return segments
 
@@ -589,18 +592,24 @@ class UnifiedSubtitleGenerator:
             "WrapStyle: 1",
             "",
             "[V4+ Styles]",
-            ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
-             "OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, "
-             "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"),
-            (f"Style: Default,{font_name},{font_size},{colors['primary']},"
-             f"{colors['primary']},{colors['outline']},&H80000000,"
-             f"{-1 if self.style_config['bold'] else 0},0,1,"
-             f"{self.style_config['outline_thickness']},"
-             f"{1 if self.style_config['shadow'] else 0},5,10,10,0,1"),
+            (
+                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+                "OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, "
+                "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+            ),
+            (
+                f"Style: Default,{font_name},{font_size},{colors['primary']},"
+                f"{colors['primary']},{colors['outline']},&H80000000,"
+                f"{-1 if self.style_config['bold'] else 0},0,1,"
+                f"{self.style_config['outline_thickness']},"
+                f"{1 if self.style_config['shadow'] else 0},5,10,10,0,1"
+            ),
             "",
             "[Events]",
-            ("Format: Layer, Start, End, Style, Name, MarginL, MarginR, "
-             "MarginV, Effect, Text"),
+            (
+                "Format: Layer, Start, End, Style, Name, MarginL, MarginR, "
+                "MarginV, Effect, Text"
+            ),
         ]
 
     def _create_dialogue_line(
@@ -623,7 +632,7 @@ class UnifiedSubtitleGenerator:
             # Apply effects if enabled
             effects = []
             if "fade" in self.style_config["effects"]:
-                fade_duration = getattr(self.config, 'fade_duration_ms', 300)
+                fade_duration = getattr(self.config, "fade_duration_ms", 300)
                 effects.append(f"\\fad({fade_duration},{fade_duration})")
 
             if (

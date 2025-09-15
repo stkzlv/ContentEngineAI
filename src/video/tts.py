@@ -270,18 +270,20 @@ def _filter_and_select_voice(
     if not candidate_voices:
         logger.warning("No voices found matching criteria.")
         return None
-    
+
     # Prioritize Chirp 3 HD voices if available
     chirp3_voices = [v for v in candidate_voices if "Chirp3" in v.name]
-    chirp_voices = [v for v in candidate_voices if "Chirp" in v.name and "Chirp3" not in v.name]
+    chirp_voices = [
+        v for v in candidate_voices if "Chirp" in v.name and "Chirp3" not in v.name
+    ]
     neural2_voices = [v for v in candidate_voices if "Neural2" in v.name]
-    
+
     logger.debug(
         f"Voice selection breakdown: {len(candidate_voices)} total candidates, "
         f"Chirp 3 HD: {len(chirp3_voices)}, Chirp: {len(chirp_voices)}, "
         f"Neural2: {len(neural2_voices)}"
     )
-    
+
     # Select from highest priority group available
     if chirp3_voices:
         selected_voice = random.choice(chirp3_voices)  # noqa: S311
@@ -295,13 +297,15 @@ def _filter_and_select_voice(
     else:
         selected_voice = random.choice(candidate_voices)  # noqa: S311
         logger.info(f"Selected standard voice: {selected_voice.name}")
-    
+
     gender_name = (
         ssml_gender_enum(selected_voice.ssml_gender).name
         if ssml_gender_enum
         else "Unknown"
     )
-    logger.info(f"Final TTS voice selection: {selected_voice.name} (Gender: {gender_name})")
+    logger.info(
+        f"Final TTS voice selection: {selected_voice.name} (Gender: {gender_name})"
+    )
     return selected_voice
 
 
@@ -330,7 +334,7 @@ async def _generate_google_cloud_speech(
         "language_code": selected_voice.language_codes[0],
         "name": selected_voice.name,
     }
-    
+
     # Add model name if specified (only for voices that support it)
     if settings.model_name:
         # Try model_name parameter first, then model (different API versions)
@@ -345,7 +349,7 @@ async def _generate_google_cloud_speech(
                 f"Model name '{settings.model_name}' specified but not supported by "
                 f"current Google Cloud TTS API version. Using default model."
             )
-    
+
     voice_params = texttospeech.VoiceSelectionParams(**voice_params_kwargs)
     # Use configurable audio encoding
     from src.video.video_config import config

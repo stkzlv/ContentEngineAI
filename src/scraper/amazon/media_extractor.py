@@ -1765,6 +1765,7 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
     try:
         # Create debug output directory
         from ...utils.outputs_paths import get_temp_directory
+
         debug_dir = get_temp_directory() / "debug" / "image_analysis"
         debug_dir.mkdir(parents=True, exist_ok=True)
 

@@ -307,7 +307,7 @@ class SubtitleSettings(BaseModel):
     # New unified parameters that replace the legacy positioning system
     anchor: str = Field(
         "bottom",
-        description="Anchor: top, center, bottom, above_content, below_content"
+        description="Anchor: top, center, bottom, above_content, below_content",
     )
     margin: float = Field(
         0.1, description="Margin as fraction of frame height (0.0-0.5)"
@@ -1238,7 +1238,7 @@ class VideoConfig(BaseModel):
         """
         expected_bases = {
             self.global_output_root_path / "videos",  # Static videos directory
-            self.global_output_root_path / "data",    # Static scraper data directory
+            self.global_output_root_path / "data",  # Static scraper data directory
             self.global_output_root_path / self.output_structure.global_dirs.logs,
             self.global_output_root_path / self.output_structure.global_dirs.temp,
             self.global_output_root_path / self.output_structure.global_dirs.cache,

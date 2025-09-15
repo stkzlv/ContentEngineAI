@@ -463,15 +463,11 @@ def scrape_amazon_products_browser_impl(
                                     )
                             else:
                                 if DEBUG_MODE:
-                                    print(
-                                        "⚠️ [DEBUG] No product cards after navigation"
-                                    )
+                                    print("⚠️ [DEBUG] No product cards after navigation")
                                 break
                         except Exception as e:
                             if DEBUG_MODE:
-                                print(
-                                    f"⚠️ [DEBUG] Navigation failed: {e}"
-                                )
+                                print(f"⚠️ [DEBUG] Navigation failed: {e}")
                             break  # Break if navigation fails
                 else:
                     if DEBUG_MODE:
@@ -494,9 +490,7 @@ def scrape_amazon_products_browser_impl(
         if count_products_with_media:
             expected_count = max_products
             actual_count = products_with_media_count
-            print(
-                f"🔍 [VERIFICATION] Expected {expected_count}, got {actual_count}"
-            )
+            print(f"🔍 [VERIFICATION] Expected {expected_count}, got {actual_count}")
 
             # Verify each product has media URLs
             for idx, product in enumerate(products):
@@ -506,9 +500,7 @@ def scrape_amazon_products_browser_impl(
                 img_count = len(img_urls)
                 vid_count = len(vid_urls)
 
-                print(
-                    f"🔍 Product {idx+1} ({asin}): {img_count}img, {vid_count}vid"
-                )
+                print(f"🔍 Product {idx+1} ({asin}): {img_count}img, {vid_count}vid")
 
                 if img_count == 0 and vid_count == 0:
                     print(f"❌ [VERIFICATION] ERROR: Product {asin} has no media URLs!")
@@ -516,17 +508,11 @@ def scrape_amazon_products_browser_impl(
                     print(f"✅ [VERIFICATION] Product {asin} has media URLs")
 
             if actual_count == expected_count:
-                print(
-                    f"✅ SUCCESS: Got exactly {expected_count} products with media!"
-                )
+                print(f"✅ SUCCESS: Got exactly {expected_count} products with media!")
             else:
-                print(
-                    f"⚠️ WARNING: Expected {expected_count} but got {actual_count}"
-                )
+                print(f"⚠️ WARNING: Expected {expected_count} but got {actual_count}")
         else:
-            print(
-                f"🔍 Traditional mode: {len(products)} products extracted"
-            )
+            print(f"🔍 Traditional mode: {len(products)} products extracted")
 
     return products
 
@@ -794,9 +780,7 @@ def extract_serp_product_info(card_element, keyword: str):
                                 url_preview_length = debug_config.get(
                                     "url_preview_length", 100
                                 )
-                                print(
-                                    f"⚠️ [DEBUG] Skip: {href[:url_preview_length]}"
-                                )
+                                print(f"⚠️ [DEBUG] Skip: {href[:url_preview_length]}")
                             link_element = None
             except Exception as e:
                 if DEBUG_MODE:

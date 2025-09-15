@@ -234,7 +234,6 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
 # ============================================================================
 
 
-
 async def create_unified_subtitles(
     audio_path: Path,
     output_srt_path: Path,
@@ -327,10 +326,10 @@ async def create_unified_subtitles(
 
     # Try Google Cloud STT as fallback
     if (
-        not stt_timings and
-        google_stt_settings and
-        google_stt_settings.enabled and
-        GOOGLE_CLOUD_STT_AVAILABLE
+        not stt_timings
+        and google_stt_settings
+        and google_stt_settings.enabled
+        and GOOGLE_CLOUD_STT_AVAILABLE
     ):
         creds_path = secrets.get("GOOGLE_APPLICATION_CREDENTIALS")
         if creds_path and Path(creds_path).is_file():

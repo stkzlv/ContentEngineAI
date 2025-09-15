@@ -243,9 +243,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                         issues = ", ".join(
                             validation_result.issues[:3]
                         )  # Show first 3 issues
-                        logger.warning(
-                            f"❌ [VALIDATION] Failed: {filename} - {issues}"
-                        )
+                        logger.warning(f"❌ [VALIDATION] Failed: {filename} - {issues}")
             else:
                 if DEBUG_MODE:
                     logger.warning(f"❌ [IMAGE DOWNLOAD] Failed to download {filename}")

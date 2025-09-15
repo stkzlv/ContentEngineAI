@@ -921,7 +921,9 @@ class VideoAssembler:
             # For content-aware positioning, regenerate ASS file with visual bounds
             if use_content_aware and geometries:
                 if self.debug_mode:
-                    logger.debug("Regenerating ASS file with visual bounds for content-aware positioning")
+                    logger.debug(
+                        "Regenerating ASS file with visual bounds for content-aware positioning"
+                    )
                     logger.debug(f"Visual geometries available: {len(geometries)}")
 
                 dynamic_ass_path = await self._create_dynamic_ass_file(
@@ -932,7 +934,9 @@ class VideoAssembler:
                     if self.debug_mode:
                         logger.debug(f"Using dynamic ASS file: {dynamic_ass_path}")
                 else:
-                    logger.warning("Failed to create dynamic ASS file, falling back to original")
+                    logger.warning(
+                        "Failed to create dynamic ASS file, falling back to original"
+                    )
                     ass_path = subtitle_path.as_posix().replace(":", r"\:")
             else:
                 # Use original ASS file positioning
@@ -1030,8 +1034,12 @@ class VideoAssembler:
 
                     # Debug visual bounds
                     if visual_bounds and self.debug_mode:
-                        logger.debug(f"Visual bounds for segment {drawtext_count}: x={visual_bounds.x:.3f}, y={visual_bounds.y:.3f}, w={visual_bounds.width:.3f}, h={visual_bounds.height:.3f}")
-                        logger.debug(f"Geometry pixels: x={geom.rendered_x}, y={geom.rendered_y}, w={geom.rendered_w}, h={geom.rendered_h}")
+                        logger.debug(
+                            f"Visual bounds for segment {drawtext_count}: x={visual_bounds.x:.3f}, y={visual_bounds.y:.3f}, w={visual_bounds.width:.3f}, h={visual_bounds.height:.3f}"
+                        )
+                        logger.debug(
+                            f"Geometry pixels: x={geom.rendered_x}, y={geom.rendered_y}, w={geom.rendered_w}, h={geom.rendered_h}"
+                        )
 
                     # Calculate position using unified system
                     position = calculate_position(
@@ -1042,9 +1050,15 @@ class VideoAssembler:
 
                     # Debug positioning
                     if self.debug_mode:
-                        pixel_x = int(position.x * self.config.video_settings.resolution[0])
-                        pixel_y = int(position.y * self.config.video_settings.resolution[1])
-                        logger.debug(f"Calculated position for segment {drawtext_count}: ({position.x:.3f}, {position.y:.3f}) = ({pixel_x}, {pixel_y}) pixels")
+                        pixel_x = int(
+                            position.x * self.config.video_settings.resolution[0]
+                        )
+                        pixel_y = int(
+                            position.y * self.config.video_settings.resolution[1]
+                        )
+                        logger.debug(
+                            f"Calculated position for segment {drawtext_count}: ({position.x:.3f}, {position.y:.3f}) = ({pixel_x}, {pixel_y}) pixels"
+                        )
 
                     # Convert to FFmpeg expressions
                     x_pos_expr = f"w*{position.x} - text_w/2"
