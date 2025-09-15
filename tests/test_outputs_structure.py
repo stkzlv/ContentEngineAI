@@ -166,11 +166,7 @@ def test_structure_consistency_between_modules():
     assert cache_dir.exists()
 
 
-@pytest.mark.parametrize("product_id", [
-    "B0TEST123",
-    "B08EXAMPLE",
-    "ASINTEST01"
-])
+@pytest.mark.parametrize("product_id", ["B0TEST123", "B08EXAMPLE", "ASINTEST01"])
 def test_product_id_validation(product_id):
     """Test product ID validation with various formats."""
     from src.utils.outputs_paths import _is_valid_product_id
@@ -178,12 +174,15 @@ def test_product_id_validation(product_id):
     assert _is_valid_product_id(product_id) is True
 
 
-@pytest.mark.parametrize("invalid_id", [
-    "short",
-    "way_too_long_to_be_valid",
-    "invalid-chars!",
-    "",
-])
+@pytest.mark.parametrize(
+    "invalid_id",
+    [
+        "short",
+        "way_too_long_to_be_valid",
+        "invalid-chars!",
+        "",
+    ],
+)
 def test_invalid_product_id_validation(invalid_id):
     """Test product ID validation with invalid formats."""
     from src.utils.outputs_paths import _is_valid_product_id

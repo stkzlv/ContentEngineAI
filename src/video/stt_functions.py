@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 WHISPER_AVAILABLE = False
 try:
     import whisper
+
     WHISPER_AVAILABLE = True
     logger.debug("Whisper library loaded successfully.")
 except ImportError:
@@ -45,6 +46,7 @@ try:
         GoogleAPIError,
     )
     from google.auth.exceptions import DefaultCredentialsError
+
     GOOGLE_CLOUD_STT_AVAILABLE = True
     logger.debug("Google Cloud STT library loaded successfully.")
 except ImportError:
@@ -207,33 +209,38 @@ async def transcribe_with_google_cloud_stt(
     try:
         # Initialize client using the correct v1p1beta1 API
         import google.cloud.speech_v1p1beta1 as speech_v1
-        client = speech_v1.SpeechAsyncClient.from_service_account_file(filename=creds_path)
-        
+
+        client = speech_v1.SpeechAsyncClient.from_service_account_file(
+            filename=creds_path
+        )
+
         # Configure audio encoding
         encoding_name = settings.encoding.upper()
         if not hasattr(speech_v1.RecognitionConfig.AudioEncoding, encoding_name):
             logger.error(f"Invalid Google STT encoding '{encoding_name}'.")
             return None
-        
-        audio_encoding_enum = getattr(speech_v1.RecognitionConfig.AudioEncoding, encoding_name)
-        
+
+        audio_encoding_enum = getattr(
+            speech_v1.RecognitionConfig.AudioEncoding, encoding_name
+        )
+
         # Prepare speech contexts for adaptation
         speech_contexts = []
         if script and settings.use_speech_adaptation_if_script_provided:
             # Split script into phrases for better recognition
             words = script.split()
-            phrases = [" ".join(words[i:i+5]) for i in range(0, len(words), 5)]
+            phrases = [" ".join(words[i : i + 5]) for i in range(0, len(words), 5)]
             speech_contexts = [
                 speech_v1.SpeechContext(
                     phrases=phrases[:50],  # Limit to 50 phrases
-                    boost=settings.adaptation_boost_value
+                    boost=settings.adaptation_boost_value,
                 )
             ]
-        
+
         # Read audio file
         with open(audio_path, "rb") as audio_file:
             audio_content = audio_file.read()
-        
+
         # Configure recognition
         audio = speech_v1.RecognitionAudio(content=audio_content)
         config = speech_v1.RecognitionConfig(
@@ -245,14 +252,14 @@ async def transcribe_with_google_cloud_stt(
             use_enhanced=settings.use_enhanced,
             speech_contexts=speech_contexts,
         )
-        
+
         # Perform transcription
         logger.info("Starting Google Cloud STT transcription with word timing...")
         operation = await client.long_running_recognize(config=config, audio=audio)
-        
+
         # Wait for the operation to complete
         result = await operation.result(timeout=settings.api_timeout_sec)
-        
+
         # Extract word timings
         word_timings = []
         for result_item in result.results:
@@ -262,19 +269,22 @@ async def transcribe_with_google_cloud_stt(
                         "word": word_info.word,
                         "start": word_info.start_time.total_seconds(),
                         "end": word_info.end_time.total_seconds(),
-                        "confidence": alternative.confidence or 0.9
+                        "confidence": alternative.confidence or 0.9,
                     }
                     word_timings.append(word_timing)
-        
-        logger.info(f"Google Cloud STT completed: {len(word_timings)} words with timing")
+
+        logger.info(
+            f"Google Cloud STT completed: {len(word_timings)} words with timing"
+        )
         return word_timings
-        
+
     except Exception as e:
         logger.error(f"Google Cloud STT error: {e}", exc_info=debug_mode)
         return None
 
 
 # Helper functions (these would be extracted from the legacy code)
+
 
 def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
     """Load Whisper model with configured settings."""
@@ -286,7 +296,8 @@ def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
             whisper_settings.model_size,
             device=whisper_settings.model_device,
             in_memory=whisper_settings.model_in_memory,
-            download_root=whisper_settings.model_download_root or DEFAULT_WHISPER_MODEL_DIR,
+            download_root=whisper_settings.model_download_root
+            or DEFAULT_WHISPER_MODEL_DIR,
         )
         logger.info(f"Whisper model loaded: {whisper_settings.model_size}")
         return model
@@ -295,7 +306,9 @@ def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
         return None
 
 
-def _prepare_transcription_options(whisper_settings: WhisperSettings, script: str | None) -> dict:
+def _prepare_transcription_options(
+    whisper_settings: WhisperSettings, script: str | None
+) -> dict:
     """Prepare Whisper transcription options."""
     options = {
         "language": whisper_settings.language,
@@ -350,11 +363,12 @@ def _get_audio_duration(audio_path: Path) -> float:
         return 60.0
 
 
-def _calculate_timeout(audio_duration: float, whisper_settings: WhisperSettings) -> float:
+def _calculate_timeout(
+    audio_duration: float, whisper_settings: WhisperSettings
+) -> float:
     """Calculate transcription timeout based on audio duration and settings."""
-    timeout = (
-        whisper_settings.base_timeout_sec +
-        (audio_duration * whisper_settings.duration_multiplier)
+    timeout = whisper_settings.base_timeout_sec + (
+        audio_duration * whisper_settings.duration_multiplier
     )
     return min(timeout, whisper_settings.max_timeout_sec)
 
@@ -381,11 +395,13 @@ def _extract_word_timings(whisper_result: dict) -> list[dict[str, Any]]:
         if "words" in segment:
             for word_data in segment["words"]:
                 if all(key in word_data for key in ["word", "start", "end"]):
-                    word_timings.append({
-                        "word": word_data["word"].strip(),
-                        "start_time": float(word_data["start"]),
-                        "end_time": float(word_data["end"]),
-                    })
+                    word_timings.append(
+                        {
+                            "word": word_data["word"].strip(),
+                            "start_time": float(word_data["start"]),
+                            "end_time": float(word_data["end"]),
+                        }
+                    )
 
     return word_timings
 
@@ -393,11 +409,16 @@ def _extract_word_timings(whisper_result: dict) -> list[dict[str, Any]]:
 def _cleanup_whisper_resources():
     """Clean up Whisper resources to free memory."""
     import gc
+
     gc.collect()
 
 
 def _save_whisper_debug_files(
-    debug_dir: Path, audio_path: Path, result: dict, word_timings: list, script: str | None
+    debug_dir: Path,
+    audio_path: Path,
+    result: dict,
+    word_timings: list,
+    script: str | None,
 ):
     """Save Whisper debug files for analysis."""
     try:

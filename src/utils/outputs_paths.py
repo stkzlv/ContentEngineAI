@@ -380,6 +380,7 @@ def cleanup_invalid_outputs(
                         item_path.unlink()
                     elif item_path.is_dir():
                         import shutil
+
                         shutil.rmtree(item_path)
                     cleanup_results["removed_items"].append(item_name)
                 except Exception as e:

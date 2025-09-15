@@ -196,7 +196,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                     print(f"🔧 [DEBUG] browser_func: {browser_func}")
                     print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
                 results = browser_func(data)
-                print(f"🔧 [DEBUG] browser_func returned {len(results) if results else 0} products")
+                print(
+                    f"🔧 [DEBUG] browser_func returned {len(results) if results else 0} products"
+                )
             except Exception as e:
                 if DEBUG_MODE:
                     print(f"❌ [DEBUG] Error in browser function: {e}")
@@ -965,6 +967,7 @@ def main():
     if args.debug:
         print("🐛 Debug mode enabled")
         from ...utils.outputs_paths import get_temp_directory
+
         temp_dir = get_temp_directory()
         print(f"📂 Debug files will be saved to: {temp_dir}")
 

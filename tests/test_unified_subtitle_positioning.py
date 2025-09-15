@@ -1,6 +1,5 @@
 """Tests for unified subtitle positioning system."""
 
-
 from src.video.subtitle_positioning import (
     Position,
     PositionAnchor,
