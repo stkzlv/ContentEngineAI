@@ -473,6 +473,83 @@ poetry run pytest tests/test_assembler.py -v
 
 **📖 Complete testing documentation**: [TESTING.md](TESTING.md)
 
+## Usage Examples
+
+### Single Product Processing
+
+```bash
+# Process single product from data file
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images
+
+# Process specific product from list
+poetry run python -m src.video.producer products.json slideshow_images --product-index 0
+
+# Custom profile
+poetry run python -m src.video.producer data.json my_custom_profile
+```
+
+### Batch Processing
+
+ContentEngineAI supports **automatic batch processing** of all products in the outputs directory:
+
+```bash
+# Process all products with slideshow_images profile
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images --debug
+
+# Batch processing with fail-fast (stop on first error)
+poetry run python -m src.video.producer --batch --batch-profile dynamic_mix --fail-fast --debug
+
+# Process products from custom directory
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images --outputs-dir /path/to/outputs --debug
+
+# Batch processing with clean runs
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images --clean --debug
+```
+
+**Batch Processing Features:**
+- ✅ **Auto-Discovery**: Automatically finds all products with `data.json` files
+- ✅ **Progress Tracking**: Shows "[1/3] Processing product: B08TEST123"
+- ✅ **Error Resilience**: Continues processing other products if one fails
+- ✅ **Fail-Fast Option**: `--fail-fast` stops on first error for debugging
+- ✅ **Comprehensive Reporting**: Final summary with success/failure/skip counts
+
+### Advanced Scraper Usage
+
+```bash
+# Budget headphones under $50 with 4+ star ratings
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "headphones" --max-price 50 --min-rating 4
+
+# Premium smartphones from specific brands
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "smartphone" --brands Apple Samsung \
+  --min-price 200 --sort price-desc-rank
+
+# Prime-eligible electronics sorted by best reviews
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "electronics" --prime-only --sort review-rank
+```
+
+## Performance Metrics
+
+### Pipeline Performance
+
+| Metric | Value |
+|--------|-------|
+| **Pipeline Architecture** | Parallel execution with intelligent dependency management |
+| **Test Coverage** | 280+ test cases across comprehensive test suite |
+| **Configuration Options** | 100+ customizable parameters |
+| **Supported Providers** | 10+ AI/media service integrations |
+| **Processing Time** | Typically 5-8 minutes per video (varies by complexity) |
+| **Parallel Speedup** | 1.35x faster execution (26% reduction) |
+
+### Project Statistics
+
+- **🧪 Testing**: 280 test cases across 20 files
+- **📦 Dependencies**: 50+ Python packages managed with Poetry
+- **🔍 Code Quality**: Ruff, MyPy, Bandit, Vulture, Safety
+- **🏗️ Architecture**: Modular, async-first, provider-abstracted design
+
 ## Debugging and Development Tools
 
 ### Debug Mode

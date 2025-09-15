@@ -218,7 +218,30 @@ dependencies = {
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
 - **ASS/SRT Generation**: Professional subtitle formats with positioning effects
 
-### 6. Multi-Platform Web Scraping Architecture
+### 6. Amazon Scraping Features
+
+### Search Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `--min-price` | Minimum price filter | `--min-price 10.99` |
+| `--max-price` | Maximum price filter | `--max-price 99.99` |
+| `--min-rating` | Minimum rating (1-5 stars) | `--min-rating 4` |
+| `--prime-only` | Prime eligible items only | `--prime-only` |
+| `--free-shipping` | Free shipping items only | `--free-shipping` |
+| `--brands` | Filter by brand names | `--brands Apple Samsung Sony` |
+| `--sort` | Sort order | `--sort price-asc-rank` |
+
+### Sort Options
+
+- `relevanceblender` (default) - Amazon's relevance algorithm
+- `price-asc-rank` - Price low to high
+- `price-desc-rank` - Price high to low
+- `review-rank` - Best reviews first
+- `date-desc-rank` - Newest first
+- `featured-rank` - Featured items first
+
+### 7. Multi-Platform Web Scraping Architecture
 
 #### **Platform Registry System (`src/scraper/__init__.py`)**
 
@@ -462,5 +485,23 @@ class BaseProvider(ABC):
 2. Add to dependency graph in `pipeline_graph.py`
 3. Update configuration and validation
 4. Add performance monitoring and error handling
+
+## Key Technologies
+
+- **🐍 Python 3.12**: Modern async/await patterns
+- **🎥 FFmpeg**: Professional video processing
+- **🤖 AI Services**: OpenRouter, Google Cloud, OpenAI Whisper
+- **🌐 Web Scraping**: Playwright with stealth techniques
+- **📱 Media APIs**: Pexels (images/videos), Freesound (audio)
+- **⚙️ Configuration**: YAML + Pydantic validation
+- **🧪 Testing**: Pytest with async support
+
+## Acknowledgments
+
+- **OpenAI Whisper** for speech-to-text capabilities
+- **Google Cloud** for TTS and STT services
+- **Pexels** for stock media content
+- **Freesound** for background music
+- **FFmpeg** for video processing excellence
 
 This architecture enables ContentEngineAI to be highly extensible while maintaining performance, reliability, and maintainability across all components.
