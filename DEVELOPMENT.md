@@ -61,7 +61,7 @@ make safety        # Dependency vulnerability checking
 - Rules: Comprehensive linting with security checks
 
 **MyPy Configuration:**
-- Relaxed settings for easier development
+- Pragmatic settings for development efficiency
 - Allows functions without type hints
 - Ignores third-party library issues
 

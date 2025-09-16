@@ -88,7 +88,7 @@ class GlobalConnectionPool:
                 await asyncio.sleep(self.cleanup_interval_sec)
                 if self._session and not self._session.closed:  # type: ignore[attr-defined]
                     # Properly cleanup idle connections without closing the connector
-                    if hasattr(self._session.connector, "cleanup"):
+                    if hasattr(self._session.connector, "cleanup"):  # type: ignore[attr-defined]
                         await self._session.connector.cleanup()  # type: ignore[attr-defined]
                     logger.debug("Cleaned up idle HTTP connections")
             except Exception as e:

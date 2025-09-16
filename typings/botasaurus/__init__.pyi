@@ -15,18 +15,13 @@ class Task:
     def __init__(self, data: Any = None): ...
 
 def browser(
-    *,
-    run_task: Callable | None = None,
-    data: Any | None = None,
-    **kwargs: Any
+    *, run_task: Callable | None = None, data: Any | None = None, **kwargs: Any
 ) -> Any: ...
-
 def request(
     url: str,
     *,
     method: str = "GET",
     headers: dict[str, str] | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> Any: ...
-
 def LocalStorage(driver: Driver) -> Any: ...

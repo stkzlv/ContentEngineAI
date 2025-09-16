@@ -44,7 +44,8 @@ class PlatformConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
         with open(config_file, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            result = yaml.safe_load(f)
+            return result if isinstance(result, dict) else {}
 
     def _validate_config(self) -> None:
         """Validate the loaded configuration structure."""
@@ -64,7 +65,8 @@ class PlatformConfigManager:
 
     def get_global_settings(self) -> dict[str, Any]:
         """Get global configuration settings."""
-        return self._config.get("global_settings", {})
+        result = self._config.get("global_settings", {})
+        return result if isinstance(result, dict) else {}
 
     def get_platform_config(self, platform: Platform) -> dict[str, Any]:
         """Get configuration for a specific platform.
@@ -88,7 +90,7 @@ class PlatformConfigManager:
         if platform_config is None:
             raise ValueError(f"No configuration found for platform: {platform.value}")
 
-        return platform_config
+        return platform_config if isinstance(platform_config, dict) else {}
 
     def is_platform_enabled(self, platform: Platform) -> bool:
         """Check if a platform is enabled in the configuration.
@@ -104,7 +106,7 @@ class PlatformConfigManager:
         """
         try:
             platform_config = self.get_platform_config(platform)
-            return platform_config.get("enabled", False)
+            return bool(platform_config.get("enabled", False))
         except ValueError:
             return False
 
@@ -157,26 +159,26 @@ class PlatformConfigManager:
         if path_type == "platform":
             # Platform root: use temporary directory since legacy paths are deprecated
             platform_dir = subdirs.get("platform_dir", f"temp/{platform.value}")
-            return base_dir / platform_dir
+            return base_dir / str(platform_dir)
 
         elif path_type == "products":
             # Products directory: fallback to temp since new structure uses Botasaurus
             platform_path = self.get_output_path("platform", platform, **kwargs)
             products_dir = subdirs.get("products", "products")
-            return platform_path / products_dir
+            return platform_path / str(products_dir)
 
         elif path_type == "media":
             # Media directory: fallback to temp since new structure uses
             # product-centric layout
             platform_path = self.get_output_path("platform", platform, **kwargs)
             media_dir = subdirs.get("media", "media")
-            return platform_path / media_dir
+            return platform_path / str(media_dir)
 
         elif path_type == "debug":
             # Debug directory: fallback to temp
             platform_path = self.get_output_path("platform", platform, **kwargs)
             debug_dir = subdirs.get("debug", "debug")
-            return platform_path / debug_dir
+            return platform_path / str(debug_dir)
 
         else:
             raise ValueError(f"Unknown path type: {path_type}")
@@ -207,17 +209,19 @@ class PlatformConfigManager:
         else:
             raise ValueError(f"Unknown file type: {file_type}")
 
-        return pattern.format(**kwargs)
+        return str(pattern).format(**kwargs)
 
     def get_retry_config(self) -> dict[str, Any]:
         """Get retry configuration settings."""
         global_settings = self.get_global_settings()
-        return global_settings.get("retry_config", {})
+        result = global_settings.get("retry_config", {})
+        return result if isinstance(result, dict) else {}
 
     def get_rate_limiting_config(self) -> dict[str, Any]:
         """Get rate limiting configuration settings."""
         global_settings = self.get_global_settings()
-        return global_settings.get("rate_limiting", {})
+        result = global_settings.get("rate_limiting", {})
+        return result if isinstance(result, dict) else {}
 
     def get_platform_base_url(self, platform: Platform) -> str:
         """Get base URL for a platform.
@@ -232,7 +236,8 @@ class PlatformConfigManager:
 
         """
         platform_config = self.get_platform_config(platform)
-        return platform_config.get("base_url", "")
+        result = platform_config.get("base_url", "")
+        return str(result)
 
     def get_platform_max_products(self, platform: Platform) -> int:
         """Get maximum products setting for a platform.
@@ -247,7 +252,8 @@ class PlatformConfigManager:
 
         """
         platform_config = self.get_platform_config(platform)
-        return platform_config.get("max_products", 5)
+        result = platform_config.get("max_products", 5)
+        return int(result) if isinstance(result, int | float) else 5
 
     def get_platform_keywords(self, platform: Platform) -> list[str]:
         """Get default keywords for a platform.
@@ -262,7 +268,8 @@ class PlatformConfigManager:
 
         """
         platform_config = self.get_platform_config(platform)
-        return platform_config.get("keywords", [])
+        result = platform_config.get("keywords", [])
+        return result if isinstance(result, list) else []
 
     def get_platform_search_defaults(self, platform: Platform) -> dict[str, Any]:
         """Get default search parameters for a platform.
@@ -277,7 +284,8 @@ class PlatformConfigManager:
 
         """
         platform_config = self.get_platform_config(platform)
-        return platform_config.get("default_search_parameters", {})
+        result = platform_config.get("default_search_parameters", {})
+        return result if isinstance(result, dict) else {}
 
 
 # Global configuration manager instance

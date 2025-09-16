@@ -122,7 +122,8 @@ def verify_image_file(
                 # Check dimensions
                 if max(width, height) < min_dimension:
                     issues.append(
-                        f"Image dimensions {width}x{height} do not meet minimum requirement "
+                        f"Image dimensions {width}x{height} do not meet minimum "
+                        f"requirement "
                         f"of {min_dimension}px in largest dimension"
                     )
 
@@ -280,7 +281,8 @@ def verify_video_file(
 
                 if max(width, height) < min_dimension:
                     issues.append(
-                        f"Video dimensions {width}x{height} do not meet minimum requirement "
+                        f"Video dimensions {width}x{height} do not meet minimum "
+                        f"requirement "
                         f"of {min_dimension}px in largest dimension"
                     )
             else:
@@ -304,7 +306,8 @@ def verify_video_file(
 
                 if duration < min_duration:
                     issues.append(
-                        f"Video duration {duration:.2f}s is below minimum {min_duration}s"
+                        f"Video duration {duration:.2f}s is below minimum "
+                        f"{min_duration}s"
                     )
             else:
                 issues.append("Could not determine video duration")
@@ -488,7 +491,7 @@ def generate_validation_report(
     for issue in all_issues:
         issue_counts[issue] = issue_counts.get(issue, 0) + 1
 
-    report = {
+    report: dict[str, Any] = {
         "summary": {
             "total_files": total_files,
             "valid_files": valid_files,

@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Check for library availability
 WHISPER_AVAILABLE = False
 try:
-    import whisper
+    import whisper  # type: ignore[import-untyped]
 
     WHISPER_AVAILABLE = True
     logger.debug("Whisper library loaded successfully.")
@@ -163,7 +163,7 @@ async def generate_subtitles_with_whisper(
         create_whisper_debug = debug_mode
         if debug_mode:
             try:
-                from .video_config import CONFIG
+                from .video_config import CONFIG  # type: ignore[attr-defined]
 
                 create_whisper_debug = (
                     CONFIG.get("video_producer", {})
@@ -386,7 +386,7 @@ async def _transcribe_with_monitoring(
 
 def _extract_word_timings(whisper_result: dict) -> list[dict[str, Any]]:
     """Extract word-level timings from Whisper result."""
-    word_timings = []
+    word_timings: list[dict[str, Any]] = []
 
     if not whisper_result or "segments" not in whisper_result:
         return word_timings

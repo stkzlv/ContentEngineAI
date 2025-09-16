@@ -9,7 +9,7 @@ import logging
 import re
 from pathlib import Path
 
-from botasaurus.browser import Driver
+from botasaurus.browser import Driver  # type: ignore[import-untyped]
 
 from .config import CONFIG
 
@@ -148,7 +148,14 @@ def extract_high_res_images_botasaurus(
                         if (colorImagesMatch) {
                             try {
                                 // Extract image data from colorImages
-                                const urlPattern = new RegExp(\n                                    'https?://[^\"\\\\s]*(?:media-amazon|images-amazon)' +\n                                    '[^\"\\\\s]*\\\\._[A-Z]*S[LX](1[5-9][0-9][0-9]|[2-9][0-9][0-9][0-9])' +\n                                    '[^\"\\\\s]*\\\\.(jpg|jpeg|png|webp)',\n                                    'gi'\n                                );
+                                const urlPattern = new RegExp(
+                                    'https?://[^\"\\\\s]*(?:media-amazon|' +
+                                    'images-amazon)' +
+                                    '[^\"\\\\s]*\\\\._[A-Z]*S[LX]' +
+                                    '(1[5-9][0-9][0-9]|[2-9][0-9][0-9][0-9])' +
+                                    '[^\"\\\\s]*\\\\.(jpg|jpeg|png|webp)',
+                                    'gi'
+                                );
                                 const matches = content.match(urlPattern);
                                 if (matches) {
                                     matches.forEach(url => highResUrls.add(url));
@@ -520,7 +527,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                         }}
 
                         // Extract JSON video properties
-                        const jsonVideoPattern = /"(?:videoUrl|video_url|src)"\\s*:\\s*"([^"]*\\.mp4[^"]*)"/gi;
+                        const jsonVideoPattern =
+                            /"(?:videoUrl|video_url|src)"\\s*:\\s*"([^"]*\\.mp4[^"]*)"/gi;
                         let jsonMatch;
                         while ((jsonMatch = jsonVideoPattern.exec(content)) !== null) {{
                             const url = jsonMatch[1];
@@ -535,47 +543,65 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                 document.querySelectorAll('a[href*="/vdp/"]').forEach(link => {{
                     const href = link.href;
                     const linkText = link.textContent + link.innerHTML;
-                    const linkContainer = link.closest('[data-asin], .video-container, .vse-video') || link.parentElement;
-                    const containerText = linkContainer ? linkContainer.textContent : '';
+                    const linkContainer = link.closest(
+                        '[data-asin], .video-container, .vse-video'
+                    ) || link.parentElement;
+                    const containerText = linkContainer ?
+                        linkContainer.textContent : '';
 
                     // Check if this VDP link is related to our product
                     const isCurrentProduct = href.includes(currentAsin) ||
                                            isProductRelated(linkText) ||
                                            isProductRelated(containerText) ||
-                                           link.closest('[data-asin="' + currentAsin + '"]');
+                                           link.closest(
+                                               '[data-asin="' + currentAsin + '"]'
+                                           );
 
                     if (isCurrentProduct) {{
                         vdpLinks.add(href);
                     }}
                 }});
 
-                // 3. Extract video sources from loaded video elements and their network requests
+                // 3. Extract video sources from loaded video elements and
+                //    their network requests
                 document.querySelectorAll('video').forEach(video => {{
                     const isInProductArea = video.closest('#imageBlock') ||
                                           video.closest('#altImages') ||
-                                          video.closest('[data-asin="' + currentAsin + '"]') ||
+                                          video.closest(
+                                              '[data-asin="' + currentAsin + '"]'
+                                          ) ||
                                           video.closest('.video-container') ||
                                           video.closest('.video-player');
 
                     if (isInProductArea) {{
                         // Extract direct video sources
-                        if (video.src && video.src.includes('media-amazon.com') && video.src.includes('.mp4')) {{
+                        if (video.src &&
+                            video.src.includes('media-amazon.com') &&
+                            video.src.includes('.mp4')) {{
                             videoUrls.add(video.src);
                         }}
 
                         // Extract from source elements
                         video.querySelectorAll('source').forEach(source => {{
-                            if (source.src && source.src.includes('media-amazon.com') && source.src.includes('.mp4')) {{
+                            if (source.src &&
+                                source.src.includes('media-amazon.com') &&
+                                source.src.includes('.mp4')) {{
                                 videoUrls.add(source.src);
                             }}
                         }});
 
-                        // For blob URLs, look for data attributes that might contain the original URL
+                        // For blob URLs, look for data attributes that might contain
+                        // original URL
                         if (video.src && video.src.startsWith('blob:')) {{
-                            const dataAttrs = ['data-video-url', 'data-src', 'data-original-src', 'data-video-source'];
+                            const dataAttrs = [
+                                'data-video-url', 'data-src',
+                                'data-original-src', 'data-video-source'
+                            ];
                             dataAttrs.forEach(attr => {{
                                 const attrValue = video.getAttribute(attr);
-                                if (attrValue && attrValue.includes('media-amazon.com') && attrValue.includes('.mp4')) {{
+                                if (attrValue &&
+                                    attrValue.includes('media-amazon.com') &&
+                                    attrValue.includes('.mp4')) {{
                                     videoUrls.add(attrValue);
                                 }}
                             }});
@@ -585,7 +611,9 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                             while (parent && parent !== document.body) {{
                                 dataAttrs.forEach(attr => {{
                                     const attrValue = parent.getAttribute(attr);
-                                    if (attrValue && attrValue.includes('media-amazon.com') && attrValue.includes('.mp4')) {{
+                                    if (attrValue &&
+                                        attrValue.includes('media-amazon.com') &&
+                                        attrValue.includes('.mp4')) {{
                                         videoUrls.add(attrValue);
                                     }}
                                 }});
@@ -611,7 +639,9 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                     document.querySelectorAll(selector).forEach(thumb => {{
                         const isInProductArea = thumb.closest('#imageBlock') ||
                                                thumb.closest('#altImages') ||
-                                               thumb.closest('[data-asin="' + currentAsin + '"]');
+                                               thumb.closest(
+                                                   '[data-asin="' + currentAsin + '"]'
+                                               );
                         if (isInProductArea) {{
                             videoThumbnails.push({{
                                 element: selector,
@@ -638,7 +668,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                 if DEBUG_MODE:
                     logger.info(
                         f"📊 Method 1 found: {len(direct_videos)} direct videos, "
-                        f"{len(vdp_links)} VDP links, {len(video_thumbnails)} thumbnails"
+                        f"{len(vdp_links)} VDP links, "
+                        f"{len(video_thumbnails)} thumbnails"
                     )
 
                 # Add direct video URLs
@@ -693,7 +724,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                     try:
                         if DEBUG_MODE:
                             logger.info(
-                                f"🖱️ Clicking video thumbnail {i+1}/{len(video_thumbnails)}"
+                                f"🖱️ Clicking video thumbnail "
+                                f"{i+1}/{len(video_thumbnails)}"
                             )
 
                         # Get mute setting from config
@@ -720,7 +752,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                 window.open = function() { return window; };
 
                                 // Override target="_blank" behavior
-                                document.querySelectorAll('a[target="_blank"]').forEach(link => {
+                                document.querySelectorAll('a[target="_blank"]')
+                                    .forEach(link => {
                                     link.removeAttribute('target');
                                 });
                             """)
@@ -729,7 +762,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                         thumb.click()
                         driver.short_random_sleep()  # Wait for video player to load
 
-                        # Check if we're now on a video page and capture HTML for analysis
+                        # Check if we're now on a video page and capture HTML for
+                        # analysis
                         current_url = driver.current_url
                         if "/vdp/" in current_url or "video" in current_url.lower():
                             if DEBUG_MODE:
@@ -748,9 +782,13 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                 function isProductRelated(text) {{
                                     const lowerText = text.toLowerCase();
                                     return lowerText.includes(currentAsin) ||
-                                           (productBrand && lowerText.includes(productBrand)) ||
-                                           (productModel && lowerText.includes(productModel)) ||
-                                           productKeywords.some(keyword => lowerText.includes(keyword));
+                                           (productBrand &&
+                                            lowerText.includes(productBrand)) ||
+                                           (productModel &&
+                                            lowerText.includes(productModel)) ||
+                                           productKeywords.some(
+                                               keyword => lowerText.includes(keyword)
+                                           );
                                 }}
 
                                 const analysis = {{
@@ -760,20 +798,36 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                     related_videos: []
                                 }};
 
-                                // Find "Videos for this product" section
-                                const productVideosSection = document.querySelector('h3') ?
-                                    Array.from(document.querySelectorAll('h3')).find(h =>
-                                        h.textContent.includes('Videos for this product')
+                                // Find "Videos for this product"
+                                // section
+                                const productVideosSection =
+                                    document.querySelector('h3') ?
+                                    Array.from(
+                                        document.querySelectorAll('h3')
+                                    ).find(h =>
+                                        h.textContent.includes(
+                                            'Videos for this product'
+                                        )
                                     ) : null;
 
                                 if (productVideosSection) {{
-                                    const videoContainer = productVideosSection.closest('div').nextElementSibling ||
-                                                         productVideosSection.parentElement.querySelector('[data-video], video, iframe');
+                                    const videoContainer =
+                                        productVideosSection.closest('div')
+                                            .nextElementSibling ||
+                                        productVideosSection.parentElement.querySelector(
+                                            '[data-video], video, iframe'
+                                        );
                                     if (videoContainer) {{
                                         // Look for video sources in this section
-                                        videoContainer.querySelectorAll('video, source, [data-video-url]').forEach(elem => {{
-                                            const src = elem.src || elem.getAttribute('data-video-url') || elem.getAttribute('data-video');
-                                            if (src && src.includes('media-amazon.com') && src.includes('.mp4')) {{
+                                        videoContainer.querySelectorAll(
+                                            'video, source, [data-video-url]'
+                                        ).forEach(elem => {{
+                                            const src = elem.src ||
+                                                elem.getAttribute('data-video-url') ||
+                                                elem.getAttribute('data-video');
+                                            if (src &&
+                                                src.includes('media-amazon.com') &&
+                                                src.includes('.mp4')) {{
                                                 analysis.videos_for_product.push(src);
                                             }}
                                         }});
@@ -781,36 +835,60 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                 }}
 
                                 // Find "Customer review videos" section
-                                const customerVideosSection = document.querySelector('h3') ?
-                                    Array.from(document.querySelectorAll('h3')).find(h =>
+                                const customerVideosSection =
+                                    document.querySelector('h3') ?
+                                    Array.from(
+                                        document.querySelectorAll('h3')
+                                    ).find(h =>
                                         h.textContent.includes('Customer review videos')
                                     ) : null;
 
                                 if (customerVideosSection) {{
-                                    const reviewContainer = customerVideosSection.closest('div').nextElementSibling ||
-                                                          customerVideosSection.parentElement;
+                                    const reviewContainer =
+                                        customerVideosSection.closest('div')
+                                            .nextElementSibling ||
+                                        customerVideosSection.parentElement;
                                     if (reviewContainer) {{
-                                        reviewContainer.querySelectorAll('video, source, [data-video-url]').forEach(elem => {{
-                                            const src = elem.src || elem.getAttribute('data-video-url') || elem.getAttribute('data-video');
-                                            if (src && src.includes('media-amazon.com') && src.includes('.mp4')) {{
+                                        reviewContainer
+                                            .querySelectorAll(
+                                                'video, source, [data-video-url]'
+                                            )
+                                            .forEach(elem => {{
+                                            const src = elem.src ||
+                                                elem.getAttribute('data-video-url') ||
+                                                elem.getAttribute('data-video');
+                                            if (src &&
+                                                src.includes('media-amazon.com') &&
+                                                src.includes('.mp4')) {{
                                                 analysis.customer_review_videos.push(src);
                                             }}
                                         }});
                                     }}
                                 }}
 
-                                // Also check for any video elements that contain product-related content
-                                document.querySelectorAll('video, source').forEach(elem => {{
+                                // Also check for any video elements that contain
+                                // product-related content
+                                document
+                                    .querySelectorAll('video, source')
+                                    .forEach(elem => {{
                                     const src = elem.src;
-                                    if (src && src.includes('media-amazon.com') && src.includes('.mp4')) {{
+                                    if (src && src.includes('media-amazon.com') &&
+                                        src.includes('.mp4')) {{
                                         const nearbyText = elem.closest('div') ?
                                             elem.closest('div').textContent : '';
                                         const pageTitle = document.title;
-                                        const titleElement = document.querySelector('h1, .product-title') ||
-                                                           document.querySelector('[data-feature-name="productTitle"] h1');
-                                        const pageText = titleElement ? titleElement.textContent : pageTitle;
+                                        const titleElement =
+                                            document.querySelector(
+                                                'h1, .product-title'
+                                            ) ||
+                                            document.querySelector(
+                                                '[data-feature-name="productTitle"] h1'
+                                            );
+                                        const pageText = titleElement ?
+                                            titleElement.textContent : pageTitle;
 
-                                        // Check if this video is associated with our product using various indicators
+                                        // Check if this video is associated
+                                        // with our product
                                         if (isProductRelated(nearbyText) ||
                                             isProductRelated(pageTitle) ||
                                             isProductRelated(pageText) ||
@@ -839,7 +917,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                         f"   • Product videos: {len(product_videos)}"
                                     )
                                     logger.info(
-                                        f"   • Customer review videos: {len(customer_videos)}"
+                                        f"   • Customer review videos: "
+                                        f"{len(customer_videos)}"
                                     )
 
                                 # Add product-specific videos
@@ -852,12 +931,14 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                         video_urls.append(video_url)
                                         if DEBUG_MODE:
                                             logger.info(
-                                                f"✅ Found product video from page: {video_url[:80]}..."
+                                                f"✅ Found product video from page: "
+                                                f"{video_url[:80]}..."
                                             )
                                         if len(video_urls) >= max_videos:
                                             break
 
-                            # Navigate back to the original product page for next thumbnail
+                            # Navigate back to the original product page for next
+                            # thumbnail
                             if "/vdp/" in current_url:
                                 try:
                                     product_url = (
@@ -865,14 +946,17 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                     )
                                     if DEBUG_MODE:
                                         logger.info(
-                                            f"↩️ Navigating back to product page: {product_url}"
+                                            f"↩️ Navigating back to product page: "
+                                            f"{product_url}"
                                         )
                                     driver.get(product_url)
                                     driver.short_random_sleep()  # Wait for page to load
                                 except Exception as e:
                                     if DEBUG_MODE:
                                         logger.warning(
-                                            f"⚠️ Could not navigate back to product page: {e}"
+                                            f"⚠️ Could not navigate back to product "
+                                            f"page: "
+                                            f"{e}"
                                         )
 
                         # Check if new tabs opened and close them
@@ -880,7 +964,9 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                         if current_tab_count > initial_tab_count:
                             if DEBUG_MODE:
                                 logger.info(
-                                    f"🚫 Detected {current_tab_count - initial_tab_count} new tabs, closing them"
+                                    f"🚫 Detected "
+                                    f"{current_tab_count - initial_tab_count} new tabs,"
+                                    f" closing them"
                                 )
                             # Close any new tabs that opened
                             for _ in range(current_tab_count - initial_tab_count):
@@ -918,37 +1004,56 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                             function isProductRelated(text) {{
                                 const lowerText = text.toLowerCase();
                                 return lowerText.includes(currentAsin) ||
-                                       (productBrand && lowerText.includes(productBrand)) ||
-                                       (productModel && lowerText.includes(productModel)) ||
-                                       productKeywords.some(keyword => lowerText.includes(keyword));
+                                       (productBrand &&
+                                        lowerText.includes(productBrand)) ||
+                                       (productModel &&
+                                        lowerText.includes(productModel)) ||
+                                       productKeywords.some(keyword =>
+                                           lowerText.includes(keyword));
                             }}
 
                             const foundUrls = new Set();
 
                             // Look for video elements that appeared after click
-                            document.querySelectorAll('video[src], video source[src]').forEach(video => {{
+                            document.querySelectorAll(
+                                'video[src], video source[src]'
+                            ).forEach(video => {{
                                 const src = video.getAttribute('src');
-                                if (src && src.includes('media-amazon.com') && src.includes('.mp4')) {{
+                                if (src && src.includes('media-amazon.com') &&
+                                    src.includes('.mp4')) {{
                                     foundUrls.add(src);
                                 }}
                             }});
 
                             // Look for data attributes with video URLs
-                            document.querySelectorAll('[data-video-url], [data-src*=".mp4"], [data-video], [onclick*=".mp4"]').forEach(elem => {{
-                                const attrs = ['data-video-url', 'data-src', 'data-video', 'onclick'];
+                            document.querySelectorAll(
+                                '[data-video-url], [data-src*=".mp4"], [data-video], '
+                                + '[onclick*=".mp4"]'
+                            ).forEach(elem => {{
+                                const attrs = [
+                                    'data-video-url', 'data-src', 'data-video',
+                                    'onclick'
+                                ];
                                 attrs.forEach(attr => {{
                                     const attrValue = elem.getAttribute(attr);
-                                    if (attrValue && attrValue.includes('media-amazon.com') && attrValue.includes('.mp4')) {{
+                                    if (attrValue &&
+                                        attrValue.includes('media-amazon.com') &&
+                                        attrValue.includes('.mp4')) {{
                                         foundUrls.add(attrValue.match(/https?:\\/\\/[^"'\\s]*media-amazon\\.com[^"'\\s]*\\.mp4[^"'\\s]*/)[0]);
                                     }}
                                 }});
                             }});
 
-                            // Check for newly injected script content with video URLs for current product
-                            document.querySelectorAll('script:not([src])').forEach(script => {{
+                            // Check for newly injected script content with video URLs
+                            // for current product
+                            document.querySelectorAll(
+                                'script:not([src])'
+                            ).forEach(script => {{
                                 const content = script.textContent;
-                                if (isProductRelated(content) && content.includes('.mp4')) {{
-                                    const mp4Pattern = /https?:\\/\\/[^"'\\s]*media-amazon\\.com[^"'\\s]*\\.mp4[^"'\\s]*/gi;
+                                if (isProductRelated(content) &&
+                                    content.includes('.mp4')) {{
+                                    const mp4Pattern =
+                                        /https?:\\/\\/[^"'\\s]*media-amazon\\.com[^"'\\s]*\\.mp4[^"'\\s]*/gi;
                                     const matches = content.match(mp4Pattern);
                                     if (matches) {{
                                         matches.forEach(url => foundUrls.add(url));
@@ -969,7 +1074,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                                     video_urls.append(new_video_url)
                                     if DEBUG_MODE:
                                         logger.info(
-                                            f"✅ Method 2 found clicked video: {new_video_url[:80]}..."
+                                            f"✅ Method 2 found clicked video: "
+                                            f"{new_video_url[:80]}..."
                                         )
                                     if len(video_urls) >= max_videos:
                                         break
@@ -1031,7 +1137,8 @@ def extract_functional_videos_with_validation(driver: Driver) -> list[str]:
                         video_urls.append(video_url)
                         if DEBUG_MODE:
                             logger.info(
-                                f"✅ Method 3 found container video: {video_url[:80]}..."
+                                f"✅ Method 3 found container video: "
+                                f"{video_url[:80]}..."
                             )
 
             except Exception as e:
@@ -1132,7 +1239,7 @@ def is_valid_high_res_image(url: str) -> bool:
 
     # Get high-res threshold from config
     try:
-        high_res_threshold = (
+        high_res_threshold = int(
             CONFIG.get("global_settings", {})
             .get("image_config", {})
             .get("min_high_res_dimension", 1500)
@@ -1160,7 +1267,8 @@ def is_valid_video_url(url: str) -> bool:
     if not url.startswith("http"):
         return False
 
-    # Exclude VDP (Video Detail Page) links as they are navigation URLs, not direct video files
+    # Exclude VDP (Video Detail Page) links as they are navigation URLs, not direct
+    # video files
     if "/vdp/" in url:
         return False
 

@@ -12,7 +12,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from botasaurus.browser import Driver
+from botasaurus.browser import Driver  # type: ignore[import-untyped]
 
 
 def exponential_backoff_retry(
@@ -110,7 +110,8 @@ def exponential_backoff_retry(
 
                 time.sleep(delay)
 
-        # This should never be reached since we would have returned or raised in the loop
+        # This should never be reached since we would have returned or raised in
+        # the loop
         raise RuntimeError(
             f"Retry logic failed for {func.__name__}"
         ) from last_exception

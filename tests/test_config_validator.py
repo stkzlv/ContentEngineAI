@@ -107,7 +107,7 @@ class TestVideoConfigValidator:
     def test_resolution_validation_invalid_format(self):
         """Test resolution validation with invalid format."""
         # Test invalid resolution format
-        self.valid_config.video_settings.resolution = [0, 0]
+        self.valid_config.video_settings.resolution = (0, 0)
 
         errors = self.validator.validate_config(self.valid_config)
 
@@ -117,7 +117,7 @@ class TestVideoConfigValidator:
         """Test resolution validation logs warning for landscape format."""
         with patch("src.video.config_validator.logger") as mock_logger:
             # Set landscape resolution
-            self.valid_config.video_settings.resolution = [1920, 1080]
+            self.valid_config.video_settings.resolution = (1920, 1080)
 
             self.validator.validate_config(self.valid_config)
 
@@ -151,9 +151,11 @@ class TestVideoConfigValidator:
     def test_background_music_validation_missing_files(self):
         """Test validation of background music file paths."""
         # Set nonexistent music files
+        from pathlib import Path
+
         self.valid_config.audio_settings.background_music_paths = [
-            "/nonexistent/music1.mp3",
-            "/nonexistent/music2.mp3",
+            Path("/nonexistent/music1.mp3"),
+            Path("/nonexistent/music2.mp3"),
         ]
 
         errors = self.validator.validate_config(self.valid_config)

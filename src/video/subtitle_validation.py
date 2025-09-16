@@ -52,7 +52,7 @@ def validate_srt_file(srt_path: Path, debug_mode: bool = False) -> bool:
             if not sub.text.strip():
                 logger.warning(f"Empty subtitle text at index {i}")
                 continue
-            if sub.start >= sub.end:
+            if sub.start is None or sub.end is None or sub.start >= sub.end:
                 logger.warning(f"Invalid timing at index {i}: {sub.start} >= {sub.end}")
                 return False
             valid_segments += 1

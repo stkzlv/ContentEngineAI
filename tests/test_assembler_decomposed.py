@@ -247,7 +247,7 @@ class TestVideoAssemblerDecomposed:
         """Test building FFmpeg command with video only (no audio)."""
         input_cmd_parts = ["-i", "video.mp4"]
         video_filters = ["[0:v]scale=1920:1080[v_out]"]
-        audio_filters = []
+        audio_filters: list[str] = []
         final_audio_label = ""
         total_duration = 10.0
         output_path = Path("output.mp4")

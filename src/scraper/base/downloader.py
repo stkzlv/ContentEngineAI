@@ -193,7 +193,7 @@ class BaseDownloader:
 
         """
         try:
-            async with session.get(
+            async with session.get(  # type: ignore[attr-defined]
                 url,
                 timeout=aiohttp.ClientTimeout(total=self.download_timeout),
                 headers={"User-Agent": self._get_user_agent()},
@@ -346,9 +346,11 @@ class BaseDownloader:
             platform_config = self.config_manager.get_platform_config(self.platform)
             headers = platform_config.get("http_headers", {})
             download_headers = headers.get("media_download", {})
-            return download_headers.get(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            return str(
+                download_headers.get(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                )
             )
         except Exception:
             return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"

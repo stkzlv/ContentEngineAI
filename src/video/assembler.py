@@ -638,7 +638,7 @@ class VideoAssembler:
         """
         try:
             return (
-                self.config.debug_settings.get("create_ffmpeg_command_logs", True)
+                getattr(self.config.debug_settings, "create_ffmpeg_command_logs", True)
                 if hasattr(self.config, "debug_settings") and self.config.debug_settings
                 else True
             )
@@ -922,7 +922,8 @@ class VideoAssembler:
             if use_content_aware and geometries:
                 if self.debug_mode:
                     logger.debug(
-                        "Regenerating ASS file with visual bounds for content-aware positioning"
+                        "Regenerating ASS file with visual bounds for content-aware "
+                        "positioning"
                     )
                     logger.debug(f"Visual geometries available: {len(geometries)}")
 
@@ -1035,10 +1036,14 @@ class VideoAssembler:
                     # Debug visual bounds
                     if visual_bounds and self.debug_mode:
                         logger.debug(
-                            f"Visual bounds for segment {drawtext_count}: x={visual_bounds.x:.3f}, y={visual_bounds.y:.3f}, w={visual_bounds.width:.3f}, h={visual_bounds.height:.3f}"
+                            f"Visual bounds for segment {drawtext_count}: "
+                            f"x={visual_bounds.x:.3f}, y={visual_bounds.y:.3f}, "
+                            f"w={visual_bounds.width:.3f}, h={visual_bounds.height:.3f}"
                         )
                         logger.debug(
-                            f"Geometry pixels: x={geom.rendered_x}, y={geom.rendered_y}, w={geom.rendered_w}, h={geom.rendered_h}"
+                            f"Geometry pixels: x={geom.rendered_x}, "
+                            f"y={geom.rendered_y}, "
+                            f"w={geom.rendered_w}, h={geom.rendered_h}"
                         )
 
                     # Calculate position using unified system
@@ -1057,7 +1062,9 @@ class VideoAssembler:
                             position.y * self.config.video_settings.resolution[1]
                         )
                         logger.debug(
-                            f"Calculated position for segment {drawtext_count}: ({position.x:.3f}, {position.y:.3f}) = ({pixel_x}, {pixel_y}) pixels"
+                            f"Calculated position for segment {drawtext_count}: "
+                            f"({position.x:.3f}, {position.y:.3f}) = "
+                            f"({pixel_x}, {pixel_y}) pixels"
                         )
 
                     # Convert to FFmpeg expressions
@@ -1153,6 +1160,12 @@ class VideoAssembler:
             settings = self.config.subtitle_settings
             dyn_settings = settings.dynamic_positioning
 
+            if not dyn_settings:
+                logger.warning(
+                    "Dynamic positioning not configured, using original file"
+                )
+                return original_ass_path
+
             for event_line in events_lines:
                 # Parse ASS dialogue line
                 parts = event_line.split(",", 9)  # Split into 10 parts max
@@ -1190,12 +1203,14 @@ class VideoAssembler:
                         )
                         spacing *= reduction_factor
                         logger.debug(
-                            f"Applied spacing reduction factor {reduction_factor}: {spacing}px"
+                            f"Applied spacing reduction factor {reduction_factor}: "
+                            f"{spacing}px"
                         )
 
                     subtitle_y = int(image_bottom + spacing)
 
-                    # Ensure subtitle doesn't go off-screen (leave room for subtitle height)
+                    # Ensure subtitle doesn't go off-screen (leave room for subtitle
+                    # height)
                     # Estimate subtitle height based on font size
                     font_size = getattr(subtitle_settings, "ass_font_size", 48)
                     int(font_size * 1.5)  # More accurate height estimate
@@ -1205,7 +1220,9 @@ class VideoAssembler:
                     subtitle_y = min(subtitle_y, max_y)
 
                     logger.debug(
-                        f"Subtitle positioned at y={subtitle_y} (image_bottom={image_bottom}, spacing={spacing}px, font_size={font_size}px)"
+                        f"Subtitle positioned at y={subtitle_y} "
+                        f"(image_bottom={image_bottom}, spacing={spacing}px, "
+                        f"font_size={font_size}px)"
                     )
 
                     # Create positioning override using ASS \pos tag
@@ -1216,7 +1233,8 @@ class VideoAssembler:
 
                     text_content = re.sub(r"\\pos\([^)]+\)", "", text_content)
 
-                    # Add new positioning - place \pos tag at START of effect block for ASS compatibility
+                    # Add new positioning - place \pos tag at START of effect block
+                    # for ASS compatibility
                     subtitle_x = (
                         geom.rendered_x + geom.rendered_w // 2
                     )  # Center horizontally on image
@@ -1225,12 +1243,15 @@ class VideoAssembler:
                     if text_content.startswith("{") and "}" in text_content:
                         # Find the end of the first effect block
                         effect_end = text_content.find("}") + 1
-                        effect_content = text_content[
-                            1 : effect_end - 1
-                        ]  # Extract content without braces
+                        # Extract content without braces
+                        effect_content = text_content[1 : effect_end - 1]
                         after_effects = text_content[effect_end:]
-                        # Place positioning at the start of the effect block for better ASS compatibility
-                        positioned_text = f"{{\\pos({subtitle_x},{subtitle_y}){effect_content}}}{after_effects}"
+                        # Place positioning at the start of the effect block for better
+                        # ASS compatibility
+                        positioned_text = (
+                            f"{{\\pos({subtitle_x},{subtitle_y}){effect_content}}}"
+                            f"{after_effects}"
+                        )
                     else:
                         # No existing effects, add positioning normally
                         positioned_text = (
@@ -1242,15 +1263,19 @@ class VideoAssembler:
                     dynamic_events.append(",".join(new_parts))
 
                     logger.debug(
-                        f"Segment {segment_idx}: Positioned subtitle at ({subtitle_x}, {subtitle_y}) "
-                        f"for image at ({geom.rendered_x}, {geom.rendered_y}, {geom.rendered_w}x{geom.rendered_h})"
+                        f"Segment {segment_idx}: Positioned subtitle at "
+                        f"({subtitle_x}, {subtitle_y}) "
+                        f"for image at ({geom.rendered_x}, {geom.rendered_y}, "
+                        f"{geom.rendered_w}x{geom.rendered_h})"
                     )
                 else:
                     # Fallback: use original positioning
                     dynamic_events.append(event_line)
 
-            # Write dynamic ASS file to permanent output directory instead of temp directory
-            # Use the output directory (parent of the subtitle file) for permanent storage
+            # Write dynamic ASS file to permanent output directory instead of temp
+            # directory
+            # Use the output directory (parent of the subtitle file) for permanent
+            # storage
             output_dir = original_ass_path.parent
             dynamic_ass_path = output_dir / "subtitles_dynamic.ass"
 

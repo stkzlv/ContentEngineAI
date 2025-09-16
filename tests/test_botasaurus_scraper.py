@@ -212,6 +212,7 @@ class TestBotasaurusAmazonScraper:
                 }
             },
             "global_settings": {
+                "count_products_with_media": False,
                 "debug_config": {
                     "title_preview_length": 50,
                     "url_preview_length": 100,
@@ -328,10 +329,21 @@ class TestBotasaurusAmazonScraper:
             ), f"Incorrectly validated invalid ASIN: {asin}"
 
     @patch("src.scraper.amazon.scraper.create_dynamic_browser_function")
+    @patch("src.scraper.amazon.scraper.CONFIG")
     def test_scrape_products_unified_asin(
-        self, mock_create_browser_func, scraper, sample_product_data
+        self,
+        mock_config,
+        mock_create_browser_func,
+        scraper,
+        sample_product_data,
+        mock_config_data,
     ):
         """Test unified scraping for ASIN input."""
+        # Set up config mock
+        mock_config.get.side_effect = lambda key, default=None: mock_config_data.get(
+            key, default
+        )
+
         mock_browser_func = Mock(return_value=[sample_product_data])
         mock_create_browser_func.return_value = mock_browser_func
 

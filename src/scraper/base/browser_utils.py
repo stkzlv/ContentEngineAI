@@ -41,7 +41,7 @@ class BaseBrowserConfig:
 
         """
         # Start with base configuration
-        options = {
+        options: dict[str, Any] = {
             "headless": not self.debug_mode,
             "close_on_crash": not self.debug_mode,
             "reuse_driver": False,
@@ -58,7 +58,7 @@ class BaseBrowserConfig:
 
         # Apply debug mode overrides
         if self.debug_mode:
-            options.update(  # type: ignore[dict-item]
+            options.update(
                 {
                     "headless": False,
                     "close_on_crash": False,
@@ -138,7 +138,7 @@ class BaseBrowserConfig:
             for config_key in ["browser", "media_download", "video_validation"]:
                 config_headers = headers.get(config_key, {})
                 if "User-Agent" in config_headers:
-                    return config_headers["User-Agent"]
+                    return str(config_headers["User-Agent"])
 
         except Exception as e:
             import logging

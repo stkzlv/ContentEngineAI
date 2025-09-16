@@ -1,5 +1,7 @@
 """Tests for unified subtitle positioning system."""
 
+from typing import Any
+
 from src.video.subtitle_positioning import (
     Position,
     PositionAnchor,
@@ -348,7 +350,7 @@ class TestLegacyConfigConversion:
 
     def test_convert_legacy_defaults(self):
         """Test conversion with default legacy settings."""
-        legacy_settings = {}
+        legacy_settings: dict[str, Any] = {}
 
         unified_config = convert_legacy_config(legacy_settings)
 
