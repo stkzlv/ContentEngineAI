@@ -473,8 +473,8 @@ class TestSlideshowImagesVerification:
         screenshots_dir = verification_dir / "screenshots"
 
         # Create directories if they don't exist
-        verification_dir.mkdir(exist_ok=True)
-        screenshots_dir.mkdir(exist_ok=True)
+        verification_dir.mkdir(parents=True, exist_ok=True)
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
 
         return verification_dir
 

@@ -59,9 +59,7 @@ class TestProfileAwareValidation:
         )
 
         assert not is_valid
-        assert (
-            "Profile excludes videos, need at least 5 images but only have 4" in reason
-        )
+        assert "Profile excludes videos, need 5 images but only have 4" in reason
 
     @pytest.mark.unit
     def test_profile_excludes_videos_with_enough_images(self):

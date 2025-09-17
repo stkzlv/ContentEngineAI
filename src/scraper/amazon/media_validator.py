@@ -610,11 +610,11 @@ def validate_url_accessibility(
 
         metadata.update(
             {
-                "status_code": str(response.status_code),
+                "status_code": response.status_code,
                 "content_type": response.headers.get("content-type", "unknown"),
                 "content_length": response.headers.get("content-length", "unknown"),
                 "final_url": str(response.url),
-                "redirected": str(response.url != url),
+                "redirected": response.url != url,
             }
         )
 

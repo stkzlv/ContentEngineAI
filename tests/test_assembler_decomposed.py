@@ -302,6 +302,9 @@ class TestVideoAssemblerDecomposed:
         # Make debug_settings access raise an exception
         self.mock_config.debug_settings = MagicMock()
         self.mock_config.debug_settings.get.side_effect = Exception("Config error")
+        self.mock_config.debug_settings.create_ffmpeg_command_logs.side_effect = (
+            Exception("Config error")
+        )
 
         result = self.assembler._should_create_ffmpeg_logs()
         assert result is True  # Should fallback to True
