@@ -9,7 +9,7 @@ import os
 import platform
 from typing import Any
 
-from botasaurus.browser import Driver, browser
+from botasaurus.browser import Driver, browser  # type: ignore[import-untyped]
 
 from .botasaurus_output import get_browser_config_for_outputs
 from .config import _BROWSER_CONFIG, CONFIG

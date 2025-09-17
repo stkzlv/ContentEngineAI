@@ -273,9 +273,7 @@ class SubtitleSettings(BaseModel):
         300, description="Duration factor for color wave effects in ms"
     )
 
-    # Position settings
-    ass_closer_to_image: bool = Field(True)  # Position closer to images
-    ass_spacing_reduction_factor: float = Field(0.3)  # Reduce spacing by 70%
+    # Position settings (duplicate removed - already defined above)
     max_subtitle_duration: float = Field(4.5)
     max_line_length: int = Field(
         38,
@@ -421,6 +419,8 @@ class GoogleCloudVoiceCriteria(BaseModel):
 
 
 class GoogleCloudTTSSettings(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     model_name: str
     language_code: str
     voice_selection_criteria: list[GoogleCloudVoiceCriteria] = Field(..., min_length=1)
@@ -443,6 +443,8 @@ class GoogleCloudTTSSettings(BaseModel):
 
 
 class CoquiTTSSettings(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     model_name: str
     speaker_name: str | None = Field(None)
 
@@ -532,6 +534,8 @@ class VideoProfile(BaseModel):
 
 
 class WhisperSettings(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     enabled: bool = Field(True)
     model_size: str = Field("small")
     model_device: str = Field("cpu")
@@ -686,9 +690,9 @@ class OutputStructure(BaseModel):
     """Simplified, product-oriented output structure"""
 
     product_directory_pattern: str = Field("{product_id}")
-    product_files: ProductFiles = Field(default_factory=ProductFiles)
-    product_subdirs: ProductSubdirs = Field(default_factory=ProductSubdirs)
-    global_dirs: GlobalDirs = Field(default_factory=GlobalDirs)
+    product_files: ProductFiles = Field(default_factory=lambda: ProductFiles())  # type: ignore[call-arg]
+    product_subdirs: ProductSubdirs = Field(default_factory=lambda: ProductSubdirs())  # type: ignore[call-arg]
+    global_dirs: GlobalDirs = Field(default_factory=lambda: GlobalDirs())  # type: ignore[call-arg]
 
 
 class CleanupConfig(BaseModel):
@@ -711,7 +715,7 @@ class PathConfig(BaseModel):
     """Path building configuration"""
 
     use_product_oriented_structure: bool = Field(True)
-    cleanup: CleanupConfig = Field(default_factory=CleanupConfig)
+    cleanup: CleanupConfig = Field(default_factory=lambda: CleanupConfig())  # type: ignore[call-arg]
 
     # Internal files configuration
     gathered_visuals: str = Field("gathered_visuals.json")
@@ -1476,6 +1480,76 @@ except Exception as e:
             save_srt_with_video=True,
             subtitle_format="srt",
             script_paths=["info/script.txt"],
+            # ASS-specific settings
+            ass_enable_fade=True,
+            ass_fade_in_ms=500,
+            ass_fade_out_ms=500,
+            ass_enable_karaoke=True,
+            ass_karaoke_style="sweep",
+            ass_enable_colors=True,
+            ass_enable_positioning=True,
+            ass_enable_transforms=True,
+            ass_primary_color="&H00FFFFFF",
+            ass_secondary_color="&H00FF6B35",
+            ass_outline_color="&H00000000",
+            ass_shadow_color="&H80000000",
+            ass_randomize_effects=False,
+            ass_randomize_fonts=False,
+            ass_randomize_colors=False,
+            ass_margin_bottom_percent=0.25,
+            ass_closer_to_image=False,
+            ass_spacing_reduction_factor=0.5,
+            ass_font_size=48,
+            ass_available_fonts=[
+                "Arial",
+                "Helvetica",
+                "Impact",
+                "Verdana",
+                "Tahoma",
+                "Comic Sans MS",
+                "Times New Roman",
+                "Courier New",
+                "Georgia",
+                "Trebuchet MS",
+            ],
+            ass_color_palettes=[
+                {
+                    "primary": "&H00FFFFFF",
+                    "secondary": "&H00FF6B35",
+                    "accent": "&H00FFD700",
+                },
+                {
+                    "primary": "&H0000FFFF",
+                    "secondary": "&H00FF69B4",
+                    "accent": "&H0000FF00",
+                },
+                {
+                    "primary": "&H00FFFF00",
+                    "secondary": "&H00FF0080",
+                    "accent": "&H008080FF",
+                },
+                {
+                    "primary": "&H0000FF00",
+                    "secondary": "&H00FFFF00",
+                    "accent": "&H00FF8C00",
+                },
+                {
+                    "primary": "&H00FF69B4",
+                    "secondary": "&H009370DB",
+                    "accent": "&H0020B2AA",
+                },
+            ],
+            ass_available_effects=[
+                "fade",
+                "slide_in",
+                "bounce",
+                "glow",
+                "shadow_shift",
+                "color_wave",
+                "scale_pulse",
+            ],
+            ass_pulse_duration_factor=500,
+            ass_wave_duration_factor=300,
             max_subtitle_duration=4.5,
             max_line_length=38,
             min_subtitle_duration=0.4,
@@ -1490,6 +1564,15 @@ except Exception as e:
             enable_subtitle_extension=True,
             subtitle_extension_threshold=2.0,
             max_subtitle_extension=5.0,
+            # Unified subtitle positioning parameters
+            anchor="bottom",
+            margin=0.1,
+            content_aware=True,
+            style_preset="dynamic",
+            font_size_scale=1.2,
+            horizontal_alignment="center",
+            randomize_colors=False,
+            randomize_effects=False,
         ),
         whisper_settings=WhisperSettings(
             enabled=True,

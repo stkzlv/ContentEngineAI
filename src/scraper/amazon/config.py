@@ -38,7 +38,7 @@ def get_output_path(path_type: str, **kwargs) -> str:
         subdirs = output_config.get("subdirectories", {})
 
         if path_type == "base":
-            return base_dir
+            return str(base_dir)
         elif path_type == "platform":
             pattern = subdirs.get("platform_pattern", "{data}/{platform}/scraped_data")
             data_dir = subdirs.get("data", "data")
@@ -62,7 +62,7 @@ def get_output_path(path_type: str, **kwargs) -> str:
             return f"{base_dir}/{botasaurus_dir}"
         else:
             # Fallback for unknown path types - use outputs base
-            return base_dir
+            return str(base_dir)
     except Exception:
         # Fallback paths if config fails - use centralized structure
         from ...utils.outputs_paths import (
@@ -109,7 +109,7 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
         else:
             pattern = "{keyword}_{file_type}.{ext}"
 
-        return pattern.format(**kwargs)
+        return str(pattern).format(**kwargs)
     except Exception:
         # Fallback patterns
         fallback_patterns = {
@@ -118,7 +118,7 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             "video": "{asin}_video_{index}.{ext}",
         }
         pattern = fallback_patterns.get(file_type, "{keyword}_{file_type}.{ext}")
-        return pattern.format(**kwargs)
+        return str(pattern).format(**kwargs)
 
 
 def get_default_search_parameters():
@@ -174,8 +174,10 @@ def load_browser_config_from_yaml(config_path: str = "config/scrapers.yaml"):
         # Import here to avoid circular imports
         try:
             from botasaurus import bt
-            from botasaurus.user_agent import UserAgent
-            from botasaurus.window_size import WindowSize
+            from botasaurus.user_agent import UserAgent  # type: ignore[import-untyped]
+            from botasaurus.window_size import (  # type: ignore[import-untyped]
+                WindowSize,
+            )
 
             # Extract browser-specific settings
             global_settings = CONFIG.get("global_settings", {})

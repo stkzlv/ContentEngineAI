@@ -121,7 +121,7 @@ class VideoConfigValidator:
 
     def _validate_fonts(self, config: VideoConfig) -> list[str]:
         """Validate font directories and availability for subtitle rendering."""
-        errors = []
+        errors: list[str] = []
 
         if not getattr(config.subtitle_settings, "enabled", True):
             return errors  # Skip font validation if subtitles disabled
@@ -193,7 +193,8 @@ class VideoConfigValidator:
 
         if music_db > 0:
             errors.append(
-                f"Music volume too high: {music_db}dB (should be negative for background)"
+                f"Music volume too high: {music_db}dB (should be negative for "
+                f"background)"
             )
         if music_db < -50:
             errors.append(
@@ -292,7 +293,8 @@ class VideoConfigValidator:
                 # Handle compatibility issues for specific packages like whisper
                 if package_name == "whisper":
                     logger.warning(f"Whisper package has compatibility issues: {e}")
-                    # Don't treat whisper compatibility issues as fatal since we have fallback STT
+                    # Don't treat whisper compatibility issues as fatal since we have
+                    # fallback STT
                 else:
                     errors.append(f"Required package not installed: {pip_name}")
 
@@ -324,7 +326,7 @@ class VideoConfigValidator:
             List of validation error/warning messages
 
         """
-        errors = []
+        errors: list[str] = []
 
         if not hasattr(config, "subtitle_settings") or not config.subtitle_settings:
             return errors
@@ -353,7 +355,8 @@ class VideoConfigValidator:
                 except ValueError:
                     valid_presets = [e.value for e in StylePreset]
                     errors.append(
-                        f"Invalid subtitle style preset '{unified_config.style_preset}'. "
+                        f"Invalid subtitle style preset "
+                        f"'{unified_config.style_preset}'. "
                         f"Valid options: {valid_presets}"
                     )
 
@@ -366,7 +369,8 @@ class VideoConfigValidator:
 
             if has_legacy_params and not has_unified_params:
                 logger.info(
-                    "Legacy subtitle positioning detected - will be converted to unified config. "
+                    "Legacy subtitle positioning detected - will be converted to "
+                    "unified config. "
                     "Consider updating config to use new unified parameters directly."
                 )
             elif has_unified_params:

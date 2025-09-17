@@ -13,6 +13,7 @@ import yaml
 
 # Import base classes for multi-platform support
 from ..base import BaseScraper, Platform, register_scraper
+from ..base.models import BaseProductData, BaseSearchParameters
 
 # Import browser automation functions
 from .browser_functions import create_dynamic_browser_function
@@ -163,7 +164,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            return dict(yaml.safe_load(f) or {})
 
     def scrape_products_unified(
         self, keyword: str, search_params: SearchParameters | None = None
@@ -197,7 +198,8 @@ class BotasaurusAmazonScraper(BaseScraper):
                     print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
                 results = browser_func(data)
                 print(
-                    f"🔧 [DEBUG] browser_func returned {len(results) if results else 0} products"
+                    f"🔧 [DEBUG] browser_func returned "
+                    f"{len(results) if results else 0} products"
                 )
             except Exception as e:
                 if DEBUG_MODE:
@@ -283,12 +285,15 @@ class BotasaurusAmazonScraper(BaseScraper):
                                 f"{len(media_download_tasks)} tasks"
                             )
 
-                        # Call download_media_files for each product individually to avoid batching issues
+                        # Call download_media_files for each product individually to
+                        # avoid
+                        # batching issues
                         download_results = []
                         for task in media_download_tasks:
                             if DEBUG_MODE:
                                 self.logger.info(
-                                    f"🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: {task['asin']}"
+                                    f"🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: "
+                                    f"{task['asin']}"
                                 )
                             result = download_media_files(
                                 [task]
@@ -312,18 +317,13 @@ class BotasaurusAmazonScraper(BaseScraper):
                             print("=" * 50)
 
                         # Handle Botasaurus task results gracefully
+                        # download_results is already a list since it's
+                        # initialized as [] above
+
                         if not download_results:
                             self.logger.warning(
                                 "⚠️ No media download results returned, "
                                 "continuing without media"
-                            )
-                            download_results = []
-
-                        # Botasaurus @task decorator always returns a list of results
-                        # Each task in media_download_tasks gets one result
-                        if not isinstance(download_results, list):
-                            download_results = (
-                                [download_results] if download_results else []
                             )
 
                         # Create mapping for easy lookup with error handling
@@ -456,108 +456,124 @@ class BotasaurusAmazonScraper(BaseScraper):
                 )
 
             # Final verification for media files
+            global_settings = CONFIG.get("global_settings", {})
+            count_products_with_media = global_settings.get(
+                "count_products_with_media", False
+            )
+            max_products = (
+                CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 5)
+            )
+
+            # Filter products to only include those with actual downloaded
+            # media files
+            products_with_media = []
+            products_without_media = []
+
             if DEBUG_MODE:
-                global_settings = CONFIG.get("global_settings", {})
-                count_products_with_media = global_settings.get(
-                    "count_products_with_media", False
-                )
-                max_products = (
-                    CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 5)
-                )
-
                 self.logger.info(
-                    "🔍 [FINAL VERIFICATION] Checking scraped products and media files..."
+                    "🔍 [FINAL VERIFICATION] Checking scraped products and "
+                    "media files..."
                 )
 
-                # Filter products to only include those with actual downloaded media files
-                products_with_media = []
-                products_without_media = []
+            for i, product in enumerate(products):
+                # Check for actual file existence on disk instead of trusting
+                # download results
+                from pathlib import Path
 
-                for i, product in enumerate(products):
-                    # Check for actual file existence on disk instead of trusting download results
-                    from pathlib import Path
+                from ...utils.outputs_paths import (
+                    get_product_directory,
+                    get_product_images_directory,
+                    get_product_videos_directory,
+                )
 
-                    from ...utils.outputs_paths import (
-                        get_product_directory,
-                        get_product_images_directory,
-                        get_product_videos_directory,
+                product_dir = get_product_directory(product.asin or "unknown")
+                images_dir = get_product_images_directory(product.asin or "unknown")
+                videos_dir = get_product_videos_directory(product.asin or "unknown")
+
+                # Count actual files that exist on disk
+                actual_images = []
+                actual_videos = []
+
+                if images_dir.exists():
+                    actual_images = list(images_dir.glob("*.jpg")) + list(
+                        images_dir.glob("*.png")
                     )
 
-                    product_dir = get_product_directory(product.asin)
-                    images_dir = get_product_images_directory(product.asin)
-                    videos_dir = get_product_videos_directory(product.asin)
+                if videos_dir.exists():
+                    actual_videos = list(videos_dir.glob("*.mp4")) + list(
+                        videos_dir.glob("*.mov")
+                    )
 
-                    # Count actual files that exist on disk
-                    actual_images = []
-                    actual_videos = []
+                img_count = len(actual_images)
+                vid_count = len(actual_videos)
 
-                    if images_dir.exists():
-                        actual_images = list(images_dir.glob("*.jpg")) + list(
-                            images_dir.glob("*.png")
-                        )
-
-                    if videos_dir.exists():
-                        actual_videos = list(videos_dir.glob("*.mp4")) + list(
-                            videos_dir.glob("*.mov")
-                        )
-
-                    img_count = len(actual_images)
-                    vid_count = len(actual_videos)
-
+                if DEBUG_MODE:
                     self.logger.info(
                         f"🔍 [FINAL VERIFICATION] Product {i+1}: ASIN={product.asin}, "
                         f"Actual files on disk: {img_count} images, {vid_count} videos"
                     )
 
-                    if img_count > 0 or vid_count > 0:
-                        products_with_media.append(product)
+                if img_count > 0 or vid_count > 0:
+                    products_with_media.append(product)
+                    if DEBUG_MODE:
                         self.logger.info(
-                            f"✅ [FINAL VERIFICATION] Product {product.asin} has downloaded media files"
+                            f"✅ [FINAL VERIFICATION] Product {product.asin} has "
+                            f"downloaded media files"
                         )
-                    else:
-                        products_without_media.append(product)
+                else:
+                    products_without_media.append(product)
+                    if DEBUG_MODE:
                         self.logger.error(
-                            f"❌ [FINAL VERIFICATION] Product {product.asin} has NO downloaded media files - FILTERING OUT"
+                            f"❌ [FINAL VERIFICATION] Product {product.asin} has NO "
+                            f"downloaded media files - FILTERING OUT"
                         )
-                        # Clean up data.json for products without media files
-                        try:
-                            product_dir = get_product_directory(product.asin)
-                            data_file = product_dir / "data.json"
-                            if data_file.exists():
-                                data_file.unlink()
+                    # Clean up data.json for products without media files
+                    try:
+                        product_dir = get_product_directory(product.asin or "unknown")
+                        data_file = product_dir / "data.json"
+                        if data_file.exists():
+                            data_file.unlink()
+                            if DEBUG_MODE:
                                 self.logger.info(
-                                    f"🧹 Cleaned up data.json for filtered product: {product.asin}"
+                                    f"🧹 Cleaned up data.json for filtered product: "
+                                    f"{product.asin}"
                                 )
-                        except Exception as cleanup_error:
+                    except Exception as cleanup_error:
+                        if DEBUG_MODE:
                             self.logger.warning(
-                                f"Could not clean up data.json for {product.asin}: {cleanup_error}"
+                                f"Could not clean up data.json for {product.asin}: "
+                                f"{cleanup_error}"
                             )
 
+            if DEBUG_MODE:
                 if count_products_with_media:
                     if len(products_with_media) == max_products:
                         self.logger.info(
-                            f"✅ [FINAL VERIFICATION] SUCCESS: Got exactly {max_products} products "
-                            f"with downloaded media files!"
+                            f"✅ [FINAL VERIFICATION] SUCCESS: Got exactly "
+                            f"{max_products} products with downloaded media files!"
                         )
                     else:
                         self.logger.warning(
-                            f"⚠️ [FINAL VERIFICATION] WARNING: Expected {max_products} products with media, "
-                            f"but only {len(products_with_media)} have downloaded media files. "
-                            f"Filtered out {len(products_without_media)} products without media."
+                            f"⚠️ [FINAL VERIFICATION] WARNING: Expected "
+                            f"{max_products} products with media, but only "
+                            f"{len(products_with_media)} have downloaded media files. "
+                            f"Filtered out "
+                            f"{len(products_without_media)} products without media."
                         )
                 else:
                     self.logger.info(
-                        f"🔍 [FINAL VERIFICATION] Traditional mode: {len(products)} products scraped, "
-                        f"{len(products_with_media)} with media files"
+                        f"🔍 [FINAL VERIFICATION] Traditional mode: {len(products)} "
+                        f"products scraped, {len(products_with_media)} with media files"
                     )
 
-            # Return only products with actual media files when count_products_with_media is enabled
+            # Return only products with actual media files when
+            # count_products_with_media is enabled
             final_products = (
                 products_with_media if count_products_with_media else products
             )
             self.logger.info(
-                f"Completed unified scrape: {len(final_products)} products for {keyword} "
-                f"({len(products_without_media)} filtered out for no media)"
+                f"Completed unified scrape: {len(final_products)} products for "
+                f"{keyword} ({len(products_without_media)} filtered out for no media)"
             )
             return final_products
 
@@ -566,8 +582,8 @@ class BotasaurusAmazonScraper(BaseScraper):
             return []
 
     def scrape_products(
-        self, keywords: list[str], search_params: SearchParameters | None = None
-    ) -> list[ProductData]:
+        self, keywords: list[str], search_params: BaseSearchParameters | None = None
+    ) -> list[BaseProductData]:
         """Main method to scrape products for given keywords
 
         Args:
@@ -580,19 +596,33 @@ class BotasaurusAmazonScraper(BaseScraper):
             List of ProductData objects
 
         """
-        all_products = []
+        all_products: list[BaseProductData] = []
 
         for keyword in keywords:
             self.logger.info(f"Starting scrape for keyword: {keyword}")
 
             # Use the unified scraping method
-            products = self.scrape_products_unified(keyword, search_params)
+            # Cast search_params to SearchParameters if it's compatible
+            amazon_params = None
+            if search_params and hasattr(search_params, "__dict__"):
+                # Create SearchParameters from BaseSearchParameters attributes
+                from .models import SearchParameters
+
+                try:
+                    amazon_params = SearchParameters(**search_params.__dict__)
+                except Exception:
+                    amazon_params = None
+
+            products = self.scrape_products_unified(keyword, amazon_params)
             all_products.extend(products)
 
         # Save results
         if all_products:
-            self._save_products(all_products)
+            # Cast back to ProductData for _save_products
+            product_data_list = [p for p in all_products if isinstance(p, ProductData)]
+            self._save_products(product_data_list)
 
+        # Return as list of BaseProductData (ProductData inherits from BaseProductData)
         return all_products
 
     def _is_asin(self, keyword: str) -> bool:
@@ -870,11 +900,13 @@ def main():
             console_formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
             if config_debug_mode and not args.debug:
                 print(
-                    "🔧 Debug mode enabled from config - browser visibility and detailed logging active"
+                    "🔧 Debug mode enabled from config - browser visibility and "
+                    "detailed logging active"
                 )
             else:
                 print(
-                    "🔧 Debug mode enabled - browser visibility and detailed logging active"
+                    "🔧 Debug mode enabled - browser visibility and detailed "
+                    "logging active"
                 )
 
         console_handler.setFormatter(console_formatter)
@@ -887,7 +919,8 @@ def main():
             encoding="utf-8",
         )
         file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+            "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - "
+            "%(message)s"
         )
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(log_level)

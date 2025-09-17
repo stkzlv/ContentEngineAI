@@ -11,7 +11,7 @@ from typing import Any
 
 import requests
 from botasaurus import bt
-from botasaurus.task import task
+from botasaurus.task import task  # type: ignore[import-untyped]
 
 from .botasaurus_output import get_task_config_for_outputs
 from .config import CONFIG, get_filename_pattern

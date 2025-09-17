@@ -263,7 +263,7 @@ def validate_outputs_structure(
 
     """
     outputs_root = get_outputs_root(custom_outputs_dir)
-    results = {
+    results: dict[str, list[str]] = {
         "valid_products": [],
         "invalid_products": [],
         "unexpected_items": [],
@@ -356,7 +356,7 @@ def cleanup_invalid_outputs(
 
     """
     validation_results = validate_outputs_structure(custom_outputs_dir, strict=True)
-    cleanup_results = {
+    cleanup_results: dict[str, list[str]] = {
         "removed_items": [],
         "preserved_items": [],
         "errors": [],

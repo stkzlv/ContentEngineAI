@@ -229,7 +229,7 @@ def _create_retry_decorator(api_settings):
     )
     attempts = api_settings.llm_retry_attempts if api_settings else LLM_RETRY_ATTEMPTS
 
-    return retry(
+    return retry(  # type: ignore[operator]
         wait=wait_exponential(multiplier=multiplier, min=min_wait, max=max_wait),
         stop=stop_after_attempt(attempts),
         retry=retry_if_exception_type(

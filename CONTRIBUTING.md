@@ -83,7 +83,7 @@ We follow strict code quality standards enforced by automated tools:
 
 #### Linting Tools
 - **Ruff**: Fast Python linter and formatter (88-char line limit)
-- **MyPy**: Type checking (relaxed for third-party compatibility)
+- **MyPy**: Type checking with external library compatibility
 - **Bandit**: Security scanning
 - **Vulture**: Dead code detection (80% confidence)
 - **Safety**: Dependency vulnerability checking

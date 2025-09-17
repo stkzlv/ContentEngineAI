@@ -279,7 +279,7 @@ class UnifiedSubtitleGenerator:
     ) -> list[dict[str, Any]]:
         """Create subtitle segments from cleaned timing data."""
         segments = []
-        current_words = []
+        current_words: list[dict[str, Any]] = []
         current_text = ""
         current_start = None
 
@@ -313,7 +313,10 @@ class UnifiedSubtitleGenerator:
                     segment_duration = segment_end - current_start
 
                     # Apply minimum duration
-                    if segment_duration < self.config.min_duration:
+                    if (
+                        segment_duration < self.config.min_duration
+                        and current_start is not None
+                    ):
                         segment_end = current_start + self.config.min_duration
 
                     # Respect voiceover duration
@@ -345,7 +348,10 @@ class UnifiedSubtitleGenerator:
             segment_end = current_words[-1]["end_time"]
             segment_duration = segment_end - current_start if current_start else 0
 
-            if segment_duration < self.config.min_duration:
+            if (
+                segment_duration < self.config.min_duration
+                and current_start is not None
+            ):
                 segment_end = current_start + self.config.min_duration
 
             if voiceover_duration:
@@ -386,7 +392,7 @@ class UnifiedSubtitleGenerator:
         if estimated_duration > 0:
             speaking_rate = len(words) / duration
 
-        current_segment_words = []
+        current_segment_words: list[str] = []
         current_segment_text = ""
 
         for _i, word in enumerate(words):

@@ -211,7 +211,8 @@ def validate_media_requirements(
         )
 
     msg = (
-        f"Media validation passed: {total_image_count} images, {total_video_count} videos, "
+        f"Media validation passed: {total_image_count} images, "
+        f"{total_video_count} videos, "
         f"{len(stock_media)} stock items"
     )
     return (True, msg)
@@ -356,7 +357,7 @@ async def _save_pipeline_state(ctx: PipelineContext):
     create_metadata = True
     try:
         create_metadata = (
-            ctx.config.debug_settings.get("create_pipeline_metadata", True)
+            getattr(ctx.config.debug_settings, "create_pipeline_metadata", True)
             if hasattr(ctx.config, "debug_settings") and ctx.config.debug_settings
             else True
         )
@@ -1113,7 +1114,8 @@ async def step_download_music(ctx: PipelineContext):
                                 break
                         except Exception as e:
                             logger.warning(f"Failed to download from Freesound: {e}")
-                            # Continue to try next track, will fall back to local if all fail
+                            # Continue to try next track, will fall back to local if
+                            # all fail
 
         if not music_info and ctx.config.audio_settings.background_music_paths:
             local_path = random.choice(  # noqa: S311
@@ -1397,7 +1399,7 @@ async def create_video_for_product(
             create_metrics = True
             try:
                 create_metrics = (
-                    config.debug_settings.get("create_performance_metrics", True)
+                    getattr(config.debug_settings, "create_performance_metrics", True)
                     if hasattr(config, "debug_settings") and config.debug_settings
                     else True
                 )
@@ -1697,7 +1699,8 @@ async def main():
     try:
         if args.batch:
             # Batch mode: discover products from outputs directory
-            # Resolve outputs_dir relative to project root to handle working directory changes
+            # Resolve outputs_dir relative to project root to handle working
+            # directory changes
             if args.outputs_dir.is_absolute():
                 outputs_path = args.outputs_dir
             else:
@@ -1712,9 +1715,11 @@ async def main():
             profile_name = args.batch_profile
         else:
             # Single product mode: load from file
-            # Fix path resolution: resolve relative to project root, not current working
+            # Fix path resolution: resolve relative to project root, not current
+            # working
             # directory
-            # This handles cases where Botasaurus changes the working directory to outputs/
+            # This handles cases where Botasaurus changes the working directory to
+            # outputs/
             if args.products_file.is_absolute():
                 products_file_path = args.products_file
             else:
@@ -1727,8 +1732,9 @@ async def main():
                     product_data if isinstance(product_data, list) else [product_data]
                 )
             ]
-            # For single mode, we don't have directory info, so use None
-            products_list = [(None, product) for product in raw_products]
+            # For single mode, we don't have directory info, so use a placeholder path
+            placeholder_path = Path(".")  # Use current directory as placeholder
+            products_list = [(placeholder_path, product) for product in raw_products]
             profile_name = args.profile
     except Exception as e:
         error_msg = f"Failed to load products: {e}"
@@ -1767,7 +1773,8 @@ async def main():
     total_products = len(indices)
     if args.batch:
         logger.info(
-            f"Starting batch processing of {total_products} products with profile '{profile_name}'"
+            f"Starting batch processing of {total_products} products with "
+            f"profile '{profile_name}'"
         )
 
     for i, idx in enumerate(indices):
@@ -1809,7 +1816,8 @@ async def main():
             skipped_products.append(product_id)
             if args.batch:
                 logger.info(
-                    f"[{i+1}/{total_products}] Skipped {product_id} (insufficient media)"
+                    f"[{i+1}/{total_products}] Skipped {product_id} "
+                    f"(insufficient media)"
                 )
         elif result_path:
             succeeded += 1
@@ -1824,7 +1832,8 @@ async def main():
                 logger.error(f"[{i+1}/{total_products}] Failed to process {product_id}")
                 if args.fail_fast:
                     logger.error(
-                        f"Stopping batch processing due to --fail-fast (failed on product {product_id})"
+                        f"Stopping batch processing due to --fail-fast "
+                        f"(failed on product {product_id})"
                     )
                     break
 

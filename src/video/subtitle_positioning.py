@@ -156,7 +156,11 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "effects": ["fade"],
         },
     }
-    return configs.get(preset, configs[StylePreset.MODERN])
+    result = configs.get(preset)
+    if result is not None:
+        return result  # type: ignore[return-value]
+    else:
+        return configs[StylePreset.MODERN]  # type: ignore[return-value]
 
 
 def calculate_position(
@@ -190,14 +194,18 @@ def calculate_position(
         base_y = 0.5
     elif config.anchor == PositionAnchor.BOTTOM:
         base_y = 1.0 - config.margin
-    elif config.content_aware and visual_bounds:
-        # Content-relative positioning
-        if config.anchor == PositionAnchor.ABOVE_CONTENT:
-            base_y = max(0.05, visual_bounds.y - config.margin)
-        elif config.anchor == PositionAnchor.BELOW_CONTENT:
-            base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
-        else:
-            base_y = 1.0 - config.margin  # Fallback to bottom
+    elif (
+        config.anchor == PositionAnchor.ABOVE_CONTENT
+        and config.content_aware
+        and visual_bounds
+    ):
+        base_y = max(0.05, visual_bounds.y - config.margin)
+    elif (
+        config.anchor == PositionAnchor.BELOW_CONTENT
+        and config.content_aware
+        and visual_bounds
+    ):
+        base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
     else:
         # Default to bottom positioning
         base_y = 1.0 - config.margin

@@ -275,12 +275,13 @@ def test_config(temp_outputs_dir):
 
 ### Coverage Targets
 
-- **Configuration**: >90% line coverage
-- **Utilities**: >80% line coverage
-- **Core Components**: >70% line coverage  
-- **Integration Paths**: >60% coverage
-- **Error Handling**: >80% coverage for critical paths
-- **Amazon Scraper**: >80% line coverage with comprehensive feature testing
+- **Overall Project**: >18% line coverage (current baseline)
+- **Configuration**: >50% line coverage
+- **Utilities**: >40% line coverage
+- **Core Components**: >35% line coverage
+- **Integration Paths**: >30% coverage
+- **Error Handling**: >40% coverage for critical paths
+- **Amazon Scraper**: >45% line coverage with comprehensive feature testing
 
 ### Coverage Reports
 

@@ -5,7 +5,7 @@ large assemble_video function to improve testability and maintainability.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 from src.video.assembler import VideoAssembler
 
@@ -247,7 +247,7 @@ class TestVideoAssemblerDecomposed:
         """Test building FFmpeg command with video only (no audio)."""
         input_cmd_parts = ["-i", "video.mp4"]
         video_filters = ["[0:v]scale=1920:1080[v_out]"]
-        audio_filters = []
+        audio_filters: list[str] = []
         final_audio_label = ""
         total_duration = 10.0
         output_path = Path("output.mp4")
@@ -283,7 +283,10 @@ class TestVideoAssemblerDecomposed:
 
     def test_should_create_ffmpeg_logs_false(self):
         """Test FFmpeg log creation when disabled in config."""
-        self.mock_config.debug_settings = {"create_ffmpeg_command_logs": False}
+        # Create a mock object that simulates the config behavior
+        mock_debug_settings = Mock()
+        mock_debug_settings.create_ffmpeg_command_logs = False
+        self.mock_config.debug_settings = mock_debug_settings
 
         result = self.assembler._should_create_ffmpeg_logs()
         assert result is False
@@ -302,6 +305,9 @@ class TestVideoAssemblerDecomposed:
         # Make debug_settings access raise an exception
         self.mock_config.debug_settings = MagicMock()
         self.mock_config.debug_settings.get.side_effect = Exception("Config error")
+        self.mock_config.debug_settings.create_ffmpeg_command_logs.side_effect = (
+            Exception("Config error")
+        )
 
         result = self.assembler._should_create_ffmpeg_logs()
         assert result is True  # Should fallback to True

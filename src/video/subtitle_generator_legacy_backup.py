@@ -126,7 +126,7 @@ DEFAULT_MODEL_DIR = os.path.expanduser(DEFAULT_WHISPER_MODEL_DIR)
 # Check if Whisper is available and set up model directory
 WHISPER_AVAILABLE = False
 try:
-    import whisper
+    import whisper  # type: ignore[import-untyped]
 
     WHISPER_AVAILABLE = True
     os.makedirs(DEFAULT_MODEL_DIR, exist_ok=True)
@@ -604,7 +604,8 @@ async def generate_subtitles_with_whisper(
         create_whisper_debug = debug_mode
         if debug_mode:
             try:
-                from .video_config import CONFIG
+                # Use a simple config dict for debug settings
+                CONFIG: dict[str, Any] = {}
 
                 create_whisper_debug = (
                     CONFIG.get("video_producer", {})
@@ -1126,7 +1127,7 @@ def adjust_subtitle_timing(
         subs = pysrt.open(str(srt_path), encoding="utf-8")
 
         # Shift timing
-        subs.shift(milliseconds=time_offset_ms)
+        subs.shift(milliseconds=time_offset_ms)  # type: ignore[attr-defined]
 
         # Save adjusted file
         ensure_dirs_exist(output_path.parent)
@@ -1176,15 +1177,15 @@ def slice_subtitles(
         end_time = pysrt.SubRipTime(milliseconds=end_time_ms)
 
         # Slice the subtitles (pysrt slice parameters work differently)
-        sliced_subs = subs.slice(starts_after=start_time, ends_before=end_time)
+        sliced_subs = subs.slice(starts_after=start_time, ends_before=end_time)  # type: ignore[attr-defined]
 
         # If no results, try a broader search
         if not sliced_subs:
             # Try getting overlapping subtitles instead
             sliced_subs = pysrt.SubRipFile()
             for sub in subs:
-                sub_start_ms = sub.start.ordinal
-                sub_end_ms = sub.end.ordinal
+                sub_start_ms = sub.start.ordinal  # type: ignore[union-attr]
+                sub_end_ms = sub.end.ordinal  # type: ignore[union-attr]
                 # Include if subtitle overlaps with time range
                 if sub_start_ms < end_time_ms and sub_end_ms > start_time_ms:
                     sliced_subs.append(sub)
@@ -1267,7 +1268,7 @@ def _process_timings_to_segments(
     debug_mode: bool = False,
 ) -> list[dict[str, Any]]:
     """Process word timings into subtitle segments using existing logic."""
-    current_line_words_data = []
+    current_line_words_data: list[dict[str, Any]] = []
     current_line_text = ""
     current_line_start_time = None
     subtitle_segments = []
@@ -1368,7 +1369,8 @@ def _process_timings_to_segments(
             last_segment["end"] = last_segment["end"] + extension
         elif gap > 0:
             logger.debug(
-                f"Gap ({gap:.2f}s) below threshold ({settings.subtitle_extension_threshold}s), "
+                f"Gap ({gap:.2f}s) below threshold "
+                f"({settings.subtitle_extension_threshold}s), "
                 f"not extending subtitle"
             )
 
@@ -1488,7 +1490,8 @@ async def create_final_subtitles_with_context(
             creds_path = secrets.get("GOOGLE_APPLICATION_CREDENTIALS")
             if creds_path and Path(creds_path).is_file():
                 logger.info(
-                    "Using Google Cloud STT for word timings (Whisper fallback/alternative)."
+                    "Using Google Cloud STT for word timings "
+                    "(Whisper fallback/alternative)."
                 )
                 try:
                     stt_timings = await transcribe_with_google_cloud_stt(
@@ -1496,7 +1499,8 @@ async def create_final_subtitles_with_context(
                     )
                     if stt_timings:
                         logger.info(
-                            f"Google Cloud STT successful, got {len(stt_timings)} word timings."
+                            f"Google Cloud STT successful, got "
+                            f"{len(stt_timings)} word timings."
                         )
                     else:
                         error_msg = (
@@ -1509,7 +1513,10 @@ async def create_final_subtitles_with_context(
                     error_chain.append(error_msg)
                     logger.error(error_msg, exc_info=debug_mode)
             else:
-                error_msg = "Google Cloud STT configured but GOOGLE_APPLICATION_CREDENTIALS invalid/not found"
+                error_msg = (
+                    "Google Cloud STT configured but "
+                    "GOOGLE_APPLICATION_CREDENTIALS invalid/not found"
+                )
                 error_chain.append(error_msg)
                 logger.warning(error_msg)
         else:
@@ -1518,13 +1525,15 @@ async def create_final_subtitles_with_context(
             logger.warning(error_msg)
     elif not stt_timings:
         logger.info(
-            "Google Cloud STT not configured, not enabled, or Whisper already provided timings."
+            "Google Cloud STT not configured, not enabled, or Whisper "
+            "already provided timings."
         )
 
     # Try STT-based generation if we have timings
     if stt_timings:
         logger.info(
-            f"Proceeding to generate {format_name} from {len(stt_timings)} word timings."
+            f"Proceeding to generate {format_name} from "
+            f"{len(stt_timings)} word timings."
         )
 
         try:
@@ -1540,7 +1549,8 @@ async def create_final_subtitles_with_context(
 
             if result.success:
                 logger.info(
-                    f"Successfully generated {format_name} file from STT timings: {result.path}"
+                    f"Successfully generated {format_name} file from STT timings: "
+                    f"{result.path}"
                 )
                 return SubtitleGenerationResult(
                     success=True,
@@ -1562,7 +1572,8 @@ async def create_final_subtitles_with_context(
 
     # Fallback generation based on format
     logger.info(
-        f"Falling back to simple {format_name} generation from script text and duration."
+        f"Falling back to simple {format_name} generation from script text "
+        f"and duration."
     )
 
     if not script:
@@ -1574,7 +1585,10 @@ async def create_final_subtitles_with_context(
         )
 
     if not voiceover_duration or voiceover_duration <= 0:
-        error_msg = f"Cannot generate simple {format_name}: Invalid voiceover duration ({voiceover_duration})"
+        error_msg = (
+            f"Cannot generate simple {format_name}: Invalid voiceover duration "
+            f"({voiceover_duration})"
+        )
         error_chain.append(error_msg)
         logger.error(error_msg)
         return SubtitleGenerationResult(
@@ -1595,7 +1609,8 @@ async def create_final_subtitles_with_context(
         if result.success:
             if error_chain:
                 logger.warning(
-                    f"Using fallback subtitle generation after errors: {'; '.join(error_chain)}"
+                    f"Using fallback subtitle generation after errors: "
+                    f"{'; '.join(error_chain)}"
                 )
             logger.info(
                 f"Successfully generated fallback {format_name} file: {result.path}"
@@ -1714,7 +1729,8 @@ async def create_final_subtitles(
     if stt_timings:
         format_name = "ASS" if subtitle_settings.subtitle_format == "ass" else "SRT"
         logger.info(
-            f"Proceeding to generate {format_name} from {len(stt_timings)} word timings."
+            f"Proceeding to generate {format_name} from {len(stt_timings)} "
+            f"word timings."
         )
 
         if subtitle_settings.subtitle_format == "ass":
@@ -1763,14 +1779,16 @@ async def create_final_subtitles(
             return generated_path
         else:
             logger.warning(
-                f"{format_name} generation from STT timings failed or produced an empty file. "
+                f"{format_name} generation from STT timings failed or produced an "
+                f"empty file. "
                 "Will attempt fallback."
             )
 
     # Fallback generation based on format
     format_name = "ASS" if subtitle_settings.subtitle_format == "ass" else "SRT"
     logger.info(
-        f"Falling back to simple {format_name} generation from script text and duration."
+        f"Falling back to simple {format_name} generation from script text "
+        f"and duration."
     )
 
     if not script:
@@ -1918,7 +1936,7 @@ def _log_audio_file_info(audio_path: Path) -> None:
             format_name = format_info.get("format_name", "unknown")
 
             # Get audio stream info
-            audio_stream = next(
+            audio_stream: dict[str, Any] = next(
                 (s for s in streams if s.get("codec_type") == "audio"), {}
             )
             codec_name = audio_stream.get("codec_name", "unknown")
@@ -2022,7 +2040,8 @@ async def _transcribe_with_monitoring(
 
             # Get result
             if transcribe_task.done():
-                return await transcribe_task
+                result = await transcribe_task
+                return dict(result) if result else {}
             else:
                 transcribe_task.cancel()
                 raise RuntimeError("Transcription task did not complete")
@@ -2038,7 +2057,8 @@ async def _transcribe_with_monitoring(
             raise
     else:
         # Normal mode without monitoring
-        return await _transcribe_worker()
+        result = await _transcribe_worker()
+        return dict(result) if result else {}
 
 
 async def _monitor_transcription_progress(interval_sec: int = 30):
@@ -2135,8 +2155,11 @@ def generate_ass_from_timings(
     ass_content.extend(
         [
             "[V4+ Styles]",
-            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Default,{font_name},{font_size},{primary_color},{primary_color},{outline_color},&H80000000,-1,0,1,2,0,5,10,10,0,1",
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+            "OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+            f"Style: Default,{font_name},{font_size},{primary_color},"
+            f"{primary_color},{outline_color},&H80000000,-1,0,1,2,0,5,10,10,0,1",
             "",
         ]
     )
@@ -2166,7 +2189,8 @@ def generate_ass_from_timings(
     ass_content.extend(
         [
             "[Events]",
-            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, "
+            "Effect, Text",
         ]
     )
 
@@ -2187,7 +2211,8 @@ def generate_ass_from_timings(
         selected_colors = random.choice(color_palettes)  # noqa: S311
 
     for index, segment in enumerate(segments):
-        # Add index to segment for effect calculations and pass the selected video effect
+        # Add index to segment for effect calculations and pass the selected
+        # video effect
         segment_with_index = {
             **segment,
             "index": index,
@@ -2205,7 +2230,8 @@ def generate_ass_from_timings(
         # Add dialogue line with manual positioning
         pos_x = width // 2  # Center horizontally
         ass_content.append(
-            f"Dialogue: 0,{start},{end},Default,,0,0,0,,{{\\pos({pos_x},{pos_y})}}{text}"
+            f"Dialogue: 0,{start},{end},Default,,0,0,0,,"
+            f"{{\\pos({pos_x},{pos_y})}}{text}"
         )
 
     # Write file
@@ -2429,12 +2455,18 @@ def generate_simple_ass(
         "WrapStyle: 1",
         "",
         "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Default,Arial,{getattr(settings, 'ass_font_size', 48)},{primary_color},{primary_color},{outline_color},&H80000000,-1,0,1,2,0,5,10,10,0,1",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, "
+        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Default,Arial,{getattr(settings, 'ass_font_size', 48)},"
+        f"{primary_color},{primary_color},{outline_color},"
+        "&H80000000,-1,0,1,2,0,5,10,10,0,1",
         "",
         "[Events]",
-        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 0,{start},{end},Default,,0,0,0,,{{\\pos({width//2},{height - margin_v})}}{text}",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, "
+        "Effect, Text",
+        f"Dialogue: 0,{start},{end},Default,,0,0,0,,"
+        f"{{\\pos({width//2},{height - margin_v})}}{text}",
     ]
 
     ensure_dirs_exist(output_path.parent)

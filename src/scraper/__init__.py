@@ -93,13 +93,13 @@ class ScraperFactory:
         # Create instance with appropriate parameters
         if platform == Platform.AMAZON:
             # Amazon scraper takes config_path and debug_override
-            return scraper_class(
+            return scraper_class(  # type: ignore[call-arg,misc]
                 config_path=config_path or "config/scrapers.yaml",
                 debug_override=debug_mode,
             )
         else:
             # Future platforms may have different constructors
-            return scraper_class()
+            return scraper_class()  # type: ignore[misc]
 
     @classmethod
     def get_available_platforms(cls) -> list[Platform]:

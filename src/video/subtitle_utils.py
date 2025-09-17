@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import pysrt  # type: ignore[import-untyped]
+import pysrt
 
 from src.utils import ensure_dirs_exist
 from src.video.stt_functions import (
@@ -59,7 +59,7 @@ def adjust_subtitle_timing(
         subs = pysrt.open(str(srt_path), encoding="utf-8")
 
         # Shift timing
-        subs.shift(milliseconds=time_offset_ms)
+        subs.shift(milliseconds=time_offset_ms)  # type: ignore[attr-defined]
 
         # Save adjusted file
         ensure_dirs_exist(output_path.parent)
@@ -109,15 +109,17 @@ def slice_subtitles(
         end_time = pysrt.SubRipTime(milliseconds=end_time_ms)
 
         # Slice the subtitles (pysrt slice parameters work differently)
-        sliced_subs = subs.slice(starts_after=start_time, ends_before=end_time)
+        sliced_subs = subs.slice(starts_after=start_time, ends_before=end_time)  # type: ignore[attr-defined]
 
         # If no results, try a broader search
         if not sliced_subs:
             # Try getting overlapping subtitles instead
             sliced_subs = pysrt.SubRipFile()
             for sub in subs:
-                sub_start_ms = sub.start.ordinal
-                sub_end_ms = sub.end.ordinal
+                if sub.start is None or sub.end is None:
+                    continue
+                sub_start_ms = sub.start.ordinal  # type: ignore[attr-defined]
+                sub_end_ms = sub.end.ordinal  # type: ignore[attr-defined]
                 # Include if subtitle overlaps with time range
                 if sub_start_ms < end_time_ms and sub_end_ms > start_time_ms:
                     sliced_subs.append(sub)
@@ -174,15 +176,23 @@ def get_subtitle_info(srt_path: Path) -> dict[str, Any] | None:
             }
 
         # Calculate total duration
-        total_duration_ms = int(subs[-1].end.ordinal) if subs else 0
+        total_duration_ms = (
+            int(subs[-1].end.ordinal) if subs and subs[-1].end is not None else 0  # type: ignore[attr-defined]
+        )
 
         return {
             "file_path": str(srt_path),
             "segment_count": len(subs),
             "duration_ms": total_duration_ms,
             "is_valid": True,
-            "first_segment_start": int(subs[0].start.ordinal) if subs else None,
-            "last_segment_end": int(subs[-1].end.ordinal) if subs else None,
+            "first_segment_start": (
+                int(subs[0].start.ordinal)  # type: ignore[attr-defined]
+                if subs and subs[0].start is not None
+                else None
+            ),
+            "last_segment_end": (
+                int(subs[-1].end.ordinal) if subs and subs[-1].end is not None else None  # type: ignore[attr-defined]
+            ),
         }
 
     except Exception as e:
@@ -214,8 +224,10 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
 
         with open(output_path, "w", encoding="utf-8") as f:
             for i, sub in enumerate(subs, 1):
-                start_seconds = sub.start.ordinal / 1000
-                end_seconds = sub.end.ordinal / 1000
+                if sub.start is None or sub.end is None:
+                    continue
+                start_seconds = sub.start.ordinal / 1000  # type: ignore[attr-defined]
+                end_seconds = sub.end.ordinal / 1000  # type: ignore[attr-defined]
 
                 f.write(f"{i}\n")
                 f.write(f"{start_seconds:.3f}s --> {end_seconds:.3f}s\n")

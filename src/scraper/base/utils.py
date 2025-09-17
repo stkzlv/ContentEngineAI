@@ -19,7 +19,7 @@ from .models import BaseProductData
 
 
 def exponential_backoff_retry(
-    func: Callable,
+    func: Callable | None = None,
     max_retries: int | None = None,
     base_delay: float | None = None,
     backoff_factor: float | None = None,
@@ -117,13 +117,6 @@ def exponential_backoff_retry(
                 )
 
                 time.sleep(delay)
-
-            # This should never be reached, but just in case
-            if last_exception:
-                raise last_exception from None
-            raise RuntimeError(
-                f"Unexpected state in retry logic for {wrapped_func.__name__}"
-            )
 
         return wrapper
 

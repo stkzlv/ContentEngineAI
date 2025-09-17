@@ -162,7 +162,7 @@ class SearchParameters(BaseSearchParameters):
             )
         except Exception:
             prime_code = "p_85:2470955011"
-        return prime_code
+        return str(prime_code)
 
     def encode_free_shipping_filter(self) -> str | None:
         """Encode free shipping filter."""
@@ -179,7 +179,7 @@ class SearchParameters(BaseSearchParameters):
             )
         except Exception:
             shipping_code = "p_76:419122011"
-        return shipping_code
+        return str(shipping_code) if shipping_code is not None else None
 
     def encode_brand_filter(self) -> list[str]:
         """Encode brand filters for Amazon p_89 parameter."""

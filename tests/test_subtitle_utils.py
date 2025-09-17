@@ -268,7 +268,7 @@ Missing text in subtitle 2
         result = convert_timestamps_to_seconds(nonexistent_path, output_path)
         assert result is None
 
-    @patch("src.video.subtitle_utils.pysrt")
+    @patch("src.video.subtitle_validation.pysrt")
     def test_validate_srt_file_pysrt_exception(self, mock_pysrt, sample_srt_file: Path):
         """Test validation when pysrt raises exception."""
         mock_pysrt.open.side_effect = Exception("pysrt error")

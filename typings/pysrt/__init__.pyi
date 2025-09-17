@@ -4,13 +4,8 @@ from typing import Optional, Union
 
 class SubRipTime:
     def __init__(
-        self,
-        hours: int = 0,
-        minutes: int = 0,
-        seconds: int = 0,
-        milliseconds: int = 0
+        self, hours: int = 0, minutes: int = 0, seconds: int = 0, milliseconds: int = 0
     ): ...
-
     @property
     def hours(self) -> int: ...
     @property
@@ -19,7 +14,6 @@ class SubRipTime:
     def seconds(self) -> int: ...
     @property
     def milliseconds(self) -> int: ...
-
     def __str__(self) -> str: ...
     def __ge__(self, other: SubRipTime) -> bool: ...
     def __le__(self, other: SubRipTime) -> bool: ...
@@ -32,9 +26,8 @@ class SubRipItem:
         index: int | None = None,
         start: SubRipTime | None = None,
         end: SubRipTime | None = None,
-        text: str = ""
+        text: str = "",
     ): ...
-
     @property
     def index(self) -> int | None: ...
     @property
@@ -43,7 +36,6 @@ class SubRipItem:
     def end(self) -> SubRipTime | None: ...
     @property
     def text(self) -> str: ...
-
     def __str__(self) -> str: ...
 
 class SubRipFile(list[SubRipItem]):

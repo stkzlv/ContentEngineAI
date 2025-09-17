@@ -448,9 +448,10 @@ class TestSlideshowImagesVerification:
     def real_video_data(self) -> dict[str, Any]:
         """Get real pipeline-generated video data for testing."""
         # Use the existing B0BTYCRJSS slideshow_images video
+        # Get project root and construct relative path
+        project_root = Path(__file__).parent.parent
         base_path = (
-            "/home/user/github.com/ContentEngineAI/outputs/videos/"
-            "B0BTYCRJSS/slideshow_images"
+            project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images"
         )
         video_base_path = Path(base_path)
 
@@ -473,8 +474,8 @@ class TestSlideshowImagesVerification:
         screenshots_dir = verification_dir / "screenshots"
 
         # Create directories if they don't exist
-        verification_dir.mkdir(exist_ok=True)
-        screenshots_dir.mkdir(exist_ok=True)
+        verification_dir.mkdir(parents=True, exist_ok=True)
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
 
         return verification_dir
 

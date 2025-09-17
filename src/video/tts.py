@@ -339,7 +339,7 @@ async def _generate_google_cloud_speech(
     if settings.model_name:
         # Try model_name parameter first, then model (different API versions)
         try:
-            test_params = texttospeech.VoiceSelectionParams(
+            texttospeech.VoiceSelectionParams(
                 language_code="en-US", name="test", model_name=settings.model_name
             )
             voice_params_kwargs["model_name"] = settings.model_name

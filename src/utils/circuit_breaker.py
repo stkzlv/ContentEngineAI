@@ -100,7 +100,8 @@ class CircuitBreaker:
                     f"Next attempt in {self.next_attempt_time - time.time():.1f}s"
                 )
                 raise CircuitBreakerError(
-                    f"Circuit breaker {self.name} is OPEN. Service temporarily unavailable."
+                    f"Circuit breaker {self.name} is OPEN. Service temporarily "
+                    f"unavailable."
                 )
             else:
                 # Transition to HALF_OPEN for recovery attempt
@@ -137,7 +138,8 @@ class CircuitBreaker:
                     f"Next attempt in {self.next_attempt_time - time.time():.1f}s"
                 )
                 raise CircuitBreakerError(
-                    f"Circuit breaker {self.name} is OPEN. Service temporarily unavailable."
+                    f"Circuit breaker {self.name} is OPEN. Service temporarily "
+                    f"unavailable."
                 )
             else:
                 # Transition to HALF_OPEN for recovery attempt
@@ -178,7 +180,8 @@ class CircuitBreaker:
         self.last_failure_time = time.time()
 
         logger.warning(
-            f"Circuit breaker {self.name} - failure {self.failure_count}/{self.failure_threshold}: {exception}"
+            f"Circuit breaker {self.name} - failure "
+            f"{self.failure_count}/{self.failure_threshold}: {exception}"
         )
 
         if self.failure_count >= self.failure_threshold:
