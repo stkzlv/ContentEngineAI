@@ -43,12 +43,13 @@ We will:
 
 ### Release Workflow
 
-1. **Development**: Feature branches merged to `main` via Pull Requests
+1. **Development**: Feature branches with development work
 2. **Testing**: Automated CI/CD pipeline validates all changes
-3. **Release Preparation**: Version bumped, CHANGELOG updated
-4. **Tagging**: Git tag created (`v0.1.0`, `v0.2.0`, etc.)
-5. **GitHub Release**: Automated release notes generation
-6. **Communication**: Community notification of new releases
+3. **Release Preparation**: Version bumped and CHANGELOG updated in feature branch
+4. **Pull Request**: Feature branch merged to `main` via Pull Request (includes version changes)
+5. **Tagging**: Git tag created from `main` after merge (`v0.1.0`, `v0.2.0`, etc.)
+6. **GitHub Release**: Automated release notes generation
+7. **Communication**: Community notification of new releases
 
 ## Path to 1.0.0
 
