@@ -5,7 +5,7 @@ large assemble_video function to improve testability and maintainability.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 from src.video.assembler import VideoAssembler
 
@@ -283,7 +283,10 @@ class TestVideoAssemblerDecomposed:
 
     def test_should_create_ffmpeg_logs_false(self):
         """Test FFmpeg log creation when disabled in config."""
-        self.mock_config.debug_settings = {"create_ffmpeg_command_logs": False}
+        # Create a mock object that simulates the config behavior
+        mock_debug_settings = Mock()
+        mock_debug_settings.create_ffmpeg_command_logs = False
+        self.mock_config.debug_settings = mock_debug_settings
 
         result = self.assembler._should_create_ffmpeg_logs()
         assert result is False

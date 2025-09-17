@@ -113,6 +113,11 @@ MyPy is configured for development efficiency while maintaining type safety:
 - `warn_redundant_casts`: Don't warn about redundant type casts
 - `strict_equality`: Don't enforce strict equality checks
 
+**Library Overrides:**
+- Third-party libraries (botasaurus, coqui_tts, etc.) have error checking disabled
+- Specific modules with complex external dependencies ignore type errors
+- Test modules have relaxed type checking for mock objects
+
 ### Security Tools
 
 **Bandit:**

@@ -638,21 +638,16 @@ class VideoAssembler:
         """
         try:
             if hasattr(self.config, "debug_settings") and self.config.debug_settings:
-                # Handle both dict and object-style access
-                if isinstance(self.config.debug_settings, dict):
-                    return self.config.debug_settings.get(
-                        "create_ffmpeg_command_logs", True
-                    )
-                else:
-                    # Use getattr with explicit call for object-style access
-                    attr = getattr(
-                        self.config.debug_settings, "create_ffmpeg_command_logs", True
-                    )
-                    # If attr is callable (like a MagicMock), call it to potentially
-                    # trigger side_effect
-                    if callable(attr):
-                        return attr()
-                    return attr
+                # Use getattr with explicit call for object-style access
+                attr = getattr(
+                    self.config.debug_settings, "create_ffmpeg_command_logs", True
+                )
+                # If attr is callable (like a MagicMock), call it to potentially
+                # trigger side_effect
+                if callable(attr):
+                    result = attr()
+                    return bool(result)
+                return bool(attr)
             return True
         except Exception:
             return True
