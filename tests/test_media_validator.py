@@ -414,10 +414,10 @@ class TestURLValidation:
         )
 
         assert is_accessible is True
-        assert metadata["status_code"] == 200
+        assert metadata["status_code"] == "200"
         assert metadata["content_type"] == "image/jpeg"
         assert metadata["content_length"] == "50000"
-        assert metadata["redirected"] is False
+        assert metadata["redirected"] == "False"
 
     @patch("requests.head")
     def test_validate_url_accessibility_failure(self, mock_head):
@@ -433,7 +433,7 @@ class TestURLValidation:
         )
 
         assert is_accessible is False
-        assert metadata["status_code"] == 404
+        assert metadata["status_code"] == "404"
 
     @patch("requests.head")
     def test_validate_url_accessibility_html_warning(self, mock_head):

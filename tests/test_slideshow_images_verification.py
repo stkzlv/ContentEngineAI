@@ -448,10 +448,9 @@ class TestSlideshowImagesVerification:
     def real_video_data(self) -> dict[str, Any]:
         """Get real pipeline-generated video data for testing."""
         # Use the existing B0BTYCRJSS slideshow_images video
-        base_path = (
-            "/home/user/github.com/ContentEngineAI/outputs/videos/"
-            "B0BTYCRJSS/slideshow_images"
-        )
+        # Get project root and construct relative path
+        project_root = Path(__file__).parent.parent
+        base_path = project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images"
         video_base_path = Path(base_path)
 
         return {
