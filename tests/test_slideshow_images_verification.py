@@ -450,7 +450,9 @@ class TestSlideshowImagesVerification:
         # Use the existing B0BTYCRJSS slideshow_images video
         # Get project root and construct relative path
         project_root = Path(__file__).parent.parent
-        base_path = project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images"
+        base_path = (
+            project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images"
+        )
         video_base_path = Path(base_path)
 
         return {
