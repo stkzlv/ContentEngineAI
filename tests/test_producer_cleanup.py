@@ -37,7 +37,7 @@ class MockProducerCleanup:
             f"video_{product_id}_*.mp4",
             f"{product_id}_*.mp4",
             "final_video.mp4",
-            "output.mp4"
+            "output.mp4",
         ]
 
         for file_name in cleanup_files:
@@ -185,7 +185,7 @@ class TestProducerCleanup:
             f"video_{self.product_id}_profile2.mp4",
             f"{self.product_id}_backup.mp4",
             "final_video.mp4",
-            "output.mp4"
+            "output.mp4",
         ]
 
         for video_file in video_files:
@@ -306,7 +306,7 @@ class TestProducerCleanup:
             "final_output.mp4",
             "temp/audio_temp.wav",
             "temp/video_temp.mp4",
-            "temp/subtitle_temp.ass"
+            "temp/subtitle_temp.ass",
         ]
 
         # Create all files
@@ -325,7 +325,7 @@ class TestProducerCleanup:
             "subtitles.ass",
             "subtitles_content_aware.ass",
             "metadata.json",
-            "performance_metrics.json"
+            "performance_metrics.json",
         ]
 
         for file_name in producer_files:
@@ -370,7 +370,7 @@ class TestCleanupIntegration:
             "subtitles_content_aware.ass": "Content-aware ASS content",
             "metadata.json": '{"version": "0.1.1"}',
             "performance_metrics.json": '{"duration": 30.5}',
-            f"video_{product_id}_slideshow_images1.mp4": "Video content"
+            f"video_{product_id}_slideshow_images1.mp4": "Video content",
         }
 
         for file_name, content in producer_files.items():

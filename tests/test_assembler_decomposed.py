@@ -374,4 +374,3 @@ class TestAssemblerIntegration:
         self.mock_config.ffmpeg_settings = MagicMock()
         self.mock_config.ffmpeg_settings.executable_path = "ffmpeg"
         self.assembler = VideoAssembler(self.mock_config)
-

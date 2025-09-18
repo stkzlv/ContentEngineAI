@@ -636,6 +636,7 @@ class VideoAssembler:
         video_settings_dict = self._get_effective_video_settings()
         # Convert dict back to object for backward compatibility
         from types import SimpleNamespace
+
         video_settings = SimpleNamespace(**video_settings_dict)
         audio_settings = self.config.audio_settings
 
@@ -811,6 +812,7 @@ class VideoAssembler:
         video_settings_dict = self._get_effective_video_settings()
         # Convert dict back to object for backward compatibility
         from types import SimpleNamespace
+
         video_settings = SimpleNamespace(**video_settings_dict)
         video_files = [path for path in visual_inputs if self._is_video(path)]
         image_files = [path for path in visual_inputs if not self._is_video(path)]
@@ -963,6 +965,7 @@ class VideoAssembler:
         settings_dict = self._get_effective_subtitle_settings()
         # Convert dict back to object for backward compatibility
         from types import SimpleNamespace
+
         settings = SimpleNamespace(**settings_dict)
         # Use unified positioning system - no need for mode-specific logic
         use_content_aware = getattr(settings, "content_aware", True)
@@ -1230,6 +1233,7 @@ class VideoAssembler:
             settings_dict = self._get_effective_subtitle_settings()
             # Convert dict back to object for backward compatibility
             from types import SimpleNamespace
+
             settings = SimpleNamespace(**settings_dict)
             rel_settings = settings.relative_positioning
 
@@ -1272,6 +1276,7 @@ class VideoAssembler:
                     subtitle_settings_dict = self._get_effective_subtitle_settings()
                     # Convert dict back to object for backward compatibility
                     from types import SimpleNamespace
+
                     subtitle_settings = SimpleNamespace(**subtitle_settings_dict)
                     if getattr(subtitle_settings, "ass_closer_to_image", True):
                         reduction_factor = getattr(

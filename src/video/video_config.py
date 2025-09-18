@@ -1199,7 +1199,8 @@ class VideoConfig(BaseModel):
             "script": product_dir / files.script,
             "voiceover": product_dir / files.voiceover,
             "subtitles": product_dir / self._get_subtitle_filename(files.subtitles),
-            "final_video": product_dir / files.final_video.format(
+            "final_video": product_dir
+            / files.final_video.format(
                 product_id=product_id, profile=safe_profile_name
             ),
             "metadata": product_dir / files.metadata,
