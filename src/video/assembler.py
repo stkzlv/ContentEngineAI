@@ -121,6 +121,55 @@ class VideoAssembler:
             config.ffmpeg_settings.executable_path or "ffmpeg"
         ).replace("ffmpeg", "ffprobe")
 
+        # Profile-specific settings (applied when using set_profile_settings)
+        self.profile_settings: dict[str, Any] | None = None
+
+    def set_profile_settings(self, profile_name: str) -> None:
+        """Apply profile-specific settings to override global configuration.
+
+        This method retrieves and applies profile-merged settings for image
+        positioning/sizing and subtitle styling based on the specified profile.
+
+        Args:
+        ----
+            profile_name: Name of the video profile to apply settings for
+
+        """
+        self.profile_settings = self.config.get_profile_merged_settings(profile_name)
+
+        if self.debug_mode:
+            logger.debug(f"Applied profile settings for '{profile_name}'")
+            logger.debug(
+                f"Image width percent: "
+                f"{self.profile_settings['video_settings']['image_width_percent']}"
+            )
+            logger.debug(
+                f"Image top position: "
+                f"{self.profile_settings['video_settings']['image_top_position_percent']}"
+            )
+            logger.debug(
+                f"Subtitle anchor: "
+                f"{self.profile_settings['subtitle_settings']['anchor']}"
+            )
+            logger.debug(
+                f"Subtitle style preset: "
+                f"{self.profile_settings['subtitle_settings']['style_preset']}"
+            )
+
+    def _get_effective_video_settings(self) -> dict[str, Any]:
+        """Get effective video settings with profile overrides applied."""
+        if self.profile_settings:
+            return self.profile_settings["video_settings"]  # type: ignore[no-any-return]
+        # Fallback to global config if no profile settings
+        return self.config.video_settings.__dict__
+
+    def _get_effective_subtitle_settings(self) -> dict[str, Any]:
+        """Get effective subtitle settings with profile overrides applied."""
+        if self.profile_settings:
+            return self.profile_settings["subtitle_settings"]  # type: ignore[no-any-return]
+        # Fallback to global config if no profile settings
+        return self.config.subtitle_settings.__dict__
+
     def _is_video(self, path: Path) -> bool:
         """Determine if a file is a video based on its MIME type.
 
@@ -584,7 +633,10 @@ class VideoAssembler:
             Complete FFmpeg command as list of strings
 
         """
-        video_settings = self.config.video_settings
+        video_settings_dict = self._get_effective_video_settings()
+        # Convert dict back to object for backward compatibility
+        from types import SimpleNamespace
+        video_settings = SimpleNamespace(**video_settings_dict)
         audio_settings = self.config.audio_settings
 
         all_filters = video_filters + audio_filters
@@ -752,11 +804,14 @@ class VideoAssembler:
         self,
         visual_inputs: list[Path],
         total_video_duration: float,
-        is_dynamic_mode: bool,
+        is_relative_mode: bool,
     ) -> tuple[
         list[str], list[str], list[tuple[Path, float, bool]], str, list[VisualGeometry]
     ]:
-        video_settings = self.config.video_settings
+        video_settings_dict = self._get_effective_video_settings()
+        # Convert dict back to object for backward compatibility
+        from types import SimpleNamespace
+        video_settings = SimpleNamespace(**video_settings_dict)
         video_files = [path for path in visual_inputs if self._is_video(path)]
         image_files = [path for path in visual_inputs if not self._is_video(path)]
         video_durations = await asyncio.gather(
@@ -808,7 +863,7 @@ class VideoAssembler:
         )
 
         uniform_height = -1
-        if not is_dynamic_mode:
+        if not is_relative_mode:
             scaled_heights = []
             for orig_w, orig_h in all_visuals_dims:
                 if orig_w > 0 and orig_h > 0:
@@ -841,7 +896,7 @@ class VideoAssembler:
             orig_w, orig_h = all_visuals_dims[i]
 
             scaled_w, scaled_h = 0, 0
-            if not is_dynamic_mode and uniform_height > 0:
+            if not is_relative_mode and uniform_height > 0:
                 scaled_h = uniform_height
                 scaled_w = (
                     int(scaled_h * (orig_w / orig_h)) if orig_h > 0 else scaled_w_base
@@ -905,7 +960,10 @@ class VideoAssembler:
         subtitle_path: Path | None,
         temp_sub_dir: Path,
     ) -> tuple[list[str], list[str]]:
-        settings = self.config.subtitle_settings
+        settings_dict = self._get_effective_subtitle_settings()
+        # Convert dict back to object for backward compatibility
+        from types import SimpleNamespace
+        settings = SimpleNamespace(**settings_dict)
         # Use unified positioning system - no need for mode-specific logic
         use_content_aware = getattr(settings, "content_aware", True)
 
@@ -934,16 +992,19 @@ class VideoAssembler:
                     )
                     logger.debug(f"Visual geometries available: {len(geometries)}")
 
-                dynamic_ass_path = await self._create_dynamic_ass_file(
+                content_aware_ass_path = await self._create_content_aware_ass_file(
                     subtitle_path, geometries, timed_visuals, temp_sub_dir
                 )
-                if dynamic_ass_path:
-                    ass_path = dynamic_ass_path.as_posix().replace(":", r"\:")
+                if content_aware_ass_path:
+                    ass_path = content_aware_ass_path.as_posix().replace(":", r"\:")
                     if self.debug_mode:
-                        logger.debug(f"Using dynamic ASS file: {dynamic_ass_path}")
+                        logger.debug(
+                            f"Using content-aware ASS file: {content_aware_ass_path}"
+                        )
                 else:
                     logger.warning(
-                        "Failed to create dynamic ASS file, falling back to original"
+                        "Failed to create content-aware ASS file, "
+                        "falling back to original"
                     )
                     ass_path = subtitle_path.as_posix().replace(":", r"\:")
             else:
@@ -1099,29 +1160,31 @@ class VideoAssembler:
         video_filters.append(f"{current_video_stream}copy[v_out]")
         return video_filters, input_cmd_parts
 
-    async def _create_dynamic_ass_file(
+    async def _create_content_aware_ass_file(
         self,
         original_ass_path: Path,
         geometries: list[VisualGeometry],
         timed_visuals: list[tuple[Path, float, bool]],
         temp_dir: Path,
     ) -> Path | None:
-        """Create a new ASS file with dynamic positioning based on image geometry.
+        """Create a new ASS file with content-aware positioning based on image geometry.
 
         Args:
         ----
             original_ass_path: Path to the original ASS file
             geometries: List of visual geometries for each timeline segment
             timed_visuals: List of visual timeline data
-            temp_dir: Temporary directory for dynamic ASS file
+            temp_dir: Temporary directory for content-aware ASS file
 
         Returns:
         -------
-            Path to the new dynamic ASS file, or None if generation fails
+            Path to the new content-aware ASS file, or None if generation fails
 
         """
         try:
-            logger.info("Creating dynamic ASS file with image-relative positioning")
+            logger.info(
+                "Creating content-aware ASS file with image-relative positioning"
+            )
 
             # Read original ASS file
             with open(original_ass_path, encoding="utf-8") as f:
@@ -1162,14 +1225,17 @@ class VideoAssembler:
                 cumulative_time += effective_duration
                 segment_end_times.append(cumulative_time)
 
-            # Process each dialogue line for dynamic positioning
-            dynamic_events = []
-            settings = self.config.subtitle_settings
-            dyn_settings = settings.dynamic_positioning
+            # Process each dialogue line for content-aware positioning
+            content_aware_events = []
+            settings_dict = self._get_effective_subtitle_settings()
+            # Convert dict back to object for backward compatibility
+            from types import SimpleNamespace
+            settings = SimpleNamespace(**settings_dict)
+            rel_settings = settings.relative_positioning
 
-            if not dyn_settings:
+            if not rel_settings:
                 logger.warning(
-                    "Dynamic positioning not configured, using original file"
+                    "Relative positioning not configured, using original file"
                 )
                 return original_ass_path
 
@@ -1177,7 +1243,7 @@ class VideoAssembler:
                 # Parse ASS dialogue line
                 parts = event_line.split(",", 9)  # Split into 10 parts max
                 if len(parts) < 10:
-                    dynamic_events.append(event_line)  # Keep malformed lines as-is
+                    content_aware_events.append(event_line)  # Keep malformed as-is
                     continue
 
                 # Extract timing
@@ -1191,19 +1257,22 @@ class VideoAssembler:
                         segment_idx = i
                         break
 
-                # Calculate dynamic position based on image geometry
+                # Calculate content-aware position based on image geometry
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
                     # Calculate subtitle position relative to image
                     image_bottom = geom.rendered_y + geom.rendered_h
                     spacing = (
-                        dyn_settings.image_bottom_to_subtitle_top_spacing_percent
+                        rel_settings.image_bottom_to_subtitle_top_spacing_percent
                         * self.config.video_settings.resolution[1]
                     )
 
                     # Apply closer positioning if enabled
-                    subtitle_settings = self.config.subtitle_settings
+                    subtitle_settings_dict = self._get_effective_subtitle_settings()
+                    # Convert dict back to object for backward compatibility
+                    from types import SimpleNamespace
+                    subtitle_settings = SimpleNamespace(**subtitle_settings_dict)
                     if getattr(subtitle_settings, "ass_closer_to_image", True):
                         reduction_factor = getattr(
                             subtitle_settings, "ass_spacing_reduction_factor", 0.5
@@ -1267,7 +1336,7 @@ class VideoAssembler:
 
                     # Reconstruct dialogue line with new positioning
                     new_parts = parts[:9] + [positioned_text]
-                    dynamic_events.append(",".join(new_parts))
+                    content_aware_events.append(",".join(new_parts))
 
                     logger.debug(
                         f"Segment {segment_idx}: Positioned subtitle at "
@@ -1277,29 +1346,29 @@ class VideoAssembler:
                     )
                 else:
                     # Fallback: use original positioning
-                    dynamic_events.append(event_line)
+                    content_aware_events.append(event_line)
 
-            # Write dynamic ASS file to permanent output directory instead of temp
+            # Write content-aware ASS file to permanent output directory instead of temp
             # directory
             # Use the output directory (parent of the subtitle file) for permanent
             # storage
             output_dir = original_ass_path.parent
-            dynamic_ass_path = output_dir / "subtitles_dynamic.ass"
+            content_aware_ass_path = output_dir / "subtitles_content_aware.ass"
 
-            with open(dynamic_ass_path, "w", encoding="utf-8") as f:
+            with open(content_aware_ass_path, "w", encoding="utf-8") as f:
                 # Write header
                 for line in header_lines:
                     f.write(line + "\n")
 
-                # Write dynamic events
-                for event_line in dynamic_events:
+                # Write content-aware events
+                for event_line in content_aware_events:
                     f.write(event_line + "\n")
 
-            logger.info(f"Created dynamic ASS file: {dynamic_ass_path}")
-            return dynamic_ass_path
+            logger.info(f"Created content-aware ASS file: {content_aware_ass_path}")
+            return content_aware_ass_path
 
         except Exception as e:
-            logger.error(f"Failed to create dynamic ASS file: {e}")
+            logger.error(f"Failed to create content-aware ASS file: {e}")
             return None
 
     def _parse_ass_time(self, time_str: str) -> float:

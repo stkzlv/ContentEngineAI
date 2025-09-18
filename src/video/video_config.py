@@ -127,7 +127,7 @@ class AbsolutePositioningSettings(BaseModel):
 class SubtitleSettings(BaseModel):
     enabled: bool = Field(True)
     positioning_mode: str = Field(
-        "static",
+        "absolute",
         description="DEPRECATED: Legacy positioning mode. Use UnifiedSubtitleConfig.",
     )
     font_name: str = Field("Arial")
@@ -152,7 +152,7 @@ class SubtitleSettings(BaseModel):
         0.05,
         description="Legacy vertical margin for simple mode, as a % of frame height.",
     )
-    dynamic_positioning: SubtitlePositioningSettings | None = Field(None)
+    relative_positioning: SubtitlePositioningSettings | None = Field(None)
     absolute_positioning: AbsolutePositioningSettings | None = Field(None)
     use_random_font: bool = Field(False)
     use_random_colors: bool = Field(False)
@@ -314,7 +314,7 @@ class SubtitleSettings(BaseModel):
         True, description="Adjust position based on visual content bounds"
     )
     style_preset: str = Field(
-        "dynamic", description="Style preset: minimal, modern, dynamic, classic, bold"
+        "relative", description="Style preset: minimal, modern, relative, classic, bold"
     )
     font_size_scale: float = Field(
         1.2, description="Scale factor for font size (0.5-2.0)"
@@ -336,7 +336,7 @@ class SubtitleSettings(BaseModel):
         This validator is maintained for backward compatibility only.
         New implementations should use UnifiedSubtitleConfig validation.
         """
-        if self.positioning_mode not in ["static", "dynamic", "absolute"]:
+        if self.positioning_mode not in ["absolute", "relative"]:
             # Log deprecation warning instead of raising error
             logger.warning(
                 f"DEPRECATED: positioning_mode '{self.positioning_mode}' is "
@@ -530,6 +530,76 @@ class VideoProfile(BaseModel):
     # Profile-specific subtitle positioning (optional)
     subtitle_positioning: dict[str, Any] | None = Field(
         None, description="Profile-specific subtitle positioning overrides"
+    )
+
+    # ---- PER-PROFILE IMAGE SETTINGS ----
+    # Image positioning and sizing overrides
+    image_width_percent: float | None = Field(
+        None, description="Override global image width as percentage of frame (0.0-1.0)"
+    )
+    image_top_position_percent: float | None = Field(
+        None, description="Override global image top position as percentage (0.0-1.0)"
+    )
+    preserve_aspect_ratio: bool | None = Field(
+        None, description="Override global aspect ratio preservation setting"
+    )
+
+    # ---- PER-PROFILE SUBTITLE SETTINGS ----
+    # Complete unified subtitle configuration overrides
+    subtitle_anchor: str | None = Field(
+        None,
+        description=(
+            "Override subtitle anchor: top, center, bottom, "
+            "above_content, below_content"
+        ),
+    )
+    subtitle_margin: float | None = Field(
+        None,
+        description="Override subtitle margin as fraction of frame height (0.0-0.5)",
+    )
+    subtitle_content_aware: bool | None = Field(
+        None, description="Override content-aware positioning setting"
+    )
+    subtitle_style_preset: str | None = Field(
+        None,
+        description="Override style preset: minimal, modern, relative, classic, bold",
+    )
+    subtitle_font_size_scale: float | None = Field(
+        None, description="Override font size scale factor (0.5-2.0)"
+    )
+    subtitle_horizontal_alignment: str | None = Field(
+        None, description="Override text alignment: left, center, right"
+    )
+
+    # Advanced subtitle styling overrides
+    subtitle_font_name: str | None = Field(
+        None, description="Override subtitle font family"
+    )
+    subtitle_font_color: str | None = Field(
+        None, description="Override subtitle text color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_outline_color: str | None = Field(
+        None, description="Override subtitle outline color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_background_color: str | None = Field(
+        None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_randomize_colors: bool | None = Field(
+        None, description="Override color randomization setting"
+    )
+    subtitle_randomize_effects: bool | None = Field(
+        None, description="Override effect randomization setting"
+    )
+
+    # Text formatting overrides
+    subtitle_max_line_length: int | None = Field(
+        None, description="Override maximum characters per subtitle line"
+    )
+    subtitle_max_duration: float | None = Field(
+        None, description="Override maximum subtitle duration in seconds"
+    )
+    subtitle_min_duration: float | None = Field(
+        None, description="Override minimum subtitle duration in seconds"
     )
 
 
@@ -886,6 +956,215 @@ class VideoConfig(BaseModel):
             raise KeyError(f"Video profile '{profile_name}' not found.")
         return self.video_profiles[profile_name]
 
+    def get_profile_merged_settings(self, profile_name: str) -> dict[str, Any]:
+        """Get settings with profile-specific overrides applied.
+
+        This method merges global configuration settings with profile-specific
+        overrides, providing a complete settings object for video production.
+
+        Args:
+        ----
+            profile_name: Name of the video profile to get merged settings for
+
+        Returns:
+        -------
+            Dictionary containing merged settings with profile overrides applied
+
+        """
+        profile = self.get_profile(profile_name)
+
+        # Start with global settings as base
+        merged_settings = {
+            # Video/Image settings from video_settings
+            "video_settings": {
+                "image_width_percent": self.video_settings.image_width_percent,
+                "image_top_position_percent": (
+                    self.video_settings.image_top_position_percent
+                ),
+                "preserve_aspect_ratio": self.video_settings.preserve_aspect_ratio,
+                "resolution": self.video_settings.resolution,
+                "frame_rate": self.video_settings.frame_rate,
+                "output_codec": self.video_settings.output_codec,
+                "output_pixel_format": self.video_settings.output_pixel_format,
+                "output_preset": self.video_settings.output_preset,
+                "default_image_duration_sec": (
+                    self.video_settings.default_image_duration_sec
+                ),
+                "transition_duration_sec": self.video_settings.transition_duration_sec,
+                "total_duration_limit_sec": (
+                    self.video_settings.total_duration_limit_sec
+                ),
+                "video_duration_tolerance_sec": (
+                    self.video_settings.video_duration_tolerance_sec
+                ),
+                "min_video_file_size_mb": self.video_settings.min_video_file_size_mb,
+                "inter_product_delay_min_sec": (
+                    self.video_settings.inter_product_delay_min_sec
+                ),
+                "inter_product_delay_max_sec": (
+                    self.video_settings.inter_product_delay_max_sec
+                ),
+                "min_visual_segment_duration_sec": (
+                    self.video_settings.min_visual_segment_duration_sec
+                ),
+                "dynamic_image_count_limit": (
+                    self.video_settings.dynamic_image_count_limit
+                ),
+                "verification_probe_timeout_sec": (
+                    self.video_settings.verification_probe_timeout_sec
+                ),
+                "default_max_chars_per_line": (
+                    self.video_settings.default_max_chars_per_line
+                ),
+                "subtitle_box_border_width": (
+                    self.video_settings.subtitle_box_border_width
+                ),
+                "image_loop": self.video_settings.image_loop,
+                "pad_color": self.video_settings.pad_color,
+            },
+            # Subtitle settings from subtitle_settings and unified positioning
+            "subtitle_settings": {
+                # Core unified subtitle positioning
+                "anchor": self.subtitle_settings.anchor,
+                "margin": self.subtitle_settings.margin,
+                "content_aware": self.subtitle_settings.content_aware,
+                "style_preset": self.subtitle_settings.style_preset,
+                "font_size_scale": self.subtitle_settings.font_size_scale,
+                "horizontal_alignment": self.subtitle_settings.horizontal_alignment,
+                # Font and color settings
+                "font_name": self.subtitle_settings.font_name,
+                "font_color": self.subtitle_settings.font_color,
+                "outline_color": self.subtitle_settings.outline_color,
+                "back_color": self.subtitle_settings.back_color,
+                "randomize_colors": self.subtitle_settings.randomize_colors,
+                "randomize_effects": self.subtitle_settings.randomize_effects,
+                # Text formatting
+                "max_line_length": self.subtitle_settings.max_line_length,
+                "max_subtitle_duration": self.subtitle_settings.max_subtitle_duration,
+                "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
+                # Advanced settings (pass through from original)
+                "enabled": self.subtitle_settings.enabled,
+                "positioning_mode": self.subtitle_settings.positioning_mode,
+                "font_directory": self.subtitle_settings.font_directory,
+                "font_size_percent": self.subtitle_settings.font_size_percent,
+                "font_width_to_height_ratio": (
+                    self.subtitle_settings.font_width_to_height_ratio
+                ),
+                "alignment": self.subtitle_settings.alignment,
+                "margin_v_percent": self.subtitle_settings.margin_v_percent,
+                "relative_positioning": self.subtitle_settings.relative_positioning,
+                "absolute_positioning": self.subtitle_settings.absolute_positioning,
+                "use_random_font": self.subtitle_settings.use_random_font,
+                "use_random_colors": self.subtitle_settings.use_random_colors,
+                "available_fonts": self.subtitle_settings.available_fonts,
+                "available_color_combinations": (
+                    self.subtitle_settings.available_color_combinations
+                ),
+                "temp_subtitle_dir": self.subtitle_settings.temp_subtitle_dir,
+                "temp_subtitle_filename": self.subtitle_settings.temp_subtitle_filename,
+                "save_srt_with_video": self.subtitle_settings.save_srt_with_video,
+                "subtitle_format": self.subtitle_settings.subtitle_format,
+                "script_paths": self.subtitle_settings.script_paths,
+                "bold": self.subtitle_settings.bold,
+                "outline_thickness": self.subtitle_settings.outline_thickness,
+                "shadow": self.subtitle_settings.shadow,
+            },
+            # Profile information
+            "profile": {
+                "name": profile_name,
+                "description": profile.description,
+                "use_scraped_images": profile.use_scraped_images,
+                "use_scraped_videos": profile.use_scraped_videos,
+                "use_stock_images": profile.use_stock_images,
+                "use_stock_videos": profile.use_stock_videos,
+                "stock_image_count": profile.stock_image_count,
+                "stock_video_count": profile.stock_video_count,
+                "use_dynamic_image_count": profile.use_dynamic_image_count,
+            },
+        }
+
+        # Apply profile-specific image setting overrides
+        if profile.image_width_percent is not None:
+            merged_settings["video_settings"]["image_width_percent"] = (
+                profile.image_width_percent
+            )
+        if profile.image_top_position_percent is not None:
+            merged_settings["video_settings"]["image_top_position_percent"] = (
+                profile.image_top_position_percent
+            )
+        if profile.preserve_aspect_ratio is not None:
+            merged_settings["video_settings"]["preserve_aspect_ratio"] = (
+                profile.preserve_aspect_ratio
+            )
+
+        # Apply profile-specific subtitle setting overrides
+        if profile.subtitle_anchor is not None:
+            merged_settings["subtitle_settings"]["anchor"] = profile.subtitle_anchor
+        if profile.subtitle_margin is not None:
+            merged_settings["subtitle_settings"]["margin"] = profile.subtitle_margin
+        if profile.subtitle_content_aware is not None:
+            merged_settings["subtitle_settings"]["content_aware"] = (
+                profile.subtitle_content_aware
+            )
+        if profile.subtitle_style_preset is not None:
+            merged_settings["subtitle_settings"]["style_preset"] = (
+                profile.subtitle_style_preset
+            )
+        if profile.subtitle_font_size_scale is not None:
+            merged_settings["subtitle_settings"]["font_size_scale"] = (
+                profile.subtitle_font_size_scale
+            )
+        if profile.subtitle_horizontal_alignment is not None:
+            merged_settings["subtitle_settings"]["horizontal_alignment"] = (
+                profile.subtitle_horizontal_alignment
+            )
+
+        # Apply advanced subtitle styling overrides
+        if profile.subtitle_font_name is not None:
+            merged_settings["subtitle_settings"]["font_name"] = (
+                profile.subtitle_font_name
+            )
+        if profile.subtitle_font_color is not None:
+            merged_settings["subtitle_settings"]["font_color"] = (
+                profile.subtitle_font_color
+            )
+        if profile.subtitle_outline_color is not None:
+            merged_settings["subtitle_settings"]["outline_color"] = (
+                profile.subtitle_outline_color
+            )
+        if profile.subtitle_background_color is not None:
+            merged_settings["subtitle_settings"]["back_color"] = (
+                profile.subtitle_background_color
+            )
+        if profile.subtitle_randomize_colors is not None:
+            merged_settings["subtitle_settings"]["randomize_colors"] = (
+                profile.subtitle_randomize_colors
+            )
+        if profile.subtitle_randomize_effects is not None:
+            merged_settings["subtitle_settings"]["randomize_effects"] = (
+                profile.subtitle_randomize_effects
+            )
+
+        # Apply text formatting overrides
+        if profile.subtitle_max_line_length is not None:
+            merged_settings["subtitle_settings"]["max_line_length"] = (
+                profile.subtitle_max_line_length
+            )
+        if profile.subtitle_max_duration is not None:
+            merged_settings["subtitle_settings"]["max_subtitle_duration"] = (
+                profile.subtitle_max_duration
+            )
+        if profile.subtitle_min_duration is not None:
+            merged_settings["subtitle_settings"]["min_subtitle_duration"] = (
+                profile.subtitle_min_duration
+            )
+
+        # Apply legacy subtitle_positioning overrides if present
+        if profile.subtitle_positioning:
+            merged_settings["subtitle_settings"].update(profile.subtitle_positioning)
+
+        return merged_settings
+
     def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:
         """Generate all paths for a product using simplified product-oriented structure.
 
@@ -920,8 +1199,9 @@ class VideoConfig(BaseModel):
             "script": product_dir / files.script,
             "voiceover": product_dir / files.voiceover,
             "subtitles": product_dir / self._get_subtitle_filename(files.subtitles),
-            "final_video": product_dir
-            / files.final_video.format(profile=safe_profile_name),
+            "final_video": product_dir / files.final_video.format(
+                product_id=product_id, profile=safe_profile_name
+            ),
             "metadata": product_dir / files.metadata,
             "ffmpeg_log": product_dir / files.ffmpeg_log,
             "performance": product_dir / files.performance,
@@ -1447,7 +1727,7 @@ except Exception as e:
         ),
         subtitle_settings=SubtitleSettings(
             enabled=True,
-            positioning_mode="static",
+            positioning_mode="absolute",
             font_name="Arial",
             font_directory="fonts",
             font_size_percent=0.05,
@@ -1457,7 +1737,7 @@ except Exception as e:
             back_color="&H99000000",
             alignment=2,
             margin_v_percent=0.05,
-            dynamic_positioning=None,
+            relative_positioning=None,
             absolute_positioning=None,
             use_random_font=False,
             use_random_colors=False,
@@ -1568,7 +1848,7 @@ except Exception as e:
             anchor="bottom",
             margin=0.1,
             content_aware=True,
-            style_preset="dynamic",
+            style_preset="relative",
             font_size_scale=1.2,
             horizontal_alignment="center",
             randomize_colors=False,

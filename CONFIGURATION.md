@@ -175,7 +175,7 @@ outputs/
 │   ├── script.txt                 # Generated script
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
-│   ├── video_slideshow_images.mp4 # Final video
+│   ├── video_slideshow_images1.mp4 # Final video
 │   ├── metadata.json              # Pipeline metadata
 │   ├── ffmpeg_command.log         # FFmpeg execution log
 │   ├── images/                    # Product images
@@ -204,7 +204,7 @@ outputs/
 
 **Pattern Variables:**
 - `{product_id}`: Product identifier (ASIN for Amazon)
-- `{profile}`: Video profile name (e.g., "slideshow_images")
+- `{profile}`: Video profile name (e.g., "slideshow_images1")
 - `{platform}`: Source platform (e.g., "amazon")
 - `{timestamp}`: Current timestamp
 - `{ext}`: File extension
@@ -271,13 +271,14 @@ subtitle_settings:
   horizontal_alignment: "center"     # Text alignment: left, center, right
   
   # Style Presets (NEW: Professional presets replace manual styling)
-  style_preset: "modern"             # Style preset: minimal, modern, dynamic, classic, bold
+  style_preset: "modern"             # Style preset: minimal, modern, relative, classic, bold
   font_size_scale: 1.0              # Font size multiplier (0.5-2.0)
   
   # Text Formatting
   max_line_length: 38                # Maximum characters per line
   max_duration: 4.5                  # Maximum duration for subtitle segments (seconds)
   min_duration: 0.4                  # Minimum duration for subtitle segments (seconds)
+  font_width_to_height_ratio: 0.6    # Font width-to-height ratio for pixel-based width calculation
   
   # Visual Customization (Optional)
   randomize_colors: false            # Use random color combinations for variety
@@ -289,7 +290,7 @@ subtitle_settings:
     y: 0.8                          # Vertical position (0.0-1.0 fraction)
   
   # Legacy Compatibility (Automatic Conversion)
-  positioning_mode: "static"         # Legacy setting - automatically converted to unified format
+  positioning_mode: "absolute"         # Legacy setting - automatically converted to unified format
 ```
 
 #### Positioning Anchors Explained
@@ -298,21 +299,25 @@ subtitle_settings:
 - **`center`**: Position at the vertical center of the frame
 - **`bottom`**: Position at the bottom of the frame with margin
 - **`above_content`**: Position above visual content (content-aware)
-- **`below_content`**: Position below visual content (content-aware)
+- **`below_content`**: Position below visual content (content-aware) - **Recommended**
+
+**Content-Aware Positioning**: When enabled, the system analyzes each image's dimensions and positioning to calculate optimal subtitle placement that avoids visual overlaps. This creates two subtitle files:
+- `subtitles.ass`: Standard positioning
+- `subtitles_content_aware.ass`: Dynamic positioning based on content analysis
 
 #### Style Presets Explained
 
 - **`minimal`**: Clean, simple styling with no effects
 - **`modern`**: Contemporary look with subtle effects and background
-- **`dynamic`**: Animated effects with karaoke highlighting and scaling
+- **`relative`**: Animated effects with karaoke highlighting and scaling
 - **`classic`**: Traditional subtitle styling for formal content
 - **`bold`**: High contrast, bold styling for attention-grabbing content
 
 #### Migration from Legacy Configuration
 
 The system automatically converts legacy positioning modes:
-- `"static"` → `bottom` anchor with `content_aware: false`
-- `"dynamic"` → `below_content` anchor with `content_aware: true`
+- `"absolute"` → `bottom` anchor with `content_aware: false`
+- `"relative"` → `below_content` anchor with `content_aware: true`
 - `"absolute"` → `bottom` anchor with custom position if specified
 
 > **📝 Note**: The unified system provides the same visual results as the legacy multi-mode system while using 62% fewer configuration parameters.
@@ -477,38 +482,108 @@ ffmpeg_settings:
   verify_subtitles: true             # Verify subtitle content
 ```
 
-### 12. Video Profiles
+### 12. Video Profiles with Per-Profile Settings
 
-Video profiles define different strategies for media selection:
+Video profiles define different strategies for media selection and now support **per-profile overrides** for all visual settings. Each profile can customize image positioning, subtitle styling, and other visual parameters independently.
 
 ```yaml
 video_profiles:
-  slideshow_images:
-    description: "Image slideshow with crossfade transitions"
+  slideshow_images1:
+    description: "Image slideshow optimized for product focus"
     use_scraped_images: true
     use_scraped_videos: false
-    use_stock_images: true
+    use_stock_images: false
     use_stock_videos: false
-    stock_image_count: 3
+    stock_image_count: 0
     stock_video_count: 0
-  
-  dynamic_mix:
-    description: "Mix of product images, videos, and stock media"
-    use_scraped_images: true
-    use_scraped_videos: true
-    use_stock_images: true
-    use_stock_videos: true
-    stock_image_count: 2
-    stock_video_count: 1
-  
-  product_focus:
-    description: "Only product media, no stock content"
+    use_dynamic_image_count: true
+
+    # ---- Profile-Specific Image Settings ----
+    image_width_percent: 0.85         # 85% frame width for product focus
+    image_top_position_percent: 0.15  # Position 15% from top
+    preserve_aspect_ratio: true       # Maintain image proportions
+
+    # ---- Profile-Specific Subtitle Settings ----
+    subtitle_anchor: "below_content"  # Position below images
+    subtitle_margin: 0.08             # 8% gap below content
+    subtitle_content_aware: true      # Dynamic positioning
+    subtitle_style_preset: "modern"  # Modern styling
+    subtitle_font_size_scale: 1.1     # 10% larger font
+    subtitle_max_line_length: 35      # Shorter lines
+    subtitle_horizontal_alignment: "center"
+
+  scraped_videos_then_images:
+    description: "Mixed media with videos prioritized"
     use_scraped_images: true
     use_scraped_videos: true
     use_stock_images: false
     use_stock_videos: false
     stock_image_count: 0
     stock_video_count: 0
+    use_dynamic_image_count: true
+
+    # ---- Profile-Specific Settings ----
+    image_width_percent: 0.9          # Larger for mixed media
+    image_top_position_percent: 0.1   # Higher positioning
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.06             # Tighter spacing
+    subtitle_style_preset: "bold"     # Bold styling for videos
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 40
+
+  stock_focus_short:
+    description: "Stock media focus with classic styling"
+    use_scraped_images: false
+    use_scraped_videos: false
+    use_stock_images: true
+    use_stock_videos: true
+    stock_image_count: 2
+    stock_video_count: 1
+    use_dynamic_image_count: false
+
+    # ---- Profile-Specific Settings ----
+    image_width_percent: 0.8          # Smaller for stock content
+    image_top_position_percent: 0.2   # Lower positioning
+    subtitle_anchor: "bottom"         # Fixed bottom positioning
+    subtitle_margin: 0.1
+    subtitle_content_aware: false     # No dynamic positioning
+    subtitle_style_preset: "classic" # Traditional styling
+    subtitle_font_size_scale: 0.9     # Smaller font
+    subtitle_max_line_length: 42
+```
+
+#### Per-Profile Settings Architecture
+
+**Key Features:**
+- **Individual Customization**: Each profile can override any global setting
+- **Selective Overrides**: Only specify settings you want to change
+- **Fallback System**: Unspecified settings use global defaults
+- **Type Safety**: All overrides validated by Pydantic models
+
+**Available Per-Profile Overrides:**
+
+```yaml
+# Image Settings (all optional)
+image_width_percent: 0.85            # Override global image width
+image_top_position_percent: 0.15     # Override global image position
+preserve_aspect_ratio: true          # Override aspect ratio setting
+
+# Subtitle Settings (all optional)
+subtitle_anchor: "below_content"     # Override positioning anchor
+subtitle_margin: 0.08                # Override margin from anchor
+subtitle_content_aware: true         # Override content-aware positioning
+subtitle_style_preset: "modern"     # Override style preset
+subtitle_font_size_scale: 1.1        # Override font size scaling
+subtitle_max_line_length: 35         # Override line length limit
+subtitle_horizontal_alignment: "center"
+subtitle_randomize_colors: false
+subtitle_randomize_effects: false
+
+# Legacy subtitle positioning support
+subtitle_positioning:
+  anchor: "below_content"
+  margin: 0.08
+  content_aware: true
 ```
 
 ## Timeout Configuration
@@ -785,11 +860,21 @@ selectors:
 5. **Documentation**: Comment complex or custom configurations
 6. **Backup**: Keep backup copies of working configurations
 
-## Recent Configuration Updates (v0.4.1)
+## Recent Configuration Updates (v0.1.0+)
 
-### New Configuration Settings
+### Per-Profile Settings Feature (Major Update)
 
-The following settings were added to eliminate magic numbers and improve configurability:
+**Profile-Specific Overrides**: All image positioning, sizing, subtitle positioning, fonts, and colors can now be configured per video profile. This enables:
+- **Custom styling per use case**: Product-focused vs stock media profiles with different visual approaches
+- **Content-aware positioning**: Subtitles automatically avoid overlapping with visual content
+- **Selective customization**: Override only the settings you need, inheriting global defaults for others
+- **Type-safe configuration**: All overrides validated through Pydantic models
+
+**Implementation**: Uses configuration merging pattern where profile settings override global defaults selectively. See Video Profiles section above for complete examples.
+
+### Additional Configuration Settings
+
+The following settings were also added to eliminate magic numbers and improve configurability:
 
 #### Pipeline Settings
 ```yaml

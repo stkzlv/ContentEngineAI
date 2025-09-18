@@ -30,7 +30,7 @@ class StylePreset(str, Enum):
 
     MINIMAL = "minimal"  # Clean, simple styling
     MODERN = "modern"  # Contemporary look with effects
-    DYNAMIC = "dynamic"  # Animated effects
+    RELATIVE = "relative"  # Animated effects
     CLASSIC = "classic"  # Traditional subtitle styling
     BOLD = "bold"  # High contrast, bold styling
 
@@ -114,6 +114,7 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "outline_thickness": 1,
             "shadow": False,
             "effects": [],
+            "font_width_to_height_ratio": 0.5,
         },
         StylePreset.MODERN: {
             "font_name": "Montserrat",
@@ -124,8 +125,9 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "outline_thickness": 2,
             "shadow": True,
             "effects": ["fade"],
+            "font_width_to_height_ratio": 0.5,
         },
-        StylePreset.DYNAMIC: {
+        StylePreset.RELATIVE: {
             "font_name": "Impact",
             "font_color": "&H00FFFFFF",
             "outline_color": "&H00000000",
@@ -134,6 +136,7 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "outline_thickness": 2,
             "shadow": True,
             "effects": ["fade", "scale_pulse", "karaoke"],
+            "font_width_to_height_ratio": 0.5,
         },
         StylePreset.CLASSIC: {
             "font_name": "Times New Roman",
@@ -144,6 +147,7 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "outline_thickness": 1,
             "shadow": False,
             "effects": [],
+            "font_width_to_height_ratio": 0.5,
         },
         StylePreset.BOLD: {
             "font_name": "Gabarito",
@@ -154,6 +158,7 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "outline_thickness": 3,
             "shadow": True,
             "effects": ["fade"],
+            "font_width_to_height_ratio": 0.5,
         },
     }
     result = configs.get(preset)
@@ -251,19 +256,19 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
     legacy positioning_mode configurations to the new unified system.
 
     Legacy modes converted:
-    - "static" -> bottom anchor with fixed positioning
-    - "dynamic" -> below_content anchor with content-aware positioning
+    - "absolute" -> bottom anchor with fixed positioning
+    - "relative" -> below_content anchor with content-aware positioning
     - "absolute" -> bottom anchor with custom position (if specified)
 
     New implementations should use UnifiedSubtitleConfig directly instead
     of relying on this conversion function.
     """
     # Extract positioning mode
-    positioning_mode = legacy_settings.get("positioning_mode", "static")
+    positioning_mode = legacy_settings.get("positioning_mode", "absolute")
     custom_pos = None  # Initialize here to avoid UnboundLocalError
 
     # Map legacy modes to new anchor system
-    if positioning_mode == "dynamic":
+    if positioning_mode == "relative":
         anchor = PositionAnchor.BELOW_CONTENT
         content_aware = True
     elif positioning_mode == "absolute":
@@ -274,7 +279,7 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
             legacy_settings["absolute_positioning"]
             # This would need FFmpeg expression parsing - simplified for now
             custom_pos = Position(x=0.5, y=0.8)  # Default approximation
-    else:  # static
+    else:  # absolute
         anchor = PositionAnchor.BOTTOM
         content_aware = False
 
@@ -295,7 +300,7 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
         # Analyze legacy settings
         if legacy_settings.get("subtitle_format") == "ass":
             if legacy_settings.get("ass_enable_transforms", False):
-                style_preset = StylePreset.DYNAMIC
+                style_preset = StylePreset.RELATIVE
             elif legacy_settings.get("bold", False):
                 style_preset = StylePreset.BOLD
         else:

@@ -134,6 +134,7 @@ src/
 - Creates directory structures
 - Implements configurable delays between products
 - Provides step-specific execution for debugging
+- Complete cleanup of producer-generated files with --clean flag
 
 **Architecture Pattern:**
 - **Async/Await**: All operations are async for better concurrency
@@ -213,10 +214,12 @@ dependencies = {
 
 #### Subtitle Generation (`src/video/unified_subtitle_generator.py`, `src/video/stt_functions.py`)
 - **Multi-Provider STT**: Whisper (primary), Google Cloud STT with word-level timing extraction
-- **Audio-Based Synchronization**: Perfect timing via actual voiceover transcription (fixed September 2025)
+- **Audio-Based Synchronization**: Perfect timing via actual voiceover transcription (implemented September 2025)
 - **Unified Generation System**: Single path for both ASS and SRT formats with content-aware positioning
+- **Content-Aware Positioning**: Dynamic subtitle placement that analyzes visual content to avoid overlaps
+- **Pixel-Based Width Constraints**: Intelligent width calculation using font metrics and character-specific sizing
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
-- **ASS/SRT Generation**: Professional subtitle formats with positioning effects
+- **Dual ASS Generation**: Regular positioned subtitles + content-aware positioned subtitles for comparison
 
 ### 6. Amazon Scraping Features
 

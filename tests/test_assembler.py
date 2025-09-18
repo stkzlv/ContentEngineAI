@@ -230,7 +230,7 @@ Test subtitle line three
             filters, input_cmd_parts, _, _, _ = await assembler._build_visual_chain(
                 visual_inputs=sample_visuals,
                 total_video_duration=total_duration,
-                is_dynamic_mode=False,
+                is_relative_mode=False,
             )
 
             assert any("xfade" in f for f in filters)
@@ -260,7 +260,7 @@ Test subtitle line three
             filters, input_cmd_parts, _, _, _ = await assembler._build_visual_chain(
                 visual_inputs=visuals,
                 total_video_duration=total_duration,
-                is_dynamic_mode=False,
+                is_relative_mode=False,
             )
 
             assert any("xfade" in f for f in filters)
@@ -427,7 +427,7 @@ Test subtitle line three
     ):
         """Test basic video verification functionality.
 
-        Comprehensive tests in test_slideshow_images_verification.py.
+        Comprehensive tests in test_slideshow_images1_verification.py.
         """
         video_path = temp_dir / "test.mp4"
         video_path.write_text("mock video data")
@@ -500,7 +500,7 @@ subtitle_settings:
   font_color: "&H00FFFFFF"
   outline_color: "&H00000000"
   back_color: "&H80000000"
-  positioning_mode: "static"
+  positioning_mode: "absolute"
   subtitle_similarity_threshold: 0.8
   show_debug_info: false
 audio_settings:

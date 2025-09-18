@@ -36,7 +36,7 @@ tests/
 ├── test_cleanup.py                  # Tests for output directory cleanup
 ├── test_cleanup_integration.py      # Integration tests for cleanup
 ├── test_config_extensions.py        # Tests for configuration extensions
-├── test_slideshow_images_verification.py  # Video output verification tests
+├── test_slideshow_images1_verification.py  # Video output verification tests
 │
 └── README.md                        # This file
 ```
@@ -51,7 +51,7 @@ The test suite includes comprehensive video verification tests that validate the
 - **Audio Quality**: Background music presence, volume levels, duration matching
 - **Visual Layout**: Image positioning, sizing, subtitle placement 
 - **Configuration Compliance**: Resolution, frame rate, codec specifications
-- **Profile Requirements**: slideshow_images profile uses only scraped images
+- **Profile Requirements**: slideshow_images1 profile uses only scraped images
 - **Content Synchronization**: Subtitle-voiceover timing alignment
 
 ### How Verification Works
@@ -63,13 +63,13 @@ The test suite includes comprehensive video verification tests that validate the
 ### Running Video Verification
 ```bash
 # Run all video verification tests
-poetry run pytest tests/test_slideshow_images_verification.py -v
+poetry run pytest tests/test_slideshow_images1_verification.py -v
 
 # Run background music verification only
-poetry run pytest tests/test_slideshow_images_verification.py::TestSlideshowImagesVerification::test_slideshow_images_background_music_verification -v
+poetry run pytest tests/test_slideshow_images1_verification.py::TestSlideshowImagesVerification::test_slideshow_images1_background_music_verification -v
 
 # Run with real video (requires existing pipeline output)
-poetry run pytest tests/test_slideshow_images_verification.py::TestSlideshowImagesVerification::test_slideshow_images_profile_video_verification -v
+poetry run pytest tests/test_slideshow_images1_verification.py::TestSlideshowImagesVerification::test_slideshow_images1_profile_video_verification -v
 ```
 
 ### Verification Artifacts
@@ -164,7 +164,7 @@ poetry run pytest tests/test_ai_script_generator.py
 poetry run pytest tests/test_amazon_scraper_features.py
 
 # Run video verification tests (requires real pipeline output)
-poetry run pytest tests/test_slideshow_images_verification.py
+poetry run pytest tests/test_slideshow_images1_verification.py
 ```
 
 #### Run Specific Test Functions
@@ -275,7 +275,7 @@ def test_config(temp_outputs_dir):
 
 ### Coverage Targets
 
-- **Overall Project**: >18% line coverage (current baseline)
+- **Overall Project**: >30% line coverage (current target)
 - **Configuration**: >50% line coverage
 - **Utilities**: >40% line coverage
 - **Core Components**: >35% line coverage

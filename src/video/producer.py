@@ -223,6 +223,7 @@ class PipelineContext:
         self,
         product: ProductData,
         profile: VideoProfile,
+        profile_name: str,
         config: VideoConfig,
         secrets: dict,
         session: aiohttp.ClientSession,
@@ -231,6 +232,7 @@ class PipelineContext:
     ):
         self.product = product
         self.profile = profile
+        self.profile_name = profile_name
         self.config = config
         self.secrets = secrets
         self.session = session
@@ -275,8 +277,12 @@ def _clean_producer_files(
         product_root / files.script,  # script.txt
         product_root / files.voiceover,  # voiceover.wav
         product_root / files.subtitles,  # subtitles.srt
+        product_root / "subtitles_content_aware.ass",  # content-aware subtitle file
         product_root
-        / files.final_video.format(profile=safe_profile_name),  # video_{profile}.mp4
+        / files.final_video.format(
+            product_id=product_id, profile=safe_profile_name
+        ),  # video_{product_id}_{profile}.mp4
+        product_root / f"video_{safe_profile_name}.mp4",  # old naming pattern
         product_root / files.metadata,  # metadata.json
         product_root
         / files.ffmpeg_log.format(
@@ -1215,6 +1221,7 @@ async def step_assemble_video(ctx: PipelineContext):
         )
 
         assembler = VideoAssembler(ctx.config, debug_mode=ctx.debug_mode)
+        assembler.set_profile_settings(ctx.profile_name)  # Apply profile settings
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,
@@ -1302,7 +1309,14 @@ async def create_video_for_product(
         ensure_dirs_exist(run_paths["run_root"])
 
         ctx = PipelineContext(
-            product, profile, config, secrets, session, run_paths, debug_mode
+            product,
+            profile,
+            profile_name,
+            config,
+            secrets,
+            session,
+            run_paths,
+            debug_mode,
         )
 
         # Initialize background processing with configuration

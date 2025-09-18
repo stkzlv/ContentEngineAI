@@ -389,7 +389,7 @@ scrape-advanced: ## Run scraper with advanced search parameters
 produce-video: ## Run video producer on scraped data
 	@echo "$(BLUE)Running video producer...$(NC)"
 	@if [ -d "outputs" ] && [ -n "$$(find outputs -name 'data.json' -path '*/output/data.json' 2>/dev/null)" ]; then \
-		poetry run python -m src.video.producer $$(find outputs -name 'data.json' -path '*/output/data.json' | head -1) slideshow_images --debug; \
+		poetry run python -m src.video.producer $$(find outputs -name 'data.json' -path '*/output/data.json' | head -1) slideshow_images1 --debug; \
 	else \
 		echo "$(RED)No scraped data found. Run 'make scrape-test' first.$(NC)"; \
 	fi

@@ -479,10 +479,10 @@ poetry run pytest tests/test_assembler.py -v
 
 ```bash
 # Process single product from data file
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1
 
 # Process specific product from list
-poetry run python -m src.video.producer products.json slideshow_images --product-index 0
+poetry run python -m src.video.producer products.json slideshow_images1 --product-index 0
 
 # Custom profile
 poetry run python -m src.video.producer data.json my_custom_profile
@@ -493,17 +493,17 @@ poetry run python -m src.video.producer data.json my_custom_profile
 ContentEngineAI supports **automatic batch processing** of all products in the outputs directory:
 
 ```bash
-# Process all products with slideshow_images profile
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --debug
+# Process all products with slideshow_images1 profile
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
 
 # Batch processing with fail-fast (stop on first error)
 poetry run python -m src.video.producer --batch --batch-profile dynamic_mix --fail-fast --debug
 
 # Process products from custom directory
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --outputs-dir /path/to/outputs --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --outputs-dir /path/to/outputs --debug
 
 # Batch processing with clean runs
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --clean --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --clean --debug
 ```
 
 **Batch Processing Features:**
@@ -562,10 +562,10 @@ poetry run python -m src.video.producer products.json profile --debug
 poetry run python -m src.video.producer products.json profile --debug --step generate_script
 
 # Batch processing debugging
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
 
 # Batch processing with fail-fast for debugging
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --fail-fast --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --fail-fast --debug
 ```
 
 **Debug Features:**
@@ -744,10 +744,10 @@ Before releases, run performance benchmarks:
 poetry run python tools/performance_report.py --output baseline.json
 
 # Run test pipelines
-poetry run python -m src.video.producer test_products.json slideshow_images
+poetry run python -m src.video.producer test_products.json slideshow_images1
 
 # Run batch processing benchmarks  
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
 
 # Compare performance
 poetry run python tools/performance_report.py --compare baseline.json

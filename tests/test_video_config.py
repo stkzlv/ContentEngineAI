@@ -82,7 +82,7 @@ class TestSubtitleSettings:
         """Test valid subtitle settings creation."""
         settings = SubtitleSettings(
             enabled=True,
-            positioning_mode="static",
+            positioning_mode="absolute",
             font_name="Arial",
             font_directory="static/fonts",
             font_size_percent=0.05,
@@ -92,7 +92,7 @@ class TestSubtitleSettings:
             back_color="&H99000000",
             alignment=2,
             margin_v_percent=0.05,
-            dynamic_positioning=None,
+            relative_positioning=None,
             absolute_positioning=None,
             use_random_font=False,
             use_random_colors=False,
@@ -117,7 +117,7 @@ class TestSubtitleSettings:
         )
 
         assert settings.enabled is True
-        assert settings.positioning_mode == "static"
+        assert settings.positioning_mode == "absolute"
         assert settings.font_name == "Arial"
         assert settings.font_size_percent == 0.05
 
@@ -138,7 +138,7 @@ class TestSubtitleSettings:
             back_color="&H99000000",
             alignment=2,
             margin_v_percent=0.05,
-            dynamic_positioning=None,
+            relative_positioning=None,
             absolute_positioning=None,
             use_random_font=False,
             use_random_colors=False,
@@ -169,7 +169,7 @@ class TestSubtitleSettings:
         settings = SubtitleSettings()  # type: ignore[call-arg]
 
         assert settings.enabled is True
-        assert settings.positioning_mode == "static"
+        assert settings.positioning_mode == "absolute"
         assert settings.font_name == "Arial"
         assert settings.font_size_percent == 0.05
 
@@ -480,7 +480,7 @@ class TestVideoConfig:
             },
             "subtitle_settings": {
                 "enabled": True,
-                "positioning_mode": "static",
+                "positioning_mode": "absolute",
                 "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
@@ -693,7 +693,7 @@ class TestLoadVideoConfig:
             },
             "subtitle_settings": {
                 "enabled": True,
-                "positioning_mode": "static",
+                "positioning_mode": "absolute",
                 "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
