@@ -235,9 +235,9 @@ class TestStyleConfigs:
         assert style["bold"] is True
         assert "fade" in style["effects"]
 
-    def test_get_style_config_dynamic(self):
-        """Test dynamic style preset."""
-        style = get_style_config(StylePreset.DYNAMIC)
+    def test_get_style_config_relative(self):
+        """Test relative style preset."""
+        style = get_style_config(StylePreset.RELATIVE)
 
         assert style["font_name"] == "Impact"
         assert style["bold"] is True
@@ -274,10 +274,10 @@ class TestStyleConfigs:
 class TestLegacyConfigConversion:
     """Test legacy configuration conversion."""
 
-    def test_convert_legacy_static_mode(self):
-        """Test conversion of legacy static positioning mode."""
+    def test_convert_legacy_absolute_mode(self):
+        """Test conversion of legacy absolute positioning mode."""
         legacy_settings = {
-            "positioning_mode": "static",
+            "positioning_mode": "absolute",
             "margin": 0.2,
             "font_size_scale": 1.2,
         }
@@ -289,10 +289,10 @@ class TestLegacyConfigConversion:
         assert unified_config.margin == 0.2
         assert unified_config.font_size_scale == 1.2
 
-    def test_convert_legacy_dynamic_mode(self):
-        """Test conversion of legacy dynamic positioning mode."""
+    def test_convert_legacy_relative_mode(self):
+        """Test conversion of legacy relative positioning mode."""
         legacy_settings = {
-            "positioning_mode": "dynamic",
+            "positioning_mode": "relative",
             "margin": 0.15,
         }
 
@@ -302,26 +302,13 @@ class TestLegacyConfigConversion:
         assert unified_config.content_aware is True
         assert unified_config.margin == 0.15
 
-    def test_convert_legacy_absolute_mode(self):
-        """Test conversion of legacy absolute positioning mode."""
-        legacy_settings = {
-            "positioning_mode": "absolute",
-            "absolute_positioning": {"x_pos": "(w-tw)/2", "y_pos": "h*0.8"},
-        }
-
-        unified_config = convert_legacy_config(legacy_settings)
-
-        assert unified_config.anchor == PositionAnchor.BOTTOM
-        assert unified_config.content_aware is False
-        assert unified_config.custom_position is not None
-
     def test_convert_legacy_with_unified_params(self):
         """Test conversion when unified parameters are already present."""
         legacy_settings = {
-            "positioning_mode": "static",  # Legacy param
+            "positioning_mode": "absolute",  # Legacy param
             "anchor": "below_content",  # New unified param
             "content_aware": True,  # New unified param
-            "style_preset": "dynamic",  # New unified param
+            "style_preset": "relative",  # New unified param
         }
 
         unified_config = convert_legacy_config(legacy_settings)
@@ -329,14 +316,14 @@ class TestLegacyConfigConversion:
         # Should use unified params over legacy mode
         assert unified_config.anchor == PositionAnchor.BELOW_CONTENT
         assert unified_config.content_aware is True
-        assert unified_config.style_preset == StylePreset.DYNAMIC
+        assert unified_config.style_preset == StylePreset.RELATIVE
 
     def test_convert_legacy_style_detection(self):
         """Test automatic style preset detection from legacy settings."""
-        # Test ASS with transforms -> dynamic
+        # Test ASS with transforms -> relative
         legacy_settings = {"subtitle_format": "ass", "ass_enable_transforms": True}
         config = convert_legacy_config(legacy_settings)
-        assert config.style_preset == StylePreset.DYNAMIC
+        assert config.style_preset == StylePreset.RELATIVE
 
         # Test bold -> bold preset
         legacy_settings = {"bold": True}
@@ -354,7 +341,7 @@ class TestLegacyConfigConversion:
 
         unified_config = convert_legacy_config(legacy_settings)
 
-        # Should use sensible defaults (static mode when no positioning_mode specified)
+        # Should use sensible defaults (absolute mode when no positioning_mode given)
         assert unified_config.anchor == PositionAnchor.BOTTOM
         assert unified_config.content_aware is False  # Static mode default
         assert (

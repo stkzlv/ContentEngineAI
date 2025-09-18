@@ -48,6 +48,66 @@ class UnifiedSubtitleGenerator:
         # Pre-select colors once per producer run to ensure consistency
         self._selected_colors = self._select_colors()
 
+    def estimate_text_width_pixels(self, text: str, font_size: int) -> int:
+        """Estimate the pixel width of text based on font size and character count.
+
+        Args:
+        ----
+            text: The text to measure
+            font_size: Font size in pixels
+
+        Returns:
+        -------
+            Estimated width in pixels
+
+        """
+        # Use the font width to height ratio from config
+        # Most fonts have a ratio around 0.5-0.6 (characters are roughly half tall)
+        font_width_ratio = self.style_config["font_width_to_height_ratio"]
+
+        # Calculate average character width for the font size
+        avg_char_width = font_size * font_width_ratio
+
+        # Apply character-specific adjustments for better accuracy
+        total_width = 0
+        for char in text:
+            if char in "iIjl|':;,.'`":  # Narrow characters
+                char_width = avg_char_width * 0.4
+            elif char in "mwMWAGOQ":  # Wide characters
+                char_width = avg_char_width * 1.2
+            elif char == " ":  # Space
+                char_width = avg_char_width * 0.3
+            else:  # Regular characters
+                char_width = avg_char_width
+            total_width += char_width
+
+        return int(total_width)
+
+    def fits_within_image_width(
+        self,
+        text: str,
+        font_size: int,
+        image_width: int,
+        max_width_percent: float = 0.95,
+    ) -> bool:
+        """Check if text fits within the specified image width constraint.
+
+        Args:
+        ----
+            text: The text to check
+            font_size: Font size in pixels
+            image_width: Width of the image in pixels
+            max_width_percent: Maximum percentage of image width to use (default 95%)
+
+        Returns:
+        -------
+            True if text fits within constraints, False otherwise
+
+        """
+        text_width = self.estimate_text_width_pixels(text, font_size)
+        max_allowed_width = image_width * max_width_percent
+        return text_width <= max_allowed_width
+
     def generate_from_timings(
         self,
         timings: list[dict[str, Any]],
@@ -96,7 +156,7 @@ class UnifiedSubtitleGenerator:
 
             # Create subtitle segments
             segments = self._create_segments(
-                cleaned_timings, voiceover_duration, debug_mode
+                cleaned_timings, voiceover_duration, visual_bounds, debug_mode
             )
 
             if not segments:
@@ -187,7 +247,9 @@ class UnifiedSubtitleGenerator:
 
         try:
             # Create segments from script with estimated timing
-            segments = self._create_script_segments(script_text, duration)
+            segments = self._create_script_segments(
+                script_text, duration, visual_bounds
+            )
 
             if not segments:
                 SubtitleResult(
@@ -275,6 +337,7 @@ class UnifiedSubtitleGenerator:
         self,
         cleaned_timings: list[dict[str, Any]],
         voiceover_duration: float | None,
+        visual_bounds: VisualBounds | None = None,
         debug_mode: bool = False,
     ) -> list[dict[str, Any]]:
         """Create subtitle segments from cleaned timing data."""
@@ -369,7 +432,10 @@ class UnifiedSubtitleGenerator:
         return segments
 
     def _create_script_segments(
-        self, script_text: str, duration: float
+        self,
+        script_text: str,
+        duration: float,
+        visual_bounds: VisualBounds | None = None,
     ) -> list[dict[str, Any]]:
         """Create subtitle segments from script text with estimated timing."""
         # Clean the script and split into words
@@ -407,9 +473,16 @@ class UnifiedSubtitleGenerator:
             )
 
             # Break conditions:
-            # 1. Line length limit
+            # 1. Line length limit (character count and pixel width)
             if len(potential_text) > self.config.max_line_length:
                 should_break = True
+            elif visual_bounds is not None and visual_bounds.width > 0:
+                # Check pixel-based width constraint
+                font_size = get_font_size(self.config, self.frame_size[1])
+                if not self.fits_within_image_width(
+                    potential_text, font_size, int(visual_bounds.width)
+                ):
+                    should_break = True
 
             # 2. Natural sentence breaks
             elif word.endswith((".", "!", "?")) and len(current_segment_words) >= 3:

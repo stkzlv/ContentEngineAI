@@ -58,11 +58,19 @@ ContentEngineAI **MUST** use a dual configuration system:
 - Reuse images if needed to match voiceover length
 
 ### Subtitle System
-- Support both static and dynamic subtitle positioning modes
-- **Static Mode**: Configurable image scaling and subtitle position
-- **Dynamic Mode**: Calculate subtitle position relative to image boundaries
+- Support both absolute and relative subtitle positioning modes
+- **Absolute Mode**: Configurable image scaling and subtitle position
+- **Relative Mode**: Calculate subtitle position relative to image boundaries
 - Ensure subtitle width doesn't exceed image width
 - Maintain consistent spacing between image bottom and subtitle top
+
+### Profile-Specific Settings
+- **All visual settings MUST be configurable per video profile**
+- Image positioning and sizing settings (width, position, aspect ratio)
+- Subtitle positioning, styling, fonts, colors, and effects
+- Profile settings override global defaults through merging system
+- Maintain backward compatibility with existing global configuration
+- Support unified subtitle positioning system with anchor-based layout
 
 ### Font & Color Management
 - Random font selection from curated list of 5 popular video fonts

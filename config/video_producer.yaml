@@ -34,7 +34,7 @@ output_structure:
     subtitles: "subtitles.srt"
 
     # Final generated video
-    final_video: "video_{profile}.mp4"
+    final_video: "video_{product_id}_{profile}.mp4"
 
     # Pipeline metadata and performance
     metadata: "metadata.json"
@@ -83,7 +83,7 @@ path_config:
 
   # Variables available for path patterns
   # {product_id} - Product identifier (e.g., B0BTYCRJSS)
-  # {profile} - Video profile name (e.g., slideshow_images)
+  # {profile} - Video profile name (e.g., slideshow_images1)
   # {platform} - Platform name (e.g., amazon)
   # {timestamp} - Current timestamp
   # {ext} - File extension
@@ -421,7 +421,7 @@ subtitle_settings:
   # Whether to generate and embed subtitles in the video
   enabled: true
 
-  # ---- UNIFIED POSITIONING (replaces static/dynamic/absolute modes) ----
+  # ---- UNIFIED POSITIONING (replaces absolute/relative modes) ----
   # Content-aware positioning that automatically adapts to visual layout
 
   # Anchor point for subtitle positioning
@@ -436,9 +436,9 @@ subtitle_settings:
   # Enable content-aware positioning (adjusts based on visual elements)
   content_aware: true
 
-  # ---- LEGACY DYNAMIC POSITIONING SETTINGS (for backward compatibility) ----
-  # Used by _create_dynamic_ass_file method in assembler
-  dynamic_positioning:
+  # ---- LEGACY RELATIVE POSITIONING SETTINGS (for backward compatibility) ----
+  # Used by _create_content_aware_ass_file method in assembler
+  relative_positioning:
     # Spacing between bottom of image and top of subtitle (as fraction of frame height)
     # 0.15 = 15% of frame height = ~288px spacing for clear gap between images and text
     image_bottom_to_subtitle_top_spacing_percent: 0.17
@@ -450,8 +450,8 @@ subtitle_settings:
   # ---- SIMPLIFIED STYLING (replaces complex color/font randomization) ----
   # Style preset determines overall appearance
   # "minimal" = clean/simple, "modern" = contemporary with effects
-  # "dynamic" = full animations, "classic" = traditional, "bold" = high contrast
-  style_preset: "dynamic"
+  # "relative" = full animations, "classic" = traditional, "bold" = high contrast
+  style_preset: "relative"
 
   # Font size scale factor (0.5-2.0)
   # 1.0 = default size, 1.5 = 50% larger, 0.8 = 20% smaller
@@ -877,7 +877,7 @@ video_profiles:
   # Profile focusing on product images with dynamic timing
   # NOTE: This profile intentionally skips products with insufficient scraped media
   # Requires minimum 3 total media items and 5 images if no videos available
-  slideshow_images:
+  slideshow_images1:
     description: "Dynamically uses scraped product images to match voiceover duration. Skips products with insufficient media."
     use_scraped_images: true      # Include product images from scraping
     use_scraped_videos: false     # Exclude product videos
@@ -887,11 +887,27 @@ video_profiles:
     stock_video_count: 0          # Number of stock videos (ignored when false)
     use_dynamic_image_count: true # Adjust image count to match voiceover duration
 
+    # ---- Profile-Specific Image Settings ----
+    image_width_percent: 0.85     # Images take 85% of frame width
+    image_top_position_percent: 0.05  # Position images 5% from top (higher positioning)
+    preserve_aspect_ratio: true   # Maintain original aspect ratios
+
+    # ---- Profile-Specific Subtitle Settings ----
     # Subtitle positioning for slideshow profile (relative to content)
     subtitle_positioning:
       anchor: "below_content"     # Position subtitles below images
-      margin: 0.08                # 8% gap below images for clear separation
+      margin: 0.05                # 5% gap below images (tighter spacing)
       content_aware: true         # Use image bounds for positioning
+
+    # Subtitle styling overrides
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.05
+    subtitle_content_aware: true
+    subtitle_style_preset: "modern"
+    subtitle_font_size_scale: 1.1
+    subtitle_max_line_length: 22
+    subtitle_randomize_colors: false
+    subtitle_horizontal_alignment: "center"
 
   # Profile combining product videos and images
   scraped_videos_then_images:
@@ -904,11 +920,27 @@ video_profiles:
     stock_video_count: 0
     use_dynamic_image_count: true # Adjust count based on voiceover length
 
+    # ---- Profile-Specific Image Settings ----
+    image_width_percent: 0.9      # Larger images for mixed media (90% width)
+    image_top_position_percent: 0.1   # Position images 10% from top
+    preserve_aspect_ratio: true   # Maintain original aspect ratios
+
+    # ---- Profile-Specific Subtitle Settings ----
     # Subtitle positioning for mixed media profile (relative to content)
     subtitle_positioning:
       anchor: "below_content"     # Position subtitles below mixed video/image content
       margin: 0.06                # 6% gap - slightly less for mixed media
       content_aware: true         # Use content bounds for positioning
+
+    # Subtitle styling overrides
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.06
+    subtitle_content_aware: true
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 40
+    subtitle_randomize_colors: false
+    subtitle_horizontal_alignment: "center"
 
   # Profile using only stock media, ignoring product media
   stock_focus_short:
@@ -920,6 +952,21 @@ video_profiles:
     stock_image_count: 2          # Exactly 2 stock images
     stock_video_count: 1          # Exactly 1 stock video
     use_dynamic_image_count: false # Use fixed counts, not dynamic
+
+    # ---- Profile-Specific Image Settings ----
+    image_width_percent: 0.8      # Smaller images for stock content (80% width)
+    image_top_position_percent: 0.2   # Position images 20% from top
+    preserve_aspect_ratio: true   # Maintain original aspect ratios
+
+    # ---- Profile-Specific Subtitle Settings ----
+    subtitle_anchor: "bottom"
+    subtitle_margin: 0.1
+    subtitle_content_aware: false
+    subtitle_style_preset: "classic"
+    subtitle_font_size_scale: 0.9
+    subtitle_max_line_length: 42
+    subtitle_randomize_colors: false
+    subtitle_horizontal_alignment: "center"
 
 # ============================================================================
 # API AND NETWORK CONFIGURATION

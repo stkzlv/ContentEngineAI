@@ -177,7 +177,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
         },
         "subtitle_settings": {
             "enabled": True,
-            "positioning_mode": "static",
+            "positioning_mode": "absolute",
             "font_name": "Arial",
             "font_directory": "static/fonts",
             "font_size_percent": 0.05,

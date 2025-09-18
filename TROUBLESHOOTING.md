@@ -437,10 +437,10 @@ poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug 
 **Solutions:**
 ```bash
 # Use fail-fast to identify problematic products
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --fail-fast --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --fail-fast --debug
 
 # Process products individually for debugging
-poetry run python -m src.video.producer outputs/PRODUCT_ID/data.json slideshow_images --debug
+poetry run python -m src.video.producer outputs/PRODUCT_ID/data.json slideshow_images1 --debug
 
 # Check individual product data integrity
 poetry run python -c "
@@ -464,7 +464,7 @@ print('✓ Product data is valid')
 **Solution:**
 ```bash
 # Correct batch processing syntax
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images --debug
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
 
 # NOT this (missing profile):
 # poetry run python -m src.video.producer --batch --debug
@@ -477,13 +477,13 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 # Choose either batch mode OR single product mode:
 
 # Batch mode (correct):
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
 
 # Single product mode (correct):
-poetry run python -m src.video.producer outputs/PRODUCT_ID/data.json slideshow_images
+poetry run python -m src.video.producer outputs/PRODUCT_ID/data.json slideshow_images1
 
 # NOT this (mixing modes):
-# poetry run python -m src.video.producer --batch --batch-profile slideshow_images data.json profile
+# poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 data.json profile
 ```
 
 ## Performance Issues

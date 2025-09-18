@@ -1,6 +1,6 @@
-"""Comprehensive video verification test for slideshow_images profile.
+"""Comprehensive video verification test for slideshow_images1 profile.
 
-This test validates the complete pipeline output for the slideshow_images profile,
+This test validates the complete pipeline output for the slideshow_images1 profile,
 checking all aspects including background music, voiceover sync, subtitle positioning,
 image sizing, and configuration compliance through visual analysis via screenshots.
 """
@@ -327,16 +327,16 @@ class AudioAnalyzer:
 
 
 class SlideshowImagesProfileValidator:
-    """Validates slideshow_images profile specific requirements."""
+    """Validates slideshow_images1 profile specific requirements."""
 
     def __init__(self, config: VideoConfig):
         self.config = config
-        self.profile = config.get_profile("slideshow_images")
+        self.profile = config.get_profile("slideshow_images1")
 
     def validate_profile_compliance(
         self, video_path: Path, project_paths: dict[str, Path]
     ) -> dict[str, Any]:
-        """Validate video output complies with slideshow_images profile.
+        """Validate video output complies with slideshow_images1 profile.
 
         Returns
         -------
@@ -344,7 +344,7 @@ class SlideshowImagesProfileValidator:
 
         """
         compliance_results = {
-            "profile_name": "slideshow_images",
+            "profile_name": "slideshow_images1",
             "profile_config": {
                 "use_scraped_images": self.profile.use_scraped_images,
                 "use_scraped_videos": self.profile.use_scraped_videos,
@@ -436,7 +436,7 @@ class SlideshowImagesProfileValidator:
 
 
 class TestSlideshowImagesVerification:
-    """Comprehensive test for slideshow_images profile video output."""
+    """Comprehensive test for slideshow_images1 profile video output."""
 
     @pytest.fixture
     def test_config(self, tmp_path: Path) -> VideoConfig:
@@ -447,18 +447,18 @@ class TestSlideshowImagesVerification:
     @pytest.fixture
     def real_video_data(self) -> dict[str, Any]:
         """Get real pipeline-generated video data for testing."""
-        # Use the existing B0BTYCRJSS slideshow_images video
+        # Use the existing B0BTYCRJSS slideshow_images1 video
         # Get project root and construct relative path
         project_root = Path(__file__).parent.parent
         base_path = (
-            project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images"
+            project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images1"
         )
         video_base_path = Path(base_path)
 
         return {
             "product_id": "B0BTYCRJSS",
-            "profile_name": "slideshow_images",
-            "video_path": video_base_path / "B0BTYCRJSS_slideshow_images.mp4",
+            "profile_name": "slideshow_images1",
+            "video_path": video_base_path / "B0BTYCRJSS_slideshow_images1.mp4",
             "pipeline_state": video_base_path / "pipeline_state.json",
             "temp_dir": video_base_path / "temp",
             "verification_dir": video_base_path / "temp" / "verification",
@@ -479,13 +479,13 @@ class TestSlideshowImagesVerification:
 
         return verification_dir
 
-    def test_slideshow_images_profile_video_verification(
+    def test_slideshow_images1_profile_video_verification(
         self,
         test_config: VideoConfig,
         real_video_data: dict[str, Any],
         ensure_verification_directories: Path,
     ):
-        """Test comprehensive verification of slideshow_images profile.
+        """Test comprehensive verification of slideshow_images1 profile.
 
         Uses real pipeline-generated video output for validation.
         """
@@ -548,8 +548,8 @@ class TestSlideshowImagesVerification:
         audio_properties = audio_analyzer.extract_audio_properties(video_path)
         audio_levels = audio_analyzer.verify_audio_levels(video_path)
 
-        # Phase 4: Validate slideshow_images profile compliance
-        logger.info("Validating slideshow_images profile compliance")
+        # Phase 4: Validate slideshow_images1 profile compliance
+        logger.info("Validating slideshow_images1 profile compliance")
         profile_compliance = profile_validator.validate_profile_compliance(
             video_path, real_video_data
         )
@@ -615,14 +615,14 @@ class TestSlideshowImagesVerification:
                 "frame_rate_matches"
             ], "Frame rate does not match configuration"
 
-        # Validate slideshow_images profile requirements
+        # Validate slideshow_images1 profile requirements
         profile_validation = profile_compliance["validation_results"]
         assert profile_validation.get(
             "uses_only_scraped_images", False
-        ), "slideshow_images profile should only use scraped images"
+        ), "slideshow_images1 profile should only use scraped images"
         assert profile_validation.get(
             "uses_dynamic_timing", False
-        ), "slideshow_images profile should use dynamic timing"
+        ), "slideshow_images1 profile should use dynamic timing"
 
         # Validate audio properties
         if "audio_streams" in audio_properties:
@@ -665,7 +665,7 @@ class TestSlideshowImagesVerification:
         report = {
             "test_timestamp": "2024-01-01T00:00:00Z",  # Would use actual timestamp
             "video_path": str(video_path),
-            "profile_tested": "slideshow_images",
+            "profile_tested": "slideshow_images1",
             "configuration_compliance": {},
             "visual_analysis_summary": {},
             "audio_analysis_summary": {},
@@ -720,7 +720,7 @@ class TestSlideshowImagesVerification:
 
         if not config_compliance["profile_settings_correct"]:
             issues_found.append(
-                "Video does not comply with slideshow_images profile requirements"
+                "Video does not comply with slideshow_images1 profile requirements"
             )
             report["overall_success"] = False
 
@@ -728,27 +728,27 @@ class TestSlideshowImagesVerification:
         if report["overall_success"]:
             screenshots_count = visual_summary["screenshots_analyzed"]
             report["summary"] = (
-                f"slideshow_images profile video verification PASSED: "
+                f"slideshow_images1 profile video verification PASSED: "
                 f"{screenshots_count} screenshots analyzed, "
                 "all configuration requirements met"
             )
         else:
             report["summary"] = (
-                f"slideshow_images profile video verification FAILED: "
+                f"slideshow_images1 profile video verification FAILED: "
                 f"{len(issues_found)} issues found"
             )
 
         # Save report to file
-        report_path = output_dir / "slideshow_images_verification_report.json"
+        report_path = output_dir / "slideshow_images1_verification_report.json"
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
 
         return report
 
-    def test_slideshow_images_background_music_verification(
+    def test_slideshow_images1_background_music_verification(
         self, test_config: VideoConfig, real_video_data: dict[str, Any]
     ):
-        """Test background music specific requirements for slideshow_images profile."""
+        """Test background music specific requirements for slideshow_images1 profile."""
         video_path = real_video_data["video_path"]
         if not video_path.exists():
             pytest.skip(
@@ -790,13 +790,13 @@ class TestSlideshowImagesVerification:
             ), "Audio should not be too quiet (potential silence)"
             assert mean_volume < 0, "Audio should not be clipping (above 0dB)"
 
-    def test_slideshow_images_subtitle_voiceover_sync(
+    def test_slideshow_images1_subtitle_voiceover_sync(
         self,
         test_config: VideoConfig,
         real_video_data: dict[str, Any],
         ensure_verification_directories: Path,
     ):
-        """Test subtitle-voiceover synchronization for slideshow_images profile."""
+        """Test subtitle-voiceover synchronization for slideshow_images1 profile."""
         video_path = real_video_data["video_path"]
         if not video_path.exists():
             pytest.skip(

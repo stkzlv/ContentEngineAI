@@ -5,6 +5,25 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-09-18
+
+### Fixed
+- Fixed CI test failures by adding FFmpeg to release workflow
+- Resolved FFmpeg dependency validation issues in test environment
+- Fixed media validator test error message expectations
+- Improved test reliability in CI environments
+
+### Changed
+- Enhanced subtitle positioning system with improved style presets
+- Renamed DYNAMIC subtitle preset to RELATIVE for better clarity
+- Added font_width_to_height_ratio configuration to all subtitle style presets
+- Updated video producer configuration with enhanced subtitle settings
+
+### Technical
+- Added FFmpeg installation to GitHub Actions release workflow
+- Improved CI/CD pipeline reliability and test coverage
+- Enhanced configuration validation for production environments
+
 ## [0.1.1] - 2025-09-17
 
 ### Fixed
@@ -15,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved code style compliance with 88-character line limit
 
 ### Changed
-- Updated coverage baseline from unrealistic 80% to achievable 18% target
 - Enhanced debug logging and error handling in assembler module
 - Improved test reliability with proper mock configurations
 
