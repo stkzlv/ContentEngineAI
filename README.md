@@ -5,13 +5,13 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.1.0
+**Version**: 0.2.0
 **License**: MIT
 **Authors**: ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>
 
 > **⚠️ Pre-Production Software**: ContentEngineAI is under active development. While functional, breaking changes may occur in minor versions until 1.0.0. See [VERSIONING.md](VERSIONING.md) for our stability roadmap.
 
-> **🚀 Initial Release**: ContentEngineAI v0.1.0 - Complete AI video production pipeline now available as open source! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
+> **🚀 Latest Release**: ContentEngineAI v0.2.0 - Now with AI-generated video descriptions for social media! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
 
 ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products, primarily Amazon listings. It automates the entire process from scraping product data to assembling a final video, including AI script generation, stock media fetching, voiceover production, and subtitle generation.
 

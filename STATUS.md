@@ -2,12 +2,12 @@
 
 This document tracks the current state of ContentEngineAI, including ongoing migrations, version-specific information, and temporary project conditions that may change over time.
 
-**Last Updated**: September 18, 2025
-**Current Version**: 0.1.1 (fixes branch)
+**Last Updated**: September 20, 2025
+**Current Version**: 0.2.0 (AI video descriptions feature)
 
-## 🚀 Initial Release Status
+## 🚀 Current Release Status
 
-ContentEngineAI v0.1.0 represents the initial open source release with complete functionality.
+ContentEngineAI v0.2.0 adds AI-generated video descriptions for social media platforms.
 
 ## 🎯 Current System Capabilities
 

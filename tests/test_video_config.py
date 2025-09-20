@@ -542,6 +542,16 @@ class TestVideoConfig:
                 "use_speech_adaptation_if_script_provided": True,
                 "adaptation_boost_value": 15.0,
             },
+            "description_settings": {
+                "enabled": True,
+                "prompt_template_path": "src/ai/prompts/video_description.md",
+                "target_platforms": ["tiktok", "youtube", "instagram"],
+                "max_tokens": 200,
+                "min_description_chars": 50,
+                "min_description_words": 10,
+                "require_hashtags": True,
+                "require_ad_hashtag": True,
+            },
             "video_profiles": {
                 "test_profile": {
                     "description": "Test profile for unit testing",
@@ -754,6 +764,16 @@ class TestLoadVideoConfig:
                 "api_retry_delay_sec": 10,
                 "use_speech_adaptation_if_script_provided": True,
                 "adaptation_boost_value": 15.0,
+            },
+            "description_settings": {
+                "enabled": True,
+                "prompt_template_path": "src/ai/prompts/video_description.md",
+                "target_platforms": ["tiktok", "youtube", "instagram"],
+                "max_tokens": 200,
+                "min_description_chars": 50,
+                "min_description_words": 10,
+                "require_hashtags": True,
+                "require_ad_hashtag": True,
             },
             "video_profiles": {
                 "test_profile": {
