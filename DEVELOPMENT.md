@@ -15,7 +15,7 @@ This guide provides detailed information for developers working on ContentEngine
 
 ```bash
 # Clone and setup
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 
 # Install dependencies

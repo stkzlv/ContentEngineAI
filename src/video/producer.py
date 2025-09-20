@@ -1128,7 +1128,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
             ctx.voiceover_duration,
             ctx.debug_mode,
             ctx.config,  # Pass video config for ASS generation
-            Path(ctx.run_paths["run_root"]) / ctx.config.output_structure.product_subdirs.temp,  # temp_dir
+            Path(ctx.run_paths["run_root"])
+            / ctx.config.output_structure.product_subdirs.temp,  # temp_dir
         )
         if not srt_path or not srt_path.exists():
             raise PipelineError("Subtitle generation process failed.")
