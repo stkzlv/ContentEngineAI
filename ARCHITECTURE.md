@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the ContentEngineAI architect
 
 ## System Overview
 
-ContentEngineAI is a modular, async-first pipeline system designed for automated video production. The architecture follows a six-step workflow with parallel execution capabilities and comprehensive error handling.
+ContentEngineAI is a modular, async-first pipeline system designed for automated video production. The architecture follows a seven-step workflow with parallel execution capabilities and comprehensive error handling.
 
 ### High-Level Architecture
 
@@ -58,16 +58,18 @@ Step 1: Gather Visuals
          │
 Step 2: Generate Script (LLM via OpenRouter)
          │
-Step 3: Create Voiceover (TTS: Google Cloud/Coqui)
+Step 3: Generate Description (LLM via OpenRouter)
          │
-         ├── Step 4a: Generate Subtitles (Whisper/Google STT)
-         └── Step 4b: Download Music (Freesound)
+Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
+         │
+         ├── Step 5a: Generate Subtitles (Whisper/Google STT)
+         └── Step 5b: Download Music (Freesound)
                  │
-         Step 5: Assemble Video (FFmpeg)
+         Step 6: Assemble Video (FFmpeg)
 ```
 
 **Key Features:**
-- **Parallel Execution**: Steps 4a and 4b run concurrently after step 3
+- **Parallel Execution**: Steps 5a and 5b run concurrently after step 4
 - **Dependency Management**: Automatic handling of step dependencies
 - **Resume Capability**: Individual step execution for debugging
 - **Performance Monitoring**: Built-in metrics collection
@@ -89,6 +91,7 @@ src/
 │
 ├── ai/                        # AI & LLM integration
 │   ├── script_generator.py    # Script generation via OpenRouter
+│   ├── description_generator.py # Social media description generation
 │   └── prompts/              # LLM prompt templates
 │
 ├── scraper/                   # Multi-platform data collection architecture

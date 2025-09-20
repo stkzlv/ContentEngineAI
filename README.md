@@ -25,6 +25,7 @@ ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) 
 - **🎨 Professional Quality**: Dynamic visuals, audio-synchronized subtitles, background music
 - **🎤 High-Quality Voice**: Chirp 3 HD voices with perfect subtitle timing via Whisper STT
 - **🎯 Content-Aware Subtitles**: Dynamic positioning that avoids overlapping with visual content
+- **📝 AI Video Descriptions**: Generate social media descriptions with hashtags and compliance
 - **⚙️ Highly Configurable**: YAML-based configuration with 100+ customizable parameters
 
 ## 🚀 Quick Start
@@ -38,7 +39,7 @@ ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) 
 
 ```bash
 # Clone repository
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 
 # Install dependencies
@@ -72,16 +73,17 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 ## 🏗️ Architecture Overview
 
-ContentEngineAI follows a **6-step modular pipeline** with parallel execution:
+ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
 
 ```mermaid
 graph TD
     A[Gather Visuals] --> B[Generate Script]
-    B --> C[Create Voiceover]
-    C --> D[Generate Subtitles]
-    C --> E[Download Music]
-    D --> F[Assemble Video]
-    E --> F
+    B --> C[Generate Description]
+    C --> D[Create Voiceover]
+    D --> E[Generate Subtitles]
+    D --> F[Download Music]
+    E --> G[Assemble Video]
+    F --> G
 ```
 
 **📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -126,7 +128,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Quick start for contributors
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 poetry install --with dev
 make install-dev
@@ -141,7 +143,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**[📖 Documentation](INSTALL.md)** • **[🛠️ Setup Guide](INSTALL.md)** • **[📊 Status](STATUS.md)** • **[🧪 Testing](TESTING.md)** • **[✨ Code Quality](LINTING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/ContentEngineAI/ContentEngineAI/issues)**
+**[📖 Documentation](INSTALL.md)** • **[🛠️ Setup Guide](INSTALL.md)** • **[📊 Status](STATUS.md)** • **[🧪 Testing](TESTING.md)** • **[✨ Code Quality](LINTING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 *Built with ❤️ for the e-commerce content creation community*
 
