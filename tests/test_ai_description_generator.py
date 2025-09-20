@@ -192,7 +192,7 @@ class TestGenerateDescription:
             prompt_template_path="test_template.md",
         )
 
-        secrets = {}  # No API key
+        secrets: dict[str, str] = {}  # No API key
         session = AsyncMock(spec=aiohttp.ClientSession)
         intermediate_paths = {"description": Path("test_description.txt")}
 
