@@ -5,6 +5,28 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-09-20
+
+### Added
+- **AI-Generated Video Descriptions**: New feature for generating social media descriptions using LLM providers
+- New `description_generator.py` module with template-based prompt formatting and hashtag validation
+- `DescriptionSettings` configuration class with platform targeting and validation options
+- Social media compliance with required #ad hashtag for advertising disclosure
+- Integration with video producer pipeline as new `STEP_GENERATE_DESCRIPTION` step
+- Comprehensive test suite for description generation functionality
+
+### Changed
+- Extended video producer pipeline to include description generation step
+- Updated configuration schema to include `description_settings` section
+- Enhanced product files structure to include `description.txt` output
+- Updated all test fixtures to support new configuration requirements
+
+### Technical
+- Added circuit breaker pattern for API resilience in description generation
+- Implemented async/await patterns following existing LLM integration standards
+- Added Pydantic validation for description settings and content quality
+- Extended configuration loading to validate new description settings
+
 ## [0.1.2] - 2025-09-18
 
 ### Fixed

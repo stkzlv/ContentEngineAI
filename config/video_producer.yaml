@@ -27,6 +27,9 @@ output_structure:
     # Generated script text
     script: "script.txt"
 
+    # Generated video description for social media
+    description: "description.txt"
+
     # Generated voiceover audio
     voiceover: "voiceover.wav"
 
@@ -670,6 +673,46 @@ llm_settings:
   # API request timeout in seconds
   # How long to wait for LLM response
   timeout_seconds: 90
+
+# ============================================================================
+# VIDEO DESCRIPTION SETTINGS
+# Controls generation of social media video descriptions using LLM
+# ============================================================================
+description_settings:
+  # Enable or disable description generation
+  # true = generate descriptions for social media platforms
+  # false = skip description generation step
+  enabled: true
+
+  # Path to prompt template file for description generation
+  # Template contains instructions and format for LLM
+  # Variables like {PRODUCT_NAME} are replaced with actual data
+  prompt_template_path: "src/ai/prompts/video_description.md"
+
+  # Target platforms for description optimization
+  # Descriptions are optimized for these social media platforms
+  target_platforms: ["tiktok", "youtube", "instagram"]
+
+  # Maximum tokens (words/characters) for LLM response
+  # 200 = concise description suitable for social media
+  # Higher values = longer descriptions, more detailed content
+  max_tokens: 200
+
+  # Description validation thresholds
+  # Minimum character count for valid descriptions
+  min_description_chars: 50
+  # Minimum word count for valid descriptions
+  min_description_words: 10
+
+  # Whether descriptions must include hashtags
+  # true = descriptions must contain hashtags including #ad
+  # false = hashtags are optional
+  require_hashtags: true
+
+  # Whether descriptions must include #ad hashtag for disclosure
+  # true = descriptions must contain #ad for advertising compliance
+  # false = #ad hashtag is optional
+  require_ad_hashtag: true
 
 # ============================================================================
 # STOCK MEDIA SETTINGS

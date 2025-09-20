@@ -305,6 +305,16 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "operation_timing_threshold_sec": 5.0,
             "memory_usage_warning_mb": 1000,
         },
+        "description_settings": {
+            "enabled": True,
+            "prompt_template_path": "src/ai/prompts/video_description.md",
+            "target_platforms": ["tiktok", "youtube", "instagram"],
+            "max_tokens": 200,
+            "min_description_chars": 50,
+            "min_description_words": 10,
+            "require_hashtags": True,
+            "require_ad_hashtag": True,
+        },
     }
 
     # Create config file

@@ -5,13 +5,13 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.1.0
+**Version**: 0.2.0
 **License**: MIT
 **Authors**: ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>
 
 > **⚠️ Pre-Production Software**: ContentEngineAI is under active development. While functional, breaking changes may occur in minor versions until 1.0.0. See [VERSIONING.md](VERSIONING.md) for our stability roadmap.
 
-> **🚀 Initial Release**: ContentEngineAI v0.1.0 - Complete AI video production pipeline now available as open source! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
+> **🚀 Latest Release**: ContentEngineAI v0.2.0 - Now with AI-generated video descriptions for social media! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
 
 ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products, primarily Amazon listings. It automates the entire process from scraping product data to assembling a final video, including AI script generation, stock media fetching, voiceover production, and subtitle generation.
 
@@ -25,6 +25,7 @@ ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) 
 - **🎨 Professional Quality**: Dynamic visuals, audio-synchronized subtitles, background music
 - **🎤 High-Quality Voice**: Chirp 3 HD voices with perfect subtitle timing via Whisper STT
 - **🎯 Content-Aware Subtitles**: Dynamic positioning that avoids overlapping with visual content
+- **📝 AI Video Descriptions**: Generate social media descriptions with hashtags and compliance
 - **⚙️ Highly Configurable**: YAML-based configuration with 100+ customizable parameters
 
 ## 🚀 Quick Start
@@ -38,7 +39,7 @@ ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) 
 
 ```bash
 # Clone repository
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 
 # Install dependencies
@@ -72,16 +73,17 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 ## 🏗️ Architecture Overview
 
-ContentEngineAI follows a **6-step modular pipeline** with parallel execution:
+ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
 
 ```mermaid
 graph TD
     A[Gather Visuals] --> B[Generate Script]
-    B --> C[Create Voiceover]
-    C --> D[Generate Subtitles]
-    C --> E[Download Music]
-    D --> F[Assemble Video]
-    E --> F
+    B --> C[Generate Description]
+    C --> D[Create Voiceover]
+    D --> E[Generate Subtitles]
+    D --> F[Download Music]
+    E --> G[Assemble Video]
+    F --> G
 ```
 
 **📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -126,7 +128,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Quick start for contributors
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 poetry install --with dev
 make install-dev
@@ -141,7 +143,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**[📖 Documentation](INSTALL.md)** • **[🛠️ Setup Guide](INSTALL.md)** • **[📊 Status](STATUS.md)** • **[🧪 Testing](TESTING.md)** • **[✨ Code Quality](LINTING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/ContentEngineAI/ContentEngineAI/issues)**
+**[📖 Documentation](INSTALL.md)** • **[🛠️ Setup Guide](INSTALL.md)** • **[📊 Status](STATUS.md)** • **[🧪 Testing](TESTING.md)** • **[✨ Code Quality](LINTING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 *Built with ❤️ for the e-commerce content creation community*
 

@@ -13,6 +13,7 @@ from typing import Any
 import aiohttp
 from dotenv import load_dotenv
 
+from src.ai.description_generator import generate_description as generate_ai_description
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.freesound_client import FreesoundClient
 from src.scraper.amazon.scraper import ProductData
@@ -105,6 +106,7 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
 
 STEP_GATHER_VISUALS = "gather_visuals"
 STEP_GENERATE_SCRIPT = "generate_script"
+STEP_GENERATE_DESCRIPTION = "generate_description"
 STEP_CREATE_VOICEOVER = "create_voiceover"
 STEP_GENERATE_SUBTITLES = "generate_subtitles"
 STEP_DOWNLOAD_MUSIC = "download_music"
@@ -113,6 +115,7 @@ STEP_ASSEMBLE_VIDEO = "assemble_video"
 VALID_STEPS = [
     STEP_GATHER_VISUALS,
     STEP_GENERATE_SCRIPT,
+    STEP_GENERATE_DESCRIPTION,
     STEP_CREATE_VOICEOVER,
     STEP_GENERATE_SUBTITLES,
     STEP_DOWNLOAD_MUSIC,
@@ -240,6 +243,7 @@ class PipelineContext:
         self.debug_mode = debug_mode
         self.visuals: list[Path] | None = None
         self.script: str | None = None
+        self.description: str | None = None
         self.voiceover_duration: float | None = None
         self.state: dict[str, Any] = {}
 
@@ -335,6 +339,7 @@ def get_video_run_paths(
         # Keep text assets as "info" for compatibility
         "info_dir": paths["text_dir"],
         "script_file": paths["script"],
+        "description_file": paths["description"],
         "voiceover_file": paths["voiceover"],
         "voiceover_duration_file": paths["text_dir"] / "voiceover_duration.txt",
         "gathered_visuals_file": paths["text_dir"]
@@ -435,6 +440,8 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         artifacts["gathered_visuals_file"] = ctx.run_paths["gathered_visuals_file"]
     elif step_name == STEP_GENERATE_SCRIPT:
         artifacts["script_file"] = ctx.run_paths["script_file"]
+    elif step_name == STEP_GENERATE_DESCRIPTION:
+        artifacts["description_file"] = ctx.run_paths["description_file"]
     elif step_name == STEP_CREATE_VOICEOVER:
         artifacts["voiceover_file"] = ctx.run_paths["voiceover_file"]
         artifacts["voiceover_duration_file"] = ctx.run_paths["voiceover_duration_file"]
@@ -468,6 +475,9 @@ def _load_artifacts_from_state(ctx: PipelineContext, step_name: str) -> bool:
         elif step_name == STEP_GENERATE_SCRIPT:
             path = Path(state_entry["artifacts"]["script_file"])
             ctx.script = path.read_text(encoding="utf-8")
+        elif step_name == STEP_GENERATE_DESCRIPTION:
+            path = Path(state_entry["artifacts"]["description_file"])
+            ctx.description = path.read_text(encoding="utf-8")
         elif step_name == STEP_CREATE_VOICEOVER:
             path = Path(state_entry["artifacts"]["voiceover_duration_file"])
             ctx.voiceover_duration = float(path.read_text())
@@ -631,6 +641,8 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
                     _load_artifacts_gather_visuals(ctx)
                 elif step_name == "generate_script":
                     _load_artifacts_generate_script(ctx)
+                elif step_name == "generate_description":
+                    _load_artifacts_generate_description(ctx)
                 elif step_name == "create_voiceover":
                     _load_artifacts_create_voiceover(ctx)
                 elif step_name == "generate_subtitles":
@@ -692,6 +704,17 @@ def _load_artifacts_generate_script(ctx: PipelineContext):
             logger.debug("Loaded artifacts for skipped step 'generate_script'")
     except Exception as e:
         logger.warning(f"Error loading generate_script artifacts: {e}")
+
+
+def _load_artifacts_generate_description(ctx: PipelineContext):
+    """Load artifacts from completed generate_description step."""
+    try:
+        description_file = ctx.run_paths["description_file"]
+        if description_file.exists():
+            ctx.description = description_file.read_text(encoding="utf-8")
+            logger.debug("Loaded artifacts for skipped step 'generate_description'")
+    except Exception as e:
+        logger.warning(f"Error loading generate_description artifacts: {e}")
 
 
 def _load_artifacts_create_voiceover(ctx: PipelineContext):
@@ -948,6 +971,56 @@ async def step_generate_script(ctx: PipelineContext):
         ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
         logger.info(
             f"Script generated and saved to {ctx.run_paths['script_file'].name}"
+        )
+
+
+async def step_generate_description(ctx: PipelineContext):
+    """Generate AI-powered video description for social media platforms."""
+    # Check if description generation is enabled
+    if not ctx.config.description_settings.enabled:
+        logger.info("Description generation is disabled, skipping step")
+        return
+
+    async with performance_monitor.measure_step(
+        "generate_description",
+        product_title_length=len(ctx.product.title or ""),
+        target_platforms=",".join(ctx.config.description_settings.target_platforms),
+    ):
+        logger.info("Executing step: GENERATE_DESCRIPTION")
+
+        # Check if description already exists from previous run
+        description_file = ctx.run_paths["description_file"]
+        if description_file.exists():
+            logger.info("Loading existing description from previous run")
+            ctx.description = description_file.read_text(encoding="utf-8")
+            logger.info(
+                f"Loaded existing description from {description_file.name} "
+                f"({len(ctx.description or '')} characters)"
+            )
+            return
+
+        try:
+            description_text = await generate_ai_description(
+                ctx.product,
+                ctx.config.llm_settings,
+                ctx.secrets,
+                ctx.session,
+                {"description": ctx.run_paths["description_file"]},
+                ctx.debug_mode,
+                ctx.config.api_settings,
+            )
+        except Exception as e:
+            raise PipelineError(f"Description generation failed: {e}") from e
+
+        if not description_text:
+            raise PipelineError("Description generation failed to produce text.")
+
+        ctx.description = description_text.strip()
+        ensure_dirs_exist(ctx.run_paths["description_file"].parent)
+        ctx.run_paths["description_file"].write_text(ctx.description, encoding="utf-8")
+        logger.info(
+            f"Description generated and saved to "
+            f"{ctx.run_paths['description_file'].name}"
         )
 
 
@@ -1383,6 +1456,8 @@ async def create_video_for_product(
                     await step_gather_visuals(ctx)
                 elif step == STEP_GENERATE_SCRIPT:
                     await step_generate_script(ctx)
+                elif step == STEP_GENERATE_DESCRIPTION:
+                    await step_generate_description(ctx)
                 elif step == STEP_CREATE_VOICEOVER:
                     await step_create_voiceover(ctx)
                 elif step == STEP_DOWNLOAD_MUSIC:

@@ -545,6 +545,15 @@ attribution_settings:
     attribution_entry_template: "mock"
 whisper_settings:
     enabled: false
+description_settings:
+    enabled: true
+    prompt_template_path: "src/ai/prompts/video_description.md"
+    target_platforms: ["tiktok", "youtube", "instagram"]
+    max_tokens: 200
+    min_description_chars: 50
+    min_description_words: 10
+    require_hashtags: true
+    require_ad_hashtag: true
 media_settings:
     stock_media_keywords: []
     stock_video_min_duration_sec: 0

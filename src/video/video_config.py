@@ -498,6 +498,36 @@ class LLMSettings(BaseModel):
     timeout_seconds: int = Field(LLM_TIMEOUT_SECONDS)
 
 
+class DescriptionSettings(BaseModel):
+    """Configuration settings for AI-generated video descriptions.
+
+    Controls the generation of social media descriptions using LLM providers.
+    """
+
+    enabled: bool = Field(True, description="Enable or disable description generation")
+    prompt_template_path: str = Field(
+        "src/ai/prompts/video_description.md",
+        description="Path to prompt template file for description generation",
+    )
+    target_platforms: list[str] = Field(
+        ["tiktok", "youtube", "instagram"],
+        description="Target platforms for description optimization",
+    )
+    max_tokens: int = Field(200, description="Maximum tokens for LLM response")
+    min_description_chars: int = Field(
+        50, description="Minimum character count for valid descriptions"
+    )
+    min_description_words: int = Field(
+        10, description="Minimum word count for valid descriptions"
+    )
+    require_hashtags: bool = Field(
+        True, description="Whether descriptions must include hashtags"
+    )
+    require_ad_hashtag: bool = Field(
+        True, description="Whether descriptions must include #ad hashtag"
+    )
+
+
 class StockMediaSettings(BaseModel):
     pexels_api_key_env_var: str
     source: str = Field("Pexels")
@@ -729,6 +759,7 @@ class ProductFiles(BaseModel):
 
     scraped_data: str = Field("data.json")
     script: str = Field("script.txt")
+    description: str = Field("description.txt")
     voiceover: str = Field("voiceover.wav")
     subtitles: str = Field("subtitles.srt")
     final_video: str = Field("video_{profile}.mp4")
@@ -890,6 +921,7 @@ class VideoConfig(BaseModel):
     audio_settings: AudioSettings
     tts_config: TTSConfig
     llm_settings: LLMSettings
+    description_settings: DescriptionSettings
     stock_media_settings: StockMediaSettings
     ffmpeg_settings: FFmpegSettings
     attribution_settings: AttributionSettings
@@ -1197,6 +1229,7 @@ class VideoConfig(BaseModel):
             # Files (all in product root for flat structure)
             "scraped_data": product_dir / files.scraped_data,
             "script": product_dir / files.script,
+            "description": product_dir / files.description,
             "voiceover": product_dir / files.voiceover,
             "subtitles": product_dir / self._get_subtitle_filename(files.subtitles),
             "final_video": product_dir
@@ -1651,6 +1684,16 @@ except Exception as e:
             max_tokens=LLM_MAX_TOKENS,
             temperature=LLM_TEMPERATURE,
             timeout_seconds=LLM_TIMEOUT_SECONDS,
+        ),
+        description_settings=DescriptionSettings(
+            enabled=True,
+            prompt_template_path="prompts/video_description_template.txt",
+            target_platforms=["tiktok", "youtube", "instagram"],
+            max_tokens=250,
+            min_description_chars=50,
+            min_description_words=10,
+            require_hashtags=True,
+            require_ad_hashtag=True,
         ),
         stock_media_settings=StockMediaSettings(
             pexels_api_key_env_var="PEXELS_API_KEY",
