@@ -5,6 +5,28 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-09-20
+
+### Fixed
+- **Missing Pipeline Step**: Added missing `generate_description` step to pipeline execution - description generation was completely skipped despite having all the code
+- **Critical Path Resolution**: Fixed description generator failing due to relative path issues when run from different working directories
+- **Producer Cleanup**: Fixed missing `description.txt` and erroneous directories (`~`, `outputs`) in cleanup process with `--clean` flag
+- **Whisper Model Caching**: Fixed literal `~` directory creation by properly expanding home directory path with `os.path.expanduser()`
+- **Pipeline Reliability**: Ensured producer works correctly regardless of current working directory
+
+### Changed
+- Enhanced producer cleanup to remove all temporary and generated files consistently
+- Improved path handling throughout the pipeline for better portability
+- Updated test documentation to reflect current structure (365 tests across 23 files)
+- Updated project status documentation with current capabilities and fixes
+
+### Technical
+- Added `generate_description` step to pipeline graph with proper dependency on `generate_script` step
+- Made description generator use absolute paths for template loading
+- Added proper home directory expansion in Whisper model configuration
+- Enhanced producer file cleanup logic with comprehensive file removal
+- Improved error handling and path resolution across multiple modules
+
 ## [0.2.0] - 2025-09-20
 
 ### Added

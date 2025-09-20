@@ -132,7 +132,7 @@ src/
 **Purpose**: Orchestrates the entire video production workflow.
 
 **Key Responsibilities:**
-- Manages six-step pipeline execution
+- Manages seven-step pipeline execution
 - Handles pipeline context and state
 - Creates directory structures
 - Implements configurable delays between products
@@ -161,6 +161,7 @@ src/
 dependencies = {
     'gather_visuals': [],
     'generate_script': ['gather_visuals'],
+    'generate_description': ['generate_script'],
     'create_voiceover': ['generate_script'],
     'generate_subtitles': ['create_voiceover'],  # Can run in parallel
     'download_music': ['create_voiceover'],     # Can run in parallel

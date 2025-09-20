@@ -274,11 +274,14 @@ def _clean_producer_files(
     # Get the product files configuration to know what to clean
     safe_profile_name = sanitize_filename(profile_name)
     files = config.output_structure.product_files
+    temp_files = config.output_structure.product_temp_files
+    temp_dir = product_root / config.output_structure.product_subdirs.temp
 
     # Producer-generated files to remove (preserve scraper inputs like data.json,
     # images/, videos/)
     producer_files_to_remove = [
         product_root / files.script,  # script.txt
+        product_root / files.description,  # description.txt
         product_root / files.voiceover,  # voiceover.wav
         product_root / files.subtitles,  # subtitles.srt
         product_root / "subtitles_content_aware.ass",  # content-aware subtitle file
@@ -287,16 +290,15 @@ def _clean_producer_files(
             product_id=product_id, profile=safe_profile_name
         ),  # video_{product_id}_{profile}.mp4
         product_root / f"video_{safe_profile_name}.mp4",  # old naming pattern
-        product_root / files.metadata,  # metadata.json
-        product_root
-        / files.ffmpeg_log.format(
-            profile=safe_profile_name
-        ),  # ffmpeg_command.log with profile
-        product_root / files.performance,  # performance.json
+        temp_dir / temp_files.metadata,  # metadata.json
+        temp_dir / temp_files.ffmpeg_log,  # ffmpeg_command.log
+        temp_dir / temp_files.performance,  # performance.json
         product_root / config.path_config.temp_dir,  # temp/ directory
         product_root / config.path_config.music_dir,  # music/ directory
         product_root / config.path_config.gathered_visuals,  # internal producer file
         product_root / files.attribution,  # attributions file
+        product_root / "~",  # Erroneous home directory from unescaped paths
+        product_root / "outputs",  # Erroneous nested outputs directory
     ]
 
     # Add debug files using configurable patterns
@@ -356,6 +358,7 @@ def get_video_run_paths(
         {
             "visual_dir": paths["visual_dir"],  # New visual assets directory
             "ffmpeg_log": paths["ffmpeg_log"],  # FFmpeg command log
+            "performance": paths["performance"],  # Performance metrics file
         }
     )
 
@@ -606,6 +609,12 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
 
     pipeline.add_step(
         "generate_script", lambda ctx: step_generate_script(ctx), {"gather_visuals"}
+    )
+
+    pipeline.add_step(
+        "generate_description",
+        lambda ctx: step_generate_description(ctx),
+        {"generate_script"},
     )
 
     pipeline.add_step(
@@ -1119,6 +1128,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
             ctx.voiceover_duration,
             ctx.debug_mode,
             ctx.config,  # Pass video config for ASS generation
+            Path(ctx.run_paths["run_root"])
+            / ctx.config.output_structure.product_subdirs.temp,  # temp_dir
         )
         if not srt_path or not srt_path.exists():
             raise PipelineError("Subtitle generation process failed.")
@@ -1496,10 +1507,7 @@ async def create_video_for_product(
                 create_metrics = True
 
             if create_metrics:
-                performance_metrics_path = (
-                    run_paths["run_root"] / "performance_metrics.json"
-                )
-                performance_monitor.save_metrics(performance_metrics_path)
+                performance_monitor.save_metrics(run_paths["performance"])
 
         # Mark pipeline as successful for history tracking
         performance_monitor.finish_pipeline(success=True)

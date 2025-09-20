@@ -14,31 +14,34 @@ tests/
 ├── test_utils.py                    # Unit tests for utility functions
 ├── test_video_config.py             # Unit tests for video configuration
 ├── test_ai_script_generator.py      # Unit tests for AI script generation
+├── test_ai_description_generator.py # Unit tests for AI description generation
 ├── test_audio.py                    # Unit tests for audio processing (Freesound)
 ├── test_tts.py                      # Unit tests for text-to-speech
 ├── test_assembler.py                # Unit tests for video assembly (FFmpeg)
-├── test_subtitle_generator.py       # Unit tests for subtitle generation
+├── test_assembler_decomposed.py     # Unit tests for decomposed assembler components
 ├── test_subtitle_utils.py           # Unit tests for subtitle utilities
+├── test_subtitle_validation.py      # Unit tests for subtitle validation
+├── test_unified_subtitle_positioning.py # Unit tests for unified subtitle positioning
 ├── test_stock_media.py              # Unit tests for stock media fetching
+├── test_circuit_breaker.py          # Unit tests for circuit breaker functionality
 │
-├── # Pipeline & Producer Tests
-├── test_producer.py                 # Tests for video production pipeline (includes batch processing)
+├── # Configuration & Validation Tests
+├── test_config_validator.py         # Unit tests for configuration validation
+├── test_config_extensions.py        # Tests for configuration extensions
+├── test_media_validator.py          # Unit tests for media validation
+├── test_media_validation.py         # Integration tests for media validation
+│
+├── # Pipeline & Structure Tests
 ├── test_pipeline_graph.py           # Tests for pipeline dependency graph
-├── test_producer_performance.py     # Performance tests for producer
+├── test_producer_cleanup.py         # Tests for producer cleanup functionality
+├── test_outputs_structure.py        # Tests for output directory structure
 │
-├── # Integration & E2E Tests
-├── test_integration.py              # Integration tests for pipeline components
+├── # Integration & Performance Tests
 ├── test_optimization_integration.py # Integration tests for optimizations
 ├── test_performance.py             # General performance tests
-│
-├── # Specialized Component Tests  
-├── test_botasaurus_scraper.py       # Tests for Botasaurus Amazon scraper
-├── test_cleanup.py                  # Tests for output directory cleanup
-├── test_cleanup_integration.py      # Integration tests for cleanup
-├── test_config_extensions.py        # Tests for configuration extensions
 ├── test_slideshow_images1_verification.py  # Video output verification tests
 │
-└── README.md                        # This file
+└── TESTING.md                       # This file
 ```
 
 The test suite contains comprehensive test coverage across multiple categories.
@@ -160,8 +163,8 @@ poetry run pytest tests/test_video_config.py
 # Run AI script generator tests
 poetry run pytest tests/test_ai_script_generator.py
 
-# Run Amazon scraper features tests
-poetry run pytest tests/test_amazon_scraper_features.py
+# Run AI description generator tests
+poetry run pytest tests/test_ai_description_generator.py
 
 # Run video verification tests (requires real pipeline output)
 poetry run pytest tests/test_slideshow_images1_verification.py
@@ -628,75 +631,47 @@ poetry run pytest --collect-only -q | tail -3
 - `@pytest.mark.asyncio` - Async tests
 - `@pytest.mark.skip(reason="...")` - Skip test with reason
 
-### Scraper Testing
-The Amazon scraper includes comprehensive test coverage for:
+### AI Component Testing
+The AI components include comprehensive test coverage for:
 
-#### Selector Debugging (`TestSelectorDebugging`)
-- Tests selector debugging functionality with SUCCESS/FAILED status reporting
-- Validates primary and alternative selector fallback chains
-- Ensures proper logging for essential vs optional selectors
-- Tests debug mode enabling/disabling
+#### AI Description Generator (`TestAIDescriptionGenerator`)
+- Tests prompt template loading and formatting
+- Validates description completeness and format requirements
+- Ensures hashtag validation and #ad compliance
+- Tests error handling for missing templates and API keys
 
-#### Product Quality Control (`TestProductQualityControl`)
-- Tests product validation logic (Price N/A, Title N/A detection)
-- Validates product skipping and target count maintenance
-- Tests edge cases and comprehensive data validation scenarios
-- Ensures quality control maintains configured product counts
-
-#### Selector Configuration (`TestSelectorConfiguration`)
-- Validates alternative selector configurations (13 price selectors)
-- Tests essential vs optional selector classifications
-- Ensures configuration completeness for various Amazon page layouts
-
-#### Integration Testing (`TestScraperLogicIntegration`)
-- Tests debug mode integration with selector debugging
-- Validates scraper configuration structure for new features
-- Tests end-to-end functionality integration
-
-#### Edge Cases (`TestScraperEdgeCases`)
-- Tests error conditions and boundary cases
-- Validates behavior with missing selectors
-- Tests various N/A pattern detection scenarios
+#### AI Script Generator (`TestAIScriptGenerator`)
+- Tests script generation logic and validation
+- Validates prompt formatting and template handling
+- Ensures proper error handling and fallback mechanisms
 
 ```bash
-# Run Amazon scraper feature tests
-poetry run pytest tests/test_amazon_scraper_features.py -v
+# Run AI description generator tests
+poetry run pytest tests/test_ai_description_generator.py -v
 
-# Run specific test categories
-poetry run pytest tests/test_amazon_scraper_features.py::TestSelectorDebugging -v
-poetry run pytest tests/test_amazon_scraper_features.py::TestProductQualityControl -v
+# Run AI script generator tests
+poetry run pytest tests/test_ai_script_generator.py -v
 ```
 
-### Producer Batch Processing Tests
+### Additional Component Testing
 
-The producer test suite (`test_producer.py`) now includes comprehensive tests for the new batch processing functionality:
+#### Circuit Breaker (`TestCircuitBreaker`)
+- Tests circuit breaker functionality for external service resilience
+- Validates failure threshold handling and automatic recovery
+- Ensures proper state transitions and error reporting
 
-#### Batch Product Discovery (`TestDiscoverProductsForBatch`)
-- **Product Discovery**: Tests finding valid products with `data.json` files
-- **List Format Handling**: Tests products stored in JSON array format (takes first item)
-- **System Directory Filtering**: Tests proper exclusion of cache, logs, reports directories
-- **Error Handling**: Tests invalid JSON, missing files, and empty lists
-- **Path Resolution**: Tests nonexistent directories and absolute/relative paths
-
-#### Batch Argument Validation (`TestBatchProcessingArgparse`)
-- **Argument Combinations**: Tests mutually exclusive batch/single modes
-- **Required Arguments**: Tests `--batch-profile` requirement validation
-- **Error Messages**: Tests proper error reporting for invalid combinations
-- **Command Line Integration**: Tests full argument parsing with mocked execution
-
-**Test Coverage**: 11 new test functions covering all batch processing scenarios
+#### Media Validation (`TestMediaValidation`)
+- Tests media file validation and quality checks
+- Validates image and video format requirements
+- Ensures proper error handling for corrupted media
 
 ```bash
-# Run all producer tests (including batch processing)
-poetry run pytest tests/test_producer.py -v
+# Run circuit breaker tests
+poetry run pytest tests/test_circuit_breaker.py -v
 
-# Run only batch processing tests
-poetry run pytest tests/test_producer.py::TestDiscoverProductsForBatch -v
-poetry run pytest tests/test_producer.py::TestBatchProcessingArgparse -v
-
-# Test batch discovery with specific scenarios
-poetry run pytest tests/test_producer.py::TestDiscoverProductsForBatch::test_discover_products_for_batch_success -v
-poetry run pytest tests/test_producer.py::TestDiscoverProductsForBatch::test_discover_products_for_batch_skips_system_dirs -v
+# Run media validation tests
+poetry run pytest tests/test_media_validation.py -v
+poetry run pytest tests/test_media_validator.py -v
 ```
 
 ### Test Status

@@ -780,7 +780,7 @@ class VideoAssembler:
 
             # Determine log file path
             command_log_path = (
-                output_path.parent / f"{output_path.stem}_ffmpeg_command.log"
+                temp_dir / f"{output_path.stem}_ffmpeg_command.log"
                 if self._should_create_ffmpeg_logs()
                 else None
             )
