@@ -257,6 +257,7 @@ async def create_unified_subtitles(
     voiceover_duration: float | None,
     debug_mode: bool = False,
     video_config: Any = None,
+    temp_dir: Path | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -277,6 +278,7 @@ async def create_unified_subtitles(
         voiceover_duration: Duration of voiceover audio
         debug_mode: Enable debug output
         video_config: Video configuration for frame size
+        temp_dir: Optional temp directory for debug files (defaults to output parent)
 
     Returns:
     -------
@@ -317,7 +319,7 @@ async def create_unified_subtitles(
         try:
             stt_timings = await generate_subtitles_with_whisper(
                 audio_path,
-                output_path.parent,
+                temp_dir or output_path.parent,
                 subtitle_settings,
                 whisper_stt_settings,
                 script,

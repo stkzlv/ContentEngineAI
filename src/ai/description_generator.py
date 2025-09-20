@@ -430,7 +430,9 @@ async def generate_description(
     logger.info(f"Order of models to attempt: {models_to_try}")
 
     # Load and format the description prompt template
-    template_path = Path("src/ai/prompts/video_description.md")
+    # Use absolute path to ensure it works regardless of working directory
+    project_root = Path(__file__).parent.parent.parent
+    template_path = project_root / "src/ai/prompts/video_description.md"
     try:
         template = load_prompt_template(template_path)
         prompt = format_prompt(template, product)

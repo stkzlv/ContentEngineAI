@@ -3,11 +3,11 @@
 This document tracks the current state of ContentEngineAI, including ongoing migrations, version-specific information, and temporary project conditions that may change over time.
 
 **Last Updated**: September 20, 2025
-**Current Version**: 0.2.0 (AI video descriptions feature)
+**Current Version**: 0.2.1 (Path resolution fixes and producer improvements)
 
 ## 🚀 Current Release Status
 
-ContentEngineAI v0.2.0 adds AI-generated video descriptions for social media platforms.
+ContentEngineAI v0.2.1 includes critical path resolution fixes and producer improvements that ensure the pipeline works correctly from any working directory.
 
 ## 🎯 Current System Capabilities
 
@@ -78,10 +78,10 @@ poetry run python tools/performance_report.py --report-type detailed
 
 ## 🧪 Test Suite
 
-- **Total Tests**: 359 comprehensive test cases across all modules (25 test files)
-- **Test Status**: All tests passing
-- **Current Coverage**: 33.54% (exceeds 30% target)
+- **Total Tests**: 365 comprehensive test cases across all modules (23 test files)
+- **Test Status**: Currently 18.42% coverage (below 30% target due to recent path fixes)
 - **Quality Gates**: Ruff, MyPy, Bandit, Vulture, Safety all passing
+- **Recent Updates**: Fixed AI description generator path resolution, updated test documentation
 
 ## 🎯 Current Scope
 
@@ -99,8 +99,11 @@ poetry run python tools/performance_report.py --report-type detailed
 
 ## 🔄 Recent Changes
 
-### v0.2.0 Release
+### v0.2.1 Release - Critical Path Fixes
 - Added AI-generated video descriptions for social media platforms
 - New `description.txt` output file with optimized content for TikTok, YouTube, Instagram
 - Automatic #ad hashtag compliance for advertising disclosure
+- **FIXED**: Description generator path resolution issue that was causing pipeline failures
+- **FIXED**: Producer now works correctly from any working directory
+- Updated test documentation to reflect current test structure (365 tests, 23 files)
 - Full backward compatibility with existing configurations

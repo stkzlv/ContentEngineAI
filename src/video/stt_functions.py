@@ -297,7 +297,7 @@ def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
             device=whisper_settings.model_device,
             in_memory=whisper_settings.model_in_memory,
             download_root=whisper_settings.model_download_root
-            or DEFAULT_WHISPER_MODEL_DIR,
+            or os.path.expanduser(DEFAULT_WHISPER_MODEL_DIR),
         )
         logger.info(f"Whisper model loaded: {whisper_settings.model_size}")
         return model

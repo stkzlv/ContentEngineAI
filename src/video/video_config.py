@@ -763,10 +763,22 @@ class ProductFiles(BaseModel):
     voiceover: str = Field("voiceover.wav")
     subtitles: str = Field("subtitles.srt")
     final_video: str = Field("video_{profile}.mp4")
-    metadata: str = Field("metadata.json")
-    ffmpeg_log: str = Field("ffmpeg_command.log")
-    performance: str = Field("performance.json")
     attribution: str = Field("attributions.txt")
+
+
+class ProductTempFiles(BaseModel):
+    """Temporary/debug files within product temp directory"""
+
+    metadata: str = Field("metadata.json")
+    performance: str = Field("performance.json")
+    ffmpeg_log: str = Field("ffmpeg_command.log")
+    media_validation_report: str = Field("media_validation_report.json")
+    whisper_result_raw: str = Field("whisper_result_raw.json")
+    whisper_vs_script: str = Field("whisper_vs_script.txt")
+    whisper_word_list: str = Field("whisper_word_list.json")
+    gathered_visuals: str = Field("gathered_visuals.json")
+    music_choice: str = Field("music_choice.json")
+    voiceover_duration: str = Field("voiceover_duration.txt")
 
 
 class ProductSubdirs(BaseModel):
@@ -792,6 +804,7 @@ class OutputStructure(BaseModel):
 
     product_directory_pattern: str = Field("{product_id}")
     product_files: ProductFiles = Field(default_factory=lambda: ProductFiles())  # type: ignore[call-arg]
+    product_temp_files: ProductTempFiles = Field(default_factory=ProductTempFiles)  # type: ignore[arg-type]
     product_subdirs: ProductSubdirs = Field(default_factory=lambda: ProductSubdirs())  # type: ignore[call-arg]
     global_dirs: GlobalDirs = Field(default_factory=lambda: GlobalDirs())  # type: ignore[call-arg]
 
@@ -1218,6 +1231,7 @@ class VideoConfig(BaseModel):
 
         # Product files (in root)
         files = self.output_structure.product_files
+        temp_files = self.output_structure.product_temp_files
 
         return {
             # Directories
@@ -1226,7 +1240,7 @@ class VideoConfig(BaseModel):
             "videos_dir": videos_dir,
             "music_dir": music_dir,
             "temp_dir": temp_dir,
-            # Files (all in product root for flat structure)
+            # Core production files (in product root)
             "scraped_data": product_dir / files.scraped_data,
             "script": product_dir / files.script,
             "description": product_dir / files.description,
@@ -1236,17 +1250,28 @@ class VideoConfig(BaseModel):
             / files.final_video.format(
                 product_id=product_id, profile=safe_profile_name
             ),
-            "metadata": product_dir / files.metadata,
-            "ffmpeg_log": product_dir / files.ffmpeg_log,
-            "performance": product_dir / files.performance,
+            "attribution": product_dir / files.attribution,
+            # Debug/temp files (in temp directory)
+            "metadata": temp_dir / temp_files.metadata,
+            "performance": temp_dir / temp_files.performance,
+            "ffmpeg_log": temp_dir / temp_files.ffmpeg_log,
+            "media_validation_report": temp_dir
+            / f"{product_id}_{temp_files.media_validation_report}",
+            "whisper_result_raw": temp_dir
+            / f"{product_id}_{temp_files.whisper_result_raw}",
+            "whisper_vs_script": temp_dir / temp_files.whisper_vs_script,
+            "whisper_word_list": temp_dir
+            / f"{product_id}_{temp_files.whisper_word_list}",
+            "gathered_visuals": temp_dir / temp_files.gathered_visuals,
+            "music_choice": temp_dir / temp_files.music_choice,
+            "voiceover_duration": temp_dir / temp_files.voiceover_duration,
             # Legacy compatibility
             "project_root": product_dir,
             "working_dir": temp_dir,
             "audio_dir": temp_dir,
             "visual_dir": temp_dir,
             "text_dir": temp_dir,
-            "pipeline_state": product_dir / files.metadata,  # Renamed
-            "attribution": product_dir / "attributions.txt",
+            "pipeline_state": temp_dir / temp_files.metadata,  # Renamed to temp
         }
 
     def _get_subtitle_filename(self, default_filename: str) -> str:
