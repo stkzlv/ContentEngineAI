@@ -85,9 +85,22 @@ class UnifiedSubtitleConfig(BaseModel):
         0.4, description="Minimum duration for subtitle segments (seconds)"
     )
 
-    # Randomization (simplified)
-    randomize_colors: bool = Field(False, description="Use random color combinations")
+    # Randomization system (REQUIREMENTS.md compliance)
+    randomize_fonts: bool = Field(
+        False, description="Enable random font selection from curated collection"
+    )
+    randomize_colors: bool = Field(
+        False, description="Use random coordinated color combinations"
+    )
     randomize_effects: bool = Field(False, description="Use random animation effects")
+
+    # Manual overrides (optional)
+    selected_font: str | None = Field(
+        None, description="Override font selection (font family name)"
+    )
+    selected_color_pair: str | None = Field(
+        None, description="Override color pair selection"
+    )
 
     # Advanced positioning (optional fine-tuning)
     custom_position: Position | None = Field(
@@ -98,13 +111,25 @@ class UnifiedSubtitleConfig(BaseModel):
     )
 
 
-def get_style_config(preset: StylePreset) -> dict[str, Any]:
-    """Get style configuration for a given preset.
+def get_style_config(
+    preset: StylePreset,
+    config: UnifiedSubtitleConfig | None = None,
+    product_id: str | None = None,
+) -> dict[str, Any]:
+    """Get style configuration for a given preset with optional randomization.
 
-    Returns a dictionary of style parameters that can be applied to
-    subtitle generation for both SRT and ASS formats.
+    Args:
+    ----
+        preset: Base style preset to use
+        config: Unified subtitle configuration with randomization settings
+        product_id: Product identifier for consistent randomization seeding
+
+    Returns:
+    -------
+        Dictionary of style parameters for subtitle generation
+
     """
-    configs = {
+    configs: dict[StylePreset, dict[str, Any]] = {
         StylePreset.MINIMAL: {
             "font_name": "Arial",
             "font_color": "&H00FFFFFF",
@@ -161,11 +186,57 @@ def get_style_config(preset: StylePreset) -> dict[str, Any]:
             "font_width_to_height_ratio": 0.5,
         },
     }
-    result = configs.get(preset)
-    if result is not None:
-        return result  # type: ignore[return-value]
-    else:
-        return configs[StylePreset.MODERN]  # type: ignore[return-value]
+
+    # Get base configuration
+    base_config: dict[str, Any] = configs.get(
+        preset, configs[StylePreset.MODERN]
+    ).copy()
+
+    # Apply randomization if enabled and product_id provided
+    if config and product_id:
+        logger.debug(
+            f"Randomization check - config: {config is not None}, "
+            f"product_id: {product_id}, "
+            f"randomize_fonts: {config.randomize_fonts if config else 'N/A'}"
+        )
+        # Import here to avoid circular imports
+        try:
+            from src.video.font_color_manager import RandomizationEngine
+
+            randomizer = RandomizationEngine()
+            logger.debug(
+                f"RandomizationEngine imported successfully, calling "
+                f"generate_randomized_style with fonts={config.randomize_fonts}, "
+                f"colors={config.randomize_colors}"
+            )
+
+            # Apply font/color randomization
+            randomized_style = randomizer.generate_randomized_style(
+                product_id=product_id,
+                enable_font_randomization=config.randomize_fonts,
+                enable_color_randomization=config.randomize_colors,
+                base_style=base_config,
+            )
+            logger.debug(f"Randomization result: {randomized_style}")
+
+            # Merge randomized settings
+            base_config.update(randomized_style)
+
+            # Apply manual overrides if provided
+            if config.selected_font:
+                base_config["font_name"] = config.selected_font
+                logger.debug(f"Font manually overridden to: {config.selected_font}")
+
+            if config.selected_color_pair:
+                logger.debug(
+                    f"Color pair manually overridden to: "
+                    f"{config.selected_color_pair}"
+                )
+
+        except ImportError as e:
+            logger.warning(f"Could not import RandomizationEngine: {e}")
+
+    return base_config
 
 
 def calculate_position(
@@ -199,21 +270,20 @@ def calculate_position(
         base_y = 0.5
     elif config.anchor == PositionAnchor.BOTTOM:
         base_y = 1.0 - config.margin
-    elif (
-        config.anchor == PositionAnchor.ABOVE_CONTENT
-        and config.content_aware
-        and visual_bounds
-    ):
-        base_y = max(0.05, visual_bounds.y - config.margin)
-    elif (
-        config.anchor == PositionAnchor.BELOW_CONTENT
-        and config.content_aware
-        and visual_bounds
-    ):
-        base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
-    else:
-        # Default to bottom positioning
-        base_y = 1.0 - config.margin
+    elif config.anchor == PositionAnchor.ABOVE_CONTENT:
+        if config.content_aware and visual_bounds:
+            base_y = max(0.05, visual_bounds.y - config.margin)
+        else:
+            # Fallback: Use top positioning when content_aware is disabled
+            # or visual_bounds is not available
+            base_y = config.margin
+    elif config.anchor == PositionAnchor.BELOW_CONTENT:
+        if config.content_aware and visual_bounds:
+            base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
+        else:
+            # Fallback: Use bottom positioning when content_aware is disabled
+            # or visual_bounds is not available
+            base_y = 1.0 - config.margin
 
     # Calculate horizontal position based on alignment
     if config.horizontal_alignment == "left":
@@ -271,7 +341,7 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
     if positioning_mode == "relative":
         anchor = PositionAnchor.BELOW_CONTENT
         content_aware = True
-    elif positioning_mode == "absolute":
+    else:  # absolute or other modes
         anchor = PositionAnchor.BOTTOM
         content_aware = False
         # Try to extract custom position from absolute settings
@@ -279,9 +349,6 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
             legacy_settings["absolute_positioning"]
             # This would need FFmpeg expression parsing - simplified for now
             custom_pos = Position(x=0.5, y=0.8)  # Default approximation
-    else:  # absolute
-        anchor = PositionAnchor.BOTTOM
-        content_aware = False
 
     # Check if using new unified parameters directly
     if "anchor" in legacy_settings:
@@ -318,8 +385,11 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
         max_line_length=legacy_settings.get("max_line_length", 38),
         max_duration=legacy_settings.get("max_duration", 4.5),
         min_duration=legacy_settings.get("min_duration", 0.4),
+        randomize_fonts=legacy_settings.get("randomize_fonts", False),
         randomize_colors=legacy_settings.get("randomize_colors", False),
         randomize_effects=legacy_settings.get("randomize_effects", False),
+        selected_font=legacy_settings.get("selected_font"),
+        selected_color_pair=legacy_settings.get("selected_color_pair"),
         custom_position=custom_pos,
         horizontal_alignment=legacy_settings.get("horizontal_alignment", "center"),
     )

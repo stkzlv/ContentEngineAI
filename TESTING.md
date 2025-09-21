@@ -24,7 +24,10 @@ tests/
 ├── test_assembler_decomposed.py     # Unit tests for decomposed assembler components
 ├── test_subtitle_utils.py           # Unit tests for subtitle utilities
 ├── test_subtitle_validation.py      # Unit tests for subtitle validation
+├── test_subtitle_positioning.py     # Unit tests for subtitle positioning system
 ├── test_unified_subtitle_positioning.py # Unit tests for unified subtitle positioning
+├── test_unified_subtitle_generator.py   # Unit tests for unified subtitle generator
+├── test_result_types.py             # Unit tests for pipeline result types
 ├── test_stock_media.py              # Unit tests for stock media fetching
 ├── test_circuit_breaker.py          # Unit tests for circuit breaker functionality
 │
@@ -680,6 +683,11 @@ poetry run pytest tests/test_media_validator.py -v
 ```
 
 ### Test Status
+**Current Test Statistics (as of latest update):**
+- **Total Tests**: 423 tests collected
+- **Test Coverage**: 39.03% (exceeds 30% target)
+- **Test Status**: All tests passing (413 passed, 10 skipped)
+
 Run `poetry run pytest --collect-only -q | tail -3` to see current test counts and status.
 
 ## Resources

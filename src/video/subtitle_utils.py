@@ -258,6 +258,7 @@ async def create_unified_subtitles(
     debug_mode: bool = False,
     video_config: Any = None,
     temp_dir: Path | None = None,
+    product_id: str | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -279,6 +280,7 @@ async def create_unified_subtitles(
         debug_mode: Enable debug output
         video_config: Video configuration for frame size
         temp_dir: Optional temp directory for debug files (defaults to output parent)
+        product_id: Product ID for randomization (if applicable)
 
     Returns:
     -------
@@ -308,7 +310,7 @@ async def create_unified_subtitles(
         frame_size = video_config.video_settings.resolution
 
     # Initialize unified generator (fixes karaoke color issue)
-    generator = UnifiedSubtitleGenerator(unified_config, frame_size)
+    generator = UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
 
     # Try to get STT timings (Whisper first, then Google Cloud STT)
     stt_timings = None

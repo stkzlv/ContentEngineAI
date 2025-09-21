@@ -1117,10 +1117,26 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # Create unified subtitle configuration from legacy settings
         ctx.config.subtitle_settings.model_dump()
 
+        # Get merged profile settings (similar to assembler approach)
+        merged_profile_settings = ctx.config.get_profile_merged_settings(
+            ctx.profile_name
+        )
+        profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
+
+        # Convert dict to SubtitleSettings object for compatibility
+        from src.video.video_config import SubtitleSettings
+
+        subtitle_settings_obj = SubtitleSettings(**profile_subtitle_settings)
+
+        # Derive product_id for randomization
+        from src.utils import sanitize_filename
+
+        product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
+
         srt_path = await create_unified_subtitles(
             voiceover_path,
             ctx.run_paths["subtitle_file"],
-            ctx.config.subtitle_settings,
+            subtitle_settings_obj,
             ctx.config.whisper_settings,
             ctx.config.google_cloud_stt_settings,
             ctx.secrets,
@@ -1130,6 +1146,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
             ctx.config,  # Pass video config for ASS generation
             Path(ctx.run_paths["run_root"])
             / ctx.config.output_structure.product_subdirs.temp,  # temp_dir
+            product_id,  # Pass product_id for randomization
         )
         if not srt_path or not srt_path.exists():
             raise PipelineError("Subtitle generation process failed.")
@@ -1306,6 +1323,12 @@ async def step_assemble_video(ctx: PipelineContext):
 
         assembler = VideoAssembler(ctx.config, debug_mode=ctx.debug_mode)
         assembler.set_profile_settings(ctx.profile_name)  # Apply profile settings
+
+        # Set product_id for randomization (derive from product data)
+        from src.utils import sanitize_filename
+
+        product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
+        assembler.set_product_id(product_id)
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,
