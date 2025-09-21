@@ -73,8 +73,8 @@ ContentEngineAI **MUST** use a dual configuration system:
 - Support unified subtitle positioning system with anchor-based layout
 
 ### Font & Color Management
-- Random font selection from curated list of 5 popular video fonts
-- Random color selection from 5 coordinated text/outline color pairs
+- Random font selection from curated list of 5 popular video fonts, per video
+- Random color selection from 5 coordinated text/outline color pairs, per video
 - Verify font system availability with fallback options
 - Ensure compatibility with SRT, ASS, and FFmpeg
 

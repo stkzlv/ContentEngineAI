@@ -71,7 +71,8 @@ make lint-report
 
 ## Tool Configuration
 
-### Ruff Configuration
+<details>
+<summary><strong>Ruff Configuration</strong></summary>
 
 Ruff is configured in `pyproject.toml` with the following rules:
 
@@ -93,7 +94,10 @@ Ruff is configured in `pyproject.toml` with the following rules:
 - Naming convention rules (N802, N803, N806)
 - Security rules S101, S603, S607 for common development patterns
 
-### MyPy Configuration
+</details>
+
+<details>
+<summary><strong>MyPy Configuration</strong></summary>
 
 MyPy is configured for development efficiency while maintaining type safety:
 
@@ -118,7 +122,10 @@ MyPy is configured for development efficiency while maintaining type safety:
 - Specific modules with complex external dependencies ignore type errors
 - Test modules have relaxed type checking for mock objects
 
-### Security Tools
+</details>
+
+<details>
+<summary><strong>Security Tools</strong></summary>
 
 **Bandit:**
 - Scans for common security issues
@@ -129,11 +136,16 @@ MyPy is configured for development efficiency while maintaining type safety:
 - Checks dependencies for known vulnerabilities
 - Runs automatically in pre-commit hooks
 
-### Dead Code Detection
+</details>
+
+<details>
+<summary><strong>Dead Code Detection</strong></summary>
 
 **Vulture:**
 - Detects unused code with 80% confidence threshold
 - Excludes common directories and files
+
+</details>
 
 ## Pre-commit Hooks
 

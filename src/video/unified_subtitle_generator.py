@@ -33,18 +33,27 @@ logger = logging.getLogger(__name__)
 class UnifiedSubtitleGenerator:
     """Unified subtitle generator supporting both SRT and ASS formats."""
 
-    def __init__(self, config: UnifiedSubtitleConfig, frame_size: tuple[int, int]):
+    def __init__(
+        self,
+        config: UnifiedSubtitleConfig,
+        frame_size: tuple[int, int],
+        product_id: str | None = None,
+    ):
         """Initialize the unified subtitle generator.
 
         Args:
         ----
             config: Unified subtitle configuration
             frame_size: Video frame dimensions (width, height)
+            product_id: Product identifier for randomization seeding
 
         """
         self.config = config
         self.frame_size = frame_size
-        self.style_config = get_style_config(config.style_preset)
+        self.product_id = product_id
+        self.style_config = get_style_config(
+            config.style_preset, config=config, product_id=product_id
+        )
         # Pre-select colors once per producer run to ensure consistency
         self._selected_colors = self._select_colors()
 
@@ -740,7 +749,7 @@ class UnifiedSubtitleGenerator:
             return None
 
     def _format_ass_time(self, seconds: float) -> str:
-        """Format time for ASS format (H:MM:SS.CC)."""
+        """Format time for ASS format (H:MM:SS.CC) - single digit hours per spec."""
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = seconds % 60

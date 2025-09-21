@@ -614,6 +614,9 @@ class VideoProfile(BaseModel):
     subtitle_background_color: str | None = Field(
         None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
     )
+    subtitle_randomize_fonts: bool | None = Field(
+        None, description="Override font randomization setting"
+    )
     subtitle_randomize_colors: bool | None = Field(
         None, description="Override color randomization setting"
     )
@@ -1180,6 +1183,10 @@ class VideoConfig(BaseModel):
         if profile.subtitle_background_color is not None:
             merged_settings["subtitle_settings"]["back_color"] = (
                 profile.subtitle_background_color
+            )
+        if profile.subtitle_randomize_fonts is not None:
+            merged_settings["subtitle_settings"]["randomize_fonts"] = (
+                profile.subtitle_randomize_fonts
             )
         if profile.subtitle_randomize_colors is not None:
             merged_settings["subtitle_settings"]["randomize_colors"] = (

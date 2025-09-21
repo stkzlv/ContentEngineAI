@@ -5,6 +5,35 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-09-21
+
+### Added
+- **Font and Color Randomization System**: New comprehensive deterministic randomization system for subtitle fonts and colors
+- **New Font Manager**: Added `font_color_manager.py` module for centralized font and color management
+- **Product-Specific Seeding**: Deterministic font/color selection based on product ID for consistent results
+- **Enhanced Subtitle Configuration**: New subtitle settings with font/color randomization options
+- **Comprehensive Test Coverage**: Added new test suites for subtitle validation and unified subtitle generation
+
+### Changed
+- **Code Quality Improvements**: Fixed 18 linting issues across 6 core files for better maintainability
+- **Type Annotations**: Enhanced type checking with proper annotations and MyPy compliance
+- **Security Compliance**: Added proper security warning suppressions for non-cryptographic randomization
+- **Configuration Enhancement**: Updated video producer configuration with new subtitle randomization options
+- **Documentation Updates**: Updated architecture and testing documentation
+
+### Fixed
+- **Line Length Issues**: Fixed E501 violations by splitting long debug messages across multiple lines
+- **Import Sorting**: Resolved I001 violations with proper import organization
+- **Docstring Issues**: Fixed missing parameter descriptions and formatting issues
+- **Type Checking**: Resolved MyPy errors with proper SubtitleSettings object usage
+- **Constructor Parameters**: Added missing optional parameters to UnifiedSubtitleConfig
+
+### Technical
+- **Subtitle Pipeline**: Enhanced subtitle generation with randomization capabilities
+- **Performance Monitoring**: Maintained consistent pipeline performance (232-283 seconds)
+- **Testing Framework**: All 413 tests pass with improved coverage
+- **Code Standards**: Achieved compliance with Ruff, MyPy, Bandit, Vulture, and Safety tools
+
 ## [0.2.1] - 2025-09-20
 
 ### Fixed

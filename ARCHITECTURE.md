@@ -74,11 +74,12 @@ Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
 - **Resume Capability**: Individual step execution for debugging
 - **Performance Monitoring**: Built-in metrics collection
 
-### Core Packages Structure
+<details>
+<summary><b>Core Packages Structure</b> (click to expand)</summary>
 
 ```
 src/
-├── video/                      # Central orchestration & video processing  
+├── video/                      # Central orchestration & video processing
 │   ├── producer.py            # Main pipeline orchestrator
 │   ├── assembler.py           # FFmpeg-based video assembly
 │   ├── unified_subtitle_generator.py  # Unified subtitle generation system
@@ -124,6 +125,8 @@ src/
     ├── background_processing.py # Background task management
     └── script_sanitizer.py   # Text processing utilities
 ```
+
+</details>
 
 ## Component Details
 
@@ -299,6 +302,9 @@ class BaseScraper(ABC):
 
 ## Performance Optimization Architecture
 
+<details>
+<summary><b>Performance Optimization Categories</b> (click to expand)</summary>
+
 ContentEngineAI implements five major optimization categories:
 
 ### 1. Pipeline Parallelization
@@ -341,6 +347,8 @@ ContentEngineAI implements five major optimization categories:
 - TTS model warming during pipeline startup
 - Stock media pre-fetching based on keywords
 - Background task lifecycle management
+
+</details>
 
 ## Performance Monitoring
 

@@ -124,6 +124,9 @@ class VideoAssembler:
         # Profile-specific settings (applied when using set_profile_settings)
         self.profile_settings: dict[str, Any] | None = None
 
+        # Product identifier for randomization seeding
+        self.product_id: str | None = None
+
     def set_profile_settings(self, profile_name: str) -> None:
         """Apply profile-specific settings to override global configuration.
 
@@ -156,6 +159,18 @@ class VideoAssembler:
                 f"{self.profile_settings['subtitle_settings']['style_preset']}"
             )
 
+    def set_product_id(self, product_id: str) -> None:
+        """Set the product identifier for randomization seeding.
+
+        Args:
+        ----
+            product_id: Product identifier (e.g., ASIN or sanitized product name)
+
+        """
+        self.product_id = product_id
+        if self.debug_mode:
+            logger.debug(f"Set product_id for randomization: {product_id}")
+
     def _get_effective_video_settings(self) -> dict[str, Any]:
         """Get effective video settings with profile overrides applied."""
         if self.profile_settings:
@@ -166,7 +181,22 @@ class VideoAssembler:
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
         if self.profile_settings:
-            return self.profile_settings["subtitle_settings"]  # type: ignore[no-any-return]
+            # Use the subtitle_settings from profile_settings directly
+            settings = self.profile_settings["subtitle_settings"]
+
+            # Validate using UnifiedSubtitleConfig if needed
+            from src.video.subtitle_positioning import UnifiedSubtitleConfig
+
+            try:
+                # Attempt to validate the settings through Pydantic
+                validated_config = UnifiedSubtitleConfig(**settings)
+                return validated_config.model_dump()
+            except Exception as e:
+                logger.warning(
+                    f"Subtitle settings validation failed, using raw settings: {e}"
+                )
+                return settings  # type: ignore[no-any-return]
+
         # Fallback to global config if no profile settings
         return self.config.subtitle_settings.__dict__
 
@@ -633,11 +663,7 @@ class VideoAssembler:
             Complete FFmpeg command as list of strings
 
         """
-        video_settings_dict = self._get_effective_video_settings()
-        # Convert dict back to object for backward compatibility
-        from types import SimpleNamespace
-
-        video_settings = SimpleNamespace(**video_settings_dict)
+        video_settings = self.config.video_settings
         audio_settings = self.config.audio_settings
 
         all_filters = video_filters + audio_filters
@@ -809,11 +835,7 @@ class VideoAssembler:
     ) -> tuple[
         list[str], list[str], list[tuple[Path, float, bool]], str, list[VisualGeometry]
     ]:
-        video_settings_dict = self._get_effective_video_settings()
-        # Convert dict back to object for backward compatibility
-        from types import SimpleNamespace
-
-        video_settings = SimpleNamespace(**video_settings_dict)
+        video_settings = self.config.video_settings
         video_files = [path for path in visual_inputs if self._is_video(path)]
         image_files = [path for path in visual_inputs if not self._is_video(path)]
         video_durations = await asyncio.gather(
@@ -963,12 +985,16 @@ class VideoAssembler:
         temp_sub_dir: Path,
     ) -> tuple[list[str], list[str]]:
         settings_dict = self._get_effective_subtitle_settings()
-        # Convert dict back to object for backward compatibility
-        from types import SimpleNamespace
 
-        settings = SimpleNamespace(**settings_dict)
-        # Use unified positioning system - no need for mode-specific logic
-        use_content_aware = getattr(settings, "content_aware", True)
+        # Import and use UnifiedSubtitleConfig for proper validation
+        from src.video.subtitle_positioning import UnifiedSubtitleConfig
+
+        try:
+            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            use_content_aware = unified_config.content_aware
+        except Exception as e:
+            logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
+            use_content_aware = settings_dict.get("content_aware", True)
 
         (
             video_filters,
@@ -980,7 +1006,16 @@ class VideoAssembler:
             visual_inputs, total_video_duration, use_content_aware
         )
 
-        if not subtitle_path or not settings.enabled:
+        # Check if subtitles are enabled using either legacy or unified config
+        subtitles_enabled = settings_dict.get("enabled", True)
+        try:
+            if unified_config and hasattr(unified_config, "enabled"):
+                subtitles_enabled = unified_config.enabled
+        except NameError:
+            # unified_config not defined if validation failed
+            pass
+
+        if not subtitle_path or not subtitles_enabled:
             video_filters.append(f"{final_visual_stream}copy[v_out]")
             return video_filters, input_cmd_parts
 
@@ -1029,20 +1064,49 @@ class VideoAssembler:
             cumulative_time += effective_duration
             segment_end_times.append(cumulative_time)
 
-        font_name = settings.font_name
-        if settings.use_random_font and settings.available_fonts:
-            font_name = secrets.choice(settings.available_fonts)
+        # Get style configuration with randomization support
+        from src.video.subtitle_positioning import StylePreset, get_style_config
+
+        try:
+            # Get the unified config for style processing
+            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            if self.debug_mode:
+                logger.debug(
+                    f"UnifiedSubtitleConfig randomization flags - "
+                    f"fonts: {unified_config.randomize_fonts}, "
+                    f"colors: {unified_config.randomize_colors}"
+                )
+
+            # Determine style preset
+            style_preset = unified_config.style_preset
+
+            # Get style configuration with randomization
+            style_config = get_style_config(
+                preset=style_preset, config=unified_config, product_id=self.product_id
+            )
+            if self.debug_mode:
+                logger.debug(
+                    f"Style config result - font: {style_config.get('font_name')}, "
+                    f"color: {style_config.get('font_color')}"
+                )
+
+            # Extract styling parameters
+            font_name = style_config.get("font_name", "Arial")
+            font_color = style_config.get("font_color", "&H00FFFFFF")
+            outline_color = style_config.get("outline_color", "&H00000000")
+
+        except Exception as e:
+            logger.warning(f"Failed to get style config, using fallback: {e}")
+            # Fallback to legacy behavior
+            font_name = settings_dict.get("font_name", "Arial")
+            font_color = settings_dict.get("font_color", "&H00FFFFFF")
+            outline_color = settings_dict.get("outline_color", "&H00000000")
+
         font_path = self._resolve_font_path(font_name)
         if not font_path:
             logger.warning(f"Could not resolve font path for '{font_name}'")
             video_filters.append(f"{final_visual_stream}copy[v_out]")
             return video_filters, input_cmd_parts
-
-        font_color, outline_color = settings.font_color, settings.outline_color
-        if settings.use_random_colors and settings.available_color_combinations:
-            font_color, outline_color = secrets.choice(
-                settings.available_color_combinations
-            )
 
         drawtext_count = 0
         for sub in sub_entries:
@@ -1055,12 +1119,11 @@ class VideoAssembler:
                 if overlap_start < overlap_end:
                     geom = geometries[i]
 
-                    font_size_pixels = (
-                        self.config.video_settings.resolution[1]
-                        * settings.font_size_percent
-                    )
-                    avg_char_width = (
-                        font_size_pixels * settings.font_width_to_height_ratio
+                    font_size_pixels = self.config.video_settings.resolution[
+                        1
+                    ] * settings_dict.get("font_size_percent", 0.04)
+                    avg_char_width = font_size_pixels * settings_dict.get(
+                        "font_width_to_height_ratio", 0.5
                     )
                     max_chars_per_line = (
                         int(geom.rendered_w / avg_char_width)
@@ -1086,23 +1149,45 @@ class VideoAssembler:
                     )
 
                     # Convert legacy settings to unified config
-                    unified_config = convert_legacy_config(settings.__dict__)
+                    unified_config = convert_legacy_config(settings_dict)
 
-                    # Create visual bounds for content-aware positioning
-                    visual_bounds = (
-                        VisualBounds(
-                            x=geom.rendered_x
-                            / self.config.video_settings.resolution[0],
-                            y=geom.rendered_y
-                            / self.config.video_settings.resolution[1],
-                            width=geom.rendered_w
-                            / self.config.video_settings.resolution[0],
-                            height=geom.rendered_h
-                            / self.config.video_settings.resolution[1],
+                    # Create visual bounds with error handling
+                    visual_bounds = None
+                    try:
+                        if unified_config.content_aware and geom:
+                            # Validate geometry dimensions
+                            (
+                                frame_width,
+                                frame_height,
+                            ) = self.config.video_settings.resolution
+                            if (
+                                geom.rendered_x >= 0
+                                and geom.rendered_y >= 0
+                                and geom.rendered_w > 0
+                                and geom.rendered_h > 0
+                                and geom.rendered_x + geom.rendered_w <= frame_width
+                                and geom.rendered_y + geom.rendered_h <= frame_height
+                            ):
+                                visual_bounds = VisualBounds(
+                                    x=geom.rendered_x / frame_width,
+                                    y=geom.rendered_y / frame_height,
+                                    width=geom.rendered_w / frame_width,
+                                    height=geom.rendered_h / frame_height,
+                                )
+                            else:
+                                logger.warning(
+                                    f"Invalid visual geometry for segment "
+                                    f"{drawtext_count}: "
+                                    f"x={geom.rendered_x}, y={geom.rendered_y}, "
+                                    f"w={geom.rendered_w}, h={geom.rendered_h}, "
+                                    f"frame={frame_width}x{frame_height}"
+                                )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to create visual bounds for segment "
+                            f"{drawtext_count}: {e}"
                         )
-                        if unified_config.content_aware
-                        else None
-                    )
+                        visual_bounds = None
 
                     # Debug visual bounds
                     if visual_bounds and self.debug_mode:
@@ -1117,12 +1202,22 @@ class VideoAssembler:
                             f"w={geom.rendered_w}, h={geom.rendered_h}"
                         )
 
-                    # Calculate position using unified system
-                    position = calculate_position(
-                        unified_config,
-                        self.config.video_settings.resolution,
-                        visual_bounds,
-                    )
+                    # Calculate position using unified system with fallback
+                    try:
+                        position = calculate_position(
+                            unified_config,
+                            self.config.video_settings.resolution,
+                            visual_bounds,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Position calculation failed for segment "
+                            f"{drawtext_count}, using fallback: {e}"
+                        )
+                        # Fallback to bottom positioning
+                        from src.video.subtitle_positioning import Position
+
+                        position = Position(x=0.5, y=0.8)
 
                     # Debug positioning
                     if self.debug_mode:
@@ -1149,9 +1244,11 @@ class VideoAssembler:
                         f"textfile='{sub_text_file.as_posix().replace(':', r'\:')}':"
                         f"fontsize={font_size_pixels}:"
                         f"fontcolor='{self._convert_ass_color_to_ffmpeg(font_color)}':"
-                        f"borderw={settings.outline_thickness}:"
+                        f"borderw={settings_dict.get('outline_thickness', 2)}:"
                         f"bordercolor='{self._convert_ass_color_to_ffmpeg(outline_color)}':"
-                        f"box=1:boxcolor='{self._convert_ass_color_to_ffmpeg(settings.back_color)}':boxborderw={self.config.video_settings.subtitle_box_border_width}:"
+                        f"box=1:boxcolor='"
+                        f"{self._convert_ass_color_to_ffmpeg(settings_dict.get('back_color', '&H80000000'))}"  # noqa: E501
+                        f"':boxborderw={self.config.video_settings.subtitle_box_border_width}:"
                         f"x='{x_pos_expr}':y='{y_pos_expr}':"
                         f"enable='between(t,{overlap_start},{overlap_end})'"
                         f"{output_stream}"
@@ -1231,15 +1328,29 @@ class VideoAssembler:
             # Process each dialogue line for content-aware positioning
             content_aware_events = []
             settings_dict = self._get_effective_subtitle_settings()
-            # Convert dict back to object for backward compatibility
-            from types import SimpleNamespace
 
-            settings = SimpleNamespace(**settings_dict)
-            rel_settings = settings.relative_positioning
+            # Import and use UnifiedSubtitleConfig for proper validation
+            from src.video.subtitle_positioning import (
+                PositionAnchor,
+                UnifiedSubtitleConfig,
+            )
 
-            if not rel_settings:
+            try:
+                unified_config = UnifiedSubtitleConfig(**settings_dict)
+            except Exception as e:
+                logger.warning(f"Failed to parse unified subtitle config: {e}")
+                return original_ass_path
+
+            # Check if content-aware positioning is enabled and anchor is below_content
+            if (
+                not unified_config.content_aware
+                or unified_config.anchor != PositionAnchor.BELOW_CONTENT
+            ):
                 logger.warning(
-                    "Relative positioning not configured, using original file"
+                    f"Content-aware positioning not enabled or "
+                    f"anchor not below_content "
+                    f"(content_aware={unified_config.content_aware}, "
+                    f"anchor={unified_config.anchor}), using original file"
                 )
                 return original_ass_path
 
@@ -1265,44 +1376,35 @@ class VideoAssembler:
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
-                    # Calculate subtitle position relative to image
+                    # Calculate subtitle position relative to image using unified config
+                    frame_height = self.config.video_settings.resolution[1]
                     image_bottom = geom.rendered_y + geom.rendered_h
-                    spacing = (
-                        rel_settings.image_bottom_to_subtitle_top_spacing_percent
-                        * self.config.video_settings.resolution[1]
+
+                    # Use margin from unified config
+                    # (margin is as fraction of frame height)
+                    spacing_px = unified_config.margin * frame_height
+
+                    logger.debug(
+                        f"Content-aware positioning: image_bottom={image_bottom}px, "
+                        f"margin={unified_config.margin}, spacing={spacing_px}px"
                     )
 
-                    # Apply closer positioning if enabled
-                    subtitle_settings_dict = self._get_effective_subtitle_settings()
-                    # Convert dict back to object for backward compatibility
-                    from types import SimpleNamespace
+                    subtitle_y = int(image_bottom + spacing_px)
 
-                    subtitle_settings = SimpleNamespace(**subtitle_settings_dict)
-                    if getattr(subtitle_settings, "ass_closer_to_image", True):
-                        reduction_factor = getattr(
-                            subtitle_settings, "ass_spacing_reduction_factor", 0.5
-                        )
-                        spacing *= reduction_factor
-                        logger.debug(
-                            f"Applied spacing reduction factor {reduction_factor}: "
-                            f"{spacing}px"
-                        )
+                    # Ensure subtitle doesn't go off-screen
+                    # (leave room for subtitle height)
+                    # Get font size from unified config
+                    from src.video.subtitle_positioning import get_font_size
 
-                    subtitle_y = int(image_bottom + spacing)
+                    font_size = get_font_size(unified_config, frame_height)
 
-                    # Ensure subtitle doesn't go off-screen (leave room for subtitle
-                    # height)
-                    # Estimate subtitle height based on font size
-                    font_size = getattr(subtitle_settings, "ass_font_size", 48)
-                    int(font_size * 1.5)  # More accurate height estimate
-                    max_y = int(
-                        self.config.video_settings.resolution[1] * 0.90
-                    )  # Allow subtitles to go lower
+                    # Allow subtitles to go up to 95% of frame height
+                    max_y = int(frame_height * 0.95)
                     subtitle_y = min(subtitle_y, max_y)
 
                     logger.debug(
                         f"Subtitle positioned at y={subtitle_y} "
-                        f"(image_bottom={image_bottom}, spacing={spacing}px, "
+                        f"(image_bottom={image_bottom}, spacing={spacing_px}px, "
                         f"font_size={font_size}px)"
                     )
 
