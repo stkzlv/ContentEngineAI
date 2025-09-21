@@ -1,7 +1,7 @@
 """Test suite for subtitle validation utilities.
 
-This module tests the consolidated subtitle validation functions that were
-extracted from duplicated code in subtitle_generator.py and subtitle_utils.py.
+This module tests the consolidated subtitle validation functions for
+SRT and ASS subtitle file format validation and processing.
 """
 
 import tempfile

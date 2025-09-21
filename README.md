@@ -11,7 +11,7 @@
 
 > **⚠️ Pre-Production Software**: ContentEngineAI is under active development. While functional, breaking changes may occur in minor versions until 1.0.0. See [VERSIONING.md](VERSIONING.md) for our stability roadmap.
 
-> **🚀 Latest Release**: ContentEngineAI v0.2.1 - Critical path resolution fixes and pipeline improvements! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
+> **🚀 Latest Release**: ContentEngineAI v0.2.1 - Subtitle system improvements and legacy code removal! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
 
 ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products, primarily Amazon listings. It automates the entire process from scraping product data to assembling a final video, including AI script generation, stock media fetching, voiceover production, and subtitle generation.
 

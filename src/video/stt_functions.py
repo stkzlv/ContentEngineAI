@@ -40,7 +40,6 @@ except ImportError:
 
 GOOGLE_CLOUD_STT_AVAILABLE = False
 try:
-    import google.cloud.speech_v1p1beta1 as speech
     from google.api_core.exceptions import (
         FailedPrecondition,
         GoogleAPIError,

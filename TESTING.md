@@ -4,6 +4,9 @@ This directory contains comprehensive tests for the ContentEngineAI project, inc
 
 ## Test Structure
 
+<details>
+<summary><strong>Complete Test File Structure</strong></summary>
+
 ```
 tests/
 ├── __init__.py                      # Test package initialization
@@ -43,6 +46,8 @@ tests/
 │
 └── TESTING.md                       # This file
 ```
+
+</details>
 
 The test suite contains comprehensive test coverage across multiple categories.
 

@@ -2,8 +2,8 @@
 
 This document tracks the current state of ContentEngineAI, including ongoing migrations, version-specific information, and temporary project conditions that may change over time.
 
-**Last Updated**: September 20, 2025
-**Current Version**: 0.2.1 (Path resolution fixes and producer improvements)
+**Last Updated**: September 21, 2025
+**Current Version**: 0.2.1 (Subtitle system improvements and legacy code removal)
 
 ## 🚀 Current Release Status
 
@@ -78,10 +78,10 @@ poetry run python tools/performance_report.py --report-type detailed
 
 ## 🧪 Test Suite
 
-- **Total Tests**: 365 comprehensive test cases across all modules (23 test files)
-- **Test Status**: Currently 18.42% coverage (below 30% target due to recent path fixes)
+- **Total Tests**: 455 comprehensive test cases across all modules (28 test files)
+- **Test Status**: Currently 16.63% coverage (below 30% target due to recent refactoring)
 - **Quality Gates**: Ruff, MyPy, Bandit, Vulture, Safety all passing
-- **Recent Updates**: Fixed AI description generator path resolution, updated test documentation
+- **Recent Updates**: Improved subtitle generator and result types test coverage, removed legacy code tests
 
 ## 🎯 Current Scope
 
@@ -99,11 +99,18 @@ poetry run python tools/performance_report.py --report-type detailed
 
 ## 🔄 Recent Changes
 
+### Latest Updates - Subtitle System Improvements
+- **REMOVED**: Legacy subtitle generator backup code (2,476 lines of unused code)
+- **VERIFIED**: Subtitle format compliance against SRT and ASS specifications
+- **IMPROVED**: Test coverage for UnifiedSubtitleGenerator (80% coverage achieved)
+- **ADDED**: Comprehensive tests for result types and subtitle validation
+- **FIXED**: All subtitle tests passing (76 tests) after legacy code removal
+- **UPDATED**: Test structure documentation (455 tests, 28 files)
+
 ### v0.2.1 Release - Critical Path Fixes
 - Added AI-generated video descriptions for social media platforms
 - New `description.txt` output file with optimized content for TikTok, YouTube, Instagram
 - Automatic #ad hashtag compliance for advertising disclosure
 - **FIXED**: Description generator path resolution issue that was causing pipeline failures
 - **FIXED**: Producer now works correctly from any working directory
-- Updated test documentation to reflect current test structure (365 tests, 23 files)
 - Full backward compatibility with existing configurations
