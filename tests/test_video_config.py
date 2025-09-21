@@ -92,8 +92,7 @@ class TestSubtitleSettings:
             back_color="&H99000000",
             alignment=2,
             margin_v_percent=0.05,
-            relative_positioning=None,
-            absolute_positioning=None,
+            # Legacy positioning fields removed - now using UnifiedSubtitleConfig
             use_random_font=False,
             use_random_colors=False,
             available_fonts=["Arial"],
@@ -138,8 +137,7 @@ class TestSubtitleSettings:
             back_color="&H99000000",
             alignment=2,
             margin_v_percent=0.05,
-            relative_positioning=None,
-            absolute_positioning=None,
+            # Legacy positioning fields removed - now using UnifiedSubtitleConfig
             use_random_font=False,
             use_random_colors=False,
             available_fonts=["Arial"],

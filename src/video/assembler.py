@@ -1328,11 +1328,29 @@ class VideoAssembler:
             # Process each dialogue line for content-aware positioning
             content_aware_events = []
             settings_dict = self._get_effective_subtitle_settings()
-            rel_settings = settings_dict.get("relative_positioning")
 
-            if not rel_settings:
+            # Import and use UnifiedSubtitleConfig for proper validation
+            from src.video.subtitle_positioning import (
+                PositionAnchor,
+                UnifiedSubtitleConfig,
+            )
+
+            try:
+                unified_config = UnifiedSubtitleConfig(**settings_dict)
+            except Exception as e:
+                logger.warning(f"Failed to parse unified subtitle config: {e}")
+                return original_ass_path
+
+            # Check if content-aware positioning is enabled and anchor is below_content
+            if (
+                not unified_config.content_aware
+                or unified_config.anchor != PositionAnchor.BELOW_CONTENT
+            ):
                 logger.warning(
-                    "Relative positioning not configured, using original file"
+                    f"Content-aware positioning not enabled or "
+                    f"anchor not below_content "
+                    f"(content_aware={unified_config.content_aware}, "
+                    f"anchor={unified_config.anchor}), using original file"
                 )
                 return original_ass_path
 
@@ -1358,40 +1376,35 @@ class VideoAssembler:
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
-                    # Calculate subtitle position relative to image
+                    # Calculate subtitle position relative to image using unified config
+                    frame_height = self.config.video_settings.resolution[1]
                     image_bottom = geom.rendered_y + geom.rendered_h
-                    spacing = (
-                        rel_settings.image_bottom_to_subtitle_top_spacing_percent
-                        * self.config.video_settings.resolution[1]
+
+                    # Use margin from unified config
+                    # (margin is as fraction of frame height)
+                    spacing_px = unified_config.margin * frame_height
+
+                    logger.debug(
+                        f"Content-aware positioning: image_bottom={image_bottom}px, "
+                        f"margin={unified_config.margin}, spacing={spacing_px}px"
                     )
 
-                    # Apply closer positioning if enabled
-                    subtitle_settings_dict = self._get_effective_subtitle_settings()
-                    if subtitle_settings_dict.get("ass_closer_to_image", True):
-                        reduction_factor = subtitle_settings_dict.get(
-                            "ass_spacing_reduction_factor", 0.5
-                        )
-                        spacing *= reduction_factor
-                        logger.debug(
-                            f"Applied spacing reduction factor {reduction_factor}: "
-                            f"{spacing}px"
-                        )
+                    subtitle_y = int(image_bottom + spacing_px)
 
-                    subtitle_y = int(image_bottom + spacing)
+                    # Ensure subtitle doesn't go off-screen
+                    # (leave room for subtitle height)
+                    # Get font size from unified config
+                    from src.video.subtitle_positioning import get_font_size
 
-                    # Ensure subtitle doesn't go off-screen (leave room for subtitle
-                    # height)
-                    # Estimate subtitle height based on font size
-                    font_size = subtitle_settings_dict.get("ass_font_size", 48)
-                    int(font_size * 1.5)  # More accurate height estimate
-                    max_y = int(
-                        self.config.video_settings.resolution[1] * 0.90
-                    )  # Allow subtitles to go lower
+                    font_size = get_font_size(unified_config, frame_height)
+
+                    # Allow subtitles to go up to 95% of frame height
+                    max_y = int(frame_height * 0.95)
                     subtitle_y = min(subtitle_y, max_y)
 
                     logger.debug(
                         f"Subtitle positioned at y={subtitle_y} "
-                        f"(image_bottom={image_bottom}, spacing={spacing}px, "
+                        f"(image_bottom={image_bottom}, spacing={spacing_px}px, "
                         f"font_size={font_size}px)"
                     )
 
