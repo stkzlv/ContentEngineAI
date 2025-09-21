@@ -740,7 +740,7 @@ class UnifiedSubtitleGenerator:
             return None
 
     def _format_ass_time(self, seconds: float) -> str:
-        """Format time for ASS format (H:MM:SS.CC)."""
+        """Format time for ASS format (H:MM:SS.CC) - single digit hours per spec."""
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = seconds % 60
