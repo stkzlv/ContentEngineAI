@@ -73,10 +73,21 @@ ContentEngineAI **MUST** use a dual configuration system:
 - Support unified subtitle positioning system with anchor-based layout
 
 ### Font & Color Management
-- Random font selection from curated list of 5 popular video fonts, per video
-- Random color selection from 5 coordinated text/outline color pairs, per video
-- Verify font system availability with fallback options
-- Ensure compatibility with SRT, ASS, and FFmpeg
+- **Style Preset System**: 4 predefined presets (minimal, modern, bold, random) with limited effects
+- **Random Preset Features**: Randomized font selection, color pairs, and single animation effect
+- **Font Randomization**: Selection from curated collection with deterministic seeding per video
+- **Color Randomization**: Coordinated text/outline color combinations with proper contrast
+- **System Integration**: Full compatibility with ASS, SRT, and FFmpeg rendering
+
+### ASS Effects System
+- **Per-video effect consistency**: Effects MUST be selected once per video, not per subtitle segment
+- **Proper ASS formatting**: All ASS override codes MUST be enclosed in curly braces `{}` to prevent literal text display
+- **Effect Limitation**: Maximum 1 effect per preset to prevent visual clutter and rendering issues
+- **Effect Variety**: Support scale pulse, rotation bounce, glow, typewriter, karaoke, fade, and movement effects
+- **Random Effect Selection**: RANDOM preset selects 1 effect from all available effects using product ID seeding
+- **Karaoke timing**: Implement word-by-word highlighting with proper `\k` tag formatting in centiseconds
+- **Visual consistency**: Maintain coherent animation style throughout individual videos
+- **FFmpeg compatibility**: Ensure all ASS effects render correctly through FFmpeg's libass library
 
 ### AI Service Integration
 - Auto-select AI models from OpenRouter API

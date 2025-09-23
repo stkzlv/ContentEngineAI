@@ -272,15 +272,46 @@ class TestStylePresets:
         assert config["bold"] is True
         assert config["outline_thickness"] == 2
         assert config["shadow"] is True
-        assert "fade" in config["effects"]
+        assert "scale_pulse" in config["effects"]
 
-    def test_relative_preset(self):
-        """Test relative style preset with advanced effects."""
-        config = get_style_config(StylePreset.RELATIVE)
-        assert config["font_name"] == "Impact"
+    def test_random_preset(self):
+        """Test random style preset with randomized effects."""
+        config = get_style_config(StylePreset.RANDOM)
+        assert config["font_name"] == "Impact"  # Base font before randomization
         assert config["bold"] is True
-        assert len(config["effects"]) > 1
-        assert "karaoke" in config["effects"]
+        assert len(config["effects"]) >= 1  # Should have at least one effect
+        # Available effects in RANDOM preset
+        available_effects = [
+            "fade",
+            "scale_pulse",
+            "rotation_bounce",
+            "glow",
+            "typewriter",
+            "karaoke",
+            "movement",
+        ]
+        assert any(effect in config["effects"] for effect in available_effects)
+
+    def test_random_preset_with_product_id(self):
+        """Test random preset effect selection with product ID seeding."""
+        # Create config with randomization enabled
+        config = UnifiedSubtitleConfig(
+            anchor=PositionAnchor.BELOW_CONTENT,
+            margin=0.1,
+            randomize_fonts=True,
+            randomize_colors=True,
+            randomize_effects=True,
+        )
+
+        # Test with consistent product ID
+        product_id = "TEST_PRODUCT_123"
+        config1 = get_style_config(StylePreset.RANDOM, config, product_id)
+        config2 = get_style_config(StylePreset.RANDOM, config, product_id)
+
+        # Should select exactly one effect consistently
+        assert len(config1["effects"]) == 1
+        assert len(config2["effects"]) == 1
+        assert config1["effects"] == config2["effects"]  # Same product_id = same effect
 
     def test_invalid_preset_fallback(self):
         """Test fallback for invalid preset."""
@@ -310,7 +341,7 @@ class TestLegacyConfigConversion:
         assert unified.content_aware is True
         assert unified.margin == 0.08
         assert unified.font_size_scale == 1.2
-        assert unified.style_preset == StylePreset.RELATIVE
+        assert unified.style_preset == StylePreset.MODERN
 
     def test_absolute_mode_conversion(self):
         """Test conversion of absolute positioning mode."""
@@ -348,7 +379,7 @@ class TestLegacyConfigConversion:
         unified = convert_legacy_config(legacy_config)
         assert unified.anchor == PositionAnchor.BOTTOM
         assert unified.content_aware is False
-        assert unified.style_preset == StylePreset.CLASSIC  # Default for empty config
+        assert unified.style_preset == StylePreset.MINIMAL  # Default for empty config
         assert unified.margin == 0.1
 
     def test_style_preset_inference(self):
@@ -361,7 +392,7 @@ class TestLegacyConfigConversion:
         # Classic preset inference
         legacy_config = {"bold": False, "subtitle_format": "srt"}
         unified = convert_legacy_config(legacy_config)
-        assert unified.style_preset == StylePreset.CLASSIC
+        assert unified.style_preset == StylePreset.MINIMAL
 
         # Relative preset inference
         legacy_config = {
@@ -369,7 +400,7 @@ class TestLegacyConfigConversion:
             "ass_enable_transforms": True,
         }
         unified = convert_legacy_config(legacy_config)
-        assert unified.style_preset == StylePreset.RELATIVE
+        assert unified.style_preset == StylePreset.MODERN
 
     def test_invalid_anchor_fallback(self):
         """Test fallback for invalid anchor values."""

@@ -233,25 +233,15 @@ class TestStyleConfigs:
 
         assert style["font_name"] == "Montserrat"
         assert style["bold"] is True
-        assert "fade" in style["effects"]
-
-    def test_get_style_config_relative(self):
-        """Test relative style preset."""
-        style = get_style_config(StylePreset.RELATIVE)
-
-        assert style["font_name"] == "Impact"
-        assert style["bold"] is True
-        assert "fade" in style["effects"]
         assert "scale_pulse" in style["effects"]
-        assert "karaoke" in style["effects"]
 
-    def test_get_style_config_classic(self):
-        """Test classic style preset."""
-        style = get_style_config(StylePreset.CLASSIC)
+    def test_get_style_config_random(self):
+        """Test random style preset."""
+        style = get_style_config(StylePreset.RANDOM)
 
-        assert style["font_name"] == "Times New Roman"
-        assert style["bold"] is False
-        assert style["effects"] == []
+        assert style["font_name"] == "Impact"  # Base font before randomization
+        assert style["bold"] is True
+        assert len(style["effects"]) >= 1  # Should have at least one effect
 
     def test_get_style_config_bold(self):
         """Test bold style preset."""
@@ -308,7 +298,7 @@ class TestLegacyConfigConversion:
             "positioning_mode": "absolute",  # Legacy param
             "anchor": "below_content",  # New unified param
             "content_aware": True,  # New unified param
-            "style_preset": "relative",  # New unified param
+            "style_preset": "modern",  # New unified param
         }
 
         unified_config = convert_legacy_config(legacy_settings)
@@ -316,24 +306,24 @@ class TestLegacyConfigConversion:
         # Should use unified params over legacy mode
         assert unified_config.anchor == PositionAnchor.BELOW_CONTENT
         assert unified_config.content_aware is True
-        assert unified_config.style_preset == StylePreset.RELATIVE
+        assert unified_config.style_preset == StylePreset.MODERN
 
     def test_convert_legacy_style_detection(self):
         """Test automatic style preset detection from legacy settings."""
-        # Test ASS with transforms -> relative
+        # Test ASS with transforms -> modern
         legacy_settings = {"subtitle_format": "ass", "ass_enable_transforms": True}
         config = convert_legacy_config(legacy_settings)
-        assert config.style_preset == StylePreset.RELATIVE
+        assert config.style_preset == StylePreset.MODERN
 
         # Test bold -> bold preset
         legacy_settings = {"bold": True}
         config = convert_legacy_config(legacy_settings)
         assert config.style_preset == StylePreset.BOLD
 
-        # Test SRT -> classic
+        # Test SRT -> minimal
         legacy_settings = {"subtitle_format": "srt"}
         config = convert_legacy_config(legacy_settings)
-        assert config.style_preset == StylePreset.CLASSIC
+        assert config.style_preset == StylePreset.MINIMAL
 
     def test_convert_legacy_defaults(self):
         """Test conversion with default legacy settings."""
@@ -345,7 +335,7 @@ class TestLegacyConfigConversion:
         assert unified_config.anchor == PositionAnchor.BOTTOM
         assert unified_config.content_aware is False  # Static mode default
         assert (
-            unified_config.style_preset == StylePreset.CLASSIC
+            unified_config.style_preset == StylePreset.MINIMAL
         )  # Default for legacy without style info
         assert unified_config.margin == 0.1  # Default from UnifiedSubtitleConfig
         assert (

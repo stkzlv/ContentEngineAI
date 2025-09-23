@@ -284,6 +284,7 @@ def _clean_producer_files(
         product_root / files.description,  # description.txt
         product_root / files.voiceover,  # voiceover.wav
         product_root / files.subtitles,  # subtitles.srt
+        product_root / "subtitles.ass",  # ASS subtitle file
         product_root / "subtitles_content_aware.ass",  # content-aware subtitle file
         product_root
         / files.final_video.format(
@@ -1733,6 +1734,11 @@ async def main():
         action="store_true",
         help="Enable fade-in/out effects (ASS format only).",
     )
+    parser.add_argument(
+        "--preset",
+        choices=["minimal", "modern", "bold", "random"],
+        help="Override subtitle style preset: minimal, modern, bold, random.",
+    )
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1792,6 +1798,10 @@ async def main():
     if args.ass_fade:
         config.subtitle_settings.ass_enable_fade = True
         logger.info("CLI override: ass_enable_fade = True")
+
+    if args.preset:
+        config.subtitle_settings.style_preset = args.preset
+        logger.info(f"CLI override: style_preset = {args.preset}")
 
     try:
         secrets = {

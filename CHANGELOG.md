@@ -5,6 +5,29 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-09-23
+
+### Added
+- **RANDOM Preset**: New style preset with deterministic randomization using product-specific seeding for fonts, colors, and single animation effects
+- **CLI Style Override**: Added `--preset` command-line argument for easy video styling control (minimal, modern, bold, random)
+- **Enhanced Randomization**: Improved font and color randomization system with better effect selection
+
+### Changed
+- **Optimized Preset System**: Reduced preset count from 5 to 4 (removed `animated` and `classic`, kept `minimal`, `modern`, `bold`)
+- **Effect Limitation**: Limited effects to 1 per preset to prevent visual clutter and rendering issues
+- **Improved Documentation**: Updated README.md for simplicity with collapsible sections and STATUS.md with current capabilities
+
+### Fixed
+- **ASS Effects Application**: Fixed ASS effects not applying by changing condition from >1 to >0 effects
+- **Random Effect Selection**: Enabled randomize_effects for RANDOM preset to activate effect system properly
+- **Configuration Alignment**: Updated all documentation to match actual 4-preset codebase implementation
+
+### Technical
+- **Deterministic Randomization**: RANDOM preset uses product ID-based seeding for consistent per-video styling
+- **CLI Integration**: Producer now accepts preset override parameter for flexible styling
+- **Test Coverage**: Updated comprehensive test suite to reflect new preset system (424 tests across 27 files)
+- **Code Quality**: All quality gates pass with optimized preset system implementation
+
 ## [0.3.0] - 2025-09-21
 
 ### Added

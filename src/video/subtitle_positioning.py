@@ -30,9 +30,8 @@ class StylePreset(str, Enum):
 
     MINIMAL = "minimal"  # Clean, simple styling
     MODERN = "modern"  # Contemporary look with effects
-    RELATIVE = "relative"  # Animated effects
-    CLASSIC = "classic"  # Traditional subtitle styling
     BOLD = "bold"  # High contrast, bold styling
+    RANDOM = "random"  # Random styling with one random effect
 
 
 @dataclass
@@ -149,29 +148,7 @@ def get_style_config(
             "bold": True,
             "outline_thickness": 2,
             "shadow": True,
-            "effects": ["fade"],
-            "font_width_to_height_ratio": 0.5,
-        },
-        StylePreset.RELATIVE: {
-            "font_name": "Impact",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": "&H99000000",
-            "bold": True,
-            "outline_thickness": 2,
-            "shadow": True,
-            "effects": ["fade", "scale_pulse", "karaoke"],
-            "font_width_to_height_ratio": 0.5,
-        },
-        StylePreset.CLASSIC: {
-            "font_name": "Times New Roman",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": "&H80000000",  # More transparent
-            "bold": False,
-            "outline_thickness": 1,
-            "shadow": False,
-            "effects": [],
+            "effects": ["scale_pulse"],
             "font_width_to_height_ratio": 0.5,
         },
         StylePreset.BOLD: {
@@ -185,12 +162,51 @@ def get_style_config(
             "effects": ["fade"],
             "font_width_to_height_ratio": 0.5,
         },
+        StylePreset.RANDOM: {
+            "font_name": "Impact",  # Will be randomized
+            "font_color": "&H00FFFFFF",  # Will be randomized
+            "outline_color": "&H00000000",  # Will be randomized
+            "background_color": "&H99000000",
+            "bold": True,
+            "outline_thickness": 2,
+            "shadow": True,
+            "effects": [
+                "fade",
+                "scale_pulse",
+                "rotation_bounce",
+                "glow",
+                "typewriter",
+                "karaoke",
+                "movement",
+            ],  # One random effect will be selected
+            "font_width_to_height_ratio": 0.5,
+        },
     }
 
     # Get base configuration
     base_config: dict[str, Any] = configs.get(
         preset, configs[StylePreset.MODERN]
     ).copy()
+
+    # Handle RANDOM preset - force randomization and select one random effect
+    if preset == StylePreset.RANDOM and product_id:
+        import random
+
+        # Seed random generator with product_id for consistent selection per video
+        random.seed(hash(product_id + "random_preset"))
+
+        # Select one random effect from all available effects
+        all_effects = base_config["effects"]
+        if all_effects:
+            selected_effect = random.choice(all_effects)  # noqa: S311
+            base_config["effects"] = [selected_effect]
+            logger.debug(f"RANDOM preset selected effect: {selected_effect}")
+
+        # Force randomization for fonts, colors, and effects
+        if config:
+            config.randomize_fonts = True
+            config.randomize_colors = True
+            config.randomize_effects = True
 
     # Apply randomization if enabled and product_id provided
     if config and product_id:
@@ -366,15 +382,15 @@ def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleCon
     else:
         # Analyze legacy settings
         if legacy_settings.get("subtitle_format") == "ass":
-            if legacy_settings.get("ass_enable_transforms", False):
-                style_preset = StylePreset.RELATIVE
-            elif legacy_settings.get("bold", False):
+            if legacy_settings.get("bold", False):
                 style_preset = StylePreset.BOLD
+            else:
+                style_preset = StylePreset.MODERN
         else:
             if legacy_settings.get("bold", False):
                 style_preset = StylePreset.BOLD
             else:
-                style_preset = StylePreset.CLASSIC
+                style_preset = StylePreset.MINIMAL
 
     return UnifiedSubtitleConfig(
         anchor=anchor,
