@@ -1,6 +1,6 @@
 # Project Status
 
-**Version**: 0.3.1 | **Branch**: feature/improve-subtitles (ready for merge)
+**Version**: 0.3.1
 
 ## 🚀 Current Release
 
