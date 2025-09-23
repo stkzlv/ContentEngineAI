@@ -274,9 +274,9 @@ class TestStylePresets:
         assert config["shadow"] is True
         assert "fade" in config["effects"]
 
-    def test_relative_preset(self):
-        """Test relative style preset with advanced effects."""
-        config = get_style_config(StylePreset.RELATIVE)
+    def test_animated_preset(self):
+        """Test animated style preset with advanced effects."""
+        config = get_style_config(StylePreset.ANIMATED)
         assert config["font_name"] == "Impact"
         assert config["bold"] is True
         assert len(config["effects"]) > 1
@@ -310,7 +310,7 @@ class TestLegacyConfigConversion:
         assert unified.content_aware is True
         assert unified.margin == 0.08
         assert unified.font_size_scale == 1.2
-        assert unified.style_preset == StylePreset.RELATIVE
+        assert unified.style_preset == StylePreset.ANIMATED
 
     def test_absolute_mode_conversion(self):
         """Test conversion of absolute positioning mode."""
@@ -369,7 +369,7 @@ class TestLegacyConfigConversion:
             "ass_enable_transforms": True,
         }
         unified = convert_legacy_config(legacy_config)
-        assert unified.style_preset == StylePreset.RELATIVE
+        assert unified.style_preset == StylePreset.ANIMATED
 
     def test_invalid_anchor_fallback(self):
         """Test fallback for invalid anchor values."""

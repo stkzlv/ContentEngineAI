@@ -2,12 +2,12 @@
 
 This document tracks the current state of ContentEngineAI, including ongoing migrations, version-specific information, and temporary project conditions that may change over time.
 
-**Last Updated**: September 21, 2025
-**Current Version**: 0.3.0 (Font/color randomization system and comprehensive code quality improvements)
+**Last Updated**: September 23, 2025
+**Current Version**: 0.3.1 (Optimized preset system with RANDOM preset and CLI improvements)
 
 ## 🚀 Current Release Status
 
-ContentEngineAI v0.3.0 introduces a comprehensive font and color randomization system with deterministic seeding, new font management capabilities, and significant code quality improvements across the subtitle generation pipeline.
+ContentEngineAI v0.3.1 optimizes the subtitle style preset system by reducing complexity from 5 to 4 presets, limiting effects to one per preset to prevent visual clutter, and introducing a new RANDOM preset for maximum variety in video styling.
 
 ## 🎯 Current System Capabilities
 
@@ -23,6 +23,8 @@ ContentEngineAI v0.3.0 introduces a comprehensive font and color randomization s
 - ✅ **Pixel-Based Subtitle Width Constraints**: Intelligent subtitle width calculation based on actual font metrics
 - ✅ **AI Video Descriptions**: Generate social media descriptions with hashtags and compliance features
 - ✅ **Font and Color Randomization**: Deterministic randomization system with product-specific fonts and colors
+- ✅ **Optimized Style Presets**: 4-preset system (minimal, modern, bold, random) with single-effect limitation
+- ✅ **CLI Style Override**: Command-line --preset argument for easy video styling control
 
 ## 📁 Current Output Structure
 
@@ -62,6 +64,9 @@ poetry run python -m src.scraper.amazon.scraper --keywords <ASIN> --debug --clea
 
 # Generate video for single product
 poetry run python -m src.video.producer outputs/<PRODUCT_ID>/data.json slideshow_images1 --debug
+
+# Generate video with specific style preset
+poetry run python -m src.video.producer outputs/<PRODUCT_ID>/data.json slideshow_images1 --preset random --debug
 
 # Batch process all products
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
@@ -104,6 +109,15 @@ poetry run python tools/performance_report.py --report-type detailed
 - **Content-Aware Positioning**: Dynamic subtitle placement based on visual content analysis
 
 ## 🔄 Recent Changes
+
+### v0.3.1 - Optimized Style Preset System (September 23, 2025)
+- **REDUCED**: Preset count from 5 to 4 (removed `animated` and `classic`, kept `minimal`, `modern`, `bold`)
+- **ADDED**: New `random` preset with randomized fonts, colors, and single animation effect
+- **OPTIMIZED**: Limited effects to 1 per preset to prevent visual clutter and rendering issues
+- **ENHANCED**: CLI --preset argument now supports all 4 preset options: minimal, modern, bold, random
+- **IMPROVED**: Random preset uses deterministic seeding for consistent per-video styling
+- **UPDATED**: Configuration documentation to reflect new preset system
+- **TESTED**: Successfully validated preset system with 5 different product videos
 
 ### Latest Updates - Test Suite Maintenance and Legacy Code Cleanup
 - **UPDATED**: Comprehensive test suite review and maintenance completed

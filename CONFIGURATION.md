@@ -271,7 +271,7 @@ subtitle_settings:
   horizontal_alignment: "center"     # Text alignment: left, center, right
   
   # Style Presets (NEW: Professional presets replace manual styling)
-  style_preset: "modern"             # Style preset: minimal, modern, relative, classic, bold
+  style_preset: "modern"             # Style preset: minimal, modern, bold, random
   font_size_scale: 1.0              # Font size multiplier (0.5-2.0)
   
   # Text Formatting
@@ -308,10 +308,9 @@ subtitle_settings:
 #### Style Presets Explained
 
 - **`minimal`**: Clean, simple styling with no effects
-- **`modern`**: Contemporary look with subtle effects and background
-- **`relative`**: Animated effects with karaoke highlighting and scaling
-- **`classic`**: Traditional subtitle styling for formal content
-- **`bold`**: High contrast, bold styling for attention-grabbing content
+- **`modern`**: Contemporary look with scale pulse animation and semi-transparent background
+- **`bold`**: High contrast, bold styling with fade effects for attention-grabbing content
+- **`random`**: Randomized fonts, colors, and single animation effect for variety
 
 #### Migration from Legacy Configuration
 
@@ -507,7 +506,7 @@ video_profiles:
     subtitle_anchor: "below_content"  # Position below images
     subtitle_margin: 0.08             # 8% gap below content
     subtitle_content_aware: true      # Dynamic positioning
-    subtitle_style_preset: "modern"  # Modern styling
+    subtitle_style_preset: "modern"  # Modern styling (minimal, modern, bold, random)
     subtitle_font_size_scale: 1.1     # 10% larger font
     subtitle_max_line_length: 35      # Shorter lines
     subtitle_horizontal_alignment: "center"
@@ -547,7 +546,7 @@ video_profiles:
     subtitle_anchor: "bottom"         # Fixed bottom positioning
     subtitle_margin: 0.1
     subtitle_content_aware: false     # No dynamic positioning
-    subtitle_style_preset: "classic" # Traditional styling
+    subtitle_style_preset: "bold"    # Bold styling (minimal, modern, bold, random)
     subtitle_font_size_scale: 0.9     # Smaller font
     subtitle_max_line_length: 42
 ```
@@ -572,7 +571,7 @@ preserve_aspect_ratio: true          # Override aspect ratio setting
 subtitle_anchor: "below_content"     # Override positioning anchor
 subtitle_margin: 0.08                # Override margin from anchor
 subtitle_content_aware: true         # Override content-aware positioning
-subtitle_style_preset: "modern"     # Override style preset
+subtitle_style_preset: "modern"     # Override style preset (minimal, modern, bold, random)
 subtitle_font_size_scale: 1.1        # Override font size scaling
 subtitle_max_line_length: 35         # Override line length limit
 subtitle_horizontal_alignment: "center"

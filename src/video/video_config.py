@@ -314,7 +314,7 @@ class SubtitleSettings(BaseModel):
         True, description="Adjust position based on visual content bounds"
     )
     style_preset: str = Field(
-        "relative", description="Style preset: minimal, modern, relative, classic, bold"
+        "modern", description="Style preset: minimal, modern, bold, random"
     )
     font_size_scale: float = Field(
         1.2, description="Scale factor for font size (0.5-2.0)"
@@ -592,7 +592,7 @@ class VideoProfile(BaseModel):
     )
     subtitle_style_preset: str | None = Field(
         None,
-        description="Override style preset: minimal, modern, relative, classic, bold",
+        description="Override style preset: minimal, modern, bold, random",
     )
     subtitle_font_size_scale: float | None = Field(
         None, description="Override font size scale factor (0.5-2.0)"
@@ -745,6 +745,121 @@ class FilesystemSettings(BaseModel):
         [".mp4", ".avi", ".mov", ".mkv", ".webm"]
     )
     supported_audio_extensions: list[str] = Field([".wav", ".mp3", ".aac", ".flac"])
+
+
+class SubtitleEffectsSettings(BaseModel):
+    """Configuration for ASS subtitle effects and animations."""
+
+    # Karaoke timing parameters
+    karaoke_timing_min_ms: int = Field(20, description="Minimum karaoke timing per word in milliseconds")
+    karaoke_timing_max_ms: int = Field(200, description="Maximum karaoke timing per word in milliseconds")
+
+    # Effect duration factors (multiplied by segment duration)
+    pulse_duration_factor: int = Field(500, description="Duration factor for pulse animations in ms")
+    bounce_duration_factor: int = Field(300, description="Duration factor for bounce animations in ms")
+    glow_duration_factor: int = Field(400, description="Duration factor for glow effects in ms")
+
+    # Scale effect parameters
+    pulse_scale_max: int = Field(110, description="Maximum scale percentage for pulse effect")
+    pulse_scale_normal: int = Field(100, description="Normal scale percentage for pulse effect")
+
+    # Rotation bounce parameters
+    bounce_rotation_max: int = Field(5, description="Maximum rotation degrees for bounce effect")
+    bounce_rotation_min: int = Field(-5, description="Minimum rotation degrees for bounce effect")
+    bounce_rotation_rest: int = Field(0, description="Rest rotation degrees for bounce effect")
+
+    # Typewriter effect parameters
+    typewriter_char_reveal_max_sec: float = Field(0.1, description="Maximum character reveal time for typewriter effect")
+    typewriter_min_timing_ms: int = Field(50, description="Minimum timing for typewriter effect in ms")
+
+    # Movement effect parameters
+    movement_distance_pixels: int = Field(10, description="Movement distance in pixels for floating effect")
+
+    # Fade effect parameters
+    fade_duration_ms: int = Field(300, description="Default fade in/out duration in milliseconds")
+
+
+class TextRenderingSettings(BaseModel):
+    """Configuration for text rendering and character width estimation."""
+
+    # Character width factors
+    narrow_char_width_factor: float = Field(0.4, description="Width factor for narrow characters (i, l, etc.)")
+    wide_char_width_factor: float = Field(1.2, description="Width factor for wide characters (m, w, etc.)")
+    space_char_width_factor: float = Field(0.3, description="Width factor for space characters")
+
+    # Text layout parameters
+    max_text_width_percent: float = Field(0.95, description="Maximum text width as percentage of available space")
+    default_margin_fraction: float = Field(0.1, description="Default margin fraction for positioning")
+    default_font_size_scale: float = Field(1.0, description="Default font size scale factor")
+    max_chars_per_line: int = Field(38, description="Maximum characters per line")
+
+    # Subtitle duration limits
+    max_subtitle_duration_sec: float = Field(4.5, description="Maximum subtitle duration in seconds")
+    min_subtitle_duration_sec: float = Field(0.4, description="Minimum subtitle duration in seconds")
+
+    # Safe positioning boundaries
+    min_safe_y_position: float = Field(0.05, description="Minimum safe Y position as fraction of frame height")
+    max_safe_y_position: float = Field(0.95, description="Maximum safe Y position as fraction of frame height")
+    center_position_fraction: float = Field(0.5, description="Center position fraction")
+    left_position_fraction: float = Field(0.1, description="Left alignment position fraction")
+    right_position_fraction: float = Field(0.9, description="Right alignment position fraction")
+
+    # Font size boundaries
+    base_font_size_percent: float = Field(0.04, description="Base font size as percentage of frame height")
+    min_font_size: int = Field(16, description="Minimum font size in pixels")
+    max_font_size: int = Field(100, description="Maximum font size in pixels")
+
+
+class SubtitleSegmentationSettings(BaseModel):
+    """Configuration for subtitle segmentation and text processing logic."""
+
+    # Word count thresholds
+    min_words_for_sentence_break: int = Field(3, description="Minimum words required for sentence break")
+    min_words_natural_break: int = Field(3, description="Minimum words for natural break")
+    min_words_duration_limit: int = Field(3, description="Minimum words for duration limit break")
+
+    # Fallback duration
+    fallback_segment_duration_sec: float = Field(2.5, description="Fallback segment duration in seconds")
+
+
+class ScraperTimingSettings(BaseModel):
+    """Configuration for scraper delays and timeouts."""
+
+    # Download parameters
+    download_timeout_sec: int = Field(30, description="Download timeout in seconds")
+    download_chunk_size: int = Field(8192, description="Download chunk size in bytes")
+    validation_timeout_sec: int = Field(10, description="File validation timeout in seconds")
+    max_concurrent_downloads: int = Field(5, description="Maximum concurrent downloads")
+
+    # Retry configuration
+    default_max_retries: int = Field(3, description="Default maximum retry attempts")
+    base_delay_sec: float = Field(1.0, description="Base delay between retries in seconds")
+    backoff_factor: float = Field(2.0, description="Exponential backoff factor")
+    max_delay_sec: float = Field(60.0, description="Maximum delay between retries in seconds")
+
+    # Filename and browser settings
+    max_filename_length: int = Field(200, description="Maximum filename length")
+    browser_size_percent: float = Field(0.8, description="Browser window size as percentage of monitor")
+
+    # Human simulation delays
+    human_delay_min_sec: float = Field(0.5, description="Minimum human-like delay in seconds")
+    human_delay_max_sec: float = Field(2.0, description="Maximum human-like delay in seconds")
+
+
+class MediaValidationSettings(BaseModel):
+    """Configuration for media validation thresholds."""
+
+    # Image validation parameters
+    min_high_res_dimension: int = Field(1500, description="Minimum dimension for high-resolution images")
+    min_high_res_file_size: int = Field(10000, description="Minimum file size for high-resolution images in bytes")
+
+
+class LLMValidationSettings(BaseModel):
+    """Configuration for LLM response validation."""
+
+    # Retry parameters
+    llm_max_retry_attempts: int = Field(2, description="Maximum retry attempts for LLM requests")
+
 
 
 class DebugSettings(BaseModel):
@@ -954,6 +1069,14 @@ class VideoConfig(BaseModel):
     filesystem: FilesystemSettings | None = Field(None)
     debug_settings: DebugSettings | None = Field(None)
     optimization_settings: OptimizationSettings | None = Field(None)
+
+    # ASS effects and text rendering configuration
+    subtitle_effects: SubtitleEffectsSettings | None = Field(None)
+    text_rendering: TextRenderingSettings | None = Field(None)
+    subtitle_segmentation: SubtitleSegmentationSettings | None = Field(None)
+    scraper_timing: ScraperTimingSettings | None = Field(None)
+    media_validation: MediaValidationSettings | None = Field(None)
+    llm_validation: LLMValidationSettings | None = Field(None)
 
     project_root: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parent.parent.parent,
@@ -1924,7 +2047,7 @@ except Exception as e:
             anchor="bottom",
             margin=0.1,
             content_aware=True,
-            style_preset="relative",
+            style_preset="modern",
             font_size_scale=1.2,
             horizontal_alignment="center",
             randomize_colors=False,

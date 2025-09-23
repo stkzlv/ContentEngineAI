@@ -235,9 +235,9 @@ class TestStyleConfigs:
         assert style["bold"] is True
         assert "fade" in style["effects"]
 
-    def test_get_style_config_relative(self):
-        """Test relative style preset."""
-        style = get_style_config(StylePreset.RELATIVE)
+    def test_get_style_config_animated(self):
+        """Test animated style preset."""
+        style = get_style_config(StylePreset.ANIMATED)
 
         assert style["font_name"] == "Impact"
         assert style["bold"] is True
@@ -308,7 +308,7 @@ class TestLegacyConfigConversion:
             "positioning_mode": "absolute",  # Legacy param
             "anchor": "below_content",  # New unified param
             "content_aware": True,  # New unified param
-            "style_preset": "relative",  # New unified param
+            "style_preset": "animated",  # New unified param
         }
 
         unified_config = convert_legacy_config(legacy_settings)
@@ -316,14 +316,14 @@ class TestLegacyConfigConversion:
         # Should use unified params over legacy mode
         assert unified_config.anchor == PositionAnchor.BELOW_CONTENT
         assert unified_config.content_aware is True
-        assert unified_config.style_preset == StylePreset.RELATIVE
+        assert unified_config.style_preset == StylePreset.ANIMATED
 
     def test_convert_legacy_style_detection(self):
         """Test automatic style preset detection from legacy settings."""
         # Test ASS with transforms -> relative
         legacy_settings = {"subtitle_format": "ass", "ass_enable_transforms": True}
         config = convert_legacy_config(legacy_settings)
-        assert config.style_preset == StylePreset.RELATIVE
+        assert config.style_preset == StylePreset.ANIMATED
 
         # Test bold -> bold preset
         legacy_settings = {"bold": True}
