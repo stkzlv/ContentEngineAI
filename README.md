@@ -5,73 +5,48 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.3.0
+**Version**: 0.3.1
 **License**: MIT
 **Authors**: ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>
 
 > **⚠️ Pre-Production Software**: ContentEngineAI is under active development. While functional, breaking changes may occur in minor versions until 1.0.0. See [VERSIONING.md](VERSIONING.md) for our stability roadmap.
 
-> **🚀 Latest Release**: ContentEngineAI v0.3.0 - Font and color randomization system with comprehensive code quality improvements! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
+> **🚀 Latest Release**: ContentEngineAI v0.3.1 - Optimized style preset system with RANDOM preset for maximum variety in video styling! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
 
 ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products, primarily Amazon listings. It automates the entire process from scraping product data to assembling a final video, including AI script generation, stock media fetching, voiceover production, and subtitle generation.
 
 ## ✨ Key Features
 
 - **🤖 End-to-End Automation**: Complete video production pipeline from data to final video
-- **🌐 Multi-Platform Scraping**: Modular architecture supporting Amazon with extensible foundation
+- **📱 Vertical Video Optimized**: 9:16 aspect ratio perfect for social media platforms
+- **🎨 Style Preset System**: 4 optimized presets (minimal, modern, bold, random) with deterministic effects
+- **🎯 Content-Aware Subtitles**: Dynamic positioning that avoids overlapping with visual content
+- **🎤 High-Quality Voice**: Chirp 3 HD voices with perfect subtitle timing via Whisper STT
 - **⚡ Parallel Processing**: Optimized pipeline with concurrent step execution
 - **🎯 Multi-Provider Support**: Fallback mechanisms for AI services (OpenRouter, Google Cloud, local models)
-- **📱 Vertical Video Optimized**: 9:16 aspect ratio perfect for social media platforms
-- **🎨 Professional Quality**: Dynamic visuals, audio-synchronized subtitles, background music
-- **🎤 High-Quality Voice**: Chirp 3 HD voices with perfect subtitle timing via Whisper STT
-- **🎯 Content-Aware Subtitles**: Dynamic positioning that avoids overlapping with visual content
-- **📝 AI Video Descriptions**: Generate social media descriptions with hashtags and compliance
 - **⚙️ Highly Configurable**: YAML-based configuration with 100+ customizable parameters
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.12+
-- FFmpeg
-- Poetry
-
-### Installation
+**Prerequisites**: Python 3.12+, FFmpeg, Poetry
 
 ```bash
-# Clone repository
-git clone https://github.com/stkzlv/ContentEngineAI.git
-cd ContentEngineAI
+# Install and setup
+git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
+poetry install && poetry run playwright install
+cp .env.example .env  # Add your API keys
 
-# Install dependencies
-poetry install
-poetry run playwright install
-
-# Setup API keys
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-**📖 Detailed setup**: [INSTALL.md](INSTALL.md)
-
-### Basic Usage
-
-```bash
-# Generate video for Amazon product (direct ASIN)
+# Generate a video
 poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1
-
-# Search with advanced filters
-poetry run python -m src.scraper.amazon.scraper \
-  --keywords "wireless headphones" \
-  --min-price 15.0 --max-price 100.0 \
-  --min-rating 4 --prime-only \
-  --sort price-asc-rank --debug --clean
-
-# Batch processing - process all products in outputs directory
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random
 ```
 
-## 🏗️ Architecture Overview
+**📖 Complete setup and usage**: [INSTALL.md](INSTALL.md) • [CONFIGURATION.md](CONFIGURATION.md)
+
+## 🏗️ Architecture
+
+<details>
+<summary>Pipeline Overview</summary>
 
 ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
 
@@ -87,6 +62,7 @@ graph TD
 ```
 
 **📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+</details>
 
 ## 📚 Documentation
 
@@ -104,36 +80,31 @@ graph TD
 
 ## 🛠️ Development
 
-### Code Quality
+<details>
+<summary>Code Quality Commands</summary>
 
 ```bash
-# Run all quality checks
-make lint
-
-# Format code
-make format
-
-# Run tests
-make test
-
-# Security scan
-make security
+make lint      # Run all quality checks
+make format    # Format code
+make test      # Run tests
+make security  # Security scan
 ```
 
 **📖 Detailed development guide**: [DEVELOPMENT.md](DEVELOPMENT.md)
+</details>
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on development setup, code style guidelines, testing requirements, and the pull request process.
+<details>
+<summary>Quick Start for Contributors</summary>
 
 ```bash
-# Quick start for contributors
-git clone https://github.com/stkzlv/ContentEngineAI.git
-cd ContentEngineAI
-poetry install --with dev
-make install-dev
-make test
+git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
+poetry install --with dev && make install-dev && make test
 ```
+
+**📖 Complete guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+</details>
 
 ## 📄 License
 

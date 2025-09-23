@@ -198,7 +198,7 @@ def get_style_config(
         # Select one random effect from all available effects
         all_effects = base_config["effects"]
         if all_effects:
-            selected_effect = random.choice(all_effects)
+            selected_effect = random.choice(all_effects)  # noqa: S311
             base_config["effects"] = [selected_effect]
             logger.debug(f"RANDOM preset selected effect: {selected_effect}")
 

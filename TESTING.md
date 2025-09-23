@@ -684,9 +684,10 @@ poetry run pytest tests/test_media_validator.py -v
 
 ### Test Status
 **Current Test Statistics (as of latest update):**
-- **Total Tests**: 423 tests collected
-- **Test Coverage**: 39.03% (exceeds 30% target)
-- **Test Status**: All tests passing (413 passed, 10 skipped)
+- **Total Tests**: 424 tests collected
+- **Test Coverage**: 39.19% (exceeds 30% target)
+- **Test Status**: All tests passing (405 passed, 10 skipped, 9 warnings)
+- **Recent Updates**: Updated tests for optimized style preset system (minimal, modern, bold, random)
 
 Run `poetry run pytest --collect-only -q | tail -3` to see current test counts and status.
 

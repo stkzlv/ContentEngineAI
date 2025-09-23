@@ -3,11 +3,12 @@
 This document tracks the current state of ContentEngineAI, including ongoing migrations, version-specific information, and temporary project conditions that may change over time.
 
 **Last Updated**: September 23, 2025
-**Current Version**: 0.3.1 (Optimized preset system with RANDOM preset and CLI improvements)
+**Current Version**: 0.3.1
+**Current Branch**: feature/improve-subtitles (ready for merge)
 
 ## 🚀 Current Release Status
 
-ContentEngineAI v0.3.1 optimizes the subtitle style preset system by reducing complexity from 5 to 4 presets, limiting effects to one per preset to prevent visual clutter, and introducing a new RANDOM preset for maximum variety in video styling.
+ContentEngineAI v0.3.1 introduces an optimized style preset system with 4 presets (minimal, modern, bold, random), font and color randomization capabilities, and improved subtitle positioning. The RANDOM preset provides deterministic variety with product-specific fonts, colors, and single animation effects.
 
 ## 🎯 Current System Capabilities
 
@@ -84,14 +85,15 @@ poetry run python tools/performance_report.py --report-type detailed
 
 ## 🧪 Test Suite
 
-- **Total Tests**: 423 comprehensive test cases across all modules (27 test files)
-- **Test Coverage**: Currently maintaining above 30% target coverage
+- **Total Tests**: 424 comprehensive test cases across all modules (27 test files)
+- **Test Coverage**: Currently maintaining above 30% target coverage at 39.19%
 - **Quality Gates**: Ruff, MyPy, Bandit, Vulture, Safety all passing
-- **Test Status**: All tests passing with proper error handling
+- **Test Status**: All tests passing with proper error handling (405 passed, 10 skipped)
 - **Recent Updates**:
-  - Removed legacy `relative_positioning` and `absolute_positioning` references
-  - Updated tests to use unified subtitle configuration system
-  - Circuit breaker module achieving 95% test coverage
+  - Updated tests for optimized style preset system (minimal, modern, bold, random)
+  - Fixed outdated references to removed presets (ANIMATED, CLASSIC)
+  - Added comprehensive tests for RANDOM preset functionality with deterministic seeding
+  - Updated legacy conversion tests to match current implementation logic
   - All test files verified against current codebase structure
 
 ## 🎯 Current Scope
