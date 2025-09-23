@@ -932,7 +932,7 @@ video_profiles:
       anchor: "below_content"     # Position subtitles below images
       margin: 0.015               # 1.5% gap below images (much tighter spacing)
       content_aware: true         # Use image bounds for positioning
-      style_preset: "animated"    # Use ANIMATED preset for maximum effects
+      style_preset: "random"      # Use RANDOM preset for maximum effects
       font_size_scale: 1.1
       max_line_length: 22
       horizontal_alignment: "center"
@@ -988,7 +988,7 @@ video_profiles:
       anchor: "bottom"
       margin: 0.1
       content_aware: false
-      style_preset: "classic"
+      style_preset: "minimal"
       font_size_scale: 0.9
       max_line_length: 42
       randomize_colors: false
