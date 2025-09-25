@@ -1,0 +1,160 @@
+# ContentEngineAI Scraper Configuration
+# Web scraping settings for e-commerce platforms
+
+# ============================================================================
+# GLOBAL SCRAPER SETTINGS
+# ============================================================================
+global_settings:
+  # Global debug mode - affects all scraping operations
+  # Can be overridden by CLI --debug flag
+  debug_mode: true
+  
+  # Default retry configuration
+  retry_config:
+    max_retries: 3
+    backoff_factor: 2.0
+    timeout_seconds: 30
+    
+  # Rate limiting to avoid being blocked
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 30
+    delay_between_requests: 2.0
+    random_delay_range: [1.0, 3.0]
+  
+  # Browser settings
+  browser_config:
+    headless: true  # Overridden by debug_mode
+    window_size: [1920, 1080]
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    enable_images: false
+    enable_javascript: true
+    
+  # Download settings
+  download_config:
+    max_concurrent: 5
+    timeout_seconds: 30
+    max_file_size_mb: 10
+    allowed_extensions: [".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov"]
+
+# ============================================================================
+# AMAZON SCRAPER SETTINGS
+# ============================================================================
+amazon:
+  # Platform identifier
+  platform: "amazon"
+  enabled: true
+  
+  # Base URL for Amazon
+  base_url: "https://www.amazon.com"
+  
+  # Search parameters
+  default_search_parameters:
+    # Default department (optional)
+    department: null
+    
+    # Default price range
+    price_range:
+      min: null
+      max: null
+    
+    # Default rating filter (1-5 stars)
+    min_rating: null
+    
+    # Prime only filter
+    prime_only: false
+    
+    # Sort options: "relevance", "price-asc", "price-desc", "avg-reviews", "newest"
+    sort_by: "relevance"
+    
+    # Number of results per page
+    results_per_page: 16
+    
+    # Maximum pages to scrape
+    max_pages: 1
+  
+  # CSS selectors for Amazon elements
+  selectors:
+    # Product search results
+    search_results: "[data-component-type='s-search-result']"
+    product_title: "h2 a span"
+    product_price: ".a-price-whole"
+    product_rating: ".a-icon-alt"
+    product_link: "h2 a"
+    product_image: "img.s-image"
+    
+    # Product detail page
+    detail_title: "#productTitle"
+    detail_price: ".a-price-whole"
+    detail_rating: ".a-icon-alt"
+    detail_features: "#feature-bullets ul li"
+    detail_description: "#productDescription"
+    detail_images: "#landingImage, .a-dynamic-image"
+    
+  # Data extraction settings
+  extraction:
+    # Maximum number of product images to download
+    max_images: 5
+    
+    # Maximum number of product videos to download
+    max_videos: 2
+    
+    # Feature bullet points to extract
+    max_features: 10
+    
+    # Extract additional metadata
+    extract_metadata:
+      availability: true
+      shipping_info: true
+      seller_info: true
+      product_dimensions: true
+      
+  # Anti-detection measures
+  anti_detection:
+    # Rotate user agents
+    rotate_user_agents: true
+    
+    # Random delays between requests
+    random_delays: true
+    
+    # Use proxy rotation (if configured)
+    use_proxies: false
+    
+    # Clear cookies periodically  
+    clear_cookies_interval: 50
+
+# ============================================================================
+# FUTURE PLATFORM PLACEHOLDERS
+# ============================================================================
+ebay:
+  platform: "ebay"
+  enabled: false
+  base_url: "https://www.ebay.com"
+  # Configuration will be added when eBay scraper is implemented
+  
+shopify:
+  platform: "shopify"
+  enabled: false
+  # Configuration will be added when Shopify scraper is implemented
+
+# ============================================================================
+# SCRAPER OUTPUT SETTINGS
+# ============================================================================
+output_settings:
+  # Data format for scraped products
+  data_format: "json"
+  
+  # Include debug information in output
+  include_debug_info: false
+  
+  # Validate scraped data before saving
+  validate_data: true
+  
+  # Minimum required fields for a valid product
+  required_fields: ["title", "price", "url"]
+  
+  # Clean up temporary files after scraping
+  cleanup_temp_files: true
+  
+  # Save raw HTML for debugging (only in debug mode)
+  save_raw_html: false

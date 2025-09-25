@@ -1,0 +1,217 @@
+# ContentEngineAI Video Production Configuration
+# Video encoding, audio processing, media gathering, and production profiles
+
+# ============================================================================
+# VIDEO ENCODING SETTINGS
+# ============================================================================
+video_settings:
+  # Video resolution [width, height]
+  resolution: [1080, 1920]  # Portrait mode for social media
+  
+  # Video frame rate (fps)
+  frame_rate: 30
+  
+  # Video codec settings
+  codec: "libx264"
+  preset: "medium"
+  crf: 23  # Constant Rate Factor (lower = better quality, larger file)
+  
+  # Preserve aspect ratio when resizing
+  preserve_aspect_ratio: true
+  
+  # Image display duration in seconds
+  image_duration: 3.0
+  
+  # Transition effects between images
+  transition_effects:
+    enabled: true
+    duration: 0.5
+    types: ["fade", "slide", "zoom"]
+
+# ============================================================================
+# AUDIO SETTINGS
+# ============================================================================
+audio_settings:
+  # Audio sample rate (Hz)
+  sample_rate: 44100
+  
+  # Audio channels (1=mono, 2=stereo)
+  channels: 2
+  
+  # Audio bitrate (kbps)
+  bitrate: 192
+  
+  # Volume levels (dB)
+  music_volume_db: -20.0
+  voiceover_volume_db: 3.0
+  sound_effects_volume_db: -15.0
+  
+  # Audio processing
+  normalize_audio: true
+  apply_compression: true
+  noise_reduction: true
+  
+  # Audio mixing settings
+  audio_mix_duration: "longest"
+
+  # Background music file paths (local fallbacks)
+  background_music_paths:
+    - "static/background-music-calm-soft-334182.mp3"
+    - "static/background-music-happy-333014.mp3"
+    - "static/background-music-upbeat-energetic-333016.mp3"
+
+  # Freesound API configuration
+  freesound_api_key_env_var: "FREESOUND_API_KEY"
+  freesound_search_query: "background music upbeat commercial"
+  freesound_filters: "license:cc duration:[30 TO 120]"
+  freesound_max_results: 10
+
+  # Background music settings
+  background_music:
+    enabled: true
+    fade_in_duration: 2.0
+    fade_out_duration: 3.0
+    loop_if_short: true
+
+# ============================================================================
+# MEDIA GATHERING
+# ============================================================================
+media_settings:
+  # Temporary directory for media assets
+  temp_media_dir: "downloaded_media_assets"
+
+  # Keywords for stock media search
+  stock_media_keywords:
+    - "product showcase"
+    - "modern lifestyle"
+    - "technology"
+    - "happy customer"
+
+  # Stock video duration limits
+  stock_video_min_duration_sec: 5
+  stock_video_max_duration_sec: 20
+
+  # Product title keyword filtering
+  product_title_keyword_min_length: 3
+
+  # Maximum number of items to download per product
+  max_images_per_product: 10
+  max_videos_per_product: 3
+
+  # Image quality settings
+  image_quality:
+    min_width: 300
+    min_height: 300
+    preferred_format: "jpg"
+    max_file_size_mb: 5
+
+  # Video quality settings
+  video_quality:
+    min_duration: 2
+    max_duration: 30
+    preferred_format: "mp4"
+    max_file_size_mb: 50
+
+# ============================================================================
+# STOCK MEDIA SETTINGS
+# ============================================================================
+stock_media_settings:
+  # Enable stock media usage
+  enabled: false
+
+  # Pexels API configuration
+  pexels_api_key_env_var: "PEXELS_API_KEY"
+
+  # Freesound integration
+  freesound:
+    enabled: false
+    api_key_env_var: "FREESOUND_API_KEY"
+
+    # Search parameters
+    search_terms: ["product", "commercial", "upbeat"]
+    duration_range: [10, 60]  # seconds
+    license_filter: "cc"
+
+    # Download settings
+    preferred_format: "mp3"
+    quality: "hq"
+    max_downloads: 5
+
+# ============================================================================
+# VIDEO PROFILES
+# ============================================================================
+video_profiles:
+  # Base profile (shared defaults)
+  base:
+    description: "Base profile with common settings for all video types."
+    video:
+      preserve_aspect_ratio: true
+      transition_effects:
+        enabled: true
+        duration: 0.5
+    audio:
+      normalize_audio: true
+      background_music:
+        enabled: true
+    subtitles:
+      enabled: true
+      position: "bottom"
+  
+  # Slideshow with images profile
+  slideshow_images1:
+    description: "Dynamically uses scraped product images to match voiceover duration."
+    inherits: "base"
+    overrides:
+      video:
+        image_width_percent: 0.85
+        image_height_percent: 0.85
+        background_blur: true
+        transition_effects:
+          types: ["fade", "zoom"]
+      subtitles:
+        randomize_effects: true
+        karaoke_timing: true
+
+  # Product showcase profile
+  product_showcase:
+    description: "Professional product showcase with clean styling."
+    inherits: "base"
+    overrides:
+      video:
+        image_width_percent: 0.95
+        background_color: "#ffffff"
+        show_product_info: true
+      audio:
+        music_volume_db: -25.0
+        voiceover_volume_db: 5.0
+      subtitles:
+        style: "professional"
+        effects_enabled: false
+
+# ============================================================================
+# ATTRIBUTION SETTINGS
+# ============================================================================
+attribution_settings:
+  # Include attribution in video
+  enabled: true
+
+  # Attribution display settings
+  display:
+    position: "bottom_right"
+    duration: 3.0
+    font_size: 12
+    opacity: 0.7
+
+  # Content attribution
+  content:
+    show_music_credits: true
+    show_image_credits: false
+    show_data_source: true
+
+  # Attribution text templates
+  attribution_template: "Music: {music_title} by {music_artist}\nData: {data_source}"
+  attribution_entry_template: "{type}: {title} by {artist}"
+  templates:
+    music: "Music: {title} by {artist}"
+    data: "Product data from {source}"
+    general: "Generated by ContentEngineAI"

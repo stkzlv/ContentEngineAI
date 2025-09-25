@@ -1,0 +1,187 @@
+# ContentEngineAI AI Services Configuration  
+# LLM, TTS, speech processing, and text analysis configuration
+
+# ============================================================================
+# LLM SETTINGS
+# ============================================================================
+llm_settings:
+  # LLM provider service
+  provider: "openrouter"
+  
+  # Environment variable containing API key
+  api_key_env_var: "OPENROUTER_API_KEY"
+  
+  # Whether to automatically select free models when available
+  auto_select_free_model: true
+  
+  # List of LLM models to try (in priority order)
+  models:
+    - "openai/gpt-3.5-turbo"
+    - "deepseek/deepseek-chat-v3-0324:free"
+    - "meta-llama/llama-3-8b-instruct:free"
+  
+  # API base URL for LLM provider
+  base_url: "https://openrouter.ai/api/v1"
+  
+  # Target audience description for script personalization
+  target_audience: "Tech-savvy young adults"
+  
+  # Path to prompt template file for script generation
+  prompt_template_path: "src/ai/prompts/video_script.md"
+  
+  # Maximum tokens for LLM response
+  max_tokens: 350
+  
+  # Temperature for text generation (0.0 = deterministic, 1.0 = creative)
+  temperature: 0.7
+  
+  # Request timeout in seconds
+  timeout_seconds: 30
+
+# ============================================================================
+# TTS CONFIGURATION
+# ============================================================================
+tts_config:
+  # TTS provider ("openai" or "elevenlabs")
+  provider: "openai"
+  
+  # OpenAI TTS settings
+  openai:
+    api_key_env_var: "OPENAI_API_KEY"
+    model: "tts-1"
+    voice: "alloy"
+    response_format: "wav"
+    speed: 1.0
+  
+  # ElevenLabs TTS settings
+  elevenlabs:
+    api_key_env_var: "ELEVENLABS_API_KEY"
+    voice_id: "21m00Tcm4TlvDq8ikWAM"
+    model_id: "eleven_monolingual_v1"
+    voice_settings:
+      stability: 0.5
+      similarity_boost: 0.5
+  
+  # Audio processing settings
+  audio_processing:
+    normalize_volume: true
+    target_db: -20.0
+    fade_in_ms: 100
+    fade_out_ms: 200
+
+# ============================================================================
+# DESCRIPTION SETTINGS
+# ============================================================================
+description_settings:
+  # Enable automatic description generation
+  enabled: true
+  
+  # LLM model for descriptions (uses llm_settings if not specified)
+  model_override: null
+  
+  # Description generation prompts
+  prompts:
+    # Main description prompt template
+    description_template: "src/ai/prompts/description_template.md"
+    
+    # Platform-specific customizations
+    platform_customizations:
+      youtube:
+        max_length: 5000
+        include_hashtags: true
+        include_timestamps: false
+      instagram:
+        max_length: 2200
+        include_hashtags: true
+        include_emojis: true
+      tiktok:
+        max_length: 2200
+        include_hashtags: true
+        trending_focus: true
+  
+  # Content guidelines
+  content_guidelines:
+    tone: "engaging and informative"
+    call_to_action: true
+    product_benefits_focus: true
+    avoid_superlatives: false
+
+# ============================================================================
+# WHISPER SETTINGS (Speech-to-Text)
+# ============================================================================
+whisper_settings:
+  # Whisper model size ("tiny", "base", "small", "medium", "large")
+  model_size: "base"
+  
+  # Language for transcription ("auto" for auto-detection)
+  language: "auto"
+  
+  # Task type ("transcribe" or "translate")
+  task: "transcribe"
+  
+  # Enable voice activity detection
+  vad_enabled: true
+  
+  # Audio preprocessing
+  preprocessing:
+    normalize_audio: true
+    remove_silence: true
+    noise_reduction: false
+  
+  # Output settings
+  output:
+    format: "srt"
+    include_timestamps: true
+    word_level_timestamps: false
+
+# ============================================================================
+# GOOGLE CLOUD STT SETTINGS
+# ============================================================================
+google_cloud_stt_settings:
+  # Enable Google Cloud STT (alternative to Whisper)
+  enabled: false
+  
+  # Environment variable containing service account key path
+  credentials_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
+  
+  # Recognition configuration
+  config:
+    language_code: "en-US"
+    sample_rate_hertz: 44100
+    encoding: "LINEAR16"
+    
+    # Enhanced models
+    use_enhanced: true
+    model: "video"
+    
+    # Profanity filter
+    profanity_filter: false
+    
+    # Automatic punctuation
+    enable_automatic_punctuation: true
+
+# ============================================================================
+# TEXT PROCESSING
+# ============================================================================
+text_processing:
+  # Maximum text length for script generation
+  max_script_length: 500
+  
+  # Text cleaning settings
+  cleaning:
+    remove_extra_whitespace: true
+    normalize_quotes: true
+    remove_special_chars: false
+    
+  # Content filtering
+  content_filter:
+    enabled: true
+    blocked_words: ["spam", "scam", "fake"]
+    min_word_count: 10
+    max_word_count: 200
+    
+  # Language detection
+  language_detection:
+    enabled: true
+    default_language: "en"
+    confidence_threshold: 0.8

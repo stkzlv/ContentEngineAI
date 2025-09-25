@@ -1,0 +1,123 @@
+# Subtitle System Configuration
+# Complete subtitle system including ASS effects and positioning
+
+subtitle_settings:
+  # Whether to generate and embed subtitles in the video
+  enabled: true
+
+  # ---- UNIFIED POSITIONING ----
+  # Content-aware positioning that automatically adapts to visual layout
+
+  # Anchor point for subtitle positioning
+  anchor: "below_content"
+
+  # Margin as fraction of frame height (0.0-0.5)
+  margin: 0.08
+
+  # Enable content-aware positioning (adjusts based on visual elements)
+  content_aware: true
+
+  # ---- LEGACY RELATIVE POSITIONING SETTINGS ----
+  relative_positioning:
+    image_bottom_to_subtitle_top_spacing_percent: 0.17
+    subtitle_horizontal_margin_percent: 0.07
+    subtitle_box_bottom_padding_percent: 0.02
+
+  # ---- STYLING ----
+  # Style preset determines overall appearance
+  style_preset: "animated"
+
+  # Font size scale factor (0.5-2.0)
+  font_size_scale: 1.0
+
+  # Text alignment: left, center, right
+  horizontal_alignment: "center"
+
+  # ---- TEXT FORMATTING ----
+  # Maximum characters per subtitle line
+  max_line_length: 30
+
+  # Maximum duration for any subtitle segment (seconds)
+  max_duration: 4.5
+
+  # Minimum duration for any subtitle segment (seconds)
+  min_duration: 0.4
+
+  # Probability of applying random animation effects (0.0-1.0)
+  animation_probability: 0.3
+
+  # ---- RANDOMIZATION OPTIONS ----
+  # Use random color combinations from preset palette
+  randomize_colors: false
+
+  # Use random animation effects when available
+  randomize_effects: true
+
+  # ---- OUTPUT FORMAT ----
+  # Subtitle file format: "srt" or "ass"
+  subtitle_format: "ass"
+
+  # ---- LEGACY COMPATIBILITY SETTINGS ----
+  # Font settings
+  font_directory: "static/fonts"
+  font_name: "Gabarito"
+  font_size_percent: 0.2
+  font_width_to_height_ratio: 0.55
+
+  # Color settings
+  font_color: "&H00FFFFFF"
+  outline_color: "&HFF000000"
+  back_color: "&H99000000"
+
+  # Visual styling
+  bold: true
+  outline_thickness: 1
+  shadow: true
+
+  # Script fallback paths
+  script_paths: ["info/script.txt"]
+
+  # Quality thresholds
+  subtitle_similarity_threshold: 0.70
+  subtitle_overlap_threshold: 65.0
+  word_timestamp_pause_threshold: 0.4
+  subtitle_split_on_punctuation: true
+  punctuation_marks: [".", "!", "?", ";", ":", ","]
+
+# TTS Configuration
+tts_config:
+  # Order of TTS providers to try
+  provider_order: ["google_cloud", "coqui"]
+
+  # Google Cloud Text-to-Speech Settings
+  google_cloud:
+    model_name: "en-US-Chirp3-HD"
+    language_code: "en-US"
+
+    # Voice selection criteria
+    voice_selection_criteria:
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "MALE" }
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "MALE" }
+      - { language_code: "en-US", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", ssml_gender: "MALE" }
+
+    # Speech parameters
+    speaking_rate: 1.0
+    pitch: 0.0
+    volume_gain_db: 0.0
+
+    # API settings
+    debug: false
+    api_timeout_sec: 60
+    api_max_retries: 2
+    api_retry_delay_sec: 5
+    last_word_buffer_sec: 0.3
+
+  # Coqui TTS Settings (Local Processing)
+  coqui:
+    model_name: "tts_models/en/ljspeech/vits"
+    speaker_name: null
