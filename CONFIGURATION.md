@@ -1,56 +1,60 @@
 # Configuration Guide
 
-ContentEngineAI is highly configurable through a central YAML file (`config/video_producer.yaml`). This guide explains all configuration options and how to customize the system for your needs.
+ContentEngineAI uses a **unified modular configuration system** that splits settings across specialized files with CLI overrides and environment variable support. This guide explains all configuration options and how to customize the system for your needs.
 
 ## Configuration Overview
 
-ContentEngineAI uses a **dual configuration system** that combines YAML files and environment variables:
+ContentEngineAI implements a **triple-precedence configuration system**:
 
-- **YAML files** for human-readable settings and application logic
-- **Environment variables** for sensitive information (API keys, credentials)
-- **Pydantic models** for validation and type safety
-- **Hierarchical structure** organized by component
+1. **CLI Arguments** (highest priority)
+2. **Environment Variables** (medium priority)
+3. **YAML Configuration** (default values)
 
-### How Dual Configuration Works
+### Modular Architecture
 
-1. **YAML Configuration** (`config/*.yaml`):
-   - Contains all application settings, timeouts, preferences
-   - References environment variables using `api_key_env_var` fields
-   - Safe to commit to version control
+The configuration system uses **6 specialized files** instead of a monolithic configuration:
 
-2. **Environment Variables** (`.env` file):
-   - Contains sensitive data like API keys and credentials
-   - Never committed to version control (gitignored)
-   - Loaded at runtime and injected into YAML configuration
+- **`config/core.yaml`** - Global settings and output paths
+- **`config/video_production.yaml`** - Video pipeline and effects
+- **`config/ai_services.yaml`** - TTS, LLM, and AI providers
+- **`config/subtitles.yaml`** - Subtitle positioning and styling
+- **`config/performance.yaml`** - Resource limits and optimization
+- **`config/scraper.yaml`** - Web scraping and browser settings
 
-3. **Runtime Resolution**:
-   - YAML config is loaded first
-   - Environment variables are resolved using `api_key_env_var` mappings
-   - Missing environment variables cause clear error messages
+### How Configuration Loading Works
+
+1. **Modular Loading**: Each config file is loaded independently
+2. **Environment Resolution**: Variables resolved using `api_key_env_var` mappings
+3. **CLI Override**: Command-line parameters override YAML values
+4. **Validation**: Pydantic models ensure type safety and completeness
 
 **Example:**
 ```yaml
-# In config/video_producer.yaml
+# In config/ai_services.yaml
 llm_settings:
   api_key_env_var: "OPENROUTER_API_KEY"  # References env var
   models: ["anthropic/claude-3-haiku"]   # Direct config value
 
 # In .env file
 OPENROUTER_API_KEY=sk-or-v1-your-actual-key-here
+
+# CLI override
+poetry run python -m src.video.producer --models "gpt-4"
 ```
 
 ## Configuration Files
 
-ContentEngineAI uses two main configuration files:
+ContentEngineAI's modular system organizes settings by purpose:
 
-### 1. **Video Producer Configuration** (`config/video_producer.yaml`)
-Controls video generation pipeline settings:
+### 1. **Core Configuration** (`config/core.yaml`)
+Global settings and output structure:
 
 ```yaml
-# Base output directory
+# Base output directory and structure
 global_output_directory: "outputs"
+debug_mode: false
+pipeline_timeout_sec: 900
 
-# Product-centric output structure
 output_structure:
   product_directory_pattern: "{product_id}"
   product_files:
@@ -58,43 +62,98 @@ output_structure:
     script: "script.txt"
     voiceover: "voiceover.wav"
     subtitles: "subtitles.srt"
-    final_video: "video_{profile}.mp4"
+    final_video: "video_{product_id}_{profile}.mp4"
   global_dirs:
     cache: "cache"
-    logs: "logs" 
+    logs: "logs"
     reports: "reports"
+```
 
-# Video processing settings
-video_production:
+### 2. **Video Production Configuration** (`config/video_production.yaml`)
+Video pipeline settings and effects:
+
+```yaml
+video_settings:
   resolution: [1080, 1920]  # 9:16 vertical format
   frame_rate: 30
   output_codec: "libx264"
+
+audio_settings:
+  voiceover_volume_db: 0
+  music_volume_db: -20
+  music_fade_in_duration: 2.0
+
+video_profiles:
+  slideshow_images1:
+    description: "Image slideshow optimized for product focus"
+    use_scraped_images: true
+    use_stock_images: false
 ```
 
-### 2. **Scraper Configuration** (`config/scrapers.yaml`)
-Controls web scraping behavior:
+### 3. **AI Services Configuration** (`config/ai_services.yaml`)
+TTS, LLM, and AI provider settings:
 
 ```yaml
-global_settings:
-  debug_mode: true  # Show browser, save debug files
-  
+tts_config:
+  providers:
+    - google_cloud_tts
+    - coqui_tts
+  google_cloud_tts:
+    api_key_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
+    voice_selection_criteria:
+      - { language_code: "en-US", name_contains: "Chirp3" }
+
+llm_settings:
+  api_key_env_var: "OPENROUTER_API_KEY"
+  models: ["anthropic/claude-3-haiku"]
+  temperature: 0.7
+```
+
+### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
+Subtitle positioning and styling:
+
+```yaml
+subtitle_settings:
+  enabled: true
+  anchor: "below_content"
+  style_preset: "modern"
+  content_aware: true
+  font_directory: "assets/fonts"
+```
+
+### 5. **Performance Configuration** (`config/performance.yaml`)
+Resource limits and optimization:
+
+```yaml
+performance_settings:
+  max_concurrent_downloads: 5
+  memory_limit_mb: 2048
+  cache_ttl_hours: 24
+
+timeout_settings:
+  api_timeout_sec: 30
+  download_timeout_sec: 60
+  video_processing_timeout_sec: 300
+```
+
+### 6. **Scraper Configuration** (`config/scraper.yaml`)
+Web scraping and browser settings:
+
+```yaml
+scraper_settings:
+  debug_mode: true
+  headless: false
+  timeout_sec: 30
+
   output_config:
     base_directory: "outputs"
     file_patterns:
       product_file: "{keyword}_products.json"
-      image_file: "{asin}_image_{index}.{ext}"
-      video_file: "{asin}_video_{index}.{ext}"
 
-amazon:
-  default_search_params:
-    max_results: 10
-    skip_unavailable: true
-    prime_only: false
-  
-  browser_config:
-    headless: false
-    timeout_sec: 30
-
+amazon_settings:
+  max_results: 10
+  skip_unavailable: true
+  prime_only: false
 ```
 
 ## Core Configuration Sections

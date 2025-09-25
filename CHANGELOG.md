@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Optimized Preset System**: Reduced preset count from 5 to 4 (removed `animated` and `classic`, kept `minimal`, `modern`, `bold`)
 - **Effect Limitation**: Limited effects to 1 per preset to prevent visual clutter and rendering issues
-- **Improved Documentation**: Updated README.md for simplicity with collapsible sections and STATUS.md with current capabilities
+- **Improved Documentation**: Updated README.md for simplicity with collapsible sections
 
 ### Fixed
 - **ASS Effects Application**: Fixed ASS effects not applying by changing condition from >1 to >0 effects

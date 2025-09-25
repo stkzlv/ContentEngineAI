@@ -257,22 +257,18 @@ The test suite provides many shared fixtures:
 ```python
 @pytest.fixture
 def test_config(temp_outputs_dir):
-    """Create test config using real config file with overrides."""
-    from pathlib import Path
-    from src.video.video_config import load_video_config, CleanupSettings
-    
-    # Load real config and override for testing
-    config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-    config = load_video_config(config_path)
-    
+    """Create test config using modular config loading with overrides."""
+    from src.video.config_adapter import load_video_config_modular
+
+    # Load modular config system
+    config = load_video_config_modular()
+
     # Override specific settings for testing
     config.global_output_directory = str(temp_outputs_dir)
-    config.cleanup_settings = CleanupSettings(
-        enabled=True,
-        dry_run=False,
-        max_age_days=1
-    )
-    
+    if hasattr(config, 'cleanup_settings'):
+        config.cleanup_settings.enabled = True
+        config.cleanup_settings.dry_run = False
+
     return config
 ```
 
@@ -540,14 +536,15 @@ poetry run pytest -v --log-cli-level=DEBUG
 # ✅ Recommended pattern for configuration tests
 @pytest.fixture
 def test_config(temp_dir):
-    config = load_video_config("config/video_producer.yaml")
+    from src.video.config_adapter import load_video_config_modular
+    config = load_video_config_modular()
     config.global_output_directory = str(temp_dir)
     return config
 
 def test_with_config(test_config):
     # Test uses real, validated configuration
     assert test_config.global_output_directory != "outputs"  # Overridden
-    assert config.video_settings.frame_rate == 30  # Real default
+    assert test_config.video_settings.frame_rate == 30  # Real default
 ```
 
 ### Async Testing
@@ -684,10 +681,14 @@ poetry run pytest tests/test_media_validator.py -v
 
 ### Test Status
 **Current Test Statistics (as of latest update):**
-- **Total Tests**: 424 tests collected
-- **Test Coverage**: 39.19% (exceeds 30% target)
-- **Test Status**: All tests passing (405 passed, 10 skipped, 9 warnings)
-- **Recent Updates**: Updated tests for optimized style preset system (minimal, modern, bold, random)
+- **Total Tests**: 442 tests collected (19 new unified configuration tests added)
+- **Test Coverage**: ~39% (exceeds 30% target)
+- **Test Status**: 414 passed, 7 skipped, 3 failed, 18 errors, 4 warnings
+- **Recent Updates**:
+  - Added comprehensive tests for unified configuration system
+  - Updated tests to use new modular config files (`video_production.yaml`)
+  - Fixed deprecated config file references
+  - Improved configuration system coverage from 0% to 96%
 
 Run `poetry run pytest --collect-only -q | tail -3` to see current test counts and status.
 

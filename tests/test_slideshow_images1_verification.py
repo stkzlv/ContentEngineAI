@@ -16,7 +16,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from src.video.video_config import VideoConfig, load_video_config
+from src.video.config_adapter import load_video_config_modular
+from src.video.video_config import VideoConfig
 
 logger = logging.getLogger(__name__)
 
@@ -441,8 +442,7 @@ class TestSlideshowImagesVerification:
     @pytest.fixture
     def test_config(self, tmp_path: Path) -> VideoConfig:
         """Load the actual video configuration for testing."""
-        config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-        return load_video_config(config_path)
+        return load_video_config_modular()
 
     @pytest.fixture
     def real_video_data(self) -> dict[str, Any]:

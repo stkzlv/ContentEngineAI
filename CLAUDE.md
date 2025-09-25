@@ -33,7 +33,7 @@ poetry run python tools/performance_report.py --report-type summary
 - Use Poetry for dependency management
 - Use imperative commit messages (e.g., "Add subtitle generation")
 - **Never mention Claude Code or AI tools in git commit messages**
-- Save project status to STATUS.md (not this file)
+- Document project status in relevant documentation files
 - Create implementation plans for features/fixes before coding
 - Test scraper with: `poetry run python -m src.scraper.amazon.scraper --debug --clean`
 

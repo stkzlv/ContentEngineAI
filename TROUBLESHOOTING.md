@@ -16,7 +16,7 @@ poetry run python --version
 ffmpeg -version
 
 # Check configuration loading
-poetry run python -c "from src.video.video_config import load_config; print('✓ Config loads')"
+poetry run python -c "from src.video.config_adapter import load_video_config_modular; print('✓ Config loads')"
 
 # Check API keys
 poetry run python -c "
@@ -84,9 +84,9 @@ which ffmpeg    # macOS/Linux
 where ffmpeg    # Windows
 
 # Temporary fix - specify full path in config
-# config/video_producer.yaml:
+# config/video_production.yaml:
 ffmpeg_settings:
-  ffmpeg_path: "/usr/local/bin/ffmpeg"  # Your actual path
+  executable_path: "/usr/local/bin/ffmpeg"  # Your actual path
 ```
 
 ### Poetry Installation Issues
@@ -553,12 +553,15 @@ make perf-report
 
 **Diagnostics:**
 ```bash
-# Test YAML syntax
+# Test YAML syntax (modular config files)
 poetry run python -c "
 import yaml
-with open('config/video_producer.yaml') as f:
-    config = yaml.safe_load(f)
-    print('✓ YAML syntax is valid')
+from pathlib import Path
+config_files = ['core.yaml', 'video_production.yaml', 'ai_services.yaml', 'subtitles.yaml', 'performance.yaml', 'scraper.yaml']
+for file in config_files:
+    with open(f'config/{file}') as f:
+        config = yaml.safe_load(f)
+        print(f'✓ {file} syntax is valid')
 "
 ```
 
@@ -685,7 +688,7 @@ echo -e "\n=== Environment Variables ===" >> debug_report.txt
 env | grep -E "(API_KEY|GOOGLE_|FREESOUND_)" >> debug_report.txt
 
 echo -e "\n=== Configuration Test ===" >> debug_report.txt
-poetry run python -c "from src.video.video_config import load_config; print('Config loads successfully')" >> debug_report.txt 2>&1
+poetry run python -c "from src.video.config_adapter import load_video_config_modular; print('Config loads successfully')" >> debug_report.txt 2>&1
 
 echo -e "\n=== Recent Logs ===" >> debug_report.txt
 find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -exec cat {} \; >> debug_report.txt 2>/dev/null
