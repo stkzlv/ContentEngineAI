@@ -125,7 +125,18 @@ def scrape_amazon_products_browser_impl(
         if DEBUG_MODE:
             url_builder.log_search_parameters(keyword, search_params)
             logging.getLogger(__name__).info(f"🔍 Searching: {search_url}")
-            driver.save_screenshot()  # Debug screenshot
+            # Take debug screenshot if enabled in config
+            try:
+                save_screenshots = (
+                    CONFIG.get("global_settings", {})
+                    .get("debug_settings", {})
+                    .get("save_screenshots", False)
+                )
+                if save_screenshots:
+                    driver.save_screenshot()  # Debug screenshot
+            except Exception as e:
+                if DEBUG_MODE:
+                    print(f"⚠️ [DEBUG] Screenshot failed: {e}")
 
         # Use google_get for organic navigation pattern
         if DEBUG_MODE:
@@ -175,12 +186,23 @@ def scrape_amazon_products_browser_impl(
             nav_time = time.time() - nav_start
             print(f"⏱️ [DEBUG] Navigation completed in {nav_time:.2f} seconds")
 
-            # Add page info for debugging
+            # Add page info for debugging and error detection
             try:
                 current_url = driver.current_url
                 page_title = driver.title[:50] if driver.title else "No title"
                 print(f"🌐 [DEBUG] Current URL: {current_url}")
                 print(f"📄 [DEBUG] Page title: {page_title}")
+
+                # Check for Amazon error pages
+                if page_title and "Sorry! Something went wrong!" in driver.title:
+                    print("🔄 [DEBUG] Detected Amazon error page - triggering retry")
+                    raise RuntimeError(
+                        "Amazon error page detected: Sorry! Something went wrong!"
+                    )
+
+            except RuntimeError:
+                # Re-raise the error page detection
+                raise
             except Exception as e:
                 print(f"⚠️ [DEBUG] Could not get page info: {e}")
 
@@ -188,8 +210,21 @@ def scrape_amazon_products_browser_impl(
         if driver.is_bot_detected():
             logging.getLogger(__name__).error("🚫 Bot detection triggered!")
             if DEBUG_MODE:
-                driver.save_screenshot()
-                print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
+                # Take error screenshot if enabled in config (default: enabled)
+                try:
+                    save_error_screenshots = (
+                        CONFIG.get("global_settings", {})
+                        .get("debug_settings", {})
+                        .get("save_error_screenshots", True)
+                    )
+                    if save_error_screenshots:
+                        driver.save_screenshot()
+                        print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
+                    else:
+                        print("⚠️ [DEBUG] Bot detection triggered - screenshot disabled")
+                except Exception:
+                    driver.save_screenshot()  # Fallback to always save on errors
+                    print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
                 print(
                     "💡 [DEBUG] Continuing without manual intervention for browser "
                     "visibility testing"
@@ -325,7 +360,17 @@ def scrape_amazon_products_browser_impl(
         if not product_cards:
             if DEBUG_MODE:
                 print("❌ [DEBUG] No product cards found")
-                driver.save_screenshot()
+                # Take error screenshot if enabled in config (default: enabled)
+                try:
+                    save_error_screenshots = (
+                        CONFIG.get("global_settings", {})
+                        .get("debug_settings", {})
+                        .get("save_error_screenshots", True)
+                    )
+                    if save_error_screenshots:
+                        driver.save_screenshot()
+                except Exception:
+                    driver.save_screenshot()  # Fallback to always save on errors
             return []
 
         # Extract products from search results
@@ -1034,13 +1079,15 @@ def create_dynamic_browser_function(debug_mode=False):
         driver: Driver, data: dict[str, Any]
     ) -> list[dict[str, Any]]:
         try:
-            # Set driver timeouts to prevent hanging
-            try:
-                driver.set_page_load_timeout(60)  # 60 seconds for page load
-                driver.implicitly_wait(10)  # 10 seconds implicit wait
-            except Exception as timeout_err:
-                if DEBUG_MODE:
-                    print(f"⚠️ [DEBUG] Could not set driver timeouts: {timeout_err}")
+            # Note: Botasaurus Driver uses explicit waits, not implicit waits
+            # All element selection methods (select, find, wait_for) accept timeout
+            # parameters
+            # Default timeout is 10 seconds for most operations
+            if DEBUG_MODE:
+                print(
+                    "🔧 [DEBUG] Using Botasaurus explicit wait pattern "
+                    "(no implicit wait needed)"
+                )
 
             return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
@@ -1079,6 +1126,20 @@ def scrape_single_product(
         try:
             page_title = driver.title
             print(f"🔍 [DEBUG] Page title: {page_title}")
+
+            # Check for Amazon error pages
+            if page_title and "Sorry! Something went wrong!" in page_title:
+                print(
+                    "🔄 [DEBUG] Detected Amazon error page in product page - "
+                    "triggering retry"
+                )
+                raise RuntimeError(
+                    "Amazon error page detected: Sorry! Something went wrong!"
+                )
+
+        except RuntimeError:
+            # Re-raise the error page detection
+            raise
         except Exception as e:
             print(f"🔍 [DEBUG] Page title: Unable to get ({e})")
 

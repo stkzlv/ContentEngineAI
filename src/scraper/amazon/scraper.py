@@ -6,10 +6,17 @@ the Botasaurus framework with built-in anti-detection and performance optimizati
 """
 
 import logging
+import warnings
 from pathlib import Path
 from typing import Any
 
 import yaml
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 # Import base classes for multi-platform support
 from ..base import BaseScraper, Platform, register_scraper
@@ -50,6 +57,12 @@ class WebsocketFilter(logging.Filter):
             )
         )
 
+
+# Suppress frozen runpy warning at module level
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="runpy")
+warnings.filterwarnings(
+    "ignore", message=".*found in sys.modules.*", category=RuntimeWarning
+)
 
 # Global debug mode - will be set from YAML config
 DEBUG_MODE = False
@@ -94,7 +107,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
     def __init__(
         self,
-        config_path: str = "config/scrapers.yaml",
+        config_path: str = "config/scraper.yaml",
         debug_override: bool = None,
         debug_options: dict = None,
     ):
@@ -137,6 +150,15 @@ class BotasaurusAmazonScraper(BaseScraper):
                 )
 
         self.logger = logging.getLogger(__name__)
+
+        # Apply WebSocket filter to suppress harmless connection messages
+        websocket_filter = WebsocketFilter()
+        self.logger.addFilter(websocket_filter)
+
+        # Also apply to root websocket logger
+        websocket_logger = logging.getLogger("websocket")
+        websocket_logger.addFilter(websocket_filter)
+        websocket_logger.setLevel(logging.WARNING)
 
         # Enhanced debug setup
         if DEBUG_MODE:
@@ -196,7 +218,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     print(f"🔧 [DEBUG] browser_func type: {type(browser_func)}")
                     print(f"🔧 [DEBUG] browser_func: {browser_func}")
                     print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
-                results = browser_func(data)
+                results = self._scrape_with_retry(browser_func, data)
                 print(
                     f"🔧 [DEBUG] browser_func returned "
                     f"{len(results) if results else 0} products"
@@ -513,19 +535,46 @@ class BotasaurusAmazonScraper(BaseScraper):
                         f"Actual files on disk: {img_count} images, {vid_count} videos"
                     )
 
-                if img_count > 0 or vid_count > 0:
+                # Check media requirements from config
+                try:
+                    validation_config = CONFIG.get("global_settings", {}).get(
+                        "validation_config", {}
+                    )
+                    min_images = validation_config.get("min_images_required", 1)
+                    min_videos = validation_config.get("min_videos_required", 0)
+                    min_total = validation_config.get("min_total_media_files", 1)
+                except Exception:
+                    # Fallback to default requirements
+                    min_images = 1
+                    min_videos = 0
+                    min_total = 1
+
+                total_media = img_count + vid_count
+
+                # Check if product meets media requirements
+                meets_requirements = (
+                    img_count >= min_images
+                    and vid_count >= min_videos
+                    and total_media >= min_total
+                )
+
+                if meets_requirements:
                     products_with_media.append(product)
                     if DEBUG_MODE:
                         self.logger.info(
-                            f"✅ [FINAL VERIFICATION] Product {product.asin} has "
-                            f"downloaded media files"
+                            f"✅ [FINAL VERIFICATION] Product {product.asin} meets "
+                            f"media requirements: {img_count} images (≥{min_images}), "
+                            f"{vid_count} videos (≥{min_videos}), "
+                            f"{total_media} total (≥{min_total})"
                         )
                 else:
                     products_without_media.append(product)
                     if DEBUG_MODE:
                         self.logger.error(
-                            f"❌ [FINAL VERIFICATION] Product {product.asin} has NO "
-                            f"downloaded media files - FILTERING OUT"
+                            f"❌ [FINAL VERIFICATION] Product {product.asin} does NOT "
+                            f"meet media requirements: {img_count} images "
+                            f"(<{min_images}), {vid_count} videos (<{min_videos}), "
+                            f"{total_media} total (<{min_total}) - FILTERING OUT"
                         )
                     # Clean up data.json for products without media files
                     try:
@@ -632,6 +681,27 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _validate_asin_format(self, asin: str) -> bool:
         """Validate proper ASIN format: B0[A-Z0-9]{8} (requirement #10)"""
         return validate_asin_format(asin)
+
+    @retry(  # type: ignore
+        retry=retry_if_exception_type(RuntimeError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    def _scrape_with_retry(self, browser_func, data):
+        """Scrape with retry logic for Amazon error pages"""
+        try:
+            if DEBUG_MODE:
+                print("🔄 [DEBUG] Attempting scrape with retry logic")
+            return browser_func(data)
+        except RuntimeError as e:
+            if "Amazon error page detected" in str(e):
+                if DEBUG_MODE:
+                    print(f"🔄 [DEBUG] Caught Amazon error page, will retry: {e}")
+                raise  # Will trigger retry
+            else:
+                # Other RuntimeErrors should not retry
+                raise
 
     def _save_products(self, products: list[ProductData]) -> None:
         """Save scraped products to product-centric JSON structure"""
@@ -822,7 +892,7 @@ def main():
         try:
             # Handle working directory changes from Botasaurus
             project_root = Path(__file__).parent.parent.parent.parent
-            config_path = project_root / "config/scrapers.yaml"
+            config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
@@ -843,7 +913,7 @@ def main():
                     )
                     print(
                         "💡 Either use --keywords 'your keyword' or add keywords "
-                        "to config/scrapers.yaml"
+                        "to config/scraper.yaml"
                     )
                     return
             else:
@@ -861,7 +931,7 @@ def main():
     if not args.debug and not args.verbose:
         try:
             project_root = Path(__file__).parent.parent.parent.parent
-            config_path = project_root / "config/scrapers.yaml"
+            config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
@@ -1128,7 +1198,14 @@ def main():
 
 if __name__ == "__main__":
     # Suppress module import warnings when running with -m
+    import sys
     import warnings
 
+    # Suppress frozen runpy warning that occurs when module is in sys.modules
+    # before execution (common when using python -m package.module)
     warnings.filterwarnings("ignore", category=RuntimeWarning, module="runpy")
+    warnings.filterwarnings(
+        "ignore", message=".*found in sys.modules.*", category=RuntimeWarning
+    )
+
     main()

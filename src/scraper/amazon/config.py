@@ -152,24 +152,19 @@ def get_default_search_parameters():
         return SearchParameters()
 
 
-def load_browser_config_from_yaml(config_path: str = "config/scrapers.yaml"):
-    """Load and apply YAML configuration to global browser settings"""
+def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
+    """Load and apply YAML configuration to global browser settings using config
+    adapter
+    """
     global CONFIG, _BROWSER_CONFIG
 
     try:
-        # Handle both relative and absolute paths
-        if not config_path.startswith("/"):
-            project_root = Path(__file__).parent.parent.parent.parent
-            config_file = project_root / config_path
-        else:
-            config_file = Path(config_path)
+        # Use the new config adapter for backward compatibility
+        from ..config_adapter import ScraperConfigAdapter
 
-        if not config_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_file}")
-
-        with open(config_file, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-            CONFIG.update(config_data)
+        adapter = ScraperConfigAdapter()
+        config_data = adapter.get_merged_config_dict()
+        CONFIG.update(config_data)
 
         # Import here to avoid circular imports
         try:
