@@ -4,9 +4,10 @@ Tests the updated configuration with new browser timeouts, media settings,
 and comprehensive documentation added during configuration optimization.
 """
 
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
 
 from src.scraper.amazon.config import (
     get_default_search_parameters,
@@ -29,7 +30,9 @@ class TestEnhancedScraperConfig:
     def test_browser_timeout_configuration(self, config_data):
         """Test browser timeout configuration values."""
         # Check browser timeout settings
-        browser_config = config_data.get("global_settings", {}).get("browser_config", {})
+        browser_config = config_data.get("global_settings", {}).get(
+            "browser_config", {}
+        )
 
         assert "page_load_timeout_ms" in browser_config
         assert "script_execution_timeout_ms" in browser_config
@@ -42,8 +45,6 @@ class TestEnhancedScraperConfig:
 
     def test_image_config_max_images(self, config_data):
         """Test max images per product configuration."""
-        
-
         image_config = config_data.get("global_settings", {}).get("image_config", {})
 
         assert "max_images_per_product" in image_config
@@ -51,8 +52,6 @@ class TestEnhancedScraperConfig:
 
     def test_media_config_js_context_chars(self, config_data):
         """Test JavaScript context character limit configuration."""
-        
-
         media_config = config_data.get("global_settings", {}).get("media_config", {})
 
         assert "js_context_chars" in media_config
@@ -60,8 +59,6 @@ class TestEnhancedScraperConfig:
 
     def test_media_config_valid_http_codes(self, config_data):
         """Test valid HTTP status codes configuration."""
-        
-
         media_config = config_data.get("global_settings", {}).get("media_config", {})
 
         assert "valid_http_status_codes" in media_config
@@ -69,8 +66,6 @@ class TestEnhancedScraperConfig:
 
     def test_validation_config_media_timeout(self, config_data):
         """Test media validation timeout configuration."""
-        
-
         validation_config = config_data.get("global_settings", {}).get(
             "validation_config", {}
         )
@@ -80,8 +75,6 @@ class TestEnhancedScraperConfig:
 
     def test_validation_config_report_top_issues(self, config_data):
         """Test validation report issue limit configuration."""
-        
-
         validation_config = config_data.get("global_settings", {}).get(
             "validation_config", {}
         )
@@ -91,9 +84,9 @@ class TestEnhancedScraperConfig:
 
     def test_browser_config_selector_limits(self, config_data):
         """Test browser selector attempt limits."""
-        
-
-        browser_config = config_data.get("global_settings", {}).get("browser_config", {})
+        browser_config = config_data.get("global_settings", {}).get(
+            "browser_config", {}
+        )
 
         assert "max_title_selector_attempts" in browser_config
         assert browser_config["max_title_selector_attempts"] == 10
@@ -103,8 +96,6 @@ class TestEnhancedScraperConfig:
 
     def test_media_config_min_file_size_absolute(self, config_data):
         """Test absolute minimum file size configuration."""
-        
-
         media_config = config_data.get("global_settings", {}).get("media_config", {})
 
         assert "min_file_size_absolute" in media_config
@@ -112,8 +103,6 @@ class TestEnhancedScraperConfig:
 
     def test_retry_config_comprehensive(self, config_data):
         """Test comprehensive retry configuration."""
-        
-
         retry_config = config_data.get("global_settings", {}).get("retry_config", {})
 
         # Check all retry parameters
@@ -126,8 +115,6 @@ class TestEnhancedScraperConfig:
 
     def test_rate_limiting_video_validation_delay(self, config_data):
         """Test video validation delay range configuration."""
-        
-
         rate_limiting = config_data.get("global_settings", {}).get("rate_limiting", {})
 
         assert "video_validation_delay" in rate_limiting
@@ -139,8 +126,6 @@ class TestEnhancedScraperConfig:
 
     def test_debug_config_string_truncation(self, config_data):
         """Test debug output string truncation configuration."""
-        
-
         debug_config = config_data.get("global_settings", {}).get("debug_config", {})
 
         assert debug_config["title_preview_length"] == 50
@@ -162,24 +147,18 @@ class TestEnhancedScraperConfig:
     def test_filename_pattern_configuration(self, config_data):
         """Test filename pattern generation with configuration."""
         # Test product file pattern
-        product_file = get_filename_pattern(
-            "product", keyword="test", ext="json"
-        )
+        product_file = get_filename_pattern("product", keyword="test", ext="json")
         assert "test" in product_file
         assert product_file.endswith("json")
 
         # Test image file pattern
-        image_file = get_filename_pattern(
-            "image", asin="B0TEST123", index=1, ext="jpg"
-        )
+        image_file = get_filename_pattern("image", asin="B0TEST123", index=1, ext="jpg")
         assert "B0TEST123" in image_file
         assert "1" in image_file
         assert image_file.endswith("jpg")
 
         # Test video file pattern
-        video_file = get_filename_pattern(
-            "video", asin="B0TEST123", index=2, ext="mp4"
-        )
+        video_file = get_filename_pattern("video", asin="B0TEST123", index=2, ext="mp4")
         assert "B0TEST123" in video_file
         assert "2" in video_file
         assert video_file.endswith("mp4")
@@ -220,9 +199,9 @@ class TestConfigurationDocumentation:
 
     def test_browser_config_has_all_documented_settings(self, config_data):
         """Test that all documented browser settings are present."""
-        
-
-        browser_config = config_data.get("global_settings", {}).get("browser_config", {})
+        browser_config = config_data.get("global_settings", {}).get(
+            "browser_config", {}
+        )
 
         # Settings mentioned in documentation
         documented_settings = [
@@ -243,8 +222,6 @@ class TestConfigurationDocumentation:
 
     def test_media_config_comprehensive_settings(self, config_data):
         """Test that media config has comprehensive settings."""
-        
-
         media_config = config_data.get("global_settings", {}).get("media_config", {})
 
         comprehensive_settings = [
@@ -262,8 +239,6 @@ class TestConfigurationDocumentation:
 
     def test_validation_config_complete(self, config_data):
         """Test that validation config is complete."""
-        
-
         validation_config = config_data.get("global_settings", {}).get(
             "validation_config", {}
         )
@@ -295,10 +270,10 @@ class TestConfigurationValues:
 
     def test_timeout_values_are_positive(self, config_data):
         """Test that all timeout values are positive numbers."""
-        
-
         # Browser timeouts
-        browser_config = config_data.get("global_settings", {}).get("browser_config", {})
+        browser_config = config_data.get("global_settings", {}).get(
+            "browser_config", {}
+        )
         assert browser_config["page_load_timeout_ms"] > 0
         assert browser_config["script_execution_timeout_ms"] > 0
         assert browser_config["element_selection_timeout"] > 0
@@ -318,8 +293,6 @@ class TestConfigurationValues:
 
     def test_dimension_thresholds_are_reasonable(self, config_data):
         """Test that dimension thresholds are reasonable values."""
-        
-
         image_config = config_data.get("global_settings", {}).get("image_config", {})
 
         # Image dimensions should be reasonable (HD and above)
@@ -332,8 +305,6 @@ class TestConfigurationValues:
 
     def test_retry_config_exponential_backoff_valid(self, config_data):
         """Test that retry configuration supports valid exponential backoff."""
-        
-
         retry_config = config_data.get("global_settings", {}).get("retry_config", {})
 
         # Backoff factor should be > 1 for exponential growth
@@ -347,8 +318,6 @@ class TestConfigurationValues:
 
     def test_validation_requirements_are_logical(self, config_data):
         """Test that validation requirements are logically consistent."""
-        
-
         validation_config = config_data.get("global_settings", {}).get(
             "validation_config", {}
         )

@@ -1095,7 +1095,8 @@ def create_dynamic_browser_function(debug_mode=False):
             # Default timeout is 10 seconds for most operations
             if DEBUG_MODE:
                 logger.debug(
-                    "🔧 Using Botasaurus explicit wait pattern (no implicit wait needed)"
+                    "🔧 Using Botasaurus explicit wait pattern "
+                    "(no implicit wait needed)"
                 )
 
             return scrape_amazon_products_browser_impl(driver, data)

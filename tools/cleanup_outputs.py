@@ -23,7 +23,10 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        help="Path to video producer config file (optional, uses modular config if not provided)",
+        help=(
+            "Path to video producer config file "
+            "(optional, uses modular config if not provided)"
+        ),
     )
     parser.add_argument(
         "--dry-run",
