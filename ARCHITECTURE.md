@@ -102,7 +102,7 @@ src/
 │   │   ├── utils.py          # Shared utility functions
 │   │   ├── downloader.py     # Base download logic
 │   │   └── browser_utils.py  # Shared browser utilities
-│   ├── amazon/               # Amazon implementation (14 modules)
+│   ├── amazon/               # Amazon implementation (11 modules)
 │   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
 │   │   ├── browser_functions.py # Browser automation logic
 │   │   ├── media_extractor.py   # Image/video extraction
@@ -296,7 +296,7 @@ class BaseScraper(ABC):
 - **BaseScraper Extension**: Implements multi-platform interface
 - **Playwright Integration**: Headless browser automation with Botasaurus
 - **Stealth Techniques**: Anti-detection measures and browser fingerprinting
-- **14-Module Architecture**: Modular design for maintainability
+- **11-Module Architecture**: Modular design for maintainability
 - **Media Extraction**: High-resolution images and videos with validation
 - **Advanced Search**: Complex filtering with price, rating, brand, and shipping options
 
@@ -381,7 +381,7 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 <summary><strong>System Overview</strong></summary>
 
 **Design Principles:**
-- **Modular YAML Files**: 6 specialized files (1,047 lines total vs 1,962 original = 54% reduction)
+- **Modular YAML Files**: 6 specialized files (1,429 lines total)
 - **Triple Precedence**: CLI overrides > Environment variables > YAML defaults
 - **Zero Breaking Changes**: Existing function signatures preserved through adapters
 - **Production Ready**: Environment variable support for all settings
@@ -389,12 +389,12 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 **Configuration Files:**
 | File | Purpose | Lines | Key Sections |
 |------|---------|-------|--------------|
-| `config/core.yaml` | Global settings | ~85 | Output paths, debug, timeouts |
-| `config/video_production.yaml` | Video pipeline | ~313 | Resolution, effects, profiles |
-| `config/ai_services.yaml` | AI providers | ~187 | TTS, LLM, description generation |
-| `config/subtitles.yaml` | Subtitle system | ~123 | Positioning, styles, effects |
-| `config/performance.yaml` | Resource limits | ~179 | Memory, concurrency, optimization |
-| `config/scraper.yaml` | Web scraping | ~160 | Browser, timing, validation |
+| `config/core.yaml` | Global settings | 84 | Output paths, debug, timeouts |
+| `config/video_production.yaml` | Video pipeline | 354 | Resolution, effects, profiles |
+| `config/ai_services.yaml` | AI providers | 146 | TTS, LLM, description generation |
+| `config/subtitles.yaml` | Subtitle system | 182 | Positioning, styles, effects |
+| `config/performance.yaml` | Resource limits | 204 | Memory, concurrency, optimization |
+| `config/scraper.yaml` | Web scraping | 459 | Browser, timing, validation |
 
 **Performance Improvements:**
 - **20% faster** configuration loading
