@@ -703,7 +703,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 **Solutions:**
 1. **Reduce Request Frequency:**
    ```yaml
-   # In config/scrapers.yaml
+   # In config/scraper.yaml
    global_settings:
      delay_range: [3, 6]     # Increase delays between requests
      retries: 1              # Reduce retry attempts
@@ -760,7 +760,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 
 2. **Update Selectors:**
    - Amazon frequently changes their HTML structure
-   - Check `config/scrapers.yaml` for current selectors
+   - Check `config/scraper.yaml` for current selectors
    - Add alternative selectors as needed
 
 3. **Test on Different Pages:**
@@ -782,7 +782,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 
 2. **Adjust Timeouts:**
    ```yaml
-   # In config/scrapers.yaml
+   # In config/scraper.yaml
    global_settings:
      timeouts:
        download: 120  # Increase download timeout

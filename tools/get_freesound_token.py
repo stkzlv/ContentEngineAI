@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.video.video_config import load_video_config  # noqa: E402
+from src.video.config_adapter import load_video_config_modular  # noqa: E402
 
 
 # --- Script ---
@@ -30,8 +30,8 @@ def get_new_token():
         load_dotenv(dotenv_path=env_path)
         print(f"Loaded environment variables from: {env_path}")
 
-        config_path = project_root / "config" / "video_producer.yaml"
-        video_config = load_video_config(config_path)
+        # Load video config from modular structure
+        video_config = load_video_config_modular()
 
         client_id_var = video_config.audio_settings.freesound_client_id_env_var
         client_secret_var = video_config.audio_settings.freesound_client_secret_env_var

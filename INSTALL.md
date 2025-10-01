@@ -198,12 +198,12 @@ For downloading full-quality audio files from Freesound:
 Copy the example configuration file:
 
 ```bash
-cp config/video_producer.yaml.example config/video_producer.yaml  # If example exists
+# Modular config files are already in place in config/ directory
 ```
 
 ### Basic Configuration
 
-The default configuration in `config/video_producer.yaml` works for most use cases. Key settings to review:
+The default modular configuration files in `config/` work for most use cases. Key settings to review:
 
 - **Output directories**: Where videos and data are stored
 - **API settings**: Environment variable names for your API keys
@@ -295,7 +295,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development setup and [TESTI
 
 Once installation is complete:
 
-1. **Review Configuration**: Check `config/video_producer.yaml` settings
+1. **Review Configuration**: Check modular config files in `config/` directory
 2. **Set Up API Keys**: Configure your `.env` file with required API keys
 3. **Run First Test**: Try scraping a product or generating a test video
 4. **Read Documentation**: Check out the [main README](README.md) for usage examples

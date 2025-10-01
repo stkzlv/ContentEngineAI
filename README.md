@@ -30,14 +30,14 @@ poetry install && poetry run playwright install
 cp .env.example .env  # Configure API keys
 
 # 2. Generate a video (30 seconds to first result)
-poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random
+poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
 
 # 3. Batch process multiple products
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
 ```
 
-**📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **🚀 New Users**: [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+**📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
 
 ## 🏗️ Architecture
 
@@ -65,7 +65,6 @@ graph TD
 | Guide | Description |
 |-------|-------------|
 | **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
-| **[📦 MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)** | Zero-downtime migration to unified config system |
 | **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Complete configuration reference and options |
 | **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
 | **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
@@ -110,6 +109,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](INSTALL.md)** • **[📦 Migration Guide](MIGRATION_GUIDE.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

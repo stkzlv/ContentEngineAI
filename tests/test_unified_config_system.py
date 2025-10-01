@@ -1,6 +1,7 @@
 """Basic tests for unified configuration system."""
 
 import os
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -48,7 +49,7 @@ class TestUnifiedConfigManager:
     def test_set_nested_value(self):
         """Test setting nested configuration values."""
         manager = UnifiedConfigManager()
-        config = {}
+        config: dict[str, Any] = {}
 
         manager._set_nested_value(config, "section.subsection.key", "value")
 
@@ -57,7 +58,7 @@ class TestUnifiedConfigManager:
     def test_set_nested_value_type_conversion(self):
         """Test type conversion in nested value setting."""
         manager = UnifiedConfigManager()
-        config = {}
+        config: dict[str, Any] = {}
 
         # Test boolean conversion
         manager._set_nested_value(config, "bool_true", "true")
@@ -107,7 +108,7 @@ class TestEnvironmentVariableOverrides:
     def test_env_override_api_keys(self):
         """Test API key environment variables."""
         manager = UnifiedConfigManager()
-        config = {}
+        config: dict[str, Any] = {}
 
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}):
             manager._apply_env_overrides(config)
@@ -132,7 +133,7 @@ class TestCLIOverrides:
     def test_cli_override_output_dir(self):
         """Test output_dir CLI override."""
         manager = UnifiedConfigManager()
-        config = {}
+        config: dict[str, Any] = {}
         cli_overrides = {"output_dir": "/custom/output"}
 
         manager._apply_cli_overrides(config, cli_overrides)

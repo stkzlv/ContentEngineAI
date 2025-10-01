@@ -158,6 +158,9 @@ amazon_settings:
 
 ## Core Configuration Sections
 
+<details>
+<summary><strong>1. Global Settings</strong></summary>
+
 ### 1. Global Settings
 
 ```yaml
@@ -177,6 +180,11 @@ inter_product_delay_range: [30, 60]  # Random delay in seconds
 - `logging_level`: Controls verbosity of logging output
 - `debug_mode`: Enables detailed tracing and intermediate file retention
 - `inter_product_delay_range`: Random delay between processing multiple products
+
+</details>
+
+<details>
+<summary><strong>2. Output Directory Structure</strong></summary>
 
 ### 2. Output Directory Structure
 
@@ -268,6 +276,11 @@ outputs/
 - `{timestamp}`: Current timestamp
 - `{ext}`: File extension
 
+</details>
+
+<details>
+<summary><strong>3. Video Settings</strong></summary>
+
 ### 3. Video Settings
 
 ```yaml
@@ -296,6 +309,11 @@ video_settings:
   video_duration_tolerance_sec: 2    # Acceptable duration variance
 ```
 
+</details>
+
+<details>
+<summary><strong>4. Audio Settings</strong></summary>
+
 ### 4. Audio Settings
 
 ```yaml
@@ -314,6 +332,11 @@ audio_settings:
   music_fade_in_sec: 2               # Music fade-in duration
   music_fade_out_sec: 3              # Music fade-out duration
 ```
+
+</details>
+
+<details>
+<summary><strong>5. Subtitle Settings (Unified System)</strong></summary>
 
 ### 5. Subtitle Settings (Unified System)
 
@@ -368,6 +391,11 @@ subtitle_settings:
 - **`bold`**: High contrast, bold styling with fade effects for attention-grabbing content
 - **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect
 
+</details>
+
+<details>
+<summary><strong>6. TTS (Text-to-Speech) Configuration</strong></summary>
+
 ### 6. TTS (Text-to-Speech) Configuration
 
 ```yaml
@@ -405,6 +433,11 @@ tts_config:
     timeout_sec: 60
 ```
 
+</details>
+
+<details>
+<summary><strong>7. LLM Settings</strong></summary>
+
 ### 7. LLM Settings
 
 ```yaml
@@ -432,6 +465,11 @@ llm_settings:
   max_retries: 3
 ```
 
+</details>
+
+<details>
+<summary><strong>8. Stock Media Settings</strong></summary>
+
 ### 8. Stock Media Settings
 
 ```yaml
@@ -453,6 +491,11 @@ stock_media_settings:
     min_width: 1080                  # Minimum image width
     min_height: 1920                 # Minimum image height
 ```
+
+</details>
+
+<details>
+<summary><strong>9. Freesound Audio Settings</strong></summary>
 
 ### 9. Freesound Audio Settings
 
@@ -477,6 +520,11 @@ freesound_settings:
   local_fallback_dir: "assets/music"
   use_local_fallback: true
 ```
+
+</details>
+
+<details>
+<summary><strong>10. Speech-to-Text Settings</strong></summary>
 
 ### 10. Speech-to-Text Settings
 
@@ -503,6 +551,11 @@ google_cloud_stt_settings:
   use_enhanced: true
 ```
 
+</details>
+
+<details>
+<summary><strong>11. FFmpeg Settings</strong></summary>
+
 ### 11. FFmpeg Settings
 
 ```yaml
@@ -510,28 +563,30 @@ ffmpeg_settings:
   # Executable configuration
   ffmpeg_path: "ffmpeg"              # Path to FFmpeg executable
   ffprobe_path: "ffprobe"            # Path to FFprobe executable
-  
+
   # I/O timeout prevention
   rw_timeout_microseconds: 30000000  # 30 seconds timeout for file operations
-  
+
   # Filter options
   enable_zoompan: false              # Enable zoom/pan effect on images
   zoompan_duration: 1.0              # Zoom effect duration
-  
+
   # Debug options
   save_command: true                 # Save FFmpeg command to log file
   show_debug_info: false             # Show debug overlay on video
-  
+
   # Verification settings
   verify_streams: true               # Verify video/audio streams exist
   verify_duration: true              # Check final video duration
   verify_subtitles: true             # Verify subtitle content
 ```
 
-### 12. Video Profiles with Per-Profile Settings
+</details>
 
 <details>
-<summary>Video Profile Configuration</summary>
+<summary><strong>12. Video Profiles with Per-Profile Settings</strong></summary>
+
+### 12. Video Profiles with Per-Profile Settings
 
 Video profiles define different strategies for media selection and support per-profile overrides for all visual settings. Each profile can customize image positioning, subtitle styling, and other visual parameters independently.
 
@@ -739,8 +794,8 @@ The system uses Pydantic models for validation:
 ```python
 # Check configuration validity
 poetry run python -c "
-from src.video.video_config import load_config
-config = load_config('config/video_producer.yaml')
+from src.video.config_adapter import load_video_config_modular
+config = load_video_config_modular()
 print('✓ Configuration is valid')
 "
 ```
@@ -753,7 +808,7 @@ Common validation errors:
 
 ## Scraper Configuration
 
-ContentEngineAI includes an Amazon product scraper with advanced filtering capabilities. The scraper configuration is managed in `config/scrapers.yaml`.
+ContentEngineAI includes an Amazon product scraper with advanced filtering capabilities. The scraper configuration is managed in `config/scraper.yaml`.
 
 ### Basic Scraper Settings
 
@@ -836,7 +891,7 @@ poetry run python -m src.scraper.amazon.scraper \
 
 ### Scraper Selectors
 
-The scraper uses CSS selectors to extract product information. These are configured in `scrapers.yaml`:
+The scraper uses CSS selectors to extract product information. These are configured in `scraper.yaml`:
 
 ```yaml
 selectors:
@@ -977,7 +1032,7 @@ Common issues and solutions:
 **Configuration Won't Load:**
 ```bash
 # Check YAML syntax
-poetry run python -c "import yaml; yaml.safe_load(open('config/video_producer.yaml'))"
+poetry run python -c "from src.video.config_adapter import load_video_config_modular; load_video_config_modular()"
 ```
 
 **Environment Variables Not Found:**

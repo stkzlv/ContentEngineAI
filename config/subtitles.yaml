@@ -121,3 +121,63 @@ tts_config:
   coqui:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null
+
+# ============================================================================
+# SUBTITLE EFFECTS (ASS Format Animations)
+# ============================================================================
+subtitle_effects:
+  # Karaoke timing parameters
+  karaoke_timing_min_ms: 20
+  karaoke_timing_max_ms: 200
+
+  # Animation duration factors (multiplied by segment duration)
+  pulse_duration_factor: 500
+  bounce_duration_factor: 300
+  glow_duration_factor: 400
+
+  # Scale effect parameters
+  pulse_scale_max: 110
+  pulse_scale_normal: 100
+
+# ============================================================================
+# TEXT RENDERING SETTINGS
+# ============================================================================
+text_rendering:
+  # Character width estimation factors
+  narrow_char_width_factor: 0.4
+  wide_char_width_factor: 1.2
+  space_char_width_factor: 0.3
+
+  # Text layout parameters
+  max_text_width_percent: 0.95
+  default_margin_fraction: 0.1
+  default_font_size_scale: 1.0
+  max_chars_per_line: 38
+
+  # Subtitle duration limits
+  max_subtitle_duration_sec: 4.5
+  min_subtitle_duration_sec: 0.4
+
+  # Safe positioning boundaries (fractions of frame)
+  min_safe_y_position: 0.05
+  max_safe_y_position: 0.95
+  center_position_fraction: 0.5
+  left_position_fraction: 0.1
+  right_position_fraction: 0.9
+
+  # Font size boundaries
+  base_font_size_percent: 0.04
+  min_font_size: 16
+  max_font_size: 100
+
+# ============================================================================
+# SUBTITLE SEGMENTATION
+# ============================================================================
+subtitle_segmentation:
+  # Word count thresholds
+  min_words_for_sentence_break: 3
+  min_words_natural_break: 3
+  min_words_duration_limit: 3
+
+  # Fallback timing
+  fallback_segment_duration_sec: 2.5

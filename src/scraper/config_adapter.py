@@ -23,22 +23,76 @@ class ScraperConfigAdapter:
         self.config_root = Path(config_root)
         self._merged_config: dict[str, Any] | None = None
 
+    def _get_minimal_config_fallback(self) -> dict[str, Any]:
+        """Provide minimal configuration fallback when files can't be loaded."""
+        return {
+            "global_settings": {
+                "debug_mode": True,
+                "output_config": {
+                    "base_directory": "outputs",
+                    "file_patterns": {
+                        "product_file": "{keyword}_products.json",
+                        "image_file": "{asin}_image_{index}.{ext}",
+                        "video_file": "{asin}_video_{index}.{ext}",
+                    },
+                },
+                "retry_config": {
+                    "default_max_retries": 3,
+                    "base_delay": 1.0,
+                    "max_delay": 60.0,
+                    "backoff_factor": 2.0,
+                },
+                "browser_config": {
+                    "max_products_per_search": 5,
+                    "search_result_timeout": 10,
+                },
+            },
+            "scrapers": {
+                "amazon": {
+                    "enabled": True,
+                    "base_url": "https://www.amazon.com",
+                    "max_products": 3,
+                    "keywords": [],
+                    "default_search_parameters": {
+                        "prime_only": False,
+                        "sort_order": "relevanceblender",
+                    },
+                }
+            },
+        }
+
     def _load_yaml_file(self, file_path: Path) -> dict[str, Any]:
-        """Load a YAML file and return its contents."""
+        """Load a YAML file and return its contents with enhanced fallback."""
         try:
             if file_path.exists():
                 with open(file_path, encoding="utf-8") as f:
                     content = yaml.safe_load(f)
-                    return content if isinstance(content, dict) else {}
+                    if isinstance(content, dict):
+                        logger.debug(f"Successfully loaded config from {file_path}")
+                        return content
+                    else:
+                        logger.warning(
+                            f"Config file {file_path} contains invalid format, "
+                            "using fallback"
+                        )
+                        return self._get_minimal_config_fallback()
             else:
-                logger.warning(f"Scraper config file not found: {file_path}")
-                return {}
+                logger.warning(
+                    f"Scraper config file not found: {file_path}, using fallback"
+                )
+                return self._get_minimal_config_fallback()
+        except yaml.YAMLError as e:
+            logger.error(f"YAML parsing error in {file_path}: {e}, using fallback")
+            return self._get_minimal_config_fallback()
         except Exception as e:
-            logger.error(f"Error loading scraper config file {file_path}: {e}")
-            return {}
+            logger.error(
+                f"Unexpected error loading scraper config file {file_path}: {e}, "
+                "using fallback"
+            )
+            return self._get_minimal_config_fallback()
 
     def _merge_scraper_configs(self) -> dict[str, Any]:
-        """Load consolidated scraper config file."""
+        """Load consolidated scraper config file with enhanced fallback."""
         if self._merged_config is not None:
             return self._merged_config.copy()
 
@@ -47,12 +101,17 @@ class ScraperConfigAdapter:
 
         if not merged:
             logger.warning(
-                "Consolidated scraper config not found, creating minimal structure"
+                "Consolidated scraper config not found, "
+                "using minimal fallback structure"
             )
-            merged = {}
+            merged = self._get_minimal_config_fallback()
 
         # Ensure required structure exists for backward compatibility
-        self._ensure_required_structure(merged)
+        try:
+            self._ensure_required_structure(merged)
+        except Exception as e:
+            logger.error(f"Failed to ensure config structure: {e}, using fallback")
+            merged = self._get_minimal_config_fallback()
 
         self._merged_config = merged
         return merged
@@ -108,14 +167,11 @@ class ScraperConfigAdapter:
 def load_scraper_config_modular(
     config_path: str = None, cli_overrides: dict[str, Any] = None
 ) -> dict[str, Any]:
-    """Load scraper configuration using modular structure with backward compatibility.
-
-    This function maintains the same interface as the original CONFIG loading
-    but sources data from modular config files when available.
+    """Load scraper configuration from modular structure.
 
     Args:
     ----
-        config_path: Path to config file (for backward compatibility)
+        config_path: Deprecated (kept for API compatibility, ignored)
         cli_overrides: CLI arguments to apply with precedence
 
     Returns:
@@ -123,74 +179,15 @@ def load_scraper_config_modular(
         Configuration dictionary with all precedence rules applied
 
     """
-    # Try to load from modular structure first
-    try:
-        # Use unified config manager for precedence handling
-        from src.config_manager import get_unified_config_manager
+    # Load from modular structure using unified config manager
+    from src.config_manager import get_unified_config_manager
 
-        manager = get_unified_config_manager()
-        merged_config = manager.get_scraper_config(cli_overrides)
+    manager = get_unified_config_manager()
+    merged_config = manager.get_scraper_config(cli_overrides)
 
-        if merged_config:
-            logger.info(
-                "Loading scraper config from modular structure with precedence rules"
-            )
-            return merged_config
-
-    except Exception as e:
-        logger.warning(
-            f"Failed to load modular scraper config, falling back to monolithic: {e}"
-        )
-
-    # Fallback to original monolithic loading
-    if config_path is None:
-        config_path = "config/scrapers.yaml"
-
-    logger.info(f"Loading scraper config from monolithic file: {config_path}")
-
-    try:
-        # Load the monolithic file directly
-        config_file = Path(config_path)
-        if not config_file.exists():
-            # Try relative to project root
-            project_root = Path(__file__).parent.parent.parent
-            config_file = project_root / config_path
-
-        if config_file.exists():
-            with open(config_file, encoding="utf-8") as f:
-                result = yaml.safe_load(f)
-                return result if isinstance(result, dict) else {}
-        else:
-            logger.error(
-                f"Neither modular nor monolithic scraper config found: {config_path}"
-            )
-            return {}
-
-    except Exception as e:
-        logger.error(f"Error loading monolithic scraper config: {e}")
-        return {}
+    logger.info("Loading scraper config from modular structure with precedence rules")
+    return merged_config
 
 
-def install_scraper_config_adapter():
-    """Install the scraper config adapter to replace original CONFIG loading."""
-    try:
-        # Update the global CONFIG in amazon.config module
-        import src.scraper.amazon.config as amazon_config_module
-
-        # Load using our adapter with precedence rules
-        new_config = load_scraper_config_modular()
-
-        # Update the global CONFIG dictionary
-        if hasattr(amazon_config_module, "CONFIG"):
-            amazon_config_module.CONFIG.clear()
-            amazon_config_module.CONFIG.update(new_config)
-            logger.info("Scraper config adapter installed successfully")
-        else:
-            logger.warning("Amazon config module CONFIG not found")
-
-    except Exception as e:
-        logger.error(f"Failed to install scraper config adapter: {e}")
-
-
-# Note: Auto-installation removed to prevent import-time side effects
-# Adapters should be explicitly installed when needed
+# Alias for backward compatibility
+load_scraper_config = load_scraper_config_modular

@@ -179,7 +179,7 @@ poetry run pytest tests/test_specific.py  # Run specific test file
 - `src/utils/`: Shared utilities and performance optimization
 
 ### Configuration
-- All settings controlled via `config/video_producer.yaml`
+- All settings controlled via modular config files in `config/` directory
 - Pydantic models in `src/video/video_config.py` for validation
 - Environment variables for sensitive information
 
@@ -215,7 +215,7 @@ class EbayScraper(BaseScraper):
 - Extend `BaseScraper` abstract interface
 - Auto-register with `@register_scraper` decorator
 - Create modular platform-specific package structure
-- Add platform configuration in `config/scrapers.yaml`
+- Add platform configuration in `config/scraper.yaml`
 
 ### Performance Optimization
 

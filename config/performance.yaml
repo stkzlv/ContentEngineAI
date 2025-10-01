@@ -159,21 +159,47 @@ monitoring:
     enabled: true
     log_slow_operations: true
     slow_operation_threshold_sec: 5
-    
+
   # Memory monitoring
   memory:
     enabled: true
     log_high_usage: true
     high_usage_threshold: 0.85
-    
+
   # API monitoring
   api:
     enabled: true
     log_response_times: true
     log_rate_limits: true
-    
+
   # Error tracking
   errors:
     enabled: true
     max_error_logs: 1000
     error_summary_interval: 3600  # 1 hour
+
+# ============================================================================
+# DEBUG SETTINGS
+# ============================================================================
+debug_settings:
+  # Logging configuration
+  max_log_line_length: 200
+  debug_file_retention_days: 7
+
+  # File cleanup behavior
+  intermediate_file_cleanup: true
+  cleanup_on_success: false
+  retain_temp_files: false
+  cleanup_whisper_files: false
+
+  # Debug file generation controls
+  create_media_validation_reports: true
+  create_ffmpeg_command_logs: true
+  create_pipeline_metadata: true
+  create_performance_metrics: true
+  create_whisper_debug_files: true
+  create_temp_files: true
+
+  # Performance thresholds
+  operation_timing_threshold_sec: 5.0
+  memory_usage_warning_mb: 1000

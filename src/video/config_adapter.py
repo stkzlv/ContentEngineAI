@@ -170,15 +170,11 @@ class ModularConfigAdapter:
 def load_video_config_modular(
     config_path: str = None, cli_overrides: dict[str, Any] = None
 ) -> VideoConfig:
-    """Load video configuration using modular structure with backward compatibility.
-
-    This function provides the same interface as the original load_video_config
-    but sources data from modular config files when available, falling back
-    to the monolithic file if modular configs are not found.
+    """Load video configuration from modular structure.
 
     Args:
     ----
-        config_path: Path to config file (for backward compatibility)
+        config_path: Deprecated (kept for API compatibility, ignored)
         cli_overrides: CLI arguments to apply with precedence
 
     Returns:
@@ -186,57 +182,20 @@ def load_video_config_modular(
         VideoConfig instance with all precedence rules applied
 
     """
-    # Try to load from modular structure first
-    try:
-        # Use unified config manager for precedence handling
-        from src.config_manager import get_unified_config_manager
+    # Load from modular structure using unified config manager
+    from src.config_manager import get_unified_config_manager
 
-        manager = get_unified_config_manager()
-        merged_config = manager.get_video_config(cli_overrides)
+    manager = get_unified_config_manager()
+    merged_config = manager.get_video_config(cli_overrides)
 
-        if merged_config:
-            logger.info(
-                "Loading video config from modular structure with precedence rules"
-            )
-            # Create a temporary YAML string and parse it through existing VideoConfig
-            # This ensures all Pydantic validation still works
-            temp_yaml = yaml.dump(merged_config)
-            temp_config = yaml.safe_load(temp_yaml)
-            return VideoConfig(**temp_config)
+    logger.info("Loading video config from modular structure with precedence rules")
 
-    except Exception as e:
-        logger.warning(
-            f"Failed to load modular config, falling back to monolithic: {e}"
-        )
-
-    # Fallback to original monolithic loading
-    if config_path is None:
-        config_path = "config/video_producer.yaml"
-
-    logger.info(f"Loading video config from monolithic file: {config_path}")
-
-    # Import original loading function
-    from src.video.video_config import load_video_config as original_load_video_config
-
-    return original_load_video_config(Path(config_path))
+    # Create a temporary YAML string and parse it through existing VideoConfig
+    # This ensures all Pydantic validation still works
+    temp_yaml = yaml.dump(merged_config)
+    temp_config = yaml.safe_load(temp_yaml)
+    return VideoConfig(**temp_config)
 
 
-# Replace the original function with our backward-compatible version
-def install_modular_config_adapter():
-    """Install the modular config adapter to replace original loading function."""
-    import src.video.video_config as video_config_module
-
-    # Store original function for fallback
-    if not hasattr(video_config_module, "_original_load_video_config"):
-        video_config_module._original_load_video_config = (  # type: ignore
-            video_config_module.load_video_config
-        )
-
-    # Create a wrapper that matches the original signature
-    def load_video_config_wrapper(config_path: Path) -> VideoConfig:
-        return load_video_config_modular(str(config_path))
-
-    # Replace with our backward-compatible version
-    video_config_module.load_video_config = load_video_config_wrapper
-
-    logger.info("Modular config adapter installed successfully")
+# Alias for backward compatibility
+load_video_config = load_video_config_modular

@@ -36,152 +36,111 @@ llm_settings:
   temperature: 0.7
   
   # Request timeout in seconds
-  timeout_seconds: 30
+  timeout_seconds: 90
+
+  # Retry configuration
+  retry_attempts: 3
+  retry_min_wait_sec: 2
+  retry_max_wait_sec: 30
 
 # ============================================================================
 # TTS CONFIGURATION
 # ============================================================================
 tts_config:
-  # TTS provider ("openai" or "elevenlabs")
-  provider: "openai"
-  
-  # OpenAI TTS settings
-  openai:
-    api_key_env_var: "OPENAI_API_KEY"
-    model: "tts-1"
-    voice: "alloy"
-    response_format: "wav"
-    speed: 1.0
-  
-  # ElevenLabs TTS settings
-  elevenlabs:
-    api_key_env_var: "ELEVENLABS_API_KEY"
-    voice_id: "21m00Tcm4TlvDq8ikWAM"
-    model_id: "eleven_monolingual_v1"
-    voice_settings:
-      stability: 0.5
-      similarity_boost: 0.5
-  
-  # Audio processing settings
-  audio_processing:
-    normalize_volume: true
-    target_db: -20.0
-    fade_in_ms: 100
-    fade_out_ms: 200
+  # Order of TTS providers to try (first to last)
+  provider_order: ["google_cloud", "coqui"]
+
+  google_cloud:
+    model_name: "en-US-Chirp3-HD"
+    language_code: "en-US"
+    voice_selection_criteria:
+      - language_code: "en-US"
+        ssml_gender: "NEUTRAL"
+    audio_config:
+      audio_encoding: "MP3"
+      sample_rate_hertz: 24000
+    speaking_rate: 1.0
+    pitch: 0.0
+    volume_gain_db: 0.0
+
+  coqui:
+    model_name: "tts_models/en/ek1/tacotron2"
+    enabled: true
 
 # ============================================================================
 # DESCRIPTION SETTINGS
 # ============================================================================
 description_settings:
-  # Enable automatic description generation
   enabled: true
-  
-  # LLM model for descriptions (uses llm_settings if not specified)
-  model_override: null
-  
-  # Description generation prompts
-  prompts:
-    # Main description prompt template
-    description_template: "src/ai/prompts/description_template.md"
-    
-    # Platform-specific customizations
-    platform_customizations:
-      youtube:
-        max_length: 5000
-        include_hashtags: true
-        include_timestamps: false
-      instagram:
-        max_length: 2200
-        include_hashtags: true
-        include_emojis: true
-      tiktok:
-        max_length: 2200
-        include_hashtags: true
-        trending_focus: true
-  
-  # Content guidelines
-  content_guidelines:
-    tone: "engaging and informative"
-    call_to_action: true
-    product_benefits_focus: true
-    avoid_superlatives: false
+  prompt_template_path: "src/ai/prompts/video_description.md"
+  target_platforms: ["tiktok", "youtube", "instagram"]
+  max_tokens: 200
 
 # ============================================================================
 # WHISPER SETTINGS (Speech-to-Text)
 # ============================================================================
 whisper_settings:
-  # Whisper model size ("tiny", "base", "small", "medium", "large")
-  model_size: "base"
-  
-  # Language for transcription ("auto" for auto-detection)
-  language: "auto"
-  
-  # Task type ("transcribe" or "translate")
+  # Whether Whisper is available for subtitle generation
+  enabled: true
+
+  # Whisper model size balancing accuracy vs speed/memory
+  # "tiny" = fastest, least accurate, "small" = balanced
+  # "medium" = better accuracy, "large" = best accuracy, slowest
+  model_size: "small"
+
+  # Device for Whisper processing
+  # "cpu" = use CPU (compatible), "cuda" = use GPU (faster if available)
+  model_device: "cpu"
+
+  # Whether to keep model in memory between uses
+  model_in_memory: false
+
+  # Directory for downloading Whisper models
+  # Empty = use default cache directory (~/.cache/whisper)
+  model_download_root: ""
+
+  # Temperature for Whisper transcription (0.0 to 1.0)
+  temperature: 0.0
+
+  # Language code for transcription
+  language: "en"
+
+  # Beam size for Whisper search algorithm
+  beam_size: 5
+
+  # Whether to use 16-bit floating point precision
+  fp16: false
+
+  # Threshold for compression ratio to detect repetitive text
+  compression_ratio_threshold: 2.4
+
+  # Threshold for log probability to filter low-confidence words
+  logprob_threshold: -1.0
+
+  # Threshold for detecting silence vs speech
+  # Lowered from 0.5 to 0.2 to capture speech with background noise
+  no_speech_threshold: 0.2
+
+  # Whether to use previous text context for better accuracy
+  condition_on_previous_text: true
+
+  # Whisper task type: "transcribe" or "translate"
   task: "transcribe"
-  
-  # Enable voice activity detection
-  vad_enabled: true
-  
-  # Audio preprocessing
-  preprocessing:
-    normalize_audio: true
-    remove_silence: true
-    noise_reduction: false
-  
-  # Output settings
-  output:
-    format: "srt"
-    include_timestamps: true
-    word_level_timestamps: false
 
-# ============================================================================
-# GOOGLE CLOUD STT SETTINGS
-# ============================================================================
-google_cloud_stt_settings:
-  # Enable Google Cloud STT (alternative to Whisper)
-  enabled: false
-  
-  # Environment variable containing service account key path
-  credentials_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
-  
-  # Recognition configuration
-  config:
-    language_code: "en-US"
-    sample_rate_hertz: 44100
-    encoding: "LINEAR16"
-    
-    # Enhanced models
-    use_enhanced: true
-    model: "video"
-    
-    # Profanity filter
-    profanity_filter: false
-    
-    # Automatic punctuation
-    enable_automatic_punctuation: true
+  # Patience parameter for beam search (null = auto)
+  patience: null
 
-# ============================================================================
-# TEXT PROCESSING
-# ============================================================================
-text_processing:
-  # Maximum text length for script generation
-  max_script_length: 500
-  
-  # Text cleaning settings
-  cleaning:
-    remove_extra_whitespace: true
-    normalize_quotes: true
-    remove_special_chars: false
-    
-  # Content filtering
-  content_filter:
-    enabled: true
-    blocked_words: ["spam", "scam", "fake"]
-    min_word_count: 10
-    max_word_count: 200
-    
-  # Language detection
-  language_detection:
-    enabled: true
-    default_language: "en"
-    confidence_threshold: 0.8
+  # Timeout settings for Whisper processing
+  base_timeout_sec: 120
+  duration_multiplier: 3.0
+  max_timeout_sec: 600
+
+  # Progress monitoring interval in seconds
+  progress_monitor_interval_sec: 30
+
+  # Enable detailed resource monitoring during transcription
+  enable_resource_monitoring: true
+
+  # Enable automatic resource cleanup after processing
+  enable_resource_cleanup: true
+

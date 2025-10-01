@@ -11,28 +11,18 @@ from pathlib import Path
 from typing import Any
 
 from src.config_manager import get_unified_config_manager
-from src.scraper.config_adapter import install_scraper_config_adapter
-from src.video.config_adapter import install_modular_config_adapter
 
 logger = logging.getLogger(__name__)
 
 
 def install_unified_config_adapters():
-    """Install both video and scraper config adapters for backward compatibility."""
-    try:
-        # Install video config adapter
-        install_modular_config_adapter()
-        logger.info("✅ Video config adapter installed")
+    """Install both video and scraper config adapters for backward compatibility.
 
-        # Install scraper config adapter
-        install_scraper_config_adapter()
-        logger.info("✅ Scraper config adapter installed")
-
-        logger.info("✅ Unified configuration system activated")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Failed to install config adapters: {e}")
-        return False
+    Note: No longer needed as adapters are built-in to modular config system.
+    This function is maintained for backward compatibility only.
+    """
+    logger.info("✅ Unified configuration system activated (adapters built-in)")
+    return True
 
 
 def get_video_config_with_cli(cli_args: dict[str, Any] = None):

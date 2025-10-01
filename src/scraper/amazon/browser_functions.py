@@ -20,6 +20,9 @@ from .media_extractor import (
 from .search_builder import SearchParameterBuilder
 from .utils import detect_monitors, get_optimal_browser_position
 
+# Module-level logger for browser functions
+logger = logging.getLogger(__name__)
+
 
 def scrape_amazon_products_browser_impl(
     driver: Driver, data: dict[str, Any]
@@ -958,25 +961,27 @@ def create_dynamic_browser_function(debug_mode=False):
         os.environ["DISPLAY"] = ":0"  # Force main display
 
         # Auto-detect multi-monitor setup and calculate optimal position
-        print("🔍 [DEBUG] Auto-discovering multi-monitor setup...")
+        logger.info("🔍 Auto-discovering multi-monitor setup...")
         monitors = detect_monitors()
         browser_x, browser_y, browser_width, browser_height = (
             get_optimal_browser_position(monitors)
         )
 
         # Log monitor discovery results
-        print(f"🖥️ [DEBUG] Detected {len(monitors)} monitor(s):")
+        logger.info(f"🖥️ Detected {len(monitors)} monitor(s)")
         for i, monitor in enumerate(monitors):
             primary_str = " (PRIMARY)" if monitor.get("primary") else ""
-            print(
-                f"   Monitor {i+1}: {monitor['width']}x{monitor['height']} at "
+            monitor_info = (
+                f"Monitor {i+1}: {monitor['width']}x{monitor['height']} at "
                 f"+{monitor['x']}+{monitor['y']}{primary_str}"
             )
+            logger.info(f"   {monitor_info}")
 
-        print(
-            f"🎯 [DEBUG] Browser maximized on primary monitor: {browser_x},"
+        position_info = (
+            f"Browser maximized on primary monitor: {browser_x},"
             f"{browser_y} size: {browser_width}x{browser_height}"
         )
+        logger.info(f"🎯 {position_info}")
 
         # Configure Chrome arguments with optimal positioning and stable flags
         chrome_args = current_config.get("add_arguments", [])
@@ -1022,14 +1027,13 @@ def create_dynamic_browser_function(debug_mode=False):
         # Force environment to use main display
         os.environ["DISPLAY"] = ":0.0"  # Use the full display specification
 
-        print(
-            "👁️ [DEBUG] Debug mode enabled - browser window will be visible "
-            "on your screen"
+        logger.info(
+            "👁️ Debug mode enabled - browser window will be visible on your screen"
         )
-        print(f"🖥️ [DEBUG] Using display: {os.environ.get('DISPLAY')}")
-        print("🔧 [DEBUG] Virtual display disabled: enable_xvfb_virtual_display=False")
-        print(
-            f"🖼️ [DEBUG] Maximized positioning: --window-position={browser_x},"
+        logger.info(f"🖥️ Using display: {os.environ.get('DISPLAY')}")
+        logger.info("🔧 Virtual display disabled: enable_xvfb_virtual_display=False")
+        logger.info(
+            f"🖼️ Maximized positioning: --window-position={browser_x},"
             f"{browser_y} --window-size={browser_width},{browser_height}"
         )
 
@@ -1039,12 +1043,12 @@ def create_dynamic_browser_function(debug_mode=False):
     has_display = os.environ.get("DISPLAY") is not None
 
     if DEBUG_MODE:
-        print("🔍 [ENV DEBUG] Environment detection:")
-        print(f"   • Platform: {platform.system()}")
-        print(f"   • Is Docker: {is_docker}")
-        print(f"   • Is CI: {is_ci}")
-        print(f"   • Has DISPLAY: {has_display}")
-        print(f"   • DISPLAY value: {os.environ.get('DISPLAY', 'Not set')}")
+        logger.info("🔍 Environment detection:")
+        logger.info(f"   • Platform: {platform.system()}")
+        logger.info(f"   • Is Docker: {is_docker}")
+        logger.info(f"   • Is CI: {is_ci}")
+        logger.info(f"   • Has DISPLAY: {has_display}")
+        logger.info(f"   • DISPLAY value: {os.environ.get('DISPLAY', 'Not set')}")
 
     # Force update debug-related settings with current DEBUG_MODE
     current_config.update(
@@ -1065,10 +1069,16 @@ def create_dynamic_browser_function(debug_mode=False):
     # Add timeout configuration to prevent hanging (via Chrome args)
     chrome_args = current_config.get("add_arguments", [])
     if not any("--timeout" in arg for arg in chrome_args):
+        # Get timeouts from configuration
+        global_settings = CONFIG.get("global_settings", {})
+        browser_config = global_settings.get("browser_config", {})
+        page_timeout = browser_config.get("page_load_timeout_ms", 60000)
+        script_timeout = browser_config.get("script_execution_timeout_ms", 30000)
+
         chrome_args.extend(
             [
-                "--timeout=60000",  # 60 second timeout
-                "--script-timeout=30000",  # 30 second script timeout
+                f"--timeout={page_timeout}",
+                f"--script-timeout={script_timeout}",
             ]
         )
     current_config["add_arguments"] = chrome_args
@@ -1084,9 +1094,8 @@ def create_dynamic_browser_function(debug_mode=False):
             # parameters
             # Default timeout is 10 seconds for most operations
             if DEBUG_MODE:
-                print(
-                    "🔧 [DEBUG] Using Botasaurus explicit wait pattern "
-                    "(no implicit wait needed)"
+                logger.debug(
+                    "🔧 Using Botasaurus explicit wait pattern (no implicit wait needed)"
                 )
 
             return scrape_amazon_products_browser_impl(driver, data)

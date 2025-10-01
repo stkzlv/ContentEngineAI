@@ -35,7 +35,6 @@ poetry run python tools/performance_report.py --report-type summary
 - **Never mention Claude Code or AI tools in git commit messages**
 - Document project status in relevant documentation files
 - Create implementation plans for features/fixes before coding
-- Test scraper with: `poetry run python -m src.scraper.amazon.scraper --debug --clean`
 
 ## Development Workflow (GitHub Flow)
 

@@ -57,14 +57,6 @@ class UnifiedConfigManager:
             # Debug mode override
             "DEBUG_MODE": ["debug_mode", "global_settings.debug_mode"],
             "CONTENT_ENGINE_DEBUG": ["debug_mode", "global_settings.debug_mode"],
-            # API keys
-            "OPENROUTER_API_KEY": ["llm_settings.api_key_env_var"],
-            "OPENAI_API_KEY": ["tts_config.openai.api_key_env_var"],
-            "ELEVENLABS_API_KEY": ["tts_config.elevenlabs.api_key_env_var"],
-            "FREESOUND_API_KEY": ["stock_media_settings.freesound.api_key_env_var"],
-            "GOOGLE_APPLICATION_CREDENTIALS": [
-                "google_cloud_stt_settings.credentials_env_var"
-            ],
             # Output directory override
             "CONTENT_ENGINE_OUTPUT": ["global_output_directory"],
             "OUTPUTS_DIR": [
@@ -131,17 +123,111 @@ class UnifiedConfigManager:
 
         current[final_key] = value
 
+    def _get_video_fallback_config(
+        self, cli_overrides: dict[str, Any] = None
+    ) -> dict[str, Any]:
+        """Provide minimal fallback video configuration."""
+        fallback_config = {
+            "debug_mode": True,
+            "global_output_directory": "outputs",
+            "pipeline_timeout_sec": 300,
+            "audio_settings": {
+                "bitrate": "192k",
+                "sample_rate": 48000,
+                "channels": 2,
+            },
+            "video_settings": {
+                "resolution": {"width": 1920, "height": 1080},
+                "framerate": 30,
+                "bitrate": "5M",
+            },
+            "subtitle_settings": {
+                "enabled": True,
+                "font_family": "Arial",
+                "font_size": 48,
+            },
+            "ffmpeg_settings": {
+                "encoding": {
+                    "preset": "medium",
+                    "crf": 23,
+                    "threads": 0,
+                }
+            },
+            "cleanup": {
+                "remove_temp_on_success": True,
+                "remove_temp_on_failure": False,
+            },
+        }
+        return self.apply_precedence_rules(fallback_config, cli_overrides)
+
+    def _get_scraper_fallback_config(
+        self, cli_overrides: dict[str, Any] = None
+    ) -> dict[str, Any]:
+        """Provide minimal fallback scraper configuration."""
+        fallback_config = {
+            "global_settings": {
+                "debug_mode": True,
+                "output_config": {
+                    "base_directory": "outputs",
+                    "file_patterns": {
+                        "product_file": "{keyword}_products.json",
+                        "image_file": "{asin}_image_{index}.{ext}",
+                        "video_file": "{asin}_video_{index}.{ext}",
+                    },
+                },
+                "retry_config": {
+                    "default_max_retries": 3,
+                    "base_delay": 1.0,
+                    "max_delay": 60.0,
+                    "backoff_factor": 2.0,
+                    "use_jitter": True,
+                    "jitter_factor": 0.5,
+                },
+                "browser_config": {
+                    "max_products_per_search": 5,
+                    "search_result_timeout": 10,
+                },
+            },
+            "scrapers": {
+                "amazon": {
+                    "enabled": True,
+                    "base_url": "https://www.amazon.com",
+                    "max_products": 3,
+                    "keywords": [],
+                    "default_search_parameters": {
+                        "min_price": None,
+                        "max_price": None,
+                        "min_rating": None,
+                        "prime_only": False,
+                        "free_shipping": False,
+                        "brands": [],
+                        "sort_order": "relevanceblender",
+                        "category": None,
+                    },
+                }
+            },
+        }
+        return self.apply_precedence_rules(fallback_config, cli_overrides)
+
     def get_video_config(self, cli_overrides: dict[str, Any] = None) -> dict[str, Any]:
         """Get video configuration with precedence rules applied."""
-        base_config = self.video_adapter.get_merged_config_dict()
-        return self.apply_precedence_rules(base_config, cli_overrides)
+        try:
+            base_config = self.video_adapter.get_merged_config_dict()
+            return self.apply_precedence_rules(base_config, cli_overrides)
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to load video config, using fallback: {e}")
+            return self._get_video_fallback_config(cli_overrides)
 
     def get_scraper_config(
         self, cli_overrides: dict[str, Any] = None
     ) -> dict[str, Any]:
         """Get scraper configuration with precedence rules applied."""
-        base_config = self.scraper_adapter.get_merged_config_dict()
-        return self.apply_precedence_rules(base_config, cli_overrides)
+        try:
+            base_config = self.scraper_adapter.get_merged_config_dict()
+            return self.apply_precedence_rules(base_config, cli_overrides)
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to load scraper config, using fallback: {e}")
+            return self._get_scraper_fallback_config(cli_overrides)
 
     def validate_config_structure(self) -> dict[str, bool]:
         """Validate that all required configuration files exist."""

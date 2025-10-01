@@ -285,7 +285,7 @@ src/scraper/ebay/
 
 #### **3. Add Platform Configuration:**
 ```yaml
-# config/scrapers.yaml
+# config/scraper.yaml
 platforms:
   ebay:
     enabled: true
@@ -642,7 +642,8 @@ my_component:
 ```python
 # Test configuration loading
 def test_config_loading():
-    config = load_config('config/video_producer.yaml')
+    from src.video.config_adapter import load_video_config_modular
+    config = load_video_config_modular()
     assert config.my_component.enabled is True
     assert config.my_component.timeout_sec > 0
 ```

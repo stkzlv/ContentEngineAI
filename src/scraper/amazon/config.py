@@ -44,7 +44,9 @@ def get_output_path(path_type: str, **kwargs) -> str:
             data_dir = subdirs.get("data", "data")
             platform = kwargs.get("platform", "amazon")
             full_pattern = f"{base_dir}/{pattern}"
-            return full_pattern.format(data=data_dir, platform=platform, **kwargs)
+            # Remove platform from kwargs to avoid duplicate argument error
+            safe_kwargs = {k: v for k, v in kwargs.items() if k != "platform"}
+            return full_pattern.format(data=data_dir, platform=platform, **safe_kwargs)
         elif path_type == "products":
             platform_path = get_output_path("platform", **kwargs)
             products_dir = subdirs.get("products", "products")
@@ -63,24 +65,54 @@ def get_output_path(path_type: str, **kwargs) -> str:
         else:
             # Fallback for unknown path types - use outputs base
             return str(base_dir)
-    except Exception:
-        # Fallback paths if config fails - use centralized structure
-        from ...utils.outputs_paths import (
-            get_botasaurus_cache_directory,
-            get_outputs_root,
-            get_temp_directory,
-        )
+    except Exception as e:
+        # Enhanced fallback paths with better error handling
+        try:
+            from ...utils.outputs_paths import (
+                get_botasaurus_cache_directory,
+                get_outputs_root,
+                get_temp_directory,
+            )
 
-        outputs_base = str(get_outputs_root())
-        fallback_paths = {
-            "base": outputs_base,
-            "platform": str(get_temp_directory()),
-            "products": str(get_temp_directory() / "products"),
-            "media": str(get_temp_directory() / "media"),
-            "debug": str(get_temp_directory() / "debug"),
-            "botasaurus": str(get_botasaurus_cache_directory()),
-        }
-        return fallback_paths.get(path_type, outputs_base)
+            outputs_base = str(get_outputs_root())
+            temp_base = get_temp_directory()
+
+            fallback_paths = {
+                "base": outputs_base,
+                "platform": str(temp_base),
+                "products": str(temp_base / "products"),
+                "media": str(temp_base / "media"),
+                "debug": str(temp_base / "debug"),
+                "botasaurus": str(get_botasaurus_cache_directory()),
+            }
+
+            fallback_path = fallback_paths.get(path_type, outputs_base)
+            print(
+                f"⚠️  Config fallback: Using path '{fallback_path}' "
+                f"for type '{path_type}' (error: {e})"
+            )
+            return fallback_path
+
+        except Exception as fallback_error:
+            # Ultimate fallback - use current directory with subdirectories
+            import os
+
+            current_dir = os.getcwd()
+            ultimate_fallback = {
+                "base": f"{current_dir}/outputs",
+                "platform": f"{current_dir}/outputs/temp",
+                "products": f"{current_dir}/outputs/temp/products",
+                "media": f"{current_dir}/outputs/temp/media",
+                "debug": f"{current_dir}/outputs/temp/debug",
+                "botasaurus": f"{current_dir}/outputs/botasaurus",
+            }
+
+            ultimate_path = ultimate_fallback.get(path_type, f"{current_dir}/outputs")
+            print(
+                f"⚠️  Ultimate fallback: Using path '{ultimate_path}' "
+                f"for type '{path_type}' (errors: {e}, {fallback_error})"
+            )
+            return ultimate_path
 
 
 def get_filename_pattern(file_type: str, **kwargs) -> str:
@@ -110,15 +142,44 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             pattern = "{keyword}_{file_type}.{ext}"
 
         return str(pattern).format(**kwargs)
-    except Exception:
-        # Fallback patterns
-        fallback_patterns = {
-            "product": "{keyword}_products.json",
-            "image": "{asin}_image_{index}.{ext}",
-            "video": "{asin}_video_{index}.{ext}",
-        }
-        pattern = fallback_patterns.get(file_type, "{keyword}_{file_type}.{ext}")
-        return str(pattern).format(**kwargs)
+    except Exception as e:
+        # Enhanced fallback patterns with error handling
+        try:
+            fallback_patterns = {
+                "product": "{keyword}_products.json",
+                "image": "{asin}_image_{index}.{ext}",
+                "video": "{asin}_video_{index}.{ext}",
+            }
+            pattern = fallback_patterns.get(file_type, "{keyword}_{file_type}.{ext}")
+            formatted_pattern = str(pattern).format(**kwargs)
+            print(
+                f"⚠️  Config fallback: Using filename pattern "
+                f"'{formatted_pattern}' for type '{file_type}' (error: {e})"
+            )
+            return formatted_pattern
+
+        except Exception as fallback_error:
+            # Ultimate fallback - create safe filename
+            import time
+
+            timestamp = int(time.time())
+            safe_filename = f"{file_type}_{timestamp}"
+
+            # Add appropriate extension
+            if file_type == "product":
+                safe_filename += ".json"
+            elif file_type == "image":
+                safe_filename += ".jpg"
+            elif file_type == "video":
+                safe_filename += ".mp4"
+            else:
+                safe_filename += ".txt"
+
+            print(
+                f"⚠️  Ultimate fallback: Using safe filename '{safe_filename}' "
+                f"for type '{file_type}' (errors: {e}, {fallback_error})"
+            )
+            return safe_filename
 
 
 def get_default_search_parameters():
@@ -214,22 +275,86 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
 
     except Exception as e:
         print(f"❌ Error loading configuration: {e}")
-        print("Using fallback configuration...")
-        CONFIG = {}
+        print("Using enhanced fallback configuration...")
+
+        # Enhanced fallback configuration
+        CONFIG = {
+            "global_settings": {
+                "debug_mode": True,
+                "output_config": {
+                    "base_directory": "outputs",
+                    "file_patterns": {
+                        "product_file": "{keyword}_products.json",
+                        "image_file": "{asin}_image_{index}.{ext}",
+                        "video_file": "{asin}_video_{index}.{ext}",
+                    },
+                },
+                "retries": 3,
+            },
+            "scrapers": {
+                "amazon": {
+                    "enabled": True,
+                    "base_url": "https://www.amazon.com",
+                    "max_products": 3,
+                    "default_search_parameters": {
+                        "prime_only": False,
+                        "sort_order": "relevanceblender",
+                    },
+                }
+            },
+        }
+
         _BROWSER_CONFIG = {
             "headless": True,
             "close_on_crash": True,
+            "max_retry": 3,
+            "cache": False,
+            "block_images": True,
+            "reuse_driver": True,
         }
-        return {}
+
+        return CONFIG
 
 
-# Initialize on import
+# Initialize on import with enhanced fallback
 try:
     load_browser_config_from_yaml()
-except Exception:
-    # Fallback configuration if loading fails
-    CONFIG = {}
+except Exception as init_error:
+    print(f"⚠️  Warning: Config initialization failed: {init_error}")
+    print("Using enhanced initialization fallback...")
+
+    # Enhanced initialization fallback configuration
+    CONFIG = {
+        "global_settings": {
+            "debug_mode": True,
+            "output_config": {
+                "base_directory": "outputs",
+                "file_patterns": {
+                    "product_file": "{keyword}_products.json",
+                    "image_file": "{asin}_image_{index}.{ext}",
+                    "video_file": "{asin}_video_{index}.{ext}",
+                },
+            },
+            "retries": 3,
+        },
+        "scrapers": {
+            "amazon": {
+                "enabled": True,
+                "base_url": "https://www.amazon.com",
+                "max_products": 3,
+                "default_search_parameters": {
+                    "prime_only": False,
+                    "sort_order": "relevanceblender",
+                },
+            }
+        },
+    }
+
     _BROWSER_CONFIG = {
         "headless": True,
         "close_on_crash": True,
+        "max_retry": 3,
+        "cache": False,
+        "block_images": True,
+        "reuse_driver": True,
     }
