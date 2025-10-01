@@ -25,6 +25,7 @@ from src.utils.background_processing import (
     get_background_processor,
 )
 from src.utils.connection_pool import get_http_session
+from src.utils.logging_setup import setup_debug_logging
 from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import PerformanceHistoryManager, performance_monitor
 from src.utils.script_sanitizer import sanitize_script
@@ -53,8 +54,6 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
         Path to the log file
 
     """
-    log_level = logging.DEBUG if debug_mode else logging.INFO
-
     # Create log directory
     log_dir = config.general_video_producer_log_dir_path
     ensure_dirs_exist(log_dir)
@@ -62,46 +61,16 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     # Use fixed log filename that gets overwritten on each run
     log_file = log_dir / "producer.log"
 
-    # Clear any existing handlers
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Set up console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    # Use centralized logging setup
+    setup_debug_logging(
+        log_file=log_file,
+        debug_mode=debug_mode,
+        verbose=True,  # Producer uses verbose format by default
+        component_name="VideoProducer",
     )
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(log_level)
 
-    # Set up file handler (overwrite mode)
-    file_handler = logging.FileHandler(
-        log_file,
-        mode="w",  # Overwrite file on each run
-        encoding="utf-8",
-    )
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-    )
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(log_level)
-
-    # Configure root logger
-    root_logger.setLevel(log_level)
-    root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
-
-    # Suppress noisy third-party loggers
-    logging.getLogger("numba").setLevel(logging.WARNING)
-    if not debug_mode:
-        for lib in ["httpx", "google", "aiohttp", "urllib3", "asyncio", "hpack"]:
-            logging.getLogger(lib).setLevel(logging.WARNING)
-
-    logger.info(
-        f"Logging configured - Level: {logging.getLevelName(log_level)}, "
-        f"File: {log_file}"
-    )
+    log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
+    logger.info(f"Logging configured - Level: {log_level_name}, File: {log_file}")
     return log_file
 
 

@@ -940,6 +940,17 @@ class LLMValidationSettings(BaseModel):
         2, description="Maximum retry attempts for LLM requests"
     )
 
+    # Description validation thresholds
+    min_description_chars: int = Field(
+        50, description="Minimum character length for generated descriptions"
+    )
+    min_description_words: int = Field(
+        10, description="Minimum word count for generated descriptions"
+    )
+    description_retry_attempts: int = Field(
+        2, description="Maximum retry attempts for incomplete descriptions"
+    )
+
 
 class DebugSettings(BaseModel):
     """Configuration for debug output and development settings."""
@@ -947,6 +958,9 @@ class DebugSettings(BaseModel):
     max_log_line_length: int = Field(200)
     debug_file_retention_days: int = Field(7)
     intermediate_file_cleanup: bool = Field(True)
+    cleanup_on_success: bool = Field(False)
+    cleanup_on_failure: bool = Field(False)
+    cleanup_whisper_files: bool = Field(False)
     operation_timing_threshold_sec: float = Field(5.0)
     memory_usage_warning_mb: int = Field(1000)
 
@@ -1995,6 +2009,9 @@ except Exception as e:
             max_log_line_length=200,
             debug_file_retention_days=7,
             intermediate_file_cleanup=True,
+            cleanup_on_success=False,
+            cleanup_on_failure=False,
+            cleanup_whisper_files=False,
             operation_timing_threshold_sec=5.0,
             memory_usage_warning_mb=1000,
         ),

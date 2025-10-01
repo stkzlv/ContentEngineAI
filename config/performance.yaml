@@ -187,9 +187,15 @@ debug_settings:
   debug_file_retention_days: 7
 
   # File cleanup behavior
+  # Cleanup policy: Controls when temporary/intermediate files are removed
+  # - intermediate_file_cleanup: Master switch for cleanup (true = enable cleanup)
+  # - cleanup_on_success: Remove temp files after successful pipeline execution
+  # - cleanup_on_failure: Remove temp files after failed pipeline execution (debugging aid when false)
+  # - cleanup_whisper_files: Remove Whisper STT temporary files
+  # Note: CLI --debug flag overrides these settings and retains all files for debugging
   intermediate_file_cleanup: true
   cleanup_on_success: false
-  retain_temp_files: false
+  cleanup_on_failure: false  # Keep files on failure for debugging
   cleanup_whisper_files: false
 
   # Debug file generation controls

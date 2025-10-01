@@ -946,64 +946,39 @@ def main():
         DEBUG_MODE = True
 
         # Setup file logging for scraper
+        from ...utils.logging_setup import setup_debug_logging
         from ...utils.outputs_paths import get_logs_directory
 
         log_dir = get_logs_directory()
         log_dir.mkdir(exist_ok=True)
         log_file = log_dir / "scraper.log"
 
-        # Clear any existing handlers
-        root_logger = logging.getLogger()
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
-
-        log_level = logging.DEBUG
-
-        # Set up console handler
-        console_handler = logging.StreamHandler()
-        if args.verbose:
-            console_formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            print("🔍 Verbose mode enabled - detailed logging active")
-        else:
-            console_formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
-            if config_debug_mode and not args.debug:
-                print(
-                    "🔧 Debug mode enabled from config - browser visibility and "
-                    "detailed logging active"
-                )
-            else:
-                print(
-                    "🔧 Debug mode enabled - browser visibility and detailed "
-                    "logging active"
-                )
-
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(log_level)
-
-        # Set up file handler (overwrite mode)
-        file_handler = logging.FileHandler(
-            log_file,
-            mode="w",  # Overwrite file on each run
-            encoding="utf-8",
+        # Use centralized logging setup
+        setup_debug_logging(
+            log_file=log_file,
+            debug_mode=True,
+            verbose=args.verbose,
+            component_name="AmazonScraper",
         )
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - "
-            "%(message)s"
-        )
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(log_level)
-
-        # Add handlers to root logger
-        root_logger.addHandler(console_handler)
-        root_logger.addHandler(file_handler)
-        root_logger.setLevel(log_level)
 
         # Apply websocket filter to suppress cleanup messages
         websocket_filter = WebsocketFilter()
         logging.getLogger().addFilter(websocket_filter)
         logging.getLogger("websocket").addFilter(websocket_filter)
+
+        # Print debug mode status messages
+        if args.verbose:
+            print("🔍 Verbose mode enabled - detailed logging active")
+        elif config_debug_mode and not args.debug:
+            print(
+                "🔧 Debug mode enabled from config - browser visibility and "
+                "detailed logging active"
+            )
+        else:
+            print(
+                "🔧 Debug mode enabled - browser visibility and detailed "
+                "logging active"
+            )
 
         print("🔧 Debug mode set globally for browser visibility")
 

@@ -5,6 +5,30 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Centralized Logging Utility**: New `src/utils/logging_setup.py` module provides standardized logging configuration
+- **LLM Validation Settings**: Added description validation thresholds to configuration (`min_description_chars`, `min_description_words`, `description_retry_attempts`)
+- **Cleanup Configuration**: New `cleanup_on_failure` setting to control temp file retention on pipeline failures
+- **Configuration Audit**: Comprehensive `docs/CONFIG_AUDIT.md` documenting hardcoded values, unused settings, and improvement roadmap
+- **Debug Documentation**: Expanded TROUBLESHOOTING.md with debug files reference table and configuration guidance
+
+### Changed
+- **Debug Mode Logging**: Eliminated 60+ lines of duplicated logging setup code between producer and scraper
+- **FFmpeg Logging Logic**: Simplified `_should_create_ffmpeg_logs()` method with clearer fallback behavior and explicit error logging
+- **Debug Settings**: Enhanced `DebugSettings` model with separate `cleanup_on_success` and `cleanup_on_failure` controls
+- **Configuration Comments**: Improved inline documentation in `config/performance.yaml` for cleanup behavior
+
+### Fixed
+- **Logging Configuration**: Producer and scraper now use shared `setup_debug_logging()` function for consistency
+- **Debug Mode Hierarchy**: Clarified CLI `--debug` flag precedence over config file settings in documentation
+
+### Technical
+- **Code Deduplication**: Removed redundant logging setup code (producer.py:71-99, scraper.py:955-1001)
+- **Configuration Analysis**: Identified 25+ hardcoded values, 7 unused settings, and 5 duplicate configuration conflicts
+- **Test Coverage**: All tests passing (469 passed, 10 skipped) with 41% coverage maintained
+
 ## [0.4.0] - 2025-10-01
 
 ### Added
