@@ -21,15 +21,16 @@ class PlatformConfigManager:
     maintaining global defaults and validation.
     """
 
-    def __init__(self, config_path: str = "config/scrapers.yaml"):
+    def __init__(self, config_path: str | None = None):
         """Initialize the configuration manager.
 
         Args:
         ----
-            config_path: Path to the YAML configuration file
+            config_path: Path to YAML config file
+                (optional, uses modular config if not provided)
 
         """
-        self.config_path = config_path
+        self.config_path = config_path or "config/scraper.yaml"
         self._config = self._load_config()
         self._validate_config()
 
@@ -293,7 +294,7 @@ _config_manager: PlatformConfigManager | None = None
 
 
 def get_config_manager(
-    config_path: str = "config/scrapers.yaml",
+    config_path: str | None = None,
 ) -> PlatformConfigManager:
     """Get the global configuration manager instance.
 

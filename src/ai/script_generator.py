@@ -468,7 +468,9 @@ async def generate_script(
     # Get API key from secrets
     api_key = secrets.get(settings.api_key_env_var)
     if not api_key:
-        raise ScriptGenerationError(f"Missing API key: {settings.api_key_env_var}")
+        raise ScriptGenerationError(
+            f"Missing API key from environment variable: {settings.api_key_env_var}"
+        )
 
     # Try to automatically select the best available model
     auto_selected_model = await _fetch_and_select_model(

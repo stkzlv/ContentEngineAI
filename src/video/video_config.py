@@ -650,7 +650,7 @@ class WhisperSettings(BaseModel):
     fp16: bool = Field(False)
     compression_ratio_threshold: float = Field(2.4)
     logprob_threshold: float = Field(-1.0)
-    no_speech_threshold: float = Field(0.4)
+    no_speech_threshold: float = Field(0.2)
     condition_on_previous_text: bool = Field(True)
     task: str = Field("transcribe")
     patience: float | None = Field(None)
@@ -658,7 +658,7 @@ class WhisperSettings(BaseModel):
     # Timeout settings for Whisper processing
     base_timeout_sec: int = Field(120)
     duration_multiplier: float = Field(3.0)
-    max_timeout_sec: int = Field(600)  # 10 minutes
+    max_timeout_sec: int = Field(600)
     progress_monitor_interval_sec: int = Field(30)
     enable_resource_monitoring: bool = Field(True)
     enable_resource_cleanup: bool = Field(True)
@@ -1832,14 +1832,14 @@ def load_video_config(config_path: Path) -> VideoConfig:
         raise ValueError("Unexpected error during config parsing.") from e
 
 
-DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "config" / "video_producer.yaml"
-)
+# Load default config from modular structure
 try:
-    config = load_video_config(DEFAULT_CONFIG_PATH)
-    logger.info("Default video configuration loaded successfully")
+    from src.video.config_adapter import load_video_config_modular
+
+    config = load_video_config_modular()
+    logger.info("Default video config loaded from modular structure")
 except Exception as e:
-    logger.error(f"Failed to load default configuration: {e}")
+    logger.error(f"Failed to load default configuration from modular structure: {e}")
     config = VideoConfig(
         global_output_directory="outputs",
         output_structure=OutputStructure(),  # type: ignore[call-arg]

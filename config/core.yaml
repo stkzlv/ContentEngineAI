@@ -1,0 +1,85 @@
+# ContentEngineAI Core Configuration
+# Global settings shared across video production and scraping systems
+
+# ============================================================================
+# GLOBAL OUTPUT CONFIGURATION
+# ============================================================================
+
+# Base directory for ALL outputs (videos, logs, scraped data, intermediate files)
+global_output_directory: "outputs"
+
+# Global debug mode - can be overridden by CLI flags
+debug_mode: false
+
+# Total pipeline execution timeout in seconds (applies to both video and scraper)
+pipeline_timeout_sec: 900
+
+# Duration padding added to prevent audio cutoff in seconds
+duration_padding_sec: 0.5
+
+# ============================================================================
+# OUTPUT STRUCTURE (Video Production)
+# ============================================================================
+output_structure:
+  # Product-centric organization: outputs/{product_id}/
+  product_directory_pattern: "{product_id}"
+  
+  # Per-product files (all in product root)
+  product_files:
+    scraped_data: "data.json"
+    script: "script.txt"
+    description: "description.txt"
+    voiceover: "voiceover.wav"
+    subtitles: "subtitles.srt"
+    final_video: "video_{product_id}_{profile}.mp4"
+    metadata: "metadata.json"
+    ffmpeg_log: "ffmpeg_command.log"
+    performance: "performance.json"
+
+# ============================================================================
+# OUTPUT STRUCTURE (Scraper System)
+# ============================================================================
+scraper_output_config:
+  # Base directory for scraper outputs
+  base_directory: "outputs"
+  
+  # File naming patterns
+  file_patterns:
+    product_file: "{keyword}_products.json"
+    image_file: "{asin}_image_{index}.{ext}"
+    video_file: "{asin}_video_{index}.{ext}"
+
+# ============================================================================
+# GLOBAL CLEANUP AND DIRECTORIES
+# ============================================================================
+
+# Global cleanup settings
+cleanup:
+  remove_temp_on_success: true
+  keep_temp_on_failure: true
+  cache_max_age_hours: 168  # 7 days
+
+# Global directories (shared across all products and systems)
+global_dirs:
+  cache: "cache"
+  logs: "logs" 
+  reports: "reports"
+  temp: "temp"
+
+# Path configuration
+path_config:
+  # Directory names within each product directory
+  subdirs:
+    media: "media"
+    images: "images"
+    videos: "videos"
+    temp: "temp"
+    audio: "audio"
+  
+  # File extensions for cleanup
+  temp_extensions: [".tmp", ".temp", ".processing", ".log"]
+  
+  # Image formats for media processing  
+  image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+  video_extensions: [".mp4", ".mov", ".avi", ".webm", ".mkv"]
+  audio_extensions: [".wav", ".mp3", ".aac", ".flac", ".ogg"]

@@ -1,0 +1,355 @@
+# ContentEngineAI Video Production Configuration
+# Video encoding, audio processing, media gathering, and production profiles
+
+# ============================================================================
+# VIDEO ENCODING SETTINGS
+# ============================================================================
+video_settings:
+  # Video resolution [width, height]
+  resolution: [1080, 1920]  # Portrait mode for social media
+
+  # Video frame rate (fps)
+  frame_rate: 30
+
+  # Video codec settings
+  codec: "libx264"
+  preset: "medium"
+  crf: 23  # Constant Rate Factor (lower = better quality, larger file)
+
+  # Preserve aspect ratio when resizing
+  preserve_aspect_ratio: true
+
+  # Image display duration in seconds
+  image_duration: 3.0
+
+  # Transition effects between images
+  transition_effects:
+    enabled: true
+    duration: 0.5
+    types: ["fade", "slide", "zoom"]
+
+  # Video constraints and validation
+  total_duration_limit_sec: 90
+  video_duration_tolerance_sec: 1.0
+  min_video_file_size_mb: 0.1
+  verification_probe_timeout_sec: 30
+
+  # Image positioning (used by profiles)
+  image_width_percent: 0.8
+  image_top_position_percent: 0.05
+
+  # Timing and delays
+  inter_product_delay_min_sec: 1.5
+  inter_product_delay_max_sec: 4.0
+  min_visual_segment_duration_sec: 0.1
+
+  # Assembler-specific settings
+  default_max_chars_per_line: 20
+  subtitle_box_border_width: 5
+  image_loop: 1
+  pad_color: "black"
+
+# ============================================================================
+# AUDIO SETTINGS
+# ============================================================================
+audio_settings:
+  # Audio sample rate (Hz)
+  sample_rate: 44100
+  
+  # Audio channels (1=mono, 2=stereo)
+  channels: 2
+  
+  # Audio bitrate (kbps)
+  bitrate: 192
+  
+  # Volume levels (dB)
+  music_volume_db: -20.0
+  voiceover_volume_db: 3.0
+  sound_effects_volume_db: -15.0
+  
+  # Audio processing
+  normalize_audio: true
+  apply_compression: true
+  noise_reduction: true
+  
+  # Audio mixing settings
+  audio_mix_duration: "longest"
+
+  # Audio encoding for output
+  output_audio_codec: "aac"
+  output_audio_bitrate: "192k"
+  music_fade_in_duration: 2.0
+  music_fade_out_duration: 3.0
+
+  # Background music file paths (local fallbacks)
+  background_music_paths:
+    - "static/background-music-calm-soft-334182.mp3"
+    - "static/background-music-happy-333014.mp3"
+    - "static/background-music-upbeat-energetic-333016.mp3"
+
+  # Freesound API configuration
+  freesound_api_key_env_var: "FREESOUND_API_KEY"
+  freesound_client_id_env_var: "FREESOUND_CLIENT_ID"
+  freesound_client_secret_env_var: "FREESOUND_CLIENT_SECRET"
+  freesound_refresh_token_env_var: "FREESOUND_REFRESH_TOKEN"
+  freesound_sort: "rating_desc"
+  freesound_search_query: "upbeat instrumental corporate"
+  freesound_filters: "duration:[60 TO 180]"
+  freesound_max_results: 15
+  freesound_max_search_duration_sec: 9999
+  freesound_api_timeout_sec: 30
+  freesound_download_timeout_sec: 300
+  freesound_token_expiry_sec: 3600
+  freesound_token_refresh_buffer_sec: 60
+  freesound_download_chunk_size: 32768
+
+  # Background music settings
+  background_music:
+    enabled: true
+    fade_in_duration: 2.0
+    fade_out_duration: 3.0
+    loop_if_short: true
+
+# ============================================================================
+# MEDIA GATHERING
+# ============================================================================
+media_settings:
+  # Temporary directory for media assets
+  temp_media_dir: "downloaded_media_assets"
+
+  # Keywords for stock media search
+  stock_media_keywords:
+    - "product showcase"
+    - "modern lifestyle"
+    - "technology"
+    - "happy customer"
+
+  # Stock video duration limits
+  stock_video_min_duration_sec: 5
+  stock_video_max_duration_sec: 20
+
+  # Product title keyword filtering
+  product_title_keyword_min_length: 3
+
+  # Maximum items to download per product
+  max_images_per_product: 10
+  max_videos_per_product: 3
+
+  # Image quality settings
+  image_quality:
+    min_width: 300
+    min_height: 300
+    preferred_format: "jpg"
+    max_file_size_mb: 5
+
+  # Video quality settings
+  video_quality:
+    min_duration: 2
+    max_duration: 30
+    preferred_format: "mp4"
+    max_file_size_mb: 50
+
+# ============================================================================
+# STOCK MEDIA SETTINGS
+# ============================================================================
+stock_media_settings:
+  # Enable stock media usage
+  enabled: false
+
+  # Pexels API configuration
+  pexels_api_key_env_var: "PEXELS_API_KEY"
+
+  # Freesound integration
+  freesound:
+    enabled: false
+    api_key_env_var: "FREESOUND_API_KEY"
+
+    # Search parameters
+    search_terms: ["product", "commercial", "upbeat"]
+    duration_range: [10, 60]  # seconds
+    license_filter: "cc"
+
+    # Download settings
+    preferred_format: "mp3"
+    quality: "hq"
+    max_downloads: 5
+
+# ============================================================================
+# VIDEO PROFILES
+# ============================================================================
+video_profiles:
+  # Base profile (shared defaults)
+  base:
+    description: "Base profile with common settings for all video types."
+    video:
+      preserve_aspect_ratio: true
+      transition_effects:
+        enabled: true
+        duration: 0.5
+    audio:
+      normalize_audio: true
+      background_music:
+        enabled: true
+    subtitles:
+      enabled: true
+      position: "bottom"
+  
+  # Slideshow with images profile
+  slideshow_images1:
+    description: "Dynamically uses scraped product images to match voiceover duration."
+    inherits: "base"
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+    overrides:
+      video:
+        image_width_percent: 0.85
+        image_height_percent: 0.85
+        background_blur: true
+        transition_effects:
+          types: ["fade", "zoom"]
+      subtitles:
+        randomize_effects: true
+        karaoke_timing: true
+
+  # Product showcase profile
+  product_showcase:
+    description: "Professional product showcase with clean styling."
+    inherits: "base"
+    overrides:
+      video:
+        image_width_percent: 0.95
+        background_color: "#ffffff"
+        show_product_info: true
+      audio:
+        music_volume_db: -25.0
+        voiceover_volume_db: 5.0
+      subtitles:
+        style: "professional"
+        effects_enabled: false
+
+# ============================================================================
+# ATTRIBUTION SETTINGS
+# ============================================================================
+attribution_settings:
+  # Include attribution in video
+  enabled: true
+
+  # Attribution display settings
+  display:
+    position: "bottom_right"
+    duration: 3.0
+    font_size: 12
+    opacity: 0.7
+
+  # Content attribution
+  content:
+    show_music_credits: true
+    show_image_credits: false
+    show_data_source: true
+
+  # Attribution text templates
+  attribution_template: "Music: {music_title} by {music_artist}\nData: {data_source}"
+  attribution_entry_template: "{type}: {title} by {artist}"
+  templates:
+    music: "Music: {title} by {artist}"
+    data: "Product data from {source}"
+    general: "Generated by ContentEngineAI"
+
+# ============================================================================
+# TEXT-TO-SPEECH SETTINGS
+# ============================================================================
+tts_config:
+  # Order of TTS providers to try (first to last)
+  provider_order: ["google_cloud", "coqui"]
+
+  google_cloud:
+    model_name: "en-US-Chirp3-HD"
+    language_code: "en-US"
+    voice_selection_criteria:
+      - language_code: "en-US"
+        ssml_gender: "NEUTRAL"
+    audio_config:
+      audio_encoding: "MP3"
+      sample_rate_hertz: 24000
+    speaking_rate: 1.0
+    pitch: 0.0
+    volume_gain_db: 0.0
+
+  coqui:
+    model_name: "tts_models/en/ek1/tacotron2"
+    enabled: true
+
+# ============================================================================
+# LLM SETTINGS
+# ============================================================================
+llm_settings:
+  provider: "openrouter"
+  api_key_env_var: "OPENROUTER_API_KEY"
+  auto_select_free_model: true
+  models:
+    - "openai/gpt-3.5-turbo"
+    - "deepseek/deepseek-chat-v3-0324:free"
+    - "meta-llama/llama-3-8b-instruct:free"
+  max_tokens: 350
+  temperature: 0.7
+  timeout_seconds: 90
+  retry_attempts: 3
+  retry_min_wait_sec: 2
+  retry_max_wait_sec: 30
+  prompt_template_path: "src/ai/prompts/video_script.md"
+
+# ============================================================================
+# DESCRIPTION SETTINGS
+# ============================================================================
+description_settings:
+  enabled: true
+  prompt_template_path: "src/ai/prompts/video_description.md"
+  target_platforms: ["tiktok", "youtube", "instagram"]
+  max_tokens: 200
+
+# ============================================================================
+# FFMPEG SETTINGS
+# ============================================================================
+ffmpeg_settings:
+  executable_path: ""
+  temp_ffmpeg_dir: "ffmpeg_work"
+  intermediate_segment_preset: "ultrafast"
+  final_assembly_timeout_sec: 600
+
+# ============================================================================
+# SUBTITLE SETTINGS
+# ============================================================================
+subtitle_settings:
+  enabled: true
+  anchor: "below_content"
+  margin: 0.08
+  content_aware: true
+
+  font_directory: "assets/fonts"
+  font_size: 60
+  font_color: "#FFFFFF"
+  background_color: "#000000"
+  background_opacity: 0.8
+
+  effects:
+    enabled: true
+    fade_duration: 0.3
+    shadow_enabled: true
+
+  positioning:
+    horizontal_alignment: "center"
+    vertical_position: "bottom"
+    margin_percent: 0.1
+
+# ============================================================================
+# WHISPER SETTINGS
+# ============================================================================
+whisper_settings:
+  enabled: true
+  model_size: "small"
+  model_device: "cpu"
+  model_in_memory: false
+  model_download_root: "~/.cache/whisper_models"

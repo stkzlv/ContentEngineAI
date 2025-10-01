@@ -29,12 +29,13 @@ from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import PerformanceHistoryManager, performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
+from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.pipeline_graph import PipelineGraph, StepStatus
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager
-from src.video.video_config import VideoConfig, VideoProfile, load_video_config
+from src.video.video_config import VideoConfig, VideoProfile
 
 logger = logging.getLogger(__name__)
 
@@ -1764,7 +1765,8 @@ async def main():
 
     # Load config first to get log directory path
     try:
-        config = load_video_config(project_root / "config" / "video_producer.yaml")
+        # Use modular config loading (automatically handles modular vs monolithic)
+        config = load_video_config_modular()
     except Exception as e:
         # Fallback logging setup if config fails
         logging.basicConfig(

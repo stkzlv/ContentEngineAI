@@ -11,11 +11,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import (
     VideoConfigValidator,
     validate_config_and_exit_on_error,
 )
-from src.video.video_config import load_video_config
 
 
 class TestVideoConfigValidator:
@@ -24,9 +24,8 @@ class TestVideoConfigValidator:
     def setup_method(self):
         """Set up test fixtures."""
         self.validator = VideoConfigValidator()
-        # Load a valid configuration as starting point
-        config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-        self.valid_config = load_video_config(config_path)
+        # Load a valid configuration from modular config files
+        self.valid_config = load_video_config_modular()
 
     def test_valid_config_passes_validation(self):
         """Test that valid configuration passes all validation checks."""
@@ -207,8 +206,7 @@ class TestValidateConfigAndExitOnError:
 
     def test_valid_config_no_exit(self):
         """Test that valid configuration does not cause exit."""
-        config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-        valid_config = load_video_config(config_path)
+        valid_config = load_video_config_modular()
 
         # Should not raise SystemExit
         try:
@@ -218,8 +216,7 @@ class TestValidateConfigAndExitOnError:
 
     def test_invalid_config_causes_exit(self):
         """Test that invalid configuration causes SystemExit."""
-        config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-        invalid_config = load_video_config(config_path)
+        invalid_config = load_video_config_modular()
 
         # Make configuration invalid
         invalid_config.ffmpeg_settings.executable_path = "/nonexistent/ffmpeg"
@@ -236,11 +233,8 @@ class TestConfigValidationIntegration:
 
     def test_producer_config_validation_integration(self):
         """Test that validation integrates properly with producer configuration."""
-        from src.video.video_config import load_video_config
-
-        # Load actual configuration used by producer
-        config_path = Path(__file__).parent.parent / "config" / "video_producer.yaml"
-        config = load_video_config(config_path)
+        # Load actual configuration used by producer from modular config files
+        config = load_video_config_modular()
 
         validator = VideoConfigValidator()
         config_errors = validator.validate_config(config)

@@ -5,43 +5,39 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.3.1
-**License**: MIT
-**Authors**: ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>
+**Version**: 0.4.0 | **License**: MIT | **Status**: Pre-Production
 
-> **⚠️ Pre-Production Software**: ContentEngineAI is under active development. While functional, breaking changes may occur in minor versions until 1.0.0. See [VERSIONING.md](VERSIONING.md) for our stability roadmap.
+> **🚀 Latest Update**: Unified configuration management system with 54% complexity reduction, CLI overrides, environment variables, and zero breaking changes.
 
-> **🚀 Latest Release**: ContentEngineAI v0.3.1 - Optimized style preset system with RANDOM preset for maximum variety in video styling! See [STATUS.md](STATUS.md) for current capabilities and ongoing development.
-
-ContentEngineAI is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products, primarily Amazon listings. It automates the entire process from scraping product data to assembling a final video, including AI script generation, stock media fetching, voiceover production, and subtitle generation.
+**ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
 ## ✨ Key Features
 
-- **🤖 End-to-End Automation**: Complete video production pipeline from data to final video
-- **📱 Vertical Video Optimized**: 9:16 aspect ratio perfect for social media platforms
-- **🎨 Style Preset System**: 4 optimized presets (minimal, modern, bold, random) with deterministic effects
-- **🎯 Content-Aware Subtitles**: Dynamic positioning that avoids overlapping with visual content
-- **🎤 High-Quality Voice**: Chirp 3 HD voices with perfect subtitle timing via Whisper STT
-- **⚡ Parallel Processing**: Optimized pipeline with concurrent step execution
-- **🎯 Multi-Provider Support**: Fallback mechanisms for AI services (OpenRouter, Google Cloud, local models)
-- **⚙️ Highly Configurable**: YAML-based configuration with 100+ customizable parameters
+- **🤖 End-to-End Automation**: Complete video production from scraping to final output
+- **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
+- **🎨 Style Presets**: 4 production-ready presets (`minimal`, `modern`, `bold`, `random`) with deterministic effects
+- **🎯 Content-Aware Subtitles**: Dynamic positioning that intelligently avoids visual content overlap
+- **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
+- **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
+- **🛡️ Multi-Provider Fallbacks**: OpenRouter, Google Cloud, local models for reliability
 
 ## 🚀 Quick Start
 
-**Prerequisites**: Python 3.12+, FFmpeg, Poetry
-
 ```bash
-# Install and setup
+# 1. Setup (requires Python 3.12+, FFmpeg, Poetry)
 git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
 poetry install && poetry run playwright install
-cp .env.example .env  # Add your API keys
+cp .env.example .env  # Configure API keys
 
-# Generate a video
-poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random
+# 2. Generate a video (30 seconds to first result)
+poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
+
+# 3. Batch process multiple products
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
 ```
 
-**📖 Complete setup and usage**: [INSTALL.md](INSTALL.md) • [CONFIGURATION.md](CONFIGURATION.md)
+**📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
 
 ## 🏗️ Architecture
 
@@ -66,56 +62,53 @@ graph TD
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation guide with API setup |
-| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Comprehensive configuration reference |
-| **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and design patterns |
-| **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues and solutions |
-| **[📊 STATUS.md](STATUS.md)** | Current project status and migrations |
-| **[👨‍💻 DEVELOPMENT.md](DEVELOPMENT.md)** | Development guide and contribution instructions |
-| **[🤝 CONTRIBUTING.md](CONTRIBUTING.md)** | How to contribute to the project |
-| **[🧪 TESTING.md](TESTING.md)** | Comprehensive testing guide |
-| **[✨ LINTING.md](LINTING.md)** | Code quality tools and best practices |
-
-## 🛠️ Development
+| Guide | Description |
+|-------|-------------|
+| **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
+| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Complete configuration reference and options |
+| **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
+| **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
 
 <details>
-<summary>Code Quality Commands</summary>
+<summary><strong>Developer Documentation</strong></summary>
 
-```bash
-make lint      # Run all quality checks
-make format    # Format code
-make test      # Run tests
-make security  # Security scan
-```
+| Document | Purpose |
+|----------|---------|
+| **[👨‍💻 DEVELOPMENT.md](DEVELOPMENT.md)** | Development setup and contribution workflow |
+| **[🧪 TESTING.md](TESTING.md)** | Testing framework and quality assurance |
+| **[✨ LINTING.md](LINTING.md)** | Code quality standards and tools |
+| **[🤝 CONTRIBUTING.md](CONTRIBUTING.md)** | How to contribute code and documentation |
 
-**📖 Detailed development guide**: [DEVELOPMENT.md](DEVELOPMENT.md)
 </details>
 
-## 🤝 Contributing
+## 🛠️ Development & Contributing
 
 <details>
-<summary>Quick Start for Contributors</summary>
+<summary><strong>Developer Quick Start</strong></summary>
 
 ```bash
+# Setup development environment
 git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
-poetry install --with dev && make install-dev && make test
+poetry install --with dev && make install-dev
+
+# Quality assurance commands
+make lint      # Complete quality check (7 tools)
+make test      # Full test suite with coverage
+make security  # Security vulnerability scan
 ```
 
-**📖 Complete guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+**📖 Complete guide**: [DEVELOPMENT.md](DEVELOPMENT.md) • [CONTRIBUTING.md](CONTRIBUTING.md)
+
 </details>
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
+## 📄 License
+
+**MIT License** - see [LICENSE](LICENSE) for details
+
 <div align="center">
 
-**[📖 Documentation](INSTALL.md)** • **[🛠️ Setup Guide](INSTALL.md)** • **[📊 Status](STATUS.md)** • **[🧪 Testing](TESTING.md)** • **[✨ Code Quality](LINTING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
-
-*Built with ❤️ for the e-commerce content creation community*
+**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

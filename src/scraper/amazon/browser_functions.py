@@ -20,6 +20,9 @@ from .media_extractor import (
 from .search_builder import SearchParameterBuilder
 from .utils import detect_monitors, get_optimal_browser_position
 
+# Module-level logger for browser functions
+logger = logging.getLogger(__name__)
+
 
 def scrape_amazon_products_browser_impl(
     driver: Driver, data: dict[str, Any]
@@ -125,7 +128,18 @@ def scrape_amazon_products_browser_impl(
         if DEBUG_MODE:
             url_builder.log_search_parameters(keyword, search_params)
             logging.getLogger(__name__).info(f"🔍 Searching: {search_url}")
-            driver.save_screenshot()  # Debug screenshot
+            # Take debug screenshot if enabled in config
+            try:
+                save_screenshots = (
+                    CONFIG.get("global_settings", {})
+                    .get("debug_settings", {})
+                    .get("save_screenshots", False)
+                )
+                if save_screenshots:
+                    driver.save_screenshot()  # Debug screenshot
+            except Exception as e:
+                if DEBUG_MODE:
+                    print(f"⚠️ [DEBUG] Screenshot failed: {e}")
 
         # Use google_get for organic navigation pattern
         if DEBUG_MODE:
@@ -175,12 +189,23 @@ def scrape_amazon_products_browser_impl(
             nav_time = time.time() - nav_start
             print(f"⏱️ [DEBUG] Navigation completed in {nav_time:.2f} seconds")
 
-            # Add page info for debugging
+            # Add page info for debugging and error detection
             try:
                 current_url = driver.current_url
                 page_title = driver.title[:50] if driver.title else "No title"
                 print(f"🌐 [DEBUG] Current URL: {current_url}")
                 print(f"📄 [DEBUG] Page title: {page_title}")
+
+                # Check for Amazon error pages
+                if page_title and "Sorry! Something went wrong!" in driver.title:
+                    print("🔄 [DEBUG] Detected Amazon error page - triggering retry")
+                    raise RuntimeError(
+                        "Amazon error page detected: Sorry! Something went wrong!"
+                    )
+
+            except RuntimeError:
+                # Re-raise the error page detection
+                raise
             except Exception as e:
                 print(f"⚠️ [DEBUG] Could not get page info: {e}")
 
@@ -188,8 +213,21 @@ def scrape_amazon_products_browser_impl(
         if driver.is_bot_detected():
             logging.getLogger(__name__).error("🚫 Bot detection triggered!")
             if DEBUG_MODE:
-                driver.save_screenshot()
-                print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
+                # Take error screenshot if enabled in config (default: enabled)
+                try:
+                    save_error_screenshots = (
+                        CONFIG.get("global_settings", {})
+                        .get("debug_settings", {})
+                        .get("save_error_screenshots", True)
+                    )
+                    if save_error_screenshots:
+                        driver.save_screenshot()
+                        print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
+                    else:
+                        print("⚠️ [DEBUG] Bot detection triggered - screenshot disabled")
+                except Exception:
+                    driver.save_screenshot()  # Fallback to always save on errors
+                    print("⚠️ [DEBUG] Bot detection triggered - screenshot saved")
                 print(
                     "💡 [DEBUG] Continuing without manual intervention for browser "
                     "visibility testing"
@@ -325,7 +363,17 @@ def scrape_amazon_products_browser_impl(
         if not product_cards:
             if DEBUG_MODE:
                 print("❌ [DEBUG] No product cards found")
-                driver.save_screenshot()
+                # Take error screenshot if enabled in config (default: enabled)
+                try:
+                    save_error_screenshots = (
+                        CONFIG.get("global_settings", {})
+                        .get("debug_settings", {})
+                        .get("save_error_screenshots", True)
+                    )
+                    if save_error_screenshots:
+                        driver.save_screenshot()
+                except Exception:
+                    driver.save_screenshot()  # Fallback to always save on errors
             return []
 
         # Extract products from search results
@@ -913,25 +961,27 @@ def create_dynamic_browser_function(debug_mode=False):
         os.environ["DISPLAY"] = ":0"  # Force main display
 
         # Auto-detect multi-monitor setup and calculate optimal position
-        print("🔍 [DEBUG] Auto-discovering multi-monitor setup...")
+        logger.info("🔍 Auto-discovering multi-monitor setup...")
         monitors = detect_monitors()
         browser_x, browser_y, browser_width, browser_height = (
             get_optimal_browser_position(monitors)
         )
 
         # Log monitor discovery results
-        print(f"🖥️ [DEBUG] Detected {len(monitors)} monitor(s):")
+        logger.info(f"🖥️ Detected {len(monitors)} monitor(s)")
         for i, monitor in enumerate(monitors):
             primary_str = " (PRIMARY)" if monitor.get("primary") else ""
-            print(
-                f"   Monitor {i+1}: {monitor['width']}x{monitor['height']} at "
+            monitor_info = (
+                f"Monitor {i+1}: {monitor['width']}x{monitor['height']} at "
                 f"+{monitor['x']}+{monitor['y']}{primary_str}"
             )
+            logger.info(f"   {monitor_info}")
 
-        print(
-            f"🎯 [DEBUG] Browser maximized on primary monitor: {browser_x},"
+        position_info = (
+            f"Browser maximized on primary monitor: {browser_x},"
             f"{browser_y} size: {browser_width}x{browser_height}"
         )
+        logger.info(f"🎯 {position_info}")
 
         # Configure Chrome arguments with optimal positioning and stable flags
         chrome_args = current_config.get("add_arguments", [])
@@ -977,14 +1027,13 @@ def create_dynamic_browser_function(debug_mode=False):
         # Force environment to use main display
         os.environ["DISPLAY"] = ":0.0"  # Use the full display specification
 
-        print(
-            "👁️ [DEBUG] Debug mode enabled - browser window will be visible "
-            "on your screen"
+        logger.info(
+            "👁️ Debug mode enabled - browser window will be visible on your screen"
         )
-        print(f"🖥️ [DEBUG] Using display: {os.environ.get('DISPLAY')}")
-        print("🔧 [DEBUG] Virtual display disabled: enable_xvfb_virtual_display=False")
-        print(
-            f"🖼️ [DEBUG] Maximized positioning: --window-position={browser_x},"
+        logger.info(f"🖥️ Using display: {os.environ.get('DISPLAY')}")
+        logger.info("🔧 Virtual display disabled: enable_xvfb_virtual_display=False")
+        logger.info(
+            f"🖼️ Maximized positioning: --window-position={browser_x},"
             f"{browser_y} --window-size={browser_width},{browser_height}"
         )
 
@@ -994,12 +1043,12 @@ def create_dynamic_browser_function(debug_mode=False):
     has_display = os.environ.get("DISPLAY") is not None
 
     if DEBUG_MODE:
-        print("🔍 [ENV DEBUG] Environment detection:")
-        print(f"   • Platform: {platform.system()}")
-        print(f"   • Is Docker: {is_docker}")
-        print(f"   • Is CI: {is_ci}")
-        print(f"   • Has DISPLAY: {has_display}")
-        print(f"   • DISPLAY value: {os.environ.get('DISPLAY', 'Not set')}")
+        logger.info("🔍 Environment detection:")
+        logger.info(f"   • Platform: {platform.system()}")
+        logger.info(f"   • Is Docker: {is_docker}")
+        logger.info(f"   • Is CI: {is_ci}")
+        logger.info(f"   • Has DISPLAY: {has_display}")
+        logger.info(f"   • DISPLAY value: {os.environ.get('DISPLAY', 'Not set')}")
 
     # Force update debug-related settings with current DEBUG_MODE
     current_config.update(
@@ -1020,10 +1069,16 @@ def create_dynamic_browser_function(debug_mode=False):
     # Add timeout configuration to prevent hanging (via Chrome args)
     chrome_args = current_config.get("add_arguments", [])
     if not any("--timeout" in arg for arg in chrome_args):
+        # Get timeouts from configuration
+        global_settings = CONFIG.get("global_settings", {})
+        browser_config = global_settings.get("browser_config", {})
+        page_timeout = browser_config.get("page_load_timeout_ms", 60000)
+        script_timeout = browser_config.get("script_execution_timeout_ms", 30000)
+
         chrome_args.extend(
             [
-                "--timeout=60000",  # 60 second timeout
-                "--script-timeout=30000",  # 30 second script timeout
+                f"--timeout={page_timeout}",
+                f"--script-timeout={script_timeout}",
             ]
         )
     current_config["add_arguments"] = chrome_args
@@ -1034,13 +1089,15 @@ def create_dynamic_browser_function(debug_mode=False):
         driver: Driver, data: dict[str, Any]
     ) -> list[dict[str, Any]]:
         try:
-            # Set driver timeouts to prevent hanging
-            try:
-                driver.set_page_load_timeout(60)  # 60 seconds for page load
-                driver.implicitly_wait(10)  # 10 seconds implicit wait
-            except Exception as timeout_err:
-                if DEBUG_MODE:
-                    print(f"⚠️ [DEBUG] Could not set driver timeouts: {timeout_err}")
+            # Note: Botasaurus Driver uses explicit waits, not implicit waits
+            # All element selection methods (select, find, wait_for) accept timeout
+            # parameters
+            # Default timeout is 10 seconds for most operations
+            if DEBUG_MODE:
+                logger.debug(
+                    "🔧 Using Botasaurus explicit wait pattern "
+                    "(no implicit wait needed)"
+                )
 
             return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
@@ -1079,6 +1136,20 @@ def scrape_single_product(
         try:
             page_title = driver.title
             print(f"🔍 [DEBUG] Page title: {page_title}")
+
+            # Check for Amazon error pages
+            if page_title and "Sorry! Something went wrong!" in page_title:
+                print(
+                    "🔄 [DEBUG] Detected Amazon error page in product page - "
+                    "triggering retry"
+                )
+                raise RuntimeError(
+                    "Amazon error page detected: Sorry! Something went wrong!"
+                )
+
+        except RuntimeError:
+            # Re-raise the error page detection
+            raise
         except Exception as e:
             print(f"🔍 [DEBUG] Page title: Unable to get ({e})")
 

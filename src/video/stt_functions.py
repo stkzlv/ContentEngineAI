@@ -110,6 +110,10 @@ async def generate_subtitles_with_whisper(
             f"timeout: {transcription_timeout:.1f}s"
         )
 
+        # Add model config to options for subprocess
+        trans_ops["_model_size"] = whisper_settings.model_size
+        trans_ops["_model_device"] = whisper_settings.model_device
+
         # Run Whisper with timeout and progress monitoring
         start_time = time.time()
         try:
@@ -291,6 +295,12 @@ def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
         return None
 
     try:
+        # Fix multiprocessing issue: set PyTorch to single-threaded mode
+        # This prevents "Broken pipe" errors when using asyncio executors
+        import torch
+
+        torch.set_num_threads(1)
+
         model = whisper.load_model(
             whisper_settings.model_size,
             device=whisper_settings.model_device,
@@ -376,11 +386,32 @@ async def _transcribe_with_monitoring(
     model, audio_path: str, options: dict, debug_mode: bool, settings: WhisperSettings
 ):
     """Run Whisper transcription with progress monitoring."""
-    # Fix API call: unpack options as keyword arguments
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, lambda: model.transcribe(audio_path, **options)
-    )
+    import concurrent.futures
+
+    # Use ProcessPoolExecutor for CPU-intensive Whisper to avoid asyncio conflicts
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+        result = await loop.run_in_executor(
+            executor, _transcribe_helper, audio_path, options
+        )
     return result
+
+
+def _transcribe_helper(audio_path: str, options: dict):
+    """Helper function for process pool execution."""
+    import torch
+    import whisper
+
+    # Set single-threaded mode in subprocess
+    torch.set_num_threads(1)
+
+    # Load model in subprocess (can't pass model object across processes)
+    model_size = options.pop("_model_size", "small")
+    model_device = options.pop("_model_device", "cpu")
+    model = whisper.load_model(model_size, device=model_device)
+
+    # Transcribe
+    return model.transcribe(audio_path, **options)
 
 
 def _extract_word_timings(whisper_result: dict) -> list[dict[str, Any]]:

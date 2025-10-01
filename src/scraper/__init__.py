@@ -80,7 +80,7 @@ class ScraperFactory:
                 )
 
         # Check if platform is enabled in configuration
-        config_manager = get_config_manager(config_path or "config/scrapers.yaml")
+        config_manager = get_config_manager(config_path)
         if not config_manager.is_platform_enabled(platform):
             raise ValueError(
                 f"Platform {platform.value} is not enabled in configuration. "
@@ -94,7 +94,7 @@ class ScraperFactory:
         if platform == Platform.AMAZON:
             # Amazon scraper takes config_path and debug_override
             return scraper_class(  # type: ignore[call-arg,misc]
-                config_path=config_path or "config/scrapers.yaml",
+                config_path=config_path,
                 debug_override=debug_mode,
             )
         else:
@@ -132,7 +132,7 @@ class ScraperFactory:
             List of enabled Platform enums
 
         """
-        config_manager = get_config_manager(config_path or "config/scrapers.yaml")
+        config_manager = get_config_manager(config_path)
         return config_manager.get_enabled_platforms()
 
     @classmethod

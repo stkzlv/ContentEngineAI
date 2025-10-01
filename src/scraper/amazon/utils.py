@@ -5,6 +5,8 @@ utilities used throughout the scraper.
 """
 
 import logging
+import os
+import platform
 import random
 import re
 import subprocess
@@ -389,7 +391,9 @@ def get_optimal_browser_position(
     if not primary_monitor:
         primary_monitor = monitors[0]
 
-    # Maximize the window on the primary monitor
+    # Calculate window position on primary monitor
+    # For multi-monitor setups, use the monitor's top-left corner
+    # to ensure the window appears on the correct display
     window_x = primary_monitor["x"]
     window_y = primary_monitor["y"]
     window_width = primary_monitor["width"]

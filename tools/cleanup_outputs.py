@@ -13,7 +13,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.video.video_config import load_video_config  # noqa: E402
+from src.video.config_adapter import load_video_config_modular  # noqa: E402
 
 
 def main():
@@ -23,8 +23,10 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=project_root / "config" / "video_producer.yaml",
-        help="Path to video producer config file",
+        help=(
+            "Path to video producer config file "
+            "(optional, uses modular config if not provided)"
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -49,8 +51,8 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Load configuration
-        config = load_video_config(args.config)
+        # Load configuration from modular structure
+        config = load_video_config_modular()
 
         if not config.cleanup_settings.enabled and not args.force:
             print("Cleanup is disabled in configuration. Use --force to override.")

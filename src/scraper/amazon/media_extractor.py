@@ -1897,8 +1897,17 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
             except Exception as e:
                 logger.warning(f"⚠️ Failed to save page source: {e}")
 
-        # 2. Take screenshots if requested
-        if debug_options.get("save_screenshots"):
+        # 2. Take screenshots if requested (controlled by config)
+        try:
+            save_screenshots = (
+                CONFIG.get("global_settings", {})
+                .get("debug_settings", {})
+                .get("save_screenshots", False)
+            )
+        except Exception:
+            save_screenshots = False
+
+        if debug_options.get("save_screenshots") or save_screenshots:
             try:
                 screenshot_file = debug_dir / f"{asin}_screenshot.png"
                 driver.save_screenshot(str(screenshot_file))

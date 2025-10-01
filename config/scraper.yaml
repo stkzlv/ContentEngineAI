@@ -1,0 +1,459 @@
+# ContentEngineAI Scraper Configuration
+# Web scraping settings for e-commerce platforms
+
+# ============================================================================
+# GLOBAL SCRAPER SETTINGS
+# ============================================================================
+global_settings:
+  # Global debug mode - affects all scraping operations
+  # Can be overridden by CLI --debug flag
+  debug_mode: true
+
+  # ---- Output Directory Configuration ----
+  # Configurable paths for all scraper outputs
+  output_config:
+    # Base directory for ALL outputs (scraper data, videos, logs)
+    base_directory: "outputs"
+
+    # File naming patterns
+    file_patterns:
+      # Product JSON file naming: {keyword}_products.json
+      product_file: "{keyword}_products.json"
+      # Image file naming: {asin}_image_{index}.{ext}
+      image_file: "{asin}_image_{index}.{ext}"
+      # Video file naming: {asin}_video_{index}.{ext}
+      video_file: "{asin}_video_{index}.{ext}"
+
+  # ---- Retry and Exponential Backoff Configuration ----
+  # Controls automatic retry behavior for failed operations (network errors, timeouts, etc.)
+  # Uses exponential backoff algorithm: delay = min(base_delay * (backoff_factor ^ attempt), max_delay)
+  retry_config:
+    # Default number of retry attempts for most operations
+    # Total attempts = default_max_retries + 1 (initial attempt)
+    # Affects: Network resilience, failure recovery
+    default_max_retries: 3
+
+    # Base delay in seconds for exponential backoff
+    # First retry waits this long, subsequent retries multiply by backoff_factor
+    # Affects: Initial retry timing, overall retry speed
+    base_delay: 1.0
+
+    # Maximum delay in seconds (caps exponential growth)
+    # Prevents extremely long waits on final retries
+    # Affects: Maximum wait time between retries, user patience threshold
+    max_delay: 60.0
+
+    # Multiplier for each retry attempt (exponential factor)
+    # Each retry waits backoff_factor times longer than previous
+    # Example: 1s, 2s, 4s, 8s, 16s... (for factor=2.0)
+    # Affects: Retry timing curve, how quickly delays increase
+    backoff_factor: 2.0
+
+    # Whether to add random jitter to prevent thundering herd
+    # Randomizes delays to prevent all clients retrying simultaneously
+    # Affects: Server load distribution, reduces coordinated retry storms
+    use_jitter: true
+
+    # Jitter range factor (0.5 = +/- 50% randomness)
+    # Delay is multiplied by random value in range [1-jitter_factor, 1+jitter_factor]
+    # Example: delay=10s, jitter=0.5 → actual delay between 5s and 15s
+    # Affects: Retry timing randomization spread
+    jitter_factor: 0.5
+
+  # ---- Rate Limiting and Delays ----
+  # Controls delays and rate limiting to mimic human behavior and avoid detection
+  rate_limiting:
+    # Random delay range for video URL validation [min, max] (seconds)
+    # Adds human-like delay between video HEAD requests to avoid rapid-fire patterns
+    # Random value selected within range for each video validation
+    # Affects: Video validation timing, anti-bot detection evasion
+    video_validation_delay: [0.5, 1.5]
+
+    # Debug pause duration (seconds)
+    # How long to pause during debug operations for human observation
+    # Affects: Debug mode workflow, time to examine browser state
+    debug_pause_duration: 5
+
+  # ---- Image Processing Configuration ----
+  # Controls image quality requirements and validation thresholds
+  image_config:
+    # Minimum dimension (width or height) for considering image as high-resolution
+    # Images below this threshold will be filtered out or upgraded to higher resolution
+    # Affects: Image URL upgrading, download filtering, validation
+    min_high_res_dimension: 1500
+
+    # Minimum file size for high-res images (bytes) - filters out thumbnails and placeholders
+    # Files smaller than this are considered invalid regardless of dimensions
+    # Affects: Download validation, final image filtering
+    min_high_res_file_size: 10000  # 10KB minimum
+
+    # Very high-res threshold - images above this dimension are trusted without HEAD validation
+    # Skips network requests for obvious high-quality images to improve performance
+    # Affects: Validation optimization, reduces API calls
+    very_high_res_dimension: 2000
+
+    # Maximum images to extract per product (prevents excessive downloads)
+    # Affects: Media extraction loop limits, prevents runaway downloads
+    max_images_per_product: 10
+
+  # ---- Debug File Generation Controls ----
+  debug_settings:
+    # Media validation JSON reports (validation summaries)
+    create_media_validation_reports: true
+    # Screenshot controls
+    save_screenshots: false  # General debug screenshots (disabled by default)
+    save_error_screenshots: true  # Error and bot detection screenshots (always enabled)
+
+  # ---- Video Processing Configuration ----
+  # Controls video extraction, quality requirements, and browser behavior
+  video_config:
+    # Minimum dimension (width or height) for considering video as acceptable quality (pixels)
+    # Videos smaller than this are filtered out as low-quality
+    # Affects: Video quality threshold, filters thumbnails and preview clips
+    min_dimension: 640
+
+    # Minimum duration for videos (seconds) - filters out very short clips
+    # Videos shorter than this are rejected as too brief
+    # Affects: Video duration filtering, prevents GIF-like clips
+    min_duration: 1.0
+
+    # Maximum videos to extract per product
+    # Limits number of videos downloaded to prevent excessive bandwidth usage
+    # Affects: Video extraction loop limits, download time, bandwidth
+    max_videos_per_product: 5
+
+    # Mute video tabs to prevent audio overlap during extraction
+    # Prevents audio from playing in browser during video scraping
+    # Affects: Browser behavior, audio output, debugging comfort
+    mute_video_tabs: true
+
+  # ---- Download Configuration ----
+  # Controls HTTP download behavior, timeouts, and bandwidth optimization
+  download_config:
+    # HTTP request timeout for downloads (seconds)
+    # Maximum time to wait for download to complete
+    # Affects: Download reliability, prevents hanging on slow connections
+    download_timeout: 30
+
+    # Chunk size for streaming downloads (bytes)
+    # Amount of data read per iteration during streaming download
+    # Larger = faster downloads, more memory; Smaller = less memory, slower
+    # Affects: Download performance, memory usage during downloads
+    download_chunk_size: 8192  # 8KB chunks
+
+    # Range header for video validation (minimize bandwidth)
+    # Only downloads first N bytes to verify video exists without full download
+    # Format: "0-1023" means bytes 0 through 1023 (1KB total)
+    # Affects: Video validation bandwidth usage, validation speed
+    validation_range_bytes: "0-1023"  # First 1KB only
+
+  # ---- System Timeouts ----
+  # Controls timeouts for system commands and network operations
+  system_timeouts:
+    # Timeout for system commands like xrandr (seconds)
+    # How long to wait for OS commands (monitor detection, etc.) to complete
+    # Affects: System command reliability, prevents hanging on slow systems
+    system_command_timeout: 5
+
+    # Default timeout for HTTP HEAD requests (seconds)
+    # How long to wait for HEAD requests (media validation) to complete
+    # Affects: Media validation speed, reliability of URL checks
+    head_request_timeout: 10
+
+  # ---- Media Configuration ----
+  # Controls media file handling, URLs, and Amazon-specific media settings
+  media_config:
+    # Default image extension for generated filenames when extension cannot be detected
+    # Affects: Filename generation for images without clear file extension
+    default_image_extension: ".jpg"
+
+    # Amazon media domains for validation and URL filtering
+    # Used to identify legitimate Amazon media URLs vs external/untrusted sources
+    # Affects: URL validation, security filtering, domain whitelist
+    amazon_media_domains: ["images-amazon.com", "m.media-amazon.com", "media-amazon.com"]
+
+    # Image resolution upgrade suffix for Amazon images
+    # Amazon URL pattern to request higher resolution versions of images
+    # Affects: Image URL modification to get best quality available
+    amazon_high_res_suffix: "._AC_SL2000_.jpg"
+
+    # High-res upgrade dimension (pixels) used in URL modification
+    # Target dimension when upgrading Amazon image URLs to higher resolution
+    # Affects: Image URL rewriting, quality optimization
+    high_res_upgrade_dimension: 2000
+
+    # JavaScript context extraction for debugging (characters around URL matches)
+    # How much surrounding code to show when debugging URL extraction
+    # Affects: Debug output verbosity, troubleshooting failed extractions
+    js_context_chars: 500
+
+    # HTTP status codes considered successful for media validation
+    # Affects: Media URL validation, determines valid vs invalid responses
+    valid_http_status_codes: [200, 206]  # 200=OK, 206=Partial Content
+
+    # Minimum file size fallback (bytes) for validation edge cases
+    # Absolute minimum size - files smaller are definitely invalid
+    # Affects: Edge case validation, prevents accepting empty files
+    min_file_size_absolute: 1000  # 1KB minimum
+
+  # ---- Debug Configuration ----
+  # Controls debug output formatting and verbosity
+  debug_config:
+    # String truncation lengths for debug output (characters)
+    # Affects: Log readability, prevents overwhelming console with long strings
+
+    # Length for product title previews in logs
+    # Affects: Product title display in debug messages
+    title_preview_length: 50
+
+    # Length for URL previews in logs
+    # Affects: URL display in debug messages, error reporting
+    url_preview_length: 100
+
+    # Length for result object previews in logs
+    # Affects: General object/data preview in debug output
+    result_preview_length: 100
+
+  # ---- Enhanced Product Collection Configuration ----
+  # Controls product validation rules and collection behavior
+  validation_config:
+    # List of fields that must be present for a product to be considered valid
+    # Empty list means no field validation (only media validation)
+    # Affects: Product filtering, determines what constitutes a "complete" product
+    essential_fields: []
+
+    # Media file requirements for products to be considered valid
+    # Products not meeting these thresholds are rejected/not counted
+    # Affects: Product collection logic, success criteria
+
+    # Minimum number of valid images required per product
+    # Products with fewer images than this are rejected
+    min_images_required: 1
+
+    # Minimum number of valid videos required per product
+    # Set to 0 to make videos optional (images are sufficient)
+    min_videos_required: 0
+
+    # Minimum total media files (images + videos) required
+    # Alternative validation: total media count instead of separate image/video requirements
+    min_total_media_files: 1
+
+    # Media validation timeout for ffprobe/identify (seconds)
+    # How long to wait for media validation tools to complete
+    # Affects: Validation performance, prevents hanging on corrupted files
+    media_validation_timeout: 30
+
+    # Top N validation issues to display in reports
+    # Limits issue list in validation summaries to most common problems
+    # Affects: Validation report verbosity
+    validation_report_top_issues: 10
+
+  # Product collection behavior flags
+  # Affects: How products are counted and collected during scraping
+
+  # Count only products that have valid media files
+  # When true: only products meeting validation_config media requirements are counted
+  # When false: all products with basic data are counted
+  count_products_with_media: true
+
+  # ---- Browser Configuration ----
+  # Controls browser window behavior and scraping timeouts
+  browser_config:
+    # Default browser window dimensions for debug mode (visible browser)
+    # Used when debug_mode=true to set initial window size before monitor detection
+    # Affects: Initial browser window creation, fallback if monitor detection fails
+    debug_window_width: 1920
+    debug_window_height: 1200
+
+    # Browser window position fallback [x, y, width, height]
+    # Used only if monitor detection via xrandr fails completely
+    # Affects: Fallback window positioning on unknown systems
+    fallback_window_position: [0, 0, 1920, 1080]
+
+    # Search result waiting timeout (seconds)
+    # Maximum time to wait for search results to load before timing out
+    # Affects: Search result page load timeout, prevents hanging
+    search_result_timeout: 10
+
+    # Maximum products to extract from search results page
+    # Limits number of products processed per search query
+    # Affects: Search result extraction loop, memory usage
+    max_products_per_search: 5
+
+    # Page load timeout (milliseconds) for browser navigation
+    # How long to wait for pages to fully load before proceeding
+    # Affects: Overall scraping speed, prevents timeout errors
+    page_load_timeout_ms: 60000  # 60 seconds
+
+    # Script execution timeout (milliseconds) for JavaScript
+    # Maximum time allowed for injected JavaScript to complete
+    # Affects: Media extraction scripts, prevents hung JavaScript
+    script_execution_timeout_ms: 30000  # 30 seconds
+
+    # Element selection default timeout (seconds) for Botasaurus waits
+    # Default timeout for element queries and interactions
+    # Affects: All element.select(), find(), wait_for() operations
+    element_selection_timeout: 10
+
+    # Title extraction selector limit (number of selectors to try)
+    # How many CSS selectors to attempt before giving up on title extraction
+    # Affects: Product title extraction robustness, prevents excessive DOM queries
+    max_title_selector_attempts: 10
+
+    # Search result selector wait timeout reduction (seconds)
+    # Reduced from default 10s to 5s for faster failure detection
+    # Affects: Speed of detecting "no results" vs genuine network issues
+    search_result_wait_reduced: 5
+
+  # ---- CSS Selectors Configuration ----
+  css_selectors:
+    # Product title selectors (in priority order)
+    product_title_selectors:
+      - "#productTitle"
+      - "h1.a-size-large"
+      - ".product-title"
+      - "h1[data-automation-id='product-title']"
+    # Search result selectors
+    search_result_card: "div[data-component-type='s-search-result']"
+
+  # ---- ASIN Validation Patterns ----
+  asin_patterns:
+    # Modern ASIN format: B0 followed by 8 alphanumeric characters
+    modern_asin_pattern: "^B0[A-Z0-9]{8}$"
+    # Legacy ASIN format: 10 alphanumeric characters
+    legacy_asin_pattern: "^[A-Z0-9]{10}$"
+    # ASIN extraction pattern from URLs
+    url_asin_pattern: "/dp/([A-Z0-9]{10})"
+
+# ============================================================================
+# PLATFORM-SPECIFIC SCRAPERS
+# ============================================================================
+scrapers:
+  # ---- Amazon Scraper Configuration ----
+  amazon:
+    # Whether this scraper is available for use
+    enabled: true
+
+    # Base URL for the platform (without trailing slash)
+    base_url: "https://www.amazon.com"
+
+    # List of search keywords or direct product ASINs to scrape
+    keywords: ["headphones"]
+
+    # Maximum number of products to scrape per keyword/search
+    max_products: 1
+
+    # Amazon Associates affiliate tag for monetization
+    associate_tag: "stealtech06-20"
+
+    # ---- Default Search Parameters ----
+    default_search_parameters:
+      # Price filtering (in USD, set to null to disable)
+      min_price: null              # Minimum price filter (e.g., 10.99)
+      max_price: 100               # Maximum price filter (e.g., 99.99)
+
+      # Quality filtering (1-5 stars, set to null to disable)
+      min_rating: null             # Minimum rating filter (e.g., 4 for 4+ stars)
+
+      # Shipping and service filters
+      prime_only: false            # Filter for Prime eligible items only
+      free_shipping: false         # Filter for items with free shipping
+
+      # Brand filtering (list of brand names, empty list means no filter)
+      brands: []                   # Brand names to filter by (e.g., ["Apple", "Samsung"])
+
+      # Sort order for search results
+      sort_order: "relevanceblender"
+
+      # Category filtering (Amazon category ID, null means all categories)
+      category: null               # Category ID for filtering (advanced usage)
+
+      # Search behavior settings
+      include_sponsored: false     # Include sponsored/ad results in extraction
+      skip_unavailable: true       # Skip products marked as unavailable
+
+    # ---- Amazon Filter Parameters ----
+    filter_parameters:
+      # Price conversion factor (dollars to cents)
+      price_to_cents_multiplier: 100
+
+      # Amazon rating filter codes (p_72 parameter values)
+      rating_codes:
+        4.0: "2661618011"  # 4 stars & up
+        3.0: "2661617011"  # 3 stars & up
+        2.0: "2661616011"  # 2 stars & up
+        1.0: "2661615011"  # 1 star & up
+
+      # Amazon Prime filter code
+      prime_filter_code: "p_85:2470955011"
+
+      # Amazon free shipping filter code
+      free_shipping_filter_code: "p_76:419122011"
+
+    # ---- HTTP Headers Configuration ----
+    http_headers:
+      # Headers for video validation requests
+      video_validation:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        Accept: "video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
+        Accept-Language: "en-US,en;q=0.9"
+        Accept-Encoding: "identity"
+        Referer: "https://www.amazon.com/"
+
+      # Headers for media downloads
+      media_download:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        Accept: "image/webp,image/apng,image/*,*/*;q=0.8"
+        Accept-Language: "en-US,en;q=0.9"
+        Referer: "https://www.amazon.com/"
+
+      # Standard User-Agent for general requests
+      standard:
+        User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+
+# ============================================================================
+# CONFIGURATION USAGE NOTES
+# ============================================================================
+
+# OUTPUT CONFIGURATION:
+# - All output paths are configurable via output_config section
+# - Supports variable substitution: {platform}, {keyword}, {asin}, {index}, {ext}
+# - Directory structure automatically created as needed
+# - File naming patterns ensure consistent organization
+
+# SEARCH PARAMETERS:
+# - default_search_parameters apply to all searches unless overridden by CLI
+# - CLI arguments take precedence over config file settings
+# - Price filters converted to Amazon's internal cent-based format
+# - Rating filters mapped to Amazon's rating code system
+
+# RETRY STRATEGY:
+# - exponential_backoff_retry decorator uses retry_config values
+# - Automatic retries for transient failures (network, timeouts)
+# - Graceful degradation when optional elements missing
+
+# STEALTH FEATURES:
+# - Botasaurus framework handles user agent rotation automatically
+# - Random delays between operations mimic human browsing
+# - Dynamic resource blocking reduces detectible traffic patterns
+
+# MEDIA COLLECTION:
+# - JavaScript extraction tries to find high-resolution images from page data
+# - Falls back to HTML attribute extraction if JS fails
+# - Filters images by minimum resolution (min_high_res_dimension)
+# - Downloads videos from <video> elements and embedded sources
+
+# ERROR HANDLING:
+# - Automatic retries for transient failures (network, timeouts)
+# - Graceful degradation when optional elements missing
+# - Debug mode captures screenshots and HTML for troubleshooting
+# - CAPTCHA detection stops scraping to avoid account issues
+
+# CURRENT STRUCTURE (Product-Centric via Botasaurus):
+# outputs/
+# ├── {ASIN}/                    # Product-specific directories
+# │   ├── data.json             # Scraped product data
+# │   ├── images/               # Product images
+# │   └── videos/               # Product videos
+# ├── cache/                    # Global cache (Botasaurus, downloads)
+# └── logs/                     # Global logs
