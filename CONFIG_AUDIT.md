@@ -307,6 +307,8 @@ Follow scraper.yaml example:
 ### Immediate Actions (This PR)
 
 - [x] Add LLM validation settings to video_config.py
+- [x] Fix hardcoded debug_mode=True in scraper.py line 959
+- [x] Add third-party logger suppression (urllib3, websocket) in logging_setup.py
 - [ ] Update config file comments with comprehensive documentation
 - [ ] Remove clearly unused settings (audio normalization, product_showcase profile)
 - [ ] Resolve duplicate configuration conflicts

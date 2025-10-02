@@ -245,9 +245,8 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 # for optimal resource usage
                 "cache": False,  # Disabled for testing new image extraction
                 "max_retry": global_settings.get("retries", 3),
-                "block_images": True,  # Always block images for performance
-                # (50-70% faster)
-                "reuse_driver": True,
+                "block_images": False,  # Show images in browser
+                "reuse_driver": False,  # Disabled - causes StopIteration in headless mode
                 "close_on_crash": not debug_mode,  # Debug mode keeps browser
                 # open on crash
                 "proxy": global_settings.get("proxy"),
@@ -255,7 +254,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 # anti-detection
                 "window_size": WindowSize.RANDOM,  # Randomize window size for
                 # better anti-detection
-                "headless": not debug_mode,  # Show browser in debug mode
+                "headless": False,  # Disabled - Botasaurus bug in headless mode
                 "output": get_output_path(
                     "botasaurus"
                 ),  # Configurable output directory
@@ -264,7 +263,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
             # Fallback if botasaurus not available
             debug_mode = global_settings.get("debug_mode", False)
             _BROWSER_CONFIG = {
-                "headless": not debug_mode,
+                "headless": False,  # Disabled - Botasaurus bug in headless mode
                 "close_on_crash": not debug_mode,
             }
 
@@ -305,11 +304,11 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         }
 
         _BROWSER_CONFIG = {
-            "headless": True,
+            "headless": False,  # Disabled - Botasaurus bug in headless mode
             "close_on_crash": True,
             "max_retry": 3,
             "cache": False,
-            "block_images": True,
+            "block_images": False,
             "reuse_driver": True,
         }
 
@@ -351,10 +350,10 @@ except Exception as init_error:
     }
 
     _BROWSER_CONFIG = {
-        "headless": True,
+        "headless": False,  # Disabled - Botasaurus bug in headless mode
         "close_on_crash": True,
         "max_retry": 3,
         "cache": False,
-        "block_images": True,
+        "block_images": False,
         "reuse_driver": True,
     }

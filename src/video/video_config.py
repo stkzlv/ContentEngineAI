@@ -371,6 +371,11 @@ class VideoSettings(BaseModel):
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
 
+    # Media validation requirements (must match scraper config)
+    min_total_media: int = Field(3, description="Minimum total media files required")
+    min_images_if_no_video: int = Field(5, description="Minimum images when no videos")
+    min_images_with_video: int = Field(2, description="Minimum images when videos exist")
+
     @model_validator(mode="after")
     def validate_resolution(self) -> "VideoSettings":
         width, height = self.resolution

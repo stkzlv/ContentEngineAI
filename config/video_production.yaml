@@ -34,6 +34,13 @@ video_settings:
   min_video_file_size_mb: 0.1
   verification_probe_timeout_sec: 30
 
+  # Media validation requirements (MUST match scraper.yaml validation_config)
+  # These determine minimum media needed for video production
+  # Affects: Product acceptance, video creation success rate
+  min_total_media: 3              # Minimum total media files (images + videos)
+  min_images_if_no_video: 5       # Minimum images when no videos available (slideshow mode)
+  min_images_with_video: 2        # Minimum images when videos available (video mode)
+
   # Image positioning (used by profiles)
   image_width_percent: 0.8
   image_top_position_percent: 0.05

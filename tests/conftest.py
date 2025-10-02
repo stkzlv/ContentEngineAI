@@ -425,6 +425,23 @@ def setup_logging():
     )
 
 
+@pytest.fixture(autouse=True)
+def cleanup_test_outputs():
+    """Clean up test product directories after each test."""
+    yield  # Run the test
+
+    # Cleanup after test completes
+    import shutil
+    from src.utils.outputs_paths import get_outputs_root
+
+    outputs_root = get_outputs_root()
+    if outputs_root.exists():
+        # Remove TEST product directories (TEST123, etc.)
+        for item in outputs_root.iterdir():
+            if item.is_dir() and item.name.startswith("TEST"):
+                shutil.rmtree(item, ignore_errors=True)
+
+
 @pytest.fixture
 def mock_env_vars(monkeypatch):
     """Set up mock environment variables for testing."""

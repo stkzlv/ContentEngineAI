@@ -18,11 +18,33 @@ from tenacity import (
     wait_exponential,
 )
 
+# Initialize basic logging BEFORE Botasaurus imports to capture early errors
+# This will be enhanced in main() with full debug configuration
+from ...utils.logging_setup import setup_debug_logging
+from ...utils.outputs_paths import get_logs_directory
+
+log_dir = get_logs_directory()
+log_dir.mkdir(exist_ok=True)
+log_file = log_dir / "scraper.log"
+
+# Setup minimal logging at module level (will be reconfigured in main with debug settings)
+setup_debug_logging(
+    log_file=log_file,
+    debug_mode=False,  # Start with INFO level, will be updated in main()
+    verbose=False,
+    component_name="AmazonScraper",
+)
+
+# Suppress websocket errors at module level (before any browser imports)
+ws_logger = logging.getLogger("websocket")
+ws_logger.setLevel(logging.CRITICAL)
+ws_logger.propagate = False  # Prevent propagation to root logger
+
 # Import base classes for multi-platform support
 from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
 
-# Import browser automation functions
+# Import browser automation functions (may cause websocket errors - now logged)
 from .browser_functions import create_dynamic_browser_function
 from .config import (
     CONFIG,
@@ -138,7 +160,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             global _BROWSER_CONFIG
             _BROWSER_CONFIG.update(
                 {
-                    "headless": not DEBUG_MODE,
+                    "headless": False,  # Disabled - Botasaurus bug in headless mode
                     "close_on_crash": not DEBUG_MODE,
                 }
             )
@@ -470,12 +492,8 @@ class BotasaurusAmazonScraper(BaseScraper):
                     downloaded_videos=result["downloaded_videos"],
                 )
                 products.append(product)
-                # Get title preview length from config
-                debug_config = self.global_settings.get("debug_config", {})
-                title_preview_length = debug_config.get("title_preview_length", 50)
-                self.logger.info(
-                    f"Successfully scraped: {product.title[:title_preview_length]}..."
-                )
+                # Log full product information
+                self.logger.info(f"Successfully scraped: {product.asin} - {product.title}")
 
             # Final verification for media files
             global_settings = CONFIG.get("global_settings", {})
@@ -535,47 +553,53 @@ class BotasaurusAmazonScraper(BaseScraper):
                         f"Actual files on disk: {img_count} images, {vid_count} videos"
                     )
 
-                # Check media requirements from config
-                try:
-                    validation_config = CONFIG.get("global_settings", {}).get(
-                        "validation_config", {}
-                    )
-                    min_images = validation_config.get("min_images_required", 1)
-                    min_videos = validation_config.get("min_videos_required", 0)
-                    min_total = validation_config.get("min_total_media_files", 1)
-                except Exception:
-                    # Fallback to default requirements
-                    min_images = 1
-                    min_videos = 0
-                    min_total = 1
+                # Get producer-aligned media requirements from config
+                validation_config = CONFIG.get("global_settings", {}).get(
+                    "validation_config", {}
+                )
+                MIN_TOTAL_MEDIA = validation_config.get("min_total_media", 3)
+                MIN_IMAGES_IF_NO_VIDEO = validation_config.get("min_images_if_no_video", 5)
+                MIN_IMAGES_WITH_VIDEO = validation_config.get("min_images_with_video", 2)
 
                 total_media = img_count + vid_count
 
-                # Check if product meets media requirements
-                meets_requirements = (
-                    img_count >= min_images
-                    and vid_count >= min_videos
-                    and total_media >= min_total
-                )
+                # Apply same logic as producer for consistency
+                meets_requirements = True
+                rejection_reason = ""
+
+                # Basic minimum check
+                if total_media < MIN_TOTAL_MEDIA:
+                    meets_requirements = False
+                    rejection_reason = (
+                        f"total media {total_media} < {MIN_TOTAL_MEDIA}"
+                    )
+                # If no videos, need at least 5 images
+                elif vid_count == 0 and img_count < MIN_IMAGES_IF_NO_VIDEO:
+                    meets_requirements = False
+                    rejection_reason = (
+                        f"no videos and images {img_count} < {MIN_IMAGES_IF_NO_VIDEO}"
+                    )
+                # If has videos, need at least 2 images
+                elif vid_count > 0 and img_count < MIN_IMAGES_WITH_VIDEO:
+                    meets_requirements = False
+                    rejection_reason = (
+                        f"has videos but images {img_count} < {MIN_IMAGES_WITH_VIDEO}"
+                    )
 
                 if meets_requirements:
                     products_with_media.append(product)
                     if DEBUG_MODE:
                         self.logger.info(
                             f"✅ [FINAL VERIFICATION] Product {product.asin} meets "
-                            f"media requirements: {img_count} images (≥{min_images}), "
-                            f"{vid_count} videos (≥{min_videos}), "
-                            f"{total_media} total (≥{min_total})"
+                            f"producer requirements: {img_count} images, "
+                            f"{vid_count} videos, {total_media} total media"
                         )
                 else:
                     products_without_media.append(product)
-                    if DEBUG_MODE:
-                        self.logger.error(
-                            f"❌ [FINAL VERIFICATION] Product {product.asin} does NOT "
-                            f"meet media requirements: {img_count} images "
-                            f"(<{min_images}), {vid_count} videos (<{min_videos}), "
-                            f"{total_media} total (<{min_total}) - FILTERING OUT"
-                        )
+                    self.logger.warning(
+                        f"Product {product.asin} rejected: {rejection_reason} "
+                        f"({img_count} images, {vid_count} videos)"
+                    )
                     # Clean up data.json for products without media files
                     try:
                         product_dir = get_product_directory(product.asin or "unknown")
@@ -941,19 +965,14 @@ def main():
         except Exception:
             config_debug_mode = False
 
-    if args.debug or args.verbose or config_debug_mode:
+    # Reconfigure logging with proper debug settings (already initialized at module level)
+    # Determine debug mode from CLI or config
+    debug_enabled = args.debug or args.verbose or config_debug_mode
+    if debug_enabled:
         global DEBUG_MODE
         DEBUG_MODE = True
 
-        # Setup file logging for scraper
-        from ...utils.logging_setup import setup_debug_logging
-        from ...utils.outputs_paths import get_logs_directory
-
-        log_dir = get_logs_directory()
-        log_dir.mkdir(exist_ok=True)
-        log_file = log_dir / "scraper.log"
-
-        # Use centralized logging setup
+        # Reconfigure with debug settings
         setup_debug_logging(
             log_file=log_file,
             debug_mode=True,
@@ -961,12 +980,13 @@ def main():
             component_name="AmazonScraper",
         )
 
-        # Apply websocket filter to suppress cleanup messages
-        websocket_filter = WebsocketFilter()
-        logging.getLogger().addFilter(websocket_filter)
-        logging.getLogger("websocket").addFilter(websocket_filter)
+    # Apply websocket filter to suppress cleanup messages
+    websocket_filter = WebsocketFilter()
+    logging.getLogger().addFilter(websocket_filter)
+    logging.getLogger("websocket").addFilter(websocket_filter)
 
-        # Print debug mode status messages
+    # Print debug mode status messages only when debug is enabled
+    if debug_enabled:
         if args.verbose:
             print("🔍 Verbose mode enabled - detailed logging active")
         elif config_debug_mode and not args.debug:
@@ -992,12 +1012,6 @@ def main():
             print("🔍 Deep image analysis enabled - all images will be analyzed")
         if args.dump_image_urls:
             print("📝 Image URL dumping enabled - all URLs will be saved to file")
-    else:
-        logging.basicConfig(level=logging.INFO)
-        # Apply websocket filter to suppress cleanup messages
-        websocket_filter = WebsocketFilter()
-        logging.getLogger().addFilter(websocket_filter)
-        logging.getLogger("websocket").addFilter(websocket_filter)
 
     if args.clean:
         import re

@@ -140,10 +140,10 @@ def validate_media_requirements(
 
     uses_scraped_videos = getattr(profile, "use_scraped_videos", True)
 
-    # Minimum requirements for quality video creation
-    MIN_TOTAL_MEDIA = 3
-    MIN_IMAGES_IF_NO_VIDEO = 5
-    MIN_IMAGES_WITH_VIDEO = 2
+    # Get media requirements from config (must match scraper validation)
+    MIN_TOTAL_MEDIA = config.video_settings.min_total_media
+    MIN_IMAGES_IF_NO_VIDEO = config.video_settings.min_images_if_no_video
+    MIN_IMAGES_WITH_VIDEO = config.video_settings.min_images_with_video
 
     # Check basic minimum
     if total_media < MIN_TOTAL_MEDIA:

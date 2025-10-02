@@ -152,15 +152,40 @@ def scrape_amazon_products_browser_impl(
             if DEBUG_MODE:
                 print("🚀 [DEBUG] Starting navigation to search page...")
 
+            logger.info(f"Navigating to search URL: {search_url}")
+
+            # CRITICAL WORKAROUND: Botasaurus headless mode bug - browser starts with no tabs
+            # Must create initial tab manually before using google_get
+            try:
+                # Attempt to access browser to ensure it's initialized
+                _ = driver._browser
+                # Check if we have any tabs
+                if not driver._browser.targets or not any(
+                    t._target.type_ == "page" for t in driver._browser.targets
+                ):
+                    logger.debug("Creating initial tab for browser")
+                    # Create new tab using Chrome DevTools Protocol
+                    driver._browser.connection.send("Target.createTarget", {"url": "about:blank"})
+            except Exception as e:
+                logger.debug(f"Tab creation attempt: {e}")
+
             # Use google_get for organic navigation pattern (same as working version)
             driver.google_get(search_url, bypass_cloudflare=True)
+
+            # Get page info
+            current_url = driver.current_url
+            page_title = driver.title[:80] if driver.title else "No title"
+            logger.info(f"Loaded page: {page_title}")
+            if DEBUG_MODE:
+                logger.debug(f"Current URL: {current_url}")
 
             if DEBUG_MODE:
                 print("✅ [DEBUG] Navigation completed successfully")
 
         except Exception as e:
-            if DEBUG_MODE:
-                print(f"❌ [DEBUG] Navigation failed: {e}")
+            import traceback
+            print(f"❌ [DEBUG] Navigation failed: {type(e).__name__}: {e}")
+            print(f"📋 [DEBUG] Traceback: {traceback.format_exc()}")
             return []
 
         # Force browser maximization programmatically for debug mode
@@ -212,6 +237,7 @@ def scrape_amazon_products_browser_impl(
         # Check for CAPTCHA or bot detection
         if driver.is_bot_detected():
             logging.getLogger(__name__).error("🚫 Bot detection triggered!")
+            print("🚫 [DEBUG] Bot detection triggered - returning 0 products")
             if DEBUG_MODE:
                 # Take error screenshot if enabled in config (default: enabled)
                 try:
@@ -268,11 +294,17 @@ def scrape_amazon_products_browser_impl(
             product_cards = []
             search_selector = None  # Track which selector worked
 
+            # First, wait for any product content to load (critical for headless mode)
+            try:
+                driver.wait_for_element(product_selectors[0], timeout=timeout)
+            except Exception:
+                pass  # Continue even if first selector fails
+
             for selector in product_selectors:
                 if DEBUG_MODE:
                     print(f"🔍 [DEBUG] Trying selector: {selector}")
                 try:
-                    # Don't wait for element - just try to find it immediately
+                    # Now try to select without wait since we already waited
                     cards = driver.select_all(selector)
                     if cards and len(cards) > 0:
                         if "h2 a" in selector or "a[href*='/dp/']" in selector:
@@ -419,8 +451,7 @@ def scrape_amazon_products_browser_impl(
                     # Mark ASIN as processed
                     processed_asins.add(serp_info.asin)
 
-                    if DEBUG_MODE:
-                        print(f"🔍 [DEBUG] Extracting product {i+1}: {serp_info.asin}")
+                    logger.info(f"Processing product {i+1}/{max_products}: {serp_info.asin}")
 
                     # Navigate to product page
                     driver.google_get(serp_info.url, bypass_cloudflare=True)
@@ -694,17 +725,12 @@ def extract_product_data_from_page(
             return None
 
         # ONLY extract media for valid products
-        if DEBUG_MODE:
-            logging.getLogger(__name__).info(
-                f"🖼️ Extracting images for validated product {asin}"
-            )
+        logger = logging.getLogger(__name__)
+        logger.info(f"Extracting images for {asin}")
 
         images = extract_high_res_images_botasaurus(driver, debug_options=debug_options)
 
-        if DEBUG_MODE:
-            logging.getLogger(__name__).info(
-                f"🎥 Extracting videos for validated product {asin}"
-            )
+        logger.info(f"Extracting videos for {asin}")
 
         videos = extract_functional_videos_with_validation(driver)
 
@@ -1053,9 +1079,13 @@ def create_dynamic_browser_function(debug_mode=False):
     # Force update debug-related settings with current DEBUG_MODE
     current_config.update(
         {
-            "headless": not DEBUG_MODE,  # Show browser if debug mode
-            "close_on_crash": not DEBUG_MODE,  # Keep browser open on crash
-            # if debug mode
+            # CRITICAL: Headless mode disabled - Botasaurus bug causes StopIteration (no tabs created)
+            # See: https://github.com/omkarcloud/botasaurus/issues
+            "headless": False,  # Always run with visible browser or Xvfb
+            "close_on_crash": not DEBUG_MODE,  # Keep browser open on crash in debug mode
+            # CRITICAL: Disable driver reuse - causes StopIteration in headless mode
+            "reuse_driver": False,  # Always create fresh browser instance
+            "create_driver": True,  # Force driver creation
         }
     )
 
