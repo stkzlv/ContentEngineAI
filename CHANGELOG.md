@@ -5,6 +5,52 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.5.0] - 2025-10-02
+
+### Added
+- **Centralized Configuration System**: Media validation settings now centrally managed in config files
+  - Added `min_total_media`, `min_images_if_no_video`, `min_images_with_video` to scraper and producer configs
+  - Cross-referenced settings between `config/scraper.yaml` and `config/video_production.yaml`
+  - Added test verification for config alignment (`test_media_validation_aligns_with_producer`)
+- **Enhanced Progress Logging**: Improved scraping visibility with product-level progress tracking
+  - Log full ASIN and product title for each scraped product
+  - Progress indicators: "Processing product X/Y", "Extracting images/videos for {ASIN}"
+  - INFO-level logging for non-debug visibility
+- **Centralized Logging Utility**: New `src/utils/logging_setup.py` module provides standardized logging configuration
+- **Configuration Audit**: Comprehensive `CONFIG_AUDIT.md` documenting hardcoded values, unused settings, and improvement roadmap
+- **Debug Documentation**: Expanded TROUBLESHOOTING.md with debug files reference table and configuration guidance
+
+### Changed
+- **Browser Image Display**: Enabled images in browser window (changed `block_images: False`)
+- **Media Validation Architecture**: Producer-aligned validation requirements
+  - Scraper now validates same requirements as video producer (3 total, 5 images for slideshow, 2 for video mode)
+  - Moved hardcoded validation thresholds to configuration files
+  - Updated `validate_media_requirements()` to accept config parameter
+- **Import Organization**: Reorganized module imports to comply with linting standards (imports at top of file)
+- **Debug Mode Logging**: Eliminated 60+ lines of duplicated logging setup code between producer and scraper
+- **FFmpeg Logging Logic**: Simplified `_should_create_ffmpeg_logs()` method with clearer fallback behavior
+
+### Fixed
+- **Websocket Error Suppression**: Properly suppressed harmless "goodbye" cleanup messages
+  - Set `propagate=False` on websocket logger to prevent error propagation
+  - Errors no longer appear in console output
+- **Linting Issues**: Fixed all Ruff, MyPy, and code quality violations
+  - Line length compliance (88 characters)
+  - Try-except-pass logging (added debug messages)
+  - Docstring completeness for function parameters
+  - Type annotations for all functions
+- **Headless Mode Issues**: Fixed browser initialization and tab creation bugs
+- **Test Suite**: Updated 23 configuration tests to use new centralized settings
+- **Logging Configuration**: Producer and scraper now use shared `setup_debug_logging()` function
+
+### Technical
+- **Breaking Change**: Configuration structure updated - media validation settings moved from hardcoded values to config files
+- **Code Quality**: All linting checks passing (Ruff, MyPy, Bandit, Vulture, Safety)
+- **Test Coverage**: 480 tests collected, 470 passing, 41% coverage maintained
+- **Configuration Synchronization**: Automated test ensures scraper and producer configs stay aligned
+
 ## [0.4.0] - 2025-10-01
 
 ### Added

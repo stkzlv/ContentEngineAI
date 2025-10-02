@@ -34,9 +34,16 @@ video_settings:
   min_video_file_size_mb: 0.1
   verification_probe_timeout_sec: 30
 
+  # Media validation requirements (MUST match scraper.yaml validation_config)
+  # These determine minimum media needed for video production
+  # Affects: Product acceptance, video creation success rate
+  min_total_media: 3              # Minimum total media files (images + videos)
+  min_images_if_no_video: 5       # Minimum images when no videos available (slideshow mode)
+  min_images_with_video: 2        # Minimum images when videos available (video mode)
+
   # Image positioning (used by profiles)
   image_width_percent: 0.8
-  image_top_position_percent: 0.05
+  image_top_position_percent: 0.07
 
   # Timing and delays
   inter_product_delay_min_sec: 1.5
@@ -55,23 +62,23 @@ video_settings:
 audio_settings:
   # Audio sample rate (Hz)
   sample_rate: 44100
-  
+
   # Audio channels (1=mono, 2=stereo)
   channels: 2
-  
+
   # Audio bitrate (kbps)
   bitrate: 192
-  
+
   # Volume levels (dB)
   music_volume_db: -20.0
   voiceover_volume_db: 3.0
   sound_effects_volume_db: -15.0
-  
+
   # Audio processing
   normalize_audio: true
   apply_compression: true
   noise_reduction: true
-  
+
   # Audio mixing settings
   audio_mix_duration: "longest"
 
@@ -193,7 +200,7 @@ video_profiles:
     subtitles:
       enabled: true
       position: "bottom"
-  
+
   # Slideshow with images profile
   slideshow_images1:
     description: "Dynamically uses scraped product images to match voiceover duration."
@@ -325,10 +332,10 @@ ffmpeg_settings:
 subtitle_settings:
   enabled: true
   anchor: "below_content"
-  margin: 0.08
+  margin: 0.07
   content_aware: true
 
-  font_directory: "assets/fonts"
+  font_directory: "static/fonts"
   font_size: 60
   font_color: "#FFFFFF"
   background_color: "#000000"

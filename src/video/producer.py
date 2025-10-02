@@ -25,6 +25,7 @@ from src.utils.background_processing import (
     get_background_processor,
 )
 from src.utils.connection_pool import get_http_session
+from src.utils.logging_setup import setup_debug_logging
 from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import PerformanceHistoryManager, performance_monitor
 from src.utils.script_sanitizer import sanitize_script
@@ -53,8 +54,6 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
         Path to the log file
 
     """
-    log_level = logging.DEBUG if debug_mode else logging.INFO
-
     # Create log directory
     log_dir = config.general_video_producer_log_dir_path
     ensure_dirs_exist(log_dir)
@@ -62,46 +61,16 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     # Use fixed log filename that gets overwritten on each run
     log_file = log_dir / "producer.log"
 
-    # Clear any existing handlers
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Set up console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    # Use centralized logging setup
+    setup_debug_logging(
+        log_file=log_file,
+        debug_mode=debug_mode,
+        verbose=True,  # Producer uses verbose format by default
+        component_name="VideoProducer",
     )
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(log_level)
 
-    # Set up file handler (overwrite mode)
-    file_handler = logging.FileHandler(
-        log_file,
-        mode="w",  # Overwrite file on each run
-        encoding="utf-8",
-    )
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-    )
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(log_level)
-
-    # Configure root logger
-    root_logger.setLevel(log_level)
-    root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
-
-    # Suppress noisy third-party loggers
-    logging.getLogger("numba").setLevel(logging.WARNING)
-    if not debug_mode:
-        for lib in ["httpx", "google", "aiohttp", "urllib3", "asyncio", "hpack"]:
-            logging.getLogger(lib).setLevel(logging.WARNING)
-
-    logger.info(
-        f"Logging configured - Level: {logging.getLevelName(log_level)}, "
-        f"File: {log_file}"
-    )
+    log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
+    logger.info(f"Logging configured - Level: {log_level_name}, File: {log_file}")
     return log_file
 
 
@@ -137,7 +106,11 @@ class InsufficientMediaError(PipelineError):
 
 
 def validate_media_requirements(
-    scraped_images: list, scraped_videos: list, stock_media: list, profile
+    scraped_images: list,
+    scraped_videos: list,
+    stock_media: list,
+    profile,
+    config: VideoConfig,
 ) -> tuple[bool, str]:
     """Validate if gathered media meets minimum requirements for video creation.
 
@@ -147,6 +120,7 @@ def validate_media_requirements(
         scraped_videos: List of scraped video paths
         stock_media: List of stock media items
         profile: Video profile configuration object
+        config: Video configuration containing media requirements
 
     Returns:
     -------
@@ -171,10 +145,10 @@ def validate_media_requirements(
 
     uses_scraped_videos = getattr(profile, "use_scraped_videos", True)
 
-    # Minimum requirements for quality video creation
-    MIN_TOTAL_MEDIA = 3
-    MIN_IMAGES_IF_NO_VIDEO = 5
-    MIN_IMAGES_WITH_VIDEO = 2
+    # Get media requirements from config (must match scraper validation)
+    MIN_TOTAL_MEDIA = config.video_settings.min_total_media
+    MIN_IMAGES_IF_NO_VIDEO = config.video_settings.min_images_if_no_video
+    MIN_IMAGES_WITH_VIDEO = config.video_settings.min_images_with_video
 
     # Check basic minimum
     if total_media < MIN_TOTAL_MEDIA:
@@ -910,7 +884,11 @@ async def step_gather_visuals(ctx: PipelineContext):
 
         # Validate media requirements for quality video creation
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media_fetched, ctx.profile
+            scraped_images,
+            scraped_videos,
+            stock_media_fetched,
+            ctx.profile,
+            ctx.config,
         )
         logger.info(f"Media validation: {reason}")
         if not is_valid:

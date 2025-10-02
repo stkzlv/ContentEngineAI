@@ -25,6 +25,7 @@ subtitle_settings:
 
   # ---- STYLING ----
   # Style preset determines overall appearance
+  # Available presets: minimal, modern, bold, animated, random
   style_preset: "animated"
 
   # Font size scale factor (0.5-2.0)
@@ -149,7 +150,7 @@ text_rendering:
   space_char_width_factor: 0.3
 
   # Text layout parameters
-  max_text_width_percent: 0.95
+  max_text_width_percent: 0.8
   default_margin_fraction: 0.1
   default_font_size_scale: 1.0
   max_chars_per_line: 38
@@ -169,6 +170,71 @@ text_rendering:
   base_font_size_percent: 0.04
   min_font_size: 16
   max_font_size: 100
+
+# ============================================================================
+# SUBTITLE STYLE PRESETS
+# ============================================================================
+# Predefined style configurations with fonts, colors, and effects
+style_presets:
+  minimal:
+    description: "Clean, simple styling with no effects"
+    font_name: "Arial"
+    font_color: "&H00FFFFFF"           # White text
+    outline_color: "&H00000000"        # Black outline
+    background_color: null             # No background
+    bold: false
+    outline_thickness: 1
+    shadow: false
+    effects: []
+    font_width_to_height_ratio: 0.5
+
+  modern:
+    description: "Contemporary look with subtle effects"
+    font_name: "Montserrat"
+    font_color: "&H00FFFFFF"           # White text
+    outline_color: "&H00000000"        # Black outline
+    background_color: "&H99000000"     # Semi-transparent black background
+    bold: true
+    outline_thickness: 2
+    shadow: true
+    effects: ["karaoke"]
+    font_width_to_height_ratio: 0.5
+
+  bold:
+    description: "High contrast, bold styling"
+    font_name: "Gabarito"
+    font_color: "&H00FFFFFF"           # White text
+    outline_color: "&H00000000"        # Black outline
+    background_color: "&HCC000000"     # Strong black background
+    bold: true
+    outline_thickness: 3
+    shadow: true
+    effects: ["fade"]
+    font_width_to_height_ratio: 0.5
+
+  animated:
+    description: "Full animations and dynamic effects"
+    font_name: "Gabarito"
+    font_color: "&H00FFFFFF"           # White text
+    outline_color: "&H00000000"        # Black outline
+    background_color: "&H99000000"     # Semi-transparent black
+    bold: true
+    outline_thickness: 2
+    shadow: true
+    effects: ["movement"]
+    font_width_to_height_ratio: 0.5
+
+  random:
+    description: "Random styling with one random effect per video"
+    font_name: "Impact"                # Will be randomized
+    font_color: "&H00FFFFFF"           # Will be randomized
+    outline_color: "&H00000000"        # Will be randomized
+    background_color: "&H99000000"
+    bold: true
+    outline_thickness: 2
+    shadow: true
+    effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke", "movement"]
+    font_width_to_height_ratio: 0.5
 
 # ============================================================================
 # SUBTITLE SEGMENTATION

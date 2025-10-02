@@ -7,7 +7,7 @@
 global_settings:
   # Global debug mode - affects all scraping operations
   # Can be overridden by CLI --debug flag
-  debug_mode: true
+  debug_mode: false
 
   # ---- Output Directory Configuration ----
   # Configurable paths for all scraper outputs
@@ -222,21 +222,19 @@ global_settings:
     # Affects: Product filtering, determines what constitutes a "complete" product
     essential_fields: []
 
-    # Media file requirements for products to be considered valid
-    # Products not meeting these thresholds are rejected/not counted
-    # Affects: Product collection logic, success criteria
+    # Producer-aligned media requirements
+    # IMPORTANT: These values MUST match video_production.yaml:video_settings values
+    # to ensure scraped products will be accepted by the video producer
+    # Affects: Product filtering, producer compatibility, success rate
 
-    # Minimum number of valid images required per product
-    # Products with fewer images than this are rejected
-    min_images_required: 1
+    # Reference: See config/video_production.yaml:video_settings for authoritative values
+    # - min_total_media: 3 (minimum total media files)
+    # - min_images_if_no_video: 5 (minimum images for slideshow mode)
+    # - min_images_with_video: 2 (minimum images when videos available)
 
-    # Minimum number of valid videos required per product
-    # Set to 0 to make videos optional (images are sufficient)
-    min_videos_required: 0
-
-    # Minimum total media files (images + videos) required
-    # Alternative validation: total media count instead of separate image/video requirements
-    min_total_media_files: 1
+    min_total_media: 3                # Must match video_production.yaml
+    min_images_if_no_video: 5         # Must match video_production.yaml
+    min_images_with_video: 2          # Must match video_production.yaml
 
     # Media validation timeout for ffprobe/identify (seconds)
     # How long to wait for media validation tools to complete
@@ -338,7 +336,7 @@ scrapers:
     base_url: "https://www.amazon.com"
 
     # List of search keywords or direct product ASINs to scrape
-    keywords: ["headphones"]
+    keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
     max_products: 1
@@ -349,8 +347,8 @@ scrapers:
     # ---- Default Search Parameters ----
     default_search_parameters:
       # Price filtering (in USD, set to null to disable)
-      min_price: null              # Minimum price filter (e.g., 10.99)
-      max_price: 100               # Maximum price filter (e.g., 99.99)
+      min_price: 10              # Minimum price filter (e.g., 10.99)
+      max_price: 150               # Maximum price filter (e.g., 99.99)
 
       # Quality filtering (1-5 stars, set to null to disable)
       min_rating: null             # Minimum rating filter (e.g., 4 for 4+ stars)

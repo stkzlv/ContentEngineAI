@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.4.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.5.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update**: Unified configuration management system with 54% complexity reduction, CLI overrides, environment variables, and zero breaking changes.
+> **🚀 Latest Update**: Centralized configuration system with media validation alignment, enhanced debug mode, and improved scraping visibility.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
@@ -15,7 +15,7 @@
 
 - **🤖 End-to-End Automation**: Complete video production from scraping to final output
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎨 Style Presets**: 4 production-ready presets (`minimal`, `modern`, `bold`, `random`) with deterministic effects
+- **🎨 Style Presets**: 5 production-ready presets (`minimal`, `modern`, `bold`, `animated`, `random`) with configurable effects
 - **🎯 Content-Aware Subtitles**: Dynamic positioning that intelligently avoids visual content overlap
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
 - **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables

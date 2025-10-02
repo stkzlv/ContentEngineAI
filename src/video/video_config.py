@@ -371,6 +371,13 @@ class VideoSettings(BaseModel):
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
 
+    # Media validation requirements (must match scraper config)
+    min_total_media: int = Field(3, description="Minimum total media files required")
+    min_images_if_no_video: int = Field(5, description="Minimum images when no videos")
+    min_images_with_video: int = Field(
+        2, description="Minimum images when videos exist"
+    )
+
     @model_validator(mode="after")
     def validate_resolution(self) -> "VideoSettings":
         width, height = self.resolution
@@ -940,6 +947,17 @@ class LLMValidationSettings(BaseModel):
         2, description="Maximum retry attempts for LLM requests"
     )
 
+    # Description validation thresholds
+    min_description_chars: int = Field(
+        50, description="Minimum character length for generated descriptions"
+    )
+    min_description_words: int = Field(
+        10, description="Minimum word count for generated descriptions"
+    )
+    description_retry_attempts: int = Field(
+        2, description="Maximum retry attempts for incomplete descriptions"
+    )
+
 
 class DebugSettings(BaseModel):
     """Configuration for debug output and development settings."""
@@ -947,6 +965,9 @@ class DebugSettings(BaseModel):
     max_log_line_length: int = Field(200)
     debug_file_retention_days: int = Field(7)
     intermediate_file_cleanup: bool = Field(True)
+    cleanup_on_success: bool = Field(False)
+    cleanup_on_failure: bool = Field(False)
+    cleanup_whisper_files: bool = Field(False)
     operation_timing_threshold_sec: float = Field(5.0)
     memory_usage_warning_mb: int = Field(1000)
 
@@ -1851,6 +1872,9 @@ except Exception as e:
             output_codec="libx264",
             output_pixel_format="yuv420p",
             output_preset="medium",
+            min_total_media=3,
+            min_images_if_no_video=5,
+            min_images_with_video=2,
             image_width_percent=0.75,
             image_top_position_percent=0.15,
             default_image_duration_sec=3.0,
@@ -1995,6 +2019,9 @@ except Exception as e:
             max_log_line_length=200,
             debug_file_retention_days=7,
             intermediate_file_cleanup=True,
+            cleanup_on_success=False,
+            cleanup_on_failure=False,
+            cleanup_whisper_files=False,
             operation_timing_threshold_sec=5.0,
             memory_usage_warning_mb=1000,
         ),

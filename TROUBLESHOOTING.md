@@ -35,14 +35,30 @@ for key in keys:
 Always use debug mode when troubleshooting:
 
 ```bash
+# Enable debug mode for producer
 poetry run python -m src.video.producer products.json profile_name --debug
+
+# Enable debug mode for scraper
+poetry run python -m src.scraper.amazon.scraper --keywords "product" --debug
+
+# Enable verbose mode (more detailed console output)
+poetry run python -m src.scraper.amazon.scraper --keywords "product" --verbose
 ```
 
-Debug mode provides:
-- Detailed console logging
-- Intermediate file preservation in `outputs/temp/`
-- FFmpeg command logging
+**Debug mode provides:**
+- Detailed console logging (DEBUG level)
+- Persistent log files:
+  - Producer: `outputs/logs/producer/producer.log`
+  - Scraper: `outputs/logs/scraper.log`
+- Intermediate file preservation in `outputs/{product_id}/temp/`
+- FFmpeg command logging to `outputs/{product_id}/temp/ffmpeg_command.log`
 - Step-by-step execution traces
+- Debug file generation (see Debug Files section below)
+
+**Configuration vs. CLI:**
+- CLI `--debug` flag **overrides** config file settings
+- Config file: Set `debug_mode: true` in `config/scraper.yaml` (scraper only)
+- Debug settings: Configure in `config/performance.yaml` under `debug_settings`
 
 ## Installation Issues
 
@@ -858,3 +874,52 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 - Check required fields are present
 - Verify enum values are correct
 - Check data types match expectations
+
+---
+
+## Debug Files Reference
+
+ContentEngineAI generates various debug files to help diagnose issues. All debug files are stored in `outputs/{product_id}/temp/` unless otherwise noted.
+
+### Debug File Locations
+
+| File | Location | Purpose | Controlled By |
+|------|----------|---------|---------------|
+| **Producer Log** | `outputs/logs/producer/producer.log` | Producer execution log | `--debug` flag |
+| **Scraper Log** | `outputs/logs/scraper.log` | Scraper execution log | `--debug` or `--verbose` flag |
+| **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | `create_ffmpeg_command_logs: true` |
+| **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports: true` |
+| **Pipeline Metadata** | `outputs/{product_id}/temp/metadata.json` | Pipeline state and execution tracking | `create_pipeline_metadata: true` |
+| **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `create_performance_metrics: true` |
+| **Whisper Raw Output** | `outputs/{product_id}/temp/whisper_result_raw.json` | Raw STT transcription output | `create_whisper_debug_files: true` |
+| **Whisper vs Script** | `outputs/{product_id}/temp/whisper_vs_script.txt` | Transcription vs script comparison | `create_whisper_debug_files: true` |
+| **Whisper Word List** | `outputs/{product_id}/temp/whisper_word_list.json` | Word-level timing data | `create_whisper_debug_files: true` |
+| **Gathered Visuals** | `outputs/{product_id}/temp/gathered_visuals.json` | Visual asset selection metadata | `create_temp_files: true` |
+| **Music Choice** | `outputs/{product_id}/temp/music_choice.json` | Audio selection metadata | `create_temp_files: true` |
+
+### Debug Settings Configuration
+
+Edit `config/performance.yaml` to control debug file generation:
+
+```yaml
+debug_settings:
+  # Logging configuration
+  max_log_line_length: 200
+  debug_file_retention_days: 7
+
+  # File cleanup behavior
+  intermediate_file_cleanup: true      # Master cleanup switch
+  cleanup_on_success: false            # Remove files after success
+  cleanup_on_failure: false            # Remove files after failure (keep for debugging)
+  cleanup_whisper_files: false         # Remove Whisper temporary files
+
+  # Debug file generation (set to false to disable specific files)
+  create_media_validation_reports: true
+  create_ffmpeg_command_logs: true
+  create_pipeline_metadata: true
+  create_performance_metrics: true
+  create_whisper_debug_files: true
+  create_temp_files: true
+```
+
+**Important:** CLI `--debug` flag overrides these settings and retains all debug files for troubleshooting.

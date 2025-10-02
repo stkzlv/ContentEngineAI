@@ -233,7 +233,7 @@ class TestStyleConfigs:
 
         assert style["font_name"] == "Montserrat"
         assert style["bold"] is True
-        assert "scale_pulse" in style["effects"]
+        assert "karaoke" in style["effects"]
 
     def test_get_style_config_random(self):
         """Test random style preset."""

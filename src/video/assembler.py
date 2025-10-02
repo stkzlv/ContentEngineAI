@@ -714,21 +714,24 @@ class VideoAssembler:
         -------
             True if logs should be created, False otherwise
 
+        Notes
+        -----
+            Defaults to True if debug_settings is not configured or if any error occurs.
+            This ensures FFmpeg commands are logged for debugging by default.
+
         """
         try:
             if hasattr(self.config, "debug_settings") and self.config.debug_settings:
-                # Use getattr with explicit call for object-style access
-                attr = getattr(
+                # Get the setting value, defaulting to True
+                create_logs = getattr(
                     self.config.debug_settings, "create_ffmpeg_command_logs", True
                 )
-                # If attr is callable (like a MagicMock), call it to potentially
-                # trigger side_effect
-                if callable(attr):
-                    result = attr()
-                    return bool(result)
-                return bool(attr)
+                return bool(create_logs)
+            # Default to True when debug_settings is not configured
             return True
-        except Exception:
+        except Exception as e:
+            # Log the exception and default to True for safety
+            logger.debug(f"Error checking FFmpeg log setting, defaulting to True: {e}")
             return True
 
     async def assemble_video(

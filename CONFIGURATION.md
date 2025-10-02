@@ -78,6 +78,11 @@ video_settings:
   frame_rate: 30
   output_codec: "libx264"
 
+  # Media validation requirements (must match scraper.yaml)
+  min_total_media: 3              # Minimum total media files
+  min_images_if_no_video: 5       # Minimum images for slideshow mode
+  min_images_with_video: 2        # Minimum images when videos available
+
 audio_settings:
   voiceover_volume_db: 0
   music_volume_db: -20
@@ -110,15 +115,37 @@ llm_settings:
 ```
 
 ### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
-Subtitle positioning and styling:
+Subtitle positioning and styling with configurable presets:
 
 ```yaml
 subtitle_settings:
   enabled: true
   anchor: "below_content"
-  style_preset: "modern"
+  style_preset: "modern"  # Available: minimal, modern, bold, animated, random
   content_aware: true
-  font_directory: "assets/fonts"
+  font_directory: "static/fonts"
+
+# Define custom style presets
+style_presets:
+  minimal:
+    font_name: "Poppins"
+    effects: []  # No effects for clean look
+    bold: false
+  modern:
+    font_name: "Montserrat"
+    effects: ["karaoke"]
+    bold: true
+  bold:
+    font_name: "Rubik"
+    effects: ["fade"]
+    bold: true
+  animated:
+    font_name: "Gabarito"
+    effects: ["movement"]
+    bold: true
+  random:
+    # Randomly selects from available fonts, colors, and single effect
+    effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke", "movement"]
 ```
 
 ### 5. **Performance Configuration** (`config/performance.yaml`)
@@ -149,6 +176,13 @@ scraper_settings:
     base_directory: "outputs"
     file_patterns:
       product_file: "{keyword}_products.json"
+
+global_settings:
+  validation_config:
+    # Media validation requirements (must match video_production.yaml)
+    min_total_media: 3              # Minimum total media files
+    min_images_if_no_video: 5       # Minimum images for slideshow mode
+    min_images_with_video: 2        # Minimum images when videos available
 
 amazon_settings:
   max_results: 10
@@ -352,8 +386,8 @@ subtitle_settings:
   content_aware: true                # Automatically adjust position based on visual content
   horizontal_alignment: "center"     # Text alignment: left, center, right
 
-  # Style Presets (4 optimized presets)
-  style_preset: "modern"             # Style preset: minimal, modern, bold, random
+  # Style Presets (5 production-ready presets)
+  style_preset: "modern"             # Style preset: minimal, modern, bold, animated, random
   font_size_scale: 1.0              # Font size multiplier (0.5-2.0)
 
   # Text Formatting
@@ -361,7 +395,7 @@ subtitle_settings:
   max_duration: 4.5                  # Maximum duration for subtitle segments (seconds)
   min_duration: 0.4                  # Minimum duration for subtitle segments (seconds)
 
-  # Randomization Options
+  # Randomization Options (for 'random' preset)
   randomize_fonts: false             # Use random font selection from curated collection
   randomize_colors: false            # Use random coordinated color combinations
   randomize_effects: false           # Use random animation effects
@@ -386,10 +420,11 @@ subtitle_settings:
 
 #### Style Presets
 
-- **`minimal`**: Clean, simple styling with no effects
-- **`modern`**: Contemporary look with scale pulse animation and semi-transparent background
-- **`bold`**: High contrast, bold styling with fade effects for attention-grabbing content
-- **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect
+- **`minimal`**: Clean, simple styling with no effects (Poppins font)
+- **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold)
+- **`bold`**: High contrast styling with fade effect (Rubik font, bold)
+- **`animated`**: Full animations with movement effect (Gabarito font, bold)
+- **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect from available pool
 
 </details>
 
