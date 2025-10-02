@@ -272,7 +272,7 @@ class TestStylePresets:
         assert config["bold"] is True
         assert config["outline_thickness"] == 2
         assert config["shadow"] is True
-        assert "scale_pulse" in config["effects"]
+        assert "karaoke" in config["effects"]
 
     def test_random_preset(self):
         """Test random style preset with randomized effects."""
@@ -315,12 +315,11 @@ class TestStylePresets:
 
     def test_invalid_preset_fallback(self):
         """Test fallback for invalid preset."""
-        # Create a mock preset that doesn't exist
-        with patch("src.video.subtitle_positioning.StylePreset") as mock_preset:
-            mock_preset.INVALID = "invalid"
-            config = get_style_config("invalid")  # type: ignore
-            # Should fallback to modern preset
-            assert config["font_name"] == "Montserrat"
+        # Test with an invalid preset string
+        config = get_style_config("invalid_preset_name")  # type: ignore
+        # Should fallback to modern preset
+        assert config["font_name"] == "Montserrat"
+        assert "karaoke" in config["effects"]
 
 
 class TestLegacyConfigConversion:

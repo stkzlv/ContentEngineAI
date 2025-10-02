@@ -145,7 +145,7 @@ def get_style_config(
         logger.warning(f"Could not load style presets from config: {e}")
 
     # Map StylePreset enum to config key
-    preset_key = preset.value
+    preset_key = preset.value if isinstance(preset, StylePreset) else preset
 
     # Get base configuration from YAML or fallback to hardcoded
     if preset_key in style_presets:
@@ -154,8 +154,8 @@ def get_style_config(
         base_config.pop("description", None)
     else:
         # Fallback to hardcoded presets for backward compatibility
-        fallback_configs: dict[StylePreset, dict[str, Any]] = {
-            StylePreset.MINIMAL: {
+        fallback_configs: dict[str, dict[str, Any]] = {
+            "minimal": {
                 "font_name": "Arial",
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&H00000000",
@@ -166,7 +166,7 @@ def get_style_config(
                 "effects": [],
                 "font_width_to_height_ratio": 0.5,
             },
-            StylePreset.MODERN: {
+            "modern": {
                 "font_name": "Montserrat",
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&H00000000",
@@ -174,10 +174,10 @@ def get_style_config(
                 "bold": True,
                 "outline_thickness": 2,
                 "shadow": True,
-                "effects": ["scale_pulse"],
+                "effects": ["karaoke"],
                 "font_width_to_height_ratio": 0.5,
             },
-            StylePreset.BOLD: {
+            "bold": {
                 "font_name": "Gabarito",
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&H00000000",
@@ -188,7 +188,7 @@ def get_style_config(
                 "effects": ["fade"],
                 "font_width_to_height_ratio": 0.5,
             },
-            StylePreset.ANIMATED: {
+            "animated": {
                 "font_name": "Gabarito",
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&H00000000",
@@ -196,10 +196,10 @@ def get_style_config(
                 "bold": True,
                 "outline_thickness": 2,
                 "shadow": True,
-                "effects": ["scale_pulse", "glow"],
+                "effects": ["movement"],
                 "font_width_to_height_ratio": 0.5,
             },
-            StylePreset.RANDOM: {
+            "random": {
                 "font_name": "Impact",
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&H00000000",
@@ -220,7 +220,7 @@ def get_style_config(
             },
         }
         base_config = fallback_configs.get(
-            preset, fallback_configs[StylePreset.MODERN]
+            preset_key, fallback_configs["modern"]
         ).copy()
 
     # Handle RANDOM preset - force randomization and select one random effect
