@@ -31,6 +31,7 @@ class StylePreset(str, Enum):
     MINIMAL = "minimal"  # Clean, simple styling
     MODERN = "modern"  # Contemporary look with effects
     BOLD = "bold"  # High contrast, bold styling
+    ANIMATED = "animated"  # Full animations and dynamic effects
     RANDOM = "random"  # Random styling with one random effect
 
 
@@ -128,65 +129,99 @@ def get_style_config(
         Dictionary of style parameters for subtitle generation
 
     """
-    configs: dict[StylePreset, dict[str, Any]] = {
-        StylePreset.MINIMAL: {
-            "font_name": "Arial",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": None,
-            "bold": False,
-            "outline_thickness": 1,
-            "shadow": False,
-            "effects": [],
-            "font_width_to_height_ratio": 0.5,
-        },
-        StylePreset.MODERN: {
-            "font_name": "Montserrat",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": "&H99000000",  # Semi-transparent
-            "bold": True,
-            "outline_thickness": 2,
-            "shadow": True,
-            "effects": ["scale_pulse"],
-            "font_width_to_height_ratio": 0.5,
-        },
-        StylePreset.BOLD: {
-            "font_name": "Gabarito",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": "&HCC000000",  # Strong background
-            "bold": True,
-            "outline_thickness": 3,
-            "shadow": True,
-            "effects": ["fade"],
-            "font_width_to_height_ratio": 0.5,
-        },
-        StylePreset.RANDOM: {
-            "font_name": "Impact",  # Will be randomized
-            "font_color": "&H00FFFFFF",  # Will be randomized
-            "outline_color": "&H00000000",  # Will be randomized
-            "background_color": "&H99000000",
-            "bold": True,
-            "outline_thickness": 2,
-            "shadow": True,
-            "effects": [
-                "fade",
-                "scale_pulse",
-                "rotation_bounce",
-                "glow",
-                "typewriter",
-                "karaoke",
-                "movement",
-            ],  # One random effect will be selected
-            "font_width_to_height_ratio": 0.5,
-        },
-    }
+    # Load preset from configuration file
+    from pathlib import Path
 
-    # Get base configuration
-    base_config: dict[str, Any] = configs.get(
-        preset, configs[StylePreset.MODERN]
-    ).copy()
+    import yaml
+
+    subtitles_config_path = Path("config/subtitles.yaml")
+    style_presets = {}
+    try:
+        if subtitles_config_path.exists():
+            with open(subtitles_config_path, encoding="utf-8") as f:
+                subtitles_data = yaml.safe_load(f)
+                style_presets = subtitles_data.get("style_presets", {})
+    except Exception as e:
+        logger.warning(f"Could not load style presets from config: {e}")
+
+    # Map StylePreset enum to config key
+    preset_key = preset.value
+
+    # Get base configuration from YAML or fallback to hardcoded
+    if preset_key in style_presets:
+        base_config = style_presets[preset_key].copy()
+        # Remove description if present
+        base_config.pop("description", None)
+    else:
+        # Fallback to hardcoded presets for backward compatibility
+        fallback_configs: dict[StylePreset, dict[str, Any]] = {
+            StylePreset.MINIMAL: {
+                "font_name": "Arial",
+                "font_color": "&H00FFFFFF",
+                "outline_color": "&H00000000",
+                "background_color": None,
+                "bold": False,
+                "outline_thickness": 1,
+                "shadow": False,
+                "effects": [],
+                "font_width_to_height_ratio": 0.5,
+            },
+            StylePreset.MODERN: {
+                "font_name": "Montserrat",
+                "font_color": "&H00FFFFFF",
+                "outline_color": "&H00000000",
+                "background_color": "&H99000000",
+                "bold": True,
+                "outline_thickness": 2,
+                "shadow": True,
+                "effects": ["scale_pulse"],
+                "font_width_to_height_ratio": 0.5,
+            },
+            StylePreset.BOLD: {
+                "font_name": "Gabarito",
+                "font_color": "&H00FFFFFF",
+                "outline_color": "&H00000000",
+                "background_color": "&HCC000000",
+                "bold": True,
+                "outline_thickness": 3,
+                "shadow": True,
+                "effects": ["fade"],
+                "font_width_to_height_ratio": 0.5,
+            },
+            StylePreset.ANIMATED: {
+                "font_name": "Gabarito",
+                "font_color": "&H00FFFFFF",
+                "outline_color": "&H00000000",
+                "background_color": "&H99000000",
+                "bold": True,
+                "outline_thickness": 2,
+                "shadow": True,
+                "effects": ["scale_pulse", "glow"],
+                "font_width_to_height_ratio": 0.5,
+            },
+            StylePreset.RANDOM: {
+                "font_name": "Impact",
+                "font_color": "&H00FFFFFF",
+                "outline_color": "&H00000000",
+                "background_color": "&H99000000",
+                "bold": True,
+                "outline_thickness": 2,
+                "shadow": True,
+                "effects": [
+                    "fade",
+                    "scale_pulse",
+                    "rotation_bounce",
+                    "glow",
+                    "typewriter",
+                    "karaoke",
+                    "movement",
+                ],
+                "font_width_to_height_ratio": 0.5,
+            },
+        }
+        base_config = fallback_configs.get(
+            preset, fallback_configs[StylePreset.MODERN]
+        ).copy()
 
     # Handle RANDOM preset - force randomization and select one random effect
     if preset == StylePreset.RANDOM and product_id:
@@ -252,7 +287,7 @@ def get_style_config(
         except ImportError as e:
             logger.warning(f"Could not import RandomizationEngine: {e}")
 
-    return base_config
+    return dict(base_config)
 
 
 def calculate_position(

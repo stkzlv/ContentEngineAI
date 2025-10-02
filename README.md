@@ -15,7 +15,7 @@
 
 - **🤖 End-to-End Automation**: Complete video production from scraping to final output
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎨 Style Presets**: 4 production-ready presets (`minimal`, `modern`, `bold`, `random`) with deterministic effects
+- **🎨 Style Presets**: 5 production-ready presets (`minimal`, `modern`, `bold`, `animated`, `random`) with configurable effects
 - **🎯 Content-Aware Subtitles**: Dynamic positioning that intelligently avoids visual content overlap
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
 - **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
