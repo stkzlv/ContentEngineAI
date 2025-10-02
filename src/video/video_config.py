@@ -374,7 +374,9 @@ class VideoSettings(BaseModel):
     # Media validation requirements (must match scraper config)
     min_total_media: int = Field(3, description="Minimum total media files required")
     min_images_if_no_video: int = Field(5, description="Minimum images when no videos")
-    min_images_with_video: int = Field(2, description="Minimum images when videos exist")
+    min_images_with_video: int = Field(
+        2, description="Minimum images when videos exist"
+    )
 
     @model_validator(mode="after")
     def validate_resolution(self) -> "VideoSettings":
@@ -1870,6 +1872,9 @@ except Exception as e:
             output_codec="libx264",
             output_pixel_format="yuv420p",
             output_preset="medium",
+            min_total_media=3,
+            min_images_if_no_video=5,
+            min_images_with_video=2,
             image_width_percent=0.75,
             image_top_position_percent=0.15,
             default_image_duration_sec=3.0,

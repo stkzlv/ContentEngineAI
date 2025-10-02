@@ -244,9 +244,9 @@ class TestConfigurationDocumentation:
         )
 
         required_settings = [
-            "min_images_required",
-            "min_videos_required",
-            "min_total_media_files",
+            "min_total_media",
+            "min_images_if_no_video",
+            "min_images_with_video",
             "media_validation_timeout",
             "validation_report_top_issues",
         ]
@@ -322,11 +322,42 @@ class TestConfigurationValues:
             "validation_config", {}
         )
 
-        # At least some media should be required
-        min_images = validation_config["min_images_required"]
-        min_videos = validation_config["min_videos_required"]
-        min_total = validation_config["min_total_media_files"]
+        # Producer-aligned media requirements
+        min_total = validation_config["min_total_media"]
+        min_images_no_video = validation_config["min_images_if_no_video"]
+        min_images_with_video = validation_config["min_images_with_video"]
 
-        # Total should be at least as much as individual requirements
-        assert min_total >= min_images
-        assert min_total >= min_videos
+        # Logical consistency checks
+        assert min_total >= 3, "Minimum total media should be at least 3"
+        assert (
+            min_images_no_video >= min_images_with_video
+        ), "Slideshow mode needs more images than video mode"
+        assert min_images_with_video >= 2, "Video mode needs at least 2 images"
+
+    def test_media_validation_aligns_with_producer(self, config_data):
+        """Test that scraper validation aligns with video production requirements."""
+        # Load video production config
+        import yaml
+
+        video_config_path = Path("config/video_production.yaml")
+        with open(video_config_path) as f:
+            video_config = yaml.safe_load(f)
+
+        # Get both configs
+        scraper_validation = config_data.get("global_settings", {}).get(
+            "validation_config", {}
+        )
+        video_settings = video_config.get("video_settings", {})
+
+        # Verify alignment
+        assert (
+            scraper_validation["min_total_media"] == video_settings["min_total_media"]
+        ), "Scraper and producer min_total_media must match"
+        assert (
+            scraper_validation["min_images_if_no_video"]
+            == video_settings["min_images_if_no_video"]
+        ), "Scraper and producer min_images_if_no_video must match"
+        assert (
+            scraper_validation["min_images_with_video"]
+            == video_settings["min_images_with_video"]
+        ), "Scraper and producer min_images_with_video must match"

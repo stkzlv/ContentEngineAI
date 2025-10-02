@@ -246,7 +246,8 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 "cache": False,  # Disabled for testing new image extraction
                 "max_retry": global_settings.get("retries", 3),
                 "block_images": False,  # Show images in browser
-                "reuse_driver": False,  # Disabled - causes StopIteration in headless mode
+                # Disabled - causes StopIteration in headless mode
+                "reuse_driver": False,
                 "close_on_crash": not debug_mode,  # Debug mode keeps browser
                 # open on crash
                 "proxy": global_settings.get("proxy"),

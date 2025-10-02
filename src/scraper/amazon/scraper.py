@@ -18,46 +18,33 @@ from tenacity import (
     wait_exponential,
 )
 
-# Initialize basic logging BEFORE Botasaurus imports to capture early errors
-# This will be enhanced in main() with full debug configuration
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
+from ..base import BaseScraper, Platform, register_scraper
+from ..base.models import BaseProductData, BaseSearchParameters
+from .browser_functions import create_dynamic_browser_function
+from .config import CONFIG, get_default_search_parameters, get_output_path
+from .downloader import download_media_files
+from .models import ProductData, SearchParameters
+from .utils import validate_asin_format
 
+# Initialize logging BEFORE Botasaurus imports to capture early errors
 log_dir = get_logs_directory()
 log_dir.mkdir(exist_ok=True)
 log_file = log_dir / "scraper.log"
 
-# Setup minimal logging at module level (will be reconfigured in main with debug settings)
+# Setup minimal logging (will be reconfigured in main with debug settings)
 setup_debug_logging(
     log_file=log_file,
-    debug_mode=False,  # Start with INFO level, will be updated in main()
+    debug_mode=False,
     verbose=False,
     component_name="AmazonScraper",
 )
 
-# Suppress websocket errors at module level (before any browser imports)
+# Suppress websocket errors (before any browser imports)
 ws_logger = logging.getLogger("websocket")
 ws_logger.setLevel(logging.CRITICAL)
-ws_logger.propagate = False  # Prevent propagation to root logger
-
-# Import base classes for multi-platform support
-from ..base import BaseScraper, Platform, register_scraper
-from ..base.models import BaseProductData, BaseSearchParameters
-
-# Import browser automation functions (may cause websocket errors - now logged)
-from .browser_functions import create_dynamic_browser_function
-from .config import (
-    CONFIG,
-    get_default_search_parameters,
-    get_output_path,
-)
-
-# Import download function (media extraction handled by browser functions)
-from .downloader import download_media_files
-
-# Import data models and config from separate modules
-from .models import ProductData, SearchParameters
-from .utils import validate_asin_format
+ws_logger.propagate = False
 
 
 # Custom logging filter to suppress websocket cleanup messages
@@ -493,7 +480,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                 )
                 products.append(product)
                 # Log full product information
-                self.logger.info(f"Successfully scraped: {product.asin} - {product.title}")
+                self.logger.info(
+                    f"Successfully scraped: {product.asin} - {product.title}"
+                )
 
             # Final verification for media files
             global_settings = CONFIG.get("global_settings", {})
@@ -558,8 +547,12 @@ class BotasaurusAmazonScraper(BaseScraper):
                     "validation_config", {}
                 )
                 MIN_TOTAL_MEDIA = validation_config.get("min_total_media", 3)
-                MIN_IMAGES_IF_NO_VIDEO = validation_config.get("min_images_if_no_video", 5)
-                MIN_IMAGES_WITH_VIDEO = validation_config.get("min_images_with_video", 2)
+                MIN_IMAGES_IF_NO_VIDEO = validation_config.get(
+                    "min_images_if_no_video", 5
+                )
+                MIN_IMAGES_WITH_VIDEO = validation_config.get(
+                    "min_images_with_video", 2
+                )
 
                 total_media = img_count + vid_count
 
@@ -570,9 +563,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # Basic minimum check
                 if total_media < MIN_TOTAL_MEDIA:
                     meets_requirements = False
-                    rejection_reason = (
-                        f"total media {total_media} < {MIN_TOTAL_MEDIA}"
-                    )
+                    rejection_reason = f"total media {total_media} < {MIN_TOTAL_MEDIA}"
                 # If no videos, need at least 5 images
                 elif vid_count == 0 and img_count < MIN_IMAGES_IF_NO_VIDEO:
                     meets_requirements = False
@@ -965,7 +956,7 @@ def main():
         except Exception:
             config_debug_mode = False
 
-    # Reconfigure logging with proper debug settings (already initialized at module level)
+    # Reconfigure logging with proper debug settings
     # Determine debug mode from CLI or config
     debug_enabled = args.debug or args.verbose or config_debug_mode
     if debug_enabled:

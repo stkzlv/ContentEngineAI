@@ -154,8 +154,8 @@ def scrape_amazon_products_browser_impl(
 
             logger.info(f"Navigating to search URL: {search_url}")
 
-            # CRITICAL WORKAROUND: Botasaurus headless mode bug - browser starts with no tabs
-            # Must create initial tab manually before using google_get
+            # CRITICAL WORKAROUND: Botasaurus headless mode bug
+            # Browser starts with no tabs - must create initial tab manually
             try:
                 # Attempt to access browser to ensure it's initialized
                 _ = driver._browser
@@ -165,7 +165,9 @@ def scrape_amazon_products_browser_impl(
                 ):
                     logger.debug("Creating initial tab for browser")
                     # Create new tab using Chrome DevTools Protocol
-                    driver._browser.connection.send("Target.createTarget", {"url": "about:blank"})
+                    driver._browser.connection.send(
+                        "Target.createTarget", {"url": "about:blank"}
+                    )
             except Exception as e:
                 logger.debug(f"Tab creation attempt: {e}")
 
@@ -184,6 +186,7 @@ def scrape_amazon_products_browser_impl(
 
         except Exception as e:
             import traceback
+
             print(f"❌ [DEBUG] Navigation failed: {type(e).__name__}: {e}")
             print(f"📋 [DEBUG] Traceback: {traceback.format_exc()}")
             return []
@@ -294,11 +297,13 @@ def scrape_amazon_products_browser_impl(
             product_cards = []
             search_selector = None  # Track which selector worked
 
-            # First, wait for any product content to load (critical for headless mode)
+            # First, wait for any product content to load
+            # (critical for headless mode)
             try:
                 driver.wait_for_element(product_selectors[0], timeout=timeout)
-            except Exception:
-                pass  # Continue even if first selector fails
+            except Exception as e:
+                # Continue even if first selector fails
+                logger.debug(f"Initial selector wait failed: {e}")
 
             for selector in product_selectors:
                 if DEBUG_MODE:
@@ -451,7 +456,9 @@ def scrape_amazon_products_browser_impl(
                     # Mark ASIN as processed
                     processed_asins.add(serp_info.asin)
 
-                    logger.info(f"Processing product {i+1}/{max_products}: {serp_info.asin}")
+                    logger.info(
+                        f"Processing product {i+1}/{max_products}: {serp_info.asin}"
+                    )
 
                     # Navigate to product page
                     driver.google_get(serp_info.url, bypass_cloudflare=True)
@@ -1079,12 +1086,13 @@ def create_dynamic_browser_function(debug_mode=False):
     # Force update debug-related settings with current DEBUG_MODE
     current_config.update(
         {
-            # CRITICAL: Headless mode disabled - Botasaurus bug causes StopIteration (no tabs created)
+            # CRITICAL: Headless disabled - Botasaurus bug (StopIteration)
             # See: https://github.com/omkarcloud/botasaurus/issues
             "headless": False,  # Always run with visible browser or Xvfb
-            "close_on_crash": not DEBUG_MODE,  # Keep browser open on crash in debug mode
-            # CRITICAL: Disable driver reuse - causes StopIteration in headless mode
-            "reuse_driver": False,  # Always create fresh browser instance
+            # Keep browser open on crash in debug mode
+            "close_on_crash": not DEBUG_MODE,
+            # CRITICAL: Disable reuse - causes StopIteration in headless
+            "reuse_driver": False,  # Always create fresh browser
             "create_driver": True,  # Force driver creation
         }
     )

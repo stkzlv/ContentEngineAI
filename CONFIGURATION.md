@@ -78,6 +78,11 @@ video_settings:
   frame_rate: 30
   output_codec: "libx264"
 
+  # Media validation requirements (must match scraper.yaml)
+  min_total_media: 3              # Minimum total media files
+  min_images_if_no_video: 5       # Minimum images for slideshow mode
+  min_images_with_video: 2        # Minimum images when videos available
+
 audio_settings:
   voiceover_volume_db: 0
   music_volume_db: -20
@@ -149,6 +154,13 @@ scraper_settings:
     base_directory: "outputs"
     file_patterns:
       product_file: "{keyword}_products.json"
+
+global_settings:
+  validation_config:
+    # Media validation requirements (must match video_production.yaml)
+    min_total_media: 3              # Minimum total media files
+    min_images_if_no_video: 5       # Minimum images for slideshow mode
+    min_images_with_video: 2        # Minimum images when videos available
 
 amazon_settings:
   max_results: 10

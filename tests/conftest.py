@@ -432,6 +432,7 @@ def cleanup_test_outputs():
 
     # Cleanup after test completes
     import shutil
+
     from src.utils.outputs_paths import get_outputs_root
 
     outputs_root = get_outputs_root()

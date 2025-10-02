@@ -74,7 +74,7 @@ def setup_debug_logging(
 
     # Suppress noisy third-party loggers
     logging.getLogger("numba").setLevel(logging.WARNING)
-    # Suppress websocket cleanup messages (harmless "goodbye" errors during browser shutdown)
+    # Suppress websocket cleanup messages (harmless "goodbye" errors)
     logging.getLogger("websocket").setLevel(logging.CRITICAL)
     if not debug_mode:
         for lib in ["httpx", "google", "aiohttp", "urllib3", "asyncio", "hpack"]:

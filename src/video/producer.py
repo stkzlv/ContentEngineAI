@@ -106,7 +106,11 @@ class InsufficientMediaError(PipelineError):
 
 
 def validate_media_requirements(
-    scraped_images: list, scraped_videos: list, stock_media: list, profile
+    scraped_images: list,
+    scraped_videos: list,
+    stock_media: list,
+    profile,
+    config: VideoConfig,
 ) -> tuple[bool, str]:
     """Validate if gathered media meets minimum requirements for video creation.
 
@@ -116,6 +120,7 @@ def validate_media_requirements(
         scraped_videos: List of scraped video paths
         stock_media: List of stock media items
         profile: Video profile configuration object
+        config: Video configuration containing media requirements
 
     Returns:
     -------
@@ -879,7 +884,11 @@ async def step_gather_visuals(ctx: PipelineContext):
 
         # Validate media requirements for quality video creation
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media_fetched, ctx.profile
+            scraped_images,
+            scraped_videos,
+            stock_media_fetched,
+            ctx.profile,
+            ctx.config,
         )
         logger.info(f"Media validation: {reason}")
         if not is_valid:

@@ -7,11 +7,21 @@ import pytest
 
 from src.video.producer import validate_media_requirements
 from src.video.stock_media import StockMediaInfo
-from src.video.video_config import VideoProfile
+from src.video.video_config import VideoConfig, VideoProfile
 
 
 class TestProfileAwareValidation:
     """Test profile-aware media validation logic."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock config with media validation settings."""
+        config = Mock(spec=VideoConfig)
+        config.video_settings = Mock()
+        config.video_settings.min_total_media = 3
+        config.video_settings.min_images_if_no_video = 5
+        config.video_settings.min_images_with_video = 2
+        return config
 
     def create_mock_profile(self, use_scraped_videos=True, description="Test Profile"):
         """Create a mock video profile for testing."""
@@ -47,7 +57,7 @@ class TestProfileAwareValidation:
         ]
 
     @pytest.mark.unit
-    def test_profile_excludes_videos_needs_5_images(self):
+    def test_profile_excludes_videos_needs_5_images(self, mock_config):
         """Test validation when profile excludes videos and needs 5+ images."""
         profile = self.create_mock_profile(use_scraped_videos=False)
         scraped_images: list = []
@@ -55,14 +65,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(4)  # Only 4 images, need 5
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert not is_valid
         assert "Profile excludes videos, need 5 images but only have 4" in reason
 
     @pytest.mark.unit
-    def test_profile_excludes_videos_with_enough_images(self):
+    def test_profile_excludes_videos_with_enough_images(self, mock_config):
         """Test validation passes when profile excludes videos but has 5+ images."""
         profile = self.create_mock_profile(use_scraped_videos=False)
         scraped_images = [Path("/mock/scraped1.jpg")]
@@ -70,14 +80,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(4)  # 1 scraped + 4 stock = 5 images
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid
         assert "Media validation passed: 5 images, 0 videos, 4 stock items" in reason
 
     @pytest.mark.unit
-    def test_profile_allows_videos_with_videos_and_images(self):
+    def test_profile_allows_videos_with_videos_and_images(self, mock_config):
         """Test validation when profile allows videos and has both videos and images."""
         profile = self.create_mock_profile(use_scraped_videos=True)
         scraped_images = [Path("/mock/scraped1.jpg")]
@@ -85,14 +95,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(1)  # 2 images + 1 video = 3 total
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid
         assert "Media validation passed: 2 images, 1 videos, 1 stock items" in reason
 
     @pytest.mark.unit
-    def test_profile_allows_videos_but_no_videos_found(self):
+    def test_profile_allows_videos_but_no_videos_found(self, mock_config):
         """Test validation when profile allows videos but none found, needs
         5+ images.
         """
@@ -104,14 +114,14 @@ class TestProfileAwareValidation:
         )  # Only 4 images, need 5 when no videos
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert not is_valid
         assert "No videos found, need at least 5 images but only have 4" in reason
 
     @pytest.mark.unit
-    def test_mixed_stock_media_types(self):
+    def test_mixed_stock_media_types(self, mock_config):
         """Test validation with mixed stock media types (images and videos)."""
         profile = self.create_mock_profile(use_scraped_videos=True)
         scraped_images: list = []
@@ -120,14 +130,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(2) + self.create_stock_videos(1)
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid
         assert "Media validation passed: 2 images, 1 videos, 3 stock items" in reason
 
     @pytest.mark.unit
-    def test_insufficient_total_media(self):
+    def test_insufficient_total_media(self, mock_config):
         """Test validation fails when total media is below minimum (3)."""
         profile = self.create_mock_profile(use_scraped_videos=True)
         scraped_images = [Path("/mock/scraped1.jpg")]
@@ -135,14 +145,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(1)  # Only 2 total, need 3 minimum
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert not is_valid
         assert "Insufficient total media: 2 items (minimum 3)" in reason
 
     @pytest.mark.unit
-    def test_has_videos_but_insufficient_images(self):
+    def test_has_videos_but_insufficient_images(self, mock_config):
         """Test validation when has videos but insufficient images for
         video+image mix.
         """
@@ -152,14 +162,14 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_videos(2)  # 3 videos total, 0 images
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert not is_valid
         assert "Have 3 video(s) but only 0 image(s), need at least 2" in reason
 
     @pytest.mark.unit
-    def test_profile_without_use_scraped_videos_attribute(self):
+    def test_profile_without_use_scraped_videos_attribute(self, mock_config):
         """Test validation with profile that doesn't have use_scraped_videos
         attribute.
         """
@@ -170,13 +180,13 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(5)  # 5 images should pass
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid  # Should default to True and pass validation
 
     @pytest.mark.unit
-    def test_validation_success_message_format(self):
+    def test_validation_success_message_format(self, mock_config):
         """Test that success message format is correct with different media counts."""
         profile = self.create_mock_profile(use_scraped_videos=True)
         scraped_images = [Path("/mock/scraped1.jpg"), Path("/mock/scraped2.jpg")]
@@ -184,7 +194,7 @@ class TestProfileAwareValidation:
         stock_media = self.create_stock_images(2) + self.create_stock_videos(1)
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid
@@ -192,7 +202,7 @@ class TestProfileAwareValidation:
         assert "Media validation passed: 4 images, 2 videos, 3 stock items" in reason
 
     @pytest.mark.unit
-    def test_empty_stock_media_list(self):
+    def test_empty_stock_media_list(self, mock_config):
         """Test validation with empty stock media list."""
         profile = self.create_mock_profile(use_scraped_videos=False)
         scraped_images = [Path(f"/mock/scraped{i}.jpg") for i in range(5)]
@@ -200,7 +210,7 @@ class TestProfileAwareValidation:
         stock_media: list = []  # Empty stock media
 
         is_valid, reason = validate_media_requirements(
-            scraped_images, scraped_videos, stock_media, profile
+            scraped_images, scraped_videos, stock_media, profile, mock_config
         )
 
         assert is_valid

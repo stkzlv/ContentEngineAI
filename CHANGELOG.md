@@ -7,27 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-10-02
+
 ### Added
+- **Centralized Configuration System**: Media validation settings now centrally managed in config files
+  - Added `min_total_media`, `min_images_if_no_video`, `min_images_with_video` to scraper and producer configs
+  - Cross-referenced settings between `config/scraper.yaml` and `config/video_production.yaml`
+  - Added test verification for config alignment (`test_media_validation_aligns_with_producer`)
+- **Enhanced Progress Logging**: Improved scraping visibility with product-level progress tracking
+  - Log full ASIN and product title for each scraped product
+  - Progress indicators: "Processing product X/Y", "Extracting images/videos for {ASIN}"
+  - INFO-level logging for non-debug visibility
 - **Centralized Logging Utility**: New `src/utils/logging_setup.py` module provides standardized logging configuration
-- **LLM Validation Settings**: Added description validation thresholds to configuration (`min_description_chars`, `min_description_words`, `description_retry_attempts`)
-- **Cleanup Configuration**: New `cleanup_on_failure` setting to control temp file retention on pipeline failures
-- **Configuration Audit**: Comprehensive `docs/CONFIG_AUDIT.md` documenting hardcoded values, unused settings, and improvement roadmap
+- **Configuration Audit**: Comprehensive `CONFIG_AUDIT.md` documenting hardcoded values, unused settings, and improvement roadmap
 - **Debug Documentation**: Expanded TROUBLESHOOTING.md with debug files reference table and configuration guidance
 
 ### Changed
+- **Browser Image Display**: Enabled images in browser window (changed `block_images: False`)
+- **Media Validation Architecture**: Producer-aligned validation requirements
+  - Scraper now validates same requirements as video producer (3 total, 5 images for slideshow, 2 for video mode)
+  - Moved hardcoded validation thresholds to configuration files
+  - Updated `validate_media_requirements()` to accept config parameter
+- **Import Organization**: Reorganized module imports to comply with linting standards (imports at top of file)
 - **Debug Mode Logging**: Eliminated 60+ lines of duplicated logging setup code between producer and scraper
-- **FFmpeg Logging Logic**: Simplified `_should_create_ffmpeg_logs()` method with clearer fallback behavior and explicit error logging
-- **Debug Settings**: Enhanced `DebugSettings` model with separate `cleanup_on_success` and `cleanup_on_failure` controls
-- **Configuration Comments**: Improved inline documentation in `config/performance.yaml` for cleanup behavior
+- **FFmpeg Logging Logic**: Simplified `_should_create_ffmpeg_logs()` method with clearer fallback behavior
 
 ### Fixed
-- **Logging Configuration**: Producer and scraper now use shared `setup_debug_logging()` function for consistency
-- **Debug Mode Hierarchy**: Clarified CLI `--debug` flag precedence over config file settings in documentation
+- **Websocket Error Suppression**: Properly suppressed harmless "goodbye" cleanup messages
+  - Set `propagate=False` on websocket logger to prevent error propagation
+  - Errors no longer appear in console output
+- **Linting Issues**: Fixed all Ruff, MyPy, and code quality violations
+  - Line length compliance (88 characters)
+  - Try-except-pass logging (added debug messages)
+  - Docstring completeness for function parameters
+  - Type annotations for all functions
+- **Headless Mode Issues**: Fixed browser initialization and tab creation bugs
+- **Test Suite**: Updated 23 configuration tests to use new centralized settings
+- **Logging Configuration**: Producer and scraper now use shared `setup_debug_logging()` function
 
 ### Technical
-- **Code Deduplication**: Removed redundant logging setup code (producer.py:71-99, scraper.py:955-1001)
-- **Configuration Analysis**: Identified 25+ hardcoded values, 7 unused settings, and 5 duplicate configuration conflicts
-- **Test Coverage**: All tests passing (469 passed, 10 skipped) with 41% coverage maintained
+- **Breaking Change**: Configuration structure updated - media validation settings moved from hardcoded values to config files
+- **Code Quality**: All linting checks passing (Ruff, MyPy, Bandit, Vulture, Safety)
+- **Test Coverage**: 480 tests collected, 470 passing, 41% coverage maintained
+- **Configuration Synchronization**: Automated test ensures scraper and producer configs stay aligned
 
 ## [0.4.0] - 2025-10-01
 

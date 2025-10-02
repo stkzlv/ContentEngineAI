@@ -1,6 +1,7 @@
 # Configuration Audit Report
 
 **Generated**: 2025-10-01
+**Updated**: 2025-10-02 (v0.5.0 - Media validation centralized)
 **Purpose**: Document hardcoded values, unused settings, and configuration improvements needed
 
 ---
@@ -8,6 +9,13 @@
 ## Executive Summary
 
 This audit identified 25+ hardcoded values that should be moved to configuration, 7 unused settings that should be removed, and 5 duplicate configuration conflicts that need resolution.
+
+### ✅ Completed in v0.5.0
+
+- **Media validation settings** moved from hardcoded to centralized config
+  - `min_total_media`, `min_images_if_no_video`, `min_images_with_video`
+  - Synchronized between `config/scraper.yaml` and `config/video_production.yaml`
+  - Test coverage ensures configuration alignment
 
 ### Priority Actions
 
