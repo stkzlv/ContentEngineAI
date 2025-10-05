@@ -80,7 +80,7 @@ DOWNLOAD_RETRY_MAX_WAIT_SEC = 10
 LLM_RETRY_MULTIPLIER = 1
 LLM_RETRY_MIN_WAIT_SEC = 2
 LLM_RETRY_MAX_WAIT_SEC = 30
-LLM_RETRY_ATTEMPTS = 3
+LLM_RETRY_ATTEMPTS = 5
 
 # Subtitle positioning fallback
 SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
@@ -699,6 +699,17 @@ class SubtitleEffectsSettings(BaseModel):
     )
     karaoke_timing_max_ms: int = Field(
         200, description="Maximum karaoke timing per word in milliseconds"
+    )
+
+    # Karaoke visual effect parameters
+    karaoke_primary_color: str = Field(
+        "&H00FFFFFF", description="Primary color (before sweep, ASS format)"
+    )
+    karaoke_secondary_color: str = Field(
+        "&H0000FFFF", description="Secondary color (fill during sweep, ASS format)"
+    )
+    karaoke_use_fill: bool = Field(
+        True, description="Use \\kf (fill) instead of \\k (timing only)"
     )
 
     # Effect duration factors (multiplied by segment duration)

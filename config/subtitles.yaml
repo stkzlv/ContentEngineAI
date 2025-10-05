@@ -141,6 +141,11 @@ subtitle_effects:
   karaoke_timing_min_ms: 20
   karaoke_timing_max_ms: 200
 
+  # Karaoke visual effect (color sweep)
+  karaoke_primary_color: "&H0000FFFF"   # Yellow - initial text color (before sweep)
+  karaoke_secondary_color: "&H00000000" # Black - fill color (during sweep)
+  karaoke_use_fill: true                # Use \kf (fill) instead of \k (timing only)
+
   # Animation duration factors (multiplied by segment duration)
   pulse_duration_factor: 500
   bounce_duration_factor: 300

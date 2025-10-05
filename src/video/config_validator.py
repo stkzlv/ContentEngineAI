@@ -356,8 +356,10 @@ class VideoConfigValidator:
                             f"Preset '{preset_name}' should have effects to choose from"
                         )
 
-                # All other presets must have exactly 1 effect
-                elif preset_name != "random" and len(effects) != 1:
+                # All other presets (modern, bold, animated) must have exactly 1 effect
+                elif (
+                    preset_name not in ["minimal", "random"] and len(effects) != 1
+                ):
                     errors.append(
                         f"Preset '{preset_name}' must have exactly 1 effect "
                         f"(REQUIREMENTS.md), found {len(effects)}: {effects}"

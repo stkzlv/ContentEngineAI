@@ -765,9 +765,10 @@ class UnifiedSubtitleGenerator:
                 "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
             ),
             (
-                f"Style: Default,{font_name},{font_size},{colors['primary']},"
-                f"{colors['primary']},{colors['outline']},&H80000000,"
-                f"{-1 if self.style_config['bold'] else 0},0,1,"
+                f"Style: Default,{font_name},{font_size},"
+                f"{self._get_karaoke_colors()[0]},"
+                f"{self._get_karaoke_colors()[1]},{colors['outline']},"
+                f"&H80000000,{-1 if self.style_config['bold'] else 0},0,1,"
                 f"{self.style_config['outline_thickness']},"
                 f"{1 if self.style_config['shadow'] else 0},5,10,10,0,1"
             ),
@@ -778,6 +779,31 @@ class UnifiedSubtitleGenerator:
                 "MarginV, Effect, Text"
             ),
         ]
+
+    def _get_karaoke_colors(self) -> tuple[str, str]:
+        """Get primary and secondary colors for karaoke effect.
+
+        Returns
+        -------
+            Tuple of (primary_color, secondary_color) in ASS format
+
+        """
+        if self._selected_effects.get("karaoke", False):
+            subtitle_effects = config.subtitle_effects
+            primary = (
+                subtitle_effects.karaoke_primary_color
+                if subtitle_effects
+                else "&H00FFFFFF"
+            )
+            secondary = (
+                subtitle_effects.karaoke_secondary_color
+                if subtitle_effects
+                else "&H0000FFFF"
+            )
+            return primary, secondary
+        # Return same color for both if karaoke not enabled (no visual change)
+        default_color = self.style_config.get("font_color", "&H00FFFFFF")
+        return default_color, default_color
 
     def _create_karaoke_effects(self, text: str, segment_duration: float) -> str:
         """Create karaoke-style word-by-word highlighting effects.
@@ -799,20 +825,24 @@ class UnifiedSubtitleGenerator:
         # Calculate time per word in centiseconds (ASS karaoke uses centiseconds)
         time_per_word = int((segment_duration * 100) / len(words))
 
-        # Get karaoke timing limits from configuration
+        # Get karaoke configuration
         subtitle_effects = config.subtitle_effects
         min_timing = subtitle_effects.karaoke_timing_min_ms if subtitle_effects else 20
         max_timing = subtitle_effects.karaoke_timing_max_ms if subtitle_effects else 200
+        use_fill = subtitle_effects.karaoke_use_fill if subtitle_effects else True
 
         time_per_word = max(min_timing, min(time_per_word, max_timing))
 
-        # Create karaoke text with \k tags properly enclosed in braces
+        # Choose karaoke tag: \kf for fill effect, \k for timing only
+        karaoke_tag = "kf" if use_fill else "k"
+
+        # Create karaoke text with timing tags
         karaoke_parts = []
         for i, word in enumerate(words):
             if i == 0:
-                karaoke_parts.append(f"{{\\k{time_per_word}}}{word}")
+                karaoke_parts.append(f"{{\\{karaoke_tag}{time_per_word}}}{word}")
             else:
-                karaoke_parts.append(f" {{\\k{time_per_word}}}{word}")
+                karaoke_parts.append(f" {{\\{karaoke_tag}{time_per_word}}}{word}")
 
         return "".join(karaoke_parts)
 
