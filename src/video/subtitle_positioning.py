@@ -78,6 +78,15 @@ class UnifiedSubtitleConfig(BaseModel):
 
     # Text formatting
     max_line_length: int = Field(38, description="Maximum characters per subtitle line")
+    max_words_per_line: int = Field(
+        3, description="Maximum words per subtitle line (0 to disable)"
+    )
+    max_subtitle_width_fraction: float = Field(
+        0.67,
+        description=(
+            "Maximum subtitle width as fraction of frame width (e.g. 0.67 = 2/3)"
+        ),
+    )
     max_duration: float = Field(
         4.5, description="Maximum duration for subtitle segments (seconds)"
     )
@@ -332,9 +341,10 @@ def calculate_position(
         if config.content_aware and visual_bounds:
             base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
         else:
-            # Fallback: Use bottom positioning when content_aware is disabled
+            # Fallback: Use reasonable bottom positioning when content_aware is disabled
             # or visual_bounds is not available
-            base_y = 1.0 - config.margin
+            # Assume content takes ~60% of frame, position subtitles below at ~70%
+            base_y = 0.70
 
     # Calculate horizontal position based on alignment
     if config.horizontal_alignment == "left":
@@ -407,6 +417,8 @@ def create_unified_config_from_settings(
         margin=settings.get("margin", 0.1),
         font_size_scale=settings.get("font_size_scale", 1.0),
         max_line_length=settings.get("max_line_length", 38),
+        max_words_per_line=settings.get("max_words_per_line", 3),
+        max_subtitle_width_fraction=settings.get("max_subtitle_width_fraction", 0.67),
         max_duration=settings.get("max_duration", 4.5),
         min_duration=settings.get("min_duration", 0.4),
         randomize_fonts=settings.get("randomize_fonts", False),

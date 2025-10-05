@@ -734,6 +734,11 @@ class SubtitleEffectsSettings(BaseModel):
         100, description="Normal scale percentage for pulse effect"
     )
 
+    # Movement effect parameters
+    movement_distance_pixels: int = Field(
+        50, description="Vertical movement distance in pixels for movement effect"
+    )
+
     # Rotation bounce parameters
     bounce_rotation_max: int = Field(
         5, description="Maximum rotation degrees for bounce effect"
@@ -751,11 +756,6 @@ class SubtitleEffectsSettings(BaseModel):
     )
     typewriter_min_timing_ms: int = Field(
         50, description="Minimum timing for typewriter effect in ms"
-    )
-
-    # Movement effect parameters
-    movement_distance_pixels: int = Field(
-        10, description="Movement distance in pixels for floating effect"
     )
 
     # Fade effect parameters
@@ -779,9 +779,6 @@ class TextRenderingSettings(BaseModel):
     )
 
     # Text layout parameters
-    max_text_width_percent: float = Field(
-        0.95, description="Maximum text width as percentage of available space"
-    )
     default_margin_fraction: float = Field(
         0.1, description="Default margin fraction for positioning"
     )

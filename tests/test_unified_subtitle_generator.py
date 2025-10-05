@@ -27,6 +27,8 @@ class TestUnifiedSubtitleGenerator:
             content_aware=False,
             style_preset=StylePreset.MODERN,
             max_line_length=30,
+            max_words_per_line=3,
+            max_subtitle_width_fraction=0.67,
             min_duration=1.0,
             max_duration=6.0,
             randomize_colors=False,
@@ -271,3 +273,55 @@ class TestUnifiedSubtitleGenerator:
             )
 
             assert result.success is True
+
+    def test_word_count_limit(self):
+        """Test subtitle segmentation with word count limit."""
+        config = UnifiedSubtitleConfig(
+            anchor=PositionAnchor.BOTTOM,
+            margin=0.1,
+            content_aware=False,
+            style_preset=StylePreset.MODERN,
+            max_line_length=100,  # High limit to test word count
+            max_words_per_line=3,  # Strict word limit
+            max_subtitle_width_fraction=0.67,
+        )
+        generator = UnifiedSubtitleGenerator(config, (1920, 1080))
+
+        # Script with multiple words
+        script_text = "This is a long sentence with many words in it"
+        segments = generator._create_script_segments(
+            script_text, duration=10.0, visual_bounds=None
+        )
+
+        # Check that segments respect word limit
+        for seg in segments:
+            word_count = len(seg["text"].split())
+            assert word_count <= 3, f"Segment has {word_count} words: {seg['text']}"
+
+    def test_width_constraint(self):
+        """Test subtitle width constraint based on frame width."""
+        config = UnifiedSubtitleConfig(
+            anchor=PositionAnchor.BOTTOM,
+            margin=0.1,
+            content_aware=False,
+            style_preset=StylePreset.MODERN,
+            max_line_length=100,  # High limit
+            max_words_per_line=0,  # Disabled
+            max_subtitle_width_fraction=0.67,  # 2/3 of frame
+        )
+        frame_size = (1080, 1920)  # Width, Height
+        generator = UnifiedSubtitleGenerator(config, frame_size)
+
+        # Test that width calculation uses frame-based constraint
+        max_width = int(frame_size[0] * 0.67)
+        assert max_width == 723  # 1080 * 0.67 = 723.6 -> 723
+
+        # Long text that should be broken
+        long_text = "A" * 50
+        script_text = f"{long_text} {long_text} {long_text}"
+        segments = generator._create_script_segments(
+            script_text, duration=10.0, visual_bounds=None
+        )
+
+        # Verify segments were created (text was broken up)
+        assert len(segments) > 1

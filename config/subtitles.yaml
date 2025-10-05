@@ -22,7 +22,7 @@ subtitle_settings:
   anchor: "below_content"
 
   # Margin as fraction of frame height (0.0-0.5)
-  margin: 0.08
+  margin: 0.03
 
   # Enable content-aware positioning (adjusts based on visual elements)
   # true = Relative Mode, false = Absolute Mode
@@ -47,6 +47,14 @@ subtitle_settings:
   # ---- TEXT FORMATTING ----
   # Maximum characters per subtitle line
   max_line_length: 30
+
+  # Maximum words per subtitle line (for short-form videos)
+  # Set to 0 to disable word-based limiting
+  max_words_per_line: 3
+
+  # Maximum subtitle block width as fraction of frame width (0.0-1.0)
+  # Default 0.67 means subtitles won't exceed 2/3 of frame width
+  max_subtitle_width_fraction: 0.67
 
   # Maximum duration for any subtitle segment (seconds)
   max_duration: 4.5
@@ -156,6 +164,9 @@ subtitle_effects:
   pulse_scale_max: 110
   pulse_scale_normal: 100
 
+  # Movement effect parameters
+  movement_distance_pixels: 50  # Vertical movement distance in pixels
+
 # ============================================================================
 # TEXT RENDERING SETTINGS
 # ============================================================================
@@ -166,7 +177,6 @@ text_rendering:
   space_char_width_factor: 0.3
 
   # Text layout parameters
-  max_text_width_percent: 0.8
   default_margin_fraction: 0.1
   default_font_size_scale: 1.0
   max_chars_per_line: 38

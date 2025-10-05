@@ -1715,8 +1715,8 @@ async def main():
     )
     parser.add_argument(
         "--preset",
-        choices=["minimal", "modern", "bold", "random"],
-        help="Override subtitle style preset: minimal, modern, bold, random.",
+        choices=["minimal", "modern", "bold", "animated", "random"],
+        help="Override subtitle style preset: minimal, modern, bold, animated, random.",
     )
     args = parser.parse_args()
 

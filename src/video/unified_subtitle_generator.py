@@ -126,10 +126,7 @@ class UnifiedSubtitleGenerator:
         """
         # Get max width percent from configuration if not provided
         if max_width_percent is None:
-            text_rendering = config.text_rendering
-            max_width_percent = (
-                text_rendering.max_text_width_percent if text_rendering else 0.95
-            )
+            max_width_percent = 1.0  # Use 100% of provided width by default
 
         text_width = self.estimate_text_width_pixels(text, font_size)
         max_allowed_width = image_width * max_width_percent
@@ -390,9 +387,19 @@ class UnifiedSubtitleGenerator:
 
                 # Break conditions
                 if (
-                    len(potential_text) > self.config.max_line_length
+                    # 1. Word count limit
+                    (
+                        self.config.max_words_per_line > 0
+                        and len(current_words) >= self.config.max_words_per_line
+                    )
+                    # 2. Character limit
+                    or len(potential_text) > self.config.max_line_length
+                    # 3. Duration limit
                     or current_duration > self.config.max_duration
-                    or (word.endswith((".", "!", "?")) and len(current_words) >= 3)
+                    # 4. Natural breaks
+                    or (
+                        word.endswith((".", "!", "?")) and len(current_words) >= 3
+                    )
                 ):
                     should_break = True
 
@@ -507,26 +514,44 @@ class UnifiedSubtitleGenerator:
             )
 
             # Break conditions:
-            # 1. Line length limit (character count and pixel width)
-            if len(potential_text) > self.config.max_line_length:
+            if (
+                # 1. Word count limit (if configured)
+                (
+                    self.config.max_words_per_line > 0
+                    and len(current_segment_words) >= self.config.max_words_per_line
+                )
+                # 2. Line length limit (character count)
+                or len(potential_text) > self.config.max_line_length
+            ):
                 should_break = True
-            elif visual_bounds is not None and visual_bounds.width > 0:
-                # Check pixel-based width constraint
+
+            # 3. Width constraint (frame-based or image-based)
+            if not should_break:
                 font_size = get_font_size(self.config, self.frame_size[1])
+                max_width = int(
+                    self.frame_size[0] * self.config.max_subtitle_width_fraction
+                )
+
+                # Use stricter constraint: image width or frame-based max
+                if visual_bounds is not None and visual_bounds.width > 0:
+                    max_width = min(max_width, int(visual_bounds.width))
+
                 if not self.fits_within_image_width(
-                    potential_text, font_size, int(visual_bounds.width)
+                    potential_text, font_size, max_width, max_width_percent=1.0
                 ):
                     should_break = True
 
-            # 2. Natural sentence breaks
-            elif word.endswith((".", "!", "?")) and len(current_segment_words) >= 3:
+            # 4. Natural sentence breaks
+            if not should_break and word.endswith(
+                (".", "!", "?")
+            ) and len(current_segment_words) >= 3:
                 # Add this word to current segment before breaking
                 current_segment_words.append(word)
                 current_segment_text = potential_text
                 should_break = True
 
-            # 3. Duration limit (but allow at least 3 words)
-            elif len(current_segment_words) >= 3:
+            # 5. Duration limit (but allow at least 3 words)
+            if not should_break and len(current_segment_words) >= 3:
                 estimated_word_duration = len(current_segment_words) / speaking_rate
                 if estimated_word_duration >= self.config.max_duration:
                     should_break = True

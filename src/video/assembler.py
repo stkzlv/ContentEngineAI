@@ -1432,12 +1432,19 @@ class VideoAssembler:
                         # Extract content without braces
                         effect_content = text_content[1 : effect_end - 1]
                         after_effects = text_content[effect_end:]
-                        # Place positioning at the start of the effect block for better
-                        # ASS compatibility
-                        positioned_text = (
-                            f"{{\\pos({subtitle_x},{subtitle_y}){effect_content}}}"
-                            f"{after_effects}"
-                        )
+
+                        # Check if there's already a \move tag - if so, don't add \pos
+                        # because \pos overrides \move in ASS rendering
+                        if r"\move(" in effect_content:
+                            # Keep existing effects including \move, don't add \pos
+                            positioned_text = text_content
+                        else:
+                            # Place positioning at the start of the effect block
+                            # for better ASS compatibility
+                            positioned_text = (
+                                f"{{\\pos({subtitle_x},{subtitle_y}){effect_content}}}"
+                                f"{after_effects}"
+                            )
                     else:
                         # No existing effects, add positioning normally
                         positioned_text = (
