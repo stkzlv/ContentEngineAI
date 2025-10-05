@@ -22,7 +22,7 @@ subtitle_settings:
   anchor: "below_content"
 
   # Margin as fraction of frame height (0.0-0.5)
-  margin: 0.03
+  margin: 0.05
 
   # Enable content-aware positioning (adjusts based on visual elements)
   # true = Relative Mode, false = Absolute Mode

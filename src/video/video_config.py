@@ -290,7 +290,7 @@ class VideoSettings(BaseModel):
     output_pixel_format: str = Field("yuv420p")
     output_preset: str = Field("medium")
     image_width_percent: float = Field(0.75)
-    image_top_position_percent: float = Field(0.15)
+    image_top_position_percent: float = Field(0.20)
     default_image_duration_sec: float = Field(3.0)
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
@@ -1820,7 +1820,7 @@ except Exception as e:
             min_images_if_no_video=5,
             min_images_with_video=2,
             image_width_percent=0.75,
-            image_top_position_percent=0.15,
+            image_top_position_percent=0.20,
             default_image_duration_sec=3.0,
             transition_duration_sec=0.5,
             total_duration_limit_sec=90,
