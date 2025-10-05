@@ -216,40 +216,5 @@ class PipelineResult(MultiStepResult):
 # Utility functions for backward compatibility
 
 
-def create_legacy_subtitle_result(
-    success: bool,
-    path: Path | None,
-    method_used: str = "",
-    error_chain: list[str] | None = None,
-    timing_count: int = 0,
-) -> SubtitleResult:
-    """Create a SubtitleResult from legacy function parameters.
-
-    This helps convert existing functions to use the new result types
-    while maintaining backward compatibility.
-    """
-    result = SubtitleResult(
-        success=success,
-        path=path,
-        generation_method=method_used,
-        segments_created=timing_count,
-    )
-
-    if path:
-        result.set_file(path)
-
-    if error_chain:
-        result.errors.extend(error_chain)
-
-    return result
-
-
-def extract_legacy_values(
-    result: OperationResult,
-) -> tuple[bool, Path | None, list[str]]:
-    """Extract values needed for legacy return patterns.
-
-    This helps transition existing code that expects (bool, Path, list[str]) tuples.
-    """
-    path = getattr(result, "path", None)
-    return result.success, path, result.errors
+# Legacy result helper functions removed - use SubtitleResult and
+# OperationResult directly

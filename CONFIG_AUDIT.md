@@ -1,7 +1,7 @@
 # Configuration Audit Report
 
 **Generated**: 2025-10-01
-**Updated**: 2025-10-02 (v0.5.0 - Media validation centralized)
+**Updated**: 2025-10-05 (v0.6.0 - Unified subtitle configuration)
 **Purpose**: Document hardcoded values, unused settings, and configuration improvements needed
 
 ---
@@ -9,6 +9,13 @@
 ## Executive Summary
 
 This audit identified 25+ hardcoded values that should be moved to configuration, 7 unused settings that should be removed, and 5 duplicate configuration conflicts that need resolution.
+
+### ✅ Completed in v0.6.0
+
+- **Unified subtitle configuration system** implemented
+  - Removed legacy `positioning_mode`, `alignment`, `margin_v_percent` fields
+  - Anchor-based positioning with content-aware mode
+  - 5 style presets with exactly 1 effect enforcement
 
 ### ✅ Completed in v0.5.0
 

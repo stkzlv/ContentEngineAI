@@ -271,7 +271,7 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.5.0):**
+**Current Statistics (v0.6.0):**
 - **Total Tests**: 480 collected
 - **Passing**: 470 tests
 - **Skipped**: 10 tests

@@ -2,17 +2,28 @@
 
 ## Configuration System
 
-ContentEngineAI **MUST** use a dual configuration system:
+ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 
-### 1. YAML Files (`config/`)
-- Application settings, preferences, timeouts
-- Safe to commit to version control
-- Reference environment variables via `api_key_env_var` fields
+### Configuration Precedence (Highest to Lowest)
+1. **CLI Arguments** - Runtime command-line flags (highest priority)
+2. **Environment Variables (`.env`)** - API keys, credentials, secrets
+3. **YAML Files (`config/`)** - Application settings, preferences, timeouts (lowest priority)
+
+### 1. CLI Arguments
+- Override all other configuration sources
+- Enable runtime customization without changing files
+- Examples: `--debug`, `--preset`, `--subtitle-format`, `--ass-karaoke`
 
 ### 2. Environment Variables (`.env`)
 - API keys, credentials, secrets only
 - Never committed (gitignored)
 - Loaded at runtime and injected into YAML config
+- Referenced in YAML via `api_key_env_var` fields
+
+### 3. YAML Files (`config/`)
+- Application settings, preferences, timeouts
+- Safe to commit to version control
+- Provide default values when CLI/env not specified
 
 ### Security Rules
 - ✅ **DO**: Store secrets in `.env` file
@@ -57,12 +68,15 @@ ContentEngineAI **MUST** use a dual configuration system:
 - Dynamically select image count based on voiceover duration
 - Reuse images if needed to match voiceover length
 
-### Subtitle System
-- Support both absolute and relative subtitle positioning modes
-- **Absolute Mode**: Configurable image scaling and subtitle position
-- **Relative Mode**: Calculate subtitle position relative to image boundaries
-- Ensure subtitle width doesn't exceed image width
-- Maintain consistent spacing between image bottom and subtitle top
+### Subtitle System - Unified Positioning
+- **Unified Anchor System**: Single flexible positioning approach with anchor-based layout
+- **Anchor Options**: `top`, `center`, `bottom`, `above_content`, `below_content`
+- **Content-Aware Mode**: Automatic position adjustment based on visual content boundaries
+- **Absolute Mode**: Fixed positioning using anchor + margin (content_aware=false)
+- **Relative Mode**: Dynamic positioning relative to image boundaries (content_aware=true)
+- **Margin Control**: Configurable spacing as fraction of frame height (0.0-0.5)
+- **Text Constraints**: Ensure subtitle width doesn't exceed image width
+- **Spacing Consistency**: Maintain consistent spacing between content and subtitles
 
 ### Profile-Specific Settings
 - **All visual settings MUST be configurable per video profile**
@@ -73,7 +87,13 @@ ContentEngineAI **MUST** use a dual configuration system:
 - Support unified subtitle positioning system with anchor-based layout
 
 ### Font & Color Management
-- **Style Preset System**: 4 predefined presets (minimal, modern, bold, random) with limited effects
+- **Style Preset System**: 5 predefined presets (minimal, modern, bold, animated, random)
+- **Preset Descriptions**:
+  - `minimal`: Clean, simple styling with no effects
+  - `modern`: Contemporary look with subtle effects (karaoke)
+  - `bold`: High contrast, bold styling with fade effects
+  - `animated`: Full animations with movement effects
+  - `random`: Randomized font, colors, and single animation effect
 - **Random Preset Features**: Randomized font selection, color pairs, and single animation effect
 - **Font Randomization**: Selection from curated collection with deterministic seeding per video
 - **Color Randomization**: Coordinated text/outline color combinations with proper contrast
@@ -82,9 +102,15 @@ ContentEngineAI **MUST** use a dual configuration system:
 ### ASS Effects System
 - **Per-video effect consistency**: Effects MUST be selected once per video, not per subtitle segment
 - **Proper ASS formatting**: All ASS override codes MUST be enclosed in curly braces `{}` to prevent literal text display
-- **Effect Limitation**: Maximum 1 effect per preset to prevent visual clutter and rendering issues
-- **Effect Variety**: Support scale pulse, rotation bounce, glow, typewriter, karaoke, fade, and movement effects
-- **Random Effect Selection**: RANDOM preset selects 1 effect from all available effects using product ID seeding
+- **Effect Limitation**: Exactly 1 effect per video to prevent visual clutter and rendering issues
+- **Effect Variety**: Support scale_pulse, rotation_bounce, glow, typewriter, karaoke, fade, and movement effects
+- **Random Effect Selection**: RANDOM preset selects exactly 1 effect from all available effects using product ID seeding
+- **Preset Effect Mapping**:
+  - `minimal`: No effects
+  - `modern`: Karaoke only
+  - `bold`: Fade only
+  - `animated`: Movement only
+  - `random`: One randomly selected effect from all available
 - **Karaoke timing**: Implement word-by-word highlighting with proper `\k` tag formatting in centiseconds
 - **Visual consistency**: Maintain coherent animation style throughout individual videos
 - **FFmpeg compatibility**: Ensure all ASS effects render correctly through FFmpeg's libass library
@@ -103,7 +129,8 @@ ContentEngineAI **MUST** use a dual configuration system:
 ## Global Requirements
 
 ### Configuration & CLI
-- CLI arguments override config file settings
+- Three-tier precedence: CLI args > env vars > YAML config
+- CLI arguments override all other configuration sources
 - Global debug mode across all components
 - Validate configuration at startup with clear error messages
 

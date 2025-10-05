@@ -18,7 +18,7 @@ from src.video.stt_functions import (
     generate_subtitles_with_whisper,
     transcribe_with_google_cloud_stt,
 )
-from src.video.subtitle_positioning import convert_legacy_config
+from src.video.subtitle_positioning import create_unified_config_from_settings
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
 from src.video.video_config import (
     GoogleCloudSTTSettings,
@@ -301,8 +301,8 @@ async def create_unified_subtitles(
             f"Generating SRT subtitles: {audio_path.name} -> {output_path.name}"
         )
 
-    # Create unified configuration from legacy settings
-    unified_config = convert_legacy_config(subtitle_settings.__dict__)
+    # Create unified configuration from subtitle settings
+    unified_config = create_unified_config_from_settings(subtitle_settings.__dict__)
 
     # Get frame size from video config
     frame_size = (1080, 1920)  # Default

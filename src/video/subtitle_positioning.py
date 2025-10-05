@@ -370,77 +370,50 @@ def get_font_size(
     return max(16, min(100, scaled_size))
 
 
-def convert_legacy_config(legacy_settings: dict[str, Any]) -> UnifiedSubtitleConfig:
-    """Convert legacy multi-mode configuration to unified format.
+def create_unified_config_from_settings(
+    settings: dict[str, Any],
+) -> UnifiedSubtitleConfig:
+    """Create UnifiedSubtitleConfig from settings dictionary.
 
-    MIGRATION HELPER: This function provides backward compatibility by converting
-    legacy positioning_mode configurations to the new unified system.
+    Args:
+    ----
+        settings: Dictionary containing subtitle configuration parameters
 
-    Legacy modes converted:
-    - "absolute" -> bottom anchor with fixed positioning
-    - "relative" -> below_content anchor with content-aware positioning
-    - "absolute" -> bottom anchor with custom position (if specified)
+    Returns:
+    -------
+        UnifiedSubtitleConfig instance with validated parameters
 
-    New implementations should use UnifiedSubtitleConfig directly instead
-    of relying on this conversion function.
     """
-    # Extract positioning mode
-    positioning_mode = legacy_settings.get("positioning_mode", "absolute")
-    custom_pos = None  # Initialize here to avoid UnboundLocalError
-
-    # Map legacy modes to new anchor system
-    if positioning_mode == "relative":
-        anchor = PositionAnchor.BELOW_CONTENT
-        content_aware = True
-    else:  # absolute or other modes
+    # Extract anchor with validation
+    anchor_str = settings.get("anchor", "bottom")
+    try:
+        anchor = PositionAnchor(anchor_str)
+    except ValueError:
+        logger.warning(f"Invalid anchor '{anchor_str}', using 'bottom'")
         anchor = PositionAnchor.BOTTOM
-        content_aware = False
-        # Try to extract custom position from absolute settings
-        if "absolute_positioning" in legacy_settings:
-            legacy_settings["absolute_positioning"]
-            # This would need FFmpeg expression parsing - simplified for now
-            custom_pos = Position(x=0.5, y=0.8)  # Default approximation
 
-    # Check if using new unified parameters directly
-    if "anchor" in legacy_settings:
-        try:
-            anchor = PositionAnchor(legacy_settings["anchor"])
-            content_aware = legacy_settings.get("content_aware", True)
-        except ValueError:
-            pass  # Fall back to legacy conversion
-
-    # Determine style preset from legacy settings
-    style_preset = StylePreset.MODERN  # Default
-    if "style_preset" in legacy_settings:
-        with contextlib.suppress(ValueError):
-            style_preset = StylePreset(legacy_settings["style_preset"])
-    else:
-        # Analyze legacy settings
-        if legacy_settings.get("subtitle_format") == "ass":
-            if legacy_settings.get("bold", False):
-                style_preset = StylePreset.BOLD
-            else:
-                style_preset = StylePreset.MODERN
-        else:
-            if legacy_settings.get("bold", False):
-                style_preset = StylePreset.BOLD
-            else:
-                style_preset = StylePreset.MINIMAL
+    # Extract style preset with validation
+    preset_str = settings.get("style_preset", "modern")
+    try:
+        style_preset = StylePreset(preset_str)
+    except ValueError:
+        logger.warning(f"Invalid style_preset '{preset_str}', using 'modern'")
+        style_preset = StylePreset.MODERN
 
     return UnifiedSubtitleConfig(
         anchor=anchor,
-        content_aware=content_aware,
+        content_aware=settings.get("content_aware", True),
         style_preset=style_preset,
-        margin=legacy_settings.get("margin", 0.1),
-        font_size_scale=legacy_settings.get("font_size_scale", 1.0),
-        max_line_length=legacy_settings.get("max_line_length", 38),
-        max_duration=legacy_settings.get("max_duration", 4.5),
-        min_duration=legacy_settings.get("min_duration", 0.4),
-        randomize_fonts=legacy_settings.get("randomize_fonts", False),
-        randomize_colors=legacy_settings.get("randomize_colors", False),
-        randomize_effects=legacy_settings.get("randomize_effects", False),
-        selected_font=legacy_settings.get("selected_font"),
-        selected_color_pair=legacy_settings.get("selected_color_pair"),
-        custom_position=custom_pos,
-        horizontal_alignment=legacy_settings.get("horizontal_alignment", "center"),
+        margin=settings.get("margin", 0.1),
+        font_size_scale=settings.get("font_size_scale", 1.0),
+        max_line_length=settings.get("max_line_length", 38),
+        max_duration=settings.get("max_duration", 4.5),
+        min_duration=settings.get("min_duration", 0.4),
+        randomize_fonts=settings.get("randomize_fonts", False),
+        randomize_colors=settings.get("randomize_colors", False),
+        randomize_effects=settings.get("randomize_effects", False),
+        selected_font=settings.get("selected_font"),
+        selected_color_pair=settings.get("selected_color_pair"),
+        custom_position=settings.get("custom_position"),
+        horizontal_alignment=settings.get("horizontal_alignment", "center"),
     )

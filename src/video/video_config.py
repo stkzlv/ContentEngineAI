@@ -86,50 +86,12 @@ LLM_RETRY_ATTEMPTS = 3
 SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
 
 
-# Legacy positioning settings - DEPRECATED
-# Use UnifiedSubtitleConfig from subtitle_positioning.py instead
-class SubtitlePositioningSettings(BaseModel):
-    """DEPRECATED: Legacy dynamic positioning settings.
-
-    This class is maintained for backward compatibility only.
-    New implementations should use UnifiedSubtitleConfig.
-    """
-
-    image_bottom_to_subtitle_top_spacing_percent: float = Field(
-        SUBTITLE_FALLBACK_SPACING_PERCENT,
-        description="DEPRECATED: Use unified subtitle config instead",
-    )
-    subtitle_horizontal_margin_percent: float = Field(
-        0.05, description="DEPRECATED: Use unified subtitle config instead"
-    )
-    subtitle_box_bottom_padding_percent: float = Field(
-        0.02,
-        description="Safety margin at the very bottom of the frame, "
-        "as a % of frame height.",
-    )
-
-
-class AbsolutePositioningSettings(BaseModel):
-    """DEPRECATED: Legacy absolute positioning settings.
-
-    This class is maintained for backward compatibility only.
-    New implementations should use UnifiedSubtitleConfig.
-    """
-
-    x_pos: str = Field(
-        "(w-tw)/2", description="DEPRECATED: Use unified subtitle config instead"
-    )
-    y_pos: str = Field(
-        "h*0.8", description="DEPRECATED: Use unified subtitle config instead"
-    )
+# Legacy positioning settings removed - Use UnifiedSubtitleConfig from
+# subtitle_positioning.py
 
 
 class SubtitleSettings(BaseModel):
     enabled: bool = Field(True)
-    positioning_mode: str = Field(
-        "absolute",
-        description="DEPRECATED: Legacy positioning mode. Use UnifiedSubtitleConfig.",
-    )
     font_name: str = Field("Arial")
     font_directory: str = Field(
         "static/fonts", description="Directory containing .ttf/.otf font files."
@@ -143,17 +105,6 @@ class SubtitleSettings(BaseModel):
     font_color: str = Field("&H00FFFFFF")
     outline_color: str = Field("&HFF000000")
     back_color: str = Field("&H99000000")
-    alignment: int = Field(
-        2,
-        description="Legacy alignment for simple mode. "
-        "1-3 bottom, 4-6 middle, 7-9 top.",
-    )
-    margin_v_percent: float = Field(
-        0.05,
-        description="Legacy vertical margin for simple mode, as a % of frame height.",
-    )
-    relative_positioning: SubtitlePositioningSettings | None = Field(None)
-    absolute_positioning: AbsolutePositioningSettings | None = Field(None)
     use_random_font: bool = Field(False)
     use_random_colors: bool = Field(False)
     available_fonts: list[str] = Field(
@@ -328,21 +279,6 @@ class SubtitleSettings(BaseModel):
     randomize_effects: bool = Field(
         False, description="Use random animation effects when available"
     )
-
-    @model_validator(mode="after")
-    def validate_positioning_mode(self) -> "SubtitleSettings":
-        """DEPRECATED: Legacy positioning mode validation.
-
-        This validator is maintained for backward compatibility only.
-        New implementations should use UnifiedSubtitleConfig validation.
-        """
-        if self.positioning_mode not in ["absolute", "relative"]:
-            # Log deprecation warning instead of raising error
-            logger.warning(
-                f"DEPRECATED: positioning_mode '{self.positioning_mode}' is "
-                "deprecated. Use UnifiedSubtitleConfig from subtitle_positioning.py."
-            )
-        return self
 
 
 class VideoSettings(BaseModel):
@@ -1315,16 +1251,13 @@ class VideoConfig(BaseModel):
                 "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
                 # Advanced settings (pass through from original)
                 "enabled": self.subtitle_settings.enabled,
-                "positioning_mode": self.subtitle_settings.positioning_mode,
+                # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
+                # relative_positioning, absolute_positioning
                 "font_directory": self.subtitle_settings.font_directory,
                 "font_size_percent": self.subtitle_settings.font_size_percent,
                 "font_width_to_height_ratio": (
                     self.subtitle_settings.font_width_to_height_ratio
                 ),
-                "alignment": self.subtitle_settings.alignment,
-                "margin_v_percent": self.subtitle_settings.margin_v_percent,
-                "relative_positioning": self.subtitle_settings.relative_positioning,
-                "absolute_positioning": self.subtitle_settings.absolute_positioning,
                 "use_random_font": self.subtitle_settings.use_random_font,
                 "use_random_colors": self.subtitle_settings.use_random_colors,
                 "available_fonts": self.subtitle_settings.available_fonts,
@@ -2032,7 +1965,8 @@ except Exception as e:
         ),
         subtitle_settings=SubtitleSettings(
             enabled=True,
-            positioning_mode="absolute",
+            # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
+            # relative_positioning, absolute_positioning
             font_name="Arial",
             font_directory="fonts",
             font_size_percent=0.05,
@@ -2040,10 +1974,6 @@ except Exception as e:
             font_color="&H00FFFFFF",
             outline_color="&HFF000000",
             back_color="&H99000000",
-            alignment=2,
-            margin_v_percent=0.05,
-            relative_positioning=None,
-            absolute_positioning=None,
             use_random_font=False,
             use_random_colors=False,
             available_fonts=[

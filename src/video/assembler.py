@@ -1148,11 +1148,11 @@ class VideoAssembler:
                     from src.video.subtitle_positioning import (
                         VisualBounds,
                         calculate_position,
-                        convert_legacy_config,
+                        create_unified_config_from_settings,
                     )
 
-                    # Convert legacy settings to unified config
-                    unified_config = convert_legacy_config(settings_dict)
+                    # Create unified config from settings
+                    unified_config = create_unified_config_from_settings(settings_dict)
 
                     # Create visual bounds with error handling
                     visual_bounds = None

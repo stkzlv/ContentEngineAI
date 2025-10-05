@@ -8,24 +8,34 @@ subtitle_settings:
   # ---- UNIFIED POSITIONING ----
   # Content-aware positioning that automatically adapts to visual layout
 
+  # POSITIONING MODES:
+  # - Absolute Mode: Fixed positioning (content_aware=false)
+  #   anchor + margin with no content awareness
+  #   Example: anchor="bottom", margin=0.1, content_aware=false
+  #
+  # - Relative Mode: Dynamic positioning (content_aware=true)
+  #   Adjusts position based on visual content boundaries
+  #   Example: anchor="below_content", margin=0.08, content_aware=true
+
   # Anchor point for subtitle positioning
+  # Options: top, center, bottom, above_content, below_content
   anchor: "below_content"
 
   # Margin as fraction of frame height (0.0-0.5)
   margin: 0.08
 
   # Enable content-aware positioning (adjusts based on visual elements)
+  # true = Relative Mode, false = Absolute Mode
   content_aware: true
-
-  # ---- LEGACY RELATIVE POSITIONING SETTINGS ----
-  relative_positioning:
-    image_bottom_to_subtitle_top_spacing_percent: 0.17
-    subtitle_horizontal_margin_percent: 0.07
-    subtitle_box_bottom_padding_percent: 0.02
 
   # ---- STYLING ----
   # Style preset determines overall appearance
   # Available presets: minimal, modern, bold, animated, random
+  # - minimal: Clean, simple styling with no effects
+  # - modern: Contemporary look with karaoke effect
+  # - bold: High contrast with fade effect
+  # - animated: Full animations with movement effect
+  # - random: Randomized font, colors, and one random effect
   style_preset: "animated"
 
   # Font size scale factor (0.5-2.0)
