@@ -363,12 +363,26 @@ def _log_system_resources(context: str):
 
 
 def _get_audio_duration(audio_path: Path) -> float:
-    """Get audio duration using basic file info or fallback."""
+    """Get audio duration using FFprobe."""
+    import subprocess
+
     try:
-        # This would use FFprobe or similar in the full implementation
-        # For now, return a reasonable default
-        return 60.0  # 1 minute fallback
-    except Exception:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "quiet",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(audio_path)
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10
+        )
+        return float(result.stdout.strip())
+    except (subprocess.SubprocessError, ValueError) as e:
+        logger.warning(f"Failed to get audio duration: {e}, using 60s fallback")
         return 60.0
 
 

@@ -36,7 +36,7 @@ subtitle_settings:
   # - bold: High contrast with fade effect
   # - animated: Full animations with movement effect
   # - random: Randomized font, colors, and one random effect
-  style_preset: "animated"
+  style_preset: "modern"
 
   # Font size scale factor (0.5-2.0)
   font_size_scale: 1.0
@@ -144,6 +144,7 @@ subtitle_effects:
   # Karaoke visual effect (color sweep)
   karaoke_primary_color: "&H0000FFFF"   # Yellow - initial text color (before sweep)
   karaoke_secondary_color: "&H00000000" # Black - fill color (during sweep)
+  karaoke_outline_color: "&H00FFFFFF"   # White outline - makes black fill visible
   karaoke_use_fill: true                # Use \kf (fill) instead of \k (timing only)
 
   # Animation duration factors (multiplied by segment duration)

@@ -272,16 +272,21 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics (v0.6.0):**
-- **Total Tests**: 480 collected
-- **Passing**: 470 tests
+- **Total Tests**: 419 collected
+- **Passing**: 406 tests
 - **Skipped**: 10 tests
-- **Coverage**: 41% (target: 30% minimum)
+- **Failed**: 3 tests (legacy subtitle config - deprecated)
+- **Coverage**: 40% (target: 30% minimum)
 
 **Recent Updates:**
+- ✅ Removed outdated legacy subtitle positioning tests (2 files)
 - ✅ Updated scraper configuration tests (23 tests)
 - ✅ Added cross-config validation test
 - ✅ Fixed deprecated config references
 - ✅ All linting checks passing
+
+**Known Issues:**
+- 3 legacy subtitle config tests failing (using removed `positioning_mode`, `alignment`, `margin_v_percent` fields)
 
 ## Quick Reference
 

@@ -750,6 +750,13 @@ class UnifiedSubtitleGenerator:
         width, height = self.frame_size
         font_name = self.style_config["font_name"]
 
+        # Use karaoke-specific outline color if karaoke effect is enabled
+        outline_color = colors['outline']
+        if self._selected_effects.get("karaoke", False):
+            subtitle_effects = config.subtitle_effects
+            if subtitle_effects and subtitle_effects.karaoke_outline_color:
+                outline_color = subtitle_effects.karaoke_outline_color
+
         return [
             "[Script Info]",
             "Title: Generated Subtitles",
@@ -767,7 +774,7 @@ class UnifiedSubtitleGenerator:
             (
                 f"Style: Default,{font_name},{font_size},"
                 f"{self._get_karaoke_colors()[0]},"
-                f"{self._get_karaoke_colors()[1]},{colors['outline']},"
+                f"{self._get_karaoke_colors()[1]},{outline_color},"
                 f"&H80000000,{-1 if self.style_config['bold'] else 0},0,1,"
                 f"{self.style_config['outline_thickness']},"
                 f"{1 if self.style_config['shadow'] else 0},5,10,10,0,1"

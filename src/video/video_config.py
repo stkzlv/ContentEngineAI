@@ -708,6 +708,9 @@ class SubtitleEffectsSettings(BaseModel):
     karaoke_secondary_color: str = Field(
         "&H0000FFFF", description="Secondary color (fill during sweep, ASS format)"
     )
+    karaoke_outline_color: str | None = Field(
+        None, description="Outline color for karaoke (optional, ASS format)"
+    )
     karaoke_use_fill: bool = Field(
         True, description="Use \\kf (fill) instead of \\k (timing only)"
     )
