@@ -397,9 +397,7 @@ class UnifiedSubtitleGenerator:
                     # 3. Duration limit
                     or current_duration > self.config.max_duration
                     # 4. Natural breaks
-                    or (
-                        word.endswith((".", "!", "?")) and len(current_words) >= 3
-                    )
+                    or (word.endswith((".", "!", "?")) and len(current_words) >= 3)
                 ):
                     should_break = True
 
@@ -542,9 +540,11 @@ class UnifiedSubtitleGenerator:
                     should_break = True
 
             # 4. Natural sentence breaks
-            if not should_break and word.endswith(
-                (".", "!", "?")
-            ) and len(current_segment_words) >= 3:
+            if (
+                not should_break
+                and word.endswith((".", "!", "?"))
+                and len(current_segment_words) >= 3
+            ):
                 # Add this word to current segment before breaking
                 current_segment_words.append(word)
                 current_segment_text = potential_text
@@ -694,21 +694,18 @@ class UnifiedSubtitleGenerator:
             return None
 
     def _select_colors(self) -> dict[str, str]:
-        """Select colors once during initialization for consistent per-run coloring."""
+        """Select colors once during initialization for consistent per-run coloring.
+
+        Note: Color randomization is now handled by RandomizationEngine in
+        get_style_config(), so we just use the colors from style_config.
+        """
         colors = {
             "primary": self.style_config["font_color"],
             "outline": self.style_config["outline_color"],
         }
 
-        if self.config.randomize_colors:
-            # Simple color randomization - selected once per producer run
-            color_options = [
-                {"primary": "&H00FFFFFF", "outline": "&H00000000"},  # White/Black
-                {"primary": "&H0000FFFF", "outline": "&H00000000"},  # Yellow/Black
-                {"primary": "&H00FF00FF", "outline": "&H00000000"},  # Magenta/Black
-                {"primary": "&H00FFFF00", "outline": "&H00000000"},  # Cyan/Black
-            ]
-            colors.update(random.choice(color_options))  # noqa: S311
+        # Legacy randomization removed - RandomizationEngine handles this now
+        # If randomize_colors is enabled, colors are already randomized in style_config
 
         return colors
 

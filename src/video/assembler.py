@@ -441,7 +441,9 @@ class VideoAssembler:
             alpha_ass = "00"
         rgb_hex = f"0x{red}{green}{blue}"
         opacity = 1.0 - (int(alpha_ass, 16) / 255.0)
-        if opacity >= 0.99:
+        # Consider opacity >= 0.99 as fully opaque (threshold to avoid tiny decimals)
+        opacity_threshold = 0.99
+        if opacity >= opacity_threshold:
             return rgb_hex
         else:
             return f"{rgb_hex}@{opacity:.2f}"
@@ -1217,10 +1219,27 @@ class VideoAssembler:
                             f"Position calculation failed for segment "
                             f"{drawtext_count}, using fallback: {e}"
                         )
-                        # Fallback to bottom positioning
+                        # Fallback to bottom positioning using config values
+                        from pathlib import Path
+
+                        import yaml
+
                         from src.video.subtitle_positioning import Position
 
-                        position = Position(x=0.5, y=0.8)
+                        center_x = 0.5  # Default
+                        fallback_y = 0.8  # Default
+                        config_path = Path("config/subtitles.yaml")
+                        if config_path.exists():
+                            with open(config_path, encoding="utf-8") as f:
+                                data = yaml.safe_load(f)
+                                text_rendering = data.get("text_rendering", {})
+                                center_x = text_rendering.get(
+                                    "center_position_fraction", 0.5
+                                )
+                                # Use 80% down as fallback when no visual bounds
+                                fallback_y = 0.8
+
+                        position = Position(x=center_x, y=fallback_y)
 
                     # Debug positioning
                     if self.debug_mode:
@@ -1401,8 +1420,20 @@ class VideoAssembler:
 
                     font_size = get_font_size(unified_config, frame_height)
 
-                    # Allow subtitles to go up to 95% of frame height
-                    max_y = int(frame_height * 0.95)
+                    # Allow subtitles to go up to max safe position from config
+                    from pathlib import Path
+
+                    import yaml
+
+                    max_safe_y = 0.95  # Default
+                    config_path = Path("config/subtitles.yaml")
+                    if config_path.exists():
+                        with open(config_path, encoding="utf-8") as f:
+                            data = yaml.safe_load(f)
+                            text_rendering = data.get("text_rendering", {})
+                            max_safe_y = text_rendering.get("max_safe_y_position", 0.95)
+
+                    max_y = int(frame_height * max_safe_y)
                     subtitle_y = min(subtitle_y, max_y)
 
                     logger.debug(

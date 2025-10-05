@@ -317,6 +317,24 @@ def calculate_position(
         Position with x, y coordinates as fractions (0.0-1.0)
 
     """
+    # Load text rendering settings from config
+    from pathlib import Path
+
+    import yaml
+
+    text_rendering_config = {}
+    config_path = Path("config/subtitles.yaml")
+    if config_path.exists():
+        with open(config_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            text_rendering_config = data.get("text_rendering", {})
+
+    min_safe_y = text_rendering_config.get("min_safe_y_position", 0.05)
+    max_safe_y = text_rendering_config.get("max_safe_y_position", 0.95)
+    center_fraction = text_rendering_config.get("center_position_fraction", 0.5)
+    left_fraction = text_rendering_config.get("left_position_fraction", 0.1)
+    right_fraction = text_rendering_config.get("right_position_fraction", 0.9)
+
     frame_width, frame_height = frame_size
 
     # Use custom position if specified
@@ -327,19 +345,21 @@ def calculate_position(
     if config.anchor == PositionAnchor.TOP:
         base_y = config.margin
     elif config.anchor == PositionAnchor.CENTER:
-        base_y = 0.5
+        base_y = center_fraction
     elif config.anchor == PositionAnchor.BOTTOM:
         base_y = 1.0 - config.margin
     elif config.anchor == PositionAnchor.ABOVE_CONTENT:
         if config.content_aware and visual_bounds:
-            base_y = max(0.05, visual_bounds.y - config.margin)
+            base_y = max(min_safe_y, visual_bounds.y - config.margin)
         else:
             # Fallback: Use top positioning when content_aware is disabled
             # or visual_bounds is not available
             base_y = config.margin
     elif config.anchor == PositionAnchor.BELOW_CONTENT:
         if config.content_aware and visual_bounds:
-            base_y = min(0.95, visual_bounds.y + visual_bounds.height + config.margin)
+            base_y = min(
+                max_safe_y, visual_bounds.y + visual_bounds.height + config.margin
+            )
         else:
             # Fallback: Use reasonable bottom positioning when content_aware is disabled
             # or visual_bounds is not available
@@ -348,17 +368,19 @@ def calculate_position(
 
     # Calculate horizontal position based on alignment
     if config.horizontal_alignment == "left":
-        base_x = 0.1
+        base_x = left_fraction
     elif config.horizontal_alignment == "right":
-        base_x = 0.9
+        base_x = right_fraction
     else:  # center
-        base_x = 0.5
+        base_x = center_fraction
 
     return Position(x=base_x, y=base_y)
 
 
 def get_font_size(
-    config: UnifiedSubtitleConfig, frame_height: int, base_size_percent: float = 0.04
+    config: UnifiedSubtitleConfig,
+    frame_height: int,
+    base_size_percent: float | None = None,
 ) -> int:
     """Calculate font size based on configuration and frame size.
 
@@ -366,18 +388,42 @@ def get_font_size(
     ----
         config: Unified subtitle configuration
         frame_height: Height of video frame in pixels
-        base_size_percent: Base font size as percentage of frame height
+        base_size_percent: Base font size as percentage of frame height (optional)
 
     Returns:
     -------
         Font size in pixels
 
     """
+    # Load text rendering settings from config if not provided
+    if base_size_percent is None:
+        from pathlib import Path
+
+        import yaml
+
+        config_path = Path("config/subtitles.yaml")
+        if config_path.exists():
+            with open(config_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                text_rendering = data.get("text_rendering", {})
+                base_size_percent = float(
+                    text_rendering.get("base_font_size_percent", 0.04)
+                )
+                min_font = int(text_rendering.get("min_font_size", 16))
+                max_font = int(text_rendering.get("max_font_size", 100))
+        else:
+            base_size_percent = 0.04
+            min_font = 16
+            max_font = 100
+    else:
+        min_font = 16
+        max_font = 100
+
     base_size = int(frame_height * base_size_percent)
     scaled_size = int(base_size * config.font_size_scale)
 
-    # Ensure reasonable bounds
-    return max(16, min(100, scaled_size))
+    # Ensure reasonable bounds from config
+    return max(min_font, min(max_font, scaled_size))
 
 
 def create_unified_config_from_settings(

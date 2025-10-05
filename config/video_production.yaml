@@ -2,6 +2,28 @@
 # Video encoding, audio processing, media gathering, and production profiles
 
 # ============================================================================
+# FILE NAMING CONVENTIONS
+# ============================================================================
+# Standard filenames for pipeline outputs
+# These define the naming patterns used throughout the production pipeline
+file_naming:
+  # Audio output filenames
+  voiceover: "voiceover.wav"
+
+  # Subtitle output filenames
+  subtitles_srt: "subtitles.srt"
+  subtitles_ass: "subtitles.ass"
+  subtitles_content_aware: "subtitles_content_aware.ass"
+  temp_subtitle: "captions.srt"
+
+  # Video output filenames
+  # {profile} placeholder will be replaced with actual profile name
+  final_video: "video_{profile}.mp4"
+
+  # Script input paths (legacy compatibility)
+  script_paths: ["info/script.txt"]
+
+# ============================================================================
 # VIDEO ENCODING SETTINGS
 # ============================================================================
 video_settings:
@@ -55,6 +77,13 @@ video_settings:
   subtitle_box_border_width: 5
   image_loop: 1
   pad_color: "black"
+
+  # Supported file formats
+  # Video formats that can be processed by the pipeline
+  supported_video_extensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+
+  # Audio formats that can be processed by the pipeline
+  supported_audio_extensions: [".wav", ".mp3", ".aac", ".flac"]
 
 # ============================================================================
 # AUDIO SETTINGS
@@ -170,6 +199,12 @@ stock_media_settings:
   freesound:
     enabled: false
     api_key_env_var: "FREESOUND_API_KEY"
+
+    # API endpoints
+    api_base_url: "https://freesound.org/apiv2"
+    oauth_token_url: "https://freesound.org/apiv2/oauth2/access_token/"
+    download_url_template: "https://freesound.org/apiv2/sounds/{sound_id}/download/"
+    sound_url_template: "https://freesound.org/s/{sound_id}/"
 
     # Search parameters
     search_terms: ["product", "commercial", "upbeat"]

@@ -189,8 +189,25 @@ class TestUnifiedSubtitleGenerator:
 
         assert colors1 == colors2
 
-    def test_color_randomization(self):
-        """Test color randomization when enabled."""
+    @patch("src.video.unified_subtitle_generator.get_style_config")
+    def test_color_randomization_uses_style_config(self, mock_get_style):
+        """Test that colors come from style_config, not legacy randomization.
+
+        This test verifies the fix for the double-randomization bug where
+        _select_colors() was overwriting RandomizationEngine colors.
+        """
+        # Mock get_style_config to return specific randomized colors
+        mock_get_style.return_value = {
+            "font_name": "Rubik-Bold",
+            "font_color": "&H000080FF",  # Orange
+            "outline_color": "&H00008000",  # Dark green (WARM pair)
+            "bold": True,
+            "outline_thickness": 2,
+            "shadow": True,
+            "effects": [],
+            "font_width_to_height_ratio": 0.5,
+        }
+
         config = UnifiedSubtitleConfig(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
@@ -203,8 +220,39 @@ class TestUnifiedSubtitleGenerator:
         generator = UnifiedSubtitleGenerator(config, frame_size)
         colors = generator._get_colors()
 
+        # Colors should match what get_style_config returned (not be overwritten)
+        assert colors["primary"] == "&H000080FF"  # Orange
+        assert colors["outline"] == "&H00008000"  # Dark green
+        # NOT black (&H00000000) from old legacy randomization
+
+    def test_select_colors_preserves_style_config(self):
+        """Test that _select_colors() uses colors from style_config without overwriting.
+
+        Regression test for bug where _select_colors() had legacy randomization
+        that overwrote RandomizationEngine colors with hardcoded black outlines.
+        """
+        # Create config with specific style colors
+        config = UnifiedSubtitleConfig(
+            anchor=PositionAnchor.BOTTOM,
+            margin=0.1,
+            content_aware=False,
+            style_preset=StylePreset.BOLD,  # Has specific colors
+            randomize_colors=False,  # Disabled to test style_config preservation
+        )
+        frame_size = (1920, 1080)
+
+        generator = UnifiedSubtitleGenerator(config, frame_size)
+
+        # _select_colors() should return colors from style_config
+        # The BOLD preset has specific outline color
+        colors = generator._select_colors()
+
         assert "primary" in colors
         assert "outline" in colors
+        # Colors should come from style_config, not be random
+        # (Actual values depend on BOLD preset in config)
+        assert colors["primary"] == generator.style_config["font_color"]
+        assert colors["outline"] == generator.style_config["outline_color"]
 
     @patch("src.video.unified_subtitle_generator.pysrt")
     def test_generate_srt_error_handling(self, mock_pysrt, generator, sample_timings):

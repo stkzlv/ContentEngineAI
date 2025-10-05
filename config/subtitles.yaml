@@ -1,75 +1,121 @@
-# Subtitle System Configuration
-# Complete subtitle system including ASS effects and positioning
+# ============================================================================
+# SUBTITLE SYSTEM CONFIGURATION
+# ============================================================================
+# Complete subtitle system including ASS effects, positioning, and styling
+# This config controls how subtitles are generated, positioned, and rendered
+# in the final video output.
 
 subtitle_settings:
-  # Whether to generate and embed subtitles in the video
+  # ---- GLOBAL ENABLE/DISABLE ----
+  # Master switch for subtitle generation and embedding
+  # When false, no subtitles will be added to videos
   enabled: true
 
-  # ---- UNIFIED POSITIONING ----
+  # ---- UNIFIED POSITIONING SYSTEM ----
   # Content-aware positioning that automatically adapts to visual layout
+  # This system ensures subtitles don't overlap with images/videos
 
   # POSITIONING MODES:
-  # - Absolute Mode: Fixed positioning (content_aware=false)
-  #   anchor + margin with no content awareness
+  # - Absolute Mode (content_aware=false):
+  #   Fixed positioning using anchor + margin
+  #   Subtitles stay at same position regardless of content
   #   Example: anchor="bottom", margin=0.1, content_aware=false
   #
-  # - Relative Mode: Dynamic positioning (content_aware=true)
-  #   Adjusts position based on visual content boundaries
-  #   Example: anchor="below_content", margin=0.08, content_aware=true
+  # - Relative Mode (content_aware=true):
+  #   Dynamic positioning that adjusts based on visual content boundaries
+  #   Subtitles move to avoid overlapping images
+  #   Example: anchor="below_content", margin=0.05, content_aware=true
 
   # Anchor point for subtitle positioning
-  # Options: top, center, bottom, above_content, below_content
+  # Options:
+  #   - top: Position at top of frame
+  #   - center: Position at center of frame
+  #   - bottom: Position at bottom of frame
+  #   - above_content: Position above detected visual content
+  #   - below_content: Position below detected visual content (recommended)
   anchor: "below_content"
 
-  # Margin as fraction of frame height (0.0-0.5)
+  # Spacing margin as fraction of frame height (0.0-0.5)
+  # Gap between subtitles and frame edge (absolute mode) or content (relative mode)
+  # 0.05 = 5% of frame height spacing
   margin: 0.05
 
-  # Enable content-aware positioning (adjusts based on visual elements)
-  # true = Relative Mode, false = Absolute Mode
+  # Enable content-aware positioning
+  # true = Relative Mode (subtitles adapt to content position)
+  # false = Absolute Mode (fixed position)
+  # Recommended: true for dynamic content, false for consistent positioning
   content_aware: true
 
-  # ---- STYLING ----
-  # Style preset determines overall appearance
-  # Available presets: minimal, modern, bold, animated, random
-  # - minimal: Clean, simple styling with no effects
-  # - modern: Contemporary look with karaoke effect
-  # - bold: High contrast with fade effect
-  # - animated: Full animations with movement effect
-  # - random: Randomized font, colors, and one random effect
+  # ---- VISUAL STYLING ----
+  # Style preset determines fonts, colors, effects, and overall appearance
+  # Available presets:
+  #   - minimal: Clean, simple styling with no effects
+  #   - modern: Contemporary look with karaoke effect (default)
+  #   - bold: High contrast with fade effect
+  #   - animated: Full animations with movement effect
+  #   - random: Randomized font, colors, and one random effect per video
+  # Presets are defined in style_presets section below
   style_preset: "modern"
 
-  # Font size scale factor (0.5-2.0)
+  # Font size multiplier (0.5-2.0)
+  # 1.0 = base size (4% of frame height)
+  # <1.0 = smaller text, >1.0 = larger text
+  # Useful for adjusting readability without changing the base calculation
   font_size_scale: 1.0
 
-  # Text alignment: left, center, right
+  # Horizontal text alignment
+  # Options: left, center, right
+  # Controls where subtitle text is anchored horizontally
   horizontal_alignment: "center"
 
-  # ---- TEXT FORMATTING ----
+  # ---- TEXT FORMATTING AND SEGMENTATION ----
+  # These settings control how subtitle text is broken into lines and segments
+  # to ensure readability and proper timing
+
   # Maximum characters per subtitle line
+  # Text longer than this will be broken into multiple lines
+  # Default 30 works well for 1080x1920 vertical videos
   max_line_length: 30
 
-  # Maximum words per subtitle line (for short-form videos)
-  # Set to 0 to disable word-based limiting
+  # Maximum words per subtitle line (for short-form content)
+  # Ensures subtitles are readable in fast-paced videos
+  # Set to 0 to disable word-based limiting and use only character limit
+  # Recommended: 3 for TikTok/Reels style, 0 for longer-form content
   max_words_per_line: 3
 
-  # Maximum subtitle block width as fraction of frame width (0.0-1.0)
-  # Default 0.67 means subtitles won't exceed 2/3 of frame width
+  # Maximum subtitle width as fraction of total frame width (0.0-1.0)
+  # Prevents subtitles from spanning too wide and becoming hard to read
+  # 0.67 = subtitles won't exceed 2/3 of frame width
+  # Works in combination with image width to find stricter constraint
   max_subtitle_width_fraction: 0.67
 
   # Maximum duration for any subtitle segment (seconds)
+  # Segments longer than this will be split into multiple subtitles
+  # Prevents subtitles from staying on screen too long
   max_duration: 4.5
 
   # Minimum duration for any subtitle segment (seconds)
+  # Segments shorter than this may be combined or extended
+  # Prevents subtitles from flashing too quickly
   min_duration: 0.4
 
-  # Probability of applying random animation effects (0.0-1.0)
-  animation_probability: 0.3
-
   # ---- RANDOMIZATION OPTIONS ----
+  # Enable variety in subtitle appearance across different videos
+  # All randomization uses seeded random for consistency within a video
+
+  # Use random font selection from curated collection
+  # When true, selects font randomly per video (consistent within video)
+  # Font collection defined in font_color_manager.py
+  randomize_fonts: false
+
   # Use random color combinations from preset palette
+  # When true, selects coordinated color pair randomly per video
+  # Color pairs defined in font_color_manager.py
   randomize_colors: false
 
   # Use random animation effects when available
+  # When true, applies random effects from preset's effect list
+  # Effects are defined per style preset below
   randomize_effects: true
 
   # ---- OUTPUT FORMAT ----
@@ -144,132 +190,248 @@ tts_config:
 # ============================================================================
 # SUBTITLE EFFECTS (ASS Format Animations)
 # ============================================================================
+# ASS (Advanced SubStation Alpha) format animation parameters
+# These effects are applied when using style presets with effects enabled
+# Each effect uses ASS override tags to create visual animations
+
 subtitle_effects:
-  # Karaoke timing parameters
+  # ---- KARAOKE EFFECT ----
+  # Word-by-word color sweep effect synchronized with TTS timing
+  # Creates the classic karaoke "bouncing ball" effect for highlighting active words
+
+  # Timing range for karaoke effect per word (milliseconds)
+  # min_ms: Fastest sweep speed (used for short words)
+  # max_ms: Slowest sweep speed (used for long words)
+  # Actual timing is calculated based on word duration from TTS
   karaoke_timing_min_ms: 20
   karaoke_timing_max_ms: 200
 
-  # Karaoke visual effect (color sweep)
+  # Karaoke color configuration (ASS color format: &HAABBGGRR)
   karaoke_primary_color: "&H0000FFFF"   # Yellow - initial text color (before sweep)
   karaoke_secondary_color: "&H00000000" # Black - fill color (during sweep)
   karaoke_outline_color: "&H00FFFFFF"   # White outline - makes black fill visible
-  karaoke_use_fill: true                # Use \kf (fill) instead of \k (timing only)
 
-  # Animation duration factors (multiplied by segment duration)
-  pulse_duration_factor: 500
-  bounce_duration_factor: 300
-  glow_duration_factor: 400
+  # Use fill karaoke (\kf) instead of timing-only karaoke (\k)
+  # true = Fill effect (recommended for visibility)
+  # false = Timing effect only (subtle)
+  karaoke_use_fill: true
 
-  # Scale effect parameters
-  pulse_scale_max: 110
-  pulse_scale_normal: 100
+  # ---- ANIMATION DURATION FACTORS ----
+  # Multiplied by subtitle segment duration to calculate animation timing
+  # Higher values = slower animations, Lower values = faster animations
+  # Example: 2-second subtitle * pulse_duration_factor(500) = 1000ms pulse cycle
 
-  # Movement effect parameters
-  movement_distance_pixels: 50  # Vertical movement distance in pixels
+  pulse_duration_factor: 500      # For scale pulse effect (breathing animation)
+  bounce_duration_factor: 300     # For rotation bounce effect
+  glow_duration_factor: 400       # For glow effect (color transition)
+
+  # ---- SCALE EFFECT PARAMETERS ----
+  # Controls the pulse/breathing animation scale range
+  # Values are percentages of original size
+
+  pulse_scale_max: 110            # Maximum scale (110% = 10% larger)
+  pulse_scale_normal: 100         # Normal scale (100% = original size)
+
+  # ---- MOVEMENT EFFECT PARAMETERS ----
+  # Controls vertical movement animation
+
+  # Vertical distance to move subtitles up/down (pixels)
+  # Used by movement effect to create subtle vertical animation
+  movement_distance_pixels: 50
 
 # ============================================================================
 # TEXT RENDERING SETTINGS
 # ============================================================================
+# Low-level text rendering parameters for pixel-perfect subtitle positioning
+# These settings are used by the rendering engine for layout calculations
+
 text_rendering:
-  # Character width estimation factors
+  # ---- CHARACTER WIDTH ESTIMATION ----
+  # Factors used to estimate pixel width of different character types
+  # Used for text wrapping and width constraint calculations
+
+  # Narrow characters width factor (i, l, I, etc.)
+  # Relative to average character width
   narrow_char_width_factor: 0.4
+
+  # Wide characters width factor (M, W, m, etc.)
+  # Relative to average character width
   wide_char_width_factor: 1.2
+
+  # Space character width factor
+  # Relative to average character width
   space_char_width_factor: 0.3
 
-  # Text layout parameters
+  # ---- LAYOUT DEFAULTS ----
+  # Default values used when not specified in subtitle_settings
+
+  # Default margin for legacy compatibility
+  # Used as fallback when margin not specified
   default_margin_fraction: 0.1
+
+  # Default font size scale for legacy compatibility
   default_font_size_scale: 1.0
+
+  # Maximum characters per line for text wrapping fallback
+  # Used when pixel-based calculation isn't available
+  # Note: subtitle_settings.max_line_length is preferred
   max_chars_per_line: 38
 
-  # Subtitle duration limits
+  # ---- TIMING CONSTRAINTS ----
+  # Duration limits for subtitle segments (duplicates removed in favor of subtitle_settings)
+
+  # Maximum subtitle duration (seconds)
   max_subtitle_duration_sec: 4.5
+
+  # Minimum subtitle duration (seconds)
   min_subtitle_duration_sec: 0.4
 
-  # Safe positioning boundaries (fractions of frame)
+  # ---- SAFE POSITIONING BOUNDARIES ----
+  # Position constraints to keep subtitles within visible frame area
+  # Values are fractions of frame height/width (0.0-1.0)
+
+  # Minimum Y position (prevents subtitles going above 5% of frame)
   min_safe_y_position: 0.05
+
+  # Maximum Y position (prevents subtitles going below 95% of frame)
   max_safe_y_position: 0.95
+
+  # Center horizontal position (50% of frame width)
   center_position_fraction: 0.5
+
+  # Left alignment position (10% from left edge)
   left_position_fraction: 0.1
+
+  # Right alignment position (10% from right edge)
   right_position_fraction: 0.9
 
-  # Font size boundaries
+  # ---- FONT SIZE CALCULATION ----
+  # Parameters for calculating font size from frame dimensions
+
+  # Base font size as percentage of frame height
+  # 0.04 = 4% of frame height (e.g., 77px for 1920px height)
   base_font_size_percent: 0.04
+
+  # Minimum font size in pixels (enforced even if calculation goes lower)
   min_font_size: 16
+
+  # Maximum font size in pixels (enforced even if calculation goes higher)
   max_font_size: 100
 
 # ============================================================================
 # SUBTITLE STYLE PRESETS
 # ============================================================================
-# Predefined style configurations with fonts, colors, and effects
+# Predefined style configurations combining fonts, colors, and effects
+# Select preset using subtitle_settings.style_preset
+# Each preset includes font styling, colors, and compatible effects
+
 style_presets:
+  # ---- MINIMAL PRESET ----
+  # Use case: Professional, corporate content where subtitles should not distract
+  # Best for: Educational videos, tutorials, technical content
   minimal:
     description: "Clean, simple styling with no effects"
-    font_name: "Arial"
-    font_color: "&H00FFFFFF"           # White text
-    outline_color: "&H00000000"        # Black outline
-    background_color: null             # No background
-    bold: false
-    outline_thickness: 1
-    shadow: false
-    effects: []
-    font_width_to_height_ratio: 0.5
+    font_name: "Arial"                 # Standard sans-serif font
+    font_color: "&H00FFFFFF"           # White text (ASS format: &HAABBGGRR)
+    outline_color: "&H00000000"        # Black outline for readability
+    background_color: null             # No background (transparent)
+    bold: false                        # Regular weight
+    outline_thickness: 1               # Thin outline (pixels)
+    shadow: false                      # No drop shadow
+    effects: []                        # No animation effects
+    font_width_to_height_ratio: 0.5    # Character width estimation
 
+  # ---- MODERN PRESET (DEFAULT) ----
+  # Use case: Contemporary social media content with engagement features
+  # Best for: YouTube, TikTok, Instagram Reels
   modern:
     description: "Contemporary look with subtle effects"
-    font_name: "Montserrat"
+    font_name: "Montserrat"            # Modern sans-serif font
     font_color: "&H00FFFFFF"           # White text
     outline_color: "&H00000000"        # Black outline
-    background_color: "&H99000000"     # Semi-transparent black background
-    bold: true
-    outline_thickness: 2
-    shadow: true
-    effects: ["karaoke"]
+    background_color: "&H99000000"     # Semi-transparent black (60% opacity)
+    bold: true                         # Bold weight for impact
+    outline_thickness: 2               # Medium outline
+    shadow: true                       # Drop shadow for depth
+    effects: ["karaoke"]               # Word-by-word highlighting
     font_width_to_height_ratio: 0.5
 
+  # ---- BOLD PRESET ----
+  # Use case: High-impact content requiring maximum readability
+  # Best for: Promotional videos, announcements, action content
   bold:
     description: "High contrast, bold styling"
-    font_name: "Gabarito"
+    font_name: "Gabarito"              # Strong, bold font
     font_color: "&H00FFFFFF"           # White text
     outline_color: "&H00000000"        # Black outline
-    background_color: "&HCC000000"     # Strong black background
-    bold: true
-    outline_thickness: 3
-    shadow: true
-    effects: ["fade"]
+    background_color: "&HCC000000"     # Strong black background (80% opacity)
+    bold: true                         # Bold weight
+    outline_thickness: 3               # Thick outline for maximum contrast
+    shadow: true                       # Drop shadow
+    effects: ["fade"]                  # Smooth fade-in/fade-out
     font_width_to_height_ratio: 0.5
 
+  # ---- ANIMATED PRESET ----
+  # Use case: Dynamic, engaging content with motion
+  # Best for: Music videos, vlogs, entertainment content
   animated:
     description: "Full animations and dynamic effects"
-    font_name: "Gabarito"
+    font_name: "Gabarito"              # Bold font for visibility during animation
     font_color: "&H00FFFFFF"           # White text
     outline_color: "&H00000000"        # Black outline
-    background_color: "&H99000000"     # Semi-transparent black
-    bold: true
-    outline_thickness: 2
-    shadow: true
-    effects: ["movement"]
+    background_color: "&H99000000"     # Semi-transparent black (60% opacity)
+    bold: true                         # Bold weight
+    outline_thickness: 2               # Medium outline
+    shadow: true                       # Drop shadow
+    effects: ["movement"]              # Vertical movement animation
     font_width_to_height_ratio: 0.5
 
+  # ---- RANDOM PRESET ----
+  # Use case: Variety across video batch, automatic style variation
+  # Best for: A/B testing, preventing style fatigue, experimentation
+  # Note: Automatically enables randomize_fonts and randomize_colors
   random:
     description: "Random styling with one random effect per video"
-    font_name: "Impact"                # Will be randomized
-    font_color: "&H00FFFFFF"           # Will be randomized
-    outline_color: "&H00000000"        # Will be randomized
-    background_color: "&H99000000"
-    bold: true
-    outline_thickness: 2
-    shadow: true
+    font_name: "Impact"                # Will be randomized from curated font collection
+    font_color: "&H00FFFFFF"           # Will be randomized from coordinated color pairs
+    outline_color: "&H00000000"        # Will be randomized to complement font_color
+    background_color: "&H99000000"     # Semi-transparent black (60% opacity)
+    bold: true                         # Bold weight
+    outline_thickness: 2               # Medium outline
+    shadow: true                       # Drop shadow
+    # Effect pool - one randomly selected per video for variety
     effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke", "movement"]
     font_width_to_height_ratio: 0.5
 
 # ============================================================================
 # SUBTITLE SEGMENTATION
 # ============================================================================
+# Controls how subtitles are split into segments for optimal readability
+# These settings work with TTS word timestamps to create natural breaks
+
 subtitle_segmentation:
-  # Word count thresholds
+  # ---- WORD COUNT THRESHOLDS ----
+  # Minimum number of words required for different types of subtitle breaks
+  # These prevent overly short subtitle segments
+
+  # Minimum words needed to break at sentence boundaries (period, exclamation, question mark)
+  # If segment has fewer words, it won't break even at punctuation
+  # Prevents: "Hi." appearing as separate subtitle
   min_words_for_sentence_break: 3
+
+  # Minimum words needed for natural pause breaks (comma, semicolon, colon)
+  # Prevents breaking at every comma in short phrases
+  # Example: "Yes, indeed" stays together (only 2 words)
   min_words_natural_break: 3
+
+  # Minimum words needed before considering duration-based splitting
+  # Prevents very short segments from being split due to timing alone
   min_words_duration_limit: 3
 
-  # Fallback timing
+  # ---- FALLBACK TIMING ----
+  # Default segment duration when TTS timing is unavailable
+
+  # Fallback duration for subtitle segments (seconds)
+  # Used when TTS word timestamps are missing or invalid
+  # Segments are created by dividing script evenly into this duration
   fallback_segment_duration_sec: 2.5

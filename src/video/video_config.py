@@ -571,11 +571,31 @@ class VideoProfile(BaseModel):
     subtitle_max_line_length: int | None = Field(
         None, description="Override maximum characters per subtitle line"
     )
+    subtitle_max_words_per_line: int | None = Field(
+        None,
+        description=(
+            "Override maximum words per subtitle line (0 to disable word-based limit)"
+        ),
+    )
+    subtitle_max_subtitle_width_fraction: float | None = Field(
+        None,
+        description=(
+            "Override max subtitle width as fraction of frame width (0.0-1.0)"
+        ),
+    )
     subtitle_max_duration: float | None = Field(
         None, description="Override maximum subtitle duration in seconds"
     )
     subtitle_min_duration: float | None = Field(
         None, description="Override minimum subtitle duration in seconds"
+    )
+
+    # Manual selection overrides (for testing/debugging)
+    subtitle_selected_font: str | None = Field(
+        None, description="Override with specific font (bypasses randomization)"
+    )
+    subtitle_selected_color_pair: str | None = Field(
+        None, description="Override with specific color pair name"
     )
 
 
@@ -1369,6 +1389,14 @@ class VideoConfig(BaseModel):
             merged_settings["subtitle_settings"]["max_line_length"] = (
                 profile.subtitle_max_line_length
             )
+        if profile.subtitle_max_words_per_line is not None:
+            merged_settings["subtitle_settings"]["max_words_per_line"] = (
+                profile.subtitle_max_words_per_line
+            )
+        if profile.subtitle_max_subtitle_width_fraction is not None:
+            merged_settings["subtitle_settings"]["max_subtitle_width_fraction"] = (
+                profile.subtitle_max_subtitle_width_fraction
+            )
         if profile.subtitle_max_duration is not None:
             merged_settings["subtitle_settings"]["max_subtitle_duration"] = (
                 profile.subtitle_max_duration
@@ -1376,6 +1404,16 @@ class VideoConfig(BaseModel):
         if profile.subtitle_min_duration is not None:
             merged_settings["subtitle_settings"]["min_subtitle_duration"] = (
                 profile.subtitle_min_duration
+            )
+
+        # Apply manual selection overrides
+        if profile.subtitle_selected_font is not None:
+            merged_settings["subtitle_settings"]["selected_font"] = (
+                profile.subtitle_selected_font
+            )
+        if profile.subtitle_selected_color_pair is not None:
+            merged_settings["subtitle_settings"]["selected_color_pair"] = (
+                profile.subtitle_selected_color_pair
             )
 
         # Apply legacy subtitle_positioning overrides if present
