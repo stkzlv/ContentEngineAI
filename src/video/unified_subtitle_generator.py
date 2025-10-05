@@ -751,7 +751,7 @@ class UnifiedSubtitleGenerator:
         font_name = self.style_config["font_name"]
 
         # Use karaoke-specific outline color if karaoke effect is enabled
-        outline_color = colors['outline']
+        outline_color = colors["outline"]
         if self._selected_effects.get("karaoke", False):
             subtitle_effects = config.subtitle_effects
             if subtitle_effects and subtitle_effects.karaoke_outline_color:

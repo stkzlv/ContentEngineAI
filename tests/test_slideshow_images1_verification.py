@@ -129,8 +129,8 @@ class ScreenshotAnalyzer:
                 width, height = img.size
 
                 # Expected subtitle positioning based on config
-                expected_margin_v = self.config.subtitle_settings.margin_v_percent
-                expected_bottom_y = height * (1.0 - expected_margin_v)
+                expected_margin = self.config.subtitle_settings.margin
+                expected_bottom_y = height * (1.0 - expected_margin)
 
                 # Expected font size
                 expected_font_size = (
@@ -144,8 +144,8 @@ class ScreenshotAnalyzer:
                     "video_dimensions": (width, height),
                     "expected_subtitle_bottom_y": expected_bottom_y,
                     "expected_font_size": expected_font_size,
-                    "positioning_mode": self.config.subtitle_settings.positioning_mode,
-                    "margin_v_percent": expected_margin_v,
+                    "anchor": self.config.subtitle_settings.anchor,
+                    "margin": expected_margin,
                     "analysis_method": "mock_for_testing",  # OCR in real impl
                 }
 
@@ -633,11 +633,11 @@ class TestSlideshowImagesVerification:
         # Validate subtitle positioning (if screenshots contain subtitle analysis)
         for analysis in visual_analysis:
             subtitle_data = analysis.get("subtitle_analysis", {})
-            if "positioning_mode" in subtitle_data:
-                expected_mode = config.subtitle_settings.positioning_mode
+            if "anchor" in subtitle_data:
+                expected_anchor = config.subtitle_settings.anchor
                 assert (
-                    subtitle_data["positioning_mode"] == expected_mode
-                ), f"Subtitle positioning mode mismatch: expected {expected_mode}"
+                    subtitle_data["anchor"] == expected_anchor
+                ), f"Subtitle anchor mismatch: expected {expected_anchor}"
 
         # Validate image positioning
         for analysis in visual_analysis:
@@ -852,8 +852,8 @@ class TestSlideshowImagesVerification:
 
                 # Verify positioning
                 if "expected_subtitle_bottom_y" in analysis:
-                    expected_margin = subtitle_config.margin_v_percent
-                    actual_margin = analysis.get("margin_v_percent", 0)
+                    expected_margin = subtitle_config.margin
+                    actual_margin = analysis.get("margin", 0)
                     assert isinstance(actual_margin, int | float)
 
                     # Allow 2% tolerance for positioning

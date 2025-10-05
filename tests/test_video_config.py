@@ -82,7 +82,9 @@ class TestSubtitleSettings:
         """Test valid subtitle settings creation."""
         settings = SubtitleSettings(
             enabled=True,
-            positioning_mode="absolute",
+            anchor="bottom",
+            margin=0.05,
+            content_aware=False,
             font_name="Arial",
             font_directory="static/fonts",
             font_size_percent=0.05,
@@ -90,8 +92,6 @@ class TestSubtitleSettings:
             font_color="&H00FFFFFF",
             outline_color="&HFF000000",
             back_color="&H99000000",
-            alignment=2,
-            margin_v_percent=0.05,
             # Legacy positioning fields removed - now using UnifiedSubtitleConfig
             use_random_font=False,
             use_random_colors=False,
@@ -116,18 +116,17 @@ class TestSubtitleSettings:
         )
 
         assert settings.enabled is True
-        assert settings.positioning_mode == "absolute"
+        assert settings.anchor == "bottom"  # New unified positioning
         assert settings.font_name == "Arial"
         assert settings.font_size_percent == 0.05
 
-    def test_subtitle_settings_invalid_positioning_mode_warning(self):
-        """Test subtitle settings with invalid positioning mode - should log
-        warning but not raise error.
-        """
-        # This should now succeed but log a deprecation warning
+    def test_subtitle_settings_unified_positioning(self):
+        """Test subtitle settings with unified positioning system."""
         settings = SubtitleSettings(
             enabled=True,
-            positioning_mode="invalid_mode",  # Should log warning but not fail
+            anchor="below_content",  # New unified positioning
+            margin=0.08,
+            content_aware=True,
             font_name="Arial",
             font_directory="static/fonts",
             font_size_percent=0.05,
@@ -135,9 +134,6 @@ class TestSubtitleSettings:
             font_color="&H00FFFFFF",
             outline_color="&HFF000000",
             back_color="&H99000000",
-            alignment=2,
-            margin_v_percent=0.05,
-            # Legacy positioning fields removed - now using UnifiedSubtitleConfig
             use_random_font=False,
             use_random_colors=False,
             available_fonts=["Arial"],
@@ -159,15 +155,17 @@ class TestSubtitleSettings:
             outline_thickness=1,
             shadow=True,
         )
-        # Should succeed with deprecated mode
-        assert settings.positioning_mode == "invalid_mode"
+        # Verify unified positioning fields
+        assert settings.anchor == "below_content"
+        assert settings.margin == 0.08
+        assert settings.content_aware is True
 
     def test_subtitle_settings_defaults(self):
         """Test subtitle settings with default values."""
         settings = SubtitleSettings()  # type: ignore[call-arg]
 
         assert settings.enabled is True
-        assert settings.positioning_mode == "absolute"
+        assert settings.anchor == "bottom"  # Default anchor point
         assert settings.font_name == "Arial"
         assert settings.font_size_percent == 0.05
 
@@ -478,15 +476,15 @@ class TestVideoConfig:
             },
             "subtitle_settings": {
                 "enabled": True,
-                "positioning_mode": "absolute",
+                "anchor": "bottom",
+                "margin": 0.05,
+                "content_aware": False,
                 "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
                 "font_width_to_height_ratio": 0.5,
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&HFF000000",
-                "alignment": 2,
-                "margin_v_percent": 0.05,
                 "use_random_font": False,
                 "use_random_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
@@ -701,15 +699,15 @@ class TestLoadVideoConfig:
             },
             "subtitle_settings": {
                 "enabled": True,
-                "positioning_mode": "absolute",
+                "anchor": "bottom",
+                "margin": 0.05,
+                "content_aware": False,
                 "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
                 "font_width_to_height_ratio": 0.5,
                 "font_color": "&H00FFFFFF",
                 "outline_color": "&HFF000000",
-                "alignment": 2,
-                "margin_v_percent": 0.05,
                 "use_random_font": False,
                 "use_random_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
