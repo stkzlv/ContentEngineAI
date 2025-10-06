@@ -101,12 +101,6 @@ audio_settings:
   # Volume levels (dB)
   music_volume_db: -20.0
   voiceover_volume_db: 3.0
-  sound_effects_volume_db: -15.0
-
-  # Audio processing
-  normalize_audio: true
-  apply_compression: true
-  noise_reduction: true
 
   # Audio mixing settings
   audio_mix_duration: "longest"
@@ -255,22 +249,6 @@ video_profiles:
       subtitles:
         randomize_effects: true
         karaoke_timing: true
-
-  # Product showcase profile
-  product_showcase:
-    description: "Professional product showcase with clean styling."
-    inherits: "base"
-    overrides:
-      video:
-        image_width_percent: 0.95
-        background_color: "#ffffff"
-        show_product_info: true
-      audio:
-        music_volume_db: -25.0
-        voiceover_volume_db: 5.0
-      subtitles:
-        style: "professional"
-        effects_enabled: false
 
 # ============================================================================
 # ATTRIBUTION SETTINGS

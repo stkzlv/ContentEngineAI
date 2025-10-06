@@ -20,20 +20,6 @@ ffmpeg_settings:
   # FFmpeg I/O timeout in microseconds (30 seconds)
   rw_timeout_microseconds: 30000000
   
-  # Video encoding optimization
-  encoding:
-    # Use hardware acceleration if available
-    hardware_acceleration: "auto"  # auto, nvenc, qsv, none
-    
-    # Threading settings
-    threads: "auto"
-    
-    # Memory usage optimization
-    buffer_size: "32M"
-    
-    # Fast seek optimization
-    fast_seek: true
-
 # ============================================================================
 # OPTIMIZATION SETTINGS
 # ============================================================================
@@ -122,61 +108,6 @@ api_settings:
     
     # File size limits
     max_file_size_mb: 50
-    
-# ============================================================================
-# NETWORK SETTINGS
-# ============================================================================
-network_settings:
-  # Connection settings
-  connection:
-    connect_timeout: 10
-    read_timeout: 30
-    total_timeout: 60
-    
-  # Retry configuration
-  retries:
-    total: 3
-    backoff_factor: 0.3
-    status_forcelist: [500, 502, 503, 504]
-    
-  # User agent rotation
-  user_agents:
-    enabled: true
-    rotation_interval: 50
-    
-  # Proxy settings
-  proxy:
-    enabled: false
-    rotation_enabled: false
-    timeout: 10
-
-# ============================================================================
-# MONITORING & LOGGING
-# ============================================================================
-monitoring:
-  # Performance monitoring
-  performance:
-    enabled: true
-    log_slow_operations: true
-    slow_operation_threshold_sec: 5
-
-  # Memory monitoring
-  memory:
-    enabled: true
-    log_high_usage: true
-    high_usage_threshold: 0.85
-
-  # API monitoring
-  api:
-    enabled: true
-    log_response_times: true
-    log_rate_limits: true
-
-  # Error tracking
-  errors:
-    enabled: true
-    max_error_logs: 1000
-    error_summary_interval: 3600  # 1 hour
 
 # ============================================================================
 # DEBUG SETTINGS
