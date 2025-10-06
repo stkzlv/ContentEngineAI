@@ -140,7 +140,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 30% (currently at 41%)
+- **Overall minimum**: 40% (currently at 41%)
 
 **Generate coverage report:**
 ```bash
@@ -271,22 +271,27 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.6.0):**
-- **Total Tests**: 421 collected
-- **Passing**: 411 tests
+**Current Statistics (v0.6.1):**
+- **Total Tests**: 437 collected
+- **Passing**: 427 tests
 - **Skipped**: 10 tests
 - **Failed**: 0 tests
-- **Coverage**: 40% (target: 30% minimum)
+- **Coverage**: 41% (target: 40% minimum)
 
-**Recent Updates:**
+**Recent Updates (v0.6.1):**
+- ✅ Verified no tests depend on removed configuration settings
+- ✅ Confirmed all 437 tests passing after config cleanup
+- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
+- ✅ All linting checks passing
+- ✅ Configuration cleanup verified against codebase
+
+**Previous Updates (v0.6.0):**
 - ✅ Removed outdated legacy subtitle positioning tests (2 files)
 - ✅ Updated scraper configuration tests (23 tests)
 - ✅ Added cross-config validation test
 - ✅ Fixed deprecated config references
 - ✅ Added tests for new subtitle width and word count constraints (2 tests)
 - ✅ Consolidated width settings (removed `max_text_width_percent`)
-- ✅ All linting checks passing
-- ✅ All tests passing
 
 ## Quick Reference
 
