@@ -1,7 +1,7 @@
 # Configuration Audit Report
 
 **Generated**: 2025-10-01
-**Updated**: 2025-10-05 (v0.6.0 - Unified subtitle configuration)
+**Updated**: 2025-10-06 (v0.6.0 - Unified subtitle configuration)
 **Purpose**: Document hardcoded values, unused settings, and configuration improvements needed
 
 ---
@@ -31,6 +31,9 @@ This audit identified 25+ hardcoded values that should be moved to configuration
 3. **Low Priority**: Move hardcoded values to configuration (improves customization)
 
 ---
+
+<details>
+<summary><strong>1. Hardcoded Values to Move to Configuration</strong></summary>
 
 ## 1. Hardcoded Values to Move to Configuration
 
@@ -82,7 +85,12 @@ This audit identified 25+ hardcoded values that should be moved to configuration
 
 **Status**: 🔴 Needs addition to video_config.py
 
+</details>
+
 ---
+
+<details>
+<summary><strong>2. Unused Configuration Settings</strong></summary>
 
 ## 2. Unused Configuration Settings
 
@@ -104,11 +112,7 @@ video_profiles:
 
 ### Remove from `config/subtitles.yaml`
 
-```yaml
-# UNUSED - Animation system not implemented
-subtitle_settings:
-  animation_probability: 0.7      # Feature not coded
-```
+✅ **Already removed** - `animation_probability` not present in config
 
 ### Remove from `config/performance.yaml`
 
@@ -123,6 +127,12 @@ network_settings:
 ```
 
 ---
+</details>
+
+---
+
+<details>
+<summary><strong>3. Orphaned Settings (In YAML but Not in Pydantic Model)</strong></summary>
 
 ## 3. Orphaned Settings (In YAML but Not in Pydantic Model)
 
@@ -130,7 +140,8 @@ network_settings:
 
 ```yaml
 # ORPHANED - Not in VideoConfig model
-debug_mode: true                  # Should be CLI-only or in DebugSettings
+debug_mode: false                 # Should be CLI-only or in DebugSettings
+                                  # Currently set to false but not validated by Pydantic
 
 scraper_output_config:            # Meant for scraper, wrong file
   base_directory: "outputs"
@@ -163,6 +174,12 @@ ffmpeg_settings:
 **Action**: Either add to Pydantic models or remove from YAML
 
 ---
+</details>
+
+---
+
+<details>
+<summary><strong>4. Duplicate Configuration Conflicts</strong></summary>
 
 ## 4. Duplicate Configuration Conflicts
 
@@ -182,17 +199,7 @@ subtitle_settings:
 
 ### Conflict 2: Font Directory Path
 
-```yaml
-# video_production.yaml
-subtitle_settings:
-  font_directory: "assets/fonts"
-
-# subtitles.yaml
-subtitle_settings:
-  font_directory: "static/fonts"
-```
-
-**Resolution**: Verify actual directory location, update both to match
+✅ **RESOLVED** - Both configs now use `"static/fonts"` consistently
 
 ### Conflict 3: TTS Model Name
 
@@ -244,7 +251,12 @@ whisper_settings:
 
 **Resolution**: Use explicit path from video_production.yaml
 
+</details>
+
 ---
+
+<details>
+<summary><strong>5. Missing Pydantic Model Definitions</strong></summary>
 
 ## 5. Missing Pydantic Model Definitions
 
@@ -257,7 +269,12 @@ Settings in YAML but not validated by Pydantic models:
 
 **Action**: Either add to Pydantic models or remove from YAML (recommended: remove unused)
 
+</details>
+
 ---
+
+<details>
+<summary><strong>6. Implementation Recommendations</strong></summary>
 
 ## 6. Implementation Recommendations
 
@@ -292,7 +309,12 @@ make test-cov      # Verify coverage maintained
 poetry run python -m src.video.producer test_product.json profile_name --debug
 ```
 
+</details>
+
 ---
+
+<details>
+<summary><strong>7. Configuration Documentation Needs</strong></summary>
 
 ## 7. Configuration Documentation Needs
 
@@ -315,18 +337,27 @@ Follow scraper.yaml example:
 - Valid value ranges and defaults
 - Usage notes at end of file
 
+</details>
+
 ---
+
+<details>
+<summary><strong>8. Next Steps</strong></summary>
 
 ## 8. Next Steps
 
-### Immediate Actions (This PR)
+### Immediate Actions (v0.6.0)
 
-- [x] Add LLM validation settings to video_config.py
-- [x] Fix hardcoded debug_mode=True in scraper.py line 959
-- [x] Add third-party logger suppression (urllib3, websocket) in logging_setup.py
+- [x] Add LLM validation settings to video_config.py (✅ Completed)
+- [x] Fix hardcoded debug_mode=True in scraper.py (✅ Completed)
+- [x] Add third-party logger suppression (✅ Completed)
+- [x] Unified subtitle system implementation (✅ Completed)
 - [ ] Update config file comments with comprehensive documentation
-- [ ] Remove clearly unused settings (audio normalization, product_showcase profile)
-- [ ] Resolve duplicate configuration conflicts
+- [ ] Remove unused settings (normalize_audio, apply_compression, noise_reduction, sound_effects_volume_db)
+- [ ] Remove unused product_showcase profile
+- [ ] Resolve remaining duplicate TTS configuration conflicts
+
+</details>
 
 ### Future Work (Separate PRs)
 

@@ -7,7 +7,7 @@
 
 **Version**: 0.6.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update**: Centralized configuration system with media validation alignment, enhanced debug mode, and improved scraping visibility.
+> **🚀 Latest Update (v0.6.0)**: Unified subtitle system with content-aware positioning, ASS effects enforcement, and streamlined configuration.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 

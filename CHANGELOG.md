@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.0] - 2025-10-05
+## [0.6.0] - 2025-10-06
 
 ### Breaking Changes
 - **Removed legacy subtitle configuration system**
   - Removed `positioning_mode`, `alignment`, `margin_v_percent` fields
   - Removed `relative_positioning` and `absolute_positioning` sections
   - Removed `SubtitlePositioningSettings` and `AbsolutePositioningSettings` classes
-  - Users must migrate to unified configuration (see `MIGRATION_GUIDE.md`)
+  - Users must migrate to unified configuration (see `MIGRATION_GUIDE_v0.5_to_v0.6.md`)
 
 - **Fixed ASS effects to enforce exactly 1 effect per video**
   - All presets now use exactly 1 effect (or none for minimal)
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved error messages with migration guidance
 
 - **Documentation**
-  - `MIGRATION_GUIDE.md`: Step-by-step migration from legacy to unified system
+  - `MIGRATION_GUIDE_v0.5_to_v0.6.md`: Step-by-step migration from legacy to unified system
   - Updated `REQUIREMENTS.md` with three-tier configuration precedence
   - Enhanced inline documentation in `config/subtitles.yaml`
 
@@ -63,13 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed legacy result helper functions
   - Simplified validation logic
 
-### Migration Guide
-- See `MIGRATION_GUIDE.md` for complete migration instructions
-- Key changes:
-  - `positioning_mode: "absolute"` → `content_aware: false`
-  - `positioning_mode: "relative"` → `content_aware: true`
-  - `alignment: "bottom_center"` → `anchor: "bottom"`
-  - Multiple effects → Single effect via `style_preset`
+### Migration
+See [`MIGRATION_GUIDE_v0.5_to_v0.6.md`](MIGRATION_GUIDE_v0.5_to_v0.6.md) for complete instructions.
 
 ## [0.5.0] - 2025-10-02
 

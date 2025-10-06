@@ -17,8 +17,8 @@ file_naming:
   temp_subtitle: "captions.srt"
 
   # Video output filenames
-  # {profile} placeholder will be replaced with actual profile name
-  final_video: "video_{profile}.mp4"
+  # {product_id} and {profile} placeholders will be replaced with actual values
+  final_video: "video_{product_id}_{profile}.mp4"
 
   # Script input paths (legacy compatibility)
   script_paths: ["info/script.txt"]
