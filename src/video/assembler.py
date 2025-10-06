@@ -127,7 +127,9 @@ class VideoAssembler:
         # Product identifier for randomization seeding
         self.product_id: str | None = None
 
-    def set_profile_settings(self, profile_name: str) -> None:
+    def set_profile_settings(
+        self, profile_name: str, cli_overrides: dict[str, Any] | None = None
+    ) -> None:
         """Apply profile-specific settings to override global configuration.
 
         This method retrieves and applies profile-merged settings for image
@@ -136,9 +138,12 @@ class VideoAssembler:
         Args:
         ----
             profile_name: Name of the video profile to apply settings for
+            cli_overrides: Optional CLI overrides to apply with highest precedence
 
         """
-        self.profile_settings = self.config.get_profile_merged_settings(profile_name)
+        self.profile_settings = self.config.get_profile_merged_settings(
+            profile_name, cli_overrides
+        )
 
         if self.debug_mode:
             logger.debug(f"Applied profile settings for '{profile_name}'")

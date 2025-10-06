@@ -1194,15 +1194,23 @@ class VideoConfig(BaseModel):
             raise KeyError(f"Video profile '{profile_name}' not found.")
         return self.video_profiles[profile_name]
 
-    def get_profile_merged_settings(self, profile_name: str) -> dict[str, Any]:
+    def get_profile_merged_settings(
+        self, profile_name: str, cli_overrides: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get settings with profile-specific overrides applied.
 
         This method merges global configuration settings with profile-specific
         overrides, providing a complete settings object for video production.
 
+        Precedence order (highest to lowest):
+        1. CLI overrides (passed as parameter)
+        2. Profile-specific settings
+        3. Global YAML configuration
+
         Args:
         ----
             profile_name: Name of the video profile to get merged settings for
+            cli_overrides: Optional CLI overrides to apply with highest precedence
 
         Returns:
         -------
@@ -1419,6 +1427,16 @@ class VideoConfig(BaseModel):
         # Apply legacy subtitle_positioning overrides if present
         if profile.subtitle_positioning:
             merged_settings["subtitle_settings"].update(profile.subtitle_positioning)
+
+        # Apply CLI overrides (highest precedence)
+        if cli_overrides:
+            for key, value in cli_overrides.items():
+                # Parse dot notation (e.g., "video_settings.image_width_percent")
+                parts = key.split(".")
+                if len(parts) == 2:
+                    section, field = parts
+                    if section in merged_settings:
+                        merged_settings[section][field] = value
 
         return merged_settings
 

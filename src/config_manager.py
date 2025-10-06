@@ -104,7 +104,7 @@ class UnifiedConfigManager:
         self, config: dict[str, Any], cli_overrides: dict[str, Any]
     ) -> None:
         """Apply CLI argument overrides to config."""
-        # Common CLI override patterns
+        # Common CLI override patterns (legacy short names)
         cli_mappings = {
             "debug": ["debug_mode", "global_settings.debug_mode"],
             "output_dir": [
@@ -121,6 +121,12 @@ class UnifiedConfigManager:
                 cli_value = cli_overrides[cli_key]
                 for path in config_paths:
                     self._set_nested_value(config, path, cli_value)
+
+        # Apply all other CLI overrides using dot notation
+        # (e.g., "video_settings.image_top_position_percent")
+        for cli_key, cli_value in cli_overrides.items():
+            if cli_key not in cli_mappings:  # Skip already processed mappings
+                self._set_nested_value(config, cli_key, cli_value)
 
     def _set_nested_value(self, config: dict[str, Any], path: str, value: Any) -> None:
         """Set a nested configuration value using dot notation."""

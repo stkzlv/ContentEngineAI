@@ -207,6 +207,7 @@ class PipelineContext:
         session: aiohttp.ClientSession,
         run_paths: dict,
         debug_mode: bool,
+        cli_overrides: dict[str, Any] | None = None,
     ):
         self.product = product
         self.profile = profile
@@ -216,6 +217,7 @@ class PipelineContext:
         self.session = session
         self.run_paths = run_paths
         self.debug_mode = debug_mode
+        self.cli_overrides = cli_overrides or {}
         self.visuals: list[Path] | None = None
         self.script: str | None = None
         self.description: str | None = None
@@ -1302,7 +1304,9 @@ async def step_assemble_video(ctx: PipelineContext):
         )
 
         assembler = VideoAssembler(ctx.config, debug_mode=ctx.debug_mode)
-        assembler.set_profile_settings(ctx.profile_name)  # Apply profile settings
+        assembler.set_profile_settings(
+            ctx.profile_name, ctx.cli_overrides
+        )  # Apply profile settings with CLI overrides
 
         # Set product_id for randomization (derive from product data)
         from src.utils import sanitize_filename
@@ -1353,6 +1357,7 @@ async def create_video_for_product(
     debug_mode: bool,
     clean_run: bool,
     debug_step_target: str | None,
+    cli_overrides: dict[str, Any] | None = None,
 ):
     product_id = product.asin or sanitize_filename(product.title[:30])
     logger.info(f"--- Starting video for '{product_id}' profile '{profile_name}' ---")
@@ -1404,6 +1409,7 @@ async def create_video_for_product(
             session,
             run_paths,
             debug_mode,
+            cli_overrides,
         )
 
         # Initialize background processing with configuration
@@ -1727,6 +1733,17 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if args.subtitle_background_color:
         overrides["subtitle_settings.background_color"] = args.subtitle_background_color
 
+    # Image positioning
+    if hasattr(args, "image_width_percent") and args.image_width_percent is not None:
+        overrides["video_settings.image_width_percent"] = args.image_width_percent
+    if (
+        hasattr(args, "image_top_position_percent")
+        and args.image_top_position_percent is not None
+    ):
+        overrides["video_settings.image_top_position_percent"] = (
+            args.image_top_position_percent
+        )
+
     return overrides
 
 
@@ -1925,6 +1942,18 @@ async def main():
         help="Override subtitle background color (ASS format: &H00RRGGBB).",
     )
 
+    # Image positioning arguments
+    parser.add_argument(
+        "--image-width-percent",
+        type=float,
+        help="Override image width as percentage of frame (0.0-1.0).",
+    )
+    parser.add_argument(
+        "--image-top-position-percent",
+        type=float,
+        help="Override image top position as percentage from top (0.0-1.0).",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -2105,6 +2134,7 @@ async def main():
                     args.debug,
                     args.clean,
                     args.step,
+                    cli_overrides,
                 ),
                 timeout=config.pipeline_timeout_sec,
             )
