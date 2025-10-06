@@ -494,13 +494,15 @@ video_settings:
   min_file_size_kb: 10
 subtitle_settings:
   enabled: true
+  anchor: "bottom"
+  margin: 0.1
+  content_aware: false
   font_name: "Arial"
   font_directory: "/usr/share/fonts"
   font_size_percent: 0.05
   font_color: "&H00FFFFFF"
   outline_color: "&H00000000"
   back_color: "&H80000000"
-  positioning_mode: "absolute"
   subtitle_similarity_threshold: 0.8
   show_debug_info: false
 audio_settings:

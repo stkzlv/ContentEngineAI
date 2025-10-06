@@ -126,10 +126,7 @@ class UnifiedSubtitleGenerator:
         """
         # Get max width percent from configuration if not provided
         if max_width_percent is None:
-            text_rendering = config.text_rendering
-            max_width_percent = (
-                text_rendering.max_text_width_percent if text_rendering else 0.95
-            )
+            max_width_percent = 1.0  # Use 100% of provided width by default
 
         text_width = self.estimate_text_width_pixels(text, font_size)
         max_allowed_width = image_width * max_width_percent
@@ -390,8 +387,16 @@ class UnifiedSubtitleGenerator:
 
                 # Break conditions
                 if (
-                    len(potential_text) > self.config.max_line_length
+                    # 1. Word count limit
+                    (
+                        self.config.max_words_per_line > 0
+                        and len(current_words) >= self.config.max_words_per_line
+                    )
+                    # 2. Character limit
+                    or len(potential_text) > self.config.max_line_length
+                    # 3. Duration limit
                     or current_duration > self.config.max_duration
+                    # 4. Natural breaks
                     or (word.endswith((".", "!", "?")) and len(current_words) >= 3)
                 ):
                     should_break = True
@@ -507,26 +512,46 @@ class UnifiedSubtitleGenerator:
             )
 
             # Break conditions:
-            # 1. Line length limit (character count and pixel width)
-            if len(potential_text) > self.config.max_line_length:
+            if (
+                # 1. Word count limit (if configured)
+                (
+                    self.config.max_words_per_line > 0
+                    and len(current_segment_words) >= self.config.max_words_per_line
+                )
+                # 2. Line length limit (character count)
+                or len(potential_text) > self.config.max_line_length
+            ):
                 should_break = True
-            elif visual_bounds is not None and visual_bounds.width > 0:
-                # Check pixel-based width constraint
+
+            # 3. Width constraint (frame-based or image-based)
+            if not should_break:
                 font_size = get_font_size(self.config, self.frame_size[1])
+                max_width = int(
+                    self.frame_size[0] * self.config.max_subtitle_width_fraction
+                )
+
+                # Use stricter constraint: image width or frame-based max
+                if visual_bounds is not None and visual_bounds.width > 0:
+                    max_width = min(max_width, int(visual_bounds.width))
+
                 if not self.fits_within_image_width(
-                    potential_text, font_size, int(visual_bounds.width)
+                    potential_text, font_size, max_width, max_width_percent=1.0
                 ):
                     should_break = True
 
-            # 2. Natural sentence breaks
-            elif word.endswith((".", "!", "?")) and len(current_segment_words) >= 3:
+            # 4. Natural sentence breaks
+            if (
+                not should_break
+                and word.endswith((".", "!", "?"))
+                and len(current_segment_words) >= 3
+            ):
                 # Add this word to current segment before breaking
                 current_segment_words.append(word)
                 current_segment_text = potential_text
                 should_break = True
 
-            # 3. Duration limit (but allow at least 3 words)
-            elif len(current_segment_words) >= 3:
+            # 5. Duration limit (but allow at least 3 words)
+            if not should_break and len(current_segment_words) >= 3:
                 estimated_word_duration = len(current_segment_words) / speaking_rate
                 if estimated_word_duration >= self.config.max_duration:
                     should_break = True
@@ -669,27 +694,28 @@ class UnifiedSubtitleGenerator:
             return None
 
     def _select_colors(self) -> dict[str, str]:
-        """Select colors once during initialization for consistent per-run coloring."""
+        """Select colors once during initialization for consistent per-run coloring.
+
+        Note: Color randomization is now handled by RandomizationEngine in
+        get_style_config(), so we just use the colors from style_config.
+        """
         colors = {
             "primary": self.style_config["font_color"],
             "outline": self.style_config["outline_color"],
         }
 
-        if self.config.randomize_colors:
-            # Simple color randomization - selected once per producer run
-            color_options = [
-                {"primary": "&H00FFFFFF", "outline": "&H00000000"},  # White/Black
-                {"primary": "&H0000FFFF", "outline": "&H00000000"},  # Yellow/Black
-                {"primary": "&H00FF00FF", "outline": "&H00000000"},  # Magenta/Black
-                {"primary": "&H00FFFF00", "outline": "&H00000000"},  # Cyan/Black
-            ]
-            colors.update(random.choice(color_options))  # noqa: S311
+        # Legacy randomization removed - RandomizationEngine handles this now
+        # If randomize_colors is enabled, colors are already randomized in style_config
 
         return colors
 
     def _select_effects(self) -> dict[str, Any]:
-        """Select effects once for consistent per-video effects."""
+        """Select effects once for consistent per-video effects.
+
+        Enforces exactly 1 effect per video as per REQUIREMENTS.md.
+        """
         selected_effects = {
+            "fade": False,
             "scale_pulse": False,
             "rotation_bounce": False,
             "glow": False,
@@ -698,26 +724,42 @@ class UnifiedSubtitleGenerator:
             "movement": False,
         }
 
-        if self.config.randomize_effects and len(self.style_config["effects"]) > 0:
-            # Seed random generator with product_id for consistent selection per video
+        # Get effects from preset configuration
+        preset_effects = self.style_config.get("effects", [])
+
+        if not preset_effects:
+            # No effects for minimal preset
+            return selected_effects
+
+        if self.config.randomize_effects:
+            # Random preset: Select exactly 1 effect from available effects
             if self.product_id:
                 random.seed(hash(self.product_id + "effects"))
 
-            # Choose 1 effect for this video
             available_effects = [
-                effect
-                for effect in selected_effects
-                if effect in self.style_config["effects"]
+                effect for effect in selected_effects if effect in preset_effects
             ]
 
             if available_effects:
-                num_effects = 1
-                chosen_effects = random.sample(available_effects, num_effects)
-
-                for effect in chosen_effects:
+                chosen_effect = random.choice(available_effects)  # noqa: S311
+                selected_effects[chosen_effect] = True
+                logger.debug(f"Selected random effect for video: {chosen_effect}")
+        else:
+            # Non-random presets: Use exactly 1 effect from preset
+            # (modern=karaoke, bold=fade, animated=movement)
+            if len(preset_effects) == 1:
+                effect = preset_effects[0]
+                if effect in selected_effects:
                     selected_effects[effect] = True
-
-                logger.debug(f"Selected effects for video: {chosen_effects}")
+                    logger.debug(f"Applied preset effect: {effect}")
+            elif len(preset_effects) > 1:
+                # Violation: preset has multiple effects, use first one
+                effect = preset_effects[0]
+                if effect in selected_effects:
+                    selected_effects[effect] = True
+                logger.warning(
+                    f"Preset has {len(preset_effects)} effects, using first: {effect}"
+                )
 
         return selected_effects
 
@@ -729,6 +771,13 @@ class UnifiedSubtitleGenerator:
         """Create ASS file header sections."""
         width, height = self.frame_size
         font_name = self.style_config["font_name"]
+
+        # Use karaoke-specific outline color if karaoke effect is enabled
+        outline_color = colors["outline"]
+        if self._selected_effects.get("karaoke", False):
+            subtitle_effects = config.subtitle_effects
+            if subtitle_effects and subtitle_effects.karaoke_outline_color:
+                outline_color = subtitle_effects.karaoke_outline_color
 
         return [
             "[Script Info]",
@@ -745,9 +794,10 @@ class UnifiedSubtitleGenerator:
                 "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
             ),
             (
-                f"Style: Default,{font_name},{font_size},{colors['primary']},"
-                f"{colors['primary']},{colors['outline']},&H80000000,"
-                f"{-1 if self.style_config['bold'] else 0},0,1,"
+                f"Style: Default,{font_name},{font_size},"
+                f"{self._get_karaoke_colors()[0]},"
+                f"{self._get_karaoke_colors()[1]},{outline_color},"
+                f"&H80000000,{-1 if self.style_config['bold'] else 0},0,1,"
                 f"{self.style_config['outline_thickness']},"
                 f"{1 if self.style_config['shadow'] else 0},5,10,10,0,1"
             ),
@@ -758,6 +808,31 @@ class UnifiedSubtitleGenerator:
                 "MarginV, Effect, Text"
             ),
         ]
+
+    def _get_karaoke_colors(self) -> tuple[str, str]:
+        """Get primary and secondary colors for karaoke effect.
+
+        Returns
+        -------
+            Tuple of (primary_color, secondary_color) in ASS format
+
+        """
+        if self._selected_effects.get("karaoke", False):
+            subtitle_effects = config.subtitle_effects
+            primary = (
+                subtitle_effects.karaoke_primary_color
+                if subtitle_effects
+                else "&H00FFFFFF"
+            )
+            secondary = (
+                subtitle_effects.karaoke_secondary_color
+                if subtitle_effects
+                else "&H0000FFFF"
+            )
+            return primary, secondary
+        # Return same color for both if karaoke not enabled (no visual change)
+        default_color = self.style_config.get("font_color", "&H00FFFFFF")
+        return default_color, default_color
 
     def _create_karaoke_effects(self, text: str, segment_duration: float) -> str:
         """Create karaoke-style word-by-word highlighting effects.
@@ -779,20 +854,24 @@ class UnifiedSubtitleGenerator:
         # Calculate time per word in centiseconds (ASS karaoke uses centiseconds)
         time_per_word = int((segment_duration * 100) / len(words))
 
-        # Get karaoke timing limits from configuration
+        # Get karaoke configuration
         subtitle_effects = config.subtitle_effects
         min_timing = subtitle_effects.karaoke_timing_min_ms if subtitle_effects else 20
         max_timing = subtitle_effects.karaoke_timing_max_ms if subtitle_effects else 200
+        use_fill = subtitle_effects.karaoke_use_fill if subtitle_effects else True
 
         time_per_word = max(min_timing, min(time_per_word, max_timing))
 
-        # Create karaoke text with \k tags properly enclosed in braces
+        # Choose karaoke tag: \kf for fill effect, \k for timing only
+        karaoke_tag = "kf" if use_fill else "k"
+
+        # Create karaoke text with timing tags
         karaoke_parts = []
         for i, word in enumerate(words):
             if i == 0:
-                karaoke_parts.append(f"{{\\k{time_per_word}}}{word}")
+                karaoke_parts.append(f"{{\\{karaoke_tag}{time_per_word}}}{word}")
             else:
-                karaoke_parts.append(f" {{\\k{time_per_word}}}{word}")
+                karaoke_parts.append(f" {{\\{karaoke_tag}{time_per_word}}}{word}")
 
         return "".join(karaoke_parts)
 
@@ -817,127 +896,122 @@ class UnifiedSubtitleGenerator:
             effects = []
             segment_duration = segment["end"] - segment["start"]
 
-            # Basic fade effect
-            if "fade" in self.style_config["effects"]:
+            # Apply pre-selected effects consistently across all segments
+            final_text = text
+            movement_effect = ""
+
+            # Fade effect
+            if self._selected_effects.get("fade", False):
                 subtitle_effects = config.subtitle_effects
                 fade_duration = (
                     subtitle_effects.fade_duration_ms if subtitle_effects else 300
                 )
                 effects.append(f"\\fad({fade_duration},{fade_duration})")
 
-            # Apply pre-selected effects consistently across all segments
-            final_text = text
-            movement_effect = ""
+            # Other effects (scale_pulse, rotation_bounce, glow, typewriter,
+            # karaoke, movement)
+            # Scale pulse effect
+            if self._selected_effects.get("scale_pulse", False):
+                subtitle_effects = config.subtitle_effects
+                pulse_factor = (
+                    subtitle_effects.pulse_duration_factor if subtitle_effects else 500
+                )
+                pulse_scale_max = (
+                    subtitle_effects.pulse_scale_max if subtitle_effects else 110
+                )
+                pulse_scale_normal = (
+                    subtitle_effects.pulse_scale_normal if subtitle_effects else 100
+                )
 
-            if self.config.randomize_effects:
-                # Scale pulse effect
-                if self._selected_effects.get("scale_pulse", False):
-                    subtitle_effects = config.subtitle_effects
-                    pulse_factor = (
-                        subtitle_effects.pulse_duration_factor
-                        if subtitle_effects
-                        else 500
-                    )
-                    pulse_scale_max = (
-                        subtitle_effects.pulse_scale_max if subtitle_effects else 110
-                    )
-                    pulse_scale_normal = (
-                        subtitle_effects.pulse_scale_normal if subtitle_effects else 100
-                    )
+                pulse_duration = min(int(segment_duration * pulse_factor), 1000)
+                effects.append(
+                    f"\\t(0,{pulse_duration},\\fscx{pulse_scale_max}\\fscy{pulse_scale_max})"
+                    f"\\t({pulse_duration},{pulse_duration * 2},"
+                    f"\\fscx{pulse_scale_normal}\\fscy{pulse_scale_normal})"
+                )
 
-                    pulse_duration = min(int(segment_duration * pulse_factor), 1000)
+            # Rotation bounce effect
+            if self._selected_effects.get("rotation_bounce", False):
+                subtitle_effects = config.subtitle_effects
+                bounce_factor = (
+                    subtitle_effects.bounce_duration_factor if subtitle_effects else 300
+                )
+                bounce_max = (
+                    subtitle_effects.bounce_rotation_max if subtitle_effects else 5
+                )
+                bounce_min = (
+                    subtitle_effects.bounce_rotation_min if subtitle_effects else -5
+                )
+                bounce_rest = (
+                    subtitle_effects.bounce_rotation_rest if subtitle_effects else 0
+                )
+
+                bounce_duration = int(segment_duration * bounce_factor)
+                effects.append(
+                    f"\\t(0,{bounce_duration},\\frz{bounce_max})"
+                    f"\\t({bounce_duration},{bounce_duration * 2},"
+                    f"\\frz{bounce_min})"
+                    f"\\t({bounce_duration * 2},{bounce_duration * 3},"
+                    f"\\frz{bounce_rest})"
+                )
+
+            # Glow effect with color transition
+            if self._selected_effects.get("glow", False):
+                subtitle_effects = config.subtitle_effects
+                glow_factor = (
+                    subtitle_effects.glow_duration_factor if subtitle_effects else 400
+                )
+
+                glow_duration = int(segment_duration * glow_factor)
+                glow_end = glow_duration * 2
+                effects.append(
+                    f"\\t(0,{glow_duration},\\3c&H00FFFF&)"
+                    f"\\t({glow_duration},{glow_end},\\3c{colors['outline']})"
+                )
+
+            # Typewriter reveal effect
+            if self._selected_effects.get("typewriter", False):
+                subtitle_effects = config.subtitle_effects
+                max_reveal_time = (
+                    subtitle_effects.typewriter_char_reveal_max_sec
+                    if subtitle_effects
+                    else 0.1
+                )
+                min_timing = (
+                    subtitle_effects.typewriter_min_timing_ms
+                    if subtitle_effects
+                    else 50
+                )
+
+                char_reveal_time = (
+                    min(segment_duration / len(text), max_reveal_time) * 1000
+                )
+                if char_reveal_time > min_timing:  # Only apply if reasonable timing
+                    reveal_duration = int(char_reveal_time * len(text))
                     effects.append(
-                        f"\\t(0,{pulse_duration},\\fscx{pulse_scale_max}\\fscy{pulse_scale_max})"
-                        f"\\t({pulse_duration},{pulse_duration * 2},"
-                        f"\\fscx{pulse_scale_normal}\\fscy{pulse_scale_normal})"
+                        f"\\t(0,{reveal_duration},\\alpha&HFF&)"
+                        f"\\t({reveal_duration},0,\\alpha&H00&)"
                     )
 
-                # Rotation bounce effect
-                if self._selected_effects.get("rotation_bounce", False):
-                    subtitle_effects = config.subtitle_effects
-                    bounce_factor = (
-                        subtitle_effects.bounce_duration_factor
-                        if subtitle_effects
-                        else 300
-                    )
-                    bounce_max = (
-                        subtitle_effects.bounce_rotation_max if subtitle_effects else 5
-                    )
-                    bounce_min = (
-                        subtitle_effects.bounce_rotation_min if subtitle_effects else -5
-                    )
-                    bounce_rest = (
-                        subtitle_effects.bounce_rotation_rest if subtitle_effects else 0
-                    )
+            # Karaoke effects
+            if self._selected_effects.get("karaoke", False):
+                final_text = self._create_karaoke_effects(text, segment_duration)
 
-                    bounce_duration = int(segment_duration * bounce_factor)
-                    effects.append(
-                        f"\\t(0,{bounce_duration},\\frz{bounce_max})"
-                        f"\\t({bounce_duration},{bounce_duration * 2},"
-                        f"\\frz{bounce_min})"
-                        f"\\t({bounce_duration * 2},{bounce_duration * 3},"
-                        f"\\frz{bounce_rest})"
-                    )
+            # Movement effect (subtle floating)
+            if self._selected_effects.get("movement", False):
+                subtitle_effects = config.subtitle_effects
+                move_distance = (
+                    subtitle_effects.movement_distance_pixels
+                    if subtitle_effects
+                    else 10
+                )
 
-                # Glow effect with color transition
-                if self._selected_effects.get("glow", False):
-                    subtitle_effects = config.subtitle_effects
-                    glow_factor = (
-                        subtitle_effects.glow_duration_factor
-                        if subtitle_effects
-                        else 400
-                    )
-
-                    glow_duration = int(segment_duration * glow_factor)
-                    glow_end = glow_duration * 2
-                    effects.append(
-                        f"\\t(0,{glow_duration},\\3c&H00FFFF&)"
-                        f"\\t({glow_duration},{glow_end},\\3c{colors['outline']})"
-                    )
-
-                # Typewriter reveal effect
-                if self._selected_effects.get("typewriter", False):
-                    subtitle_effects = config.subtitle_effects
-                    max_reveal_time = (
-                        subtitle_effects.typewriter_char_reveal_max_sec
-                        if subtitle_effects
-                        else 0.1
-                    )
-                    min_timing = (
-                        subtitle_effects.typewriter_min_timing_ms
-                        if subtitle_effects
-                        else 50
-                    )
-
-                    char_reveal_time = (
-                        min(segment_duration / len(text), max_reveal_time) * 1000
-                    )
-                    if char_reveal_time > min_timing:  # Only apply if reasonable timing
-                        reveal_duration = int(char_reveal_time * len(text))
-                        effects.append(
-                            f"\\t(0,{reveal_duration},\\alpha&HFF&)"
-                            f"\\t({reveal_duration},0,\\alpha&H00&)"
-                        )
-
-                # Karaoke effects
-                if self._selected_effects.get("karaoke", False):
-                    final_text = self._create_karaoke_effects(text, segment_duration)
-
-                # Movement effect (subtle floating)
-                if self._selected_effects.get("movement", False):
-                    subtitle_effects = config.subtitle_effects
-                    move_distance = (
-                        subtitle_effects.movement_distance_pixels
-                        if subtitle_effects
-                        else 10
-                    )
-
-                    move_duration = int(segment_duration * 1000)
-                    start_y = pos_y
-                    end_y = pos_y - move_distance
-                    movement_effect = (
-                        f"\\move({pos_x},{start_y},{pos_x},{end_y},0,{move_duration})"
-                    )
+                move_duration = int(segment_duration * 1000)
+                start_y = pos_y
+                end_y = pos_y - move_distance
+                movement_effect = (
+                    f"\\move({pos_x},{start_y},{pos_x},{end_y},0,{move_duration})"
+                )
 
             # Set positioning effect
             if movement_effect:

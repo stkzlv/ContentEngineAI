@@ -39,7 +39,7 @@ llm_settings:
   timeout_seconds: 90
 
   # Retry configuration
-  retry_attempts: 3
+  retry_attempts: 5
   retry_min_wait_sec: 2
   retry_max_wait_sec: 30
 

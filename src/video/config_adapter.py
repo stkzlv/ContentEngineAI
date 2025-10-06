@@ -68,99 +68,11 @@ class ModularConfigAdapter:
             )
             merged.update(config_data)
 
-        # Add legacy structure elements that existing code expects
-        self._add_legacy_structure(merged)
+        # Legacy structure method removed - all structures now defined in YAML files
+        # (output_structure, path_config, video_profiles, etc. in config/*.yaml)
 
         self._merged_config = merged
         return merged
-
-    def _add_legacy_structure(self, config: dict[str, Any]) -> None:
-        """Add legacy configuration structure elements."""
-        # Ensure output_structure exists (expected by existing code)
-        if "output_structure" not in config:
-            config["output_structure"] = {
-                "product_directory_pattern": "{product_id}",
-                "product_files": {
-                    "scraped_data": "data.json",
-                    "script": "script.txt",
-                    "description": "description.txt",
-                    "voiceover": "voiceover.wav",
-                    "subtitles": "subtitles.srt",
-                    "final_video": "video_{product_id}_{profile}.mp4",
-                    "metadata": "metadata.json",
-                    "ffmpeg_log": "ffmpeg_command.log",
-                    "performance": "performance.json",
-                },
-                "product_subdirs": {
-                    "images": "images",
-                    "videos": "videos",
-                    "music": "music",
-                    "temp": "temp",
-                },
-                "global_dirs": config.get("global_dirs", {}),
-            }
-
-        # Ensure path_config exists
-        if "path_config" not in config:
-            config["path_config"] = {
-                "use_product_oriented_structure": True,
-                "cleanup": config.get("cleanup", {}),
-                "script": "script.txt",
-                "attribution": "attributions.txt",
-                "metadata": "{name}.json",
-                "timestamped_log": "{component}_{timestamp}.log",
-                "main_log": "{component}.log",
-                "gathered_visuals": "gathered_visuals.json",
-                "temp_dir": "temp",
-                "music_dir": "music",
-            }
-
-        # Add other expected top-level sections
-        if "media_settings" not in config:
-            config["media_settings"] = {}
-
-        if "api_settings" not in config:
-            config["api_settings"] = {}
-
-        if "text_processing" not in config:
-            config["text_processing"] = {}
-
-        if "audio_processing" not in config:
-            config["audio_processing"] = {}
-
-        # Add video profiles if not present
-        if "video_profiles" not in config:
-            config["video_profiles"] = {
-                "slideshow_images1": {
-                    "description": (
-                        "Dynamically uses scraped product images to match voiceover "
-                        "duration."
-                    ),
-                    "use_scraped_images": True,
-                    "use_scraped_videos": False,
-                    "use_stock_images": False,
-                    "use_stock_videos": False,
-                    "stock_image_count": 0,
-                    "stock_video_count": 0,
-                    "use_dynamic_image_count": True,
-                    "image_width_percent": 0.85,
-                    "image_top_position_percent": 0.07,
-                    "preserve_aspect_ratio": True,
-                    "subtitle_randomize_fonts": True,
-                    "subtitle_randomize_colors": True,
-                    "subtitle_randomize_effects": True,
-                    "subtitle_settings": {
-                        "anchor": "below_content",
-                        "margin": 0.015,
-                        "content_aware": True,
-                        "style_preset": "random",
-                        "font_size_scale": 1.1,
-                        "max_line_length": 22,
-                        "horizontal_alignment": "center",
-                        "subtitle_format": "ass",
-                    },
-                }
-            }
 
     def get_merged_config_dict(self) -> dict[str, Any]:
         """Get the merged configuration as a dictionary."""

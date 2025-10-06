@@ -12,7 +12,7 @@ from src.video.result_types import SubtitleResult
 from src.video.subtitle_positioning import (
     VisualBounds,
     calculate_position,
-    convert_legacy_config,
+    create_unified_config_from_settings,
 )
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
 
@@ -27,9 +27,9 @@ class UnifiedAssemblerIntegration:
         self.config = config
         self.frame_size = config.video_settings.resolution
 
-        # Convert legacy subtitle settings to unified config
-        legacy_settings = config.subtitle_settings.__dict__
-        self.unified_config = convert_legacy_config(legacy_settings)
+        # Create unified config from subtitle settings
+        settings = config.subtitle_settings.__dict__
+        self.unified_config = create_unified_config_from_settings(settings)
 
     def generate_positioned_subtitles(
         self,

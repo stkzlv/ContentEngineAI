@@ -9,11 +9,12 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 from src.video.subtitle_positioning import (
     PositionAnchor,
     StylePreset,
-    convert_legacy_config,
+    create_unified_config_from_settings,
 )
 from src.video.video_config import VideoConfig
 
@@ -314,6 +315,57 @@ class VideoConfigValidator:
 
         return errors
 
+    def _validate_effect_count(self, subtitle_settings: Any, errors: list[str]) -> None:
+        """Validate that presets have at most 1 effect (REQUIREMENTS.md compliance).
+
+        Args:
+        ----
+            subtitle_settings: Subtitle settings configuration
+            errors: List to append validation errors to
+
+        """
+        from pathlib import Path
+
+        import yaml
+
+        try:
+            # Load style presets from config
+            subtitles_config_path = Path("config/subtitles.yaml")
+            if not subtitles_config_path.exists():
+                return
+
+            with open(subtitles_config_path, encoding="utf-8") as f:
+                subtitles_data = yaml.safe_load(f)
+                style_presets = subtitles_data.get("style_presets", {})
+
+            # Check each preset for effect count
+            for preset_name, preset_config in style_presets.items():
+                effects = preset_config.get("effects", [])
+
+                # Minimal preset should have 0 effects
+                if preset_name == "minimal" and len(effects) > 0:
+                    errors.append(
+                        f"Preset '{preset_name}' should have 0 effects, "
+                        f"found {len(effects)}"
+                    )
+
+                # Random preset can have multiple (will select 1 at runtime)
+                elif preset_name == "random":
+                    if len(effects) == 0:
+                        errors.append(
+                            f"Preset '{preset_name}' should have effects to choose from"
+                        )
+
+                # All other presets (modern, bold, animated) must have exactly 1 effect
+                elif preset_name not in ["minimal", "random"] and len(effects) != 1:
+                    errors.append(
+                        f"Preset '{preset_name}' must have exactly 1 effect "
+                        f"(REQUIREMENTS.md), found {len(effects)}: {effects}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Could not validate effect count: {e}")
+
     def _validate_unified_subtitle_config(self, config: VideoConfig) -> list[str]:
         """Validate unified subtitle configuration and suggest optimizations.
 
@@ -334,8 +386,10 @@ class VideoConfigValidator:
         subtitle_settings = config.subtitle_settings
 
         try:
-            # Test conversion from legacy to unified config
-            unified_config = convert_legacy_config(subtitle_settings.__dict__)
+            # Create unified config from settings
+            unified_config = create_unified_config_from_settings(
+                subtitle_settings.__dict__
+            )
 
             # Validate anchor value
             if hasattr(unified_config, "anchor"):
@@ -360,20 +414,16 @@ class VideoConfigValidator:
                         f"Valid options: {valid_presets}"
                     )
 
-            # Check configuration style and provide guidance
+            # Validate effect count (enforce max 1 effect per video)
+            self._validate_effect_count(subtitle_settings, errors)
+
+            # Check configuration parameters
             has_unified_params = any(
                 param in subtitle_settings.__dict__
                 for param in ["anchor", "style_preset", "content_aware"]
             )
-            has_legacy_params = hasattr(subtitle_settings, "positioning_mode")
 
-            if has_legacy_params and not has_unified_params:
-                logger.info(
-                    "Legacy subtitle positioning detected - will be converted to "
-                    "unified config. "
-                    "Consider updating config to use new unified parameters directly."
-                )
-            elif has_unified_params:
+            if has_unified_params:
                 logger.info("Using unified subtitle configuration ✓")
             else:
                 logger.debug("Using default subtitle configuration")

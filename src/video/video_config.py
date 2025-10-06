@@ -80,56 +80,18 @@ DOWNLOAD_RETRY_MAX_WAIT_SEC = 10
 LLM_RETRY_MULTIPLIER = 1
 LLM_RETRY_MIN_WAIT_SEC = 2
 LLM_RETRY_MAX_WAIT_SEC = 30
-LLM_RETRY_ATTEMPTS = 3
+LLM_RETRY_ATTEMPTS = 5
 
 # Subtitle positioning fallback
 SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
 
 
-# Legacy positioning settings - DEPRECATED
-# Use UnifiedSubtitleConfig from subtitle_positioning.py instead
-class SubtitlePositioningSettings(BaseModel):
-    """DEPRECATED: Legacy dynamic positioning settings.
-
-    This class is maintained for backward compatibility only.
-    New implementations should use UnifiedSubtitleConfig.
-    """
-
-    image_bottom_to_subtitle_top_spacing_percent: float = Field(
-        SUBTITLE_FALLBACK_SPACING_PERCENT,
-        description="DEPRECATED: Use unified subtitle config instead",
-    )
-    subtitle_horizontal_margin_percent: float = Field(
-        0.05, description="DEPRECATED: Use unified subtitle config instead"
-    )
-    subtitle_box_bottom_padding_percent: float = Field(
-        0.02,
-        description="Safety margin at the very bottom of the frame, "
-        "as a % of frame height.",
-    )
-
-
-class AbsolutePositioningSettings(BaseModel):
-    """DEPRECATED: Legacy absolute positioning settings.
-
-    This class is maintained for backward compatibility only.
-    New implementations should use UnifiedSubtitleConfig.
-    """
-
-    x_pos: str = Field(
-        "(w-tw)/2", description="DEPRECATED: Use unified subtitle config instead"
-    )
-    y_pos: str = Field(
-        "h*0.8", description="DEPRECATED: Use unified subtitle config instead"
-    )
+# Legacy positioning settings removed - Use UnifiedSubtitleConfig from
+# subtitle_positioning.py
 
 
 class SubtitleSettings(BaseModel):
     enabled: bool = Field(True)
-    positioning_mode: str = Field(
-        "absolute",
-        description="DEPRECATED: Legacy positioning mode. Use UnifiedSubtitleConfig.",
-    )
     font_name: str = Field("Arial")
     font_directory: str = Field(
         "static/fonts", description="Directory containing .ttf/.otf font files."
@@ -143,17 +105,6 @@ class SubtitleSettings(BaseModel):
     font_color: str = Field("&H00FFFFFF")
     outline_color: str = Field("&HFF000000")
     back_color: str = Field("&H99000000")
-    alignment: int = Field(
-        2,
-        description="Legacy alignment for simple mode. "
-        "1-3 bottom, 4-6 middle, 7-9 top.",
-    )
-    margin_v_percent: float = Field(
-        0.05,
-        description="Legacy vertical margin for simple mode, as a % of frame height.",
-    )
-    relative_positioning: SubtitlePositioningSettings | None = Field(None)
-    absolute_positioning: AbsolutePositioningSettings | None = Field(None)
     use_random_font: bool = Field(False)
     use_random_colors: bool = Field(False)
     available_fonts: list[str] = Field(
@@ -329,21 +280,6 @@ class SubtitleSettings(BaseModel):
         False, description="Use random animation effects when available"
     )
 
-    @model_validator(mode="after")
-    def validate_positioning_mode(self) -> "SubtitleSettings":
-        """DEPRECATED: Legacy positioning mode validation.
-
-        This validator is maintained for backward compatibility only.
-        New implementations should use UnifiedSubtitleConfig validation.
-        """
-        if self.positioning_mode not in ["absolute", "relative"]:
-            # Log deprecation warning instead of raising error
-            logger.warning(
-                f"DEPRECATED: positioning_mode '{self.positioning_mode}' is "
-                "deprecated. Use UnifiedSubtitleConfig from subtitle_positioning.py."
-            )
-        return self
-
 
 class VideoSettings(BaseModel):
     resolution: tuple[int, int] = Field(
@@ -354,7 +290,7 @@ class VideoSettings(BaseModel):
     output_pixel_format: str = Field("yuv420p")
     output_preset: str = Field("medium")
     image_width_percent: float = Field(0.75)
-    image_top_position_percent: float = Field(0.15)
+    image_top_position_percent: float = Field(0.20)
     default_image_duration_sec: float = Field(3.0)
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
@@ -635,11 +571,31 @@ class VideoProfile(BaseModel):
     subtitle_max_line_length: int | None = Field(
         None, description="Override maximum characters per subtitle line"
     )
+    subtitle_max_words_per_line: int | None = Field(
+        None,
+        description=(
+            "Override maximum words per subtitle line (0 to disable word-based limit)"
+        ),
+    )
+    subtitle_max_subtitle_width_fraction: float | None = Field(
+        None,
+        description=(
+            "Override max subtitle width as fraction of frame width (0.0-1.0)"
+        ),
+    )
     subtitle_max_duration: float | None = Field(
         None, description="Override maximum subtitle duration in seconds"
     )
     subtitle_min_duration: float | None = Field(
         None, description="Override minimum subtitle duration in seconds"
+    )
+
+    # Manual selection overrides (for testing/debugging)
+    subtitle_selected_font: str | None = Field(
+        None, description="Override with specific font (bypasses randomization)"
+    )
+    subtitle_selected_color_pair: str | None = Field(
+        None, description="Override with specific color pair name"
     )
 
 
@@ -765,6 +721,20 @@ class SubtitleEffectsSettings(BaseModel):
         200, description="Maximum karaoke timing per word in milliseconds"
     )
 
+    # Karaoke visual effect parameters
+    karaoke_primary_color: str = Field(
+        "&H00FFFFFF", description="Primary color (before sweep, ASS format)"
+    )
+    karaoke_secondary_color: str = Field(
+        "&H0000FFFF", description="Secondary color (fill during sweep, ASS format)"
+    )
+    karaoke_outline_color: str | None = Field(
+        None, description="Outline color for karaoke (optional, ASS format)"
+    )
+    karaoke_use_fill: bool = Field(
+        True, description="Use \\kf (fill) instead of \\k (timing only)"
+    )
+
     # Effect duration factors (multiplied by segment duration)
     pulse_duration_factor: int = Field(
         500, description="Duration factor for pulse animations in ms"
@@ -784,6 +754,11 @@ class SubtitleEffectsSettings(BaseModel):
         100, description="Normal scale percentage for pulse effect"
     )
 
+    # Movement effect parameters
+    movement_distance_pixels: int = Field(
+        50, description="Vertical movement distance in pixels for movement effect"
+    )
+
     # Rotation bounce parameters
     bounce_rotation_max: int = Field(
         5, description="Maximum rotation degrees for bounce effect"
@@ -801,11 +776,6 @@ class SubtitleEffectsSettings(BaseModel):
     )
     typewriter_min_timing_ms: int = Field(
         50, description="Minimum timing for typewriter effect in ms"
-    )
-
-    # Movement effect parameters
-    movement_distance_pixels: int = Field(
-        10, description="Movement distance in pixels for floating effect"
     )
 
     # Fade effect parameters
@@ -829,9 +799,6 @@ class TextRenderingSettings(BaseModel):
     )
 
     # Text layout parameters
-    max_text_width_percent: float = Field(
-        0.95, description="Maximum text width as percentage of available space"
-    )
     default_margin_fraction: float = Field(
         0.1, description="Default margin fraction for positioning"
     )
@@ -1315,16 +1282,13 @@ class VideoConfig(BaseModel):
                 "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
                 # Advanced settings (pass through from original)
                 "enabled": self.subtitle_settings.enabled,
-                "positioning_mode": self.subtitle_settings.positioning_mode,
+                # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
+                # relative_positioning, absolute_positioning
                 "font_directory": self.subtitle_settings.font_directory,
                 "font_size_percent": self.subtitle_settings.font_size_percent,
                 "font_width_to_height_ratio": (
                     self.subtitle_settings.font_width_to_height_ratio
                 ),
-                "alignment": self.subtitle_settings.alignment,
-                "margin_v_percent": self.subtitle_settings.margin_v_percent,
-                "relative_positioning": self.subtitle_settings.relative_positioning,
-                "absolute_positioning": self.subtitle_settings.absolute_positioning,
                 "use_random_font": self.subtitle_settings.use_random_font,
                 "use_random_colors": self.subtitle_settings.use_random_colors,
                 "available_fonts": self.subtitle_settings.available_fonts,
@@ -1425,6 +1389,14 @@ class VideoConfig(BaseModel):
             merged_settings["subtitle_settings"]["max_line_length"] = (
                 profile.subtitle_max_line_length
             )
+        if profile.subtitle_max_words_per_line is not None:
+            merged_settings["subtitle_settings"]["max_words_per_line"] = (
+                profile.subtitle_max_words_per_line
+            )
+        if profile.subtitle_max_subtitle_width_fraction is not None:
+            merged_settings["subtitle_settings"]["max_subtitle_width_fraction"] = (
+                profile.subtitle_max_subtitle_width_fraction
+            )
         if profile.subtitle_max_duration is not None:
             merged_settings["subtitle_settings"]["max_subtitle_duration"] = (
                 profile.subtitle_max_duration
@@ -1432,6 +1404,16 @@ class VideoConfig(BaseModel):
         if profile.subtitle_min_duration is not None:
             merged_settings["subtitle_settings"]["min_subtitle_duration"] = (
                 profile.subtitle_min_duration
+            )
+
+        # Apply manual selection overrides
+        if profile.subtitle_selected_font is not None:
+            merged_settings["subtitle_settings"]["selected_font"] = (
+                profile.subtitle_selected_font
+            )
+        if profile.subtitle_selected_color_pair is not None:
+            merged_settings["subtitle_settings"]["selected_color_pair"] = (
+                profile.subtitle_selected_color_pair
             )
 
         # Apply legacy subtitle_positioning overrides if present
@@ -1876,7 +1858,7 @@ except Exception as e:
             min_images_if_no_video=5,
             min_images_with_video=2,
             image_width_percent=0.75,
-            image_top_position_percent=0.15,
+            image_top_position_percent=0.20,
             default_image_duration_sec=3.0,
             transition_duration_sec=0.5,
             total_duration_limit_sec=90,
@@ -2032,7 +2014,8 @@ except Exception as e:
         ),
         subtitle_settings=SubtitleSettings(
             enabled=True,
-            positioning_mode="absolute",
+            # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
+            # relative_positioning, absolute_positioning
             font_name="Arial",
             font_directory="fonts",
             font_size_percent=0.05,
@@ -2040,10 +2023,6 @@ except Exception as e:
             font_color="&H00FFFFFF",
             outline_color="&HFF000000",
             back_color="&H99000000",
-            alignment=2,
-            margin_v_percent=0.05,
-            relative_positioning=None,
-            absolute_positioning=None,
             use_random_font=False,
             use_random_colors=False,
             available_fonts=[

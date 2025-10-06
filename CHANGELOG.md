@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-10-06
+
+### Breaking Changes
+- **Removed legacy subtitle configuration system**
+  - Removed `positioning_mode`, `alignment`, `margin_v_percent` fields
+  - Removed `relative_positioning` and `absolute_positioning` sections
+  - Removed `SubtitlePositioningSettings` and `AbsolutePositioningSettings` classes
+  - Users must migrate to unified configuration (see `MIGRATION_GUIDE_v0.5_to_v0.6.md`)
+
+- **Fixed ASS effects to enforce exactly 1 effect per video**
+  - All presets now use exactly 1 effect (or none for minimal)
+  - Random preset selects exactly 1 effect from available effects
+  - Removed multi-effect violations per REQUIREMENTS.md
+
+### Added
+- **Unified Subtitle Configuration System**
+  - Anchor-based positioning with 5 options: `top`, `center`, `bottom`, `above_content`, `below_content`
+  - Content-aware positioning via `content_aware` boolean flag
+  - 5 style presets: `minimal`, `modern`, `bold`, `animated`, `random`
+  - Single configuration interface replaces complex multi-mode system
+
+- **Enhanced Configuration Validation**
+  - Effect count validation (enforces max 1 effect per video)
+  - Preset-specific validation rules
+  - Improved error messages with migration guidance
+
+- **Documentation**
+  - `MIGRATION_GUIDE_v0.5_to_v0.6.md`: Step-by-step migration from legacy to unified system
+  - Updated `REQUIREMENTS.md` with three-tier configuration precedence
+  - Enhanced inline documentation in `config/subtitles.yaml`
+
+### Changed
+- **Subtitle Positioning Logic**
+  - Unified `_select_effects()` method enforces 1-effect rule
+  - Consistent effect application through `self._selected_effects`
+  - Removed legacy conversion function `convert_legacy_config()`
+  - Replaced with `create_unified_config_from_settings()`
+
+- **Configuration Structure**
+  - Absolute mode: `anchor` + `margin` + `content_aware=false`
+  - Relative mode: `anchor` + `margin` + `content_aware=true`
+  - Simplified preset definitions with explicit effect mapping
+
+### Fixed
+- **ASS Effects Violation**: Now enforces exactly 1 effect per video per REQUIREMENTS.md
+  - minimal: 0 effects
+  - modern: karaoke only
+  - bold: fade only
+  - animated: movement only
+  - random: 1 randomly selected effect
+
+- **Code Simplification**: Removed 150+ lines of legacy code
+  - Removed `_add_legacy_structure()` from config adapter
+  - Removed legacy result helper functions
+  - Simplified validation logic
+
+### Migration
+See [`MIGRATION_GUIDE_v0.5_to_v0.6.md`](MIGRATION_GUIDE_v0.5_to_v0.6.md) for complete instructions.
+
 ## [0.5.0] - 2025-10-02
 
 ### Added
