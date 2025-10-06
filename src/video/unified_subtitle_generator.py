@@ -753,13 +753,15 @@ class UnifiedSubtitleGenerator:
                     selected_effects[effect] = True
                     logger.debug(f"Applied preset effect: {effect}")
             elif len(preset_effects) > 1:
-                # Violation: preset has multiple effects, use first one
-                effect = preset_effects[0]
-                if effect in selected_effects:
-                    selected_effects[effect] = True
-                logger.warning(
-                    f"Preset has {len(preset_effects)} effects, using first: {effect}"
+                # REQUIREMENTS.md violation: "exactly 1 effect per video"
+                preset_name = self.style_config.get("preset_name", "unknown")
+                msg = (
+                    f"Preset '{preset_name}' has {len(preset_effects)} effects. "
+                    f"REQUIREMENTS.md mandates exactly 1 effect per video. "
+                    f"Fix config/subtitles.yaml style_presets.{preset_name}.effects"
                 )
+                logger.error(msg)
+                raise ValueError(msg)
 
         return selected_effects
 

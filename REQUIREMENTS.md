@@ -81,10 +81,11 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 ### Profile-Specific Settings
 - **All visual settings MUST be configurable per video profile**
 - Image positioning and sizing settings (width, position, aspect ratio)
-- Subtitle positioning, styling, fonts, colors, and effects
-- Profile settings override global defaults through merging system
+- Subtitle positioning, styling, fonts, colors, and effects (19+ override fields in VideoProfile)
+- Profile settings override global defaults through merging system (`get_profile_merged_settings()`)
 - Maintain backward compatibility with existing global configuration
 - Support unified subtitle positioning system with anchor-based layout
+- Implementation: VideoProfile class fields (`subtitle_anchor`, `subtitle_margin`, etc.) with precedence: CLI > ENV > PROFILE > YAML
 
 ### Font & Color Management
 - **Style Preset System**: 5 predefined presets (minimal, modern, bold, animated, random)
@@ -129,7 +130,11 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 ## Global Requirements
 
 ### Configuration & CLI
-- Three-tier precedence: CLI args > env vars > YAML config
+- **Three-tier precedence: CLI args > env vars > YAML config**
+  - CLI arguments: 20+ subtitle flags (`--subtitle-anchor`, `--preset`, `--randomize-fonts`, etc.)
+  - Environment variables: 17 subtitle env vars (`SUBTITLE_ANCHOR`, `SUBTITLE_STYLE_PRESET`, etc.)
+  - YAML config: Default values in `config/subtitles.yaml`
+  - Implementation: `load_video_config_modular(cli_overrides={...})` with `ConfigManager.apply_precedence_rules()`
 - CLI arguments override all other configuration sources
 - Global debug mode across all components
 - Validate configuration at startup with clear error messages

@@ -66,6 +66,31 @@ class UnifiedConfigManager:
             # Performance overrides
             "CONTENT_ENGINE_TIMEOUT": ["pipeline_timeout_sec"],
             "FFMPEG_THREADS": ["ffmpeg_settings.encoding.threads"],
+            # Subtitle positioning
+            "SUBTITLE_ANCHOR": ["subtitle_settings.anchor"],
+            "SUBTITLE_MARGIN": ["subtitle_settings.margin"],
+            "SUBTITLE_CONTENT_AWARE": ["subtitle_settings.content_aware"],
+            # Subtitle styling
+            "SUBTITLE_STYLE_PRESET": ["subtitle_settings.style_preset"],
+            "SUBTITLE_FONT_SIZE_SCALE": ["subtitle_settings.font_size_scale"],
+            "SUBTITLE_ALIGNMENT": ["subtitle_settings.horizontal_alignment"],
+            "SUBTITLE_MAX_WIDTH_FRACTION": [
+                "subtitle_settings.max_subtitle_width_fraction"
+            ],
+            # Subtitle randomization
+            "SUBTITLE_RANDOMIZE_FONTS": ["subtitle_settings.randomize_fonts"],
+            "SUBTITLE_RANDOMIZE_COLORS": ["subtitle_settings.randomize_colors"],
+            "SUBTITLE_RANDOMIZE_EFFECTS": ["subtitle_settings.randomize_effects"],
+            # Subtitle text formatting
+            "SUBTITLE_MAX_LINE_LENGTH": ["subtitle_settings.max_line_length"],
+            "SUBTITLE_MAX_WORDS_PER_LINE": ["subtitle_settings.max_words_per_line"],
+            "SUBTITLE_MAX_DURATION": ["subtitle_settings.max_duration"],
+            "SUBTITLE_MIN_DURATION": ["subtitle_settings.min_duration"],
+            # Advanced subtitle styling
+            "SUBTITLE_FONT": ["subtitle_settings.font_name"],
+            "SUBTITLE_FONT_COLOR": ["subtitle_settings.font_color"],
+            "SUBTITLE_OUTLINE_COLOR": ["subtitle_settings.outline_color"],
+            "SUBTITLE_BACKGROUND_COLOR": ["subtitle_settings.background_color"],
         }
 
         for env_var, config_paths in env_mappings.items():
