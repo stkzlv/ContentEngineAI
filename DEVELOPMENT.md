@@ -4,104 +4,28 @@ This guide provides detailed information for developers working on ContentEngine
 
 ## Development Environment Setup
 
-### Prerequisites
-
-- Python 3.12+
-- Poetry for dependency management
-- FFmpeg installed and in PATH
-- Git for version control
-
-### Quick Setup
+**📖 Complete installation guide**: [INSTALL.md](INSTALL.md)
 
 ```bash
-# Clone and setup
-git clone https://github.com/stkzlv/ContentEngineAI.git
-cd ContentEngineAI
-
-# Install dependencies
-poetry install --with dev
-
-# Install pre-commit hooks
-make install-dev
-make pre-commit
-
-# Install Playwright browsers
-poetry run playwright install
-
-# Verify setup
-make lint
-make test
+# Quick setup for developers
+poetry install --with dev && make install-dev
 ```
 
 ## Code Quality Standards
 
-ContentEngineAI maintains high code quality standards with comprehensive linting and testing:
-
-### Linting Tools
+**📖 Complete guide**: [LINTING.md](LINTING.md) • [TESTING.md](TESTING.md)
 
 ```bash
-# Run all quality checks
-make lint
-
-# Individual tools
-make format        # Ruff formatting
-make typecheck     # MyPy type checking  
-make security      # Bandit security scanning
-make vulture       # Dead code detection
-make safety        # Dependency vulnerability checking
-```
-
-**📖 Complete linting documentation**: [LINTING.md](LINTING.md)
-
-### Configuration
-
-**Ruff Configuration:**
-- Line length: 88 characters
-- Format: Modern Python with type annotations
-- Rules: Comprehensive linting with security checks
-
-**MyPy Configuration:**
-- Pragmatic settings for development efficiency
-- Allows functions without type hints
-- Ignores third-party library issues
-
-**Testing Framework:**
-- **Pytest** with async support
-- **280 test cases** across 20 files
-- **Coverage reporting** with branch coverage
-- **Parallel execution** for faster testing
-
-### Pre-commit Hooks
-
-Automatic quality checks before commits:
-
-```bash
-# Install hooks
-make pre-commit
-
-# Manual run
-poetry run pre-commit run --all-files
+make lint          # Complete quality check (7 tools)
+make test          # Full test suite with coverage
+make security      # Security vulnerability scan
 ```
 
 ## Architecture Deep Dive
 
-### Pipeline Architecture
+**📖 Complete architecture guide**: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-ContentEngineAI uses a **dependency-aware pipeline** with parallel execution:
-
-```python
-# Traditional Sequential Flow:
-# gather_visuals → generate_script → create_voiceover → generate_subtitles → download_music → assemble_video
-
-# Optimized Parallel Flow:
-# gather_visuals → generate_script → create_voiceover → [generate_subtitles + download_music] → assemble_video
-```
-
-**Key Benefits:**
-- **26% faster execution** through parallel processing
-- **Dependency management** ensures correct execution order
-- **Resume capability** for debugging specific steps
-- **Resource optimization** with proper concurrency limits
+ContentEngineAI uses a **dependency-aware pipeline** with parallel execution achieving **26% faster execution** through intelligent dependency management and concurrent processing.
 
 ### Performance Optimization System
 
@@ -378,100 +302,14 @@ stock_media_settings:
     concurrent_downloads: 3
 ```
 
-## Testing Strategy
+## Testing
 
-### Test Structure
-
-```
-tests/
-├── conftest.py                 # Pytest configuration and fixtures
-├── test_*.py                   # Individual component tests
-└── README.md                   # Testing documentation
-```
-
-### Test Categories
-
-**Unit Tests** (`@pytest.mark.unit`):
-- Test individual functions and classes in isolation
-- Use mocks for external dependencies
-- Target: >90% coverage
-
-**Integration Tests** (`@pytest.mark.integration`):
-- Test component interactions
-- Use mocked external services
-- Target: >80% coverage
-
-**End-to-End Tests** (`@pytest.mark.e2e`):
-- Test complete pipeline workflows
-- Use real or staging environments
-- Focus on critical user journeys
-
-### Writing Tests
-
-**Basic Test Structure:**
-```python
-import pytest
-from unittest.mock import AsyncMock, patch
-
-@pytest.mark.unit
-async def test_my_function():
-    """Test description"""
-    # Arrange
-    mock_dependency = AsyncMock()
-    
-    # Act
-    result = await my_function(mock_dependency)
-    
-    # Assert
-    assert result == expected_value
-    mock_dependency.assert_called_once()
-```
-
-**Async Testing:**
-```python
-@pytest.mark.asyncio
-async def test_async_function():
-    """Test async function"""
-    async with AsyncMock() as mock:
-        result = await async_function(mock)
-        assert result is not None
-```
-
-**Mocking External APIs:**
-```python
-@patch('src.ai.script_generator.httpx.AsyncClient')
-async def test_script_generation(mock_client):
-    """Test LLM script generation"""
-    mock_response = AsyncMock()
-    mock_response.json.return_value = {"choices": [{"message": {"content": "Test script"}}]}
-    mock_client.return_value.__aenter__.return_value.post.return_value = mock_response
-    
-    result = await generate_script(product_data, config)
-    assert "Test script" in result
-```
-
-### Running Tests
+**📖 Complete testing guide**: [TESTING.md](TESTING.md)
 
 ```bash
-# All tests
-make test
-
-# Specific test types
-poetry run pytest -m unit
-poetry run pytest -m integration
-poetry run pytest -m e2e
-
-# With coverage
-poetry run pytest --cov=src --cov-report=html
-
-# Parallel execution
-poetry run pytest -n auto
-
-# Specific test file
-poetry run pytest tests/test_assembler.py -v
+make test          # Run all tests with coverage
+make test-unit     # Run unit tests only
 ```
-
-**📖 Complete testing documentation**: [TESTING.md](TESTING.md)
 
 ## Usage Examples
 
@@ -606,47 +444,9 @@ async def my_function():
 
 ## Configuration Development
 
-### Adding New Configuration Options
+**📖 Complete configuration guide**: [CONFIGURATION.md](CONFIGURATION.md)
 
-1. **Update Pydantic Models:**
-```python
-# In src/video/video_config.py
-class MyComponentConfig(BaseModel):
-    enabled: bool = True
-    timeout_sec: int = 30
-    api_key_env_var: str = "MY_API_KEY"
-    
-    @validator('timeout_sec')
-    def validate_timeout(cls, v):
-        if v <= 0:
-            raise ValueError('timeout_sec must be positive')
-        return v
-```
-
-2. **Add to Main Config:**
-```python
-class VideoConfig(BaseModel):
-    my_component: MyComponentConfig = MyComponentConfig()
-```
-
-3. **Update YAML Schema:**
-```yaml
-my_component:
-  enabled: true
-  timeout_sec: 60
-  api_key_env_var: "MY_API_KEY"
-```
-
-### Configuration Validation
-
-```python
-# Test configuration loading
-def test_config_loading():
-    from src.video.config_adapter import load_video_config_modular
-    config = load_video_config_modular()
-    assert config.my_component.enabled is True
-    assert config.my_component.timeout_sec > 0
-```
+Configuration is managed through modular YAML files in `config/` with Pydantic validation in `src/video/video_config.py`.
 
 ## Performance Optimization Guidelines
 
@@ -754,40 +554,11 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 poetry run python tools/performance_report.py --compare baseline.json
 ```
 
-## Contributing Guidelines
+## Contributing
 
-### Code Style
+**📖 Complete contributing guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
 
-- **Naming**: `snake_case` for variables/functions, `PascalCase` for classes
-- **Type Hints**: Use modern Python typing (`dict[str, Any]`, `| None`)
-- **Docstrings**: Comprehensive docstrings for public functions
-- **Comments**: Minimal inline comments, prefer self-explanatory code
-
-### Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/your-feature-name
-
-# Make changes, following code style
-# Run tests and linting
-make lint
-make test
-
-# Commit with conventional commit format
-git commit -m "feat: Add your feature description"
-
-# Push and create PR
-git push origin feature/your-feature-name
-```
-
-### Pull Request Guidelines
-
-- **Clear title and description**
-- **Reference related issues**
-- **Include tests for new functionality**
-- **Update documentation as needed**
-- **Ensure CI passes**
+Follow GitHub Flow with feature branches, comprehensive testing, and code quality checks before PRs.
 
 ## Advanced Topics
 

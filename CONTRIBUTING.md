@@ -79,25 +79,12 @@ ContentEngineAI follows **GitHub Flow** - a simple, branch-based workflow perfec
 
 ### Code Style Guidelines
 
-We follow strict code quality standards enforced by automated tools:
+**📖 Complete guide**: [LINTING.md](LINTING.md)
 
-#### Linting Tools
-- **Ruff**: Fast Python linter and formatter (88-char line limit)
-- **MyPy**: Type checking with external library compatibility
-- **Bandit**: Security scanning
-- **Vulture**: Dead code detection (80% confidence)
-- **Safety**: Dependency vulnerability checking
-
-#### Quick Commands
 ```bash
-make lint          # Run all linting checks
-make lint-fix      # Run linting with automatic fixes
-make format        # Code formatting
-make typecheck     # Type checking
-make security      # Security scanning
+make lint          # Run all linting checks (7 tools)
+make lint-fix      # Auto-fix issues
 ```
-
-**📖 Complete linting documentation**: [LINTING.md](LINTING.md)
 
 #### Code Standards
 - **Naming Conventions**:
@@ -113,27 +100,12 @@ make security      # Security scanning
 
 ### Testing
 
-#### Test Structure
-- **Tiers**: Unit (>90% coverage), Integration (>80% coverage), End-to-end
-- **Framework**: Pytest, 280 test cases across 20 files
-- **Features**: Mocked APIs/filesystems, async testing, parallel execution
-- **Markers**: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e`
+**📖 Complete testing guide**: [TESTING.md](TESTING.md)
 
-#### Running Tests
 ```bash
-make test          # Run all tests
+make test          # Run all tests with coverage
 make test-unit     # Run unit tests only
-poetry run pytest tests/test_specific.py  # Run specific test file
 ```
-
-**📖 Detailed testing guide**: [TESTING.md](TESTING.md)
-
-#### Writing Tests
-- Write tests before implementation (TDD approach)
-- Use descriptive test names that explain the scenario
-- Mock external dependencies (APIs, file systems)
-- Test both success and failure scenarios
-- Include edge cases and boundary conditions
 
 ## Submitting Changes
 
