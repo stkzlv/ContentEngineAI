@@ -633,23 +633,45 @@ video_profiles:
     use_scraped_videos: false
     use_stock_images: false
     use_stock_videos: false
-    stock_image_count: 0
-    stock_video_count: 0
     use_dynamic_image_count: true
 
     # Profile-Specific Image Settings
     image_width_percent: 0.85         # 85% frame width for product focus
-    image_top_position_percent: 0.15  # Position 15% from top
-    preserve_aspect_ratio: true       # Maintain image proportions
 
     # Profile-Specific Subtitle Settings
+    subtitle_randomize_effects: true  # Enable effect randomization
+
+  slideshow_images2:
+    description: "Alternative slideshow with different styling"
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning
+    image_width_percent: 0.80         # 80% frame width
+    image_top_position_percent: 0.15  # Position 15% from top
+
+    # Subtitle positioning
     subtitle_anchor: "below_content"  # Position below images
     subtitle_margin: 0.08             # 8% gap below content
     subtitle_content_aware: true      # Dynamic positioning
-    subtitle_style_preset: "modern"  # Modern styling (minimal, modern, bold, random)
-    subtitle_font_size_scale: 1.1     # 10% larger font
-    subtitle_max_line_length: 35      # Shorter lines
     subtitle_horizontal_alignment: "center"
+
+    # Subtitle styling
+    subtitle_style_preset: "minimal"  # Clean minimal style
+    subtitle_font_size_scale: 0.9     # 10% smaller font
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: false
+
+    # Text formatting
+    subtitle_max_line_length: 28
+    subtitle_max_words_per_line: 3
+    subtitle_max_subtitle_width_fraction: 0.85
+    subtitle_max_duration: 4.0
+    subtitle_min_duration: 0.5
 ```
 
 **Available Per-Profile Overrides:**
@@ -664,9 +686,13 @@ preserve_aspect_ratio: true          # Override aspect ratio setting
 subtitle_anchor: "below_content"     # Override positioning anchor
 subtitle_margin: 0.08                # Override margin from anchor
 subtitle_content_aware: true         # Override content-aware positioning
-subtitle_style_preset: "modern"     # Override style preset (minimal, modern, bold, random)
+subtitle_style_preset: "modern"     # Override style preset (minimal, modern, bold, animated, random)
 subtitle_font_size_scale: 1.1        # Override font size scaling
 subtitle_max_line_length: 35         # Override line length limit
+subtitle_max_words_per_line: 3       # Override max words per line
+subtitle_max_subtitle_width_fraction: 0.85  # Override max subtitle width
+subtitle_max_duration: 4.5           # Override max subtitle duration
+subtitle_min_duration: 0.4           # Override min subtitle duration
 subtitle_horizontal_alignment: "center"
 subtitle_randomize_fonts: false      # Override font randomization
 subtitle_randomize_colors: false     # Override color randomization
@@ -678,6 +704,7 @@ subtitle_randomize_effects: false    # Override effect randomization
 - **Selective Overrides**: Only specify settings you want to change
 - **Fallback System**: Unspecified settings use global defaults
 - **Type Safety**: All overrides validated by Pydantic models
+- **CLI Override Support**: All profile settings can be overridden via command-line arguments
 
 </details>
 
@@ -764,6 +791,36 @@ memory_settings:
   http_pool_connections: 10          # HTTP connection pool size
   http_pool_maxsize: 20              # Maximum connections per host
 ```
+
+## CLI Override Arguments
+
+Profile settings can be overridden at runtime using command-line arguments with highest precedence:
+
+```bash
+# Image positioning overrides
+--image-width-percent 0.75           # Override image width (0.0-1.0)
+--image-top-position-percent 0.20    # Override top position (0.0-1.0)
+
+# Subtitle positioning overrides
+--subtitle-anchor below_content      # Override anchor point
+--subtitle-margin 0.10               # Override margin (0.0-0.5)
+--subtitle-content-aware true        # Override content-aware mode
+
+# Style and formatting overrides
+--preset minimal                     # Override style preset
+--subtitle-font-size-scale 0.8       # Override font size scale
+--subtitle-max-line-length 30        # Override max line length
+
+# Example: Override slideshow_images2 settings
+poetry run python -m src.video.producer \
+  outputs/B0BTYCRJSS/data.json \
+  slideshow_images2 \
+  --image-top-position-percent 0.30 \
+  --preset bold \
+  --debug
+```
+
+**CLI Precedence**: CLI args > Profile settings > Global YAML configuration
 
 ## Customization Examples
 
