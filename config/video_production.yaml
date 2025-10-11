@@ -242,8 +242,25 @@ video_profiles:
     # Image positioning overrides
     image_width_percent: 0.85
 
-    # Subtitle styling overrides
+    # Subtitle positioning overrides
+    subtitle_anchor: "top"                         # Position at top of screen
+    subtitle_margin: 0.05                          # Small margin from top (5%)
+    subtitle_content_aware: true                   # Auto-adjust based on visual content
+    subtitle_horizontal_alignment: "center"        # Center horizontally
+
+    # Subtitle style overrides
+    subtitle_style_preset: "modern"                # modern style with karaoke effect
+    subtitle_font_size_scale: 1.0                  # Normal font size
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
     subtitle_randomize_effects: true
+
+    # Text formatting overrides
+    subtitle_max_line_length: 38                   # Max characters per line
+    subtitle_max_words_per_line: 2                 # 2 words per line
+    subtitle_max_subtitle_width_fraction: 0.67     # Max 2/3 of frame width
+    subtitle_max_duration: 4.5                     # Max duration in seconds
+    subtitle_min_duration: 0.4                     # Min duration in seconds
 
   # Slideshow with images profile (variant 2)
   slideshow_images2:
@@ -380,8 +397,8 @@ ffmpeg_settings:
 # ============================================================================
 subtitle_settings:
   enabled: true
-  anchor: "below_content"
-  margin: 0.07
+  anchor: "top"
+  margin: 0.05
   content_aware: true
 
   font_directory: "static/fonts"

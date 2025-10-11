@@ -385,19 +385,30 @@ class UnifiedSubtitleGenerator:
                 potential_text = f"{current_text} {word}".strip()
                 current_duration = end_time - current_start if current_start else 0
 
-                # Break conditions
-                if (
-                    # 1. Word count limit
-                    (
-                        self.config.max_words_per_line > 0
-                        and len(current_words) >= self.config.max_words_per_line
+                # Break conditions - MUST be checked in order with early termination
+                word_count_would_exceed = (
+                    self.config.max_words_per_line > 0
+                    and len(current_words) + 1 > self.config.max_words_per_line
+                )
+                char_limit_exceeded = len(potential_text) > self.config.max_line_length
+                duration_exceeded = current_duration > self.config.max_duration
+                natural_break = (
+                    word.endswith((".", "!", "?")) and len(current_words) >= 3
+                )
+
+                if debug_mode and _i < 5:  # Log first 5 words for debugging
+                    logger.debug(
+                        f"Word {_i} '{word}': current_words={len(current_words)}, "
+                        f"word_count_check={word_count_would_exceed}, "
+                        f"char_limit={char_limit_exceeded}, "
+                        f"max_words_per_line={self.config.max_words_per_line}"
                     )
-                    # 2. Character limit
-                    or len(potential_text) > self.config.max_line_length
-                    # 3. Duration limit
-                    or current_duration > self.config.max_duration
-                    # 4. Natural breaks
-                    or (word.endswith((".", "!", "?")) and len(current_words) >= 3)
+
+                if (
+                    word_count_would_exceed
+                    or char_limit_exceeded
+                    or duration_exceeded
+                    or natural_break
                 ):
                     should_break = True
 
@@ -475,6 +486,13 @@ class UnifiedSubtitleGenerator:
         if not words:
             return []
 
+        # DEBUG: Log configuration values
+        logger.debug(
+            f"_create_script_segments: "
+            f"max_words_per_line={self.config.max_words_per_line}, "
+            f"max_line_length={self.config.max_line_length}"
+        )
+
         segments = []
         current_time = 0.0
 
@@ -512,15 +530,24 @@ class UnifiedSubtitleGenerator:
             )
 
             # Break conditions:
-            if (
-                # 1. Word count limit (if configured)
-                (
-                    self.config.max_words_per_line > 0
-                    and len(current_segment_words) >= self.config.max_words_per_line
+            word_count_check = (
+                self.config.max_words_per_line > 0
+                and len(current_segment_words) + 1 > self.config.max_words_per_line
+            )
+            char_check = len(potential_text) > self.config.max_line_length
+
+            # DEBUG: Log first 5 words
+            if _i < 5:
+                logger.debug(
+                    f"Script word {_i} '{word}': "
+                    f"current_words={len(current_segment_words)}, "
+                    f"word_count_check={word_count_check}, "
+                    f"char_check={char_check}, "
+                    f"max_words={self.config.max_words_per_line}, "
+                    f"potential_text='{potential_text}'"
                 )
-                # 2. Line length limit (character count)
-                or len(potential_text) > self.config.max_line_length
-            ):
+
+            if word_count_check or char_check:
                 should_break = True
 
             # 3. Width constraint (frame-based or image-based)
@@ -664,6 +691,15 @@ class UnifiedSubtitleGenerator:
             # Calculate position
             position = calculate_position(self.config, self.frame_size, visual_bounds)
             font_size = get_font_size(self.config, self.frame_size[1])
+
+            # DEBUG: Log position calculation
+            logger.debug(
+                f"Subtitle position calculated: anchor={self.config.anchor}, "
+                f"position.x={position.x}, position.y={position.y}, "
+                f"frame_size={self.frame_size}, "
+                f"pixel_coords=({int(position.x * self.frame_size[0])}, "
+                f"{int(position.y * self.frame_size[1])})"
+            )
 
             # Randomize colors if enabled
             colors = self._get_colors()

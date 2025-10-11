@@ -181,7 +181,8 @@ class VideoAssembler:
         if self.profile_settings:
             return self.profile_settings["video_settings"]  # type: ignore[no-any-return]
         # Fallback to global config if no profile settings
-        return self.config.video_settings.__dict__
+        # Use model_dump() for Pydantic v2 compatibility instead of __dict__
+        return self.config.video_settings.model_dump()
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
@@ -203,7 +204,8 @@ class VideoAssembler:
                 return settings  # type: ignore[no-any-return]
 
         # Fallback to global config if no profile settings
-        return self.config.subtitle_settings.__dict__
+        # Use model_dump() for Pydantic v2 compatibility instead of __dict__
+        return self.config.subtitle_settings.model_dump()
 
     def _is_video(self, path: Path) -> bool:
         """Determine if a file is a video based on its MIME type.
@@ -845,6 +847,8 @@ class VideoAssembler:
     ) -> tuple[
         list[str], list[str], list[tuple[Path, float, bool]], str, list[VisualGeometry]
     ]:
+        # Get effective video settings with profile/CLI overrides applied
+        video_settings_dict = self._get_effective_video_settings()
         video_settings = self.config.video_settings
         video_files = [path for path in visual_inputs if self._is_video(path)]
         image_files = [path for path in visual_inputs if not self._is_video(path)]
@@ -902,7 +906,8 @@ class VideoAssembler:
             for orig_w, orig_h in all_visuals_dims:
                 if orig_w > 0 and orig_h > 0:
                     scaled_h = int(
-                        (width * video_settings.image_width_percent) * (orig_h / orig_w)
+                        (width * video_settings_dict["image_width_percent"])
+                        * (orig_h / orig_w)
                     )
                     scaled_heights.append(scaled_h)
             if scaled_heights:
@@ -926,7 +931,7 @@ class VideoAssembler:
                 )
 
             proc_label = f"[v_proc_{i}]"
-            scaled_w_base = int(width * video_settings.image_width_percent)
+            scaled_w_base = int(width * video_settings_dict["image_width_percent"])
             orig_w, orig_h = all_visuals_dims[i]
 
             scaled_w, scaled_h = 0, 0
@@ -941,7 +946,7 @@ class VideoAssembler:
                 scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else -1
                 vf_scale = f"scale={scaled_w}:{scaled_h}"
 
-            target_y_pos = video_settings.image_top_position_percent * height
+            target_y_pos = video_settings_dict["image_top_position_percent"] * height
 
             geometries.append(
                 VisualGeometry(

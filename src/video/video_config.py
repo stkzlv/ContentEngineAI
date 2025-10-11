@@ -230,6 +230,10 @@ class SubtitleSettings(BaseModel):
         38,
         description="Target maximum characters per subtitle line in SRT segmentation.",
     )
+    max_words_per_line: int = Field(
+        2,
+        description="Maximum words per subtitle line (0 to disable word-based limit)",
+    )
     min_subtitle_duration: float = Field(0.4)
     subtitle_split_on_punctuation: bool = Field(True)
     punctuation_marks: list[str] = Field([".", "!", "?", ";", ":", ","])
@@ -1286,6 +1290,7 @@ class VideoConfig(BaseModel):
                 "randomize_effects": self.subtitle_settings.randomize_effects,
                 # Text formatting
                 "max_line_length": self.subtitle_settings.max_line_length,
+                "max_words_per_line": self.subtitle_settings.max_words_per_line,
                 "max_subtitle_duration": self.subtitle_settings.max_subtitle_duration,
                 "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
                 # Advanced settings (pass through from original)
@@ -2134,6 +2139,7 @@ except Exception as e:
             ass_wave_duration_factor=300,
             max_subtitle_duration=4.5,
             max_line_length=38,
+            max_words_per_line=2,
             min_subtitle_duration=0.4,
             subtitle_split_on_punctuation=True,
             punctuation_marks=[".", "!", "?", ";", ":", ","],

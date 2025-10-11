@@ -1101,7 +1101,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         # Get merged profile settings (similar to assembler approach)
         merged_profile_settings = ctx.config.get_profile_merged_settings(
-            ctx.profile_name
+            ctx.profile_name, ctx.cli_overrides
         )
         profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
 
@@ -1838,12 +1838,14 @@ async def main():
         "--content-aware",
         action="store_true",
         dest="subtitle_content_aware",
+        default=None,
         help="Enable content-aware subtitle positioning.",
     )
     parser.add_argument(
         "--no-content-aware",
         action="store_false",
         dest="subtitle_content_aware",
+        default=None,
         help="Disable content-aware subtitle positioning.",
     )
 
@@ -1891,36 +1893,42 @@ async def main():
         "--randomize-fonts",
         action="store_true",
         dest="subtitle_randomize_fonts",
+        default=None,
         help="Enable font randomization.",
     )
     parser.add_argument(
         "--no-randomize-fonts",
         action="store_false",
         dest="subtitle_randomize_fonts",
+        default=None,
         help="Disable font randomization.",
     )
     parser.add_argument(
         "--randomize-colors",
         action="store_true",
         dest="subtitle_randomize_colors",
+        default=None,
         help="Enable color randomization.",
     )
     parser.add_argument(
         "--no-randomize-colors",
         action="store_false",
         dest="subtitle_randomize_colors",
+        default=None,
         help="Disable color randomization.",
     )
     parser.add_argument(
         "--randomize-effects",
         action="store_true",
         dest="subtitle_randomize_effects",
+        default=None,
         help="Enable effect randomization.",
     )
     parser.add_argument(
         "--no-randomize-effects",
         action="store_false",
         dest="subtitle_randomize_effects",
+        default=None,
         help="Disable effect randomization.",
     )
 

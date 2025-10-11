@@ -302,7 +302,8 @@ async def create_unified_subtitles(
         )
 
     # Create unified configuration from subtitle settings
-    unified_config = create_unified_config_from_settings(subtitle_settings.__dict__)
+    # Use model_dump() for Pydantic v2 compatibility instead of __dict__
+    unified_config = create_unified_config_from_settings(subtitle_settings.model_dump())
 
     # Get frame size from video config
     frame_size = (1080, 1920)  # Default
