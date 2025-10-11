@@ -361,10 +361,9 @@ def calculate_position(
                 max_safe_y, visual_bounds.y + visual_bounds.height + config.margin
             )
         else:
-            # Fallback: Use reasonable bottom positioning when content_aware is disabled
-            # or visual_bounds is not available
-            # Assume content takes ~60% of frame, position subtitles below at ~70%
-            base_y = 0.70
+            # Fallback: Use bottom positioning with margin when
+            # content_aware is disabled. Position from bottom using margin.
+            base_y = 1.0 - config.margin
 
     # Calculate horizontal position based on alignment
     if config.horizontal_alignment == "left":
@@ -440,6 +439,15 @@ def create_unified_config_from_settings(
         UnifiedSubtitleConfig instance with validated parameters
 
     """
+    # DEBUG: Log all available keys and specific values
+    logger.debug(
+        f"create_unified_config_from_settings received keys: {settings.keys()}"
+    )
+    max_words = settings.get("max_words_per_line", "KEY_NOT_FOUND")
+    logger.debug(f"  max_words_per_line value: {max_words}")
+    logger.debug(f"  margin value: {settings.get('margin', 'KEY_NOT_FOUND')}")
+    logger.debug(f"  anchor value: {settings.get('anchor', 'KEY_NOT_FOUND')}")
+
     # Extract anchor with validation
     anchor_str = settings.get("anchor", "bottom")
     try:
@@ -463,7 +471,7 @@ def create_unified_config_from_settings(
         margin=settings.get("margin", 0.1),
         font_size_scale=settings.get("font_size_scale", 1.0),
         max_line_length=settings.get("max_line_length", 38),
-        max_words_per_line=settings.get("max_words_per_line", 3),
+        max_words_per_line=settings.get("max_words_per_line", 2),
         max_subtitle_width_fraction=settings.get("max_subtitle_width_fraction", 0.67),
         max_duration=settings.get("max_duration", 4.5),
         min_duration=settings.get("min_duration", 0.4),

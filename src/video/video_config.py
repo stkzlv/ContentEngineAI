@@ -230,6 +230,10 @@ class SubtitleSettings(BaseModel):
         38,
         description="Target maximum characters per subtitle line in SRT segmentation.",
     )
+    max_words_per_line: int = Field(
+        2,
+        description="Maximum words per subtitle line (0 to disable word-based limit)",
+    )
     min_subtitle_duration: float = Field(0.4)
     subtitle_split_on_punctuation: bool = Field(True)
     punctuation_marks: list[str] = Field([".", "!", "?", ";", ":", ","])
@@ -1194,15 +1198,23 @@ class VideoConfig(BaseModel):
             raise KeyError(f"Video profile '{profile_name}' not found.")
         return self.video_profiles[profile_name]
 
-    def get_profile_merged_settings(self, profile_name: str) -> dict[str, Any]:
+    def get_profile_merged_settings(
+        self, profile_name: str, cli_overrides: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get settings with profile-specific overrides applied.
 
         This method merges global configuration settings with profile-specific
         overrides, providing a complete settings object for video production.
 
+        Precedence order (highest to lowest):
+        1. CLI overrides (passed as parameter)
+        2. Profile-specific settings
+        3. Global YAML configuration
+
         Args:
         ----
             profile_name: Name of the video profile to get merged settings for
+            cli_overrides: Optional CLI overrides to apply with highest precedence
 
         Returns:
         -------
@@ -1278,6 +1290,7 @@ class VideoConfig(BaseModel):
                 "randomize_effects": self.subtitle_settings.randomize_effects,
                 # Text formatting
                 "max_line_length": self.subtitle_settings.max_line_length,
+                "max_words_per_line": self.subtitle_settings.max_words_per_line,
                 "max_subtitle_duration": self.subtitle_settings.max_subtitle_duration,
                 "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
                 # Advanced settings (pass through from original)
@@ -1419,6 +1432,16 @@ class VideoConfig(BaseModel):
         # Apply legacy subtitle_positioning overrides if present
         if profile.subtitle_positioning:
             merged_settings["subtitle_settings"].update(profile.subtitle_positioning)
+
+        # Apply CLI overrides (highest precedence)
+        if cli_overrides:
+            for key, value in cli_overrides.items():
+                # Parse dot notation (e.g., "video_settings.image_width_percent")
+                parts = key.split(".")
+                if len(parts) == 2:
+                    section, field = parts
+                    if section in merged_settings:
+                        merged_settings[section][field] = value
 
         return merged_settings
 
@@ -2116,6 +2139,7 @@ except Exception as e:
             ass_wave_duration_factor=300,
             max_subtitle_duration=4.5,
             max_line_length=38,
+            max_words_per_line=2,
             min_subtitle_duration=0.4,
             subtitle_split_on_punctuation=True,
             punctuation_marks=[".", "!", "?", ";", ":", ","],

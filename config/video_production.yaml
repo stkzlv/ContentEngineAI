@@ -64,7 +64,7 @@ video_settings:
   min_images_with_video: 2        # Minimum images when videos available (video mode)
 
   # Image positioning (used by profiles)
-  image_width_percent: 0.8
+  image_width_percent: 0.9
   image_top_position_percent: 0.07
 
   # Timing and delays
@@ -233,22 +233,75 @@ video_profiles:
   # Slideshow with images profile
   slideshow_images1:
     description: "Dynamically uses scraped product images to match voiceover duration."
-    inherits: "base"
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
     use_stock_videos: false
     use_dynamic_image_count: true
-    overrides:
-      video:
-        image_width_percent: 0.85
-        image_height_percent: 0.85
-        background_blur: true
-        transition_effects:
-          types: ["fade", "zoom"]
-      subtitles:
-        randomize_effects: true
-        karaoke_timing: true
+
+    # Image positioning overrides
+    image_width_percent: 0.85
+
+    # Subtitle positioning overrides
+    subtitle_anchor: "top"                         # Position at top of screen
+    subtitle_margin: 0.05                          # Small margin from top (5%)
+    subtitle_content_aware: true                   # Auto-adjust based on visual content
+    subtitle_horizontal_alignment: "center"        # Center horizontally
+
+    # Subtitle style overrides
+    subtitle_style_preset: "modern"                # modern style with karaoke effect
+    subtitle_font_size_scale: 1.0                  # Normal font size
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+
+    # Text formatting overrides
+    subtitle_max_line_length: 38                   # Max characters per line
+    subtitle_max_words_per_line: 2                 # 2 words per line
+    subtitle_max_subtitle_width_fraction: 0.67     # Max 2/3 of frame width
+    subtitle_max_duration: 4.5                     # Max duration in seconds
+    subtitle_min_duration: 0.4                     # Min duration in seconds
+
+  # Slideshow with images profile (variant 2)
+  slideshow_images2:
+    description: "Alternative slideshow using scraped product images with different styling."
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning overrides
+    image_width_percent: 0.9
+    image_top_position_percent: 0.15
+
+    # Subtitle positioning overrides
+    subtitle_anchor: "below_content"           # top, center, bottom, above_content, below_content
+    subtitle_margin: 0.06                      # Fraction of frame height (0.0-0.5)
+    subtitle_content_aware: true               # Auto-adjust based on visual content
+    subtitle_horizontal_alignment: "center"    # left, center, right
+
+    # Subtitle style overrides
+    subtitle_style_preset: "bold"              # minimal, modern, bold, animated, random
+    subtitle_font_size_scale: 0.9              # Font size multiplier (0.5-2.0)
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: false
+
+    # Text formatting overrides
+    subtitle_max_line_length: 24               # Max characters per line
+    subtitle_max_words_per_line: 2             # Max words per line (0 to disable)
+    subtitle_max_subtitle_width_fraction: 0.85 # Max width as fraction of frame (0.0-1.0)
+    subtitle_max_duration: 4.0                 # Max duration in seconds
+    subtitle_min_duration: 0.5                 # Min duration in seconds
+
+    # Advanced: Manual font/color selection (optional)
+    # subtitle_font_name: "Poppins"            # Override specific font
+    # subtitle_font_color: "&H00FFFFFF"        # ASS format: &H00BBGGRR
+    # subtitle_outline_color: "&H00000000"     # ASS format: &H00BBGGRR
+    # subtitle_background_color: "&H00000000"  # ASS format: &H00BBGGRR
+    # subtitle_selected_font: "Montserrat"     # Bypass randomization
+    # subtitle_selected_color_pair: "white_black" # Specific color pair
 
 # ============================================================================
 # ATTRIBUTION SETTINGS
@@ -344,8 +397,8 @@ ffmpeg_settings:
 # ============================================================================
 subtitle_settings:
   enabled: true
-  anchor: "below_content"
-  margin: 0.07
+  anchor: "top"
+  margin: 0.05
   content_aware: true
 
   font_directory: "static/fonts"

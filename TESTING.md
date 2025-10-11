@@ -79,6 +79,7 @@ tests/
 │
 ├── # Configuration Tests
 ├── test_config_validator.py         # Config validation
+├── test_profile_cli_overrides.py    # Profile & CLI override tests (15 tests)
 ├── test_scraper_config_enhanced.py  # Scraper config (23 tests)
 ├── test_media_validation.py         # Media validation (10 tests)
 │
@@ -271,19 +272,23 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.6.1):**
-- **Total Tests**: 437 collected
-- **Passing**: 427 tests
-- **Skipped**: 10 tests
+**Current Statistics (v0.6.2):**
+- **Total Tests**: 452 collected
+- **Passing**: 433 tests
+- **Skipped**: 19 tests (includes 9 skipped integration tests)
 - **Failed**: 0 tests
 - **Coverage**: 41% (target: 40% minimum)
 
-**Recent Updates (v0.6.1):**
-- ✅ Verified no tests depend on removed configuration settings
-- ✅ Confirmed all 437 tests passing after config cleanup
-- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
+**Recent Updates (v0.6.2):**
+- ✅ Added argparse default=None tests (4 new tests in test_profile_cli_overrides.py)
+- ✅ Tests validate boolean flag behavior to prevent unwanted CLI overrides
+- ✅ Removed empty test file (test_config_cli_integration.py)
+- ✅ Profile-specific override tests (test_profile_cli_overrides.py - 15 tests total)
+- ✅ CLI override precedence tests (validates CLI > Profile > YAML)
+- ✅ Verified slideshow_images2 profile configuration
+- ✅ Verified image positioning CLI arguments (--image-width-percent, --image-top-position-percent)
 - ✅ All linting checks passing
-- ✅ Configuration cleanup verified against codebase
+- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
 
 **Previous Updates (v0.6.0):**
 - ✅ Removed outdated legacy subtitle positioning tests (2 files)

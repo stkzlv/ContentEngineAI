@@ -207,6 +207,7 @@ class PipelineContext:
         session: aiohttp.ClientSession,
         run_paths: dict,
         debug_mode: bool,
+        cli_overrides: dict[str, Any] | None = None,
     ):
         self.product = product
         self.profile = profile
@@ -216,6 +217,7 @@ class PipelineContext:
         self.session = session
         self.run_paths = run_paths
         self.debug_mode = debug_mode
+        self.cli_overrides = cli_overrides or {}
         self.visuals: list[Path] | None = None
         self.script: str | None = None
         self.description: str | None = None
@@ -1099,7 +1101,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         # Get merged profile settings (similar to assembler approach)
         merged_profile_settings = ctx.config.get_profile_merged_settings(
-            ctx.profile_name
+            ctx.profile_name, ctx.cli_overrides
         )
         profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
 
@@ -1302,7 +1304,9 @@ async def step_assemble_video(ctx: PipelineContext):
         )
 
         assembler = VideoAssembler(ctx.config, debug_mode=ctx.debug_mode)
-        assembler.set_profile_settings(ctx.profile_name)  # Apply profile settings
+        assembler.set_profile_settings(
+            ctx.profile_name, ctx.cli_overrides
+        )  # Apply profile settings with CLI overrides
 
         # Set product_id for randomization (derive from product data)
         from src.utils import sanitize_filename
@@ -1353,6 +1357,7 @@ async def create_video_for_product(
     debug_mode: bool,
     clean_run: bool,
     debug_step_target: str | None,
+    cli_overrides: dict[str, Any] | None = None,
 ):
     product_id = product.asin or sanitize_filename(product.title[:30])
     logger.info(f"--- Starting video for '{product_id}' profile '{profile_name}' ---")
@@ -1404,6 +1409,7 @@ async def create_video_for_product(
             session,
             run_paths,
             debug_mode,
+            cli_overrides,
         )
 
         # Initialize background processing with configuration
@@ -1643,6 +1649,104 @@ def discover_products_for_batch(outputs_dir: Path) -> list[tuple[Path, ProductDa
     return products
 
 
+def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
+    """Build CLI overrides dictionary from parsed arguments.
+
+    Args:
+    ----
+        args: Parsed command-line arguments
+
+    Returns:
+    -------
+        Dictionary mapping config paths to override values
+
+    """
+    overrides: dict[str, Any] = {}
+
+    # Subtitle format and effects (legacy args)
+    if args.subtitle_format:
+        overrides["subtitle_settings.subtitle_format"] = args.subtitle_format
+    if args.ass_karaoke:
+        overrides["subtitle_settings.ass_enable_karaoke"] = True
+    if args.ass_fade:
+        overrides["subtitle_settings.ass_enable_fade"] = True
+    if args.preset:
+        overrides["subtitle_settings.style_preset"] = args.preset
+
+    # Positioning
+    if args.subtitle_anchor:
+        overrides["subtitle_settings.anchor"] = args.subtitle_anchor
+    if args.subtitle_margin is not None:
+        overrides["subtitle_settings.margin"] = args.subtitle_margin
+    if (
+        hasattr(args, "subtitle_content_aware")
+        and args.subtitle_content_aware is not None
+    ):
+        overrides["subtitle_settings.content_aware"] = args.subtitle_content_aware
+
+    # Styling
+    if args.font_size_scale is not None:
+        overrides["subtitle_settings.font_size_scale"] = args.font_size_scale
+    if args.max_subtitle_width_fraction is not None:
+        overrides["subtitle_settings.max_subtitle_width_fraction"] = (
+            args.max_subtitle_width_fraction
+        )
+    if args.subtitle_alignment:
+        overrides["subtitle_settings.horizontal_alignment"] = args.subtitle_alignment
+
+    # Text formatting
+    if args.max_line_length is not None:
+        overrides["subtitle_settings.max_line_length"] = args.max_line_length
+    if args.max_words_per_line is not None:
+        overrides["subtitle_settings.max_words_per_line"] = args.max_words_per_line
+    if args.max_duration is not None:
+        overrides["subtitle_settings.max_duration"] = args.max_duration
+    if args.min_duration is not None:
+        overrides["subtitle_settings.min_duration"] = args.min_duration
+
+    # Randomization
+    if (
+        hasattr(args, "subtitle_randomize_fonts")
+        and args.subtitle_randomize_fonts is not None
+    ):
+        overrides["subtitle_settings.randomize_fonts"] = args.subtitle_randomize_fonts
+    if (
+        hasattr(args, "subtitle_randomize_colors")
+        and args.subtitle_randomize_colors is not None
+    ):
+        overrides["subtitle_settings.randomize_colors"] = args.subtitle_randomize_colors
+    if (
+        hasattr(args, "subtitle_randomize_effects")
+        and args.subtitle_randomize_effects is not None
+    ):
+        overrides["subtitle_settings.randomize_effects"] = (
+            args.subtitle_randomize_effects
+        )
+
+    # Advanced styling
+    if args.subtitle_font:
+        overrides["subtitle_settings.font_name"] = args.subtitle_font
+    if args.subtitle_font_color:
+        overrides["subtitle_settings.font_color"] = args.subtitle_font_color
+    if args.subtitle_outline_color:
+        overrides["subtitle_settings.outline_color"] = args.subtitle_outline_color
+    if args.subtitle_background_color:
+        overrides["subtitle_settings.background_color"] = args.subtitle_background_color
+
+    # Image positioning
+    if hasattr(args, "image_width_percent") and args.image_width_percent is not None:
+        overrides["video_settings.image_width_percent"] = args.image_width_percent
+    if (
+        hasattr(args, "image_top_position_percent")
+        and args.image_top_position_percent is not None
+    ):
+        overrides["video_settings.image_top_position_percent"] = (
+            args.image_top_position_percent
+        )
+
+    return overrides
+
+
 async def main():
     parser = argparse.ArgumentParser(
         description="Generate promotional videos for e-commerce products."
@@ -1718,6 +1822,146 @@ async def main():
         choices=["minimal", "modern", "bold", "animated", "random"],
         help="Override subtitle style preset: minimal, modern, bold, animated, random.",
     )
+
+    # Subtitle positioning arguments
+    parser.add_argument(
+        "--subtitle-anchor",
+        choices=["top", "center", "bottom", "above_content", "below_content"],
+        help="Subtitle anchor position.",
+    )
+    parser.add_argument(
+        "--subtitle-margin",
+        type=float,
+        help="Subtitle margin as fraction of frame height (0.0-0.5).",
+    )
+    parser.add_argument(
+        "--content-aware",
+        action="store_true",
+        dest="subtitle_content_aware",
+        default=None,
+        help="Enable content-aware subtitle positioning.",
+    )
+    parser.add_argument(
+        "--no-content-aware",
+        action="store_false",
+        dest="subtitle_content_aware",
+        default=None,
+        help="Disable content-aware subtitle positioning.",
+    )
+
+    # Subtitle styling arguments
+    parser.add_argument(
+        "--font-size-scale",
+        type=float,
+        help="Font size scale factor (0.5-2.0).",
+    )
+    parser.add_argument(
+        "--max-subtitle-width-fraction",
+        type=float,
+        help="Max subtitle width as fraction of frame width (0.0-1.0).",
+    )
+    parser.add_argument(
+        "--subtitle-alignment",
+        choices=["left", "center", "right"],
+        help="Horizontal text alignment.",
+    )
+
+    # Subtitle text formatting arguments
+    parser.add_argument(
+        "--max-line-length",
+        type=int,
+        help="Maximum characters per subtitle line.",
+    )
+    parser.add_argument(
+        "--max-words-per-line",
+        type=int,
+        help="Maximum words per subtitle line (0 to disable).",
+    )
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        help="Maximum subtitle duration in seconds.",
+    )
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        help="Minimum subtitle duration in seconds.",
+    )
+
+    # Randomization arguments
+    parser.add_argument(
+        "--randomize-fonts",
+        action="store_true",
+        dest="subtitle_randomize_fonts",
+        default=None,
+        help="Enable font randomization.",
+    )
+    parser.add_argument(
+        "--no-randomize-fonts",
+        action="store_false",
+        dest="subtitle_randomize_fonts",
+        default=None,
+        help="Disable font randomization.",
+    )
+    parser.add_argument(
+        "--randomize-colors",
+        action="store_true",
+        dest="subtitle_randomize_colors",
+        default=None,
+        help="Enable color randomization.",
+    )
+    parser.add_argument(
+        "--no-randomize-colors",
+        action="store_false",
+        dest="subtitle_randomize_colors",
+        default=None,
+        help="Disable color randomization.",
+    )
+    parser.add_argument(
+        "--randomize-effects",
+        action="store_true",
+        dest="subtitle_randomize_effects",
+        default=None,
+        help="Enable effect randomization.",
+    )
+    parser.add_argument(
+        "--no-randomize-effects",
+        action="store_false",
+        dest="subtitle_randomize_effects",
+        default=None,
+        help="Disable effect randomization.",
+    )
+
+    # Advanced subtitle styling (colors and fonts)
+    parser.add_argument(
+        "--subtitle-font",
+        help="Override subtitle font family.",
+    )
+    parser.add_argument(
+        "--subtitle-font-color",
+        help="Override subtitle text color (ASS format: &H00RRGGBB).",
+    )
+    parser.add_argument(
+        "--subtitle-outline-color",
+        help="Override subtitle outline color (ASS format: &H00RRGGBB).",
+    )
+    parser.add_argument(
+        "--subtitle-background-color",
+        help="Override subtitle background color (ASS format: &H00RRGGBB).",
+    )
+
+    # Image positioning arguments
+    parser.add_argument(
+        "--image-width-percent",
+        type=float,
+        help="Override image width as percentage of frame (0.0-1.0).",
+    )
+    parser.add_argument(
+        "--image-top-position-percent",
+        type=float,
+        help="Override image top position as percentage from top (0.0-1.0).",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1741,10 +1985,13 @@ async def main():
     project_root = Path(__file__).resolve().parent.parent.parent
     load_dotenv(project_root / ".env")
 
+    # Build CLI overrides dict from parsed arguments
+    cli_overrides = _build_cli_overrides(args)
+
     # Load config first to get log directory path
     try:
         # Use modular config loading (automatically handles modular vs monolithic)
-        config = load_video_config_modular()
+        config = load_video_config_modular(cli_overrides=cli_overrides)
     except Exception as e:
         # Fallback logging setup if config fails
         logging.basicConfig(
@@ -1766,22 +2013,11 @@ async def main():
         logger.critical(f"Complete log saved to: {log_file}")
         raise
 
-    # Apply CLI arguments to config
-    if args.subtitle_format:
-        config.subtitle_settings.subtitle_format = args.subtitle_format
-        logger.info(f"CLI override: subtitle_format = {args.subtitle_format}")
-
-    if args.ass_karaoke:
-        config.subtitle_settings.ass_enable_karaoke = True
-        logger.info("CLI override: ass_enable_karaoke = True")
-
-    if args.ass_fade:
-        config.subtitle_settings.ass_enable_fade = True
-        logger.info("CLI override: ass_enable_fade = True")
-
-    if args.preset:
-        config.subtitle_settings.style_preset = args.preset
-        logger.info(f"CLI override: style_preset = {args.preset}")
+    # Log applied CLI overrides (already applied via config loader)
+    if cli_overrides:
+        logger.info(f"Applied {len(cli_overrides)} CLI override(s):")
+        for key, value in cli_overrides.items():
+            logger.info(f"  {key} = {value}")
 
     try:
         secrets = {
@@ -1906,6 +2142,7 @@ async def main():
                     args.debug,
                     args.clean,
                     args.step,
+                    cli_overrides,
                 ),
                 timeout=config.pipeline_timeout_sec,
             )

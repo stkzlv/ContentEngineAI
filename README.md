@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.6.1 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.6.2 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.6.1)**: Configuration cleanup and improved test coverage requirements (40% minimum).
+> **🚀 Latest Update**: Added `slideshow_images2` profile with comprehensive subtitle configuration and CLI override support for image positioning.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 

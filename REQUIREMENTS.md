@@ -131,6 +131,7 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 ### Configuration & CLI
 - Three-tier precedence: CLI args > env vars > YAML config
 - CLI arguments override all other configuration sources
+- Environment variables for all major configuration settings
 - Global debug mode across all components
 - Validate configuration at startup with clear error messages
 
