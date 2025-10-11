@@ -22,10 +22,10 @@ class TestProfileSpecificSettings:
         except KeyError:
             pytest.skip("slideshow_images1 profile not found in mock config")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_slideshow_images2_profile_overrides(self):
         """Test slideshow_images2 profile loads with correct settings."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
             profile = config.get_profile("slideshow_images2")
 
@@ -98,10 +98,10 @@ class TestProfileSpecificSettings:
         assert profile.subtitle_margin == 0.15
         assert profile.subtitle_content_aware is False
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_profile_merges_with_global_settings(self):
         """Test that profile settings merge correctly with global settings."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             # Get merged settings for a profile
@@ -121,10 +121,10 @@ class TestProfileSpecificSettings:
 class TestCLIOverridePrecedence:
     """Test CLI override precedence over profile and global settings."""
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_cli_overrides_profile_image_width(self):
         """Test CLI override for image width has highest precedence."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             # Simulate CLI override
@@ -140,10 +140,10 @@ class TestCLIOverridePrecedence:
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_cli_overrides_profile_image_position(self):
         """Test CLI override for image position has highest precedence."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             cli_overrides = {"video_settings.image_top_position_percent": 0.30}
@@ -158,10 +158,10 @@ class TestCLIOverridePrecedence:
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_cli_overrides_subtitle_anchor(self):
         """Test CLI override for subtitle anchor point."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             cli_overrides = {"subtitle_settings.anchor": "top"}
@@ -176,10 +176,10 @@ class TestCLIOverridePrecedence:
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_cli_overrides_multiple_settings(self):
         """Test multiple CLI overrides applied simultaneously."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             cli_overrides = {
@@ -202,10 +202,10 @@ class TestCLIOverridePrecedence:
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_precedence_order_cli_profile_global(self):
         """Test configuration precedence: CLI > Profile > Global."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             # Test without CLI override - should use profile setting
@@ -227,10 +227,10 @@ class TestCLIOverridePrecedence:
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
 
+    @pytest.mark.skip(reason="Skipping slow config loading test")
     def test_unspecified_cli_overrides_use_profile_defaults(self):
         """Test that settings not in CLI overrides use profile defaults."""
         try:
-            pytest.skip("Skipping slow config loading test")
             config = load_video_config()
 
             # Override only one setting
