@@ -1,0 +1,59 @@
+# URL Shortener Configuration
+# Configure URL shortening providers for affiliate link shortening
+
+url_shortener:
+  # Enable/disable URL shortening feature
+  enabled: true
+
+  # Primary provider to use (picsee, bitly, tinyurl)
+  provider: picsee
+
+  # Fallback providers (tried in order if primary fails)
+  fallback_providers:
+    - bitly
+    - tinyurl
+
+  # API configuration
+  api:
+    # Request timeout in seconds
+    timeout_sec: 30
+
+    # Retry configuration
+    max_retries: 3
+    retry_delay_sec: 2
+    retry_backoff_multiplier: 2
+
+  # Picsee-specific configuration
+  picsee:
+    # API key loaded from environment variable
+    api_key_env_var: PICSEE_API_KEY
+
+    # Custom branded short domain (BSD) - optional
+    custom_domain: stte.psee.io
+
+    # Maximum URLs per bulk request
+    max_bulk_size: 100
+
+  # Bitly-specific configuration (placeholder for future implementation)
+  bitly:
+    api_key_env_var: BITLY_API_KEY
+    # custom_domain: bit.ly
+
+  # TinyURL-specific configuration (placeholder for future implementation)
+  tinyurl:
+    api_key_env_var: TINYURL_API_KEY
+
+  # Integration settings
+  integration:
+    # Shorten affiliate links during scraping
+    shorten_on_scrape: true
+
+    # Include shortened links in video descriptions
+    include_in_descriptions: true
+
+    # Fallback to original URL if shortening fails
+    fallback_to_original: true
+
+    # Cache shortened URLs to avoid re-shortening
+    enable_caching: true
+    cache_ttl_hours: 168  # 7 days

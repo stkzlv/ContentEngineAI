@@ -123,7 +123,12 @@ src/
     ├── memory_mapped_io.py   # Memory-mapped file operations
     ├── caching.py            # Multi-level caching system
     ├── background_processing.py # Background task management
-    └── script_sanitizer.py   # Text processing utilities
+    ├── script_sanitizer.py   # Text processing utilities
+    └── url_shortener/        # URL shortening abstraction layer
+        ├── base.py           # Base interfaces and models
+        ├── picsee.py         # PicSee API implementation
+        ├── registry.py       # Provider registry and factory
+        └── __init__.py       # Public API exports
 ```
 
 </details>
@@ -228,9 +233,47 @@ dependencies = {
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
 - **Dual ASS Generation**: Regular positioned subtitles + content-aware positioned subtitles for comparison
 
-### 6. Amazon Scraping Features
+### 6. URL Shortening System (`src/utils/url_shortener/`)
 
-### Search Parameters
+**Purpose**: Provider-agnostic URL shortening for affiliate links with fallback support.
+
+**Architecture Pattern:**
+- **Base Interface**: Abstract base class for all providers
+- **Provider Registry**: Factory pattern for provider instantiation
+- **Async-First Design**: Non-blocking HTTP requests
+- **Fallback Chain**: Automatic provider switching on failures
+
+**Features:**
+- **Multi-Provider Support**: PicSee (implemented), Bitly/TinyURL (planned)
+- **Retry Logic**: Exponential backoff with configurable attempts
+- **Response Caching**: TTL-based caching to avoid redundant API calls
+- **Custom Domains**: Branded short domains (BSD) support
+- **Bulk Operations**: Batch shortening for efficiency (PicSee)
+- **Integration Points**: Scraper (automatic), video descriptions (optional)
+
+**Implementation Details:**
+```python
+# Provider interface
+class BaseURLShortener(ABC):
+    @abstractmethod
+    async def shorten(self, url: str, custom_alias: str | None = None) -> ShortenedURL
+
+    @abstractmethod
+    async def shorten_bulk(self, urls: list[str]) -> list[ShortenedURL]
+```
+
+**Data Flow:**
+```
+Affiliate Link → URL Shortener → [Primary Provider]
+                                     ↓ (on failure)
+                                 [Fallback Provider]
+                                     ↓ (on failure)
+                                 [Original URL]
+```
+
+### 7. Amazon Scraping Features
+
+#### Search Parameters
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
@@ -242,7 +285,7 @@ dependencies = {
 | `--brands` | Filter by brand names | `--brands Apple Samsung Sony` |
 | `--sort` | Sort order | `--sort price-asc-rank` |
 
-### Sort Options
+#### Sort Options
 
 - `relevanceblender` (default) - Amazon's relevance algorithm
 - `price-asc-rank` - Price low to high
@@ -251,7 +294,7 @@ dependencies = {
 - `date-desc-rank` - Newest first
 - `featured-rank` - Featured items first
 
-### 7. Multi-Platform Web Scraping Architecture
+### 8. Multi-Platform Web Scraping Architecture
 
 #### **Platform Registry System (`src/scraper/__init__.py`)**
 

@@ -12,7 +12,7 @@ ContentEngineAI implements a **triple-precedence configuration system**:
 
 ### Modular Architecture
 
-The configuration system uses **6 specialized files** instead of a monolithic configuration:
+The configuration system uses **7 specialized files** instead of a monolithic configuration:
 
 - **`config/core.yaml`** - Global settings and output paths
 - **`config/video_production.yaml`** - Video pipeline and effects
@@ -20,6 +20,7 @@ The configuration system uses **6 specialized files** instead of a monolithic co
 - **`config/subtitles.yaml`** - Subtitle positioning and styling
 - **`config/performance.yaml`** - Resource limits and optimization
 - **`config/scraper.yaml`** - Web scraping and browser settings
+- **`config/url_shortener.yaml`** - URL shortening providers and integration
 
 ### How Configuration Loading Works
 
@@ -188,6 +189,41 @@ amazon_settings:
   max_results: 10
   skip_unavailable: true
   prime_only: false
+```
+
+### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
+URL shortening providers for affiliate links:
+
+```yaml
+url_shortener:
+  enabled: true                    # Enable/disable URL shortening
+  provider: picsee                 # Primary provider: picsee, bitly, tinyurl
+
+  # Fallback providers (tried in order if primary fails)
+  fallback_providers:
+    - bitly
+    - tinyurl
+
+  # API configuration
+  api:
+    timeout_sec: 30
+    max_retries: 3
+    retry_delay_sec: 2
+    retry_backoff_multiplier: 2
+
+  # PicSee-specific settings
+  picsee:
+    api_key_env_var: PICSEE_API_KEY
+    custom_domain: stte.psee.io    # Optional branded short domain
+    max_bulk_size: 100
+
+  # Integration settings
+  integration:
+    shorten_on_scrape: true        # Auto-shorten during scraping
+    include_in_descriptions: true  # Include in video descriptions
+    fallback_to_original: true     # Use original URL if shortening fails
+    enable_caching: true           # Cache shortened URLs
+    cache_ttl_hours: 168           # 7-day cache TTL
 ```
 
 ## Core Configuration Sections
@@ -744,6 +780,11 @@ GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 FREESOUND_CLIENT_ID="your_client_id"
 FREESOUND_CLIENT_SECRET="your_client_secret"
 FREESOUND_REFRESH_TOKEN="your_refresh_token"
+
+# Optional URL Shortening
+PICSEE_API_KEY="your_picsee_api_key"        # For PicSee URL shortener
+# BITLY_API_KEY="your_bitly_key"            # Future: Bitly support
+# TINYURL_API_KEY="your_tinyurl_key"        # Future: TinyURL support
 ```
 
 ## Performance Tuning

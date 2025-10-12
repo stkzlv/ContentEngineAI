@@ -378,7 +378,7 @@ def get_optimal_browser_position(
             )
             return tuple(fallback)
         except Exception:
-            return (0, 0, 1920, 1080)  # Fallback position - maximized on default screen
+            return (0, 0, 1920, 1080)
 
     # Always use primary monitor
     primary_monitor = None
@@ -392,11 +392,66 @@ def get_optimal_browser_position(
         primary_monitor = monitors[0]
 
     # Calculate window position on primary monitor
-    # For multi-monitor setups, use the monitor's top-left corner
-    # to ensure the window appears on the correct display
     window_x = primary_monitor["x"]
     window_y = primary_monitor["y"]
     window_width = primary_monitor["width"]
     window_height = primary_monitor["height"]
 
     return (window_x, window_y, window_width, window_height)
+
+
+def build_affiliate_url(url: str, associate_tag: str = None) -> str:
+    """Build Amazon affiliate URL with associate tag parameter
+
+    Args:
+    ----
+        url: Base Amazon URL (e.g., "https://www.amazon.com/dp/B0BTYCRJSS")
+        associate_tag: Amazon Associates tag (loads from config if None)
+
+    Returns:
+    -------
+        URL with tag parameter added (e.g., "...?tag=stealtech06-20")
+
+    Examples:
+    --------
+        >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS")
+        "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20"
+
+        >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS?th=1")
+        "https://www.amazon.com/dp/B0BTYCRJSS?th=1&tag=stealtech06-20"
+
+    """
+    if not url:
+        return url
+
+    # Load associate tag from config if not provided
+    if associate_tag is None:
+        try:
+            from .config import CONFIG
+
+            associate_tag = (
+                CONFIG.get("scrapers", {}).get("amazon", {}).get("associate_tag")
+            )
+        except Exception:
+            associate_tag = None
+
+    # If no associate tag configured, return original URL
+    if not associate_tag:
+        return url
+
+    # Parse URL to add/update tag parameter
+    if "?" in url:
+        # URL already has query parameters
+        if "tag=" in url:
+            # Replace existing tag parameter
+            import re
+
+            url = re.sub(r"tag=[^&]*", f"tag={associate_tag}", url)
+        else:
+            # Add tag parameter
+            url = f"{url}&tag={associate_tag}"
+    else:
+        # URL has no query parameters
+        url = f"{url}?tag={associate_tag}"
+
+    return url

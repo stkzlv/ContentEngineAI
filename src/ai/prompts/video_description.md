@@ -17,9 +17,12 @@ You are a social media marketing expert. Your task is to create an engaging vide
 
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
+Product URL: {PRODUCT_URL}
 
 ---
 
-**IMPORTANT:** Your description must include relevant hashtags and end with #ad for proper advertising disclosure.
+**IMPORTANT:**
+- Your description must include relevant hashtags and end with #ad for proper advertising disclosure.
+- Include the product URL in the description for easy access.
 
 Generate the video description below this line:
