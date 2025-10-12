@@ -746,28 +746,42 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             # Get API key from environment (load .env if available)
             import os
+
             from dotenv import load_dotenv
 
             load_dotenv()
-            api_key = os.getenv("PICSEE_API_KEY")
+
+            # Get provider and config
+            provider = url_config.get("provider", "picsee")
+            provider_config = url_config.get(provider, {})
+            api_config = url_config.get("api", {})
+
+            # Get API key using configured env var name
+            api_key_env_var = provider_config.get("api_key_env_var", "PICSEE_API_KEY")
+            api_key = os.getenv(api_key_env_var)
             if not api_key:
                 if DEBUG_MODE:
                     self.logger.warning(
-                        "PICSEE_API_KEY not found, skipping URL shortening"
+                        f"{api_key_env_var} not found, skipping URL shortening"
                     )
                 return
 
             # Import URL shortener utilities
             from ...utils.url_shortener import create_url_shortener
 
-            # Create shortener instance
-            provider = url_config.get("provider", "picsee")
-            api_config = url_config.get("api", {})
+            # Load all config values
             timeout = api_config.get("timeout_sec", 30)
-
-            # Get provider-specific config (e.g., custom_domain for Picsee)
-            provider_config = url_config.get(provider, {})
             custom_domain = provider_config.get("custom_domain")
+            api_base_url = provider_config.get("api_base_url", "https://api.pics.ee")
+            max_bulk_size = provider_config.get("max_bulk_size", 100)
+            bulk_timeout_multiplier = provider_config.get(
+                "bulk_timeout_multiplier", 2.0
+            )
+
+            # Load retry configuration
+            max_retries = api_config.get("max_retries", 3)
+            retry_delay = api_config.get("retry_delay_sec", 2.0)
+            retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
 
             if DEBUG_MODE:
                 self.logger.info(
@@ -775,12 +789,22 @@ class BotasaurusAmazonScraper(BaseScraper):
                 )
                 if custom_domain:
                     self.logger.info(f"   Using custom domain: {custom_domain}")
+                self.logger.info(
+                    f"   Retry config: {max_retries} attempts, "
+                    f"{retry_delay}s delay, {retry_backoff}x backoff"
+                )
 
             shortener = create_url_shortener(
                 provider=provider,
                 api_key=api_key,
                 timeout=timeout,
                 custom_domain=custom_domain,
+                api_base_url=api_base_url,
+                max_bulk_size=max_bulk_size,
+                bulk_timeout_multiplier=bulk_timeout_multiplier,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                retry_backoff_multiplier=retry_backoff,
             )
 
             # Shorten affiliate links
@@ -809,9 +833,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             asyncio.run(shorten_all())
 
             if DEBUG_MODE:
-                shortened_count = sum(
-                    1 for p in products if p.shortened_affiliate_link
-                )
+                shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
                 self.logger.info(
                     f"✅ Shortened {shortened_count}/{len(products)} affiliate links"
                 )

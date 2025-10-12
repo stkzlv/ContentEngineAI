@@ -117,7 +117,15 @@ def create_tools() -> dict[str, LintingTool]:
         ),
         "vulture": LintingTool(
             "Vulture",
-            ["poetry", "run", "vulture", "src/", "--min-confidence", "80"],
+            [
+                "poetry",
+                "run",
+                "vulture",
+                "src/",
+                "tools/vulture_whitelist.py",
+                "--min-confidence",
+                "80",
+            ],
             "Dead code detector",
             expected_exit_codes=[0, 1],  # Vulture returns 1 when dead code found
         ),

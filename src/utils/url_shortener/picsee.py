@@ -6,7 +6,9 @@ supporting single and bulk URL shortening operations.
 API Documentation: https://picsee.notion.site/Short-Link-API-Document-PicSee-URL-Shortener-482cd19c0fc94acfbe40ae8fe5d55236
 """
 
+import asyncio
 import logging
+import random
 from typing import Any
 
 import aiohttp
@@ -28,16 +30,18 @@ class PicseeURLShortener(BaseURLShortener):
     supporting both single and bulk operations with custom aliases.
     """
 
-    API_BASE_URL = "https://api.pics.ee"
-    DEFAULT_TIMEOUT = 30
-    MAX_BULK_SIZE = 100
-
     def __init__(
         self,
         api_key: str,
         session: aiohttp.ClientSession | None = None,
-        timeout: int = DEFAULT_TIMEOUT,
+        timeout: int = 30,
         custom_domain: str | None = None,
+        api_base_url: str = "https://api.pics.ee",
+        max_bulk_size: int = 100,
+        bulk_timeout_multiplier: float = 2.0,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+        retry_backoff_multiplier: float = 2.0,
     ):
         """Initialize Picsee URL shortener.
 
@@ -47,6 +51,12 @@ class PicseeURLShortener(BaseURLShortener):
             session: Optional aiohttp session (will create new if None)
             timeout: Request timeout in seconds
             custom_domain: Optional custom branded short domain (BSD)
+            api_base_url: Base URL for Picsee API
+            max_bulk_size: Maximum URLs per bulk request
+            bulk_timeout_multiplier: Multiplier for bulk request timeout
+            max_retries: Maximum number of retry attempts
+            retry_delay: Initial delay between retries (seconds)
+            retry_backoff_multiplier: Exponential backoff multiplier
 
         """
         self.api_key = api_key
@@ -54,6 +64,12 @@ class PicseeURLShortener(BaseURLShortener):
         self._owns_session = session is None
         self.timeout = timeout
         self.custom_domain = custom_domain
+        self.api_base_url = api_base_url
+        self.max_bulk_size = max_bulk_size
+        self.bulk_timeout_multiplier = bulk_timeout_multiplier
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self.retry_backoff_multiplier = retry_backoff_multiplier
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session."""
@@ -70,15 +86,59 @@ class PicseeURLShortener(BaseURLShortener):
             "Content-Type": "application/json",
         }
 
+    async def _retry_with_backoff(self, operation, operation_name: str) -> Any:
+        """Retry an async operation with exponential backoff.
+
+        Args:
+        ----
+            operation: Async callable to retry
+            operation_name: Name of operation for logging
+
+        Returns:
+        -------
+            Result from successful operation
+
+        Raises:
+        ------
+            URLShortenerError: If all retries exhausted
+
+        """
+        last_error = None
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await operation()
+            except (TimeoutError, aiohttp.ClientError) as e:
+                last_error = e
+
+                if attempt < self.max_retries:
+                    delay = self.retry_delay * (self.retry_backoff_multiplier**attempt)
+                    jitter = random.uniform(0.5, 1.5)  # noqa: S311
+                    actual_delay = delay * jitter
+
+                    logger.warning(
+                        f"{operation_name} failed (attempt {attempt + 1}/"
+                        f"{self.max_retries + 1}): {e}. "
+                        f"Retrying in {actual_delay:.2f}s..."
+                    )
+                    await asyncio.sleep(actual_delay)
+                else:
+                    logger.error(
+                        f"{operation_name} failed after {self.max_retries + 1} attempts"
+                    )
+
+        raise URLShortenerError(
+            f"{operation_name} failed after {self.max_retries + 1} attempts: "
+            f"{last_error}"
+        )
+
     @property
     def provider(self) -> URLShortenerProvider:
         """Return the provider type."""
         return URLShortenerProvider.PICSEE
 
-    async def shorten(
-        self, url: str, custom_alias: str | None = None
-    ) -> ShortenedURL:
-        """Shorten a single URL using Picsee.io API.
+    async def shorten(self, url: str, custom_alias: str | None = None) -> ShortenedURL:
+        """Shorten a single URL using Picsee.io API with retry logic.
 
         Args:
         ----
@@ -91,25 +151,22 @@ class PicseeURLShortener(BaseURLShortener):
 
         Raises:
         ------
-            URLShortenerError: If API request fails
+            URLShortenerError: If API request fails after retries
 
         """
-        session = await self._get_session()
 
-        # Build endpoint with access_token as query parameter
-        endpoint = f"{self.API_BASE_URL}/v1/links?access_token={self.api_key}"
+        async def _shorten_operation():
+            session = await self._get_session()
+            endpoint = f"{self.api_base_url}/v1/links?access_token={self.api_key}"
 
-        payload: dict[str, Any] = {
-            "url": url,
-        }
+            payload: dict[str, Any] = {"url": url}
 
-        if custom_alias:
-            payload["encodeId"] = custom_alias
+            if custom_alias:
+                payload["encodeId"] = custom_alias
 
-        if self.custom_domain:
-            payload["domain"] = self.custom_domain
+            if self.custom_domain:
+                payload["domain"] = self.custom_domain
 
-        try:
             async with session.post(
                 endpoint,
                 headers={"Content-Type": "application/json"},
@@ -119,14 +176,11 @@ class PicseeURLShortener(BaseURLShortener):
                 response.raise_for_status()
                 data = await response.json()
 
-                # Picsee v1 API returns picseeUrl in data object
                 short_url = data.get("data", {}).get("picseeUrl")
                 if not short_url:
                     raise URLShortenerError("No short URL in response")
 
-                metadata = {
-                    "response": data.get("data", {}),
-                }
+                metadata = {"response": data.get("data", {})}
 
                 logger.info(f"Shortened URL: {url} -> {short_url}")
                 return ShortenedURL(
@@ -136,19 +190,23 @@ class PicseeURLShortener(BaseURLShortener):
                     metadata=metadata,
                 )
 
-        except aiohttp.ClientError as e:
-            logger.error(f"Picsee API request failed: {e}")
-            raise URLShortenerError(f"Failed to shorten URL: {e}") from e
+        try:
+            result: ShortenedURL = await self._retry_with_backoff(
+                _shorten_operation, f"Shorten URL ({url[:50]}...)"
+            )
+            return result
+        except URLShortenerError:
+            raise
         except Exception as e:
             logger.error(f"Unexpected error shortening URL: {e}")
             raise URLShortenerError(f"Unexpected error: {e}") from e
 
     async def shorten_bulk(self, urls: list[str]) -> list[ShortenedURL]:
-        """Shorten multiple URLs in bulk.
+        """Shorten multiple URLs in bulk with retry logic.
 
         Args:
         ----
-            urls: List of long URLs to shorten (max 100 per batch)
+            urls: List of long URLs to shorten (max per batch from config)
 
         Returns:
         -------
@@ -156,30 +214,28 @@ class PicseeURLShortener(BaseURLShortener):
 
         Raises:
         ------
-            URLShortenerError: If bulk operation fails
+            URLShortenerError: If bulk operation fails after retries
 
         """
-        if len(urls) > self.MAX_BULK_SIZE:
+        if len(urls) > self.max_bulk_size:
             raise URLShortenerError(
-                f"Bulk size {len(urls)} exceeds maximum {self.MAX_BULK_SIZE}"
+                f"Bulk size {len(urls)} exceeds maximum {self.max_bulk_size}"
             )
 
-        session = await self._get_session()
-        endpoint = f"{self.API_BASE_URL}/shortlink/bulk"
+        async def _bulk_operation():
+            session = await self._get_session()
+            endpoint = f"{self.api_base_url}/shortlink/bulk"
 
-        payload: dict[str, Any] = {
-            "urls": [{"url": url} for url in urls],
-        }
+            payload: dict[str, Any] = {"urls": [{"url": url} for url in urls]}
 
-        if self.custom_domain:
-            payload["domain"] = self.custom_domain
+            if self.custom_domain:
+                payload["domain"] = self.custom_domain
 
-        try:
             async with session.post(
                 endpoint,
                 headers=self._get_headers(),
                 json=payload,
-                timeout=self.timeout * 2,  # Longer timeout for bulk
+                timeout=int(self.timeout * self.bulk_timeout_multiplier),
             ) as response:
                 response.raise_for_status()
                 data = await response.json()
@@ -212,9 +268,13 @@ class PicseeURLShortener(BaseURLShortener):
                 logger.info(f"Bulk shortened {len(shortened_urls)} URLs")
                 return shortened_urls
 
-        except aiohttp.ClientError as e:
-            logger.error(f"Picsee bulk API request failed: {e}")
-            raise URLShortenerError(f"Failed to bulk shorten URLs: {e}") from e
+        try:
+            result: list[ShortenedURL] = await self._retry_with_backoff(
+                _bulk_operation, f"Bulk shorten {len(urls)} URLs"
+            )
+            return result
+        except URLShortenerError:
+            raise
         except Exception as e:
             logger.error(f"Unexpected error in bulk shortening: {e}")
             raise URLShortenerError(f"Unexpected error: {e}") from e
@@ -245,6 +305,11 @@ class PicseeURLShortener(BaseURLShortener):
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Any,  # noqa: ARG002
+        exc_val: Any,  # noqa: ARG002
+        exc_tb: Any,  # noqa: ARG002
+    ) -> None:
         """Async context manager exit."""
         await self.cleanup()

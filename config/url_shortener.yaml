@@ -1,59 +1,140 @@
+# ============================================================================
 # URL Shortener Configuration
-# Configure URL shortening providers for affiliate link shortening
+# ============================================================================
+# Provider-agnostic URL shortening for affiliate links with fallback support.
+#
+# FEATURES:
+#   • Multi-provider support (PicSee, Bitly, TinyURL)
+#   • Automatic fallback chain on failures
+#   • Integration with scraper and video description generation
+#   • Bulk operations for efficiency
+#   • Custom branded domains (BSD)
+#
+# INTEGRATION POINTS:
+#   • Scraper: Automatically shortens during product scraping
+#   • Video: Description generator uses shortened links if available
+# ============================================================================
 
 url_shortener:
-  # Enable/disable URL shortening feature
+  # ========================================================================
+  # GLOBAL SETTINGS
+  # ========================================================================
+
+  # Enable/disable URL shortening feature globally
+  # When disabled: Original affiliate links are used everywhere
+  # When enabled: Links are shortened based on integration settings
   enabled: true
 
-  # Primary provider to use (picsee, bitly, tinyurl)
+  # Primary provider to use for shortening
+  # Options: picsee, bitly, tinyurl
+  # The system will attempt this provider first before trying fallbacks
   provider: picsee
 
-  # Fallback providers (tried in order if primary fails)
+  # Fallback providers (future feature - not yet implemented)
+  # These will be tried in order if the primary provider fails
+  # Keeping this for future multi-provider retry support
   fallback_providers:
     - bitly
     - tinyurl
 
-  # API configuration
+  # ========================================================================
+  # API CONFIGURATION
+  # ========================================================================
+  # Generic API settings that apply to all providers unless overridden
+
   api:
-    # Request timeout in seconds
+    # Request timeout in seconds for API calls
+    # Affects: Single URL shortening requests
+    # Impact: Longer timeouts = more patient waiting, but slower failures
     timeout_sec: 30
 
-    # Retry configuration
-    max_retries: 3
-    retry_delay_sec: 2
-    retry_backoff_multiplier: 2
+    # Retry configuration (future feature - not yet implemented)
+    # These settings will control exponential backoff retry logic
+    max_retries: 3                    # Number of retry attempts
+    retry_delay_sec: 2                # Initial delay between retries
+    retry_backoff_multiplier: 2       # Exponential backoff multiplier (2^n)
 
-  # Picsee-specific configuration
+  # ========================================================================
+  # PICSEE-SPECIFIC CONFIGURATION
+  # ========================================================================
+  # Settings for PicSee.io URL shortener
+  # Register at: https://picsee.io/
+  # API Docs: https://picsee.notion.site/Short-Link-API-Document
+
   picsee:
-    # API key loaded from environment variable
+    # Environment variable name containing the API key
+    # Set in .env: PICSEE_API_KEY=your_api_key_here
     api_key_env_var: PICSEE_API_KEY
 
+    # API endpoint base URL for PicSee service
+    # Default: https://api.pics.ee
+    # Override only if using a different API endpoint (e.g., self-hosted)
+    api_base_url: https://api.pics.ee
+
     # Custom branded short domain (BSD) - optional
+    # Example: stte.psee.io instead of default psee.io
+    # Requires: BSD must be configured in your PicSee account
+    # Impact: Branded links look more professional and trustworthy
     custom_domain: stte.psee.io
 
-    # Maximum URLs per bulk request
+    # Maximum URLs per bulk shortening request
+    # Default: 100 (PicSee API limit)
+    # Impact: Larger batches = fewer API calls, faster bulk operations
     max_bulk_size: 100
 
-  # Bitly-specific configuration (placeholder for future implementation)
+    # Timeout multiplier for bulk operations
+    # Bulk timeout = timeout_sec × bulk_timeout_multiplier
+    # Example: 30s × 2.0 = 60s for bulk requests
+    # Impact: Allows more time for processing multiple URLs
+    bulk_timeout_multiplier: 2.0
+
+  # ========================================================================
+  # BITLY CONFIGURATION (Placeholder for future implementation)
+  # ========================================================================
+
   bitly:
     api_key_env_var: BITLY_API_KEY
+    api_base_url: https://api-ssl.bitly.com
     # custom_domain: bit.ly
+    max_bulk_size: 50
+    bulk_timeout_multiplier: 2.0
 
-  # TinyURL-specific configuration (placeholder for future implementation)
+  # ========================================================================
+  # TINYURL CONFIGURATION (Placeholder for future implementation)
+  # ========================================================================
+
   tinyurl:
     api_key_env_var: TINYURL_API_KEY
+    api_base_url: https://api.tinyurl.com
+    max_bulk_size: 20
+    bulk_timeout_multiplier: 2.0
 
-  # Integration settings
+  # ========================================================================
+  # INTEGRATION SETTINGS
+  # ========================================================================
+  # Control how URL shortening integrates with the pipeline
+
   integration:
-    # Shorten affiliate links during scraping
+    # Automatically shorten affiliate links during product scraping
+    # When true: Links are shortened as products are scraped
+    # When false: Links remain original during scraping
+    # Impact: Adds API call time during scraping but links are ready to use
     shorten_on_scrape: true
 
-    # Include shortened links in video descriptions
+    # Include shortened links in AI-generated video descriptions
+    # When true: Description generator uses shortened links when available
+    # When false: Description generator uses original affiliate links
+    # Impact: Shorter, cleaner links in video descriptions
     include_in_descriptions: true
 
     # Fallback to original URL if shortening fails
+    # When true: Uses original affiliate link on shortening errors
+    # When false: May result in missing links if shortening fails
+    # Impact: Ensures links are always available, graceful degradation
     fallback_to_original: true
 
-    # Cache shortened URLs to avoid re-shortening
+    # Cache shortened URLs to avoid re-shortening (future feature)
+    # When enabled: Previously shortened URLs are cached locally
+    # Impact: Reduces API calls and speeds up re-processing
     enable_caching: true
-    cache_ttl_hours: 168  # 7 days
+    cache_ttl_hours: 168              # 7 days TTL for cached links

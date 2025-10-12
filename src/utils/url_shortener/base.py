@@ -48,9 +48,7 @@ class BaseURLShortener(ABC):
         pass
 
     @abstractmethod
-    async def shorten(
-        self, url: str, custom_alias: str | None = None
-    ) -> ShortenedURL:
+    async def shorten(self, url: str, custom_alias: str | None = None) -> ShortenedURL:
         """Shorten a single URL.
 
         Args:
@@ -70,9 +68,7 @@ class BaseURLShortener(ABC):
         pass
 
     @abstractmethod
-    async def shorten_bulk(
-        self, urls: list[str]
-    ) -> list[ShortenedURL]:
+    async def shorten_bulk(self, urls: list[str]) -> list[ShortenedURL]:
         """Shorten multiple URLs in bulk.
 
         Args:

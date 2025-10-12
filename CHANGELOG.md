@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-10-12
+
+### Added
+- **URL Shortening Integration**: Affiliate link shortening with PicSee.io provider
+  - Provider-agnostic registry system supporting multiple URL shortening services
+  - Async URL shortening with single and bulk operations
+  - Custom alias and branded short domain (BSD) support
+  - Exponential backoff retry logic with jitter for API resilience
+  - Comprehensive configuration via `config/url_shortener.yaml`
+  - Integration with Amazon scraper for automatic affiliate link shortening
+  - 7 new retry logic tests ensuring robust error handling
+  - Full documentation in configuration comments
+
+### Changed
+- **Configuration System**: Enhanced url_shortener.yaml from 59 to 141 lines with comprehensive documentation
+  - All retry parameters now configurable (max_retries, retry_delay, backoff_multiplier)
+  - PicSee-specific settings separated for multi-provider support
+  - Debug logging for retry attempts and configuration values
+- **Amazon Scraper**: Updated to load and pass retry configuration to URL shortener
+  - Improved logging for URL shortening operations
+  - Better error handling for shortening failures
+
+### Fixed
+- **Test Suite**: Fixed 5 URL shortener tests using incorrect API response format
+  - Changed from v2 bulk API format (`shortLink`) to v1 API format (`picseeUrl`)
+  - All 36 URL shortener tests now passing
+
+### Technical
+- **Code Quality**: All linting checks passing (Ruff, MyPy, Bandit, Vulture, Safety)
+- **Type Safety**: Added explicit type annotations and casts for retry logic
+- **Dead Code Detection**: Created Vulture whitelist for async context manager parameters
+- **Test Coverage**: Added TestPicseeRetryLogic class with comprehensive retry tests
+- **Documentation**: Enhanced configuration comments explaining each setting's purpose and impact
+
 ## [0.6.0] - 2025-10-06
 
 ### Breaking Changes

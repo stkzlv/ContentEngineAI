@@ -1,17 +1,17 @@
 """Unit tests for URL shortening utilities."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
+import pytest
 
 from src.utils.url_shortener import (
     BaseURLShortener,
+    PicseeURLShortener,
     ShortenedURL,
     URLShortenerError,
     URLShortenerProvider,
-    PicseeURLShortener,
     URLShortenerRegistry,
     create_url_shortener,
     register_shortener,
@@ -161,7 +161,9 @@ class TestURLShortenerRegistry:
         """Test checking if provider is supported."""
         URLShortenerRegistry._providers.clear()
 
-        assert not URLShortenerRegistry.is_provider_supported(URLShortenerProvider.PICSEE)
+        assert not URLShortenerRegistry.is_provider_supported(
+            URLShortenerProvider.PICSEE
+        )
 
 
 class TestRegisterShortenerDecorator:
@@ -311,12 +313,11 @@ class TestPicseeURLShortener:
     @pytest.mark.asyncio
     async def test_picsee_shorten_success(self, picsee_shortener, mock_session):
         """Test successful URL shortening."""
-        # Mock the API response
+        # Mock the API response (v1 API uses picseeUrl field)
         mock_response = AsyncMock()
         mock_response.json.return_value = {
-            "success": True,
             "data": {
-                "shortLink": "https://psee.io/abc123",
+                "picseeUrl": "https://psee.io/abc123",
                 "id": "test-id",
                 "createdAt": "2024-01-01T00:00:00Z",
             },
@@ -332,7 +333,7 @@ class TestPicseeURLShortener:
         assert result.original_url == "https://example.com/long-url"
         assert result.short_url == "https://psee.io/abc123"
         assert result.provider == URLShortenerProvider.PICSEE
-        assert result.metadata["picsee_id"] == "test-id"
+        assert result.metadata["response"]["id"] == "test-id"
 
     @pytest.mark.asyncio
     async def test_picsee_shorten_with_custom_alias(
@@ -341,9 +342,8 @@ class TestPicseeURLShortener:
         """Test URL shortening with custom alias."""
         mock_response = AsyncMock()
         mock_response.json.return_value = {
-            "success": True,
             "data": {
-                "shortLink": "https://psee.io/custom-alias",
+                "picseeUrl": "https://psee.io/custom-alias",
                 "id": "test-id",
                 "createdAt": "2024-01-01T00:00:00Z",
             },
@@ -362,21 +362,20 @@ class TestPicseeURLShortener:
         """Test handling of API error responses."""
         mock_response = AsyncMock()
         mock_response.json.return_value = {
-            "success": False,
-            "message": "Invalid API key",
+            "data": {}  # Missing picseeUrl
         }
         mock_response.raise_for_status = MagicMock()
         mock_session.post.return_value.__aenter__.return_value = mock_response
 
-        with pytest.raises(URLShortenerError, match="Picsee API error"):
+        with pytest.raises(URLShortenerError, match="No short URL in response"):
             await picsee_shortener.shorten("https://example.com/long-url")
 
     @pytest.mark.asyncio
     async def test_picsee_shorten_network_error(self, picsee_shortener, mock_session):
-        """Test handling of network errors."""
+        """Test handling of network errors with retry."""
         mock_session.post.side_effect = aiohttp.ClientError("Network error")
 
-        with pytest.raises(URLShortenerError, match="Failed to shorten URL"):
+        with pytest.raises(URLShortenerError, match="failed after .* attempts"):
             await picsee_shortener.shorten("https://example.com/long-url")
 
     @pytest.mark.asyncio
@@ -427,9 +426,8 @@ class TestPicseeURLShortener:
         """Test API key validation with valid key."""
         mock_response = AsyncMock()
         mock_response.json.return_value = {
-            "success": True,
             "data": {
-                "shortLink": "https://psee.io/test",
+                "picseeUrl": "https://psee.io/test",
                 "id": "test-id",
                 "createdAt": "2024-01-01T00:00:00Z",
             },
@@ -468,6 +466,157 @@ class TestPicseeURLShortener:
         # cleanup should be called automatically on exit
 
 
+class TestPicseeRetryLogic:
+    """Test retry logic for Picsee URL shortener."""
+
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock aiohttp session."""
+        session = MagicMock(spec=aiohttp.ClientSession)
+        session.closed = False
+        return session
+
+    @pytest.fixture
+    def picsee_shortener_with_retry(self, mock_session):
+        """Create a PicseeURLShortener with retry configuration."""
+        return PicseeURLShortener(
+            api_key="test-api-key",
+            session=mock_session,
+            timeout=30,
+            max_retries=3,
+            retry_delay=0.1,  # Short delay for tests
+            retry_backoff_multiplier=2.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_retry_initialization(self, picsee_shortener_with_retry):
+        """Test that retry parameters are initialized correctly."""
+        assert picsee_shortener_with_retry.max_retries == 3
+        assert picsee_shortener_with_retry.retry_delay == 0.1
+        assert picsee_shortener_with_retry.retry_backoff_multiplier == 2.0
+
+    @pytest.mark.asyncio
+    async def test_retry_on_client_error(
+        self, picsee_shortener_with_retry, mock_session
+    ):
+        """Test retry logic triggers on aiohttp.ClientError."""
+        call_count = 0
+
+        def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise aiohttp.ClientError("Network error")
+            # Success on 3rd attempt
+            mock_response = AsyncMock()
+            mock_response.json.return_value = {
+                "data": {"picseeUrl": "https://psee.io/success"}
+            }
+            mock_response.raise_for_status = MagicMock()
+            return AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+
+        mock_session.post = mock_post
+
+        result = await picsee_shortener_with_retry.shorten(
+            "https://example.com/long-url"
+        )
+        assert result.short_url == "https://psee.io/success"
+        assert call_count == 3  # Failed twice, succeeded on 3rd
+
+    @pytest.mark.asyncio
+    async def test_retry_on_timeout(self, picsee_shortener_with_retry, mock_session):
+        """Test retry logic triggers on timeout."""
+        call_count = 0
+
+        def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise TimeoutError("Request timeout")
+            # Success on 2nd attempt
+            mock_response = AsyncMock()
+            mock_response.json.return_value = {
+                "data": {"picseeUrl": "https://psee.io/success"}
+            }
+            mock_response.raise_for_status = MagicMock()
+            return AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+
+        mock_session.post = mock_post
+
+        result = await picsee_shortener_with_retry.shorten(
+            "https://example.com/long-url"
+        )
+        assert result.short_url == "https://psee.io/success"
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_retry_exhaustion(self, picsee_shortener_with_retry, mock_session):
+        """Test that retries are exhausted and error is raised."""
+        mock_session.post.side_effect = aiohttp.ClientError("Persistent error")
+
+        with pytest.raises(
+            URLShortenerError, match="failed after .* attempts: Persistent error"
+        ):
+            await picsee_shortener_with_retry.shorten("https://example.com/long-url")
+
+    @pytest.mark.asyncio
+    async def test_bulk_retry_logic(self, picsee_shortener_with_retry, mock_session):
+        """Test retry logic works for bulk operations."""
+        call_count = 0
+
+        def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise aiohttp.ClientError("Network error")
+            # Success on 2nd attempt
+            mock_response = AsyncMock()
+            mock_response.json.return_value = {
+                "success": True,
+                "data": [
+                    {
+                        "shortLink": "https://psee.io/abc1",
+                        "originalUrl": "https://example.com/url1",
+                        "id": "id1",
+                        "createdAt": "2024-01-01",
+                    }
+                ],
+            }
+            mock_response.raise_for_status = MagicMock()
+            return AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+
+        mock_session.post = mock_post
+
+        results = await picsee_shortener_with_retry.shorten_bulk(
+            ["https://example.com/url1"]
+        )
+        assert len(results) == 1
+        assert call_count == 2  # Failed once, succeeded on 2nd
+
+    @pytest.mark.asyncio
+    async def test_no_retry_on_non_retryable_error(
+        self, picsee_shortener_with_retry, mock_session
+    ):
+        """Test that non-retryable errors are not retried."""
+        call_count = 0
+
+        def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # Return error response (not a network error)
+            mock_response = AsyncMock()
+            mock_response.json.return_value = {"data": {}}
+            mock_response.raise_for_status = MagicMock()
+            return AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+
+        mock_session.post = mock_post
+
+        with pytest.raises(URLShortenerError, match="No short URL in response"):
+            await picsee_shortener_with_retry.shorten("https://example.com/long-url")
+
+        assert call_count == 1  # Should not retry on non-network errors
+
+
 class TestURLShortenerIntegration:
     """Integration tests for URL shortener functionality."""
 
@@ -490,3 +639,22 @@ class TestURLShortenerIntegration:
         assert isinstance(shortener, PicseeURLShortener)
         assert shortener.api_key == "test-api-key"
         assert shortener.timeout == 30
+
+    def test_end_to_end_flow_with_retry_config(self):
+        """Test complete workflow with retry configuration."""
+        URLShortenerRegistry._providers.clear()
+        register_shortener(URLShortenerProvider.PICSEE)(PicseeURLShortener)
+
+        shortener = create_url_shortener(
+            provider="picsee",
+            api_key="test-api-key",
+            timeout=30,
+            max_retries=5,
+            retry_delay=1.0,
+            retry_backoff_multiplier=2.5,
+        )
+
+        assert isinstance(shortener, PicseeURLShortener)
+        assert shortener.max_retries == 5
+        assert shortener.retry_delay == 1.0
+        assert shortener.retry_backoff_multiplier == 2.5

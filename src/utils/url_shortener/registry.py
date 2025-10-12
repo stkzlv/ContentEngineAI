@@ -5,7 +5,8 @@ enabling easy provider switching and fallback mechanisms.
 """
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import aiohttp
 
