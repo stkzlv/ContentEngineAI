@@ -7,8 +7,11 @@
 
 # ruff: noqa: F821, B018
 # pyright: reportUndefinedVariable=false
+# type: ignore
 
-_ = None  # Placeholder for vulture pattern matching
+from typing import Any
+
+_ = Any  # Placeholder for vulture pattern matching
 
 _.exc_type  # Async context manager __aexit__ parameter
 _.exc_val  # Async context manager __aexit__ parameter

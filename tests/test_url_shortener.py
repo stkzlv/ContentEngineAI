@@ -53,6 +53,7 @@ class TestShortenedURL:
         assert url.original_url == "https://example.com/long-url"
         assert url.short_url == "https://psee.io/abc123"
         assert url.provider == URLShortenerProvider.PICSEE
+        assert url.metadata is not None
         assert url.metadata["picsee_id"] == "123"
 
     def test_shortened_url_without_metadata(self):
@@ -333,7 +334,8 @@ class TestPicseeURLShortener:
         assert result.original_url == "https://example.com/long-url"
         assert result.short_url == "https://psee.io/abc123"
         assert result.provider == URLShortenerProvider.PICSEE
-        assert result.metadata["response"]["id"] == "test-id"
+        assert result.metadata is not None
+        assert result.metadata["response"]["id"] == "test-id"  # type: ignore[index]
 
     @pytest.mark.asyncio
     async def test_picsee_shorten_with_custom_alias(
