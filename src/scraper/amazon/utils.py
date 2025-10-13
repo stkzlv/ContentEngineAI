@@ -440,13 +440,17 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
         return url
 
     # Parse URL to add/update tag parameter
+    import re
+
     if "?" in url:
         # URL already has query parameters
-        if "tag=" in url:
-            # Replace existing tag parameter
-            import re
-
-            url = re.sub(r"tag=[^&]*", f"tag={associate_tag}", url)
+        # Check for existing tag parameter (must be preceded by ? or &)
+        if "?tag=" in url:
+            # Replace tag parameter after ?
+            url = re.sub(r"\?tag=[^&]*", f"?tag={associate_tag}", url)
+        elif "&tag=" in url:
+            # Replace tag parameter after &
+            url = re.sub(r"&tag=[^&]*", f"&tag={associate_tag}", url)
         else:
             # Add tag parameter
             url = f"{url}&tag={associate_tag}"
