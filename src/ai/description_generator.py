@@ -87,6 +87,7 @@ def format_prompt(template: str, product: ProductData) -> str:
     should contain the following placeholders:
     - {FULL_PRODUCT_NAME}: The product title
     - {PRODUCT_DESCRIPTION}: The product description
+    - {PRODUCT_URL}: The product URL (shortened if available, otherwise original)
 
     Args:
     ----
@@ -103,9 +104,18 @@ def format_prompt(template: str, product: ProductData) -> str:
 
     """
     try:
+        # Use shortened affiliate link if available, otherwise fallback to original
+        product_url = (
+            product.shortened_affiliate_link
+            or product.affiliate_link
+            or product.url
+            or "No URL available"
+        )
+
         return template.format(
             FULL_PRODUCT_NAME=product.title or "Product",
             PRODUCT_DESCRIPTION=product.description or "No description available",
+            PRODUCT_URL=product_url,
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e

@@ -18,7 +18,7 @@ from .media_extractor import (
     extract_high_res_images_botasaurus,
 )
 from .search_builder import SearchParameterBuilder
-from .utils import detect_monitors, get_optimal_browser_position
+from .utils import build_affiliate_url, detect_monitors, get_optimal_browser_position
 
 # Module-level logger for browser functions
 logger = logging.getLogger(__name__)
@@ -748,7 +748,7 @@ def extract_product_data_from_page(
             "description": description,
             "images": images,
             "videos": videos,
-            "affiliate_link": driver.current_url,  # Current Amazon URL
+            "affiliate_link": build_affiliate_url(driver.current_url),
             "url": driver.current_url,
             "asin": asin,
             "keyword": keyword,
@@ -1353,7 +1353,7 @@ def scrape_single_product(
         "keyword": product_info.get("keyword", ""),
         "serp_rating": product_info.get("rating"),
         "serp_reviews_count": product_info.get("reviews_count"),
-        "affiliate_link": product_info["url"],
+        "affiliate_link": build_affiliate_url(product_info["url"]),
         "downloaded_images": [],
         "downloaded_videos": [],
     }

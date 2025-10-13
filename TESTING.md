@@ -272,14 +272,21 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.6.2):**
+**Current Statistics (v0.7.0):**
 - **Total Tests**: 452 collected
 - **Passing**: 433 tests
 - **Skipped**: 19 tests (includes 9 skipped integration tests)
 - **Failed**: 0 tests
 - **Coverage**: 41% (target: 40% minimum)
 
-**Recent Updates (v0.6.2):**
+**Recent Updates (v0.7.0):**
+- ✅ Fixed Amazon affiliate tag parameter detection bug
+- ✅ Updated build_affiliate_url() tests for precise pattern matching
+- ✅ Added URL shortening integration tests
+- ✅ All linting checks passing
+- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
+
+**Previous Updates (v0.6.2):**
 - ✅ Added argparse default=None tests (4 new tests in test_profile_cli_overrides.py)
 - ✅ Tests validate boolean flag behavior to prevent unwanted CLI overrides
 - ✅ Removed empty test file (test_config_cli_integration.py)
@@ -287,8 +294,6 @@ poetry run pytest -n auto
 - ✅ CLI override precedence tests (validates CLI > Profile > YAML)
 - ✅ Verified slideshow_images2 profile configuration
 - ✅ Verified image positioning CLI arguments (--image-width-percent, --image-top-position-percent)
-- ✅ All linting checks passing
-- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
 
 **Previous Updates (v0.6.0):**
 - ✅ Removed outdated legacy subtitle positioning tests (2 files)

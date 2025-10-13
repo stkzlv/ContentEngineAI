@@ -71,6 +71,7 @@ class BaseProductData:
 
     # Affiliate/monetization
     affiliate_link: str | None = None
+    shortened_affiliate_link: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and setup."""
@@ -98,6 +99,7 @@ class BaseProductData:
             "downloaded_videos": self.downloaded_videos,
             "platform_id": self.platform_id,
             "affiliate_link": self.affiliate_link,
+            "shortened_affiliate_link": self.shortened_affiliate_link,
         }
 
 

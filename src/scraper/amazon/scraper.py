@@ -718,12 +718,142 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # Other RuntimeErrors should not retry
                 raise
 
+    def _shorten_affiliate_links(self, products: list[ProductData]) -> None:
+        """Shorten affiliate links for products if URL shortening is enabled"""
+        try:
+            # Load URL shortener config
+            project_root = Path(__file__).parent.parent.parent.parent
+            config_path = project_root / "config/url_shortener.yaml"
+
+            if not config_path.exists():
+                if DEBUG_MODE:
+                    self.logger.debug("URL shortener config not found, skipping")
+                return
+
+            with open(config_path, encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+
+            url_config = config.get("url_shortener", {})
+            integration_config = url_config.get("integration", {})
+
+            # Check if shortening is enabled and shorten_on_scrape is true
+            if not url_config.get("enabled", False) or not integration_config.get(
+                "shorten_on_scrape", False
+            ):
+                if DEBUG_MODE:
+                    self.logger.debug("URL shortening disabled, skipping")
+                return
+
+            # Get API key from environment (load .env if available)
+            import os
+
+            from dotenv import load_dotenv
+
+            load_dotenv()
+
+            # Get provider and config
+            provider = url_config.get("provider", "picsee")
+            provider_config = url_config.get(provider, {})
+            api_config = url_config.get("api", {})
+
+            # Get API key using configured env var name
+            api_key_env_var = provider_config.get("api_key_env_var", "PICSEE_API_KEY")
+            api_key = os.getenv(api_key_env_var)
+            if not api_key:
+                if DEBUG_MODE:
+                    self.logger.warning(
+                        f"{api_key_env_var} not found, skipping URL shortening"
+                    )
+                return
+
+            # Import URL shortener utilities
+            from ...utils.url_shortener import create_url_shortener
+
+            # Load all config values
+            timeout = api_config.get("timeout_sec", 30)
+            custom_domain = provider_config.get("custom_domain")
+            api_base_url = provider_config.get("api_base_url", "https://api.pics.ee")
+            max_bulk_size = provider_config.get("max_bulk_size", 100)
+            bulk_timeout_multiplier = provider_config.get(
+                "bulk_timeout_multiplier", 2.0
+            )
+
+            # Load retry configuration
+            max_retries = api_config.get("max_retries", 3)
+            retry_delay = api_config.get("retry_delay_sec", 2.0)
+            retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
+
+            if DEBUG_MODE:
+                self.logger.info(
+                    f"🔗 Shortening {len(products)} affiliate links using {provider}"
+                )
+                if custom_domain:
+                    self.logger.info(f"   Using custom domain: {custom_domain}")
+                self.logger.info(
+                    f"   Retry config: {max_retries} attempts, "
+                    f"{retry_delay}s delay, {retry_backoff}x backoff"
+                )
+
+            shortener = create_url_shortener(
+                provider=provider,
+                api_key=api_key,
+                timeout=timeout,
+                custom_domain=custom_domain,
+                api_base_url=api_base_url,
+                max_bulk_size=max_bulk_size,
+                bulk_timeout_multiplier=bulk_timeout_multiplier,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                retry_backoff_multiplier=retry_backoff,
+            )
+
+            # Shorten affiliate links
+            import asyncio
+
+            async def shorten_all():
+                for product in products:
+                    if not product.affiliate_link:
+                        continue
+
+                    try:
+                        result = await shortener.shorten(product.affiliate_link)
+                        product.shortened_affiliate_link = result.short_url
+                        if DEBUG_MODE:
+                            self.logger.info(
+                                f"✅ Shortened: {product.asin} -> {result.short_url}"
+                            )
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to shorten link for {product.asin}: {e}"
+                        )
+                        if integration_config.get("fallback_to_original", True):
+                            product.shortened_affiliate_link = product.affiliate_link
+
+            # Run async shortening
+            asyncio.run(shorten_all())
+
+            if DEBUG_MODE:
+                shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
+                self.logger.info(
+                    f"✅ Shortened {shortened_count}/{len(products)} affiliate links"
+                )
+
+        except Exception as e:
+            self.logger.warning(f"URL shortening failed: {e}, using original links")
+            # Fallback: use original affiliate links
+            for product in products:
+                if product.affiliate_link and not product.shortened_affiliate_link:
+                    product.shortened_affiliate_link = product.affiliate_link
+
     def _save_products(self, products: list[ProductData]) -> None:
         """Save scraped products to product-centric JSON structure"""
         if not products:
             if DEBUG_MODE:
                 self.logger.info("⚠️ No products to save")
             return
+
+        # Shorten affiliate links if enabled
+        self._shorten_affiliate_links(products)
 
         # Convert ProductData objects to dictionaries and save manually
         # since Botasaurus output function isn't being called properly
@@ -750,6 +880,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             "images": product.images,
             "videos": product.videos,
             "affiliate_link": product.affiliate_link,
+            "shortened_affiliate_link": product.shortened_affiliate_link,
             "url": product.url,
             "asin": product.asin,
             "keyword": product.keyword,
