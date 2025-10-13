@@ -11,5 +11,5 @@
 _ = None  # Placeholder for vulture pattern matching
 
 _.exc_type  # Async context manager __aexit__ parameter
-_.exc_val   # Async context manager __aexit__ parameter
-_.exc_tb    # Async context manager __aexit__ parameter
+_.exc_val  # Async context manager __aexit__ parameter
+_.exc_tb  # Async context manager __aexit__ parameter
