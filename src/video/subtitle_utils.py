@@ -20,11 +20,7 @@ from src.video.stt_functions import (
 )
 from src.video.subtitle_positioning import create_unified_config_from_settings
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
-from src.video.video_config import (
-    GoogleCloudSTTSettings,
-    SubtitleSettings,
-    WhisperSettings,
-)
+from src.video.video_config import GoogleCloudSTTSettings, WhisperSettings
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +245,7 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
 async def create_unified_subtitles(
     audio_path: Path,
     output_srt_path: Path,
-    subtitle_settings: SubtitleSettings,
+    subtitle_settings: dict[str, Any],
     whisper_stt_settings: WhisperSettings | None,
     google_stt_settings: GoogleCloudSTTSettings | None,
     secrets: dict[str, str],
@@ -271,7 +267,7 @@ async def create_unified_subtitles(
     ----
         audio_path: Path to audio file for transcription
         output_srt_path: Output path for subtitle file
-        subtitle_settings: Subtitle generation settings
+        subtitle_settings: Subtitle generation settings dict
         whisper_stt_settings: Whisper STT configuration
         google_stt_settings: Google Cloud STT configuration
         secrets: Dictionary with API keys and credentials
@@ -288,7 +284,8 @@ async def create_unified_subtitles(
 
     """
     # Determine output format and path
-    if subtitle_settings.subtitle_format == "ass":
+    subtitle_format = subtitle_settings.get("subtitle_format", "srt")
+    if subtitle_format == "ass":
         output_path = output_srt_path.with_suffix(".ass")
         format_type = "ass"
         logger.info(
@@ -301,9 +298,8 @@ async def create_unified_subtitles(
             f"Generating SRT subtitles: {audio_path.name} -> {output_path.name}"
         )
 
-    # Create unified configuration from subtitle settings
-    # Use model_dump() for Pydantic v2 compatibility instead of __dict__
-    unified_config = create_unified_config_from_settings(subtitle_settings.model_dump())
+    # Create unified configuration from subtitle settings dict
+    unified_config = create_unified_config_from_settings(subtitle_settings)
 
     # Get frame size from video config
     frame_size = (1080, 1920)  # Default
@@ -323,7 +319,6 @@ async def create_unified_subtitles(
             stt_timings = await generate_subtitles_with_whisper(
                 audio_path,
                 temp_dir or output_path.parent,
-                subtitle_settings,
                 whisper_stt_settings,
                 script,
                 debug_mode,

@@ -9,7 +9,6 @@ from pydantic import ValidationError
 from src.video.video_config import (
     AudioSettings,
     LLMSettings,
-    SubtitleSettings,
     TTSConfig,
     VideoConfig,
     VideoProfile,
@@ -75,99 +74,44 @@ class TestVideoProfile:
             )
 
 
-class TestSubtitleSettings:
-    """Test SubtitleSettings model."""
+# SubtitleSettings Pydantic model removed in v0.8.0
+# Subtitle settings are now loaded as dict from config/subtitles.yaml
+# and validated via UnifiedSubtitleConfig
 
-    def test_subtitle_settings_valid(self):
-        """Test valid subtitle settings creation."""
-        settings = SubtitleSettings(
-            enabled=True,
-            anchor="bottom",
-            margin=0.05,
-            content_aware=False,
-            font_name="Arial",
-            font_directory="static/fonts",
-            font_size_percent=0.05,
-            font_width_to_height_ratio=0.5,
-            font_color="&H00FFFFFF",
-            outline_color="&HFF000000",
-            back_color="&H99000000",
-            # Legacy positioning fields removed - now using UnifiedSubtitleConfig
-            use_random_font=False,
-            use_random_colors=False,
-            available_fonts=["Arial"],
-            available_color_combinations=[("&H00FFFFFF", "&HFF000000")],
-            temp_subtitle_dir="temp",
-            temp_subtitle_filename="subtitle.srt",
-            save_srt_with_video=True,
-            subtitle_format="srt",
-            script_paths=["info/script.txt"],
-            max_subtitle_duration=4.5,
-            max_line_length=40,
-            min_subtitle_duration=0.5,
-            subtitle_split_on_punctuation=True,
-            punctuation_marks=[".", "!", "?", ";", ":", ","],
-            subtitle_similarity_threshold=0.70,
-            subtitle_overlap_threshold=65.0,
-            word_timestamp_pause_threshold=0.4,
-            bold=True,
-            outline_thickness=1,
-            shadow=True,
-        )
 
-        assert settings.enabled is True
-        assert settings.anchor == "bottom"  # New unified positioning
-        assert settings.font_name == "Arial"
-        assert settings.font_size_percent == 0.05
+class TestSubtitleSettingsDict:
+    """Test subtitle_settings as dict instead of Pydantic model."""
 
-    def test_subtitle_settings_unified_positioning(self):
-        """Test subtitle settings with unified positioning system."""
-        settings = SubtitleSettings(
-            enabled=True,
-            anchor="below_content",  # New unified positioning
-            margin=0.08,
-            content_aware=True,
-            font_name="Arial",
-            font_directory="static/fonts",
-            font_size_percent=0.05,
-            font_width_to_height_ratio=0.5,
-            font_color="&H00FFFFFF",
-            outline_color="&HFF000000",
-            back_color="&H99000000",
-            use_random_font=False,
-            use_random_colors=False,
-            available_fonts=["Arial"],
-            available_color_combinations=[("&H00FFFFFF", "&HFF000000")],
-            temp_subtitle_dir="temp",
-            temp_subtitle_filename="subtitle.srt",
-            save_srt_with_video=True,
-            subtitle_format="srt",
-            script_paths=["info/script.txt"],
-            max_subtitle_duration=4.5,
-            max_line_length=40,
-            min_subtitle_duration=0.5,
-            subtitle_split_on_punctuation=True,
-            punctuation_marks=[".", "!", "?", ";", ":", ","],
-            subtitle_similarity_threshold=0.70,
-            subtitle_overlap_threshold=65.0,
-            word_timestamp_pause_threshold=0.4,
-            bold=True,
-            outline_thickness=1,
-            shadow=True,
-        )
-        # Verify unified positioning fields
-        assert settings.anchor == "below_content"
-        assert settings.margin == 0.08
-        assert settings.content_aware is True
+    def test_subtitle_settings_dict_access(self, mock_config: VideoConfig):
+        """Test subtitle settings can be accessed as dict."""
+        subtitle_settings = mock_config.subtitle_settings
 
-    def test_subtitle_settings_defaults(self):
-        """Test subtitle settings with default values."""
-        settings = SubtitleSettings()  # type: ignore[call-arg]
+        assert isinstance(subtitle_settings, dict)
+        assert "enabled" in subtitle_settings
+        assert "anchor" in subtitle_settings
+        assert "font_name" in subtitle_settings
 
-        assert settings.enabled is True
-        assert settings.anchor == "bottom"  # Default anchor point
-        assert settings.font_name == "Arial"
-        assert settings.font_size_percent == 0.05
+    def test_subtitle_settings_dict_values(self, mock_config: VideoConfig):
+        """Test subtitle settings dict contains expected values."""
+        subtitle_settings = mock_config.subtitle_settings
+
+        assert subtitle_settings["enabled"] is True
+        assert subtitle_settings["anchor"] == "bottom"
+        assert subtitle_settings["font_name"] == "Arial"
+        # font_directory is resolved to absolute path during config loading
+        assert "static/fonts" in subtitle_settings["font_directory"]
+
+    def test_subtitle_settings_safe_dict_access(self, mock_config: VideoConfig):
+        """Test subtitle settings can use .get() for safe access."""
+        subtitle_settings = mock_config.subtitle_settings
+
+        # .get() should work with default values
+        format_value = subtitle_settings.get("subtitle_format", "srt")
+        assert format_value in ["srt", "ass"]
+
+        # .get() should return None for missing keys
+        missing_value = subtitle_settings.get("nonexistent_key")
+        assert missing_value is None
 
 
 class TestVideoSettings:

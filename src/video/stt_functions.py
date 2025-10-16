@@ -22,7 +22,6 @@ from src.utils.circuit_breaker import google_stt_circuit_breaker
 from src.video.video_config import (
     DEFAULT_WHISPER_MODEL_DIR,
     GoogleCloudSTTSettings,
-    SubtitleSettings,
     WhisperSettings,
 )
 
@@ -58,7 +57,6 @@ except Exception as e:
 async def generate_subtitles_with_whisper(
     audio_path: Path,
     debug_file_dir: Path,
-    settings: SubtitleSettings,
     whisper_settings: WhisperSettings,
     script: str | None = None,
     debug_mode: bool = False,
@@ -69,7 +67,6 @@ async def generate_subtitles_with_whisper(
     ----
         audio_path: Path to audio file for transcription
         debug_file_dir: Directory for debug file output
-        settings: Subtitle generation settings
         whisper_settings: Whisper-specific settings
         script: Optional script text for improved accuracy
         debug_mode: Enable debug output and file creation

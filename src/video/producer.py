@@ -1105,11 +1105,6 @@ async def step_generate_subtitles(ctx: PipelineContext):
         )
         profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
 
-        # Convert dict to SubtitleSettings object for compatibility
-        from src.video.video_config import SubtitleSettings
-
-        subtitle_settings_obj = SubtitleSettings(**profile_subtitle_settings)
-
         # Derive product_id for randomization
         from src.utils import sanitize_filename
 
@@ -1118,7 +1113,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         srt_path = await create_unified_subtitles(
             voiceover_path,
             ctx.run_paths["subtitle_file"],
-            subtitle_settings_obj,
+            profile_subtitle_settings,
             ctx.config.whisper_settings,
             ctx.config.google_cloud_stt_settings,
             ctx.secrets,

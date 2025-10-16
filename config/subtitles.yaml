@@ -239,6 +239,38 @@ subtitle_effects:
   # Used by movement effect to create subtle vertical animation
   movement_distance_pixels: 50
 
+  # ---- BOUNCE/ROTATION EFFECT PARAMETERS ----
+  # Controls rotation-based bounce animation
+
+  # Maximum rotation angle (degrees) - positive values rotate clockwise
+  bounce_rotation_max: 5
+
+  # Minimum rotation angle (degrees) - negative values rotate counter-clockwise
+  bounce_rotation_min: -5
+
+  # Resting rotation angle (degrees) - normal state, usually 0 (no rotation)
+  bounce_rotation_rest: 0
+
+  # ---- TYPEWRITER EFFECT PARAMETERS ----
+  # Controls character-by-character reveal animation
+
+  # Maximum time to reveal each character (seconds)
+  # Determines the fastest reveal speed for typewriter effect
+  typewriter_char_reveal_max_sec: 0.1
+
+  # Minimum timing between character reveals (milliseconds)
+  # Prevents reveal from being too fast to read
+  typewriter_min_timing_ms: 50
+
+  # ---- GLOW EFFECT PARAMETERS ----
+  # Controls color transition glow animation
+
+  # Starting color for glow effect (ASS format: &HAABBGGRR)
+  glow_start_color: "&H00FFFF00"  # Yellow - initial glow color
+
+  # Ending color for glow effect (ASS format: &HAABBGGRR)
+  glow_end_color: "&H00000000"    # Black - final glow color
+
 # ============================================================================
 # TEXT RENDERING SETTINGS
 # ============================================================================
