@@ -116,7 +116,7 @@ llm_settings:
 ```
 
 ### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
-Subtitle positioning and styling with configurable presets:
+Subtitle positioning, styling, and two-part subtitle system:
 
 ```yaml
 subtitle_settings:
@@ -456,11 +456,48 @@ subtitle_settings:
 
 #### Style Presets
 
-- **`minimal`**: Clean, simple styling with no effects (Poppins font)
-- **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold)
-- **`bold`**: High contrast styling with fade effect (Rubik font, bold)
+- **`minimal`**: Clean, simple styling with no effects (Arial font)
+- **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold) - **Default**
+- **`bold`**: High contrast styling with fade effect (Gabarito font, bold)
 - **`animated`**: Full animations with movement effect (Gabarito font, bold)
 - **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect from available pool
+
+#### Two-Part Subtitle System
+
+Enable dual independent subtitle lines for displaying static product information alongside timed voiceover subtitles:
+
+```yaml
+subtitle_settings:
+  two_part_subtitles:
+    enabled: false  # Enable dual subtitle lines
+
+    # Upper line (static product info)
+    upper_line:
+      enabled: true
+      source_field: "product_url"      # Field from data.json
+      anchor: "above_content"          # Position anchor
+      margin: 0.03                     # Spacing from content
+      font_size_scale: 0.8            # Relative to main subtitles
+      style_preset: "minimal"          # Style preset
+
+    # Lower line (voiceover subtitles)
+    lower_line:
+      enabled: true
+      anchor: "below_content"
+      margin: 0.05
+      custom_style: null               # Uses main subtitle_settings
+```
+
+**Use Cases:**
+- Display shortened affiliate links while showing voiceover subtitles
+- Show product titles or custom text independently from speech
+- Create two-line subtitle layouts with different styling
+
+**Features:**
+- Independent positioning, styling, and effect randomization per line
+- Content-aware positioning for both lines
+- Source field configuration for flexible data mapping
+- Profile-specific configuration support
 
 </details>
 

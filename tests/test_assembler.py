@@ -294,11 +294,8 @@ Test subtitle line three
         self, assembler: VideoAssembler, sample_visuals: list[Path]
     ):
         """Test building subtitle filter graph when subtitles are disabled."""
-        # Disable subtitles in config - handle both dict and Pydantic models
-        if isinstance(assembler.config.subtitle_settings, dict):
-            assembler.config.subtitle_settings["enabled"] = False
-        else:
-            assembler.config.subtitle_settings.enabled = False
+        # Disable subtitles in config
+        assembler.config.subtitle_settings["enabled"] = False
 
         with patch.object(
             assembler, "_get_media_dimensions", return_value=(1920, 1080)
@@ -459,13 +456,9 @@ Test subtitle line three
     @pytest.mark.asyncio
     async def test_build_debug_overlay_filter_graph(self, assembler: VideoAssembler):
         """Test building debug overlay filter graph."""
-        # Enable debug info in config - handle both dict and Pydantic models
-        if isinstance(assembler.config.subtitle_settings, dict):
-            assembler.config.subtitle_settings["show_debug_info"] = True
-            assert assembler.config.subtitle_settings["show_debug_info"] is True
-        else:
-            assembler.config.subtitle_settings.show_debug_info = True
-            assert assembler.config.subtitle_settings.show_debug_info is True
+        # Enable debug info in config
+        assembler.config.subtitle_settings["show_debug_info"] = True
+        assert assembler.config.subtitle_settings["show_debug_info"] is True
 
         # This test is difficult to implement without significant refactoring
         # of the assembler

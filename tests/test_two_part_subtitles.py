@@ -84,7 +84,7 @@ class TestTwoPartSubtitles:
             # Create visual bounds (image at 12% from top, 85% width)
             visual_bounds = VisualBounds(
                 x=0.075,  # (1.0 - 0.85) / 2
-                y=0.12,   # 12% from top
+                y=0.12,  # 12% from top
                 width=0.85,
                 height=0.8,
             )
@@ -108,18 +108,18 @@ class TestTwoPartSubtitles:
 
             # Extract y-position from {\pos(x,y)}
             import re
+
             pos_match = re.search(r"\\pos\((\d+),(\d+)\)", content)
             assert pos_match is not None
 
-            x_pos = int(pos_match.group(1))
             y_pos = int(pos_match.group(2))
 
             # Y position should be close to: (0.12 - 0.005) * 1920 = 220.8 pixels
             # With margin 0.005 and visual_bounds.y = 0.12
             expected_y = int((0.12 - 0.005) * 1920)
-            assert abs(y_pos - expected_y) < 10, (
-                f"Y position {y_pos} not close to expected {expected_y}"
-            )
+            assert (
+                abs(y_pos - expected_y) < 10
+            ), f"Y position {y_pos} not close to expected {expected_y}"
 
     def test_create_static_upper_subtitle_without_visual_bounds(
         self, mock_video_config, basic_subtitle_settings
@@ -144,6 +144,7 @@ class TestTwoPartSubtitles:
             # Without visual_bounds, should use margin (top of frame)
             content = output_path.read_text()
             import re
+
             pos_match = re.search(r"\\pos\((\d+),(\d+)\)", content)
             assert pos_match is not None
 
@@ -151,9 +152,9 @@ class TestTwoPartSubtitles:
 
             # Should be near top: margin * height = 0.005 * 1920 ≈ 9.6 pixels
             expected_y = int(0.005 * 1920)
-            assert abs(y_pos - expected_y) < 20, (
-                f"Without visual_bounds, y should be near {expected_y}, got {y_pos}"
-            )
+            assert (
+                abs(y_pos - expected_y) < 20
+            ), f"Without visual_bounds, y should be near {expected_y}, got {y_pos}"
 
     def test_flat_config_settings_extraction(
         self, mock_video_config, basic_subtitle_settings
@@ -179,9 +180,7 @@ class TestTwoPartSubtitles:
             assert result is not None
             # Settings should be applied (tested indirectly through successful creation)
 
-    def test_url_text_in_subtitle(
-        self, mock_video_config, basic_subtitle_settings
-    ):
+    def test_url_text_in_subtitle(self, mock_video_config, basic_subtitle_settings):
         """Test that URL text appears in upper subtitle."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "upper.ass"
@@ -202,9 +201,7 @@ class TestTwoPartSubtitles:
             # Shortened URL should appear in subtitle
             assert "stte.psee.io/abc123" in content
 
-    def test_srt_format_support(
-        self, mock_video_config, basic_subtitle_settings
-    ):
+    def test_srt_format_support(self, mock_video_config, basic_subtitle_settings):
         """Test that SRT format is also supported for upper subtitles."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "upper.srt"
@@ -251,9 +248,7 @@ class TestTwoPartSubtitles:
             assert result is not None
             # Should succeed without randomization
 
-    def test_missing_flat_config_uses_defaults(
-        self, mock_video_config
-    ):
+    def test_missing_flat_config_uses_defaults(self, mock_video_config):
         """Test that missing flat config keys use appropriate defaults."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "upper.ass"
@@ -282,7 +277,7 @@ class TestTwoPartSubtitles:
     def test_visual_bounds_affects_positioning(
         self, mock_video_config, basic_subtitle_settings
     ):
-        """Test that providing visual_bounds affects positioning differently than None."""
+        """Test that visual_bounds affects positioning differently than None."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # With visual_bounds
             output_with = Path(temp_dir) / "with_bounds.ass"
@@ -317,6 +312,7 @@ class TestTwoPartSubtitles:
 
             # Extract positions - they should be different
             import re
+
             content_with = output_with.read_text()
             content_without = output_without.read_text()
 
@@ -330,6 +326,6 @@ class TestTwoPartSubtitles:
             y_without = int(pos_without.group(2))
 
             # Y positions should be significantly different
-            assert abs(y_with - y_without) > 50, (
-                f"Y positions should differ significantly: {y_with} vs {y_without}"
-            )
+            assert (
+                abs(y_with - y_without) > 50
+            ), f"Y positions should differ significantly: {y_with} vs {y_without}"

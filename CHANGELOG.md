@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-10-19
+
+### Added
+- **Two-Part Subtitle System**: Display multiple subtitle lines simultaneously
+  - Upper subtitle line for affiliate links, product titles, or custom text
+  - Lower subtitle line for main script/voiceover content
+  - Independent positioning, styling, and effect randomization per line
+  - Source field configuration for flexible data mapping
+  - 335 comprehensive test cases covering all scenarios
+  - Support for visual bounds awareness and margin controls
+
+### Changed
+- **Subtitle Configuration Refactoring**: Consolidated to dict-based approach
+  - Removed legacy SubtitleSettings Pydantic model (-200 lines)
+  - Unified subtitle configuration loaded from config/subtitles.yaml
+  - All subtitle access patterns updated to use dict keys
+  - Improved configuration flexibility and maintainability
+- **Configuration Files**: Enhanced subtitle configuration structure
+  - Added two_part_subtitles section with upper/lower line controls
+  - New parameters: font_size_scale, style_preset, use_full_duration, randomize_effects
+  - Updated video_production.yaml with two-part subtitle examples
+
+### Fixed
+- **Code Quality**: Resolved all linting issues
+  - Fixed 13 line length violations (E501)
+  - Removed duplicate dictionary key (F601)
+  - Cleaned up unused variables (F841)
+  - Fixed MyPy type errors in assembler and tests
+  - All 7 linting tools passing (Ruff, Ruff Format, MyPy, Bandit, Vulture, Safety, Pytest)
+
+### Technical
+- **Test Coverage**: Added comprehensive two-part subtitle test suite
+  - test_two_part_subtitles.py with 335 lines of tests
+  - Tests for positioning, styling, effects, and edge cases
+  - Visual bounds integration testing
+- **Type Safety**: Improved type annotations for dict-based subtitle settings
+- **Code Cleanup**: Removed unreachable code and simplified test logic
+
 ## [0.7.0] - 2025-10-13
 
 ### Added

@@ -333,7 +333,7 @@ def create_static_upper_subtitle(
             position = calculate_position(
                 unified_config,
                 frame_size,
-                visual_bounds  # Pass visual bounds for content-aware positioning
+                visual_bounds,  # Pass visual bounds for content-aware positioning
             )
             font_size = get_font_size(unified_config, frame_size[1])
 
@@ -389,8 +389,9 @@ def create_static_upper_subtitle(
 
         if result.success and result.path and result.path.exists():
             logger.info(
-                f"Successfully generated static upper subtitle ({format_type.upper()}): "
-                f"{result.path} (randomize_effects={randomize_effects})"
+                f"Successfully generated static upper subtitle "
+                f"({format_type.upper()}): {result.path} "
+                f"(randomize_effects={randomize_effects})"
             )
             return result.path
         else:

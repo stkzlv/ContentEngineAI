@@ -1079,8 +1079,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
         ctx.config.subtitle_settings.enabled
-        if hasattr(ctx.config.subtitle_settings, 'enabled')
-        else ctx.config.subtitle_settings.get('enabled', True)
+        if hasattr(ctx.config.subtitle_settings, "enabled")
+        else ctx.config.subtitle_settings.get("enabled", True)
     )
 
     async with performance_monitor.measure_step(
@@ -1126,15 +1126,25 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # Handle both nested dict and flat key structures
         two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
         logger.debug(f"DEBUG: two_part_config = {two_part_config}")
-        logger.debug(f"DEBUG: profile_subtitle_settings keys = {list(profile_subtitle_settings.keys())}")
+        logger.debug(
+            "DEBUG: profile_subtitle_settings keys = "
+            f"{list(profile_subtitle_settings.keys())}"
+        )
 
         if isinstance(two_part_config, dict) and "enabled" in two_part_config:
             two_part_enabled = two_part_config.get("enabled", False)
-            logger.debug(f"DEBUG: Using nested structure, two_part_enabled = {two_part_enabled}")
+            logger.debug(
+                f"DEBUG: Using nested structure, two_part_enabled = {two_part_enabled}"
+            )
         else:
             # Fallback to flat structure
-            two_part_enabled = profile_subtitle_settings.get("two_part_subtitles_enabled", False)
-            logger.debug(f"DEBUG: Using flat structure, two_part_subtitles_enabled key = {profile_subtitle_settings.get('two_part_subtitles_enabled')}")
+            two_part_enabled = profile_subtitle_settings.get(
+                "two_part_subtitles_enabled", False
+            )
+            logger.debug(
+                "DEBUG: Using flat structure, two_part_subtitles_enabled key = "
+                f"{profile_subtitle_settings.get('two_part_subtitles_enabled')}"
+            )
             logger.debug(f"DEBUG: Final two_part_enabled = {two_part_enabled}")
 
         if two_part_enabled:
@@ -1150,59 +1160,98 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 upper_enabled = upper_config.get("enabled", True)
             else:
                 # Fallback to flat structure
-                upper_enabled = profile_subtitle_settings.get("two_part_subtitles_upper_enabled", True)
+                upper_enabled = profile_subtitle_settings.get(
+                    "two_part_subtitles_upper_enabled", True
+                )
                 upper_config = {
                     "enabled": upper_enabled,
-                    "source_field": profile_subtitle_settings.get("two_part_subtitles_upper_source_field", "shortened_affiliate_link"),
-                    "anchor": profile_subtitle_settings.get("two_part_subtitles_upper_anchor", "above_content"),
-                    "margin": profile_subtitle_settings.get("two_part_subtitles_upper_margin", 0.03),
-                    "font_size_scale": profile_subtitle_settings.get("two_part_subtitles_upper_font_size_scale", 0.75),
-                    "style_preset": profile_subtitle_settings.get("two_part_subtitles_upper_style_preset", "minimal"),
-                    "use_full_duration": profile_subtitle_settings.get("two_part_subtitles_upper_use_full_duration", True),
-                    "randomize_effects": profile_subtitle_settings.get("two_part_subtitles_upper_randomize_effects", False),
+                    "source_field": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_source_field",
+                        "shortened_affiliate_link",
+                    ),
+                    "anchor": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_anchor", "above_content"
+                    ),
+                    "margin": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_margin", 0.03
+                    ),
+                    "font_size_scale": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_font_size_scale", 0.75
+                    ),
+                    "style_preset": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_style_preset", "minimal"
+                    ),
+                    "use_full_duration": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_use_full_duration", True
+                    ),
+                    "randomize_effects": profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_randomize_effects", False
+                    ),
                 }
 
             if upper_enabled:
                 # Get product URL from data
-                source_field = upper_config.get("source_field", "shortened_affiliate_link")
+                source_field = upper_config.get(
+                    "source_field", "shortened_affiliate_link"
+                )
                 product_data_dict = ctx.product.__dict__
                 upper_text = product_data_dict.get(source_field, "")
 
                 if not upper_text:
                     # Fallback to other URL fields
-                    for fallback_field in ["shortened_affiliate_link", "affiliate_link", "url"]:
+                    for fallback_field in [
+                        "shortened_affiliate_link",
+                        "affiliate_link",
+                        "url",
+                    ]:
                         upper_text = product_data_dict.get(fallback_field, "")
                         if upper_text:
-                            logger.info(f"Using fallback field '{fallback_field}' for upper subtitle")
+                            logger.info(
+                                f"Using fallback field '{fallback_field}' "
+                                "for upper subtitle"
+                            )
                             break
 
                 if upper_text:
                     # Apply URL prefix replacement if configured
-                    prefix_replace = profile_subtitle_settings.get("two_part_subtitles_upper_prefix_replace")
+                    prefix_replace = profile_subtitle_settings.get(
+                        "two_part_subtitles_upper_prefix_replace"
+                    )
                     if prefix_replace:
                         # Replace "https://" with the configured prefix
                         if upper_text.startswith("https://"):
-                            upper_text = prefix_replace + upper_text[8:]  # Remove "https://"
-                            logger.debug(f"Applied URL prefix replacement: '{prefix_replace}'")
+                            upper_text = (
+                                prefix_replace + upper_text[8:]
+                            )  # Remove "https://"
+                            logger.debug(
+                                f"Applied URL prefix replacement: '{prefix_replace}'"
+                            )
                         elif upper_text.startswith("http://"):
-                            upper_text = prefix_replace + upper_text[7:]  # Remove "http://"
-                            logger.debug(f"Applied URL prefix replacement: '{prefix_replace}'")
+                            upper_text = (
+                                prefix_replace + upper_text[7:]
+                            )  # Remove "http://"
+                            logger.debug(
+                                f"Applied URL prefix replacement: '{prefix_replace}'"
+                            )
 
                     # Determine output format
-                    subtitle_format = profile_subtitle_settings.get("subtitle_format", "srt")
+                    subtitle_format = profile_subtitle_settings.get(
+                        "subtitle_format", "srt"
+                    )
                     upper_output_path = ctx.run_paths["subtitle_file"].with_name(
                         f"subtitle_upper.{subtitle_format}"
                     )
 
                     # Calculate visual bounds for content-aware positioning
                     from src.video.subtitle_positioning import VisualBounds
+
                     image_top = ctx.profile.image_top_position_percent or 0.07
                     image_width = ctx.profile.image_width_percent or 0.9
                     visual_bounds = VisualBounds(
                         x=(1.0 - image_width) / 2,  # Center horizontally
                         y=image_top,
                         width=image_width,
-                        height=0.8  # Approximate image height
+                        height=0.8,  # Approximate image height
                     )
 
                     upper_path = create_static_upper_subtitle(
@@ -1221,9 +1270,14 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         # Store upper subtitle path for assembler
                         ctx.run_paths["subtitle_upper_file"] = upper_path
                     else:
-                        logger.warning("Failed to generate upper subtitle, continuing with lower only")
+                        logger.warning(
+                            "Failed to generate upper subtitle, "
+                            "continuing with lower only"
+                        )
                 else:
-                    logger.warning(f"No data found for upper subtitle field '{source_field}'")
+                    logger.warning(
+                        f"No data found for upper subtitle field '{source_field}'"
+                    )
 
             # Generate lower line (voiceover subtitles) - standard subtitle generation
             # Handle both nested dict and flat key structures
@@ -1232,17 +1286,25 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 lower_enabled = lower_config.get("enabled", True)
             else:
                 # Fallback to flat structure
-                lower_enabled = profile_subtitle_settings.get("two_part_subtitles_lower_enabled", True)
+                lower_enabled = profile_subtitle_settings.get(
+                    "two_part_subtitles_lower_enabled", True
+                )
                 lower_config = {
                     "enabled": lower_enabled,
-                    "anchor": profile_subtitle_settings.get("two_part_subtitles_lower_anchor", "below_content"),
-                    "margin": profile_subtitle_settings.get("two_part_subtitles_lower_margin", 0.05),
+                    "anchor": profile_subtitle_settings.get(
+                        "two_part_subtitles_lower_anchor", "below_content"
+                    ),
+                    "margin": profile_subtitle_settings.get(
+                        "two_part_subtitles_lower_margin", 0.05
+                    ),
                 }
 
             if lower_enabled:
                 # Update subtitle settings for lower line positioning
                 lower_subtitle_settings = profile_subtitle_settings.copy()
-                lower_subtitle_settings["anchor"] = lower_config.get("anchor", "below_content")
+                lower_subtitle_settings["anchor"] = lower_config.get(
+                    "anchor", "below_content"
+                )
                 lower_subtitle_settings["margin"] = lower_config.get("margin", 0.05)
 
                 # Override with custom style if provided
@@ -1417,8 +1479,8 @@ async def step_assemble_video(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
         ctx.config.subtitle_settings.enabled
-        if hasattr(ctx.config.subtitle_settings, 'enabled')
-        else ctx.config.subtitle_settings.get('enabled', True)
+        if hasattr(ctx.config.subtitle_settings, "enabled")
+        else ctx.config.subtitle_settings.get("enabled", True)
     )
 
     async with performance_monitor.measure_step(
@@ -1462,8 +1524,7 @@ async def step_assemble_video(ctx: PipelineContext):
         # Use the same value for subtitle check
         subtitle_path = (
             ctx.run_paths["subtitle_file"]
-            if ctx.run_paths["subtitle_file"].exists()
-            and subtitle_enabled_value
+            if ctx.run_paths["subtitle_file"].exists() and subtitle_enabled_value
             else None
         )
 

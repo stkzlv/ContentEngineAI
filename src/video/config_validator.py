@@ -423,7 +423,8 @@ class VideoConfigValidator:
 
             # Check configuration parameters
             has_unified_params = any(
-                param in settings_dict for param in ["anchor", "style_preset", "content_aware"]
+                param in settings_dict
+                for param in ["anchor", "style_preset", "content_aware"]
             )
 
             if has_unified_params:

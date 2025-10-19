@@ -204,15 +204,8 @@ class VideoAssembler:
                 return settings  # type: ignore[no-any-return]
 
         # Fallback to global config if no profile settings
-        # Use model_dump() for Pydantic v2 compatibility instead of __dict__
-        # Handle both Pydantic models and dict config
-        if hasattr(self.config.subtitle_settings, "model_dump"):
-            return self.config.subtitle_settings.model_dump()
-        elif isinstance(self.config.subtitle_settings, dict):
-            return self.config.subtitle_settings  # type: ignore[no-any-return]
-        else:
-            # Fallback: treat as object with __dict__
-            return vars(self.config.subtitle_settings)
+        # subtitle_settings is dict[str, Any], return as-is
+        return self.config.subtitle_settings
 
     def _is_video(self, path: Path) -> bool:
         """Determine if a file is a video based on its MIME type.
@@ -369,7 +362,7 @@ class VideoAssembler:
             Path to the font file if found, None if no usable font could be found
 
         """
-        font_dir = Path(self.config.subtitle_settings.font_directory)
+        font_dir = Path(self.config.subtitle_settings["font_directory"])
         if not font_dir.is_dir():
             logger.warning(f"Font directory does not exist: {font_dir}")
             return None
@@ -540,10 +533,10 @@ class VideoAssembler:
                     self._normalize_text_for_verification(srt_text),
                 ).ratio()
                 details["subtitle_content_similarity"] = similarity
-                if (
-                    similarity
-                    < self.config.subtitle_settings.subtitle_similarity_threshold
-                ):
+                threshold = self.config.subtitle_settings[
+                    "subtitle_similarity_threshold"
+                ]
+                if similarity < threshold:
                     warnings.append(
                         f"Subtitle content similarity to script is low "
                         f"({similarity:.2%})"
@@ -1285,10 +1278,12 @@ class VideoAssembler:
                     y_pos_expr = f"h*{position.y}"
 
                     output_stream = f"[v_sub_{drawtext_count+1}]"
+                    font_path_escaped = font_path.as_posix().replace(":", r"\:")
+                    sub_text_escaped = sub_text_file.as_posix().replace(":", r"\:")
                     drawtext_filter = (
                         f"{current_video_stream}drawtext="
-                        f"fontfile='{font_path.as_posix().replace(':', r'\:')}':"
-                        f"textfile='{sub_text_file.as_posix().replace(':', r'\:')}':"
+                        f"fontfile='{font_path_escaped}':"
+                        f"textfile='{sub_text_escaped}':"
                         f"fontsize={font_size_pixels}:"
                         f"fontcolor='{self._convert_ass_color_to_ffmpeg(font_color)}':"
                         f"borderw={settings_dict.get('outline_thickness', 2)}:"
@@ -1418,7 +1413,9 @@ class VideoAssembler:
                     visual_bounds = None
 
                     if upper_unified_config.content_aware and geom:
-                        frame_width, frame_height = self.config.video_settings.resolution
+                        frame_width, frame_height = (
+                            self.config.video_settings.resolution
+                        )
                         visual_bounds = VisualBounds(
                             x=geom.rendered_x / frame_width,
                             y=geom.rendered_y / frame_height,
@@ -1433,10 +1430,9 @@ class VideoAssembler:
                     )
 
                     # Font size with scale factor
-                    base_font_size = (
-                        self.config.video_settings.resolution[1]
-                        * settings_dict.get("font_size_percent", 0.04)
-                    )
+                    base_font_size = self.config.video_settings.resolution[
+                        1
+                    ] * settings_dict.get("font_size_percent", 0.04)
                     upper_font_size = base_font_size * upper_settings.get(
                         "font_size_scale", 0.8
                     )
@@ -1481,8 +1477,10 @@ class VideoAssembler:
 
                 video_filters.append(f"{current_stream}ass='{ass_path_lower}'[v_out]")
             else:
-                # For SRT lower line, use the standard drawtext approach from _build_subtitle_graph
-                # This is timed subtitle generation - reuse logic but start from current_stream
+                # For SRT lower line, use the standard drawtext approach
+                # from _build_subtitle_graph
+                # This is timed subtitle generation - reuse logic but
+                # start from current_stream
                 sub_entries_lower = self._parse_srt(subtitle_lower_path)
 
                 segment_end_times = []
@@ -1544,7 +1542,9 @@ class VideoAssembler:
                                 max_chars_per_line = (
                                     int(geom.rendered_w / avg_char_width)
                                     if avg_char_width > 0
-                                    else self.config.video_settings.default_max_chars_per_line
+                                    else (
+                                        self.config.video_settings.default_max_chars_per_line
+                                    )
                                 )
 
                                 wrapper = textwrap.TextWrapper(
@@ -1589,17 +1589,25 @@ class VideoAssembler:
                                 y_pos_expr = f"h*{position.y}"
 
                                 output_stream = f"[v_lower_{drawtext_count+1}]"
+                                font_path_escaped = font_path.as_posix().replace(
+                                    ":", r"\:"
+                                )
+                                sub_text_escaped = sub_text_file.as_posix().replace(
+                                    ":", r"\:"
+                                )
                                 drawtext_filter = (
                                     f"{current_stream}drawtext="
-                                    f"fontfile='{font_path.as_posix().replace(':', r'\:')}':"
-                                    f"textfile='{sub_text_file.as_posix().replace(':', r'\:')}':"
+                                    f"fontfile='{font_path_escaped}':"
+                                    f"textfile='{sub_text_escaped}':"
                                     f"fontsize={font_size_pixels}:"
                                     f"fontcolor='{self._convert_ass_color_to_ffmpeg(font_color)}':"
-                                    f"borderw={lower_settings.get('outline_thickness', 2)}:"
+                                    f"borderw="
+                                    f"{lower_settings.get('outline_thickness', 2)}:"
                                     f"bordercolor='{self._convert_ass_color_to_ffmpeg(outline_color)}':"
                                     f"box=1:boxcolor='"
-                                    f"{self._convert_ass_color_to_ffmpeg(lower_settings.get('back_color', '&H80000000'))}"
-                                    f"':boxborderw={self.config.video_settings.subtitle_box_border_width}:"
+                                    f"{self._convert_ass_color_to_ffmpeg(lower_settings.get('back_color', '&H80000000'))}"  # noqa: E501
+                                    f"':boxborderw="
+                                    f"{self.config.video_settings.subtitle_box_border_width}:"
                                     f"x='{x_pos_expr}':y='{y_pos_expr}':"
                                     f"enable='between(t,{overlap_start},{overlap_end})'"
                                     f"{output_stream}"
