@@ -295,7 +295,7 @@ Test subtitle line three
     ):
         """Test building subtitle filter graph when subtitles are disabled."""
         # Disable subtitles in config
-        assembler.config.subtitle_settings.enabled = False
+        assembler.config.subtitle_settings["enabled"] = False
 
         with patch.object(
             assembler, "_get_media_dimensions", return_value=(1920, 1080)
@@ -457,13 +457,13 @@ Test subtitle line three
     async def test_build_debug_overlay_filter_graph(self, assembler: VideoAssembler):
         """Test building debug overlay filter graph."""
         # Enable debug info in config
-        assembler.config.subtitle_settings.show_debug_info = True
+        assembler.config.subtitle_settings["show_debug_info"] = True
+        assert assembler.config.subtitle_settings["show_debug_info"] is True
 
         # This test is difficult to implement without significant refactoring
         # of the assembler
         # since the debug overlay is not a separate method.
         # For now, we will just check that the flag is set correctly.
-        assert assembler.config.subtitle_settings.show_debug_info is True
 
 
 @pytest_asyncio.fixture

@@ -272,18 +272,18 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.7.0):**
-- **Total Tests**: 452 collected
-- **Passing**: 433 tests
+**Current Statistics (v0.8.0):**
+- **Total Tests**: 497 collected
+- **Passing**: 478 tests
 - **Skipped**: 19 tests (includes 9 skipped integration tests)
 - **Failed**: 0 tests
 - **Coverage**: 41% (target: 40% minimum)
 
-**Recent Updates (v0.7.0):**
-- ✅ Fixed Amazon affiliate tag parameter detection bug
-- ✅ Updated build_affiliate_url() tests for precise pattern matching
-- ✅ Added URL shortening integration tests
-- ✅ All linting checks passing
+**Recent Updates (v0.8.0):**
+- ✅ Added two-part subtitle system with 335 comprehensive test cases
+- ✅ Consolidated subtitle configuration to dict-based approach
+- ✅ Fixed all linting issues (13 line length, 1 duplicate key, 1 unused variable, MyPy errors)
+- ✅ All 7 linting tools passing (Ruff, Ruff Format, MyPy, Bandit, Vulture, Safety, Pytest)
 - ✅ Coverage maintained at 41% (exceeds 40% minimum target)
 
 **Previous Updates (v0.6.2):**

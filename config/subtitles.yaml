@@ -122,6 +122,43 @@ subtitle_settings:
   # Subtitle file format: "srt" or "ass"
   subtitle_format: "ass"
 
+  # ---- TWO-PART SUBTITLE SYSTEM ----
+  # Enable dual independent subtitle lines (upper + lower)
+  # Upper line: Static product info (e.g., shortened URL)
+  # Lower line: Timed voiceover subtitles
+  # Profile-configurable for per-video customization
+  two_part_subtitles:
+    # Enable dual subtitle lines (requires profile support)
+    enabled: false
+
+    # Upper line configuration (static product info)
+    upper_line:
+      enabled: true
+      # Source field from data.json to display (e.g., "product_url", "product_link", "shortened_url")
+      source_field: "product_url"
+      # URL shortening method: "default" (built-in), "bitly", "tinyurl", or null (no shortening)
+      url_shortener: "default"
+      # Position anchor for upper line
+      anchor: "above_content"
+      # Spacing from content as fraction of frame height (0.0-0.5)
+      margin: 0.03
+      # Font size relative to main subtitles (0.5-2.0)
+      font_size_scale: 0.8
+      # Style preset for upper line (minimal, modern, bold, animated, random)
+      style_preset: "minimal"
+      # Custom styling (optional, overrides preset)
+      custom_style: null
+
+    # Lower line configuration (voiceover subtitles)
+    lower_line:
+      enabled: true
+      # Position anchor for lower line
+      anchor: "below_content"
+      # Spacing from content as fraction of frame height (0.0-0.5)
+      margin: 0.05
+      # Uses standard subtitle_settings for styling when custom_style is null
+      custom_style: null
+
   # ---- LEGACY COMPATIBILITY SETTINGS ----
   # Font settings
   font_directory: "static/fonts"
@@ -238,6 +275,38 @@ subtitle_effects:
   # Vertical distance to move subtitles up/down (pixels)
   # Used by movement effect to create subtle vertical animation
   movement_distance_pixels: 50
+
+  # ---- BOUNCE/ROTATION EFFECT PARAMETERS ----
+  # Controls rotation-based bounce animation
+
+  # Maximum rotation angle (degrees) - positive values rotate clockwise
+  bounce_rotation_max: 5
+
+  # Minimum rotation angle (degrees) - negative values rotate counter-clockwise
+  bounce_rotation_min: -5
+
+  # Resting rotation angle (degrees) - normal state, usually 0 (no rotation)
+  bounce_rotation_rest: 0
+
+  # ---- TYPEWRITER EFFECT PARAMETERS ----
+  # Controls character-by-character reveal animation
+
+  # Maximum time to reveal each character (seconds)
+  # Determines the fastest reveal speed for typewriter effect
+  typewriter_char_reveal_max_sec: 0.1
+
+  # Minimum timing between character reveals (milliseconds)
+  # Prevents reveal from being too fast to read
+  typewriter_min_timing_ms: 50
+
+  # ---- GLOW EFFECT PARAMETERS ----
+  # Controls color transition glow animation
+
+  # Starting color for glow effect (ASS format: &HAABBGGRR)
+  glow_start_color: "&H00FFFF00"  # Yellow - initial glow color
+
+  # Ending color for glow effect (ASS format: &HAABBGGRR)
+  glow_end_color: "&H00000000"    # Black - final glow color
 
 # ============================================================================
 # TEXT RENDERING SETTINGS

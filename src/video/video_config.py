@@ -90,199 +90,8 @@ SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
 # subtitle_positioning.py
 
 
-class SubtitleSettings(BaseModel):
-    enabled: bool = Field(True)
-    font_name: str = Field("Arial")
-    font_directory: str = Field(
-        "static/fonts", description="Directory containing .ttf/.otf font files."
-    )
-    font_size_percent: float = Field(0.05)
-    font_width_to_height_ratio: float = Field(
-        0.5,
-        description="Estimated ratio for character width to font size. "
-        "Used for text wrapping.",
-    )
-    font_color: str = Field("&H00FFFFFF")
-    outline_color: str = Field("&HFF000000")
-    back_color: str = Field("&H99000000")
-    use_random_font: bool = Field(False)
-    use_random_colors: bool = Field(False)
-    available_fonts: list[str] = Field(
-        ["Montserrat", "Rubik", "Poppins", "Gabarito", "DM Serif Display"]
-    )
-    available_color_combinations: list[tuple[str, str]] = Field(
-        [
-            ("&H00FFFFFF", "&HFF000000"),
-            ("&H0000FFFF", "&HFF000000"),
-            ("&H00CCBF51", "&HFF000000"),
-            ("&H0053FB57", "&HFF000000"),
-            ("&H00E9967A", "&HFF000000"),
-        ]
-    )
-    temp_subtitle_dir: str = Field("subtitle_processing")
-    temp_subtitle_filename: str = Field("captions.srt")
-    save_srt_with_video: bool = Field(True)
-    subtitle_format: str = Field("srt")
-    script_paths: list[str] = Field(["info/script.txt"])
-
-    # ASS-specific settings
-    ass_enable_fade: bool = Field(True)
-    ass_fade_in_ms: int = Field(500)
-    ass_fade_out_ms: int = Field(500)
-    ass_enable_karaoke: bool = Field(True)
-    ass_karaoke_style: str = Field("sweep")
-    ass_enable_colors: bool = Field(True)
-    ass_enable_positioning: bool = Field(True)
-    ass_enable_transforms: bool = Field(True)
-    ass_primary_color: str = Field("&H00FFFFFF")
-    ass_secondary_color: str = Field("&H00FF6B35")
-    ass_outline_color: str = Field("&H00000000")
-    ass_shadow_color: str = Field("&H80000000")
-
-    # Enhanced randomization settings
-    ass_randomize_effects: bool = Field(False)
-    ass_randomize_fonts: bool = Field(False)
-    ass_randomize_colors: bool = Field(False)
-
-    # Layout settings for subtitles
-    ass_margin_bottom_percent: float = Field(
-        0.25, description="Margin from bottom as percentage of video height"
-    )
-    ass_closer_to_image: bool = Field(
-        False, description="Position subtitles closer to images"
-    )
-    ass_spacing_reduction_factor: float = Field(
-        0.5, description="Factor to reduce spacing when positioning closer to images"
-    )
-
-    # Font settings for subtitles
-    ass_font_size: int = Field(48)  # Larger default font size
-    ass_available_fonts: list[str] = Field(
-        [
-            "Arial",
-            "Helvetica",
-            "Impact",
-            "Verdana",
-            "Tahoma",
-            "Comic Sans MS",
-            "Times New Roman",
-            "Courier New",
-            "Georgia",
-            "Trebuchet MS",
-        ]
-    )
-
-    # Color palettes for randomization
-    ass_color_palettes: list[dict[str, str]] = Field(
-        [
-            {
-                "primary": "&H00FFFFFF",
-                "secondary": "&H00FF6B35",
-                "accent": "&H00FFD700",
-            },  # White/Orange/Gold
-            {
-                "primary": "&H0000FFFF",
-                "secondary": "&H00FF69B4",
-                "accent": "&H0000FF00",
-            },  # Cyan/Pink/Green
-            {
-                "primary": "&H00FFFF00",
-                "secondary": "&H00FF0080",
-                "accent": "&H008080FF",
-            },  # Yellow/Purple/Light Blue
-            {
-                "primary": "&H0000FF00",
-                "secondary": "&H00FFFF00",
-                "accent": "&H00FF8C00",
-            },  # Green/Yellow/Orange
-            {
-                "primary": "&H00FF69B4",
-                "secondary": "&H009370DB",
-                "accent": "&H0020B2AA",
-            },  # Pink/Purple/Turquoise
-        ]
-    )
-
-    # Effect types for randomization
-    ass_available_effects: list[str] = Field(
-        [
-            "fade",
-            "slide_in",
-            "bounce",
-            "glow",
-            "shadow_shift",
-            "color_wave",
-            "scale_pulse",
-        ]
-    )
-
-    # Animation timing factors for effects (multiplied by segment duration)
-    ass_pulse_duration_factor: int = Field(
-        500, description="Duration factor for pulse animations in ms"
-    )
-    ass_wave_duration_factor: int = Field(
-        300, description="Duration factor for color wave effects in ms"
-    )
-
-    # Position settings (duplicate removed - already defined above)
-    max_subtitle_duration: float = Field(4.5)
-    max_line_length: int = Field(
-        38,
-        description="Target maximum characters per subtitle line in SRT segmentation.",
-    )
-    max_words_per_line: int = Field(
-        2,
-        description="Maximum words per subtitle line (0 to disable word-based limit)",
-    )
-    min_subtitle_duration: float = Field(0.4)
-    subtitle_split_on_punctuation: bool = Field(True)
-    punctuation_marks: list[str] = Field([".", "!", "?", ";", ":", ","])
-    subtitle_similarity_threshold: float = Field(0.70)
-    subtitle_overlap_threshold: float = Field(65.0)
-    word_timestamp_pause_threshold: float = Field(0.4)
-    bold: bool = Field(True)
-    outline_thickness: int = Field(1)
-    shadow: bool = Field(True)
-    show_debug_info: bool = False
-
-    # Subtitle extension behavior settings
-    enable_subtitle_extension: bool = Field(
-        True, description="Whether to extend last subtitle to match voiceover duration"
-    )
-    subtitle_extension_threshold: float = Field(
-        2.0, description="Minimum gap (seconds) required before extending last subtitle"
-    )
-    max_subtitle_extension: float = Field(
-        5.0, description="Maximum seconds to extend a subtitle beyond its natural end"
-    )
-
-    # ---- UNIFIED SUBTITLE POSITIONING PARAMETERS ----
-    # New unified parameters that replace the legacy positioning system
-    anchor: str = Field(
-        "bottom",
-        description="Anchor: top, center, bottom, above_content, below_content",
-    )
-    margin: float = Field(
-        0.1, description="Margin as fraction of frame height (0.0-0.5)"
-    )
-    content_aware: bool = Field(
-        True, description="Adjust position based on visual content bounds"
-    )
-    style_preset: str = Field(
-        "modern", description="Style preset: minimal, modern, bold, random"
-    )
-    font_size_scale: float = Field(
-        1.2, description="Scale factor for font size (0.5-2.0)"
-    )
-    horizontal_alignment: str = Field(
-        "center", description="Text alignment: left, center, right"
-    )
-    randomize_colors: bool = Field(
-        False, description="Use random color combinations from preset palette"
-    )
-    randomize_effects: bool = Field(
-        False, description="Use random animation effects when available"
-    )
+# Legacy SubtitleSettings removed in v0.8.0
+# Use subtitle_settings dict from config/subtitles.yaml via UnifiedSubtitleConfig
 
 
 class VideoSettings(BaseModel):
@@ -600,6 +409,52 @@ class VideoProfile(BaseModel):
     )
     subtitle_selected_color_pair: str | None = Field(
         None, description="Override with specific color pair name"
+    )
+
+    # ---- TWO-PART SUBTITLE SYSTEM ----
+    # Per-profile overrides for two-part subtitle system
+    two_part_subtitles_enabled: bool | None = Field(
+        None, description="Override two-part subtitle system enabled/disabled"
+    )
+    two_part_subtitles_upper_enabled: bool | None = Field(
+        None, description="Override upper subtitle line enabled/disabled"
+    )
+    two_part_subtitles_upper_source_field: str | None = Field(
+        None,
+        description=(
+            "Override field name to use for upper subtitle "
+            "(e.g. 'shortened_affiliate_link')"
+        ),
+    )
+    two_part_subtitles_upper_anchor: str | None = Field(
+        None, description="Override upper subtitle anchor: top, above_content, etc."
+    )
+    two_part_subtitles_upper_margin: float | None = Field(
+        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
+    )
+    two_part_subtitles_upper_font_size_scale: float | None = Field(
+        None, description="Override upper subtitle font size scale (0.5-2.0)"
+    )
+    two_part_subtitles_upper_style_preset: str | None = Field(
+        None, description="Override upper subtitle style preset: minimal, modern, bold"
+    )
+    two_part_subtitles_upper_use_full_duration: bool | None = Field(
+        None, description="Override upper subtitle to display for full video duration"
+    )
+    two_part_subtitles_upper_randomize_effects: bool | None = Field(
+        None, description="Override upper subtitle effect randomization"
+    )
+    two_part_subtitles_upper_prefix_replace: str | None = Field(
+        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
+    )
+    two_part_subtitles_lower_enabled: bool | None = Field(
+        None, description="Override lower subtitle line enabled/disabled"
+    )
+    two_part_subtitles_lower_anchor: str | None = Field(
+        None, description="Override lower subtitle anchor: bottom, below_content, etc."
+    )
+    two_part_subtitles_lower_margin: float | None = Field(
+        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
     )
 
 
@@ -1186,7 +1041,7 @@ class VideoConfig(BaseModel):
     stock_media_settings: StockMediaSettings
     ffmpeg_settings: FFmpegSettings
     attribution_settings: AttributionSettings
-    subtitle_settings: SubtitleSettings
+    subtitle_settings: dict[str, Any]  # Now loaded from config/subtitles.yaml
     whisper_settings: WhisperSettings
     google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)
     video_profiles: dict[str, VideoProfile]
@@ -1245,8 +1100,8 @@ class VideoConfig(BaseModel):
             else llm_template_path_obj
         )
 
-        font_dir_obj = Path(self.subtitle_settings.font_directory)
-        self.subtitle_settings.font_directory = str(
+        font_dir_obj = Path(self.subtitle_settings["font_directory"])
+        self.subtitle_settings["font_directory"] = str(
             (self.project_root / font_dir_obj)
             if not font_dir_obj.is_absolute()
             else font_dir_obj
@@ -1335,47 +1190,123 @@ class VideoConfig(BaseModel):
             # Subtitle settings from subtitle_settings and unified positioning
             "subtitle_settings": {
                 # Core unified subtitle positioning
-                "anchor": self.subtitle_settings.anchor,
-                "margin": self.subtitle_settings.margin,
-                "content_aware": self.subtitle_settings.content_aware,
-                "style_preset": self.subtitle_settings.style_preset,
-                "font_size_scale": self.subtitle_settings.font_size_scale,
-                "horizontal_alignment": self.subtitle_settings.horizontal_alignment,
+                "anchor": self.subtitle_settings["anchor"],
+                "margin": self.subtitle_settings["margin"],
+                "content_aware": self.subtitle_settings["content_aware"],
+                "style_preset": self.subtitle_settings["style_preset"],
+                "font_size_scale": self.subtitle_settings["font_size_scale"],
+                "horizontal_alignment": self.subtitle_settings["horizontal_alignment"],
                 # Font and color settings
-                "font_name": self.subtitle_settings.font_name,
-                "font_color": self.subtitle_settings.font_color,
-                "outline_color": self.subtitle_settings.outline_color,
-                "back_color": self.subtitle_settings.back_color,
-                "randomize_colors": self.subtitle_settings.randomize_colors,
-                "randomize_effects": self.subtitle_settings.randomize_effects,
+                "font_name": self.subtitle_settings["font_name"],
+                "font_color": self.subtitle_settings["font_color"],
+                "outline_color": self.subtitle_settings["outline_color"],
+                "back_color": self.subtitle_settings["back_color"],
+                "randomize_effects": self.subtitle_settings["randomize_effects"],
                 # Text formatting
-                "max_line_length": self.subtitle_settings.max_line_length,
-                "max_words_per_line": self.subtitle_settings.max_words_per_line,
-                "max_subtitle_duration": self.subtitle_settings.max_subtitle_duration,
-                "min_subtitle_duration": self.subtitle_settings.min_subtitle_duration,
+                "max_line_length": self.subtitle_settings["max_line_length"],
+                "max_words_per_line": self.subtitle_settings["max_words_per_line"],
+                "max_subtitle_duration": (
+                    self.subtitle_settings.get("max_subtitle_duration")
+                    or self.subtitle_settings.get("max_subtitle_duration_sec", 4.5)
+                ),
+                "min_subtitle_duration": (
+                    self.subtitle_settings.get("min_subtitle_duration")
+                    or self.subtitle_settings.get("min_subtitle_duration_sec", 0.4)
+                ),
                 # Advanced settings (pass through from original)
-                "enabled": self.subtitle_settings.enabled,
+                "enabled": self.subtitle_settings["enabled"],
                 # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
                 # relative_positioning, absolute_positioning
-                "font_directory": self.subtitle_settings.font_directory,
-                "font_size_percent": self.subtitle_settings.font_size_percent,
+                "font_directory": self.subtitle_settings["font_directory"],
+                "font_size_percent": self.subtitle_settings["font_size_percent"],
                 "font_width_to_height_ratio": (
-                    self.subtitle_settings.font_width_to_height_ratio
+                    self.subtitle_settings["font_width_to_height_ratio"]
                 ),
-                "use_random_font": self.subtitle_settings.use_random_font,
-                "use_random_colors": self.subtitle_settings.use_random_colors,
-                "available_fonts": self.subtitle_settings.available_fonts,
-                "available_color_combinations": (
-                    self.subtitle_settings.available_color_combinations
+                "randomize_fonts": (
+                    self.subtitle_settings.get("randomize_fonts")
+                    or self.subtitle_settings.get("use_random_font", False)
                 ),
-                "temp_subtitle_dir": self.subtitle_settings.temp_subtitle_dir,
-                "temp_subtitle_filename": self.subtitle_settings.temp_subtitle_filename,
-                "save_srt_with_video": self.subtitle_settings.save_srt_with_video,
-                "subtitle_format": self.subtitle_settings.subtitle_format,
-                "script_paths": self.subtitle_settings.script_paths,
-                "bold": self.subtitle_settings.bold,
-                "outline_thickness": self.subtitle_settings.outline_thickness,
-                "shadow": self.subtitle_settings.shadow,
+                "randomize_colors": (
+                    self.subtitle_settings.get("randomize_colors")
+                    or self.subtitle_settings.get("use_random_colors", False)
+                ),
+                "available_fonts": self.subtitle_settings.get("available_fonts", []),
+                "available_color_combinations": self.subtitle_settings.get(
+                    "available_color_combinations", []
+                ),
+                "temp_subtitle_dir": self.subtitle_settings.get(
+                    "temp_subtitle_dir", "temp"
+                ),
+                "temp_subtitle_filename": self.subtitle_settings.get(
+                    "temp_subtitle_filename", "captions.srt"
+                ),
+                "save_srt_with_video": self.subtitle_settings.get(
+                    "save_srt_with_video", True
+                ),
+                "subtitle_format": self.subtitle_settings.get("subtitle_format", "srt"),
+                "script_paths": self.subtitle_settings.get("script_paths", []),
+                "bold": self.subtitle_settings.get("bold", False),
+                "outline_thickness": self.subtitle_settings.get("outline_thickness", 2),
+                "shadow": self.subtitle_settings.get("shadow", 0),
+                # Two-part subtitle system settings
+                "two_part_subtitles_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                ).get("enabled", False),
+                "two_part_subtitles_upper_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("enabled", True),
+                "two_part_subtitles_upper_source_field": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("source_field", "shortened_affiliate_link"),
+                "two_part_subtitles_upper_anchor": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("anchor", "above_content"),
+                "two_part_subtitles_upper_margin": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("margin", 0.03),
+                "two_part_subtitles_upper_font_size_scale": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("font_size_scale", 0.75),
+                "two_part_subtitles_upper_style_preset": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("style_preset", "minimal")
+                ),
+                "two_part_subtitles_upper_use_full_duration": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("use_full_duration", True)
+                ),
+                "two_part_subtitles_upper_randomize_effects": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("randomize_effects", False)
+                ),
+                "two_part_subtitles_lower_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("enabled", True),
+                "two_part_subtitles_lower_anchor": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("anchor", "below_content"),
+                "two_part_subtitles_lower_margin": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("margin", 0.05),
             },
             # Profile information
             "profile": {
@@ -1489,6 +1420,60 @@ class VideoConfig(BaseModel):
                 profile.subtitle_selected_color_pair
             )
 
+        # Apply two-part subtitle system overrides from profile
+        if profile.two_part_subtitles_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_enabled"] = (
+                profile.two_part_subtitles_enabled
+            )
+        if profile.two_part_subtitles_upper_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_enabled"] = (
+                profile.two_part_subtitles_upper_enabled
+            )
+        if profile.two_part_subtitles_upper_source_field is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_source_field"
+            ] = profile.two_part_subtitles_upper_source_field
+        if profile.two_part_subtitles_upper_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_anchor"] = (
+                profile.two_part_subtitles_upper_anchor
+            )
+        if profile.two_part_subtitles_upper_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_margin"] = (
+                profile.two_part_subtitles_upper_margin
+            )
+        if profile.two_part_subtitles_upper_font_size_scale is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_font_size_scale"
+            ] = profile.two_part_subtitles_upper_font_size_scale
+        if profile.two_part_subtitles_upper_style_preset is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_style_preset"
+            ] = profile.two_part_subtitles_upper_style_preset
+        if profile.two_part_subtitles_upper_use_full_duration is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_use_full_duration"
+            ] = profile.two_part_subtitles_upper_use_full_duration
+        if profile.two_part_subtitles_upper_randomize_effects is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_randomize_effects"
+            ] = profile.two_part_subtitles_upper_randomize_effects
+        if profile.two_part_subtitles_upper_prefix_replace is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_prefix_replace"
+            ] = profile.two_part_subtitles_upper_prefix_replace
+        if profile.two_part_subtitles_lower_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_enabled"] = (
+                profile.two_part_subtitles_lower_enabled
+            )
+        if profile.two_part_subtitles_lower_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_anchor"] = (
+                profile.two_part_subtitles_lower_anchor
+            )
+        if profile.two_part_subtitles_lower_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_margin"] = (
+                profile.two_part_subtitles_lower_margin
+            )
+
         # Apply legacy subtitle_positioning overrides if present
         if profile.subtitle_positioning:
             merged_settings["subtitle_settings"].update(profile.subtitle_positioning)
@@ -1571,7 +1556,7 @@ class VideoConfig(BaseModel):
 
     def _get_subtitle_filename(self, default_filename: str) -> str:
         """Get subtitle filename with correct extension based on subtitle format."""
-        if self.subtitle_settings.subtitle_format == "ass":
+        if self.subtitle_settings.get("subtitle_format") == "ass":
             return default_filename.replace(".srt", ".ass")
         return default_filename
 
@@ -2095,133 +2080,7 @@ except Exception as e:
             attribution_template="",
             attribution_entry_template="",
         ),
-        subtitle_settings=SubtitleSettings(
-            enabled=True,
-            # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
-            # relative_positioning, absolute_positioning
-            font_name="Arial",
-            font_directory="fonts",
-            font_size_percent=0.05,
-            font_width_to_height_ratio=0.5,
-            font_color="&H00FFFFFF",
-            outline_color="&HFF000000",
-            back_color="&H99000000",
-            use_random_font=False,
-            use_random_colors=False,
-            available_fonts=[
-                "Montserrat",
-                "Rubik",
-                "Poppins",
-                "Gabarito",
-                "DM Serif Display",
-            ],
-            available_color_combinations=[
-                ("&H00FFFFFF", "&HFF000000"),
-                ("&H0000FFFF", "&HFF000000"),
-                ("&H00CCBF51", "&HFF000000"),
-                ("&H0053FB57", "&HFF000000"),
-                ("&H00E9967A", "&HFF000000"),
-            ],
-            temp_subtitle_dir="subtitle_processing",
-            temp_subtitle_filename="captions.srt",
-            save_srt_with_video=True,
-            subtitle_format="srt",
-            script_paths=["info/script.txt"],
-            # ASS-specific settings
-            ass_enable_fade=True,
-            ass_fade_in_ms=500,
-            ass_fade_out_ms=500,
-            ass_enable_karaoke=True,
-            ass_karaoke_style="sweep",
-            ass_enable_colors=True,
-            ass_enable_positioning=True,
-            ass_enable_transforms=True,
-            ass_primary_color="&H00FFFFFF",
-            ass_secondary_color="&H00FF6B35",
-            ass_outline_color="&H00000000",
-            ass_shadow_color="&H80000000",
-            ass_randomize_effects=False,
-            ass_randomize_fonts=False,
-            ass_randomize_colors=False,
-            ass_margin_bottom_percent=0.25,
-            ass_closer_to_image=False,
-            ass_spacing_reduction_factor=0.5,
-            ass_font_size=48,
-            ass_available_fonts=[
-                "Arial",
-                "Helvetica",
-                "Impact",
-                "Verdana",
-                "Tahoma",
-                "Comic Sans MS",
-                "Times New Roman",
-                "Courier New",
-                "Georgia",
-                "Trebuchet MS",
-            ],
-            ass_color_palettes=[
-                {
-                    "primary": "&H00FFFFFF",
-                    "secondary": "&H00FF6B35",
-                    "accent": "&H00FFD700",
-                },
-                {
-                    "primary": "&H0000FFFF",
-                    "secondary": "&H00FF69B4",
-                    "accent": "&H0000FF00",
-                },
-                {
-                    "primary": "&H00FFFF00",
-                    "secondary": "&H00FF0080",
-                    "accent": "&H008080FF",
-                },
-                {
-                    "primary": "&H0000FF00",
-                    "secondary": "&H00FFFF00",
-                    "accent": "&H00FF8C00",
-                },
-                {
-                    "primary": "&H00FF69B4",
-                    "secondary": "&H009370DB",
-                    "accent": "&H0020B2AA",
-                },
-            ],
-            ass_available_effects=[
-                "fade",
-                "slide_in",
-                "bounce",
-                "glow",
-                "shadow_shift",
-                "color_wave",
-                "scale_pulse",
-            ],
-            ass_pulse_duration_factor=500,
-            ass_wave_duration_factor=300,
-            max_subtitle_duration=4.5,
-            max_line_length=38,
-            max_words_per_line=2,
-            min_subtitle_duration=0.4,
-            subtitle_split_on_punctuation=True,
-            punctuation_marks=[".", "!", "?", ";", ":", ","],
-            subtitle_similarity_threshold=0.70,
-            subtitle_overlap_threshold=65.0,
-            word_timestamp_pause_threshold=0.4,
-            bold=True,
-            outline_thickness=1,
-            shadow=True,
-            enable_subtitle_extension=True,
-            subtitle_extension_threshold=2.0,
-            max_subtitle_extension=5.0,
-            # Unified subtitle positioning parameters
-            anchor="bottom",
-            margin=0.1,
-            content_aware=True,
-            style_preset="modern",
-            font_size_scale=1.2,
-            horizontal_alignment="center",
-            randomize_colors=False,
-            randomize_effects=False,
-        ),
+        subtitle_settings={},  # Use config/subtitles.yaml in production
         whisper_settings=WhisperSettings(
             enabled=True,
             model_size="small",

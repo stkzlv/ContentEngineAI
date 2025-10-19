@@ -232,7 +232,7 @@ video_profiles:
 
   # Slideshow with images profile
   slideshow_images1:
-    description: "Dynamically uses scraped product images to match voiceover duration."
+    description: "Dynamically uses scraped product images to match voiceover duration. Uses SRT format (no advanced effects)."
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
@@ -241,19 +241,25 @@ video_profiles:
 
     # Image positioning overrides
     image_width_percent: 0.85
+    image_top_position_percent: 0.15              # Position image lower (15% from top)
+
+    # Subtitle format - SRT (simple format, no ASS effects like karaoke)
+    subtitle_format: "srt"
 
     # Subtitle positioning overrides
-    subtitle_anchor: "top"                         # Position at top of screen
-    subtitle_margin: 0.05                          # Small margin from top (5%)
+    subtitle_anchor: "below_content"               # Position below visual content
+    subtitle_margin: 0.05                          # Small margin (5%)
     subtitle_content_aware: true                   # Auto-adjust based on visual content
     subtitle_horizontal_alignment: "center"        # Center horizontally
 
     # Subtitle style overrides
-    subtitle_style_preset: "modern"                # modern style with karaoke effect
+    # NOTE: SRT format doesn't support effects - use "minimal" or "bold" preset
+    # For karaoke/animated effects, use subtitle_format: "ass" instead
+    subtitle_style_preset: "bold"                  # Bold style (no effects, SRT-compatible)
     subtitle_font_size_scale: 1.0                  # Normal font size
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
+    subtitle_randomize_fonts: false                # SRT doesn't support font changes
+    subtitle_randomize_colors: false               # SRT doesn't support color changes
+    subtitle_randomize_effects: false              # No effects in SRT format
 
     # Text formatting overrides
     subtitle_max_line_length: 38                   # Max characters per line
@@ -276,7 +282,7 @@ video_profiles:
     image_top_position_percent: 0.15
 
     # Subtitle positioning overrides
-    subtitle_anchor: "below_content"           # top, center, bottom, above_content, below_content
+    subtitle_anchor: "top"                     # top, center, bottom, above_content, below_content
     subtitle_margin: 0.06                      # Fraction of frame height (0.0-0.5)
     subtitle_content_aware: true               # Auto-adjust based on visual content
     subtitle_horizontal_alignment: "center"    # left, center, right
@@ -302,6 +308,54 @@ video_profiles:
     # subtitle_background_color: "&H00000000"  # ASS format: &H00BBGGRR
     # subtitle_selected_font: "Montserrat"     # Bypass randomization
     # subtitle_selected_color_pair: "white_black" # Specific color pair
+
+  # Slideshow with images profile (variant 3 - dual subtitles)
+  slideshow_images3:
+    description: "Slideshow with dual independent subtitle lines - upper for product URL, lower for voiceover."
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning overrides
+    image_width_percent: 0.9
+    image_top_position_percent: 0.12
+
+    # Two-part subtitle system configuration
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_anchor: "above_content"     # Position above the image
+    two_part_subtitles_upper_margin: 0.04
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"     # Can be: minimal, modern, bold, animated
+    two_part_subtitles_upper_use_full_duration: true     # Display for entire video
+    two_part_subtitles_upper_randomize_effects: false    # Can enable for randomized effects
+    two_part_subtitles_upper_prefix_replace: "Product: " # Replace URL prefix (e.g., "https://" → "Product: ")
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
+    two_part_subtitles_lower_margin: 0.05
+
+    # Subtitle format and styling (applies to both lines)
+    subtitle_format: "ass"
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+
+    # Lower line styling (voiceover subtitles)
+    subtitle_style_preset: "modern"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+
+    # Text formatting
+    subtitle_max_line_length: 30
+    subtitle_max_words_per_line: 2
+    subtitle_max_subtitle_width_fraction: 0.75
+    subtitle_max_duration: 4.0
+    subtitle_min_duration: 0.5
 
 # ============================================================================
 # ATTRIBUTION SETTINGS
