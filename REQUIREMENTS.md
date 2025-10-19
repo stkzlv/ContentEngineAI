@@ -78,6 +78,25 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 - **Text Constraints**: Ensure subtitle width doesn't exceed image width
 - **Spacing Consistency**: Maintain consistent spacing between content and subtitles
 
+### Two-Part Subtitle System
+- **Independent Dual Lines**: Display two independent subtitle lines simultaneously
+- **Upper Line (Product Link)**:
+  - Display shortened product URL from `data.json` by default
+  - Source field configurable per profile (e.g., `product_url`, `product_link`, custom field)
+  - Positioned above image using `above_content` anchor
+  - Always visible throughout video (static, not timed to voiceover)
+- **Lower Line (Voiceover Subtitles)**:
+  - Standard timed subtitles synchronized to voiceover audio
+  - Positioned below image using `below_content` anchor
+  - Uses existing subtitle generation system (STT-based timing)
+- **Profile Configuration**:
+  - Enable/disable two-part mode per video profile
+  - Configure data source for upper line (default: shortened product URL)
+  - Independent styling for upper and lower lines
+  - Separate margin/positioning control for each line
+- **Content-Aware Positioning**: Both lines adjust position based on visual content boundaries
+- **Backward Compatibility**: Single-line subtitle mode remains default when two-part disabled
+
 ### Profile-Specific Settings
 - **All visual settings MUST be configurable per video profile**
 - Image positioning and sizing settings (width, position, aspect ratio)

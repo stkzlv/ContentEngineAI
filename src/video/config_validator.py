@@ -387,9 +387,13 @@ class VideoConfigValidator:
 
         try:
             # Create unified config from settings
-            unified_config = create_unified_config_from_settings(
+            # Handle both dict and object forms
+            settings_dict = (
                 subtitle_settings.__dict__
+                if hasattr(subtitle_settings, "__dict__")
+                else subtitle_settings
             )
+            unified_config = create_unified_config_from_settings(settings_dict)
 
             # Validate anchor value
             if hasattr(unified_config, "anchor"):
@@ -419,8 +423,7 @@ class VideoConfigValidator:
 
             # Check configuration parameters
             has_unified_params = any(
-                param in subtitle_settings.__dict__
-                for param in ["anchor", "style_preset", "content_aware"]
+                param in settings_dict for param in ["anchor", "style_preset", "content_aware"]
             )
 
             if has_unified_params:

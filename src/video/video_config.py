@@ -410,6 +410,48 @@ class VideoProfile(BaseModel):
         None, description="Override with specific color pair name"
     )
 
+    # ---- TWO-PART SUBTITLE SYSTEM ----
+    # Per-profile overrides for two-part subtitle system
+    two_part_subtitles_enabled: bool | None = Field(
+        None, description="Override two-part subtitle system enabled/disabled"
+    )
+    two_part_subtitles_upper_enabled: bool | None = Field(
+        None, description="Override upper subtitle line enabled/disabled"
+    )
+    two_part_subtitles_upper_source_field: str | None = Field(
+        None, description="Override field name to use for upper subtitle (e.g. 'shortened_affiliate_link')"
+    )
+    two_part_subtitles_upper_anchor: str | None = Field(
+        None, description="Override upper subtitle anchor: top, above_content, etc."
+    )
+    two_part_subtitles_upper_margin: float | None = Field(
+        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
+    )
+    two_part_subtitles_upper_font_size_scale: float | None = Field(
+        None, description="Override upper subtitle font size scale (0.5-2.0)"
+    )
+    two_part_subtitles_upper_style_preset: str | None = Field(
+        None, description="Override upper subtitle style preset: minimal, modern, bold"
+    )
+    two_part_subtitles_upper_use_full_duration: bool | None = Field(
+        None, description="Override upper subtitle to display for full video duration"
+    )
+    two_part_subtitles_upper_randomize_effects: bool | None = Field(
+        None, description="Override upper subtitle effect randomization"
+    )
+    two_part_subtitles_upper_prefix_replace: str | None = Field(
+        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
+    )
+    two_part_subtitles_lower_enabled: bool | None = Field(
+        None, description="Override lower subtitle line enabled/disabled"
+    )
+    two_part_subtitles_lower_anchor: str | None = Field(
+        None, description="Override lower subtitle anchor: bottom, below_content, etc."
+    )
+    two_part_subtitles_lower_margin: float | None = Field(
+        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
+    )
+
 
 class WhisperSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
@@ -1160,10 +1202,12 @@ class VideoConfig(BaseModel):
                 "max_line_length": self.subtitle_settings["max_line_length"],
                 "max_words_per_line": self.subtitle_settings["max_words_per_line"],
                 "max_subtitle_duration": (
-                    self.subtitle_settings["max_subtitle_duration"]
+                    self.subtitle_settings.get("max_subtitle_duration") or
+                    self.subtitle_settings.get("max_subtitle_duration_sec", 4.5)
                 ),
                 "min_subtitle_duration": (
-                    self.subtitle_settings["min_subtitle_duration"]
+                    self.subtitle_settings.get("min_subtitle_duration") or
+                    self.subtitle_settings.get("min_subtitle_duration_sec", 0.4)
                 ),
                 # Advanced settings (pass through from original)
                 "enabled": self.subtitle_settings["enabled"],
@@ -1174,22 +1218,41 @@ class VideoConfig(BaseModel):
                 "font_width_to_height_ratio": (
                     self.subtitle_settings["font_width_to_height_ratio"]
                 ),
-                "use_random_font": self.subtitle_settings["use_random_font"],
-                "use_random_colors": self.subtitle_settings["use_random_colors"],
-                "available_fonts": self.subtitle_settings["available_fonts"],
-                "available_color_combinations": (
-                    self.subtitle_settings["available_color_combinations"]
+                "randomize_fonts": (
+                    self.subtitle_settings.get("randomize_fonts") or
+                    self.subtitle_settings.get("use_random_font", False)
                 ),
-                "temp_subtitle_dir": self.subtitle_settings["temp_subtitle_dir"],
-                "temp_subtitle_filename": (
-                    self.subtitle_settings["temp_subtitle_filename"]
+                "randomize_colors": (
+                    self.subtitle_settings.get("randomize_colors") or
+                    self.subtitle_settings.get("use_random_colors", False)
                 ),
-                "save_srt_with_video": self.subtitle_settings["save_srt_with_video"],
-                "subtitle_format": self.subtitle_settings["subtitle_format"],
-                "script_paths": self.subtitle_settings["script_paths"],
-                "bold": self.subtitle_settings["bold"],
-                "outline_thickness": self.subtitle_settings["outline_thickness"],
-                "shadow": self.subtitle_settings["shadow"],
+                "available_fonts": self.subtitle_settings.get("available_fonts", []),
+                "available_color_combinations": self.subtitle_settings.get(
+                    "available_color_combinations", []
+                ),
+                "temp_subtitle_dir": self.subtitle_settings.get("temp_subtitle_dir", "temp"),
+                "temp_subtitle_filename": self.subtitle_settings.get(
+                    "temp_subtitle_filename", "captions.srt"
+                ),
+                "save_srt_with_video": self.subtitle_settings.get("save_srt_with_video", True),
+                "subtitle_format": self.subtitle_settings.get("subtitle_format", "srt"),
+                "script_paths": self.subtitle_settings.get("script_paths", []),
+                "bold": self.subtitle_settings.get("bold", False),
+                "outline_thickness": self.subtitle_settings.get("outline_thickness", 2),
+                "shadow": self.subtitle_settings.get("shadow", 0),
+                # Two-part subtitle system settings
+                "two_part_subtitles_enabled": self.subtitle_settings.get("two_part_subtitles", {}).get("enabled", False),
+                "two_part_subtitles_upper_enabled": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("enabled", True),
+                "two_part_subtitles_upper_source_field": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("source_field", "shortened_affiliate_link"),
+                "two_part_subtitles_upper_anchor": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("anchor", "above_content"),
+                "two_part_subtitles_upper_margin": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("margin", 0.03),
+                "two_part_subtitles_upper_font_size_scale": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("font_size_scale", 0.75),
+                "two_part_subtitles_upper_style_preset": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("style_preset", "minimal"),
+                "two_part_subtitles_upper_use_full_duration": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("use_full_duration", True),
+                "two_part_subtitles_upper_randomize_effects": self.subtitle_settings.get("two_part_subtitles", {}).get("upper_line", {}).get("randomize_effects", False),
+                "two_part_subtitles_lower_enabled": self.subtitle_settings.get("two_part_subtitles", {}).get("lower_line", {}).get("enabled", True),
+                "two_part_subtitles_lower_anchor": self.subtitle_settings.get("two_part_subtitles", {}).get("lower_line", {}).get("anchor", "below_content"),
+                "two_part_subtitles_lower_margin": self.subtitle_settings.get("two_part_subtitles", {}).get("lower_line", {}).get("margin", 0.05),
             },
             # Profile information
             "profile": {
@@ -1301,6 +1364,60 @@ class VideoConfig(BaseModel):
         if profile.subtitle_selected_color_pair is not None:
             merged_settings["subtitle_settings"]["selected_color_pair"] = (
                 profile.subtitle_selected_color_pair
+            )
+
+        # Apply two-part subtitle system overrides from profile
+        if profile.two_part_subtitles_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_enabled"] = (
+                profile.two_part_subtitles_enabled
+            )
+        if profile.two_part_subtitles_upper_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_enabled"] = (
+                profile.two_part_subtitles_upper_enabled
+            )
+        if profile.two_part_subtitles_upper_source_field is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_source_field"] = (
+                profile.two_part_subtitles_upper_source_field
+            )
+        if profile.two_part_subtitles_upper_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_anchor"] = (
+                profile.two_part_subtitles_upper_anchor
+            )
+        if profile.two_part_subtitles_upper_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_margin"] = (
+                profile.two_part_subtitles_upper_margin
+            )
+        if profile.two_part_subtitles_upper_font_size_scale is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_font_size_scale"] = (
+                profile.two_part_subtitles_upper_font_size_scale
+            )
+        if profile.two_part_subtitles_upper_style_preset is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_style_preset"] = (
+                profile.two_part_subtitles_upper_style_preset
+            )
+        if profile.two_part_subtitles_upper_use_full_duration is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_use_full_duration"] = (
+                profile.two_part_subtitles_upper_use_full_duration
+            )
+        if profile.two_part_subtitles_upper_randomize_effects is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_randomize_effects"] = (
+                profile.two_part_subtitles_upper_randomize_effects
+            )
+        if profile.two_part_subtitles_upper_prefix_replace is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_prefix_replace"] = (
+                profile.two_part_subtitles_upper_prefix_replace
+            )
+        if profile.two_part_subtitles_lower_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_enabled"] = (
+                profile.two_part_subtitles_lower_enabled
+            )
+        if profile.two_part_subtitles_lower_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_anchor"] = (
+                profile.two_part_subtitles_lower_anchor
+            )
+        if profile.two_part_subtitles_lower_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_margin"] = (
+                profile.two_part_subtitles_lower_margin
             )
 
         # Apply legacy subtitle_positioning overrides if present

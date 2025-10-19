@@ -122,6 +122,43 @@ subtitle_settings:
   # Subtitle file format: "srt" or "ass"
   subtitle_format: "ass"
 
+  # ---- TWO-PART SUBTITLE SYSTEM ----
+  # Enable dual independent subtitle lines (upper + lower)
+  # Upper line: Static product info (e.g., shortened URL)
+  # Lower line: Timed voiceover subtitles
+  # Profile-configurable for per-video customization
+  two_part_subtitles:
+    # Enable dual subtitle lines (requires profile support)
+    enabled: false
+
+    # Upper line configuration (static product info)
+    upper_line:
+      enabled: true
+      # Source field from data.json to display (e.g., "product_url", "product_link", "shortened_url")
+      source_field: "product_url"
+      # URL shortening method: "default" (built-in), "bitly", "tinyurl", or null (no shortening)
+      url_shortener: "default"
+      # Position anchor for upper line
+      anchor: "above_content"
+      # Spacing from content as fraction of frame height (0.0-0.5)
+      margin: 0.03
+      # Font size relative to main subtitles (0.5-2.0)
+      font_size_scale: 0.8
+      # Style preset for upper line (minimal, modern, bold, animated, random)
+      style_preset: "minimal"
+      # Custom styling (optional, overrides preset)
+      custom_style: null
+
+    # Lower line configuration (voiceover subtitles)
+    lower_line:
+      enabled: true
+      # Position anchor for lower line
+      anchor: "below_content"
+      # Spacing from content as fraction of frame height (0.0-0.5)
+      margin: 0.05
+      # Uses standard subtitle_settings for styling when custom_style is null
+      custom_style: null
+
   # ---- LEGACY COMPATIBILITY SETTINGS ----
   # Font settings
   font_directory: "static/fonts"

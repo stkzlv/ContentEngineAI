@@ -205,7 +205,14 @@ class VideoAssembler:
 
         # Fallback to global config if no profile settings
         # Use model_dump() for Pydantic v2 compatibility instead of __dict__
-        return self.config.subtitle_settings.model_dump()
+        # Handle both Pydantic models and dict config
+        if hasattr(self.config.subtitle_settings, "model_dump"):
+            return self.config.subtitle_settings.model_dump()
+        elif isinstance(self.config.subtitle_settings, dict):
+            return self.config.subtitle_settings  # type: ignore[no-any-return]
+        else:
+            # Fallback: treat as object with __dict__
+            return vars(self.config.subtitle_settings)
 
     def _is_video(self, path: Path) -> bool:
         """Determine if a file is a video based on its MIME type.
@@ -753,6 +760,7 @@ class VideoAssembler:
         total_video_duration: float,
         temp_dir: Path,
         debug_mode: bool = False,
+        subtitle_upper_path: Path | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -762,10 +770,11 @@ class VideoAssembler:
             voiceover_audio_path: Optional voiceover audio file
             music_track_path: Optional background music file
             output_path: Output video file path
-            subtitle_path: Optional subtitle file path
+            subtitle_path: Optional subtitle file path (lower line for two-part mode)
             total_video_duration: Target video duration in seconds
             temp_dir: Temporary directory for processing
             debug_mode: Enable debug output
+            subtitle_upper_path: Optional upper subtitle file path (two-part mode only)
 
         Returns:
         -------
@@ -781,13 +790,25 @@ class VideoAssembler:
             return None
 
         with tempfile.TemporaryDirectory() as temp_sub_dir:
-            # Build video processing chain with subtitles
-            video_filters, input_cmd_parts = await self._build_subtitle_graph(
-                visual_inputs,
-                total_video_duration,
-                subtitle_path,
-                Path(temp_sub_dir),
-            )
+            # Check if dual subtitle mode is enabled
+            if subtitle_upper_path and subtitle_upper_path.exists():
+                logger.info("Two-part subtitle mode: rendering dual subtitle lines")
+                # Build video processing chain with dual subtitles
+                video_filters, input_cmd_parts = await self._build_dual_subtitle_graph(
+                    visual_inputs,
+                    total_video_duration,
+                    subtitle_path,
+                    subtitle_upper_path,
+                    Path(temp_sub_dir),
+                )
+            else:
+                # Build video processing chain with single subtitle line
+                video_filters, input_cmd_parts = await self._build_subtitle_graph(
+                    visual_inputs,
+                    total_video_duration,
+                    subtitle_path,
+                    Path(temp_sub_dir),
+                )
 
             # Add audio inputs to command
             voiceover_input_idx, music_input_idx = self._prepare_audio_inputs(
@@ -1021,14 +1042,8 @@ class VideoAssembler:
             visual_inputs, total_video_duration, use_content_aware
         )
 
-        # Check if subtitles are enabled using either legacy or unified config
+        # Check if subtitles are enabled (from settings_dict, not unified_config)
         subtitles_enabled = settings_dict.get("enabled", True)
-        try:
-            if unified_config and hasattr(unified_config, "enabled"):
-                subtitles_enabled = unified_config.enabled
-        except NameError:
-            # unified_config not defined if validation failed
-            pass
 
         if not subtitle_path or not subtitles_enabled:
             video_filters.append(f"{final_visual_stream}copy[v_out]")
@@ -1290,6 +1305,316 @@ class VideoAssembler:
                     drawtext_count += 1
 
         video_filters.append(f"{current_video_stream}copy[v_out]")
+        return video_filters, input_cmd_parts
+
+    async def _build_dual_subtitle_graph(
+        self,
+        visual_inputs: list[Path],
+        total_video_duration: float,
+        subtitle_lower_path: Path | None,
+        subtitle_upper_path: Path,
+        temp_sub_dir: Path,
+    ) -> tuple[list[str], list[str]]:
+        """Build video processing graph with dual independent subtitle lines.
+
+        Args:
+        ----
+            visual_inputs: List of visual input file paths
+            total_video_duration: Target video duration in seconds
+            subtitle_lower_path: Path to lower subtitle file (voiceover subtitles)
+            subtitle_upper_path: Path to upper subtitle file (product info)
+            temp_sub_dir: Temporary directory for processing
+
+        Returns:
+        -------
+            Tuple of (video_filters, input_cmd_parts)
+
+        """
+        settings_dict = self._get_effective_subtitle_settings()
+
+        # Import and use UnifiedSubtitleConfig for proper validation
+        from src.video.subtitle_positioning import UnifiedSubtitleConfig
+
+        try:
+            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            use_content_aware = unified_config.content_aware
+        except Exception as e:
+            logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
+            use_content_aware = settings_dict.get("content_aware", True)
+
+        # Build visual chain
+        (
+            video_filters,
+            input_cmd_parts,
+            timed_visuals,
+            final_visual_stream,
+            geometries,
+        ) = await self._build_visual_chain(
+            visual_inputs, total_video_duration, use_content_aware
+        )
+
+        current_stream = final_visual_stream
+
+        # First, apply upper subtitle (static product info)
+        if subtitle_upper_path.suffix.lower() == ".ass":
+            # For ASS format, apply using ass filter
+            ass_path_upper = subtitle_upper_path.as_posix().replace(":", r"\:")
+            video_filters.append(f"{current_stream}ass='{ass_path_upper}'[v_upper]")
+            current_stream = "[v_upper]"
+        else:
+            # For SRT format upper line, use drawtext (static display)
+            # Parse SRT to get the text (should be single static entry)
+            sub_entries_upper = self._parse_srt(subtitle_upper_path)
+            if sub_entries_upper:
+                upper_text = sub_entries_upper[0].text  # Get first entry text
+
+                # Get upper line styling from two_part config
+                two_part_config = settings_dict.get("two_part_subtitles", {})
+                upper_config = two_part_config.get("upper_line", {})
+
+                # Get style configuration
+                from src.video.subtitle_positioning import get_style_config
+
+                # Use upper line's style preset if specified
+                style_preset = upper_config.get("style_preset", "minimal")
+                upper_settings = settings_dict.copy()
+                upper_settings["style_preset"] = style_preset
+                upper_settings["anchor"] = upper_config.get("anchor", "above_content")
+                upper_settings["margin"] = upper_config.get("margin", 0.03)
+                upper_settings["font_size_scale"] = upper_config.get(
+                    "font_size_scale", 0.8
+                )
+
+                try:
+                    upper_unified_config = UnifiedSubtitleConfig(**upper_settings)
+                    style_config = get_style_config(
+                        preset=style_preset,
+                        config=upper_unified_config,
+                        product_id=self.product_id,
+                    )
+                    font_name = style_config.get("font_name", "Arial")
+                    font_color = style_config.get("font_color", "&H00FFFFFF")
+                    outline_color = style_config.get("outline_color", "&H00000000")
+                except Exception as e:
+                    logger.warning(f"Failed to get upper line style config: {e}")
+                    font_name = "Arial"
+                    font_color = "&H00FFFFFF"
+                    outline_color = "&H00000000"
+
+                font_path = self._resolve_font_path(font_name)
+                if font_path:
+                    # Create temp text file for upper line
+                    upper_text_file = temp_sub_dir / "upper_subtitle.txt"
+                    upper_text_file.write_text(upper_text, encoding="utf-8")
+
+                    # Calculate position for upper line
+                    from src.video.subtitle_positioning import (
+                        VisualBounds,
+                        calculate_position,
+                    )
+
+                    # Use first geometry for positioning reference
+                    geom = geometries[0] if geometries else None
+                    visual_bounds = None
+
+                    if upper_unified_config.content_aware and geom:
+                        frame_width, frame_height = self.config.video_settings.resolution
+                        visual_bounds = VisualBounds(
+                            x=geom.rendered_x / frame_width,
+                            y=geom.rendered_y / frame_height,
+                            width=geom.rendered_w / frame_width,
+                            height=geom.rendered_h / frame_height,
+                        )
+
+                    position = calculate_position(
+                        upper_unified_config,
+                        self.config.video_settings.resolution,
+                        visual_bounds,
+                    )
+
+                    # Font size with scale factor
+                    base_font_size = (
+                        self.config.video_settings.resolution[1]
+                        * settings_dict.get("font_size_percent", 0.04)
+                    )
+                    upper_font_size = base_font_size * upper_settings.get(
+                        "font_size_scale", 0.8
+                    )
+
+                    # Convert to FFmpeg expressions
+                    x_pos_expr = f"w*{position.x} - text_w/2"
+                    y_pos_expr = f"h*{position.y}"
+
+                    # Apply static upper subtitle (visible throughout video)
+                    drawtext_filter_upper = (
+                        f"{current_stream}drawtext="
+                        f"fontfile='{font_path.as_posix().replace(':', r'\:')}':"
+                        f"textfile='{upper_text_file.as_posix().replace(':', r'\:')}':"
+                        f"fontsize={upper_font_size}:"
+                        f"fontcolor='{self._convert_ass_color_to_ffmpeg(font_color)}':"
+                        f"borderw={upper_settings.get('outline_thickness', 1)}:"
+                        f"bordercolor='{self._convert_ass_color_to_ffmpeg(outline_color)}':"
+                        f"x='{x_pos_expr}':y='{y_pos_expr}'"
+                        f"[v_upper]"
+                    )
+                    video_filters.append(drawtext_filter_upper)
+                    current_stream = "[v_upper]"
+
+        # Second, apply lower subtitle (timed voiceover subtitles) if provided
+        if subtitle_lower_path and subtitle_lower_path.exists():
+            if subtitle_lower_path.suffix.lower() == ".ass":
+                # For content-aware positioning, regenerate ASS file with visual bounds
+                if use_content_aware and geometries:
+                    content_aware_ass_path = await self._create_content_aware_ass_file(
+                        subtitle_lower_path, geometries, timed_visuals, temp_sub_dir
+                    )
+                    if content_aware_ass_path:
+                        ass_path_lower = content_aware_ass_path.as_posix().replace(
+                            ":", r"\:"
+                        )
+                    else:
+                        ass_path_lower = subtitle_lower_path.as_posix().replace(
+                            ":", r"\:"
+                        )
+                else:
+                    ass_path_lower = subtitle_lower_path.as_posix().replace(":", r"\:")
+
+                video_filters.append(f"{current_stream}ass='{ass_path_lower}'[v_out]")
+            else:
+                # For SRT lower line, use the standard drawtext approach from _build_subtitle_graph
+                # This is timed subtitle generation - reuse logic but start from current_stream
+                sub_entries_lower = self._parse_srt(subtitle_lower_path)
+
+                segment_end_times = []
+                cumulative_time = 0.0
+                transition_duration = self.config.video_settings.transition_duration_sec
+                for i, (_, duration, _) in enumerate(timed_visuals):
+                    effective_duration = duration - (
+                        transition_duration if i > 0 else 0
+                    )
+                    cumulative_time += effective_duration
+                    segment_end_times.append(cumulative_time)
+
+                # Get lower line styling (uses standard subtitle settings by default)
+                two_part_config = settings_dict.get("two_part_subtitles", {})
+                lower_config = two_part_config.get("lower_line", {})
+                lower_settings = settings_dict.copy()
+                lower_settings["anchor"] = lower_config.get("anchor", "below_content")
+                lower_settings["margin"] = lower_config.get("margin", 0.05)
+
+                # Get style configuration for lower line
+                from src.video.subtitle_positioning import get_style_config
+
+                try:
+                    lower_unified_config = UnifiedSubtitleConfig(**lower_settings)
+                    style_config = get_style_config(
+                        preset=lower_unified_config.style_preset,
+                        config=lower_unified_config,
+                        product_id=self.product_id,
+                    )
+                    font_name = style_config.get("font_name", "Arial")
+                    font_color = style_config.get("font_color", "&H00FFFFFF")
+                    outline_color = style_config.get("outline_color", "&H00000000")
+                except Exception as e:
+                    logger.warning(f"Failed to get lower line style config: {e}")
+                    font_name = lower_settings.get("font_name", "Arial")
+                    font_color = lower_settings.get("font_color", "&H00FFFFFF")
+                    outline_color = lower_settings.get("outline_color", "&H00000000")
+
+                font_path = self._resolve_font_path(font_name)
+                if font_path:
+                    drawtext_count = 0
+                    for sub in sub_entries_lower:
+                        sub_start, sub_end = sub.start, sub.end
+                        for i, end_time in enumerate(segment_end_times):
+                            start_time = segment_end_times[i - 1] if i > 0 else 0
+                            overlap_start = max(sub_start, start_time)
+                            overlap_end = min(sub_end, end_time)
+
+                            if overlap_start < overlap_end:
+                                geom = geometries[i]
+
+                                font_size_pixels = (
+                                    self.config.video_settings.resolution[1]
+                                    * lower_settings.get("font_size_percent", 0.04)
+                                )
+                                avg_char_width = font_size_pixels * lower_settings.get(
+                                    "font_width_to_height_ratio", 0.5
+                                )
+                                max_chars_per_line = (
+                                    int(geom.rendered_w / avg_char_width)
+                                    if avg_char_width > 0
+                                    else self.config.video_settings.default_max_chars_per_line
+                                )
+
+                                wrapper = textwrap.TextWrapper(
+                                    width=max_chars_per_line,
+                                    break_long_words=True,
+                                    replace_whitespace=False,
+                                )
+                                wrapped_text = "\n".join(wrapper.wrap(sub.text))
+
+                                sub_text_file = (
+                                    temp_sub_dir / f"lower_text_{drawtext_count}.txt"
+                                )
+                                sub_text_file.write_text(wrapped_text, encoding="utf-8")
+
+                                # Calculate position for lower line
+                                from src.video.subtitle_positioning import (
+                                    VisualBounds,
+                                    calculate_position,
+                                )
+
+                                visual_bounds = None
+                                if lower_unified_config.content_aware and geom:
+                                    (
+                                        frame_width,
+                                        frame_height,
+                                    ) = self.config.video_settings.resolution
+                                    visual_bounds = VisualBounds(
+                                        x=geom.rendered_x / frame_width,
+                                        y=geom.rendered_y / frame_height,
+                                        width=geom.rendered_w / frame_width,
+                                        height=geom.rendered_h / frame_height,
+                                    )
+
+                                position = calculate_position(
+                                    lower_unified_config,
+                                    self.config.video_settings.resolution,
+                                    visual_bounds,
+                                )
+
+                                # Convert to FFmpeg expressions
+                                x_pos_expr = f"w*{position.x} - text_w/2"
+                                y_pos_expr = f"h*{position.y}"
+
+                                output_stream = f"[v_lower_{drawtext_count+1}]"
+                                drawtext_filter = (
+                                    f"{current_stream}drawtext="
+                                    f"fontfile='{font_path.as_posix().replace(':', r'\:')}':"
+                                    f"textfile='{sub_text_file.as_posix().replace(':', r'\:')}':"
+                                    f"fontsize={font_size_pixels}:"
+                                    f"fontcolor='{self._convert_ass_color_to_ffmpeg(font_color)}':"
+                                    f"borderw={lower_settings.get('outline_thickness', 2)}:"
+                                    f"bordercolor='{self._convert_ass_color_to_ffmpeg(outline_color)}':"
+                                    f"box=1:boxcolor='"
+                                    f"{self._convert_ass_color_to_ffmpeg(lower_settings.get('back_color', '&H80000000'))}"
+                                    f"':boxborderw={self.config.video_settings.subtitle_box_border_width}:"
+                                    f"x='{x_pos_expr}':y='{y_pos_expr}':"
+                                    f"enable='between(t,{overlap_start},{overlap_end})'"
+                                    f"{output_stream}"
+                                )
+                                video_filters.append(drawtext_filter)
+                                current_stream = output_stream
+                                drawtext_count += 1
+
+                    video_filters.append(f"{current_stream}copy[v_out]")
+                else:
+                    video_filters.append(f"{current_stream}copy[v_out]")
+        else:
+            # Only upper subtitle, no lower subtitle
+            video_filters.append(f"{current_stream}copy[v_out]")
+
         return video_filters, input_cmd_parts
 
     async def _create_content_aware_ass_file(

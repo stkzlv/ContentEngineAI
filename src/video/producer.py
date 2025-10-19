@@ -263,6 +263,7 @@ def _clean_producer_files(
         product_root / files.subtitles,  # subtitles.srt
         product_root / "subtitles.ass",  # ASS subtitle file
         product_root / "subtitles_content_aware.ass",  # content-aware subtitle file
+        product_root / "subtitle_upper.ass",  # Upper subtitle (two-part system)
         product_root
         / files.final_video.format(
             product_id=product_id, profile=safe_profile_name
@@ -278,6 +279,10 @@ def _clean_producer_files(
         product_root / "~",  # Erroneous home directory from unescaped paths
         product_root / "outputs",  # Erroneous nested outputs directory
     ]
+
+    # Clean all video files with any profile name (video_*_{product_id}_*.mp4)
+    for video_file in product_root.glob(f"video_{product_id}_*.mp4"):
+        producer_files_to_remove.append(video_file)
 
     # Add debug files using configurable patterns
     debug_patterns = config.path_config.cleanup.debug_file_patterns
@@ -1071,14 +1076,24 @@ async def step_create_voiceover(ctx: PipelineContext):
 
 
 async def step_generate_subtitles(ctx: PipelineContext):
+    # Handle both dict and object forms of subtitle_settings for performance tracking
+    subtitle_enabled_value = (
+        ctx.config.subtitle_settings.enabled
+        if hasattr(ctx.config.subtitle_settings, 'enabled')
+        else ctx.config.subtitle_settings.get('enabled', True)
+    )
+
     async with performance_monitor.measure_step(
         "generate_subtitles",
         subtitle_provider="whisper",  # Default subtitle provider
         voiceover_duration=ctx.voiceover_duration or 0.0,
-        subtitle_enabled=ctx.config.subtitle_settings.enabled,
+        subtitle_enabled=subtitle_enabled_value,
     ):
         logger.info("Executing step: GENERATE_SUBTITLES")
-        if not ctx.config.subtitle_settings.enabled:
+
+        # Use the same value for early exit check
+        subtitle_enabled = subtitle_enabled_value
+        if not subtitle_enabled:
             logger.info("Subtitle generation is disabled in config. Skipping.")
             return
 
@@ -1096,9 +1111,6 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 raise FileNotFoundError(f"Missing duration file at {duration_path}.")
             ctx.voiceover_duration = float(duration_path.read_text())
 
-        # Create unified subtitle configuration from legacy settings
-        ctx.config.subtitle_settings.model_dump()
-
         # Get merged profile settings (similar to assembler approach)
         merged_profile_settings = ctx.config.get_profile_merged_settings(
             ctx.profile_name, ctx.cli_overrides
@@ -1110,24 +1122,173 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
 
-        srt_path = await create_unified_subtitles(
-            voiceover_path,
-            ctx.run_paths["subtitle_file"],
-            profile_subtitle_settings,
-            ctx.config.whisper_settings,
-            ctx.config.google_cloud_stt_settings,
-            ctx.secrets,
-            ctx.script,
-            ctx.voiceover_duration,
-            ctx.debug_mode,
-            ctx.config,  # Pass video config for ASS generation
-            Path(ctx.run_paths["run_root"])
-            / ctx.config.output_structure.product_subdirs.temp,  # temp_dir
-            product_id,  # Pass product_id for randomization
-        )
-        if not srt_path or not srt_path.exists():
-            raise PipelineError("Subtitle generation process failed.")
-        logger.info(f"Subtitles file created: {srt_path.name}")
+        # Check if two-part subtitle system is enabled
+        # Handle both nested dict and flat key structures
+        two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
+        logger.debug(f"DEBUG: two_part_config = {two_part_config}")
+        logger.debug(f"DEBUG: profile_subtitle_settings keys = {list(profile_subtitle_settings.keys())}")
+
+        if isinstance(two_part_config, dict) and "enabled" in two_part_config:
+            two_part_enabled = two_part_config.get("enabled", False)
+            logger.debug(f"DEBUG: Using nested structure, two_part_enabled = {two_part_enabled}")
+        else:
+            # Fallback to flat structure
+            two_part_enabled = profile_subtitle_settings.get("two_part_subtitles_enabled", False)
+            logger.debug(f"DEBUG: Using flat structure, two_part_subtitles_enabled key = {profile_subtitle_settings.get('two_part_subtitles_enabled')}")
+            logger.debug(f"DEBUG: Final two_part_enabled = {two_part_enabled}")
+
+        if two_part_enabled:
+            logger.info("Two-part subtitle system enabled, generating dual subtitles")
+
+            # Import static subtitle generator
+            from src.video.subtitle_utils import create_static_upper_subtitle
+
+            # Generate upper line (static product info)
+            # Handle both nested dict and flat key structures
+            if isinstance(two_part_config, dict) and "upper_line" in two_part_config:
+                upper_config = two_part_config.get("upper_line", {})
+                upper_enabled = upper_config.get("enabled", True)
+            else:
+                # Fallback to flat structure
+                upper_enabled = profile_subtitle_settings.get("two_part_subtitles_upper_enabled", True)
+                upper_config = {
+                    "enabled": upper_enabled,
+                    "source_field": profile_subtitle_settings.get("two_part_subtitles_upper_source_field", "shortened_affiliate_link"),
+                    "anchor": profile_subtitle_settings.get("two_part_subtitles_upper_anchor", "above_content"),
+                    "margin": profile_subtitle_settings.get("two_part_subtitles_upper_margin", 0.03),
+                    "font_size_scale": profile_subtitle_settings.get("two_part_subtitles_upper_font_size_scale", 0.75),
+                    "style_preset": profile_subtitle_settings.get("two_part_subtitles_upper_style_preset", "minimal"),
+                    "use_full_duration": profile_subtitle_settings.get("two_part_subtitles_upper_use_full_duration", True),
+                    "randomize_effects": profile_subtitle_settings.get("two_part_subtitles_upper_randomize_effects", False),
+                }
+
+            if upper_enabled:
+                # Get product URL from data
+                source_field = upper_config.get("source_field", "shortened_affiliate_link")
+                product_data_dict = ctx.product.__dict__
+                upper_text = product_data_dict.get(source_field, "")
+
+                if not upper_text:
+                    # Fallback to other URL fields
+                    for fallback_field in ["shortened_affiliate_link", "affiliate_link", "url"]:
+                        upper_text = product_data_dict.get(fallback_field, "")
+                        if upper_text:
+                            logger.info(f"Using fallback field '{fallback_field}' for upper subtitle")
+                            break
+
+                if upper_text:
+                    # Apply URL prefix replacement if configured
+                    prefix_replace = profile_subtitle_settings.get("two_part_subtitles_upper_prefix_replace")
+                    if prefix_replace:
+                        # Replace "https://" with the configured prefix
+                        if upper_text.startswith("https://"):
+                            upper_text = prefix_replace + upper_text[8:]  # Remove "https://"
+                            logger.debug(f"Applied URL prefix replacement: '{prefix_replace}'")
+                        elif upper_text.startswith("http://"):
+                            upper_text = prefix_replace + upper_text[7:]  # Remove "http://"
+                            logger.debug(f"Applied URL prefix replacement: '{prefix_replace}'")
+
+                    # Determine output format
+                    subtitle_format = profile_subtitle_settings.get("subtitle_format", "srt")
+                    upper_output_path = ctx.run_paths["subtitle_file"].with_name(
+                        f"subtitle_upper.{subtitle_format}"
+                    )
+
+                    # Calculate visual bounds for content-aware positioning
+                    from src.video.subtitle_positioning import VisualBounds
+                    image_top = ctx.profile.image_top_position_percent or 0.07
+                    image_width = ctx.profile.image_width_percent or 0.9
+                    visual_bounds = VisualBounds(
+                        x=(1.0 - image_width) / 2,  # Center horizontally
+                        y=image_top,
+                        width=image_width,
+                        height=0.8  # Approximate image height
+                    )
+
+                    upper_path = create_static_upper_subtitle(
+                        text=upper_text,
+                        output_path=upper_output_path,
+                        subtitle_settings=profile_subtitle_settings,
+                        video_config=ctx.config,
+                        format_type=subtitle_format,
+                        product_id=product_id,
+                        voiceover_duration=ctx.voiceover_duration,
+                        visual_bounds=visual_bounds,
+                    )
+
+                    if upper_path and upper_path.exists():
+                        logger.info(f"Upper subtitle created: {upper_path.name}")
+                        # Store upper subtitle path for assembler
+                        ctx.run_paths["subtitle_upper_file"] = upper_path
+                    else:
+                        logger.warning("Failed to generate upper subtitle, continuing with lower only")
+                else:
+                    logger.warning(f"No data found for upper subtitle field '{source_field}'")
+
+            # Generate lower line (voiceover subtitles) - standard subtitle generation
+            # Handle both nested dict and flat key structures
+            if isinstance(two_part_config, dict) and "lower_line" in two_part_config:
+                lower_config = two_part_config.get("lower_line", {})
+                lower_enabled = lower_config.get("enabled", True)
+            else:
+                # Fallback to flat structure
+                lower_enabled = profile_subtitle_settings.get("two_part_subtitles_lower_enabled", True)
+                lower_config = {
+                    "enabled": lower_enabled,
+                    "anchor": profile_subtitle_settings.get("two_part_subtitles_lower_anchor", "below_content"),
+                    "margin": profile_subtitle_settings.get("two_part_subtitles_lower_margin", 0.05),
+                }
+
+            if lower_enabled:
+                # Update subtitle settings for lower line positioning
+                lower_subtitle_settings = profile_subtitle_settings.copy()
+                lower_subtitle_settings["anchor"] = lower_config.get("anchor", "below_content")
+                lower_subtitle_settings["margin"] = lower_config.get("margin", 0.05)
+
+                # Override with custom style if provided
+                if lower_config.get("custom_style"):
+                    lower_subtitle_settings.update(lower_config["custom_style"])
+
+                lower_path = await create_unified_subtitles(
+                    voiceover_path,
+                    ctx.run_paths["subtitle_file"],
+                    lower_subtitle_settings,
+                    ctx.config.whisper_settings,
+                    ctx.config.google_cloud_stt_settings,
+                    ctx.secrets,
+                    ctx.script,
+                    ctx.voiceover_duration,
+                    ctx.debug_mode,
+                    ctx.config,
+                    Path(ctx.run_paths["run_root"])
+                    / ctx.config.output_structure.product_subdirs.temp,
+                    product_id,
+                )
+
+                if not lower_path or not lower_path.exists():
+                    raise PipelineError("Lower subtitle generation failed.")
+                logger.info(f"Lower subtitle created: {lower_path.name}")
+
+        else:
+            # Standard single-line subtitle generation
+            srt_path = await create_unified_subtitles(
+                voiceover_path,
+                ctx.run_paths["subtitle_file"],
+                profile_subtitle_settings,
+                ctx.config.whisper_settings,
+                ctx.config.google_cloud_stt_settings,
+                ctx.secrets,
+                ctx.script,
+                ctx.voiceover_duration,
+                ctx.debug_mode,
+                ctx.config,
+                Path(ctx.run_paths["run_root"])
+                / ctx.config.output_structure.product_subdirs.temp,
+                product_id,
+            )
+            if not srt_path or not srt_path.exists():
+                raise PipelineError("Subtitle generation process failed.")
+            logger.info(f"Subtitles file created: {srt_path.name}")
 
 
 async def step_download_music(ctx: PipelineContext):
@@ -1253,13 +1414,20 @@ async def step_download_music(ctx: PipelineContext):
 
 
 async def step_assemble_video(ctx: PipelineContext):
+    # Handle both dict and object forms of subtitle_settings for performance tracking
+    subtitle_enabled_value = (
+        ctx.config.subtitle_settings.enabled
+        if hasattr(ctx.config.subtitle_settings, 'enabled')
+        else ctx.config.subtitle_settings.get('enabled', True)
+    )
+
     async with performance_monitor.measure_step(
         "assemble_video",
         visual_count=len(ctx.visuals) if ctx.visuals else 0,
         target_duration=ctx.voiceover_duration or 0.0,
         has_music=ctx.run_paths["music_info_file"].exists(),
         has_subtitles=ctx.run_paths["subtitle_file"].exists()
-        and ctx.config.subtitle_settings.enabled,
+        and subtitle_enabled_value,
     ):
         logger.info("Executing step: ASSEMBLE_VIDEO")
         if ctx.voiceover_duration is None:
@@ -1291,10 +1459,11 @@ async def step_assemble_video(ctx: PipelineContext):
             else None
         )
 
+        # Use the same value for subtitle check
         subtitle_path = (
             ctx.run_paths["subtitle_file"]
             if ctx.run_paths["subtitle_file"].exists()
-            and ctx.config.subtitle_settings.enabled
+            and subtitle_enabled_value
             else None
         )
 
@@ -1319,6 +1488,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 + ctx.config.duration_padding_sec,  # Add padding to prevent cutoff
                 temp_dir=ctx.run_paths["intermediate_base"],
                 debug_mode=ctx.debug_mode,
+                subtitle_upper_path=ctx.run_paths.get("subtitle_upper_file"),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

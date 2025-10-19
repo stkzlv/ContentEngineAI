@@ -12,6 +12,7 @@ from typing import Any
 import pysrt
 
 from src.utils import ensure_dirs_exist
+from src.video.result_types import SubtitleResult
 from src.video.stt_functions import (
     GOOGLE_CLOUD_STT_AVAILABLE,
     WHISPER_AVAILABLE,
@@ -240,6 +241,168 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
 # ============================================================================
 # UNIFIED SUBTITLE GENERATION INTERFACE
 # ============================================================================
+
+
+def create_static_upper_subtitle(
+    text: str,
+    output_path: Path,
+    subtitle_settings: dict[str, Any],
+    video_config: Any = None,
+    format_type: str = "ass",
+    product_id: str | None = None,
+    voiceover_duration: float | None = None,
+    visual_bounds: Any | None = None,
+) -> Path | None:
+    """Generate static subtitle file for upper line (product URL/info).
+
+    Creates a subtitle file with a single static entry that displays
+    throughout the entire video. Used for product URLs or other persistent info.
+
+    Args:
+    ----
+        text: Static text to display (e.g., shortened product URL)
+        output_path: Output path for subtitle file
+        subtitle_settings: Subtitle settings dict (includes two_part_subtitles config)
+        video_config: Video configuration for frame size
+        format_type: Subtitle format ("ass" or "srt")
+        product_id: Product ID for randomization (if applicable)
+        voiceover_duration: Duration of voiceover (for full-duration display)
+        visual_bounds: Visual bounds for content-aware positioning
+
+    Returns:
+    -------
+        Path to generated subtitle file or None if failed
+
+    """
+    try:
+        # Extract upper line configuration (flat keys from profile settings)
+        use_full_duration = subtitle_settings.get(
+            "two_part_subtitles_upper_use_full_duration", True
+        )
+        randomize_effects = subtitle_settings.get(
+            "two_part_subtitles_upper_randomize_effects", False
+        )
+
+        # Create unified config for upper line using profile settings
+        # Profile settings use flat keys like two_part_subtitles_upper_anchor
+        upper_subtitle_settings = subtitle_settings.copy()
+
+        # Use flat profile settings if available, otherwise fallback to nested config
+        upper_subtitle_settings["anchor"] = subtitle_settings.get(
+            "two_part_subtitles_upper_anchor", "above_content"
+        )
+        upper_subtitle_settings["margin"] = subtitle_settings.get(
+            "two_part_subtitles_upper_margin", 0.03
+        )
+        upper_subtitle_settings["font_size_scale"] = subtitle_settings.get(
+            "two_part_subtitles_upper_font_size_scale", 0.8
+        )
+        upper_subtitle_settings["style_preset"] = subtitle_settings.get(
+            "two_part_subtitles_upper_style_preset", "minimal"
+        )
+        upper_subtitle_settings["randomize_effects"] = randomize_effects
+
+        # Create unified configuration from settings
+        unified_config = create_unified_config_from_settings(upper_subtitle_settings)
+
+        # Get frame size from video config
+        frame_size = (1080, 1920)  # Default
+        if video_config and hasattr(video_config, "video_settings"):
+            frame_size = video_config.video_settings.resolution
+
+        # Initialize unified generator
+        generator = UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
+
+        # Determine end time based on use_full_duration setting
+        if use_full_duration and voiceover_duration:
+            end_time = voiceover_duration
+            logger.info(
+                f"Upper subtitle set to full video duration: {end_time:.2f}s "
+                f"(use_full_duration=True)"
+            )
+        else:
+            end_time = 9999.0  # Large duration for static display
+            logger.info("Upper subtitle using default large duration (9999s)")
+
+        # For static subtitles, bypass the normal segment creation
+        # and directly create a single ASS dialogue line
+        if format_type == "ass":
+            # Generate ASS file directly with a single static dialogue
+            from src.video.subtitle_positioning import calculate_position, get_font_size
+
+            position = calculate_position(
+                unified_config,
+                frame_size,
+                visual_bounds  # Pass visual bounds for content-aware positioning
+            )
+            font_size = get_font_size(unified_config, frame_size[1])
+
+            # Calculate pixel coordinates
+            pos_x = int(position.x * frame_size[0])
+            pos_y = int(position.y * frame_size[1])
+
+            # Get colors from generator
+            colors = generator._get_colors()
+
+            # Format times
+            start_time_str = generator._format_ass_time(0.0)
+            end_time_str = generator._format_ass_time(end_time)
+
+            # Create ASS content
+            ass_lines = generator._create_ass_header(font_size, colors)
+
+            # Add single static dialogue line
+            dialogue = (
+                f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,"
+                f"{{\\pos({pos_x},{pos_y})}}{text}"
+            )
+            ass_lines.append(dialogue)
+
+            # Write file
+            ensure_dirs_exist(output_path.parent)
+            output_path.write_text("\n".join(ass_lines), encoding="utf-8")
+
+            result = SubtitleResult(
+                success=True,
+                path=output_path,
+                format="ass",
+                segments_created=1,
+                generation_method="static",
+            )
+        else:
+            # For SRT, use the normal timing-based generation
+            static_timing = [
+                {
+                    "word": text,
+                    "start_time": 0.0,
+                    "end_time": end_time,
+                }
+            ]
+
+            result = generator.generate_from_timings(
+                timings=static_timing,
+                output_path=output_path,
+                format_type=format_type,
+                voiceover_duration=voiceover_duration,
+                debug_mode=False,
+            )
+
+        if result.success and result.path and result.path.exists():
+            logger.info(
+                f"Successfully generated static upper subtitle ({format_type.upper()}): "
+                f"{result.path} (randomize_effects={randomize_effects})"
+            )
+            return result.path
+        else:
+            logger.error(
+                f"Failed to generate static upper subtitle: "
+                f"{result.errors if result.errors else 'Unknown error'}"
+            )
+            return None
+
+    except Exception as e:
+        logger.error(f"Static upper subtitle generation failed: {e}", exc_info=True)
+        return None
 
 
 async def create_unified_subtitles(
