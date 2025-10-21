@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/requirements-compliance/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-10-21T08:06:57.797Z",
+      "trigger": "initial",
+      "approvalId": "approval_1761034017792_buhptk9qo",
+      "approvalTitle": "Requirements Compliance - Requirements Document"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-10-21T08:13:34.394Z",
+      "trigger": "approved",
+      "approvalId": "approval_1761034017792_buhptk9qo",
+      "approvalTitle": "Requirements Compliance - Requirements Document"
+    }
+  ]
+}
