@@ -2,7 +2,7 @@
 
 ## Configuration Compliance Tests
 
-- [ ] 1. Create compliance test directory structure
+- [x] 1. Create compliance test directory structure
   - Files: `tests/compliance/` directory, `tests/compliance/__init__.py`
   - Create new directory for compliance tests
   - Add `__init__.py` to make it a Python package
@@ -11,7 +11,7 @@
   - _Requirements: All (foundation)_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status to check current progress, then create the compliance test directory structure. Role: Python Test Engineer | Task: Create `tests/compliance/` directory and add empty `__init__.py` file to make it a proper Python package | Restrictions: Do not modify existing test directories, follow Python package conventions | Success: Directory exists with __init__.py, can be imported as module | Instructions: After completing, mark this task as completed in tasks.md by changing `[ ]` to `[x]`_
 
-- [ ] 2. Create configuration compliance test file
+- [x] 2. Create configuration compliance test file
   - File: `tests/compliance/test_config_compliance.py`
   - Implement tests for Requirement 1 (three-tier precedence)
   - Test CLI > ENV > YAML precedence order
@@ -20,7 +20,7 @@
   - _Requirements: 1.1, 1.2, 1.3_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status to check current progress, then create configuration compliance tests. Role: Senior Python Test Engineer specializing in configuration testing | Task: Create `tests/compliance/test_config_compliance.py` with tests for three-tier configuration precedence (CLI > ENV > YAML) covering requirements 1.1-1.3, using UnifiedConfigManager from src/config_manager.py and patterns from tests/test_unified_config_system.py | Restrictions: Must test precedence independently for each tier, use pytest fixtures for test data, mock environment variables properly | Leverage: src/config_manager.py::UnifiedConfigManager.apply_precedence_rules(), tests/test_unified_config_system.py test patterns | Success: All precedence scenarios tested (CLI overrides ENV, ENV overrides YAML, YAML fallback), tests pass consistently, clear test names like test_req_1_cli_overrides_env() | Instructions: Before starting, change task status to `[-]` in tasks.md. After completing, change to `[x]`_
 
-- [ ] 3. Add secret isolation tests
+- [x] 3. Add secret isolation tests
   - File: `tests/compliance/test_config_compliance.py` (continue)
   - Add tests to verify API keys only in `.env`, not in YAML files
   - Scan YAML files for secret patterns
@@ -29,7 +29,7 @@
   - _Requirements: 1.4_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add secret isolation tests. Role: Security-focused Test Engineer | Task: Add tests to test_config_compliance.py that scan all YAML files in config/ directory for secret patterns (api_key, token, password) covering requirement 1.4 | Restrictions: Must scan actual YAML files, test should fail if secrets found, use configurable secret patterns | Leverage: Python pathlib for file operations, yaml.safe_load() for parsing | Success: Test scans all config/*.yaml files, fails if any secret patterns found, clear error messages indicating which file contains secrets | Instructions: Mark task `[-]` when starting, `[x]` when complete_
 
-- [ ] 4. Add configuration validation tests
+- [x] 4. Add configuration validation tests
   - File: `tests/compliance/test_config_compliance.py` (continue)
   - Test Pydantic validation with invalid configurations
   - Verify error messages are clear and actionable
@@ -40,7 +40,7 @@
 
 ## Scraper Compliance Tests
 
-- [ ] 5. Create scraper compliance test file
+- [x] 5. Create scraper compliance test file
   - File: `tests/compliance/test_scraper_compliance.py`
   - Implement tests for Requirement 2 (multi-platform architecture)
   - Verify BaseScraper interface and inheritance
@@ -49,7 +49,7 @@
   - _Requirements: 2.1, 2.2_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then create scraper compliance tests. Role: Python Test Engineer with async testing expertise | Task: Create tests/compliance/test_scraper_compliance.py with tests verifying BaseScraper interface and AmazonScraper inheritance covering requirements 2.1-2.2 | Restrictions: Must test abstract methods exist, verify inheritance hierarchy, test async methods properly | Leverage: src/scraper/base/models.py::BaseScraper abstract class, src/scraper/amazon/scraper.py::AmazonScraper implementation, inspect module for reflection | Success: Tests verify AmazonScraper extends BaseScraper, required abstract methods implemented (scrape_products, validate_product_id), async tests use proper pytest-asyncio fixtures | Instructions: Update task to `[-]` when starting, `[x]` on completion_
 
-- [ ] 6. Add product data extraction tests
+- [x] 6. Add product data extraction tests
   - File: `tests/compliance/test_scraper_compliance.py` (continue)
   - Test that scrapers extract all required fields
   - Verify data completeness and quality
@@ -58,7 +58,7 @@
   - _Requirements: 2.3_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add product extraction tests. Role: QA Engineer specializing in data validation testing | Task: Add tests to test_scraper_compliance.py that verify scrapers extract all required fields (title, price, description, ID, ratings, review count) covering requirement 2.3 | Restrictions: Must use mock HTML responses, test async scraping methods, verify all required fields present | Leverage: aioresponses for mocking HTTP, src/scraper/base/models.py::BaseProductData for field validation | Success: Tests verify all required fields extracted from mock data, missing field scenarios handled correctly, tests use proper async fixtures | Instructions: Mark `[-]` in progress, `[x]` when complete_
 
-- [ ] 7. Add media storage structure tests
+- [x] 7. Add media storage structure tests
   - File: `tests/compliance/test_scraper_compliance.py` (continue)
   - Test directory structure matches expected pattern
   - Verify media files stored in correct locations
@@ -69,7 +69,7 @@
 
 ## Video Production Compliance Tests
 
-- [ ] 8. Create video compliance test file
+- [x] 8. Create video compliance test file
   - File: `tests/compliance/test_video_compliance.py`
   - Implement tests for Requirement 5 (unified subtitle positioning)
   - Test anchor options and content-aware positioning
@@ -78,7 +78,7 @@
   - _Requirements: 5.1, 5.2, 5.3_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then create video compliance tests. Role: Video Processing Test Engineer | Task: Create tests/compliance/test_video_compliance.py with tests for unified subtitle positioning (anchors, content-aware mode) covering requirements 5.1-5.3 | Restrictions: Must test all anchor options (top, center, bottom, above_content, below_content), test content-aware vs fixed positioning, use mock image boundaries | Leverage: src/video/subtitle_positioning.py positioning logic, src/video/unified_subtitle_generator.py, mock image bounds for testing | Success: Tests verify all anchor positions work, content-aware mode adjusts positions based on boundaries, fixed mode uses anchor + margin only | Instructions: Mark `[-]` when starting, `[x]` on completion_
 
-- [ ] 9. Add two-part subtitle system tests
+- [x] 9. Add two-part subtitle system tests
   - File: `tests/compliance/test_video_compliance.py` (continue)
   - Test upper line (static product link) and lower line (timed subtitles)
   - Verify independent styling and positioning
@@ -87,7 +87,7 @@
   - _Requirements: 6.1, 6.2, 6.5_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add two-part subtitle tests. Role: Subtitle System Test Engineer | Task: Add tests to test_video_compliance.py verifying two-part subtitle system (upper static line + lower timed line) covering requirements 6.1, 6.2, 6.5 | Restrictions: Must test both lines rendered independently, verify upper line static throughout video, test configurable data source for upper line | Leverage: src/video/unified_subtitle_generator.py subtitle generation, mock product data with product_url field, ASS format parsing | Success: Tests verify two independent subtitle lines, upper line shows product URL throughout, lower line has STT timing, both use correct anchors | Instructions: Update `[-]` in progress, `[x]` when complete_
 
-- [ ] 10. Add profile-specific settings tests
+- [x] 10. Add profile-specific settings tests
   - File: `tests/compliance/test_video_compliance.py` (continue)
   - Test that profile settings override global configuration
   - Verify merging logic works correctly
@@ -96,7 +96,7 @@
   - _Requirements: 7.1, 7.2, 7.3_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add profile override tests. Role: Configuration Testing Specialist | Task: Add tests to test_video_compliance.py verifying profile-specific settings override global configuration covering requirements 7.1-7.3 | Restrictions: Must test profile merging logic, verify profile settings win over globals, test multiple visual settings (positioning, styling, effects) | Leverage: src/video/video_config.py::VideoProfile Pydantic model, config/video_production.yaml profile definitions | Success: Tests verify profile settings override globals correctly, merging preserves backward compatibility, all visual settings configurable per profile | Instructions: Mark `[-]` when starting, `[x]` when done_
 
-- [ ] 11. Add style preset system tests
+- [x] 11. Add style preset system tests
   - File: `tests/compliance/test_video_compliance.py` (continue)
   - Test all 5 presets (minimal, modern, bold, animated, random)
   - Verify each preset applies correct fonts, colors, effects
@@ -105,7 +105,7 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add preset tests. Role: Visual Effects Test Engineer | Task: Add tests to test_video_compliance.py verifying all 5 style presets work correctly covering requirements 8.1-8.6 | Restrictions: Must test each preset individually, verify correct effects applied (minimal=none, modern=karaoke, bold=fade, animated=movement, random=1 effect), test font/color randomization for random preset | Leverage: src/video/font_color_manager.py preset logic, subtitle configuration from config/subtitles.yaml | Success: Tests verify all 5 presets apply correct styling, random preset selects 1 effect deterministically, font/color combinations have proper contrast | Instructions: Update `[-]` in progress, `[x]` when complete_
 
-- [ ] 12. Add ASS effects formatting tests
+- [x] 12. Add ASS effects formatting tests
   - File: `tests/compliance/test_video_compliance.py` (continue)
   - Verify ASS codes enclosed in curly braces `{}`
   - Test exactly 1 effect per video constraint
@@ -114,7 +114,7 @@
   - _Requirements: 9.1, 9.2, 9.9_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then add ASS formatting tests. Role: Subtitle Format Specialist | Task: Add tests to test_video_compliance.py verifying ASS effect formatting (codes in braces, exactly 1 effect) covering requirements 9.1, 9.2, 9.9 | Restrictions: Must parse ASS format, detect effect codes, verify curly brace enclosure, count unique effects | Leverage: ASS format parsing (pysrt or manual), regular expressions for effect detection | Success: Tests verify ASS codes enclosed in {}, no literal effect codes in output, exactly 1 effect type per video, proper karaoke timing format (\\k tags) | Instructions: Mark `[-]` when starting, `[x]` on completion_
 
-- [ ] 13. Add AI service integration tests
+- [x] 13. Add AI service integration tests
   - File: `tests/compliance/test_video_compliance.py` (continue)
   - Test fallback behavior when primary services fail
   - Verify Google Chirp 3 HD prioritization for TTS
@@ -125,7 +125,7 @@
 
 ## Integration and Documentation
 
-- [ ] 14. Add pytest configuration for compliance tests
+- [x] 14. Add pytest configuration for compliance tests
   - File: `pyproject.toml` (modify existing)
   - Add compliance test markers
   - Configure test discovery for compliance directory
@@ -134,7 +134,7 @@
   - _Requirements: All_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then configure pytest markers. Role: Python Build Engineer | Task: Add pytest marker configuration to pyproject.toml for compliance tests, enabling separate test execution | Restrictions: Must not break existing test configuration, add new marker 'compliance', maintain existing markers | Leverage: Existing [tool.pytest.ini_options] section in pyproject.toml | Success: Can run 'pytest -m compliance' to run only compliance tests, existing tests still work, new marker documented | Instructions: Mark `[-]` when starting, `[x]` when complete_
 
-- [ ] 15. Create compliance test documentation
+- [x] 15. Create compliance test documentation
   - File: `tests/compliance/README.md`
   - Document test structure and how to run compliance tests
   - Map tests to requirement numbers
@@ -143,11 +143,13 @@
   - _Requirements: All_
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then create compliance test README. Role: Technical Writer | Task: Create tests/compliance/README.md documenting compliance test structure, how to run tests, and mapping tests to requirements | Restrictions: Must reference requirement numbers from REQUIREMENTS.md, include pytest command examples, keep documentation concise | Leverage: TESTING.md for format and style reference | Success: README explains compliance test purpose, provides run commands, maps each test file to requirements, includes coverage information | Instructions: Update `[-]` in progress, `[x]` when complete_
 
-- [ ] 16. Run all compliance tests and fix failures
+- [x] 16. Run all compliance tests and fix failures
   - Files: All test files in `tests/compliance/`
   - Execute full compliance test suite
   - Fix any failing tests or underlying issues
   - Purpose: Ensure all requirements are actually met
   - _Leverage: pytest, coverage tools_
   - _Requirements: All_
+  - _Status: **COMPLETED** - All 114 tests passing (100%)_
+  - _Summary: Fixed ASS timing format conversion, voice criteria validation, TTS provider ordering test (using code inspection approach), and TTS fallback mocking. All 12 requirements validated._
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then execute all compliance tests. Role: QA Lead | Task: Run complete compliance test suite using 'pytest tests/compliance/ -v --cov', fix any failures, ensure >90% coverage of requirements-related code | Restrictions: Must fix real issues (not just make tests pass), ensure tests are reliable (not flaky), maintain existing functionality | Leverage: pytest for execution, pytest-cov for coverage, existing code for fixes | Success: All compliance tests pass consistently, coverage >90% for config_manager.py, video_config.py, BaseScraper, test output shows clear requirement traceability | Instructions: Mark `[-]` when starting, `[x]` when all tests pass and requirements verified_
