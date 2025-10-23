@@ -470,7 +470,10 @@ def test_req_1_4_no_secrets_in_yaml_files(secret_patterns):
             + [
                 "",
                 "Fix: Replace hardcoded secrets with environment variable references.",
-                "Example: Use 'api_key_env_var: OPENROUTER_API_KEY' instead of 'api_key: sk-...'",
+                (
+                    "Example: Use 'api_key_env_var: OPENROUTER_API_KEY' "
+                    "instead of 'api_key: sk-...'"
+                ),
             ]
         )
         pytest.fail(violation_msg)
@@ -594,7 +597,7 @@ def _scan_for_secrets(
                             f"{file_name}:{current_path} = '{value[:10]}...' "
                             "(possible hardcoded secret)"
                         )
-                elif value is not None and not isinstance(value, (dict, list)):
+                elif value is not None and not isinstance(value, dict | list):
                     violations.append(
                         f"{file_name}:{current_path} has non-env-var value: {value}"
                     )
