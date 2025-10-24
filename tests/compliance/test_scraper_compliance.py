@@ -83,7 +83,7 @@ def test_req_2_1_base_scraper_platform_property():
     assert isinstance(platform_prop, property), "platform must be a property"
 
     # Check that it's abstract
-    assert getattr(
+    assert getattr(  # type: ignore[unreachable]
         platform_prop.fget, "__isabstractmethod__", False
     ), "platform property must be abstract"
 

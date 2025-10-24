@@ -705,7 +705,8 @@ def test_req_12_1_pydantic_catches_constraint_violations():
     from src.video.video_config import TTSConfig
 
     # Constraint violation: provider_order requires min_length=1
-    invalid_config = {"provider_order": []}  # Empty list violates min_length=1
+    # Empty list violates min_length=1
+    invalid_config: dict[str, list[str]] = {"provider_order": []}
 
     with pytest.raises(ValidationError) as exc_info:
         TTSConfig(**invalid_config)

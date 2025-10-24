@@ -96,18 +96,18 @@ def create_tools() -> dict[str, LintingTool]:
     return {
         "ruff": LintingTool(
             "Ruff",
-            ["poetry", "run", "ruff", "check", "src/", "tests/"],
+            ["poetry", "run", "ruff", "check", "."],
             "Fast Python linter and formatter",
-            fix_command=["poetry", "run", "ruff", "check", "--fix", "src/", "tests/"],
+            fix_command=["poetry", "run", "ruff", "check", "--fix", "."],
         ),
         "ruff-format": LintingTool(
             "Ruff Format",
-            ["poetry", "run", "ruff", "format", "--check", "src/", "tests/"],
+            ["poetry", "run", "ruff", "format", "--check", "."],
             "Code formatting",
-            fix_command=["poetry", "run", "ruff", "format", "src/", "tests/"],
+            fix_command=["poetry", "run", "ruff", "format", "."],
         ),
         "mypy": LintingTool(
-            "MyPy", ["poetry", "run", "mypy", "src/"], "Static type checker"
+            "MyPy", ["poetry", "run", "mypy", "."], "Static type checker"
         ),
         "bandit": LintingTool(
             "Bandit",
