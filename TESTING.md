@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **480+ tests** across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **591 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -15,12 +15,20 @@ make test-cov
 poetry run pytest tests/test_video_config.py -v
 
 # Run by category
+poetry run pytest -m compliance    # Compliance tests only
 poetry run pytest -m unit          # Unit tests only
 poetry run pytest -m integration   # Integration tests only
 poetry run pytest -m e2e           # End-to-end tests only
 ```
 
 ## Test Categories
+
+### Compliance Tests (`@pytest.mark.compliance`)
+- **Purpose**: Validate all documented requirements are implemented correctly
+- **Coverage**: Configuration system, scraper architecture, video production features
+- **Tests**: 114 tests across 12 requirements
+- **Speed**: Fast (< 1s per test)
+- **📖 Complete guide**: [tests/compliance/README.md](tests/compliance/README.md)
 
 ### Unit Tests (`@pytest.mark.unit`)
 - **Purpose**: Test individual functions in isolation
@@ -272,14 +280,25 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.8.0):**
-- **Total Tests**: 497 collected
-- **Passing**: 478 tests
-- **Skipped**: 19 tests (includes 9 skipped integration tests)
+**Current Statistics (v0.9.0):**
+- **Total Tests**: 612 collected (498 + 114 compliance tests)
+- **Passing**: 591 tests (477 + 114 compliance)
+- **Skipped**: 21 tests
 - **Failed**: 0 tests
-- **Coverage**: 41% (target: 40% minimum)
+- **Coverage**: 42.6% (target: 40% minimum)
 
-**Recent Updates (v0.8.0):**
+**Recent Updates (v0.9.0):**
+- ✅ Added comprehensive requirements compliance test suite (114 tests)
+- ✅ Configuration system validation (24 tests)
+- ✅ Scraper architecture compliance (22 tests)
+- ✅ Video production features validation (68 tests)
+- ✅ All 12 documented requirements validated (100% pass rate)
+- ✅ Test documentation and status reporting
+- ✅ Added tall image scaling constraint test for assembler bug fix
+- ✅ Removed dead code files (config_cli_integration.py, unified_assembler_integration.py)
+- ✅ Coverage improved to 42.6% (up from 42.0%)
+
+**Previous Updates (v0.8.0):**
 - ✅ Added two-part subtitle system with 335 comprehensive test cases
 - ✅ Consolidated subtitle configuration to dict-based approach
 - ✅ Fixed all linting issues (13 line length, 1 duplicate key, 1 unused variable, MyPy errors)

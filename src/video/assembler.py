@@ -949,6 +949,9 @@ class VideoAssembler:
             orig_w, orig_h = all_visuals_dims[i]
 
             scaled_w, scaled_h = 0, 0
+            target_y_pos = video_settings_dict["image_top_position_percent"] * height
+            max_available_height = height - target_y_pos
+
             if not is_relative_mode and uniform_height > 0:
                 scaled_h = uniform_height
                 scaled_w = (
@@ -958,9 +961,17 @@ class VideoAssembler:
             else:
                 scaled_w = scaled_w_base
                 scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else -1
-                vf_scale = f"scale={scaled_w}:{scaled_h}"
 
-            target_y_pos = video_settings_dict["image_top_position_percent"] * height
+                # Ensure scaled height doesn't exceed available space in frame
+                if scaled_h > max_available_height:
+                    scaled_h = int(max_available_height)
+                    scaled_w = (
+                        int(scaled_h * (orig_w / orig_h))
+                        if orig_h > 0
+                        else scaled_w_base
+                    )
+
+                vf_scale = f"scale={scaled_w}:{scaled_h}"
 
             geometries.append(
                 VisualGeometry(

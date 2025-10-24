@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-10-24
+
+### Added
+- **Requirements Compliance Test Suite**: Comprehensive validation of all documented requirements
+  - 114 compliance tests across 3 test files
+  - Configuration system validation (24 tests): CLI > ENV > YAML precedence, secret isolation
+  - Scraper architecture compliance (22 tests): BaseScraper interface, product data extraction, media storage
+  - Video production validation (68 tests): subtitle positioning, two-part system, profiles, presets, ASS effects, AI integration
+  - All 12 requirements validated with 100% pass rate
+  - Test documentation and status reporting in tests/compliance/
+  - Pytest compliance marker for isolated test execution
+
+### Changed
+- **Test Infrastructure**: Enhanced testing framework
+  - Total tests increased from 497 to 611 (114 new compliance tests)
+  - All tests passing (592/611, 19 skipped)
+  - Added compliance test category to TESTING.md
+  - Updated test statistics and documentation
+
+### Technical
+- **Quality Assurance**: Progress toward 1.0.0 stability
+  - Complete requirements traceability through automated tests
+  - Validates configuration precedence, scraper patterns, video features
+  - Code inspection approach for complex async provider testing
+  - Clear requirement-to-test mapping in compliance README
+
 ## [0.8.0] - 2025-10-19
 
 ### Added

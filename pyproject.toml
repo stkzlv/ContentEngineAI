@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.8.0"
+version = "0.9.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -234,6 +234,7 @@ markers = [
     "external: Tests requiring external services",
     "mock: Tests using mocks",
     "asyncio: Async tests",
+    "compliance: Requirements compliance tests",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

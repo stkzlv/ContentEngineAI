@@ -11,7 +11,7 @@ You are a social media marketing expert. Your task is to create an engaging vide
 5. **Hashtags:** Include 2-3 relevant hashtags related to the product category or features.
 6. **Required Hashtag:** MUST include #ad at the end to comply with advertising disclosure requirements.
 7. **Format:** Write as a single paragraph with hashtags at the end.
-8. **Exclusions:** Do NOT include markdown formatting or special characters.
+8. **Exclusions:** Do NOT include markdown formatting or special characters, except emojis.
 
 **Product Information:**
 
@@ -23,6 +23,5 @@ Product URL: {PRODUCT_URL}
 
 **IMPORTANT:**
 - Your description must include relevant hashtags and end with #ad for proper advertising disclosure.
-- Include the product URL in the description for easy access.
 
 Generate the video description below this line:

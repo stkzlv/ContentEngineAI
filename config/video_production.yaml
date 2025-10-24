@@ -282,14 +282,14 @@ video_profiles:
     image_top_position_percent: 0.15
 
     # Subtitle positioning overrides
-    subtitle_anchor: "top"                     # top, center, bottom, above_content, below_content
-    subtitle_margin: 0.06                      # Fraction of frame height (0.0-0.5)
+    subtitle_anchor: "below_content"           # top, center, bottom, above_content, below_content
+    subtitle_margin: 0.05                      # Fraction of frame height (0.0-0.5)
     subtitle_content_aware: true               # Auto-adjust based on visual content
     subtitle_horizontal_alignment: "center"    # left, center, right
 
     # Subtitle style overrides
     subtitle_style_preset: "bold"              # minimal, modern, bold, animated, random
-    subtitle_font_size_scale: 0.9              # Font size multiplier (0.5-2.0)
+    subtitle_font_size_scale: 0.8              # Font size multiplier (0.5-2.0)
     subtitle_randomize_fonts: true
     subtitle_randomize_colors: true
     subtitle_randomize_effects: false
