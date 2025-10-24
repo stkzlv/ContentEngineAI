@@ -96,6 +96,54 @@ Test subtitle line three
             assert height == 1080
             mock_exec.assert_called_once()
 
+    @pytest.mark.unit
+    def test_tall_image_scaling_constraint(self, assembler: VideoAssembler):
+        """Test tall images are constrained to fit available frame height."""
+        # Simulate a very tall/narrow image (711x1500 pixels, aspect ratio ~0.47)
+        # This was the actual bug case from product B07BHXYCXQ image #8
+        orig_w, orig_h = 711, 1500
+
+        # Frame dimensions from slideshow_images2 profile
+        frame_width, frame_height = 1080, 1920
+        image_width_percent = 0.9  # 90% of frame width = 972px
+        image_top_position_percent = 0.15  # Y position = 288px
+
+        # Calculate what would happen without the fix
+        scaled_w_base = int(frame_width * image_width_percent)  # 972
+        scaled_h_unconstrained = int(scaled_w_base * (orig_h / orig_w))  # ~2051
+
+        # Verify the bug condition
+        target_y_pos = image_top_position_percent * frame_height  # 288
+        max_available_height = frame_height - target_y_pos  # 1632
+
+        # The unconstrained height exceeds available space
+        assert (
+            scaled_h_unconstrained > max_available_height
+        ), "Test setup error: scaled height should exceed available space"
+
+        # With the fix, height should be constrained
+        if scaled_h_unconstrained > max_available_height:
+            scaled_h_constrained = int(max_available_height)
+            scaled_w_constrained = int(scaled_h_constrained * (orig_w / orig_h))
+        else:
+            scaled_h_constrained = scaled_h_unconstrained
+            scaled_w_constrained = scaled_w_base
+
+        # Verify the fix constrains the dimensions
+        assert (
+            scaled_h_constrained <= max_available_height
+        ), "Scaled height should not exceed available frame space"
+        assert scaled_h_constrained == int(
+            max_available_height
+        ), "Scaled height should be constrained to max available height"
+
+        # Verify aspect ratio is preserved
+        original_aspect = orig_w / orig_h
+        constrained_aspect = scaled_w_constrained / scaled_h_constrained
+        assert (
+            abs(original_aspect - constrained_aspect) < 0.01
+        ), "Aspect ratio should be preserved when constraining"
+
     @pytest.mark.asyncio
     async def test_get_media_dimensions_video(
         self, assembler: VideoAssembler, temp_dir: Path

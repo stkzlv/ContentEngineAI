@@ -1658,9 +1658,9 @@ def test_req_10_1_tts_manager_tries_providers_in_order():
     ), "Should return path when provider succeeds"
 
     # Verify loop continues only on failure
-    assert 'logger.warning(f"Provider \'{provider_name}\' failed.")' in source, (
-        "Should log failure and continue to next provider"
-    )
+    assert (
+        "logger.warning(f\"Provider '{provider_name}' failed.\")" in source
+    ), "Should log failure and continue to next provider"
 
 
 @pytest.mark.compliance

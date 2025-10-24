@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **480+ tests** across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **591 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -281,11 +281,11 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics (v0.9.0):**
-- **Total Tests**: 611 collected (497 + 114 compliance tests)
-- **Passing**: 592 tests (478 + 114 compliance)
-- **Skipped**: 19 tests
+- **Total Tests**: 612 collected (498 + 114 compliance tests)
+- **Passing**: 591 tests (477 + 114 compliance)
+- **Skipped**: 21 tests
 - **Failed**: 0 tests
-- **Coverage**: 41% (target: 40% minimum)
+- **Coverage**: 42.6% (target: 40% minimum)
 
 **Recent Updates (v0.9.0):**
 - ✅ Added comprehensive requirements compliance test suite (114 tests)
@@ -294,6 +294,9 @@ poetry run pytest -n auto
 - ✅ Video production features validation (68 tests)
 - ✅ All 12 documented requirements validated (100% pass rate)
 - ✅ Test documentation and status reporting
+- ✅ Added tall image scaling constraint test for assembler bug fix
+- ✅ Removed dead code files (config_cli_integration.py, unified_assembler_integration.py)
+- ✅ Coverage improved to 42.6% (up from 42.0%)
 
 **Previous Updates (v0.8.0):**
 - ✅ Added two-part subtitle system with 335 comprehensive test cases

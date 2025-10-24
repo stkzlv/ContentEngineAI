@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2025-10-23
+## [0.9.0] - 2025-10-24
 
 ### Added
 - **Requirements Compliance Test Suite**: Comprehensive validation of all documented requirements
