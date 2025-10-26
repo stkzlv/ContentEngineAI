@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-10-26
+
+### Added
+- **CTA-Based Timing for Upper Subtitles**: Keyword-driven display timing for promotional content
+  - Continuous display mode: merges all CTA windows into single period (first to last CTA)
+  - Configurable CTA keywords: visit, follow, subscribe, link, check out, shop now
+  - Custom URL support via `product_url` field in product data
+  - 18 comprehensive tests with 93% coverage
+  - Gap threshold configuration for window merging control
+
+### Changed
+- **Test Suite Cleanup**: Removed outdated compliance tests
+  - Total tests: 627 (down from 630)
+  - Removed 3 tests expecting non-existent YAML config structures
+  - All 627 tests passing (606 passed, 21 skipped, 0 failed)
+  - Coverage maintained at 42.79%
+  - Updated TESTING.md with current statistics
+
+### Fixed
+- **Code Quality**: Resolved linting issues in CTA detection
+  - Fixed MyPy type errors for optional gap_threshold parameter
+  - Fixed SubRipTime attribute access type warnings
+  - Fixed line length violations in subtitle utilities
+  - All linting tools passing (Ruff, MyPy, Bandit, Vulture, Safety)
+
+### Technical
+- **CTA Detection Module**: New keyword-based timing window detection
+  - `src/video/cta_detector.py`: Core detection and merging logic
+  - Integration with subtitle generation pipeline
+  - Configurable merge gap threshold (None for continuous mode)
+  - REQUIREMENTS.md documentation for CTA system
+
 ## [0.9.0] - 2025-10-24
 
 ### Added

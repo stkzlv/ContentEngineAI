@@ -281,14 +281,14 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.10.1):**
+**Current Statistics (v0.10.0):**
 - **Total Tests**: 627 collected (513 + 114 compliance tests)
 - **Passing**: 606 tests (492 + 114 compliance)
 - **Skipped**: 21 tests
 - **Failed**: 0 tests
 - **Coverage**: 42.79% (target: 40% minimum)
 
-**Recent Updates (v0.10.1):**
+**Recent Updates (v0.10.0):**
 - ✅ Removed 3 outdated compliance tests for non-existent config structures
 - ✅ All compliance tests now passing (114/114)
 - ✅ Verified all tests match current codebase implementation
