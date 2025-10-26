@@ -4,85 +4,148 @@
 # ============================================================================
 # FILE NAMING CONVENTIONS
 # ============================================================================
-# Standard filenames for pipeline outputs
-# These define the naming patterns used throughout the production pipeline
+# Standard filenames for pipeline outputs across all stages of production
+# These patterns are used by producer.py, assembler.py, and other modules
+# to locate and save media files consistently throughout the pipeline
+#
+# Pipeline Impact:
+# - Changing these requires updating all modules that reference file names
+# - Video profile configurations reference these for output naming
+# - Scripts and automation tools depend on these patterns
 file_naming:
   # Audio output filenames
+  # Used by TTS module (src/video/tts.py) for voiceover generation
+  # Format: WAV for high-quality uncompressed audio
   voiceover: "voiceover.wav"
 
   # Subtitle output filenames
+  # Used by subtitle_utils.py and unified_subtitle_generator.py
+  # SRT: Simple subtitle format (timing + text only)
+  # ASS: Advanced format supporting styling, effects, and precise positioning
   subtitles_srt: "subtitles.srt"
   subtitles_ass: "subtitles.ass"
   subtitles_content_aware: "subtitles_content_aware.ass"
   temp_subtitle: "captions.srt"
 
   # Video output filenames
-  # {product_id} and {profile} placeholders will be replaced with actual values
+  # Used by assembler.py for final video generation
+  # Placeholders: {product_id} = ASIN/product ID, {profile} = video profile name
+  # Example: video_B07BHXYCXQ_slideshow_images1.mp4
   final_video: "video_{product_id}_{profile}.mp4"
 
   # Script input paths (legacy compatibility)
+  # Fallback paths when script location not specified
+  # Modern workflow uses data.json with embedded script text
   script_paths: ["info/script.txt"]
 
 # ============================================================================
 # VIDEO ENCODING SETTINGS
 # ============================================================================
+# Core video encoding parameters used by assembler.py (FFmpeg wrapper)
+# These settings control output video quality, format, and performance
+#
+# Pipeline Impact:
+# - resolution: Affects subtitle positioning, image scaling, text readability
+# - frame_rate: Higher = smoother motion but larger files (30 fps recommended)
+# - codec/preset/crf: Balance between encoding speed and file size/quality
+# - Media validation thresholds determine minimum content needed for production
 video_settings:
   # Video resolution [width, height]
-  resolution: [1080, 1920]  # Portrait mode for social media
+  # 1080x1920 = vertical/portrait format optimized for TikTok, Instagram Reels
+  # Used by: assembler.py for frame size, subtitle_utils.py for positioning
+  resolution: [1080, 1920]
 
-  # Video frame rate (fps)
+  # Video frame rate (frames per second)
+  # 30 fps = standard for social media, balances smoothness and file size
+  # Higher fps (60) increases file size significantly
+  # Used by: assembler.py FFmpeg encoding
   frame_rate: 30
 
   # Video codec settings
+  # libx264: H.264 codec, most compatible across platforms
+  # preset: Encoding speed vs compression efficiency tradeoff
+  #   ultrafast/faster = quick encoding, larger files
+  #   medium = balanced (recommended for production)
+  #   slow/slower = better compression, takes longer
+  # crf: Constant Rate Factor for quality (0-51 scale)
+  #   18 = visually lossless (very large files)
+  #   23 = high quality, good compression (recommended)
+  #   28 = acceptable quality, smaller files
   codec: "libx264"
   preset: "medium"
-  crf: 23  # Constant Rate Factor (lower = better quality, larger file)
+  crf: 23
 
-  # Preserve aspect ratio when resizing
+  # Preserve aspect ratio when resizing images/videos
+  # true = add letterboxing/pillarboxing to maintain original proportions
+  # false = stretch/squash to fill frame (not recommended)
+  # Used by: assembler.py when scaling media to fit frame
   preserve_aspect_ratio: true
 
-  # Image display duration in seconds
+  # Image display duration in seconds (for slideshow profiles)
+  # How long each product image is shown on screen
+  # Used by: producer.py to calculate slideshow timing
+  # Note: Actual duration may vary if use_dynamic_image_count is enabled
   image_duration: 3.0
 
-  # Transition effects between images
-  transition_effects:
-    enabled: true
-    duration: 0.5
-    types: ["fade", "slide", "zoom"]
-
   # Video constraints and validation
+  # Maximum allowed video duration (seconds)
+  # Prevents accidentally creating overly long videos
+  # Used by: producer.py validation, may truncate or fail if exceeded
   total_duration_limit_sec: 90
+
+  # Tolerance for matching video duration to audio (seconds)
+  # Allows small timing mismatches between final video and voiceover
+  # Used by: Quality checks in assembler.py
   video_duration_tolerance_sec: 1.0
+
+  # Minimum acceptable output video file size (MB)
+  # Validation check to ensure video actually contains content
+  # Used by: producer.py post-generation validation
   min_video_file_size_mb: 0.1
+
+  # Timeout for FFmpeg probe operations (seconds)
+  # Maximum time to wait when analyzing media file properties
+  # Used by: assembler.py media duration detection
   verification_probe_timeout_sec: 30
 
   # Media validation requirements (MUST match scraper.yaml validation_config)
-  # These determine minimum media needed for video production
-  # Affects: Product acceptance, video creation success rate
-  min_total_media: 3              # Minimum total media files (images + videos)
-  min_images_if_no_video: 5       # Minimum images when no videos available (slideshow mode)
-  min_images_with_video: 2        # Minimum images when videos available (video mode)
+  # These thresholds determine if a product has sufficient media for video creation
+  # Pipeline Impact:
+  # - Products below these thresholds are rejected during scraping/production
+  # - Affects batch processing success rate and output quality
+  # - Higher values = better quality but fewer successful videos
+  min_total_media: 3              # Minimum combined images + videos
+  min_images_if_no_video: 5       # Slideshow mode threshold (no product videos)
+  min_images_with_video: 2        # Video mode threshold (has product videos)
 
-  # Image positioning (used by profiles)
-  image_width_percent: 0.9
-  image_top_position_percent: 0.07
+  # Image positioning (used by video profiles)
+  # Default position for product images within the video frame
+  # Profiles can override these values for custom layouts
+  # Values are fractions of frame dimensions (0.0-1.0)
+  # Used by: producer.py when generating visual content
+  image_width_percent: 0.9           # Image width as 90% of frame width
+  image_top_position_percent: 0.07   # Top edge at 7% from frame top
 
-  # Timing and delays
-  inter_product_delay_min_sec: 1.5
-  inter_product_delay_max_sec: 4.0
-  min_visual_segment_duration_sec: 0.1
+  # Timing and delays for batch processing
+  # Random delays between product videos to avoid detection as automated content
+  # Used by: Batch processing mode in producer.py
+  inter_product_delay_min_sec: 1.5   # Minimum pause between products
+  inter_product_delay_max_sec: 4.0   # Maximum pause between products
+  min_visual_segment_duration_sec: 0.1  # Minimum length for any visual clip
 
-  # Assembler-specific settings
-  default_max_chars_per_line: 20
-  subtitle_box_border_width: 5
-  image_loop: 1
-  pad_color: "black"
+  # Assembler-specific settings (FFmpeg subtitle rendering)
+  # Used by: assembler.py when generating embedded subtitles
+  # Note: Modern workflow uses external ASS files, these are legacy fallbacks
+  default_max_chars_per_line: 20      # Character limit for subtitle wrapping
+  subtitle_box_border_width: 5        # Border thickness around subtitle box
+  image_loop: 1                       # Number of times to loop images (1=no loop)
+  pad_color: "black"                  # Padding color for letterboxing
 
   # Supported file formats
-  # Video formats that can be processed by the pipeline
+  # File extensions accepted by the pipeline for media processing
+  # Used by: Media validation, file type detection throughout pipeline
+  # Pipeline Impact: Files with other extensions are rejected
   supported_video_extensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"]
-
-  # Audio formats that can be processed by the pipeline
   supported_audio_extensions: [".wav", ".mp3", ".aac", ".flac"]
 
 # ============================================================================
@@ -189,26 +252,7 @@ stock_media_settings:
   # Pexels API configuration
   pexels_api_key_env_var: "PEXELS_API_KEY"
 
-  # Freesound integration
-  freesound:
-    enabled: false
-    api_key_env_var: "FREESOUND_API_KEY"
-
-    # API endpoints
-    api_base_url: "https://freesound.org/apiv2"
-    oauth_token_url: "https://freesound.org/apiv2/oauth2/access_token/"
-    download_url_template: "https://freesound.org/apiv2/sounds/{sound_id}/download/"
-    sound_url_template: "https://freesound.org/s/{sound_id}/"
-
-    # Search parameters
-    search_terms: ["product", "commercial", "upbeat"]
-    duration_range: [10, 60]  # seconds
-    license_filter: "cc"
-
-    # Download settings
-    preferred_format: "mp3"
-    quality: "hq"
-    max_downloads: 5
+  # Note: Freesound integration removed - background music uses audio_settings instead
 
 # ============================================================================
 # VIDEO PROFILES
@@ -357,75 +401,131 @@ video_profiles:
     subtitle_max_duration: 4.0
     subtitle_min_duration: 0.5
 
+  # Slideshow with images profile (variant 4 - CTA-synchronized dual subtitles)
+  slideshow_images4:
+    description: "Slideshow with CTA-synchronized dual subtitles - upper URL appears only during call-to-action moments."
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning overrides
+    image_width_percent: 0.9
+    image_top_position_percent: 0.12
+
+    # Two-part subtitle system configuration
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
+    two_part_subtitles_upper_anchor: "above_content"     # Position above the image
+    two_part_subtitles_upper_margin: 0.05
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
+    two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
+    two_part_subtitles_upper_randomize_effects: false
+    two_part_subtitles_upper_prefix_replace: ""          # Keep full URL visible
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
+    two_part_subtitles_lower_margin: 0.05
+
+    # Subtitle format and styling (applies to both lines)
+    subtitle_format: "ass"
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+
+    # Lower line styling (voiceover subtitles)
+    subtitle_style_preset: "modern"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+
+    # Text formatting
+    subtitle_max_line_length: 30
+    subtitle_max_words_per_line: 2
+    subtitle_max_subtitle_width_fraction: 0.75
+    subtitle_max_duration: 4.0
+    subtitle_min_duration: 0.5
+
 # ============================================================================
 # ATTRIBUTION SETTINGS
 # ============================================================================
+# Video attribution and credits display configuration
+# NOTE: Feature not yet implemented - configuration placeholder for future development
+# TODO: Implement attribution overlay system in assembler.py
 attribution_settings:
-  # Include attribution in video
-  enabled: true
-
-  # Attribution display settings
-  display:
-    position: "bottom_right"
-    duration: 3.0
-    font_size: 12
-    opacity: 0.7
-
-  # Content attribution
-  content:
-    show_music_credits: true
-    show_image_credits: false
-    show_data_source: true
-
-  # Attribution text templates
-  attribution_template: "Music: {music_title} by {music_artist}\nData: {data_source}"
-  attribution_entry_template: "{type}: {title} by {artist}"
-  templates:
-    music: "Music: {title} by {artist}"
-    data: "Product data from {source}"
-    general: "Generated by ContentEngineAI"
+  enabled: false  # Disabled - feature pending implementation
+  attribution_template: ""  # Placeholder for future implementation
+  attribution_entry_template: ""  # Placeholder for future implementation
 
 # ============================================================================
 # TEXT-TO-SPEECH SETTINGS
 # ============================================================================
-tts_config:
-  # Order of TTS providers to try (first to last)
-  provider_order: ["google_cloud", "coqui"]
-
-  google_cloud:
-    model_name: "en-US-Chirp3-HD"
-    language_code: "en-US"
-    voice_selection_criteria:
-      - language_code: "en-US"
-        ssml_gender: "NEUTRAL"
-    audio_config:
-      audio_encoding: "MP3"
-      sample_rate_hertz: 24000
-    speaking_rate: 1.0
-    pitch: 0.0
-    volume_gain_db: 0.0
-
-  coqui:
-    model_name: "tts_models/en/ek1/tacotron2"
-    enabled: true
+# NOTE: TTS configuration is defined in config/subtitles.yaml
+# This section kept for reference only - actual TTS settings loaded from subtitles.yaml
 
 # ============================================================================
-# LLM SETTINGS
+# LLM SETTINGS (Script Generation)
 # ============================================================================
+# Large Language Model configuration for AI script generation
+# Used by: src/ai/script_generator.py for creating video voiceover scripts
+#
+# Pipeline Impact:
+# - Script quality directly affects video engagement and conversions
+# - models: Fallback list (tries in order until one succeeds)
+# - auto_select_free_model: Automatically uses free tier models when available
+# - max_tokens: Controls script length (350 tokens ≈ 60-90 seconds of speech)
+# - temperature: Creativity level (0.0=deterministic, 1.0=creative, 0.7=balanced)
+#
+# OpenRouter aggregates multiple LLM providers (OpenAI, Anthropic, Meta, etc.)
+# Requires: OPENROUTER_API_KEY environment variable
+# Cost: Varies by model ($0-$0.02 per 1K tokens, check current pricing)
 llm_settings:
+  # LLM provider (currently only "openrouter" supported)
   provider: "openrouter"
+
+  # Environment variable containing OpenRouter API key
+  # Get key from: https://openrouter.ai/
   api_key_env_var: "OPENROUTER_API_KEY"
+
+  # Auto-select free models when available (recommended for testing)
+  # When true: Prefers free tier models from the models list
+  # When false: Uses first available model regardless of cost
   auto_select_free_model: true
+
+  # Model fallback list (tries in order)
+  # Format: "provider/model-name" or "provider/model-name:free"
+  # :free suffix = free tier only (no cost but may have rate limits)
   models:
-    - "openai/gpt-3.5-turbo"
-    - "deepseek/deepseek-chat-v3-0324:free"
-    - "meta-llama/llama-3-8b-instruct:free"
+    - "openai/gpt-3.5-turbo"              # Fast, good quality, low cost
+    - "deepseek/deepseek-chat-v3-0324:free"  # Free tier, decent quality
+    - "meta-llama/llama-3-8b-instruct:free"  # Free tier, good for scripts
+
+  # Maximum tokens in generated script
+  # 350 tokens ≈ 60-90 seconds of voiceover
+  # Increase for longer scripts, decrease for shorter
+  # Note: Longer scripts = higher API costs
   max_tokens: 350
+
+  # Temperature: Controls output randomness (0.0-2.0)
+  # 0.0 = deterministic, repetitive (not recommended)
+  # 0.7 = balanced creativity (recommended for marketing scripts)
+  # 1.0+ = highly creative, less predictable
   temperature: 0.7
-  timeout_seconds: 90
-  retry_attempts: 3
-  retry_min_wait_sec: 2
-  retry_max_wait_sec: 30
+
+  # API timeout and retry configuration
+  # Increase timeout for slower models or poor network
+  timeout_seconds: 90         # Max wait time for API response
+  retry_attempts: 3           # Number of retries on failure
+  retry_min_wait_sec: 2       # Initial retry delay (exponential backoff)
+  retry_max_wait_sec: 30      # Maximum retry delay
+
+  # Prompt template file path
+  # Contains instructions for script generation
+  # Customize to change script style, tone, or structure
   prompt_template_path: "src/ai/prompts/video_script.md"
 
 # ============================================================================
@@ -440,43 +540,76 @@ description_settings:
 # ============================================================================
 # FFMPEG SETTINGS
 # ============================================================================
+# FFmpeg executable configuration and working directories
+# Used by: assembler.py, async_io.py for video encoding operations
+#
+# Pipeline Impact:
+# - executable_path: If empty, uses system PATH FFmpeg (recommended)
+# - temp_ffmpeg_dir: Temporary workspace for encoding (auto-cleaned)
+# - preset: Encoding speed for intermediate files (ultrafast saves time)
+# - timeout: Maximum time for final assembly (increase for long videos)
 ffmpeg_settings:
+  # Path to FFmpeg executable (leave empty to use system PATH)
+  # Only set if using custom FFmpeg build or non-standard installation
   executable_path: ""
+
+  # Temporary directory for FFmpeg intermediate files
+  # Used for: Multi-pass encoding, filter complex operations
+  # Auto-cleaned after successful video generation
   temp_ffmpeg_dir: "ffmpeg_work"
+
+  # Encoding preset for intermediate segments (speed vs quality)
+  # ultrafast = fastest encoding, acceptable quality for temp files
+  # Used during: Multi-stage video assembly before final encode
   intermediate_segment_preset: "ultrafast"
+
+  # Maximum time to wait for final assembly (seconds)
+  # Increase for very long videos or slow hardware
+  # Used by: assembler.py final encoding timeout
   final_assembly_timeout_sec: 600
 
 # ============================================================================
 # SUBTITLE SETTINGS
 # ============================================================================
-subtitle_settings:
-  enabled: true
-  anchor: "top"
-  margin: 0.05
-  content_aware: true
-
-  font_directory: "static/fonts"
-  font_size: 60
-  font_color: "#FFFFFF"
-  background_color: "#000000"
-  background_opacity: 0.8
-
-  effects:
-    enabled: true
-    fade_duration: 0.3
-    shadow_enabled: true
-
-  positioning:
-    horizontal_alignment: "center"
-    vertical_position: "bottom"
-    margin_percent: 0.1
+# NOTE: Full subtitle configuration is in config/subtitles.yaml
+# This section contains only legacy compatibility settings
+# For all subtitle configuration, see subtitles.yaml
 
 # ============================================================================
-# WHISPER SETTINGS
+# WHISPER SETTINGS (Speech Recognition)
 # ============================================================================
+# OpenAI Whisper model configuration for speech-to-text operations
+# Used by: stt_functions.py for generating word-level timestamps from audio
+#
+# Pipeline Impact:
+# - model_size: Larger models = more accurate but slower and more RAM
+#   - tiny: Fastest, least accurate, 1GB RAM
+#   - small: Good balance (recommended), 2GB RAM
+#   - medium: Better accuracy, 5GB RAM
+#   - large: Best accuracy, 10GB RAM
+# - model_device: "cpu" or "cuda" (GPU acceleration if available)
+# - Used for: Subtitle timing synchronization with voiceover
 whisper_settings:
+  # Enable Whisper transcription for subtitle timing
+  # When false, falls back to estimated timing
   enabled: true
+
+  # Whisper model size (tiny/small/medium/large)
+  # Smaller = faster but less accurate
+  # Larger = slower but more accurate
+  # Recommended: "small" for production balance
   model_size: "small"
+
+  # Device for model inference
+  # Options: "cpu", "cuda" (requires NVIDIA GPU + CUDA)
+  # Note: CPU mode is slower but works everywhere
   model_device: "cpu"
+
+  # Keep model in memory between runs
+  # true = faster for batch processing, uses more RAM
+  # false = reload each time, saves RAM
   model_in_memory: false
+
+  # Directory for downloaded Whisper models
+  # Models are cached here after first download (~1-3GB per model)
   model_download_root: "~/.cache/whisper_models"

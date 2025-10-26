@@ -153,3 +153,14 @@
   - _Status: **COMPLETED** - All 114 tests passing (100%)_
   - _Summary: Fixed ASS timing format conversion, voice criteria validation, TTS provider ordering test (using code inspection approach), and TTS fallback mocking. All 12 requirements validated._
   - _Prompt: Implement the task for spec requirements-compliance: First run spec-status, then execute all compliance tests. Role: QA Lead | Task: Run complete compliance test suite using 'pytest tests/compliance/ -v --cov', fix any failures, ensure >90% coverage of requirements-related code | Restrictions: Must fix real issues (not just make tests pass), ensure tests are reliable (not flaky), maintain existing functionality | Leverage: pytest for execution, pytest-cov for coverage, existing code for fixes | Success: All compliance tests pass consistently, coverage >90% for config_manager.py, video_config.py, BaseScraper, test output shows clear requirement traceability | Instructions: Mark `[-]` when starting, `[x]` when all tests pass and requirements verified_
+
+- [x] 17. Review and remove outdated compliance tests
+  - Files: `tests/compliance/test_video_compliance.py`
+  - Review all compliance tests against current codebase
+  - Remove tests expecting non-existent config structures
+  - Purpose: Keep tests aligned with actual implementation
+  - _Leverage: TESTING.md, pytest, config/video_production.yaml_
+  - _Requirements: 7.3, 10.2, 10.3_
+  - _Status: **COMPLETED** - Removed 3 outdated tests, all tests now passing_
+  - _Summary: Removed test_req_7_3_profile_merging_preserves_all_settings (expected global subtitle_settings in YAML), test_req_10_2_google_chirp_prioritized_for_tts (expected tts_config.provider_order), test_req_10_3_tts_fallback_chain_google_to_coqui (expected TTS fallback chain in YAML). Total tests reduced from 630 to 627. All 627 tests passing, coverage maintained at 42.79%._
+  - _Prompt: Implement the task for spec requirements-compliance: First run spec-status to check current progress, then review compliance tests for outdated expectations. Role: QA Engineer | Task: Review all compliance tests in tests/compliance/test_video_compliance.py, identify tests expecting config structures that don't exist in config/video_production.yaml, remove outdated tests with clear documentation | Restrictions: Only remove tests that expect non-existent structures, document why each test was removed, update TESTING.md with new test count | Leverage: grep for finding config references, YAML config files for verification | Success: No tests fail due to missing config structures, TESTING.md updated with correct test count, removed tests documented with comments explaining why | Instructions: Mark `[-]` when starting, `[x]` when complete and all tests passing_

@@ -426,6 +426,13 @@ class VideoProfile(BaseModel):
             "(e.g. 'shortened_affiliate_link')"
         ),
     )
+    two_part_subtitles_upper_custom_url: str | None = Field(
+        None,
+        description=(
+            "Override with custom URL to display in upper subtitle "
+            "(overrides source_field when set)"
+        ),
+    )
     two_part_subtitles_upper_anchor: str | None = Field(
         None, description="Override upper subtitle anchor: top, above_content, etc."
     )
@@ -1262,6 +1269,11 @@ class VideoConfig(BaseModel):
                 )
                 .get("upper_line", {})
                 .get("source_field", "shortened_affiliate_link"),
+                "two_part_subtitles_upper_custom_url": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("custom_url"),
                 "two_part_subtitles_upper_anchor": self.subtitle_settings.get(
                     "two_part_subtitles", {}
                 )
@@ -1433,6 +1445,10 @@ class VideoConfig(BaseModel):
             merged_settings["subtitle_settings"][
                 "two_part_subtitles_upper_source_field"
             ] = profile.two_part_subtitles_upper_source_field
+        if profile.two_part_subtitles_upper_custom_url is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_custom_url"
+            ] = profile.two_part_subtitles_upper_custom_url
         if profile.two_part_subtitles_upper_anchor is not None:
             merged_settings["subtitle_settings"]["two_part_subtitles_upper_anchor"] = (
                 profile.two_part_subtitles_upper_anchor

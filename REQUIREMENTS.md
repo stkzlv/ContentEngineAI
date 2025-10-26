@@ -80,20 +80,32 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 
 ### Two-Part Subtitle System
 - **Independent Dual Lines**: Display two independent subtitle lines simultaneously
-- **Upper Line (Product Link)**:
+- **Upper Line (Product Link/Business URL)**:
   - Display shortened product URL from `data.json` by default
   - Source field configurable per profile (e.g., `product_url`, `product_link`, custom field)
+  - **Custom URL Override**: Support custom business URLs (e.g., social links, landing pages) via `custom_url` field
   - Positioned above image using `above_content` anchor
-  - Always visible throughout video (static, not timed to voiceover)
+  - **Timing Modes**:
+    - `use_full_duration: true` - Always visible throughout video (static display)
+    - `use_full_duration: false` - Display only during CTA (Call-To-Action) moments
 - **Lower Line (Voiceover Subtitles)**:
   - Standard timed subtitles synchronized to voiceover audio
   - Positioned below image using `below_content` anchor
   - Uses existing subtitle generation system (STT-based timing)
+- **CTA Detection System**:
+  - Keyword-based detection of call-to-action moments in voiceover
+  - Default keywords: "link", "bio", "check out", "visit", "follow", "share", "like", "subscribe", "click", "tap", "swipe", "purchase", "buy", "shop", "get"
+  - Configurable keywords, case sensitivity, and merge gap threshold
+  - **Continuous Display Mode**: Merge all CTA windows into single continuous period from first to last CTA
+  - Automatic timing synchronization with lower subtitle content
+  - Fallback to full duration if no CTA moments detected
 - **Profile Configuration**:
   - Enable/disable two-part mode per video profile
   - Configure data source for upper line (default: shortened product URL)
+  - Custom URL field to override product URLs with business links
   - Independent styling for upper and lower lines
   - Separate margin/positioning control for each line
+  - CTA timing control via `use_full_duration` setting
 - **Content-Aware Positioning**: Both lines adjust position based on visual content boundaries
 - **Backward Compatibility**: Single-line subtitle mode remains default when two-part disabled
 
