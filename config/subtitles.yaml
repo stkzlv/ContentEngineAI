@@ -136,6 +136,8 @@ subtitle_settings:
       enabled: true
       # Source field from data.json to display (e.g., "product_url", "product_link", "shortened_url")
       source_field: "product_url"
+      # Custom URL to display instead of source_field (optional, overrides source_field when set)
+      custom_url: null
       # URL shortening method: "default" (built-in), "bitly", "tinyurl", or null (no shortening)
       url_shortener: "default"
       # Position anchor for upper line

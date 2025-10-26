@@ -784,6 +784,10 @@ class VideoAssembler:
 
         with tempfile.TemporaryDirectory() as temp_sub_dir:
             # Check if dual subtitle mode is enabled
+            logger.debug(
+                f"Checking dual subtitle mode: subtitle_upper_path={subtitle_upper_path}, "
+                f"exists={subtitle_upper_path.exists() if subtitle_upper_path else False}"
+            )
             if subtitle_upper_path and subtitle_upper_path.exists():
                 logger.info("Two-part subtitle mode: rendering dual subtitle lines")
                 # Build video processing chain with dual subtitles
@@ -950,7 +954,39 @@ class VideoAssembler:
 
             scaled_w, scaled_h = 0, 0
             target_y_pos = video_settings_dict["image_top_position_percent"] * height
-            max_available_height = height - target_y_pos
+
+            # Calculate subtitle space reservation to prevent overlap
+            subtitle_reserved_space = 0
+            try:
+                # Check if subtitles are enabled at the profile level
+                subtitle_enabled = self.profile_settings.get("subtitle_settings", {}).get("enabled", False)
+
+                if subtitle_enabled:
+                    subtitle_settings = self._get_effective_subtitle_settings()
+                    # Estimate subtitle height based on font size and margins
+                    font_size_scale = subtitle_settings.get("font_size_scale", 1.0)
+                    base_font_height = height * 0.05  # Base font height (~5% of frame)
+                    font_height = base_font_height * font_size_scale
+
+                    margin = subtitle_settings.get("margin", 0.05)
+                    margin_pixels = height * margin
+
+                    # Reserve space for font + outline + margin + buffer for multi-line
+                    subtitle_reserved_space = int(font_height * 1.3 + margin_pixels)
+            except Exception as e:
+                # If we can't get subtitle settings, use conservative default
+                logger.debug(
+                    f"Could not calculate subtitle space from settings ({e}), "
+                    "using default 15% reservation"
+                )
+                subtitle_reserved_space = int(height * 0.15)
+
+            max_available_height = height - target_y_pos - subtitle_reserved_space
+            logger.debug(
+                f"Image {i}: Reserved {subtitle_reserved_space}px for subtitles, "
+                f"max available height: {max_available_height}px (frame: {height}px, "
+                f"top pos: {int(target_y_pos)}px)"
+            )
 
             if not is_relative_mode and uniform_height > 0:
                 scaled_h = uniform_height

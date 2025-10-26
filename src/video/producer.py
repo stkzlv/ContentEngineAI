@@ -1159,127 +1159,38 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 upper_config = two_part_config.get("upper_line", {})
                 upper_enabled = upper_config.get("enabled", True)
             else:
-                # Fallback to flat structure
-                upper_enabled = profile_subtitle_settings.get(
+                # Fallback to flat structure (settings at profile level, not in subtitle_settings)
+                upper_enabled = merged_profile_settings.get(
                     "two_part_subtitles_upper_enabled", True
                 )
                 upper_config = {
                     "enabled": upper_enabled,
-                    "source_field": profile_subtitle_settings.get(
+                    "source_field": merged_profile_settings.get(
                         "two_part_subtitles_upper_source_field",
                         "shortened_affiliate_link",
                     ),
-                    "anchor": profile_subtitle_settings.get(
+                    "anchor": merged_profile_settings.get(
                         "two_part_subtitles_upper_anchor", "above_content"
                     ),
-                    "margin": profile_subtitle_settings.get(
+                    "margin": merged_profile_settings.get(
                         "two_part_subtitles_upper_margin", 0.03
                     ),
-                    "font_size_scale": profile_subtitle_settings.get(
+                    "font_size_scale": merged_profile_settings.get(
                         "two_part_subtitles_upper_font_size_scale", 0.75
                     ),
-                    "style_preset": profile_subtitle_settings.get(
+                    "style_preset": merged_profile_settings.get(
                         "two_part_subtitles_upper_style_preset", "minimal"
                     ),
-                    "use_full_duration": profile_subtitle_settings.get(
+                    "use_full_duration": merged_profile_settings.get(
                         "two_part_subtitles_upper_use_full_duration", True
                     ),
-                    "randomize_effects": profile_subtitle_settings.get(
+                    "randomize_effects": merged_profile_settings.get(
                         "two_part_subtitles_upper_randomize_effects", False
                     ),
                 }
 
-            if upper_enabled:
-                # Get product URL from data
-                source_field = upper_config.get(
-                    "source_field", "shortened_affiliate_link"
-                )
-                product_data_dict = ctx.product.__dict__
-                upper_text = product_data_dict.get(source_field, "")
-
-                if not upper_text:
-                    # Fallback to other URL fields
-                    for fallback_field in [
-                        "shortened_affiliate_link",
-                        "affiliate_link",
-                        "url",
-                    ]:
-                        upper_text = product_data_dict.get(fallback_field, "")
-                        if upper_text:
-                            logger.info(
-                                f"Using fallback field '{fallback_field}' "
-                                "for upper subtitle"
-                            )
-                            break
-
-                if upper_text:
-                    # Apply URL prefix replacement if configured
-                    prefix_replace = profile_subtitle_settings.get(
-                        "two_part_subtitles_upper_prefix_replace"
-                    )
-                    if prefix_replace:
-                        # Replace "https://" with the configured prefix
-                        if upper_text.startswith("https://"):
-                            upper_text = (
-                                prefix_replace + upper_text[8:]
-                            )  # Remove "https://"
-                            logger.debug(
-                                f"Applied URL prefix replacement: '{prefix_replace}'"
-                            )
-                        elif upper_text.startswith("http://"):
-                            upper_text = (
-                                prefix_replace + upper_text[7:]
-                            )  # Remove "http://"
-                            logger.debug(
-                                f"Applied URL prefix replacement: '{prefix_replace}'"
-                            )
-
-                    # Determine output format
-                    subtitle_format = profile_subtitle_settings.get(
-                        "subtitle_format", "srt"
-                    )
-                    upper_output_path = ctx.run_paths["subtitle_file"].with_name(
-                        f"subtitle_upper.{subtitle_format}"
-                    )
-
-                    # Calculate visual bounds for content-aware positioning
-                    from src.video.subtitle_positioning import VisualBounds
-
-                    image_top = ctx.profile.image_top_position_percent or 0.07
-                    image_width = ctx.profile.image_width_percent or 0.9
-                    visual_bounds = VisualBounds(
-                        x=(1.0 - image_width) / 2,  # Center horizontally
-                        y=image_top,
-                        width=image_width,
-                        height=0.8,  # Approximate image height
-                    )
-
-                    upper_path = create_static_upper_subtitle(
-                        text=upper_text,
-                        output_path=upper_output_path,
-                        subtitle_settings=profile_subtitle_settings,
-                        video_config=ctx.config,
-                        format_type=subtitle_format,
-                        product_id=product_id,
-                        voiceover_duration=ctx.voiceover_duration,
-                        visual_bounds=visual_bounds,
-                    )
-
-                    if upper_path and upper_path.exists():
-                        logger.info(f"Upper subtitle created: {upper_path.name}")
-                        # Store upper subtitle path for assembler
-                        ctx.run_paths["subtitle_upper_file"] = upper_path
-                    else:
-                        logger.warning(
-                            "Failed to generate upper subtitle, "
-                            "continuing with lower only"
-                        )
-                else:
-                    logger.warning(
-                        f"No data found for upper subtitle field '{source_field}'"
-                    )
-
-            # Generate lower line (voiceover subtitles) - standard subtitle generation
+            # Generate lower line (voiceover subtitles) first - needed for CTA detection
+            lower_path = None
             # Handle both nested dict and flat key structures
             if isinstance(two_part_config, dict) and "lower_line" in two_part_config:
                 lower_config = two_part_config.get("lower_line", {})
@@ -1330,6 +1241,102 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 if not lower_path or not lower_path.exists():
                     raise PipelineError("Lower subtitle generation failed.")
                 logger.info(f"Lower subtitle created: {lower_path.name}")
+
+            # Generate upper line (static URL) - after lower subtitle for CTA detection
+            logger.debug(f"DEBUG: upper_enabled={upper_enabled}")
+            if upper_enabled:
+                # Check for custom URL first (overrides product URL)
+                custom_url = profile_subtitle_settings.get(
+                    "two_part_subtitles_upper_custom_url"
+                )
+
+                if custom_url:
+                    upper_text = custom_url
+                    logger.info(f"Using custom URL for upper subtitle: {custom_url}")
+                else:
+                    # Get product URL from data
+                    source_field = upper_config.get(
+                        "source_field", "shortened_affiliate_link"
+                    )
+                    product_data_dict = ctx.product.__dict__
+                    upper_text = product_data_dict.get(source_field, "")
+
+                    if not upper_text:
+                        # Fallback to other URL fields
+                        for fallback_field in [
+                            "shortened_affiliate_link",
+                            "affiliate_link",
+                            "url",
+                        ]:
+                            upper_text = product_data_dict.get(fallback_field, "")
+                            if upper_text:
+                                logger.info(
+                                    f"Using fallback field '{fallback_field}' "
+                                    "for upper subtitle"
+                                )
+                                break
+
+                if upper_text:
+                    # Apply URL prefix replacement if configured
+                    prefix_replace = merged_profile_settings.get(
+                        "two_part_subtitles_upper_prefix_replace"
+                    )
+                    if prefix_replace:
+                        # Replace "https://" with the configured prefix
+                        if upper_text.startswith("https://"):
+                            upper_text = (
+                                prefix_replace + upper_text[8:]
+                            )  # Remove "https://"
+                        elif upper_text.startswith("http://"):
+                            upper_text = (
+                                prefix_replace + upper_text[7:]
+                            )  # Remove "http://"
+
+                    # Determine output format
+                    subtitle_format = profile_subtitle_settings.get(
+                        "subtitle_format", "srt"
+                    )
+                    upper_output_path = ctx.run_paths["subtitle_file"].with_name(
+                        f"subtitle_upper.{subtitle_format}"
+                    )
+
+                    # Calculate visual bounds for content-aware positioning
+                    from src.video.subtitle_positioning import VisualBounds
+
+                    image_top = ctx.profile.image_top_position_percent or 0.07
+                    image_width = ctx.profile.image_width_percent or 0.9
+                    visual_bounds = VisualBounds(
+                        x=(1.0 - image_width) / 2,  # Center horizontally
+                        y=image_top,
+                        width=image_width,
+                        height=0.8,  # Approximate image height
+                    )
+
+                    upper_path = create_static_upper_subtitle(
+                        text=upper_text,
+                        output_path=upper_output_path,
+                        subtitle_settings=profile_subtitle_settings,
+                        video_config=ctx.config,
+                        format_type=subtitle_format,
+                        product_id=product_id,
+                        voiceover_duration=ctx.voiceover_duration,
+                        visual_bounds=visual_bounds,
+                        lower_subtitle_path=lower_path,  # Pass lower subtitle for CTA detection
+                    )
+
+                    if upper_path and upper_path.exists():
+                        logger.info(f"Upper subtitle created: {upper_path.name}")
+                        # Store upper subtitle path for assembler
+                        ctx.run_paths["subtitle_upper_file"] = upper_path
+                    else:
+                        logger.warning(
+                            "Failed to generate upper subtitle, "
+                            "continuing with lower only"
+                        )
+                else:
+                    logger.warning(
+                        f"No data found for upper subtitle field '{source_field}'"
+                    )
 
         else:
             # Standard single-line subtitle generation

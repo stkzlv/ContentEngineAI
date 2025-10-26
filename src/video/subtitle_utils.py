@@ -252,6 +252,7 @@ def create_static_upper_subtitle(
     product_id: str | None = None,
     voiceover_duration: float | None = None,
     visual_bounds: Any | None = None,
+    lower_subtitle_path: Path | None = None,
 ) -> Path | None:
     """Generate static subtitle file for upper line (product URL/info).
 
@@ -313,13 +314,73 @@ def create_static_upper_subtitle(
         # Initialize unified generator
         generator = UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
 
-        # Determine end time based on use_full_duration setting
+        # Determine timing based on use_full_duration setting
+        cta_windows: list[tuple[float, float]] | None = None
+        logger.debug(
+            f"CTA Detection Debug: use_full_duration={use_full_duration}, "
+            f"lower_subtitle_path={lower_subtitle_path}, "
+            f"exists={lower_subtitle_path.exists() if lower_subtitle_path else 'N/A'}"
+        )
         if use_full_duration and voiceover_duration:
             end_time = voiceover_duration
             logger.info(
                 f"Upper subtitle set to full video duration: {end_time:.2f}s "
                 f"(use_full_duration=True)"
             )
+        elif not use_full_duration and lower_subtitle_path and lower_subtitle_path.exists():
+            # CTA-based timing: detect CTA moments from lower subtitle
+            from src.video.cta_detector import detect_cta_timing_windows
+
+            # Read lower subtitle file to extract segments
+            try:
+                subtitle_segments = []
+                if lower_subtitle_path.suffix == ".ass":
+                    # Parse ASS file
+                    with open(lower_subtitle_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.startswith("Dialogue:"):
+                                parts = line.split(",", 9)
+                                if len(parts) >= 10:
+                                    start_str = parts[1]
+                                    end_str = parts[2]
+                                    segment_text = parts[9].strip()
+                                    # Remove ASS tags
+                                    import re
+                                    segment_text = re.sub(r"\{[^}]*\}", "", segment_text)
+                                    # Convert time to seconds
+                                    start_time = sum(float(x) * 60 ** i for i, x in enumerate(reversed(start_str.split(":"))))
+                                    end_time_val = sum(float(x) * 60 ** i for i, x in enumerate(reversed(end_str.split(":"))))
+                                    subtitle_segments.append({
+                                        "text": segment_text,
+                                        "start_time": start_time,
+                                        "end_time": end_time_val,
+                                    })
+                else:
+                    # Parse SRT file
+                    subs = pysrt.open(str(lower_subtitle_path), encoding="utf-8")
+                    for sub in subs:
+                        subtitle_segments.append({
+                            "text": sub.text,
+                            "start_time": sub.start.ordinal / 1000.0,
+                            "end_time": sub.end.ordinal / 1000.0,
+                        })
+
+                # Detect CTA timing windows
+                cta_windows = detect_cta_timing_windows(subtitle_segments)
+
+                if cta_windows:
+                    logger.info(
+                        f"Detected {len(cta_windows)} CTA timing windows: "
+                        f"{[(f'{start:.2f}-{end:.2f}s') for start, end in cta_windows]}"
+                    )
+                    # Set end_time to 0 as placeholder (won't be used for CTA-based subtitles)
+                    end_time = 0.0
+                else:
+                    logger.warning("No CTA moments detected, using full duration fallback")
+                    end_time = voiceover_duration if voiceover_duration else 9999.0
+            except Exception as e:
+                logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")
+                end_time = 9999.0
         else:
             end_time = 9999.0  # Large duration for static display
             logger.info("Upper subtitle using default large duration (9999s)")
@@ -351,12 +412,29 @@ def create_static_upper_subtitle(
             # Create ASS content
             ass_lines = generator._create_ass_header(font_size, colors)
 
-            # Add single static dialogue line
-            dialogue = (
-                f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,"
-                f"{{\\pos({pos_x},{pos_y})}}{text}"
-            )
-            ass_lines.append(dialogue)
+            # Generate dialogue lines based on timing mode
+            segments_created = 0
+            if cta_windows:
+                # Generate dialogue for each CTA timing window
+                for start, end in cta_windows:
+                    start_time_str = generator._format_ass_time(start)
+                    end_time_str = generator._format_ass_time(end)
+                    dialogue = (
+                        f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,"
+                        f"{{\\pos({pos_x},{pos_y})}}{text}"
+                    )
+                    ass_lines.append(dialogue)
+                    segments_created += 1
+            else:
+                # Single static dialogue line
+                start_time_str = generator._format_ass_time(0.0)
+                end_time_str = generator._format_ass_time(end_time)
+                dialogue = (
+                    f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,"
+                    f"{{\\pos({pos_x},{pos_y})}}{text}"
+                )
+                ass_lines.append(dialogue)
+                segments_created = 1
 
             # Write file
             ensure_dirs_exist(output_path.parent)
@@ -366,8 +444,8 @@ def create_static_upper_subtitle(
                 success=True,
                 path=output_path,
                 format="ass",
-                segments_created=1,
-                generation_method="static",
+                segments_created=segments_created,
+                generation_method="cta_based" if cta_windows else "static",
             )
         else:
             # For SRT, use the normal timing-based generation
@@ -387,6 +465,11 @@ def create_static_upper_subtitle(
                 debug_mode=False,
             )
 
+        logger.debug(
+            f"DEBUG: result.success={result.success}, "
+            f"result.path={result.path}, "
+            f"exists={result.path.exists() if result.path else 'N/A'}"
+        )
         if result.success and result.path and result.path.exists():
             logger.info(
                 f"Successfully generated static upper subtitle "
