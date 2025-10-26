@@ -11,6 +11,7 @@ from src.video.cta_detector import (
 )
 
 
+@pytest.mark.unit
 class TestCTAKeywordDetection:
     """Test CTA keyword detection."""
 
@@ -39,6 +40,7 @@ class TestCTAKeywordDetection:
         assert not contains_cta_keyword("This is a great product", ["link", "bio"])
 
 
+@pytest.mark.unit
 class TestTimingWindowMerge:
     """Test timing window merging."""
 
@@ -65,7 +67,23 @@ class TestTimingWindowMerge:
         merged = merge_timing_windows([])
         assert merged == []
 
+    def test_merge_all_windows_into_continuous(self):
+        """Test merging all windows into single continuous window."""
+        windows = [(0.0, 2.0), (5.0, 7.0), (10.0, 12.0), (15.0, 18.0)]
+        # With gap_threshold=None, merge all into one continuous window
+        merged = merge_timing_windows(windows, gap_threshold=None)
+        assert len(merged) == 1
+        assert merged[0] == (0.0, 18.0)
 
+    def test_merge_continuous_single_window(self):
+        """Test continuous merge with single window."""
+        windows = [(5.0, 10.0)]
+        merged = merge_timing_windows(windows, gap_threshold=None)
+        assert len(merged) == 1
+        assert merged[0] == (5.0, 10.0)
+
+
+@pytest.mark.unit
 class TestCTATimingDetection:
     """Test CTA timing window detection."""
 
@@ -81,7 +99,7 @@ class TestCTATimingDetection:
         assert windows[0] == (2.0, 4.0)
 
     def test_detect_multiple_cta_segments(self):
-        """Test detection of multiple CTA segments."""
+        """Test detection of multiple CTA segments merged continuously."""
         segments = [
             {"text": "Welcome to our video", "start_time": 0.0, "end_time": 2.0},
             {"text": "Visit our website", "start_time": 2.0, "end_time": 4.0},
@@ -89,20 +107,35 @@ class TestCTATimingDetection:
             {"text": "Follow and subscribe", "start_time": 8.0, "end_time": 10.0},
         ]
         windows = detect_cta_timing_windows(segments)
-        assert len(windows) == 2
-        assert windows[0] == (2.0, 4.0)
-        assert windows[1] == (8.0, 10.0)
+        # All CTA segments are merged into one continuous window
+        assert len(windows) == 1
+        assert windows[0] == (2.0, 10.0)
 
     def test_detect_adjacent_cta_segments_merged(self):
-        """Test adjacent CTA segments are merged."""
+        """Test adjacent CTA segments are merged into continuous window."""
         segments = [
             {"text": "Check out the link", "start_time": 0.0, "end_time": 2.0},
             {"text": "Visit our bio", "start_time": 2.1, "end_time": 4.0},
         ]
         windows = detect_cta_timing_windows(segments)
-        # Should be merged into one window due to proximity
+        # Should be merged into one continuous window (first to last)
         assert len(windows) == 1
         assert windows[0] == (0.0, 4.0)
+
+    def test_detect_multiple_cta_segments_merged_continuously(self):
+        """Test multiple CTA segments are merged into single continuous window."""
+        segments = [
+            {"text": "Welcome", "start_time": 0.0, "end_time": 2.0},
+            {"text": "Follow me", "start_time": 2.0, "end_time": 4.0},
+            {"text": "Regular content", "start_time": 4.0, "end_time": 8.0},
+            {"text": "Like this video", "start_time": 8.0, "end_time": 10.0},
+            {"text": "More content", "start_time": 10.0, "end_time": 15.0},
+            {"text": "Visit the link in bio", "start_time": 15.0, "end_time": 18.0},
+        ]
+        windows = detect_cta_timing_windows(segments)
+        # Should be merged into one continuous window from first CTA to last CTA
+        assert len(windows) == 1
+        assert windows[0] == (2.0, 18.0)
 
     def test_detect_no_cta_segments(self):
         """Test when no CTA segments are present."""
@@ -114,6 +147,7 @@ class TestCTATimingDetection:
         assert len(windows) == 0
 
 
+@pytest.mark.unit
 class TestTimingWindowOperations:
     """Test timing window utility operations."""
 

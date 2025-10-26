@@ -1159,7 +1159,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 upper_config = two_part_config.get("upper_line", {})
                 upper_enabled = upper_config.get("enabled", True)
             else:
-                # Fallback to flat structure (settings at profile level, not in subtitle_settings)
+                # Fallback to flat structure (settings at profile level,
+                # not in subtitle_settings)
                 upper_enabled = merged_profile_settings.get(
                     "two_part_subtitles_upper_enabled", True
                 )
@@ -1321,7 +1322,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         product_id=product_id,
                         voiceover_duration=ctx.voiceover_duration,
                         visual_bounds=visual_bounds,
-                        lower_subtitle_path=lower_path,  # Pass lower subtitle for CTA detection
+                        # Pass lower subtitle for CTA detection
+                        lower_subtitle_path=lower_path,
                     )
 
                     if upper_path and upper_path.exists():

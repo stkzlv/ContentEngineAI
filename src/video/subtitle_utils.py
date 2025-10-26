@@ -263,12 +263,13 @@ def create_static_upper_subtitle(
     ----
         text: Static text to display (e.g., shortened product URL)
         output_path: Output path for subtitle file
-        subtitle_settings: Subtitle settings dict (includes two_part_subtitles config)
+        subtitle_settings: Subtitle settings dict (includes two_part config)
         video_config: Video configuration for frame size
         format_type: Subtitle format ("ass" or "srt")
         product_id: Product ID for randomization (if applicable)
         voiceover_duration: Duration of voiceover (for full-duration display)
         visual_bounds: Visual bounds for content-aware positioning
+        lower_subtitle_path: Path to lower subtitle file for CTA detection
 
     Returns:
     -------
@@ -327,7 +328,11 @@ def create_static_upper_subtitle(
                 f"Upper subtitle set to full video duration: {end_time:.2f}s "
                 f"(use_full_duration=True)"
             )
-        elif not use_full_duration and lower_subtitle_path and lower_subtitle_path.exists():
+        elif (
+            not use_full_duration
+            and lower_subtitle_path
+            and lower_subtitle_path.exists()
+        ):
             # CTA-based timing: detect CTA moments from lower subtitle
             from src.video.cta_detector import detect_cta_timing_windows
 
@@ -336,7 +341,7 @@ def create_static_upper_subtitle(
                 subtitle_segments = []
                 if lower_subtitle_path.suffix == ".ass":
                     # Parse ASS file
-                    with open(lower_subtitle_path, "r", encoding="utf-8") as f:
+                    with open(lower_subtitle_path, encoding="utf-8") as f:
                         for line in f:
                             if line.startswith("Dialogue:"):
                                 parts = line.split(",", 9)
@@ -346,37 +351,61 @@ def create_static_upper_subtitle(
                                     segment_text = parts[9].strip()
                                     # Remove ASS tags
                                     import re
-                                    segment_text = re.sub(r"\{[^}]*\}", "", segment_text)
+
+                                    segment_text = re.sub(
+                                        r"\{[^}]*\}", "", segment_text
+                                    )
                                     # Convert time to seconds
-                                    start_time = sum(float(x) * 60 ** i for i, x in enumerate(reversed(start_str.split(":"))))
-                                    end_time_val = sum(float(x) * 60 ** i for i, x in enumerate(reversed(end_str.split(":"))))
-                                    subtitle_segments.append({
-                                        "text": segment_text,
-                                        "start_time": start_time,
-                                        "end_time": end_time_val,
-                                    })
+                                    start_time = sum(
+                                        float(x) * 60**i
+                                        for i, x in enumerate(
+                                            reversed(start_str.split(":"))
+                                        )
+                                    )
+                                    end_time_val = sum(
+                                        float(x) * 60**i
+                                        for i, x in enumerate(
+                                            reversed(end_str.split(":"))
+                                        )
+                                    )
+                                    subtitle_segments.append(
+                                        {
+                                            "text": segment_text,
+                                            "start_time": start_time,
+                                            "end_time": end_time_val,
+                                        }
+                                    )
                 else:
                     # Parse SRT file
                     subs = pysrt.open(str(lower_subtitle_path), encoding="utf-8")
                     for sub in subs:
-                        subtitle_segments.append({
-                            "text": sub.text,
-                            "start_time": sub.start.ordinal / 1000.0,
-                            "end_time": sub.end.ordinal / 1000.0,
-                        })
+                        if sub.start and sub.end:
+                            subtitle_segments.append(
+                                {
+                                    "text": sub.text,
+                                    "start_time": sub.start.ordinal / 1000.0,  # type: ignore[attr-defined]
+                                    "end_time": sub.end.ordinal / 1000.0,  # type: ignore[attr-defined]
+                                }
+                            )
 
                 # Detect CTA timing windows
                 cta_windows = detect_cta_timing_windows(subtitle_segments)
 
                 if cta_windows:
+                    windows_str = [
+                        f"{start:.2f}-{end:.2f}s" for start, end in cta_windows
+                    ]
                     logger.info(
                         f"Detected {len(cta_windows)} CTA timing windows: "
-                        f"{[(f'{start:.2f}-{end:.2f}s') for start, end in cta_windows]}"
+                        f"{windows_str}"
                     )
-                    # Set end_time to 0 as placeholder (won't be used for CTA-based subtitles)
+                    # Set end_time to 0 as placeholder
+                    # (won't be used for CTA-based subtitles)
                     end_time = 0.0
                 else:
-                    logger.warning("No CTA moments detected, using full duration fallback")
+                    logger.warning(
+                        "No CTA moments detected, using full duration fallback"
+                    )
                     end_time = voiceover_duration if voiceover_duration else 9999.0
             except Exception as e:
                 logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")

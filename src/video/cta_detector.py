@@ -134,7 +134,7 @@ def contains_cta_keyword(
 
 def merge_timing_windows(
     windows: list[tuple[float, float]],
-    gap_threshold: float = 0.5,
+    gap_threshold: float | None = 0.5,
 ) -> list[tuple[float, float]]:
     """Merge adjacent or overlapping timing windows.
 
@@ -162,13 +162,15 @@ def merge_timing_windows(
         last_end = max(end for _, end in sorted_windows)
         return [(first_start, last_end)]
 
+    # gap_threshold must be float here (not None) due to early return above
+    threshold: float = gap_threshold  # type narrowing for MyPy
     merged = [sorted_windows[0]]
 
     for current_start, current_end in sorted_windows[1:]:
         last_start, last_end = merged[-1]
 
         # Check if current window overlaps or is close to last window
-        if current_start <= last_end + gap_threshold:
+        if current_start <= last_end + threshold:
             # Merge by extending the last window
             merged[-1] = (last_start, max(last_end, current_end))
         else:

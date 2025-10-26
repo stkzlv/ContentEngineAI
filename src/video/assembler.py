@@ -784,9 +784,13 @@ class VideoAssembler:
 
         with tempfile.TemporaryDirectory() as temp_sub_dir:
             # Check if dual subtitle mode is enabled
+            upper_exists = (
+                subtitle_upper_path.exists() if subtitle_upper_path else False
+            )
             logger.debug(
-                f"Checking dual subtitle mode: subtitle_upper_path={subtitle_upper_path}, "
-                f"exists={subtitle_upper_path.exists() if subtitle_upper_path else False}"
+                f"Checking dual subtitle mode: "
+                f"subtitle_upper_path={subtitle_upper_path}, "
+                f"exists={upper_exists}"
             )
             if subtitle_upper_path and subtitle_upper_path.exists():
                 logger.info("Two-part subtitle mode: rendering dual subtitle lines")
@@ -959,7 +963,17 @@ class VideoAssembler:
             subtitle_reserved_space = 0
             try:
                 # Check if subtitles are enabled at the profile level
-                subtitle_enabled = self.profile_settings.get("subtitle_settings", {}).get("enabled", False)
+                if self.profile_settings:
+                    subtitle_settings_dict = self.profile_settings.get(
+                        "subtitle_settings", {}
+                    )
+                    subtitle_enabled = (
+                        subtitle_settings_dict.get("enabled", False)
+                        if subtitle_settings_dict
+                        else False
+                    )
+                else:
+                    subtitle_enabled = False
 
                 if subtitle_enabled:
                     subtitle_settings = self._get_effective_subtitle_settings()

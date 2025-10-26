@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **591 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **630 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -81,6 +81,7 @@ tests/
 ├── test_ai_script_generator.py      # AI script generation
 ├── test_assembler.py                # Video assembly (FFmpeg)
 ├── test_subtitle_*.py               # Subtitle system (5 files)
+├── test_cta_detector.py             # CTA detection (18 tests)
 ├── test_tts.py                      # Text-to-speech
 ├── test_audio.py                    # Audio processing
 ├── test_stock_media.py              # Stock media fetching
@@ -280,14 +281,21 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.9.0):**
-- **Total Tests**: 612 collected (498 + 114 compliance tests)
-- **Passing**: 591 tests (477 + 114 compliance)
+**Current Statistics (v0.10.0):**
+- **Total Tests**: 630 collected (516 + 114 compliance tests)
+- **Passing**: 609 tests (495 + 114 compliance)
 - **Skipped**: 21 tests
 - **Failed**: 0 tests
-- **Coverage**: 42.6% (target: 40% minimum)
+- **Coverage**: 42.8% (target: 40% minimum)
 
-**Recent Updates (v0.9.0):**
+**Recent Updates (v0.10.0):**
+- ✅ Added CTA detection test suite (18 tests, 93% coverage)
+- ✅ Tests for continuous window merging feature
+- ✅ Tests for keyword-based CTA detection
+- ✅ Tests for timing window operations
+- ✅ Updated test documentation
+
+**Previous Updates (v0.9.0):**
 - ✅ Added comprehensive requirements compliance test suite (114 tests)
 - ✅ Configuration system validation (24 tests)
 - ✅ Scraper architecture compliance (22 tests)
