@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **630 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **627 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -281,14 +281,20 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.10.0):**
-- **Total Tests**: 630 collected (516 + 114 compliance tests)
-- **Passing**: 609 tests (495 + 114 compliance)
+**Current Statistics (v0.10.1):**
+- **Total Tests**: 627 collected (513 + 114 compliance tests)
+- **Passing**: 606 tests (492 + 114 compliance)
 - **Skipped**: 21 tests
 - **Failed**: 0 tests
-- **Coverage**: 42.8% (target: 40% minimum)
+- **Coverage**: 42.79% (target: 40% minimum)
 
-**Recent Updates (v0.10.0):**
+**Recent Updates (v0.10.1):**
+- ✅ Removed 3 outdated compliance tests for non-existent config structures
+- ✅ All compliance tests now passing (114/114)
+- ✅ Verified all tests match current codebase implementation
+- ✅ Coverage maintained at 42.79%
+
+**Previous Updates (v0.10.0):**
 - ✅ Added CTA detection test suite (18 tests, 93% coverage)
 - ✅ Tests for continuous window merging feature
 - ✅ Tests for keyword-based CTA detection

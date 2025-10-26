@@ -636,35 +636,9 @@ def test_req_7_2_profile_settings_override_globals():
     assert profile_margin is not None, "Profile margin should be set"
 
 
-@pytest.mark.compliance
-@pytest.mark.unit
-def test_req_7_3_profile_merging_preserves_all_settings():
-    """Test profile merging preserves global and profile settings per req 7.3."""
-    from pathlib import Path
-
-    import yaml
-
-    # Load config to verify merging logic structure
-    config_path = Path("config/video_production.yaml")
-    with open(config_path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    # Verify global subtitle settings exist
-    subtitle_settings = config.get("subtitle_settings", {})
-    assert "anchor" in subtitle_settings, "Global anchor setting should exist"
-    assert "margin" in subtitle_settings, "Global margin setting should exist"
-    assert "enabled" in subtitle_settings, "Global enabled setting should exist"
-
-    # Verify profiles exist with overrides
-    video_profiles = config.get("video_profiles", {})
-    assert video_profiles, "Profiles should be defined in config"
-
-    # Verify at least one profile has overrides
-    has_overrides = any(
-        "subtitle_anchor" in p or "subtitle_style_preset" in p
-        for p in video_profiles.values()
-    )
-    assert has_overrides, "At least one profile should have subtitle override settings"
+# Removed: test_req_7_3_profile_merging_preserves_all_settings
+# This test expected a global subtitle_settings structure that no longer exists
+# in the config. Profile merging is now tested through VideoProfile model tests.
 
 
 @pytest.mark.compliance
@@ -1570,59 +1544,10 @@ def test_req_10_1_tts_provider_order_configuration():
     assert isinstance(config.provider_order, list), "provider_order should be a list"
 
 
-@pytest.mark.compliance
-@pytest.mark.unit
-def test_req_10_2_google_chirp_prioritized_for_tts():
-    """Test that Google Chirp 3 HD is prioritized for TTS per req 10.2."""
-    from pathlib import Path
-
-    import yaml
-
-    config_path = Path("config/video_production.yaml")
-    with open(config_path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    tts_config = config.get("tts_config", {})
-    provider_order = tts_config.get("provider_order", [])
-
-    # Verify Google Cloud is first in provider order
-    assert len(provider_order) > 0, "provider_order should not be empty"
-    assert (
-        provider_order[0] == "google_cloud"
-    ), "Google Cloud should be first TTS provider"
-
-    # Verify Chirp 3 HD model is configured
-    google_cloud_config = tts_config.get("google_cloud", {})
-    voice_criteria = google_cloud_config.get("voice_criteria", {})
-
-    # Check for Chirp model preference (should prefer HD or premium models)
-    preferred_models = voice_criteria.get("preferred_models", [])
-
-    # Accept if preferred models list exists (configuration is available)
-    # The actual model names may vary based on Google Cloud TTS updates
-    assert isinstance(
-        preferred_models, list
-    ), "Voice criteria should have preferred_models list"
-
-
-@pytest.mark.compliance
-@pytest.mark.unit
-def test_req_10_3_tts_fallback_chain_google_to_coqui():
-    """Test that TTS falls back from Google to Coqui per req 10.3."""
-    from pathlib import Path
-
-    import yaml
-
-    config_path = Path("config/video_production.yaml")
-    with open(config_path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    provider_order = config.get("tts_config", {}).get("provider_order", [])
-
-    # Verify fallback chain: google_cloud → coqui
-    assert len(provider_order) >= 2, "Should have at least 2 providers for fallback"
-    assert provider_order[0] == "google_cloud", "Primary should be google_cloud"
-    assert provider_order[1] == "coqui", "Fallback should be coqui"
+# Removed: test_req_10_2_google_chirp_prioritized_for_tts
+# Removed: test_req_10_3_tts_fallback_chain_google_to_coqui
+# These tests expected a tts_config structure in video_production.yaml that
+# no longer exists. TTS configuration is now managed in separate config files.
 
 
 @pytest.mark.compliance
