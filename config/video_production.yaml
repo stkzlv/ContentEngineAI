@@ -175,26 +175,102 @@ audio_settings:
   music_fade_out_duration: 3.0
 
   # Background music file paths (local fallbacks)
+  # Used when Freesound API unavailable or no suitable tracks found
+  # Supports MP3, WAV, AAC formats - randomly selected from list
   background_music_paths:
     - "static/background-music-calm-soft-334182.mp3"
     - "static/background-music-happy-333014.mp3"
     - "static/background-music-upbeat-energetic-333016.mp3"
 
-  # Freesound API configuration
+  # ============================================================================
+  # FREESOUND CONFIGURATION (Creative Commons Music API)
+  # ============================================================================
+  # Freesound provides Creative Commons licensed music for background audio
+  # Features: OAuth2 authentication, preview/full downloads, circuit breaker
+  # Documentation: https://freesound.org/docs/api/
+  # Setup Guide: See CONFIGURATION.md "Freesound OAuth2 Setup" section
+
+  # --- API Authentication (Required) ---
+  # Environment variable containing Freesound API key
+  # Get key from: https://freesound.org/apiv2/apply/
+  # Usage: Preview downloads (MP3 quality), search operations
   freesound_api_key_env_var: "FREESOUND_API_KEY"
+
+  # --- OAuth2 Authentication (Optional, for full-quality downloads) ---
+  # Environment variables for OAuth2 refresh token authentication
+  # Setup: See CONFIGURATION.md for complete OAuth2 setup instructions
+  # Benefits: Download original quality audio files (not just previews)
   freesound_client_id_env_var: "FREESOUND_CLIENT_ID"
   freesound_client_secret_env_var: "FREESOUND_CLIENT_SECRET"
   freesound_refresh_token_env_var: "FREESOUND_REFRESH_TOKEN"
-  freesound_sort: "rating_desc"
+
+  # --- Search Configuration ---
+  # Default search query for background music
+  # Tip: Use descriptive terms like "upbeat", "calm", "energetic", "corporate"
   freesound_search_query: "upbeat instrumental corporate"
+
+  # Freesound filter string for search refinement
+  # Syntax: "field:[min TO max]" or "field:value"
+  # Examples:
+  #   duration:[60 TO 180]        - 1-3 minute tracks
+  #   duration:[10 TO 30]         - Short clips
+  #   license:"Creative Commons 0" - Public domain only
+  #   tag:music tag:background    - Multiple tags
+  # Documentation: https://freesound.org/docs/api/resources_apiv2.html#search
   freesound_filters: "duration:[60 TO 180]"
+
+  # Sort order for search results
+  # Options: rating_desc, duration_asc, duration_desc, created_desc, created_asc
+  # Recommendation: "rating_desc" for quality, "duration_asc" for short tracks
+  freesound_sort: "rating_desc"
+
+  # Maximum number of search results to fetch
+  # Higher values = more options but slower search
+  # Recommendation: 10-20 for good selection, 3-5 for speed
   freesound_max_results: 15
+
+  # Maximum duration for track selection (seconds)
+  # System ignores tracks longer than this value
+  # Set to 9999 to disable (uses voiceover duration matching instead)
   freesound_max_search_duration_sec: 9999
+
+  # --- Timeout Configuration ---
+  # API request timeout (seconds)
+  # Covers: Search operations, token refresh, metadata retrieval
+  # Increase if experiencing frequent timeouts on slow connections
   freesound_api_timeout_sec: 30
+
+  # Download timeout (seconds)
+  # Covers: Preview downloads (API key) and full downloads (OAuth2)
+  # Increase for slow connections or large files (30s typical for previews)
   freesound_download_timeout_sec: 300
+
+  # --- OAuth2 Token Management ---
+  # Token expiration time (seconds)
+  # Freesound access tokens typically valid for 1 hour (3600s)
+  # System automatically refreshes tokens before expiration
   freesound_token_expiry_sec: 3600
+
+  # Token refresh buffer (seconds)
+  # How far before expiration to trigger automatic refresh
+  # Recommendation: 60s provides safety margin for slow refreshes
   freesound_token_refresh_buffer_sec: 60
+
+  # --- Download Settings ---
+  # Download chunk size for streaming (bytes)
+  # Larger = faster downloads but more memory usage
+  # 32KB (32768) is optimal for most use cases
   freesound_download_chunk_size: 32768
+
+  # --- Fallback Behavior ---
+  # When Freesound unavailable (circuit breaker open or API errors):
+  # 1. OAuth2 fails → Fallback to API key preview download
+  # 2. API key fails → Fallback to local files (background_music_paths)
+  # 3. Local files → Random selection from available music files
+  #
+  # Circuit Breaker: Configured in src/utils/circuit_breaker.py
+  # After repeated failures, circuit opens to fast-fail and use local files
+  # This prevents wasting time on unavailable services during batch processing
 
   # Background music settings
   background_music:

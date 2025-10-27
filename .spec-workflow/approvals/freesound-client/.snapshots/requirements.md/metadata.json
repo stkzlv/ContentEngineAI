@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/freesound-client/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-10-27T15:46:22.116Z",
+      "trigger": "initial",
+      "approvalId": "approval_1761579982111_5qfvol55z",
+      "approvalTitle": "Freesound Client Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-10-27T15:50:06.733Z",
+      "trigger": "approved",
+      "approvalId": "approval_1761579982111_5qfvol55z",
+      "approvalTitle": "Freesound Client Requirements"
+    }
+  ]
+}

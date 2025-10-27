@@ -339,7 +339,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 1
+    max_products: 2
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: "stealtech06-20"
