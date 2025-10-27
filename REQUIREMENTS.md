@@ -152,6 +152,83 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 - Prioritize Google Cloud Chirp 3 HD voices for TTS
 - Hide skipped voices in logs (even debug mode)
 
+### Stock Background Music Integration
+
+ContentEngineAI **MUST** support a modular multi-platform stock music system with graceful degradation.
+
+#### Platform Architecture
+- **Modular Design**: Platform-agnostic music client interface for multiple stock audio providers
+- **Primary Platform**: Freesound.org integration (community-driven, Creative Commons licensed)
+- **Extensibility**: Support for future platforms (AudioJungle, Epidemic Sound, Artlist, etc.)
+- **Fallback Strategy**: Hierarchical fallback from online platforms to local stock files
+
+#### Music Selection & Discovery
+- **Dynamic Duration Matching**: Search for tracks matching voiceover duration (±tolerance)
+- **Fallback Search**: Broader search if duration-specific queries yield no results
+- **Quality Filtering**: Filter by ratings, duration ranges, licenses, and file quality
+- **Smart Selection**: Sort and select best-matching track from search results
+
+#### Download & Authentication
+- **OAuth2 Support**: Full quality downloads with OAuth2 token management
+- **API Key Fallback**: Preview quality downloads when OAuth2 unavailable
+- **Token Refresh**: Automatic access token refresh with `.env` persistence
+- **Preview Downloads**: Lower quality MP3 previews for rapid prototyping
+
+#### Resilience & Error Handling
+- **Circuit Breaker Pattern**: Fast-fail on repeated API failures with exponential backoff
+- **Timeout Management**: Configurable timeouts for search (30s) and download (300s) operations
+- **Retry Logic**: Limited retries (2 attempts) with exponential backoff on transient failures
+- **Session Management**: Automatic session recovery on connection failures
+- **Graceful Degradation**: Fallback to local stock files if all online sources fail
+
+#### Configuration Requirements
+- **Three-Tier Config**: API keys in `.env`, settings in YAML, runtime overrides via CLI
+- **Search Configuration**: Configurable search query, filters, sort order, max results
+- **Duration Constraints**: Min/max duration ranges for music track filtering
+- **Performance Tuning**: Configurable timeouts, chunk sizes, buffer durations
+
+#### Local Fallback System
+- **Static Music Library**: 3+ pre-selected local music files for offline/fallback use
+- **Random Selection**: Pick random local track when online sources unavailable
+- **Licensing Compliance**: Only include properly licensed music in repository
+- **Efficient I/O**: Use memory-mapped file copying for large audio files (>1MB)
+
+#### Attribution & Licensing
+- **License Tracking**: Store license type, author, URL for each downloaded track
+- **Attribution Data**: Include source, name, author, license in video metadata
+- **Creative Commons**: Support CC0, CC-BY, CC-BY-SA, CC-BY-NC license types
+- **Compliance**: Ensure proper attribution per license requirements
+
+#### Audio Processing Integration
+- **Format Support**: MP3, WAV, FLAC, AAC input formats
+- **Volume Normalization**: Automatic volume adjustment relative to voiceover (-20dB default)
+- **Fade Effects**: Configurable fade-in (2s) and fade-out (3s) durations
+- **Loop Support**: Loop shorter tracks to match video duration if needed
+- **Mix Duration**: Adjust music to match voiceover length (longest strategy)
+
+#### Performance & Optimization
+- **Async Operations**: Full async/await support with `aiohttp` for concurrent downloads
+- **Connection Pooling**: Reuse HTTP sessions across multiple requests
+- **Parallel Processing**: Download multiple tracks concurrently when needed
+- **Memory Efficiency**: Stream large files in chunks (32KB default) to avoid memory spikes
+- **Cache Strategy**: Store downloaded tracks in product-specific directories
+
+#### Multi-Platform Extensibility Design
+- **Abstract Interface**: Define `BaseStockMusicClient` interface for all platforms
+- **Platform Registry**: Decorator-based registration system for new platforms
+- **Factory Pattern**: `StockMusicFactory` to instantiate platform-specific clients
+- **Unified API**: Consistent search/download interface across all platforms
+- **Platform Detection**: Automatic platform selection based on available credentials
+
+#### Future Platform Support
+When adding new stock music platforms (AudioJungle, Epidemic Sound, Artlist):
+- Implement `BaseStockMusicClient` interface with platform-specific logic
+- Register platform with `@register_stock_music_provider` decorator
+- Add platform-specific config section to `audio_settings` in YAML
+- Store platform credentials in `.env` with `{PLATFORM}_API_KEY` naming
+- Maintain backward compatibility with existing Freesound integration
+- Support platform-specific search filters and quality tiers
+
 ### Output Management
 - Fully configurable "outputs" directory structure
 - Implement cleanup function to remove unexpected files/directories
