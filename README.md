@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.10.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.11.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update**: CTA-based timing for upper subtitles with custom URL support.
+> **🚀 Latest Update**: Freesound OAuth2 authentication and configurable CTA detection system.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 

@@ -281,20 +281,25 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.10.0):**
+**Current Statistics (v0.11.0):**
 - **Total Tests**: 627 collected (513 + 114 compliance tests)
 - **Passing**: 606 tests (492 + 114 compliance)
 - **Skipped**: 21 tests
 - **Failed**: 0 tests
 - **Coverage**: 42.79% (target: 40% minimum)
 
-**Recent Updates (v0.10.0):**
+**Recent Updates (v0.11.0):**
+- ✅ Added Freesound OAuth2 integration tests (344 tests)
+- ✅ Enhanced audio client unit tests (755+ tests with mocking)
+- ✅ Added CTA detection configuration validation
+- ✅ Tests for minimum duration CTA window validation
+- ✅ Tests for fallback behavior with short CTA windows
+
+**Previous Updates (v0.10.0):**
 - ✅ Removed 3 outdated compliance tests for non-existent config structures
 - ✅ All compliance tests now passing (114/114)
 - ✅ Verified all tests match current codebase implementation
 - ✅ Coverage maintained at 42.79%
-
-**Previous Updates (v0.10.0):**
 - ✅ Added CTA detection test suite (18 tests, 93% coverage)
 - ✅ Tests for continuous window merging feature
 - ✅ Tests for keyword-based CTA detection
