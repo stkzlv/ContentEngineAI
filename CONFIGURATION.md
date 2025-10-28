@@ -1379,10 +1379,30 @@ audio_settings:
 subtitle_settings:
   # Fade in/out duration for subtitle transitions (milliseconds)
   fade_duration_ms: 300
-  
+
   # Probability of applying random animation effects (0.0-1.0)
   animation_probability: 0.3
 ```
+
+#### CTA Detection Settings
+```yaml
+cta_detection:
+  # Minimum total duration (seconds) for detected CTA windows
+  # If total CTA duration < this value, fall back to full video duration
+  min_cta_duration: 2.0
+
+  # Fallback duration (seconds) when voiceover duration unavailable
+  # Used as placeholder for static subtitles
+  fallback_duration: 9999.0
+```
+
+**Purpose**: Validates CTA timing windows for upper subtitle display to prevent blinking subtitles.
+
+**Key Settings**:
+- `min_cta_duration`: Minimum acceptable total duration for CTA windows (default: 2.0s)
+- `fallback_duration`: Large duration used when voiceover unavailable (default: 9999.0s)
+
+**Behavior**: When detected CTA windows are shorter than `min_cta_duration`, the system falls back to displaying the upper subtitle for the full video duration instead of just during brief CTA moments.
 
 #### LLM Settings
 ```yaml

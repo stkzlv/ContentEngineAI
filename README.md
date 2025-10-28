@@ -18,6 +18,7 @@
 - **🎨 Style Presets**: 5 production-ready presets (`minimal`, `modern`, `bold`, `animated`, `random`) with configurable effects
 - **🎯 Content-Aware Subtitles**: Dynamic positioning that intelligently avoids visual content overlap
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
+- **🎵 Stock Music**: Freesound.org integration with OAuth2 auth and local fallback
 - **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
 - **🛡️ Multi-Provider Fallbacks**: OpenRouter, Google Cloud, local models for reliability
 
