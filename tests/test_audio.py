@@ -90,7 +90,8 @@ class TestFreesoundClient:
         client = FreesoundClient(FREESOUND_API_KEY="test_key")
 
         results = await client.search_music(
-            query="test", timeout_sec=0.1  # Very short timeout
+            query="test",
+            timeout_sec=0.1,  # Very short timeout
         )
 
         assert results == []
@@ -719,9 +720,7 @@ class TestFreesoundDownloads:
         assert attribution["url"] == f"https://freesound.org/s/{sound_id}/"
 
     @pytest.mark.asyncio
-    async def test_download_sound_preview_hq_quality(
-        self, mock_aioresponses, tmp_path
-    ):
+    async def test_download_sound_preview_hq_quality(self, mock_aioresponses, tmp_path):
         """Test preview download uses HQ preview URL when available."""
         client = FreesoundClient(FREESOUND_API_KEY="test_key")
 
@@ -816,9 +815,7 @@ class TestFreesoundDownloads:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_download_sound_preview_no_preview_urls(
-        self, tmp_path
-    ):
+    async def test_download_sound_preview_no_preview_urls(self, tmp_path):
         """Test preview download handles missing preview URLs."""
         client = FreesoundClient(FREESOUND_API_KEY="test_key")
 
@@ -837,9 +834,7 @@ class TestFreesoundDownloads:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_download_filename_sanitization(
-        self, mock_aioresponses, tmp_path
-    ):
+    async def test_download_filename_sanitization(self, mock_aioresponses, tmp_path):
         """Test filename sanitization for special characters."""
         client = FreesoundClient(FREESOUND_API_KEY="test_key")
 
@@ -922,7 +917,7 @@ def test_local_fallback_attribution_format():
     # Simulate the local fallback attribution format from producer.py
     # This matches the format generated at src/video/producer.py lines 1467-1476
     local_path_stem = "background-music-upbeat"
-    dest_path_str = "/tmp/test/music/background-music-upbeat.mp3"
+    dest_path_str = "/tmp/test/music/background-music-upbeat.mp3"  # noqa: S108
 
     music_info = {
         "source": "Local",

@@ -83,9 +83,7 @@ async def test_search_to_preview_download_flow(tmp_path):
     file_path.unlink()
 
 
-@pytest.mark.skipif(
-    not HAS_OAUTH2, reason="Requires OAuth2 credentials in environment"
-)
+@pytest.mark.skipif(not HAS_OAUTH2, reason="Requires OAuth2 credentials in environment")
 @pytest.mark.asyncio
 async def test_search_to_oauth2_download_flow(tmp_path):
     """Test complete flow: search → OAuth2 full-quality download with real API.
@@ -164,9 +162,7 @@ async def test_search_with_duration_filtering(tmp_path):
         for sound in results:
             if hasattr(sound, "duration"):
                 duration = sound.duration
-                assert (
-                    min_duration <= duration <= max_duration
-                ), (
+                assert min_duration <= duration <= max_duration, (
                     f"Sound duration {duration}s should be in range "
                     f"[{min_duration}, {max_duration}]"
                 )
@@ -325,9 +321,7 @@ async def test_circuit_breaker_integration(tmp_path):
     client = FreesoundClient(FREESOUND_API_KEY=os.getenv("FREESOUND_API_KEY"))
 
     # Perform search (should succeed with closed circuit)
-    results = await client.search_music(
-        query="ambient", max_results=2, timeout_sec=30
-    )
+    results = await client.search_music(query="ambient", max_results=2, timeout_sec=30)
 
     assert len(results) > 0, "Search should succeed with closed circuit breaker"
 

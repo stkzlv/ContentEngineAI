@@ -60,7 +60,16 @@ class TestLocalFallbackIntegration:
         assert dest_path.read_bytes() == small_music_file.read_bytes()
 
         # Validate attribution structure (R6 criterion 1)
-        required_keys = ["source", "type", "path", "name", "author", "license", "url", "id"]
+        required_keys = [
+            "source",
+            "type",
+            "path",
+            "name",
+            "author",
+            "license",
+            "url",
+            "id",
+        ]
         for key in required_keys:
             assert key in music_info, f"Missing required attribution key: {key}"
 
@@ -177,9 +186,7 @@ class TestLocalFallbackIntegration:
         # Create multiple local music files
         local_music_dir = tmp_path / "music"
         local_music_dir.mkdir()
-        music_files = [
-            local_music_dir / f"test-music-{i}.mp3" for i in range(3)
-        ]
+        music_files = [local_music_dir / f"test-music-{i}.mp3" for i in range(3)]
         for music_file in music_files:
             music_file.write_bytes(b"test audio data")
 
@@ -219,7 +226,16 @@ class TestLocalFallbackIntegration:
         }
 
         # Validate all required fields exist (R6 criterion 1)
-        required_keys = ["source", "type", "path", "name", "author", "license", "url", "id"]
+        required_keys = [
+            "source",
+            "type",
+            "path",
+            "name",
+            "author",
+            "license",
+            "url",
+            "id",
+        ]
         for key in required_keys:
             assert key in music_info, f"Missing required attribution key: {key}"
 
@@ -261,7 +277,7 @@ class TestLocalFallbackIntegration:
             "id": "",
         }
 
-        # Ensure path is converted to string if Path object (producer.py lines 1479-1480)
+        # Ensure path is string if Path object (producer.py lines 1479-1480)
         if isinstance(music_info.get("path"), Path):
             music_info["path"] = str(music_info["path"])
 

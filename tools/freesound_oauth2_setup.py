@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Standalone Freesound OAuth2 refresh token generator.
+r"""Standalone Freesound OAuth2 refresh token generator.
 
 This script helps you obtain a refresh token for Freesound OAuth2 authentication.
 It does not require the full application configuration to run.
 
 Usage:
-    poetry run python tools/freesound_oauth2_setup.py \\
-        --client-id YOUR_CLIENT_ID \\
+    poetry run python tools/freesound_oauth2_setup.py \
+        --client-id YOUR_CLIENT_ID \
         --client-secret YOUR_CLIENT_SECRET
 
 The script will:
@@ -28,11 +28,14 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
     """Guide user through OAuth2 process to get Freesound refresh token.
 
     Args:
+    ----
         client_id: Freesound OAuth2 client ID
         client_secret: Freesound OAuth2 client secret
 
     Returns:
+    -------
         Refresh token string if successful, None otherwise
+
     """
     print("\n=== Freesound OAuth2 Refresh Token Generator ===\n")
 
@@ -66,7 +69,7 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
     print("\nStep 2: Exchanging authorization code for tokens...")
     print("-" * 50)
 
-    token_url = "https://freesound.org/apiv2/oauth2/access_token/"
+    token_url = "https://freesound.org/apiv2/oauth2/access_token/"  # noqa: S105
     payload = {
         "client_id": client_id,
         "client_secret": client_secret,
@@ -89,7 +92,7 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
             return None
 
         print("\n✓ SUCCESS! Tokens obtained from Freesound.\n")
-        print("Access Token (expires in {}s):".format(expires_in))
+        print(f"Access Token (expires in {expires_in}s):")
         print(f"  {access_token}\n")
         print("Refresh Token (save this to .env):")
         print(f"  {refresh_token}\n")
@@ -100,7 +103,7 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
         print(f"   FREESOUND_REFRESH_TOKEN={refresh_token}")
         print("\nThe system will automatically refresh access tokens as needed.")
 
-        return refresh_token
+        return str(refresh_token)
 
     except requests.exceptions.HTTPError as e:
         print(f"\nERROR: HTTP {e.response.status_code} from Freesound API")
