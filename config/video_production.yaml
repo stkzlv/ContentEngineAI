@@ -162,7 +162,7 @@ audio_settings:
   bitrate: 192
 
   # Volume levels (dB)
-  music_volume_db: -20.0
+  music_volume_db: -24.0
   voiceover_volume_db: 3.0
 
   # Audio mixing settings
@@ -496,7 +496,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.05
+    two_part_subtitles_upper_margin: 0.04
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
     two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
@@ -525,6 +525,25 @@ video_profiles:
     subtitle_max_subtitle_width_fraction: 0.75
     subtitle_max_duration: 4.0
     subtitle_min_duration: 0.5
+
+# ============================================================================
+# CTA DETECTION SETTINGS
+# ============================================================================
+# Call-to-Action detection for subtitle timing synchronization
+# Used by: src/video/cta_detector.py and src/video/subtitle_utils.py
+#
+# Pipeline Impact:
+# - min_cta_duration: Minimum total duration for CTA windows (< this = use full duration)
+# - fallback_duration: Large fallback duration when CTA detection unavailable
+# - Keywords and detection thresholds are defined in cta_detector.py
+cta_detection:
+  # Minimum total duration (seconds) for detected CTA windows
+  # If total CTA duration < this value, fall back to full video duration
+  min_cta_duration: 2.0
+
+  # Fallback duration (seconds) when voiceover duration unavailable
+  # Used as placeholder for static subtitles
+  fallback_duration: 9999.0
 
 # ============================================================================
 # ATTRIBUTION SETTINGS

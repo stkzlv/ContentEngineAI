@@ -94,6 +94,15 @@ SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
 # Use subtitle_settings dict from config/subtitles.yaml via UnifiedSubtitleConfig
 
 
+class CTADetectionSettings(BaseModel):
+    min_cta_duration: float = Field(
+        2.0, description="Minimum total duration (seconds) for detected CTA windows"
+    )
+    fallback_duration: float = Field(
+        9999.0, description="Fallback duration (seconds) when voiceover unavailable"
+    )
+
+
 class VideoSettings(BaseModel):
     resolution: tuple[int, int] = Field(
         ..., description="Video resolution as (width, height)"
@@ -1070,6 +1079,7 @@ class VideoConfig(BaseModel):
     media_validation: MediaValidationSettings | None = Field(None)
     llm_validation: LLMValidationSettings | None = Field(None)
     url_shortener_settings: URLShortenerSettings | None = Field(None)
+    cta_detection: CTADetectionSettings | None = Field(None)
 
     project_root: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parent.parent.parent,

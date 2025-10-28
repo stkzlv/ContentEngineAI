@@ -391,28 +391,78 @@ def create_static_upper_subtitle(
                 # Detect CTA timing windows
                 cta_windows = detect_cta_timing_windows(subtitle_segments)
 
+                # Get CTA detection config
+                from src.video.video_config import config
+
+                min_cta_duration = (
+                    config.cta_detection.min_cta_duration
+                    if config.cta_detection
+                    else 2.0
+                )
+                fallback_duration = (
+                    config.cta_detection.fallback_duration
+                    if config.cta_detection
+                    else 9999.0
+                )
+
                 if cta_windows:
+                    total_duration = sum(end - start for start, end in cta_windows)
                     windows_str = [
                         f"{start:.2f}-{end:.2f}s" for start, end in cta_windows
                     ]
-                    logger.info(
-                        f"Detected {len(cta_windows)} CTA timing windows: "
-                        f"{windows_str}"
-                    )
-                    # Set end_time to 0 as placeholder
-                    # (won't be used for CTA-based subtitles)
-                    end_time = 0.0
+
+                    if total_duration < min_cta_duration:
+                        logger.warning(
+                            f"Detected CTA windows too short "
+                            f"({total_duration:.2f}s < {min_cta_duration}s): "
+                            f"{windows_str}. Using full duration instead."
+                        )
+                        cta_windows = None
+                        end_time = (
+                            voiceover_duration
+                            if voiceover_duration
+                            else fallback_duration
+                        )
+                    else:
+                        logger.info(
+                            f"Detected {len(cta_windows)} CTA timing windows: "
+                            f"{windows_str}"
+                        )
+                        # Set end_time to 0 as placeholder
+                        # (won't be used for CTA-based subtitles)
+                        end_time = 0.0
                 else:
                     logger.warning(
                         "No CTA moments detected, using full duration fallback"
                     )
-                    end_time = voiceover_duration if voiceover_duration else 9999.0
+                    end_time = (
+                        voiceover_duration if voiceover_duration else fallback_duration
+                    )
             except Exception as e:
                 logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")
-                end_time = 9999.0
+                # Use configured fallback duration
+                from src.video.video_config import config
+
+                fallback_duration = (
+                    config.cta_detection.fallback_duration
+                    if config.cta_detection
+                    else 9999.0
+                )
+                end_time = fallback_duration
         else:
-            end_time = 9999.0  # Large duration for static display
-            logger.info("Upper subtitle using default large duration (9999s)")
+            # Use configured fallback duration
+            from src.video.video_config import config
+
+            fallback_duration = (
+                config.cta_detection.fallback_duration
+                if config.cta_detection
+                else 9999.0
+            )
+            end_time = fallback_duration
+            logger.info(
+                f"Upper subtitle using default large duration "
+                f"({fallback_duration}s)"
+            )
 
         # For static subtitles, bypass the normal segment creation
         # and directly create a single ASS dialogue line
