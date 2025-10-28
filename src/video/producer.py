@@ -1463,11 +1463,16 @@ async def step_download_music(ctx: PipelineContext):
                         f"Using standard copy for small file: {local_path.name}"
                     )
                     shutil.copy(local_path, dest_path)
+                # Generate complete attribution metadata per R6 (Requirement 6)
                 music_info = {
-                    "path": str(dest_path),
-                    "author": "Local File",
                     "source": "Local",
+                    "type": "Music",
+                    "path": str(dest_path),
                     "name": local_path.stem,
+                    "author": "Unknown",
+                    "license": "Local File",
+                    "url": "",
+                    "id": "",
                 }
 
         if music_info:

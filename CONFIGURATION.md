@@ -607,27 +607,273 @@ stock_media_settings:
 
 ### 9. Freesound Audio Settings
 
+ContentEngineAI uses Freesound.org to automatically download Creative Commons licensed background music that matches your video duration. The system supports both preview downloads (with API key only) and full-quality downloads (with OAuth2 authentication).
+
+#### Quick Start (API Key Only)
+
+For basic usage with preview-quality music:
+
 ```yaml
-freesound_settings:
-  # API configuration
-  api_key_env_var: "FREESOUND_API_KEY"
-  
-  # OAuth2 settings (optional, for full downloads)
-  client_id_env_var: "FREESOUND_CLIENT_ID"
-  client_secret_env_var: "FREESOUND_CLIENT_SECRET"
-  refresh_token_env_var: "FREESOUND_REFRESH_TOKEN"
-  
-  # Search parameters
-  search_query: "upbeat commercial background"
-  duration_range: [10, 180]         # Min/max duration in seconds
-  
-  # Quality preferences
-  bitrate_preference: "preview"      # preview, mp3_hq, original
-  
-  # Fallback settings
-  local_fallback_dir: "assets/music"
-  use_local_fallback: true
+audio_settings:
+  # Freesound API key (required)
+  freesound_api_key_env_var: "FREESOUND_API_KEY"
+
+  # Search configuration
+  freesound_search_query: "upbeat instrumental corporate"
+  freesound_filters: "duration:[60 TO 180]"
+  freesound_sort: "rating_desc"
+  freesound_max_results: 15
+
+  # Timeouts
+  freesound_api_timeout_sec: 30
+  freesound_download_timeout_sec: 300
 ```
+
+**Setup:**
+1. Get free API key: https://freesound.org/apiv2/apply/
+2. Add to `.env`: `FREESOUND_API_KEY=your_api_key_here`
+3. System automatically downloads preview-quality MP3s matching video duration
+
+#### OAuth2 Setup (Full-Quality Downloads)
+
+For original quality audio downloads, configure OAuth2 authentication:
+
+**Step 1: Register Your Application**
+
+1. Visit Freesound API registration: https://freesound.org/apiv2/apply/
+2. Fill in application details:
+   - **Name**: "ContentEngineAI" (or your project name)
+   - **Description**: "Automated video production pipeline"
+   - **Redirect URI**: `http://localhost:8000/callback` (for local testing)
+   - **Accepted Terms**: Check the box to accept Freesound API terms
+3. Click "Apply" and wait for approval (usually instant)
+4. Note down your **Client ID** and **Client Secret**
+
+**Step 2: Get Refresh Token**
+
+Use the Freesound OAuth2 helper script to obtain a refresh token:
+
+```bash
+# Install required dependencies (already in pyproject.toml)
+poetry install
+
+# Run OAuth2 authorization flow
+poetry run python tools/freesound_oauth2_setup.py \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+**Script will:**
+1. Print authorization URL for Freesound
+2. You open URL in browser, log in, and approve access
+3. Copy authorization code from redirect URL
+4. Paste code into script when prompted
+5. Script exchanges code for access + refresh tokens
+6. Refresh token printed to console
+
+**Step 3: Configure Environment Variables**
+
+Add OAuth2 credentials to `.env`:
+
+```bash
+# Required for all Freesound operations
+FREESOUND_API_KEY=your_api_key_here
+
+# Optional - for full-quality downloads
+FREESOUND_CLIENT_ID=your_client_id_here
+FREESOUND_CLIENT_SECRET=your_client_secret_here
+FREESOUND_REFRESH_TOKEN=your_refresh_token_here
+```
+
+**Step 4: Verify Configuration**
+
+Test OAuth2 authentication:
+
+```bash
+# Test token refresh and download
+poetry run python -c "
+from src.audio.freesound_client import FreesoundClient
+import asyncio
+import os
+
+async def test():
+    client = FreesoundClient(
+        FREESOUND_API_KEY=os.getenv('FREESOUND_API_KEY'),
+        FREESOUND_CLIENT_ID=os.getenv('FREESOUND_CLIENT_ID'),
+        FREESOUND_CLIENT_SECRET=os.getenv('FREESOUND_CLIENT_SECRET'),
+        FREESOUND_REFRESH_TOKEN=os.getenv('FREESOUND_REFRESH_TOKEN')
+    )
+    success = await client.refresh_oauth_token()
+    print('✓ OAuth2 configured correctly' if success else '✗ OAuth2 failed')
+
+asyncio.run(test())
+"
+```
+
+#### Token Refresh and Persistence
+
+**Automatic Token Management:**
+- Access tokens expire after 1 hour (3600 seconds)
+- System automatically refreshes tokens 60 seconds before expiration
+- New refresh tokens are saved to `.env` file using `dotenv.set_key()`
+- No manual intervention required after initial setup
+
+**Token Refresh Configuration:**
+
+```yaml
+audio_settings:
+  # Token expiration time (Freesound default: 3600s)
+  freesound_token_expiry_sec: 3600
+
+  # Refresh buffer - triggers refresh this many seconds before expiry
+  # Recommendation: 60s provides safety margin
+  freesound_token_refresh_buffer_sec: 60
+```
+
+**Manual Token Refresh:**
+
+If refresh token becomes invalid, regenerate using OAuth2 setup script:
+
+```bash
+poetry run python tools/freesound_oauth2_setup.py \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+#### Search Configuration
+
+**Basic Search:**
+
+```yaml
+audio_settings:
+  # Search query (use descriptive keywords)
+  freesound_search_query: "upbeat instrumental corporate"
+
+  # Filter by duration range (seconds)
+  freesound_filters: "duration:[60 TO 180]"
+
+  # Sort order (rating_desc recommended for quality)
+  freesound_sort: "rating_desc"
+
+  # Max results to fetch (10-20 recommended)
+  freesound_max_results: 15
+```
+
+**Advanced Filtering:**
+
+```yaml
+# Multiple filters example
+freesound_filters: "duration:[60 TO 180] license:\"Creative Commons 0\""
+
+# Short clips for quick videos
+freesound_filters: "duration:[10 TO 30]"
+
+# Public domain only
+freesound_filters: "license:\"Creative Commons 0\""
+
+# Multiple tags
+freesound_filters: "tag:music tag:background tag:corporate"
+```
+
+**Filter Syntax:**
+- Duration: `duration:[MIN TO MAX]` (seconds)
+- License: `license:"Creative Commons 0"` (exact match)
+- Tags: `tag:keyword` (multiple allowed)
+- Bitrate: `bitrate:[MIN TO MAX]` (kbps)
+- Sample rate: `samplerate:[MIN TO MAX]` (Hz)
+
+**Sort Options:**
+- `rating_desc` - Best rated tracks first (recommended)
+- `duration_asc` - Shortest tracks first
+- `duration_desc` - Longest tracks first
+- `created_desc` - Newest tracks first
+- `downloads_desc` - Most downloaded first
+
+#### Circuit Breaker Configuration
+
+ContentEngineAI uses a circuit breaker pattern to prevent wasting time on unavailable APIs during batch processing.
+
+**How It Works:**
+
+1. **Closed State (Normal)**: All API calls proceed normally
+2. **Open State (Failed)**: After repeated failures, circuit opens and API calls fast-fail
+3. **Half-Open State (Testing)**: After timeout, system tests if API recovered
+
+**Configuration:**
+
+Circuit breaker settings are in `src/utils/circuit_breaker.py`:
+
+```python
+freesound_circuit_breaker = CircuitBreaker(
+    failure_threshold=5,        # Open after 5 consecutive failures
+    timeout=60,                 # Stay open for 60 seconds
+    recovery_timeout=30,        # Test recovery after 30 seconds
+    expected_exception=Exception
+)
+```
+
+**Tuning Guidelines:**
+
+- **failure_threshold**: Lower = faster fallback, Higher = more API tolerance
+  - Recommended: 3-5 for production, 10+ for testing
+- **timeout**: How long to skip API after opening
+  - Recommended: 60-300 seconds for batch processing
+- **recovery_timeout**: How long before testing API recovery
+  - Recommended: 30-60 seconds
+
+**Monitoring Circuit State:**
+
+```python
+from src.utils.circuit_breaker import freesound_circuit_breaker
+
+# Check current state
+print(f"Circuit state: {freesound_circuit_breaker.state}")
+print(f"Failure count: {freesound_circuit_breaker.failure_count}")
+
+# Manually reset circuit
+freesound_circuit_breaker.reset()
+```
+
+#### Fallback Behavior
+
+ContentEngineAI implements a **three-tier fallback system** for music selection:
+
+**Tier 1: OAuth2 Full Downloads** (Best Quality)
+- Original format and quality from Freesound
+- Requires OAuth2 credentials
+- Fallback on failure: Tier 2
+
+**Tier 2: API Key Preview Downloads** (Good Quality)
+- MP3 preview quality from Freesound
+- Requires only API key
+- Fallback on failure: Tier 3
+
+**Tier 3: Local Files** (Guaranteed Availability)
+- Uses files from `background_music_paths` config
+- Random selection from available files
+- Memory-mapped I/O for files >1MB
+
+**Fallback Triggers:**
+- OAuth2 credentials missing or invalid → Tier 2
+- API timeouts or rate limits → Tier 2/3
+- Circuit breaker open → Tier 3 (fast-fail)
+- Network errors → Tier 2/3
+- No suitable tracks found → Tier 3
+
+**Local Fallback Configuration:**
+
+```yaml
+audio_settings:
+  background_music_paths:
+    - "static/background-music-calm-soft-334182.mp3"
+    - "static/background-music-happy-333014.mp3"
+    - "static/background-music-upbeat-energetic-333016.mp3"
+```
+
+**Add Your Own Music:**
+1. Place MP3/WAV files in `static/` directory
+2. Add file paths to `background_music_paths` list
+3. System randomly selects from available files
 
 </details>
 
@@ -1133,10 +1379,30 @@ audio_settings:
 subtitle_settings:
   # Fade in/out duration for subtitle transitions (milliseconds)
   fade_duration_ms: 300
-  
+
   # Probability of applying random animation effects (0.0-1.0)
   animation_probability: 0.3
 ```
+
+#### CTA Detection Settings
+```yaml
+cta_detection:
+  # Minimum total duration (seconds) for detected CTA windows
+  # If total CTA duration < this value, fall back to full video duration
+  min_cta_duration: 2.0
+
+  # Fallback duration (seconds) when voiceover duration unavailable
+  # Used as placeholder for static subtitles
+  fallback_duration: 9999.0
+```
+
+**Purpose**: Validates CTA timing windows for upper subtitle display to prevent blinking subtitles.
+
+**Key Settings**:
+- `min_cta_duration`: Minimum acceptable total duration for CTA windows (default: 2.0s)
+- `fallback_duration`: Large duration used when voiceover unavailable (default: 9999.0s)
+
+**Behavior**: When detected CTA windows are shorter than `min_cta_duration`, the system falls back to displaying the upper subtitle for the full video duration instead of just during brief CTA moments.
 
 #### LLM Settings
 ```yaml

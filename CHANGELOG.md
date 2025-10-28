@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2025-10-28
+
+### Added
+- **Freesound OAuth2 Authentication**: Enhanced audio client with production-ready OAuth2 support
+  - OAuth2 authorization code flow with PKCE for secure authentication
+  - Automatic token refresh and persistence
+  - Comprehensive error handling with fallback to local files
+  - Interactive setup tool (`tools/freesound_oauth2_setup.py`)
+  - 344 integration tests and 755+ unit tests with extensive mocking
+  - Attribution tracking for downloaded audio files
+
+- **CTA Detection Configuration System**: Configurable timing validation for subtitle display
+  - New `CTADetectionSettings` class in video configuration
+  - `min_cta_duration` setting (default: 2.0s) for minimum CTA window validation
+  - `fallback_duration` setting (default: 9999.0s) for static subtitle display
+  - Prevents blinking subtitles when CTA windows are too short
+  - Falls back to full video duration when CTA detection yields insufficient timing
+
+### Changed
+- **Background Music Volume**: Reduced from -20.0 dB to -24.0 dB for better voiceover clarity
+- **Upper Subtitle Margin**: Adjusted from 0.05 to 0.04 for improved positioning
+- **Video Script Prompt**: Enhanced with better hook examples and marketing language exclusions
+  - Added concrete hook examples: "I didn't think a $40 gadget could do that"
+  - Excluded marketing buzzwords: "Game-changer", "Next-level", "Ultimate solution"
+
+### Fixed
+- **Subtitle Timing Bug**: Fixed blinking upper subtitle issue
+  - Added minimum duration validation for CTA windows
+  - Falls back to full video duration when CTA windows total < 2 seconds
+  - Improved logging for CTA detection edge cases
+
+### Technical
+- **Configuration Architecture**: Moved hardcoded magic numbers to configuration
+  - CTA timing values (2.0s, 9999.0s) now configurable via `config/video_production.yaml`
+  - Type-safe configuration with Pydantic models
+  - Centralized configuration management for easier maintenance
+
 ## [0.10.0] - 2025-10-26
 
 ### Added
