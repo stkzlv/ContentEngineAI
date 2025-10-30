@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/scraper-video-detection/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-10-30T18:41:13.999Z",
+      "trigger": "initial",
+      "approvalId": "approval_1761849673995_o6e85hwm7",
+      "approvalTitle": "Scraper Video Detection Tasks"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-10-30T18:41:36.279Z",
+      "trigger": "approved",
+      "approvalId": "approval_1761849673995_o6e85hwm7",
+      "approvalTitle": "Scraper Video Detection Tasks"
+    }
+  ]
+}

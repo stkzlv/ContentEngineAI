@@ -41,6 +41,14 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 ### Product Discovery & Media
 - Extract key data: title, price, description, ID, ratings, review count
 - Download high-resolution images and videos
+- **Video Detection & Download**:
+  - Extract MP4 video URLs from product pages
+  - Filter for product-specific videos using ASIN matching
+  - Validate video accessibility with HEAD requests
+  - Download highest quality video streams available
+  - Support VDP (Video Detail Page) extraction
+  - Store videos in `outputs/{product_id}/videos/` directory
+  - Track downloaded video paths in product data
 - Filter out low-quality images and invalid file types
 - Handle multiple ASINs individually (not in single search query)
 
@@ -67,6 +75,200 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 - Show images 2-3 seconds each (configurable) with transitions
 - Dynamically select image count based on voiceover duration
 - Reuse images if needed to match voiceover length
+
+### Product Video Assembly
+
+ContentEngineAI **MUST** support flexible product video assembly with multiple modes, aspect ratio handling, and audio normalization.
+
+#### Video Assembly Modes
+
+Product videos can be assembled using four configurable modes:
+
+1. **Sequential Mode** (`video_assembly_mode: "sequential"`):
+   - Concatenate all product videos end-to-end in order
+   - Calculate total video duration from all clips
+   - If total duration < voiceover: Loop last video or add images to fill remaining time
+   - If total duration > voiceover: Trim last video with fade-out to match exactly
+   - Apply crossfade transitions between consecutive video clips
+
+2. **Single Best Mode** (`video_assembly_mode: "single_best"`):
+   - Select longest product video as primary content
+   - Loop video seamlessly to match voiceover duration
+   - Apply crossfade transitions between loop iterations
+   - Ensure smooth playback without visible loop points
+
+3. **Mixed Media Mode** (`video_assembly_mode: "mixed_media"`):
+   - Interleave product videos and images throughout timeline
+   - Calculate optimal placement using duration-based algorithm
+   - Distribute videos evenly across voiceover duration
+   - Fill gaps between videos with product images (2-3s each)
+   - Apply consistent crossfade transitions between all media types
+   - Maintain visual variety and engagement
+
+4. **Video-First Fallback Mode** (`video_assembly_mode: "video_first_fallback"`):
+   - Use all available product videos first in sequence
+   - Calculate remaining duration after all videos played
+   - Add product images for remaining time if needed
+   - Prioritize video content, use images only as supplementary content
+   - Apply transitions between videos and at video-to-image boundary
+
+#### Aspect Ratio Handling
+
+Product videos **MUST** support configurable aspect ratio handling per profile:
+
+1. **Letterbox Mode** (`video_aspect_mode: "letterbox"`):
+   - Maintain original video aspect ratio
+   - Scale video to fit within 9:16 frame
+   - Add black padding (letterboxing) to fill remaining space
+   - Center video vertically and horizontally
+   - FFmpeg filter: `scale=w:h:force_original_aspect_ratio=decrease,pad=1080:1920:(1080-iw)/2:(1920-ih)/2:black`
+
+2. **Crop-to-Fit Mode** (`video_aspect_mode: "crop_to_fit"`):
+   - Scale video to completely fill 9:16 frame
+   - Crop edges to eliminate black bars
+   - Center crop to preserve main subject
+   - May lose peripheral content
+   - FFmpeg filter: `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`
+
+3. **Smart Scale Mode** (`video_aspect_mode: "smart_scale"`):
+   - Analyze video aspect ratio automatically
+   - Apply crop if video aspect ratio close to 9:16 (within 10% difference)
+   - Apply letterbox if aspect ratio significantly different
+   - Optimize for visual quality and content preservation
+   - Decision algorithm: `abs(video_ratio - target_ratio) / target_ratio < 0.1` → crop, else letterbox
+
+#### Audio Normalization
+
+Product videos **MUST** support configurable audio handling:
+
+1. **Complete Removal** (`video_audio_handling: "remove"`):
+   - Strip all original audio tracks from product videos
+   - Output contains only voiceover and background music
+   - FFmpeg flag: `-an` on video inputs
+   - Default behavior for most profiles
+
+2. **Mixed Audio** (`video_audio_handling: "mixed"`):
+   - Preserve original video audio at reduced volume
+   - Apply configurable volume adjustment (default: -30dB)
+   - Mix original audio with voiceover and background music
+   - FFmpeg filter: `volume=-30dB` on video audio stream
+   - Configurable via `video_original_volume: -30` setting (range: -60 to 0 dB)
+   - Useful for ambient sound or product demonstration audio
+
+#### Format Normalization
+
+All product videos **MUST** be normalized to consistent format:
+
+- **Codec**: H.264 (libx264) for maximum compatibility
+- **Frame Rate**: 30fps (match global frame_rate setting)
+- **Pixel Format**: yuv420p (required for broad device support)
+- **Resolution**: Scale to match profile resolution (default: 1080x1920)
+- **Bitrate**: Automatic based on content (CRF 23 default)
+
+**Pre-processing Pipeline**:
+- Detect incompatible formats requiring transcoding
+- Transcode videos with non-H.264 codecs
+- Normalize frame rates to target FPS
+- Convert pixel formats to yuv420p
+- Cache normalized videos to avoid re-processing
+
+#### Duration Matching Algorithm
+
+Product videos **MUST** match voiceover duration precisely (±1 second tolerance):
+
+1. **Calculate Required Duration**: Extract voiceover audio duration as target
+2. **Select Clips** (mode-dependent):
+   - Sequential: Use all videos in order
+   - Single Best: Select longest video
+   - Mixed Media: Distribute videos across timeline with images
+   - Video-First: Use all videos, add images if needed
+3. **Adjust Duration**:
+   - If too short: Loop videos with crossfade or add images
+   - If too long: Trim last video with fade-out effect
+4. **Apply Transitions**: Add crossfade between all clips (default: 0.5s)
+5. **Verify Duration**: Ensure final video matches voiceover ±1s
+
+#### Transition System
+
+Product videos **MUST** support smooth transitions:
+
+1. **Video-to-Video Transitions**:
+   - Crossfade between consecutive video clips
+   - Configurable duration: `video_transition_duration: 0.5` (seconds)
+   - Apply to all video boundaries in sequential/mixed modes
+   - FFmpeg xfade filter: `xfade=transition=fade:duration=0.5:offset=X`
+
+2. **Video-to-Image Transitions**:
+   - Apply same crossfade style as video-to-video
+   - Match transition duration with image-to-image transitions
+   - Handle aspect ratio changes smoothly
+   - Maintain consistent visual flow
+
+3. **Loop Transitions** (Single Best mode):
+   - Seamless crossfade at loop point
+   - Prevent visible "jump" or discontinuity
+   - Create infinite loop effect
+
+#### Media Validation Requirements
+
+Product video assembly **MUST** validate media availability:
+
+- **Minimum Requirements**: ≥1 product video to enable video-first profiles
+- **Fallback Strategy**: If no videos available, fall back to image-only profiles
+- **Duration Validation**: Warn if total video duration significantly shorter than voiceover
+- **Quality Checks**: Validate video files are readable and not corrupted
+
+#### Profile Configuration Examples
+
+```yaml
+video_profiles:
+  # Sequential video assembly with letterbox
+  product_video_sequential:
+    use_scraped_videos: true
+    use_scraped_images: true
+    video_assembly_mode: "sequential"
+    video_aspect_mode: "letterbox"
+    video_audio_handling: "remove"
+    video_transition_duration: 0.5
+
+  # Single video loop with crop-to-fit
+  product_video_single:
+    use_scraped_videos: true
+    use_scraped_images: false
+    video_assembly_mode: "single_best"
+    video_aspect_mode: "crop_to_fit"
+    video_audio_handling: "mixed"
+    video_original_volume: -30
+    video_transition_duration: 0.8
+
+  # Mixed media with smart scaling
+  product_video_mixed:
+    use_scraped_videos: true
+    use_scraped_images: true
+    video_assembly_mode: "mixed_media"
+    video_aspect_mode: "smart_scale"
+    video_audio_handling: "remove"
+    image_display_duration: 2.5
+    video_transition_duration: 0.5
+
+  # Video-first with image fallback
+  product_video_primary:
+    use_scraped_videos: true
+    use_scraped_images: true
+    video_assembly_mode: "video_first_fallback"
+    video_aspect_mode: "letterbox"
+    video_audio_handling: "remove"
+    video_transition_duration: 0.5
+```
+
+#### Implementation Requirements
+
+- **Profile System Integration**: All video settings configurable per profile
+- **Backward Compatibility**: Existing image-only profiles unaffected
+- **CLI Overrides**: Support runtime override of video assembly mode
+- **Validation**: Validate configuration at startup with clear error messages
+- **Performance**: Efficient FFmpeg filter chains for minimal processing time
+- **Error Handling**: Graceful degradation if video processing fails
 
 ### Subtitle System - Unified Positioning
 - **Unified Anchor System**: Single flexible positioning approach with anchor-based layout
@@ -112,10 +314,12 @@ ContentEngineAI **MUST** use a three-tier configuration system with precedence:
 ### Profile-Specific Settings
 - **All visual settings MUST be configurable per video profile**
 - Image positioning and sizing settings (width, position, aspect ratio)
+- **Video assembly settings** (mode, aspect ratio, audio handling, transitions)
 - Subtitle positioning, styling, fonts, colors, and effects
 - Profile settings override global defaults through merging system
 - Maintain backward compatibility with existing global configuration
 - Support unified subtitle positioning system with anchor-based layout
+- Support product video configuration per profile
 
 ### Font & Color Management
 - **Style Preset System**: 5 predefined presets (minimal, modern, bold, animated, random)

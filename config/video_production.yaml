@@ -488,7 +488,7 @@ video_profiles:
 
     # Image positioning overrides
     image_width_percent: 0.9
-    image_top_position_percent: 0.12
+    image_top_position_percent: 0.13
 
     # Two-part subtitle system configuration
     two_part_subtitles_enabled: true
