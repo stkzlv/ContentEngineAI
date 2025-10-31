@@ -1,6 +1,6 @@
 # Tasks Document
 
-- [ ] 1. Add video metadata extraction function to media_validator.py
+- [x] 1. Add video metadata extraction function to media_validator.py
   - File: src/scraper/amazon/media_validator.py
   - Create `extract_video_metadata()` function using FFprobe
   - Extract duration, resolution, codec, format, bitrate, audio presence
@@ -10,7 +10,7 @@
   - _Requirements: 2 (Video Metadata Extraction)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer with expertise in FFmpeg/FFprobe integration | Task: Create `extract_video_metadata()` function in src/scraper/amazon/media_validator.py following requirement 2, reusing existing FFprobe patterns from `verify_video_file()` (lines 173-393) | Restrictions: Do not modify existing validation functions, handle FFprobe failures gracefully, use subprocess or ffmpeg-python for FFprobe calls, return None on failure | Success: Function extracts all required metadata fields (duration, width, height, codec, format, bitrate, has_audio), handles missing FFprobe gracefully, returns structured dict or None | Instructions: First edit tasks.md to mark this task as in-progress [-], implement the function, test with sample videos, then mark as complete [x] in tasks.md_
 
-- [ ] 2. Enhance verify_video_file() to return metadata
+- [x] 2. Enhance verify_video_file() to return metadata
   - File: src/scraper/amazon/media_validator.py
   - Modify `verify_video_file()` function signature to return metadata dict
   - Integrate `extract_video_metadata()` call into validation flow
@@ -20,7 +20,7 @@
   - _Requirements: 3 (Video Validation and Quality Filtering)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer with expertise in refactoring and API design | Task: Enhance `verify_video_file()` in src/scraper/amazon/media_validator.py following requirement 3, integrating metadata extraction from task 1, updating return type to include metadata dict | Restrictions: Maintain backward compatibility behavior, ensure metadata extraction doesn't fail validation if FFprobe unavailable, return empty dict if metadata extraction fails | Success: Function returns tuple (is_valid, reason, metadata), existing validation logic unchanged, metadata populated when available | Instructions: First edit tasks.md to mark this task as in-progress [-], modify function signature and implementation, update all callers, then mark as complete [x] in tasks.md_
 
-- [ ] 3. Update downloader.py to handle video downloads with extended timeout
+- [x] 3. Update downloader.py to handle video downloads with extended timeout
   - File: src/scraper/amazon/downloader.py
   - Modify `download_file_sync()` to accept timeout parameter (default 300s for videos)
   - Add video-specific timeout handling in download orchestration
@@ -30,7 +30,7 @@
   - _Requirements: 5 (Robust Error Handling)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer with expertise in HTTP downloads and error handling | Task: Enhance `download_file_sync()` in src/scraper/amazon/downloader.py following requirement 5, adding configurable timeout parameter defaulting to 300s for videos (vs 30s for images) | Restrictions: Do not break existing image download behavior, maintain chunk streaming for memory efficiency, add retry logic with exponential backoff (max 2 retries) | Success: Videos download successfully with 300s timeout, images maintain 30s timeout, retry logic handles transient failures, memory usage remains efficient | Instructions: First edit tasks.md to mark this task as in-progress [-], modify timeout handling, test with large videos, then mark as complete [x] in tasks.md_
 
-- [ ] 4. Validate existing video extraction in media_extractor.py
+- [x] 4. Validate existing video extraction in media_extractor.py
   - File: src/scraper/amazon/media_extractor.py
   - Review `extract_functional_videos_with_validation()` (lines 362-1166)
   - Test 3-method extraction approach with real product pages
@@ -41,7 +41,7 @@
   - _Requirements: 1 (High-Quality Video Detection)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: QA Engineer with expertise in web scraping and testing | Task: Validate existing video extraction in src/scraper/amazon/media_extractor.py following requirement 1, testing `extract_functional_videos_with_validation()` with multiple Amazon ASINs containing videos | Restrictions: Do not modify core extraction logic unless bugs found, add logging only with --debug flag, test with diverse product pages (electronics, fashion, home goods) | Success: Extraction successfully retrieves videos from test products, ASIN filtering works correctly, all 3 methods validated, detailed test results documented | Instructions: First edit tasks.md to mark this task as in-progress [-], test with 5+ different ASINs, document findings, fix critical bugs if found, then mark as complete [x] in tasks.md_
 
-- [ ] 5. Update scraper orchestration to integrate video metadata
+- [x] 5. Update scraper orchestration to integrate video metadata
   - File: src/scraper/amazon/scraper.py
   - Modify video download workflow to call enhanced `verify_video_file()`
   - Store video metadata in validation report JSON
@@ -52,7 +52,7 @@
   - _Requirements: 4 (Organized Video Storage), 6 (Product Data Integration)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Backend Developer with expertise in Python orchestration and data flow | Task: Update scraper orchestration in src/scraper/amazon/scraper.py following requirements 4 and 6, integrating video metadata extraction and validation, ensuring graceful degradation on failures | Restrictions: Follow existing image processing patterns, maintain BaseProductData structure without changes, ensure product processing succeeds even if all videos fail, store metadata in validation report not product data | Success: Videos downloaded to outputs/{ASIN}/videos/, downloaded_videos populated with paths, metadata in validation report, graceful failure handling | Instructions: First edit tasks.md to mark this task as in-progress [-], update orchestration flow, test end-to-end, then mark as complete [x] in tasks.md_
 
-- [ ] 6. Add video configuration parameters to scraper.yaml
+- [x] 6. Add video configuration parameters to scraper.yaml
   - File: config/scraper.yaml
   - Add `video_download_timeout: 300` to download_config section
   - Add `enable_metadata_extraction: true` to video_config section
@@ -62,7 +62,7 @@
   - _Requirements: 5 (Robust Error Handling)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: DevOps Engineer with expertise in YAML configuration and deployment | Task: Add video-specific configuration parameters to config/scraper.yaml following requirement 5, extending existing video_config and download_config sections | Restrictions: Do not modify existing config parameters, maintain YAML structure and formatting, add inline comments explaining new parameters | Success: New parameters added with sensible defaults (timeout: 300, metadata: true, retries: 2), config file remains valid YAML, parameters documented | Instructions: First edit tasks.md to mark this task as in-progress [-], add parameters with comments, validate YAML syntax, then mark as complete [x] in tasks.md_
 
-- [ ] 7. Create unit tests for video metadata extraction
+- [x] 7. Create unit tests for video metadata extraction
   - File: tests/scraper/test_media_validator.py
   - Write tests for `extract_video_metadata()` function
   - Test valid video files, corrupted files, missing FFprobe scenarios
@@ -72,7 +72,7 @@
   - _Requirements: 2 (Video Metadata Extraction)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: QA Engineer with expertise in pytest and mocking | Task: Create comprehensive unit tests for `extract_video_metadata()` following requirement 2, mocking FFprobe calls and testing edge cases | Restrictions: Do not test with real FFprobe (use mocks), test both success and failure paths, ensure tests run quickly (<1s each) | Success: All metadata fields tested, corrupted file handling verified, missing FFprobe handled gracefully, >90% code coverage | Instructions: First edit tasks.md to mark this task as in-progress [-], write tests using pytest and mocks, run tests to verify, then mark as complete [x] in tasks.md_
 
-- [ ] 8. Create integration tests for end-to-end video processing
+- [x] 8. Create integration tests for end-to-end video processing
   - File: tests/scraper/test_video_integration.py
   - Write integration test for full video extraction → download → validation flow
   - Use real Amazon ASIN with known video content (e.g., B0BTYCRJSS)
@@ -83,7 +83,7 @@
   - _Requirements: All requirements (end-to-end validation)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Integration Engineer with expertise in end-to-end testing | Task: Create integration tests for complete video processing pipeline covering all requirements, using real Amazon ASINs with video content | Restrictions: Use test ASINs that reliably have videos, clean up test outputs after tests, ensure tests can run in CI environment, add --debug logging for failures | Success: Tests validate full pipeline (extract → download → validate → metadata), verify data.json structure, test graceful degradation, tests pass consistently | Instructions: First edit tasks.md to mark this task as in-progress [-], write integration tests with setup/teardown, run multiple times to verify, then mark as complete [x] in tasks.md_
 
-- [ ] 9. Update documentation in ARCHITECTURE.md and DEVELOPMENT.md
+- [x] 9. Update documentation in ARCHITECTURE.md and DEVELOPMENT.md
   - Files: ARCHITECTURE.md, DEVELOPMENT.md
   - Document video extraction and validation flow
   - Add video metadata structure documentation
@@ -94,7 +94,7 @@
   - _Requirements: All (documentation completeness)_
   - _Prompt: Implement the task for spec scraper-video-detection, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Technical Writer with expertise in software documentation | Task: Update project documentation following all requirements, documenting video extraction capabilities, configuration, and troubleshooting | Restrictions: Maintain existing documentation style and structure, use clear diagrams where helpful, keep technical depth appropriate for target audience | Success: Video processing fully documented in ARCHITECTURE.md, configuration parameters explained, troubleshooting guide added, examples provided | Instructions: First edit tasks.md to mark this task as in-progress [-], update both documentation files, review for clarity, then mark as complete [x] in tasks.md_
 
-- [ ] 10. Final validation and cleanup
+- [x] 10. Final validation and cleanup
   - Files: All modified files
   - Run full test suite (unit + integration tests)
   - Test with diverse Amazon ASINs (electronics, fashion, home goods, products with/without videos)

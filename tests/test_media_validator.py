@@ -5,6 +5,7 @@ including format checking, dimension validation, and quality control.
 """
 
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
@@ -14,6 +15,7 @@ from PIL import Image
 
 from src.scraper.amazon.media_validator import (
     MediaValidationResult,
+    extract_video_metadata,
     generate_validation_report,
     validate_media_batch,
     validate_url_accessibility,
@@ -52,6 +54,7 @@ class TestMediaValidationResult:
             "is_valid": False,
             "validation_data": validation_data,
             "issues": issues,
+            "metadata": {},
         }
 
         assert result_dict == expected
@@ -153,6 +156,414 @@ class TestImageValidation:
         assert result.is_valid is True
         assert result.validation_data["expected_min_dimension"] == 1000
         assert result.validation_data["expected_min_file_size"] == 5000
+
+
+class TestVideoMetadataExtraction:
+    """Test cases for video metadata extraction functionality."""
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_success(self, mock_subprocess):
+        """Test successful metadata extraction with all fields."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": "10.5",
+                    "bit_rate": "2000000",
+                },
+                {"codec_type": "audio", "codec_name": "aac", "bit_rate": "128000"},
+            ],
+            "format": {
+                "duration": "10.5",
+                "size": "2621440",
+                "bit_rate": "2000000",
+                "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["duration"] == 10.5
+            assert metadata["width"] == 1920
+            assert metadata["height"] == 1080
+            assert metadata["codec"] == "h264"
+            assert metadata["format"] == "mov,mp4,m4a,3gp,3g2,mj2"
+            assert metadata["bitrate"] == 2000000
+            assert metadata["has_audio"] is True
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_no_audio(self, mock_subprocess):
+        """Test metadata extraction for video without audio."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h265",
+                    "width": 3840,
+                    "height": 2160,
+                    "duration": "30.0",
+                    "bit_rate": "8000000",
+                }
+            ],
+            "format": {
+                "duration": "30.0",
+                "size": "30000000",
+                "bit_rate": "8000000",
+                "format_name": "mp4",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["has_audio"] is False
+            assert metadata["codec"] == "h265"
+            assert metadata["width"] == 3840
+            assert metadata["height"] == 2160
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_duration_from_format(self, mock_subprocess):
+        """Test metadata extraction when duration is only in format section."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "vp9",
+                    "width": 1280,
+                    "height": 720,
+                }
+            ],
+            "format": {
+                "duration": "15.75",
+                "size": "5242880",
+                "format_name": "webm",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["duration"] == 15.75
+            assert metadata["bitrate"] is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_bitrate_from_format(self, mock_subprocess):
+        """Test metadata extraction when bitrate is only in format section."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "av1",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": "20.0",
+                }
+            ],
+            "format": {
+                "duration": "20.0",
+                "size": "10485760",
+                "bit_rate": "4194304",
+                "format_name": "mp4",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["bitrate"] == 4194304
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    def test_extract_video_metadata_nonexistent_file(self):
+        """Test metadata extraction for non-existent file."""
+        nonexistent_file = Path("/nonexistent/video.mp4")
+        metadata = extract_video_metadata(nonexistent_file)
+
+        assert metadata is None
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_ffprobe_failure(self, mock_subprocess):
+        """Test metadata extraction when FFprobe fails."""
+        mock_subprocess.return_value.returncode = 1
+        mock_subprocess.return_value.stderr = "FFprobe error: Invalid file"
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"corrupted video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_invalid_json(self, mock_subprocess):
+        """Test metadata extraction when FFprobe returns invalid JSON."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = "not valid json {["
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_no_video_streams(self, mock_subprocess):
+        """Test metadata extraction when no video streams found."""
+        ffprobe_output = {
+            "streams": [{"codec_type": "audio", "codec_name": "aac"}],
+            "format": {"duration": "10.0", "format_name": "mp4"},
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake audio data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_incomplete_data(self, mock_subprocess):
+        """Test metadata extraction with incomplete video stream data."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    # Missing height and duration
+                }
+            ],
+            "format": {"format_name": "mp4"},
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_timeout(self, mock_subprocess):
+        """Test metadata extraction handles timeout gracefully."""
+        mock_subprocess.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_subprocess_error(self, mock_subprocess):
+        """Test metadata extraction handles subprocess errors."""
+        mock_subprocess.side_effect = subprocess.SubprocessError("Process failed")
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_unexpected_exception(self, mock_subprocess):
+        """Test metadata extraction handles unexpected exceptions."""
+        mock_subprocess.side_effect = RuntimeError("Unexpected error")
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_invalid_duration_type(self, mock_subprocess):
+        """Test metadata extraction handles invalid duration type."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": "invalid",  # Invalid duration
+                }
+            ],
+            "format": {
+                "duration": "not_a_number",  # Invalid duration
+                "format_name": "mp4",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_invalid_bitrate_type(self, mock_subprocess):
+        """Test metadata extraction handles invalid bitrate type."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": "10.0",
+                    "bit_rate": "not_a_number",
+                }
+            ],
+            "format": {
+                "duration": "10.0",
+                "bit_rate": "invalid",
+                "format_name": "mp4",
+            },
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["bitrate"] is None
+        finally:
+            video_file.unlink(missing_ok=True)
+
+    @patch("subprocess.run")
+    def test_extract_video_metadata_multiple_video_streams(self, mock_subprocess):
+        """Test metadata extraction uses first video stream when multiple exist."""
+        ffprobe_output = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": "10.0",
+                },
+                {
+                    "codec_type": "video",
+                    "codec_name": "h265",
+                    "width": 3840,
+                    "height": 2160,
+                    "duration": "10.0",
+                },
+            ],
+            "format": {"duration": "10.0", "format_name": "mp4"},
+        }
+
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = json.dumps(ffprobe_output)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"fake video data")
+            video_file = Path(f.name)
+
+        try:
+            metadata = extract_video_metadata(video_file)
+
+            assert metadata is not None
+            assert metadata["codec"] == "h264"
+            assert metadata["width"] == 1920
+            assert metadata["height"] == 1080
+        finally:
+            video_file.unlink(missing_ok=True)
 
 
 class TestVideoValidation:

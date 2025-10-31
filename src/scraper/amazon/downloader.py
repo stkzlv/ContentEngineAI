@@ -11,7 +11,7 @@ from typing import Any
 
 import requests
 from botasaurus import bt
-from botasaurus.task import task  # type: ignore[import-untyped]
+from botasaurus.task import task
 
 from .botasaurus_output import get_task_config_for_outputs
 from .config import CONFIG, get_filename_pattern
@@ -302,7 +302,8 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 logger.info(f"   • URL: {url[:100]}...")
                 logger.info(f"   • Path: {file_path}")
 
-            success = download_file_sync(url, file_path)
+            # Use 300s timeout for videos (vs 30s default for images)
+            success = download_file_sync(url, file_path, timeout=300)
             if success:
                 # Post-download validation using comprehensive validator
                 if DEBUG_MODE:
@@ -454,115 +455,162 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def download_file_sync(url: str, file_path: PathLib) -> bool:
-    """Synchronous file download utility using requests
+def download_file_sync(
+    url: str, file_path: PathLib, timeout: int | None = None, max_retries: int = 2
+) -> bool:
+    """Synchronous file download utility using requests with retry logic.
 
     Args:
     ----
         url: URL to download
         file_path: Path to save the file
+        timeout: Request timeout in seconds (default: 30s for images, 300s for videos)
+        max_retries: Maximum number of retry attempts on failure (default: 2)
 
     Returns:
     -------
         True if successful, False otherwise
 
     """
+    import time
+
+    # Import DEBUG_MODE from main module
     try:
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
+        from . import scraper
 
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
+        DEBUG_MODE = scraper.DEBUG_MODE
+    except Exception:
+        DEBUG_MODE = False
 
-        # Get config values for download
-        try:
-            download_config = CONFIG.get("global_settings", {}).get(
-                "download_config", {}
-            )
-            amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
-            download_headers = amazon_config.get("http_headers", {}).get(
-                "media_download", {}
-            )
-
-            download_timeout = download_config.get(
-                "download_timeout",
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_timeout", 30),
-            )
-            chunk_size = download_config.get("download_chunk_size", 8192)
-        except Exception:
-            # Fallback values from config
-            download_timeout = (
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_timeout", 30)
-            )
-            chunk_size = (
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_chunk_size", 8192)
-            )
-            download_headers = (
-                CONFIG.get("scrapers", {})
-                .get("amazon", {})
-                .get("http_headers", {})
-                .get(
-                    "media_download",
-                    {
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/125.0.0.0 Safari/537.36"
-                        ),
-                        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.9",
-                        "Referer": "https://www.amazon.com/",
-                    },
-                )
-            )
-
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
-
-        response = requests.get(
-            url, headers=download_headers, timeout=download_timeout, stream=True
+    # Get config values for download
+    try:
+        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
+        amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
+        download_headers = amazon_config.get("http_headers", {}).get(
+            "media_download", {}
         )
-        response.raise_for_status()
 
-        # Ensure parent directory exists
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+        default_timeout = download_config.get("download_timeout", 30)
+        chunk_size = download_config.get("download_chunk_size", 8192)
+    except Exception:
+        # Fallback values from config
+        default_timeout = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_timeout", 30)
+        )
+        chunk_size = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_chunk_size", 8192)
+        )
+        download_headers = (
+            CONFIG.get("scrapers", {})
+            .get("amazon", {})
+            .get("http_headers", {})
+            .get(
+                "media_download",
+                {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/125.0.0.0 Safari/537.36"
+                    ),
+                    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.amazon.com/",
+                },
+            )
+        )
 
-        with open(file_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:  # filter out keep-alive chunks
-                    f.write(chunk)
+    # Use provided timeout or default
+    effective_timeout = timeout if timeout is not None else default_timeout
 
-        # Verify file was created and has content
-        if file_path.exists() and file_path.stat().st_size > 0:
-            if DEBUG_MODE:
-                file_size = file_path.stat().st_size
+    # Retry loop with exponential backoff
+    for attempt in range(max_retries + 1):
+        try:
+            if DEBUG_MODE and attempt > 0:
                 logging.getLogger(__name__).debug(
-                    f"✅ Downloaded {file_size} bytes to {file_path.name}"
+                    f"🔄 Retry attempt {attempt}/{max_retries} for: {url}"
                 )
-            return True
-        else:
+            elif DEBUG_MODE:
+                logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
+
+            response = requests.get(
+                url,
+                headers=download_headers,
+                timeout=effective_timeout,
+                stream=True,
+            )
+            response.raise_for_status()
+
+            # Ensure parent directory exists
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if chunk:  # filter out keep-alive chunks
+                        f.write(chunk)
+
+            # Verify file was created and has content
+            if file_path.exists() and file_path.stat().st_size > 0:
+                if DEBUG_MODE:
+                    file_size = file_path.stat().st_size
+                    logging.getLogger(__name__).debug(
+                        f"✅ Downloaded {file_size} bytes to {file_path.name}"
+                    )
+                return True
+            else:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).warning(
+                        f"❌ File not created or empty: {file_path}"
+                    )
+                # Don't retry if file is empty
+                return False
+
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as e:
+            # These are transient errors worth retrying
             if DEBUG_MODE:
                 logging.getLogger(__name__).warning(
-                    f"❌ File not created or empty: {file_path}"
+                    f"⚠️ Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
                 )
+
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
+
+            # If this was the last attempt, fail
+            if attempt >= max_retries:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).error(
+                        f"❌ Download failed after {max_retries + 1} attempts: {url}"
+                    )
+                return False
+
+            # Exponential backoff: 1s, 2s, 4s...
+            backoff_time = 2**attempt
+            if DEBUG_MODE:
+                logging.getLogger(__name__).debug(
+                    f"⏳ Waiting {backoff_time}s before retry..."
+                )
+            time.sleep(backoff_time)
+
+        except Exception as e:
+            # Non-transient errors - don't retry
+            if DEBUG_MODE:
+                logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
             return False
 
-    except Exception as e:
-        if DEBUG_MODE:
-            logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
-        # Clean up partial file
-        if file_path.exists():
-            with contextlib.suppress(Exception):
-                file_path.unlink()
-        return False
+    return False
 
 
 def _validate_image_size_before_download(

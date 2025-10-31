@@ -368,6 +368,72 @@ poetry run python -m src.scraper.amazon.scraper \
   --keywords "electronics" --prime-only --sort review-rank
 ```
 
+### Video Processing Workflow
+
+ContentEngineAI's scraper automatically detects, downloads, and validates product videos. To work with video processing:
+
+#### Testing Video Extraction
+
+```bash
+# Scrape product with known video content
+poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
+
+# Check extracted videos
+ls outputs/B0BTYCRJSS/videos/
+
+# Verify metadata extraction
+poetry run python -c "
+import json
+with open('outputs/B0BTYCRJSS/data.json') as f:
+    data = json.load(f)
+    print('Videos:', data.get('videos', []))
+    print('Downloaded:', data.get('downloaded_videos', []))
+"
+```
+
+#### Video Configuration
+
+Adjust video quality thresholds and download behavior in `config/scraper.yaml`:
+
+```yaml
+video_config:
+  min_dimension: 1280          # Increase for higher quality (default: 640)
+  min_duration: 3.0            # Require longer videos (default: 1.0)
+  max_videos_per_product: 3    # Limit downloads (default: 5)
+  enable_metadata_extraction: true
+
+download_config:
+  video_download_timeout: 600  # Increase for slow connections (default: 300)
+  retry_video_downloads: 3     # More retries (default: 2)
+```
+
+#### Debugging Video Issues
+
+**Enable verbose logging**:
+```bash
+poetry run python -m src.scraper.amazon.scraper --keywords "ASIN" --debug
+```
+
+**Test video metadata extraction**:
+```bash
+# Verify FFprobe is working
+ffprobe -v error -show_format -show_streams outputs/ASIN/videos/video_0.mp4
+
+# Test metadata extraction function
+poetry run python -c "
+from pathlib import Path
+from src.scraper.amazon.media_validator import extract_video_metadata
+metadata = extract_video_metadata(Path('outputs/B0BTYCRJSS/videos/video_0.mp4'))
+print(metadata)
+"
+```
+
+**Check video validation results**:
+```bash
+# Review validation report (if enabled in config)
+cat outputs/ASIN/media_validation_report.json | python -m json.tool
+```
+
 ## Performance Metrics
 
 ### Pipeline Performance
