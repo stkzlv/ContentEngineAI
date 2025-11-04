@@ -146,7 +146,7 @@ ignore_missing_imports = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = ["botasaurus.*", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "aiofiles", "whisper", "pexelsapi.*", "aiohttp.*", "pysrt"]
+module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "aiofiles", "whisper", "pexelsapi.*", "pysrt"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]

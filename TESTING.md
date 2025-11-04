@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **627 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **719 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -91,6 +91,11 @@ tests/
 ├── test_profile_cli_overrides.py    # Profile & CLI override tests (15 tests)
 ├── test_scraper_config_enhanced.py  # Scraper config (23 tests)
 ├── test_media_validation.py         # Media validation (10 tests)
+│
+├── # Scraper Tests
+├── scraper/
+│   ├── test_video_integration.py    # Video pipeline integration (16 tests)
+│   └── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
 │
 ├── # Pipeline Tests
 ├── test_pipeline_graph.py           # Pipeline dependencies
@@ -282,13 +287,18 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics (v0.11.0):**
-- **Total Tests**: 627 collected (513 + 114 compliance tests)
-- **Passing**: 606 tests (492 + 114 compliance)
-- **Skipped**: 21 tests
+- **Total Tests**: 719 collected (605 + 114 compliance tests)
+- **Passing**: 719 tests (605 + 114 compliance)
+- **Skipped**: 0 tests
 - **Failed**: 0 tests
-- **Coverage**: 42.79% (target: 40% minimum)
+- **Coverage**: 42%+ (target: 40% minimum)
 
 **Recent Updates (v0.11.0):**
+- ✅ Added M3U8/HLS video extraction tests (20 tests)
+- ✅ Tests for strict product filtering (exclude related products)
+- ✅ Tests for video muting during scraping
+- ✅ Tests for DEBUG_MODE parameter passing
+- ✅ Tests for FFmpeg M3U8 to MP4 conversion
 - ✅ Added Freesound OAuth2 integration tests (344 tests)
 - ✅ Enhanced audio client unit tests (755+ tests with mocking)
 - ✅ Added CTA detection configuration validation

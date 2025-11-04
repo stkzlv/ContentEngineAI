@@ -307,9 +307,9 @@ class PicseeURLShortener(BaseURLShortener):
 
     async def __aexit__(
         self,
-        exc_type: Any,  # noqa: ARG002
-        exc_val: Any,  # noqa: ARG002
-        exc_tb: Any,  # noqa: ARG002
+        _exc_type: Any,  # noqa: ARG002
+        _exc_val: Any,  # noqa: ARG002
+        _exc_tb: Any,  # noqa: ARG002
     ) -> None:
         """Async context manager exit."""
         await self.cleanup()

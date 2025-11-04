@@ -12,7 +12,7 @@ from typing import Any
 
 import requests
 from botasaurus import bt
-from botasaurus.task import task
+from botasaurus.task import task  # type: ignore[import-untyped]
 
 from .botasaurus_output import get_task_config_for_outputs
 from .config import CONFIG, get_filename_pattern
@@ -51,9 +51,7 @@ _enhanced_task_config = {
 
 
 def convert_m3u8_to_mp4(
-    m3u8_url: str,
-    output_path: PathLib,
-    timeout: int = 120
+    m3u8_url: str, output_path: PathLib, timeout: int = 120
 ) -> bool:
     """Convert M3U8 HLS stream to MP4 file using ffmpeg.
 
@@ -77,32 +75,29 @@ def convert_m3u8_to_mp4(
         # FFmpeg command to download and convert m3u8 to mp4
         cmd = [
             "ffmpeg",
-            "-protocol_whitelist", "file,http,https,tcp,tls,crypto",
-            "-i", m3u8_url,
-            "-c", "copy",  # Copy streams without re-encoding (faster)
-            "-bsf:a", "aac_adtstoasc",  # Fix audio stream format
+            "-protocol_whitelist",
+            "file,http,https,tcp,tls,crypto",
+            "-i",
+            m3u8_url,
+            "-c",
+            "copy",  # Copy streams without re-encoding (faster)
+            "-bsf:a",
+            "aac_adtstoasc",  # Fix audio stream format
             "-y",  # Overwrite output file if exists
-            str(output_path)
+            str(output_path),
         ]
 
         logger.info(f"🎬 Converting m3u8 to mp4: {output_path.name}")
         logger.debug(f"   Command: {' '.join(cmd)}")
 
         # Run ffmpeg with timeout
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         if result.returncode == 0:
             logger.info(f"✅ Successfully converted to MP4: {output_path.name}")
             return True
         else:
-            logger.error(
-                f"❌ FFmpeg conversion failed with code {result.returncode}"
-            )
+            logger.error(f"❌ FFmpeg conversion failed with code {result.returncode}")
             logger.error(f"   stderr: {result.stderr[:500]}")
             return False
 
@@ -334,8 +329,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     if DEBUG_MODE:
         logger.info(f"🎥 [VIDEO DOWNLOAD] Starting video downloads for ASIN: {asin}")
         logger.info(
-            f"🎥 [VIDEO TYPES] M3U8 streams: {m3u8_count}, "
-            f"Direct MP4: {mp4_count}"
+            f"🎥 [VIDEO TYPES] M3U8 streams: {m3u8_count}, " f"Direct MP4: {mp4_count}"
         )
         logger.info(f"🎥 [VIDEO DOWNLOAD] Processing {len(video_urls)} total videos")
 

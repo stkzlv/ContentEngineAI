@@ -361,9 +361,7 @@ def extract_high_res_images_botasaurus(
 
 
 def capture_m3u8_urls_from_network(
-    driver: Driver,
-    timeout: int = 20,
-    debug: bool = False
+    driver: Driver, timeout: int = 20, debug: bool = False
 ) -> list[str]:
     """Capture m3u8 video URLs from browser network traffic.
 
@@ -387,7 +385,7 @@ def capture_m3u8_urls_from_network(
 
     try:
         # Define response handler to capture m3u8 URLs
-        def capture_m3u8_handler(request_id, response, event):
+        def capture_m3u8_handler(_request_id, response, _event):  # noqa: ARG001
             """Handler function to capture m3u8 URLs from network responses."""
             try:
                 url = response.url
@@ -448,6 +446,7 @@ def extract_functional_videos_with_validation(
     Args:
     ----
         driver: Botasaurus driver instance
+        debug_mode: Enable debug logging and detailed output
 
     Returns:
     -------
@@ -833,8 +832,7 @@ def extract_functional_videos_with_validation(
 
         # Method 2: Strategic thumbnail clicking (same approach as images)
         logger.info(
-            f"🖱️ Method 2 check: {len(video_urls)} videos so far, "
-            f"max={max_videos}"
+            f"🖱️ Method 2 check: {len(video_urls)} videos so far, " f"max={max_videos}"
         )
         if len(video_urls) < max_videos:
             logger.info(
@@ -855,7 +853,9 @@ def extract_functional_videos_with_validation(
                 # Check if M3U8 network monitoring is enabled
                 global_settings = CONFIG.get("global_settings", {})
                 video_config = global_settings.get("video_config", {})
-                enable_m3u8_monitoring = video_config.get("enable_m3u8_monitoring", False)
+                enable_m3u8_monitoring = video_config.get(
+                    "enable_m3u8_monitoring", False
+                )
 
                 # NEW APPROACH: Network monitoring for M3U8 streams (optional)
                 # Amazon serves videos as HLS (m3u8) streams, not direct MP4 URLs.
@@ -873,7 +873,9 @@ def extract_functional_videos_with_validation(
 
                     # Find and click the first video thumbnail to trigger video loading
                     try:
-                        video_thumbnail = driver.select("#imageBlock .videoThumbnail, #altImages .videoThumbnail")
+                        video_thumbnail = driver.select(
+                            "#imageBlock .videoThumbnail, #altImages .videoThumbnail"
+                        )
                         if video_thumbnail:
                             if DEBUG_MODE:
                                 logger.info("🖱️ Clicking video thumbnail to load player")
@@ -891,7 +893,9 @@ def extract_functional_videos_with_validation(
                             driver.short_random_sleep()
 
                             if DEBUG_MODE:
-                                logger.info("✅ Video player triggered, waiting for network requests")
+                                logger.info(
+                                    "✅ Video player triggered, waiting for network requests"
+                                )
                         else:
                             logger.warning("⚠️ No video thumbnail found")
                     except Exception as e:
@@ -899,13 +903,13 @@ def extract_functional_videos_with_validation(
 
                     # Capture m3u8 URLs from network traffic
                     try:
-                        network_timeout = video_config.get("network_capture_timeout", 20)
+                        network_timeout = video_config.get(
+                            "network_capture_timeout", 20
+                        )
 
                         # Call network capture function
                         m3u8_urls = capture_m3u8_urls_from_network(
-                            driver,
-                            timeout=network_timeout,
-                            debug=DEBUG_MODE
+                            driver, timeout=network_timeout, debug=DEBUG_MODE
                         )
 
                         if m3u8_urls:
@@ -922,7 +926,9 @@ def extract_functional_videos_with_validation(
                                             f"{m3u8_url[:80]}..."
                                         )
                         else:
-                            logger.warning("⚠️ No m3u8 URLs captured from network traffic")
+                            logger.warning(
+                                "⚠️ No m3u8 URLs captured from network traffic"
+                            )
 
                     except Exception as e:
                         if DEBUG_MODE:
@@ -935,13 +941,15 @@ def extract_functional_videos_with_validation(
         # Method 3: Direct element extraction with DOM context filtering
         if len(video_urls) < max_videos:
             if DEBUG_MODE:
-                logger.info("📋 Method 3: Direct element extraction with context filtering")
+                logger.info(
+                    "📋 Method 3: Direct element extraction with context filtering"
+                )
 
             try:
                 # Define valid product gallery selectors (where product videos should be)
                 valid_gallery_selectors = [
                     "#imageBlock",  # Main product image block
-                    "#altImages",   # Alternative images carousel
+                    "#altImages",  # Alternative images carousel
                     "#main-image-container",  # Main image container
                     "#imageBlockThumbs",  # Image thumbnails
                     ".imageBlockContainer",  # Image block container
@@ -971,11 +979,13 @@ def extract_functional_videos_with_validation(
                                     const element = arguments[0];
                                     return excluded && excluded.contains(element);
                                     """,
-                                    element
+                                    element,
                                 )
                                 if is_in_excluded:
                                     if DEBUG_MODE:
-                                        logger.debug(f"❌ Video rejected: in excluded section {selector}")
+                                        logger.debug(
+                                            f"❌ Video rejected: in excluded section {selector}"
+                                        )
                                     return False
 
                         # Then check if element is within any valid gallery section
@@ -989,7 +999,7 @@ def extract_functional_videos_with_validation(
                                     const element = arguments[0];
                                     return gallery && gallery.contains(element);
                                     """,
-                                    element
+                                    element,
                                 )
                                 if is_descendant:
                                     return True
