@@ -4,6 +4,7 @@ This module contains browser automation functions that handle the actual
 web scraping logic using Botasaurus framework.
 """
 
+import contextlib
 import logging
 import os
 import platform
@@ -615,8 +616,9 @@ def extract_product_data_from_page(
     DEBUG_MODE = debug_mode
 
     try:
-        # Check for shipping/availability issues first
-        shipping_unavailable = False
+        # Check for shipping/availability issues
+        # NOTE: We continue scraping even with shipping restrictions
+        # if media is available
         unavailable_indicators = [
             "This item cannot be shipped to your selected delivery location",
             "Currently unavailable",
@@ -627,13 +629,13 @@ def extract_product_data_from_page(
 
         for indicator in unavailable_indicators:
             if indicator.lower() in driver.get_text("body").lower():
-                shipping_unavailable = True
                 if DEBUG_MODE:
-                    print(f"⚠️ [DEBUG] Product unavailable: {indicator}")
+                    print(f"⚠️ [DEBUG] Shipping restriction detected: {indicator}")
+                    print(
+                        "⚠️ [DEBUG] Continuing to extract media "
+                        "despite shipping restriction"
+                    )
                 break
-
-        if shipping_unavailable:
-            return None
 
         # Extract basic product information
         title = ""
@@ -739,7 +741,7 @@ def extract_product_data_from_page(
 
         logger.info(f"Extracting videos for {asin}")
 
-        videos = extract_functional_videos_with_validation(driver)
+        videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
 
         # Build product data
         product_data = {
@@ -1168,6 +1170,31 @@ def scrape_single_product(
     original_url = product_info["url"]
     driver.google_get(original_url, bypass_cloudflare=True)
 
+    # Mute all videos globally to prevent audio during scraping
+    with contextlib.suppress(Exception):
+        driver.run_js("""
+            // Mute all existing videos
+            document.querySelectorAll('video').forEach(video => {
+                video.muted = true;
+                video.volume = 0;
+            });
+
+            // Mute all future videos using MutationObserver
+            const observer = new MutationObserver((mutations) => {
+                document.querySelectorAll('video').forEach(video => {
+                    if (!video.muted) {
+                        video.muted = true;
+                        video.volume = 0;
+                    }
+                });
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        """)
+
     if DEBUG_MODE:
         print("🔍 [DEBUG] Browser should be visible now - Amazon page loaded!")
         print(f"🔍 [DEBUG] Current URL: {driver.current_url}")
@@ -1336,7 +1363,7 @@ def scrape_single_product(
         logging.getLogger(__name__).info(f"🖼️ Extracted {len(images)} images")
         logging.getLogger(__name__).info("🎥 Starting video extraction...")
 
-    videos = extract_functional_videos_with_validation(driver)
+    videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
 
     if DEBUG_MODE:
         logging.getLogger(__name__).info(f"🎥 Extracted {len(videos)} videos")

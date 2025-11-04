@@ -111,6 +111,11 @@ ignore = [
 ]
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore line length in files with embedded JavaScript code
+"src/scraper/amazon/media_extractor.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]

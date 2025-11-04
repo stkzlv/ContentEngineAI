@@ -6,6 +6,7 @@ with proper error handling and file management.
 
 import contextlib
 import logging
+import subprocess
 from pathlib import Path as PathLib
 from typing import Any
 
@@ -47,6 +48,73 @@ _enhanced_task_config = {
     "max_retry": 3,  # Reasonable retry count
     # Output handled by custom output function in get_task_config_for_outputs()
 }
+
+
+def convert_m3u8_to_mp4(
+    m3u8_url: str,
+    output_path: PathLib,
+    timeout: int = 120
+) -> bool:
+    """Convert M3U8 HLS stream to MP4 file using ffmpeg.
+
+    Args:
+    ----
+        m3u8_url: URL of the m3u8 playlist
+        output_path: Path where to save the converted MP4
+        timeout: Maximum time to wait for conversion (seconds)
+
+    Returns:
+    -------
+        True if conversion successful, False otherwise
+
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # FFmpeg command to download and convert m3u8 to mp4
+        cmd = [
+            "ffmpeg",
+            "-protocol_whitelist", "file,http,https,tcp,tls,crypto",
+            "-i", m3u8_url,
+            "-c", "copy",  # Copy streams without re-encoding (faster)
+            "-bsf:a", "aac_adtstoasc",  # Fix audio stream format
+            "-y",  # Overwrite output file if exists
+            str(output_path)
+        ]
+
+        logger.info(f"🎬 Converting m3u8 to mp4: {output_path.name}")
+        logger.debug(f"   Command: {' '.join(cmd)}")
+
+        # Run ffmpeg with timeout
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+
+        if result.returncode == 0:
+            logger.info(f"✅ Successfully converted to MP4: {output_path.name}")
+            return True
+        else:
+            logger.error(
+                f"❌ FFmpeg conversion failed with code {result.returncode}"
+            )
+            logger.error(f"   stderr: {result.stderr[:500]}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"❌ FFmpeg conversion timed out after {timeout}s")
+        return False
+    except FileNotFoundError:
+        logger.error("❌ FFmpeg not found. Please install: sudo apt install ffmpeg")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during m3u8 conversion: {e}")
+        return False
 
 
 @task(**_enhanced_task_config)
@@ -259,29 +327,19 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 logger.debug(f"   • Full traceback: {traceback.format_exc()}")
             continue
 
-    # Filter out M3U8 playlist files (they're not actual videos)
-    filtered_video_urls = []
-    m3u8_count = 0
-
-    for url in video_urls:
-        if url and ".m3u8" in url:
-            m3u8_count += 1
-            if DEBUG_MODE:
-                logger.debug(
-                    f"🎥 [VIDEO FILTER] Skipping M3U8 playlist file: {url[:80]}..."
-                )
-        else:
-            filtered_video_urls.append(url)
+    # Count video types for logging
+    m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
+    mp4_count = len(video_urls) - m3u8_count
 
     if DEBUG_MODE:
         logger.info(f"🎥 [VIDEO DOWNLOAD] Starting video downloads for ASIN: {asin}")
-        logger.info(f"🎥 [VIDEO FILTER] Filtered out {m3u8_count} M3U8 playlist files")
         logger.info(
-            f"🎥 [VIDEO FILTER] Downloading {len(filtered_video_urls)} "
-            f"actual video files"
+            f"🎥 [VIDEO TYPES] M3U8 streams: {m3u8_count}, "
+            f"Direct MP4: {mp4_count}"
         )
+        logger.info(f"🎥 [VIDEO DOWNLOAD] Processing {len(video_urls)} total videos")
 
-    for i, url in enumerate(filtered_video_urls):
+    for i, url in enumerate(video_urls):
         try:
             if not url or not url.startswith("http"):
                 if DEBUG_MODE:
@@ -294,16 +352,29 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             filename = get_filename_pattern("video", asin=asin, index=i, ext="mp4")
             file_path = videos_dir / filename
 
+            # Check if this is an M3U8 stream or direct MP4
+            is_m3u8 = ".m3u8" in url
+
             if DEBUG_MODE:
+                video_type = "M3U8 stream" if is_m3u8 else "MP4 file"
                 logger.info(
-                    f"🎥 [VIDEO DOWNLOAD] Downloading video "
-                    f"{i+1}/{len(filtered_video_urls)}: {filename}"
+                    f"🎥 [VIDEO DOWNLOAD] Processing video "
+                    f"{i+1}/{len(video_urls)}: {filename} ({video_type})"
                 )
                 logger.info(f"   • URL: {url[:100]}...")
                 logger.info(f"   • Path: {file_path}")
 
-            # Use 300s timeout for videos (vs 30s default for images)
-            success = download_file_sync(url, file_path, timeout=300)
+            # Handle M3U8 streams (convert to MP4) or direct MP4 download
+            if is_m3u8:
+                # Get m3u8 conversion timeout from config
+                global_settings = CONFIG.get("global_settings", {})
+                video_config = global_settings.get("video_config", {})
+                m3u8_timeout = video_config.get("m3u8_download_timeout", 120)
+
+                success = convert_m3u8_to_mp4(url, file_path, timeout=m3u8_timeout)
+            else:
+                # Use 300s timeout for direct MP4 downloads
+                success = download_file_sync(url, file_path, timeout=300)
             if success:
                 # Post-download validation using comprehensive validator
                 if DEBUG_MODE:
@@ -438,7 +509,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             f"downloaded and validated successfully"
         )
         logger.info(
-            f"   • Videos: {len(downloaded_videos)}/{len(filtered_video_urls)} "
+            f"   • Videos: {len(downloaded_videos)}/{len(video_urls)} "
             f"downloaded and validated successfully"
         )
         if downloaded_images:
