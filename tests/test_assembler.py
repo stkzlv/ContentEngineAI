@@ -289,7 +289,11 @@ Test subtitle line three
     async def test_build_visual_filter_graph_mixed_media(
         self, assembler: VideoAssembler, temp_dir: Path
     ):
-        """Test building filter graph for mixed images and videos."""
+        """Test building filter graph for mixed images and videos.
+
+        With video assembly feature, videos are processed through mode-specific
+        strategies and don't use loop parameters. Images still use loop.
+        """
         visuals = [
             temp_dir / "image1.jpg",
             temp_dir / "video1.mp4",
@@ -301,17 +305,60 @@ Test subtitle line three
 
         total_duration = 20.0
 
+        def mock_is_video(path: Path) -> bool:
+            """Mock video detection based on extension."""
+            return path.suffix.lower() in [".mp4", ".mov", ".avi", ".mkv", ".webm"]
+
+        async def mock_normalize_video(
+            video_path: Path, cache_dir: Path | None = None
+        ) -> Path:
+            """Mock video normalization - just return the original path."""
+            return video_path
+
+        async def mock_assemble_videos(
+            mode: str, videos: list[Path], images: list[Path], duration: float
+        ):
+            """Mock video assembly - return videos followed by images."""
+            timed = [(v, 5.0, True) for v in videos]  # Mark videos as True
+            if len(timed) * 5.0 < duration:
+                remaining = duration - (len(timed) * 5.0)
+                if images:
+                    img_duration = remaining / len(images)
+                    timed.extend(
+                        [(img, img_duration, False) for img in images]
+                    )  # Mark images as False
+            return timed, f"mock_mode ({len(videos)} videos, {len(images)} images)"
+
         with (
             patch.object(assembler, "_get_media_dimensions", return_value=(1920, 1080)),
             patch.object(assembler, "_get_media_duration", return_value=5.0),
+            patch.object(assembler, "_is_video", side_effect=mock_is_video),
+            patch.object(
+                assembler, "_normalize_video_format", side_effect=mock_normalize_video
+            ),
+            patch.object(
+                assembler, "_assemble_videos_by_mode", side_effect=mock_assemble_videos
+            ),
         ):
-            filters, input_cmd_parts, _, _, _ = await assembler._build_visual_chain(
+            (
+                filters,
+                input_cmd_parts,
+                timed_visuals,
+                _,
+                _,
+            ) = await assembler._build_visual_chain(
                 visual_inputs=visuals,
                 total_video_duration=total_duration,
                 is_relative_mode=False,
             )
 
+            # Verify crossfade transitions are present
             assert any("xfade" in f for f in filters)
+            # Verify that we have mixed media (videos and images)
+            has_videos = any(is_video for _, _, is_video in timed_visuals)
+            has_images = any(not is_video for _, _, is_video in timed_visuals)
+            assert has_videos and has_images, "Should have both videos and images"
+            # Images still use loop parameter
             assert any("loop" in part for part in input_cmd_parts)
 
     @pytest.mark.asyncio

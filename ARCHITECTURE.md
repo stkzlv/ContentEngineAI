@@ -179,20 +179,87 @@ dependencies = {
 
 ### 3. Video Assembly (`src/video/assembler.py`)
 
-**Purpose**: Combines all elements into final MP4 video using FFmpeg.
+**Purpose**: Combines all elements into final MP4 video using FFmpeg with intelligent video assembly strategies.
 
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
+- **Video Assembly Modes**: Four configurable strategies for video-first content
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes
+- **Audio Normalization**: Configurable video audio handling (remove/mixed)
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation
 - **Subtitle Rendering**: Styled subtitle embedding with customization
 - **Audio Mixing**: Multi-track audio with volume control
 - **Verification**: Post-assembly quality checks
 
+#### Video Assembly Modes
+
+ContentEngineAI supports **4 video assembly modes** optimized for different content styles:
+
+**1. Sequential Mode** (`video_assembly_mode: "sequential"`)
+- Concatenates all product videos end-to-end with crossfade transitions
+- Loops videos if total duration < voiceover length
+- Adds images to fill remaining time if needed
+- **Best for**: Showcasing multiple product angles/demos
+
+**2. Single Best Mode** (`video_assembly_mode: "single_best"`)
+- Selects the longest video and loops it seamlessly
+- Creates smooth infinite loop effect with crossfade at loop point
+- **Best for**: Single-angle product demonstrations with clean looping
+
+**3. Mixed Media Mode** (`video_assembly_mode: "mixed_media"`)
+- Interleaves videos and images throughout the timeline
+- Distributes videos evenly across duration
+- Fills gaps between videos with images
+- **Best for**: Dynamic visual variety mixing motion and static content
+
+**4. Video-First Fallback Mode** (`video_assembly_mode: "video_first_fallback"`)
+- Plays all product videos first (priority content)
+- Fills remaining duration with images
+- **Best for**: Ensuring videos are always shown while using images as filler
+
+#### Aspect Ratio Handling
+
+**Letterbox Mode** (`video_aspect_mode: "letterbox"`)
+```
+Original: 16:9 landscape video
+Target:   9:16 vertical frame
+Result:   Video centered with black bars (preserves aspect ratio)
+```
+
+**Crop-to-Fit Mode** (`video_aspect_mode: "crop-to-fit"`)
+```
+Original: 16:9 landscape video
+Target:   9:16 vertical frame
+Result:   Video scaled to fill frame, edges cropped (centers crop region)
+```
+
+**Smart-Scale Mode** (`video_aspect_mode: "smart-scale"`)
+```
+Automatically chooses between letterbox and crop based on aspect ratio difference:
+- ≤10% difference → Use crop-to-fit (minimal distortion)
+- >10% difference → Use letterbox (preserve content)
+```
+
+#### Audio Handling
+
+**Remove Mode** (`video_audio_handling: "remove"`)
+- Strips all original audio from product videos
+- Final mix: voiceover + background music only
+- **Best for**: Clean professional sound or videos with poor/distracting audio
+
+**Mixed Mode** (`video_audio_handling: "mixed"`)
+- Preserves original video audio at reduced volume (default: -30dB)
+- Final mix: voiceover + background music + video audio (ambient)
+- Volume configurable via `video_original_volume` (-60 to 0 dB)
+- **Best for**: Including ambient product sounds (unboxing, demos, ASMR)
+
 **FFmpeg Integration:**
 - **Complex Filters**: Dynamic filter graph construction
-- **Crossfade Transitions**: Smooth visual transitions
-- **Aspect Ratio Preservation**: Smart scaling and positioning
+- **Crossfade Transitions**: Smooth visual transitions (configurable duration)
+- **Aspect Ratio Transformations**: scale, pad, crop filters with smart positioning
+- **Format Normalization**: Auto-conversion to H.264/30fps/yuv420p for compatibility
 - **Subtitle Styling**: Font, color, positioning customization
+- **Multi-Track Audio**: amix filter with volume normalization
 
 ### 4. AI Integration (`src/ai/script_generator.py`)
 

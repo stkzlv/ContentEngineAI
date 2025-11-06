@@ -5,7 +5,7 @@ import logging
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import (
@@ -134,6 +134,38 @@ class VideoSettings(BaseModel):
     min_images_if_no_video: int = Field(5, description="Minimum images when no videos")
     min_images_with_video: int = Field(
         2, description="Minimum images when videos exist"
+    )
+
+    # Video assembly configuration fields (Requirement 7, 10)
+    video_assembly_mode: Literal[
+        "sequential", "single_best", "mixed_media", "video_first_fallback"
+    ] = Field(
+        "sequential",
+        description="Video assembly strategy mode",
+    )
+    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] = Field(
+        "letterbox",
+        description="Aspect ratio handling (letterbox/crop-to-fit/smart-scale)",
+    )
+    video_audio_handling: Literal["remove", "mixed"] = Field(
+        "remove",
+        description="Audio handling (remove original audio or mix with voiceover)",
+    )
+    video_original_volume: float = Field(
+        -20.0,
+        ge=-60.0,
+        le=0.0,
+        description="Original video volume adjustment in dB (range: -60 to 0)",
+    )
+    video_transition_duration: float = Field(
+        0.5, description="Duration of transitions between video clips in seconds"
+    )
+    enable_format_normalization: bool = Field(
+        True,
+        description="Enable video format normalization (H.264, 30fps, yuv420p)",
+    )
+    video_cache_dir: str = Field(
+        "cache/videos", description="Directory for cached normalized videos"
     )
 
     @model_validator(mode="after")
@@ -337,6 +369,34 @@ class VideoProfile(BaseModel):
     )
     preserve_aspect_ratio: bool | None = Field(
         None, description="Override global aspect ratio preservation setting"
+    )
+
+    # ---- PER-PROFILE VIDEO ASSEMBLY SETTINGS ----
+    # Video assembly configuration overrides (Requirement 7, 10)
+    video_assembly_mode: (
+        Literal["sequential", "single_best", "mixed_media", "video_first_fallback"]
+        | None
+    ) = Field(None, description="Override video assembly strategy mode")
+    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
+        Field(None, description="Override aspect ratio handling mode")
+    )
+    video_audio_handling: Literal["remove", "mixed"] | None = Field(
+        None, description="Override video audio handling (remove or mix)"
+    )
+    video_original_volume: float | None = Field(
+        None,
+        ge=-60.0,
+        le=0.0,
+        description="Override video audio volume in dB (-60 to 0)",
+    )
+    video_transition_duration: float | None = Field(
+        None, description="Override video transition duration in seconds"
+    )
+    enable_format_normalization: bool | None = Field(
+        None, description="Override format normalization setting"
+    )
+    video_cache_dir: str | None = Field(
+        None, description="Override video cache directory path"
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
@@ -1203,6 +1263,18 @@ class VideoConfig(BaseModel):
                 ),
                 "image_loop": self.video_settings.image_loop,
                 "pad_color": self.video_settings.pad_color,
+                # Video assembly configuration (Requirement 7, 10)
+                "video_assembly_mode": self.video_settings.video_assembly_mode,
+                "video_aspect_mode": self.video_settings.video_aspect_mode,
+                "video_audio_handling": self.video_settings.video_audio_handling,
+                "video_original_volume": self.video_settings.video_original_volume,
+                "video_transition_duration": (
+                    self.video_settings.video_transition_duration
+                ),
+                "enable_format_normalization": (
+                    self.video_settings.enable_format_normalization
+                ),
+                "video_cache_dir": self.video_settings.video_cache_dir,
             },
             # Subtitle settings from subtitle_settings and unified positioning
             "subtitle_settings": {
@@ -1356,6 +1428,36 @@ class VideoConfig(BaseModel):
         if profile.preserve_aspect_ratio is not None:
             merged_settings["video_settings"]["preserve_aspect_ratio"] = (
                 profile.preserve_aspect_ratio
+            )
+
+        # Apply video assembly configuration overrides from profile
+        if profile.video_assembly_mode is not None:
+            merged_settings["video_settings"]["video_assembly_mode"] = (
+                profile.video_assembly_mode
+            )
+        if profile.video_aspect_mode is not None:
+            merged_settings["video_settings"]["video_aspect_mode"] = (
+                profile.video_aspect_mode
+            )
+        if profile.video_audio_handling is not None:
+            merged_settings["video_settings"]["video_audio_handling"] = (
+                profile.video_audio_handling
+            )
+        if profile.video_original_volume is not None:
+            merged_settings["video_settings"]["video_original_volume"] = (
+                profile.video_original_volume
+            )
+        if profile.video_transition_duration is not None:
+            merged_settings["video_settings"]["video_transition_duration"] = (
+                profile.video_transition_duration
+            )
+        if profile.enable_format_normalization is not None:
+            merged_settings["video_settings"]["enable_format_normalization"] = (
+                profile.enable_format_normalization
+            )
+        if profile.video_cache_dir is not None:
+            merged_settings["video_settings"]["video_cache_dir"] = (
+                profile.video_cache_dir
             )
 
         # Apply profile-specific subtitle setting overrides
@@ -1968,6 +2070,14 @@ except Exception as e:
             subtitle_box_border_width=ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH,
             image_loop=ASSEMBLER_IMAGE_LOOP,
             pad_color=ASSEMBLER_PAD_COLOR,
+            # Video assembly fields
+            video_assembly_mode="sequential",
+            video_aspect_mode="letterbox",
+            video_audio_handling="remove",
+            video_original_volume=-20.0,
+            video_transition_duration=0.5,
+            enable_format_normalization=True,
+            video_cache_dir="cache/videos",
         ),
         media_settings=MediaSettings(
             stock_media_keywords=["product", "showcase"],

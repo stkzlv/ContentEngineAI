@@ -526,6 +526,147 @@ video_profiles:
     subtitle_max_duration: 4.0
     subtitle_min_duration: 0.5
 
+  # ========================================================================
+  # VIDEO ASSEMBLY PROFILES
+  # ========================================================================
+  # Product video profiles using scraped videos with different assembly strategies
+  # All profiles use product videos as primary content with configurable fallback
+
+  # Sequential video assembly - play all videos end-to-end
+  product_video_sequential:
+    description: "Concatenates all product videos sequentially with crossfade transitions. Best for showcasing multiple product angles/demos."
+    use_scraped_images: true                   # Use images as fallback
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "sequential"          # Play all videos in sequence
+    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop (10% threshold)
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -30.0               # Video audio at -30dB (background level)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # 0.5s crossfade between videos
+
+    # Image positioning (for fallback images)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Subtitle configuration - SRT format
+    subtitle_format: "srt"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.05
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Single best video - loop longest video to fill duration
+  product_video_single:
+    description: "Selects and loops the longest product video to match voiceover duration. Ideal for single-angle product demos."
+    use_scraped_images: true                   # Use images as fallback
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "single_best"         # Use longest video, loop to fill
+    video_aspect_mode: "crop-to-fit"           # Crop to fill frame (good for looping)
+    video_audio_handling: "remove"             # Strip video audio (cleaner for loops)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Smooth loop transition
+
+    # Image positioning (for fallback images)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Subtitle configuration - SRT format
+    subtitle_format: "srt"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.05
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Mixed media - interleave videos and images throughout
+  product_video_mixed:
+    description: "Interleaves product videos and images throughout timeline. Creates dynamic visual variety."
+    use_scraped_images: true                   # Primary content: mix of videos and images
+    use_scraped_videos: true                   # Primary content: mix of videos and images
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "mixed_media"         # Interleave videos and images
+    video_aspect_mode: "letterbox"             # Preserve aspect ratio with padding
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -35.0               # Video audio at -35dB (more subtle)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Crossfade between all media
+
+    # Image positioning
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Subtitle configuration - SRT format
+    subtitle_format: "srt"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.05
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Video-first fallback - prioritize all videos, then images
+  product_video_primary:
+    description: "Plays all product videos first, then fills remaining time with images. Ensures videos are always shown."
+    use_scraped_images: true                   # Use images to fill remaining duration
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "video_first_fallback"  # All videos first, then images
+    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -30.0               # Video audio at -30dB
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Crossfade between all media
+
+    # Image positioning (for remaining duration)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Subtitle configuration - SRT format
+    subtitle_format: "srt"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.05
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
 # ============================================================================
 # CTA DETECTION SETTINGS
 # ============================================================================

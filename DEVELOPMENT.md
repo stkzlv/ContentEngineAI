@@ -407,6 +407,107 @@ download_config:
   retry_video_downloads: 3     # More retries (default: 2)
 ```
 
+#### Video Assembly Profiles
+
+**ContentEngineAI supports 4 video assembly profiles** for creating video-first promotional content:
+
+**1. Sequential Profile** (`product_video_sequential`)
+```bash
+# Use sequential mode: plays all videos end-to-end with crossfades
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_sequential --debug
+```
+
+**Profile Configuration** (`config/video_production.yaml`):
+```yaml
+product_video_sequential:
+  use_scraped_videos: true
+  video_assembly_mode: "sequential"
+  video_aspect_mode: "smart-scale"       # Auto-choose letterbox or crop
+  video_audio_handling: "mixed"          # Include video audio at -30dB
+  video_transition_duration: 0.5         # Crossfade duration
+  enable_format_normalization: true      # Auto-convert to H.264/30fps
+```
+
+**2. Single Best Profile** (`product_video_single`)
+```bash
+# Use single best mode: loops longest video seamlessly
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_single --debug
+```
+
+**Profile Configuration**:
+```yaml
+product_video_single:
+  use_scraped_videos: true
+  video_assembly_mode: "single_best"
+  video_aspect_mode: "crop-to-fit"       # Crop edges for full frame
+  video_audio_handling: "remove"         # Strip video audio (clean loops)
+  video_transition_duration: 0.5
+```
+
+**3. Mixed Media Profile** (`product_video_mixed`)
+```bash
+# Use mixed media mode: interleaves videos and images
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_mixed --debug
+```
+
+**Profile Configuration**:
+```yaml
+product_video_mixed:
+  use_scraped_videos: true
+  use_scraped_images: true
+  video_assembly_mode: "mixed_media"
+  video_aspect_mode: "letterbox"         # Preserve aspect with padding
+  video_audio_handling: "mixed"
+  video_original_volume: -35.0           # Quieter video audio (-35dB)
+```
+
+**4. Video-First Fallback Profile** (`product_video_primary`)
+```bash
+# Use video-first mode: all videos first, then images
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_primary --debug
+```
+
+**Profile Configuration**:
+```yaml
+product_video_primary:
+  use_scraped_videos: true
+  use_scraped_images: true
+  video_assembly_mode: "video_first_fallback"
+  video_aspect_mode: "smart-scale"
+  video_audio_handling: "mixed"
+  video_original_volume: -30.0
+```
+
+**CLI Overrides** (highest precedence):
+```bash
+# Override aspect mode
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_sequential \
+  --video-aspect-mode letterbox --debug
+
+# Override audio handling
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_sequential \
+  --video-audio-handling remove --debug
+
+# Override video volume
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_mixed \
+  --video-original-volume -40.0 --debug
+```
+
+**Aspect Ratio Modes:**
+- `letterbox`: Preserves aspect ratio with black bars (no cropping)
+- `crop-to-fit`: Scales to fill frame and crops edges (no bars)
+- `smart-scale`: Auto-selects based on ≤10% aspect ratio difference
+
+**Audio Handling Modes:**
+- `remove`: Strips all video audio (voiceover + music only)
+- `mixed`: Includes video audio at configured volume (-60 to 0 dB)
+
+**Format Normalization:**
+- Automatically converts videos to H.264 codec
+- Normalizes frame rate to 30fps
+- Converts pixel format to yuv420p for compatibility
+- Caches normalized videos to avoid re-processing
+
 #### Debugging Video Issues
 
 **Enable verbose logging**:
@@ -428,11 +529,31 @@ print(metadata)
 "
 ```
 
+**Debug video assembly**:
+```bash
+# Check FFmpeg filter graph
+poetry run python -m src.video.producer outputs/ASIN/data.json product_video_sequential \
+  --debug 2>&1 | grep -A 20 "FFmpeg filter"
+
+# Validate final video output
+ffprobe -v error -show_format -show_streams outputs/ASIN/video_files/final.mp4
+```
+
 **Check video validation results**:
 ```bash
 # Review validation report (if enabled in config)
 cat outputs/ASIN/media_validation_report.json | python -m json.tool
 ```
+
+**Troubleshooting Common Issues:**
+
+| Issue | Solution |
+|-------|----------|
+| No videos in product | Profile falls back to image-only automatically |
+| Video aspect distorted | Use `smart-scale` or `letterbox` mode |
+| Video audio too loud | Reduce `video_original_volume` (e.g., -40.0) |
+| Videos not looping smoothly | Check `video_transition_duration` (default: 0.5s) |
+| Format errors | Enable `enable_format_normalization: true` |
 
 ## Performance Metrics
 
