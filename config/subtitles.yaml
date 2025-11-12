@@ -118,6 +118,32 @@ subtitle_settings:
   # Effects are defined per style preset below
   randomize_effects: true
 
+  # ---- ADVANCED POSITIONING SETTINGS ----
+  # Fine-tune subtitle positioning calculations
+  # Used by: src/video/assembler.py content-aware positioning (lines 2819-2831)
+
+  # Subtitle space multiplier
+  # Controls how much vertical space is reserved relative to font height
+  # Multiplied by font size to calculate subtitle vertical spacing
+  # Higher values = more space reserved for subtitle rendering
+  subtitle_space_multiplier: 1.3
+
+  # Default subtitle reserved space (as fraction of frame height)
+  # Used when content-aware positioning is disabled
+  # Example: 0.15 = reserve bottom 15% of frame for subtitles
+  default_subtitle_reserved_space_percent: 0.15
+
+  # Font offset multiplier for content-aware positioning (landscape videos)
+  # In landscape mode, subtitles positioned using: image_bottom + spacing - (font_size * multiplier)
+  # This creates tight spacing between content and subtitles
+  # Note: Portrait videos use simpler addition formula (no offset needed)
+  content_aware_font_offset_multiplier: 5.5
+
+  # Fallback Y position when content-aware positioning fails
+  # Position as fraction of frame height (0.80 = 80% down from top)
+  # Used when visual geometry unavailable or positioning errors occur
+  fallback_y_position: 0.80
+
   # ---- OUTPUT FORMAT ----
   # Subtitle file format: "srt" or "ass"
   subtitle_format: "ass"
@@ -188,17 +214,43 @@ subtitle_settings:
   subtitle_split_on_punctuation: true
   punctuation_marks: [".", "!", "?", ";", ":", ","]
 
-# TTS Configuration
+# ============================================================================
+# TEXT-TO-SPEECH CONFIGURATION
+# ============================================================================
+# TTS provider settings for generating voiceover audio from script text
+# Used by: src/video/tts.py for voiceover generation
+#
+# Pipeline Impact:
+# - Voiceover quality affects video professionalism and viewer engagement
+# - Provider fallback ensures production continues if primary TTS unavailable
+# - Word-level timing enables precise subtitle synchronization
+#
+# Providers:
+# - google_cloud: High quality, natural voices, requires Google Cloud credentials
+# - coqui: Open source, local processing, no API costs but lower quality
 tts_config:
-  # Order of TTS providers to try
+  # Order of TTS providers to try (attempts in sequence until one succeeds)
+  # Recommendation: google_cloud first for quality, coqui as fallback
   provider_order: ["google_cloud", "coqui"]
 
   # Google Cloud Text-to-Speech Settings
+  # Setup: Requires GOOGLE_APPLICATION_CREDENTIALS environment variable
+  # Pricing: ~$16 per 1 million characters (check current rates)
+  # Documentation: https://cloud.google.com/text-to-speech
   google_cloud:
+    # Model name - newer models offer better quality
+    # Chirp3-HD: Latest, most natural voices
+    # Neural2: High quality, widely available
+    # Standard: Basic quality, lowest cost
     model_name: "en-US-Chirp3-HD"
+
+    # Primary language code for voice selection
+    # Format: language-region (e.g., "en-US", "en-GB", "es-ES")
     language_code: "en-US"
 
-    # Voice selection criteria
+    # Voice selection criteria (tries in order until match found)
+    # Criteria: language_code, name_contains (model family), ssml_gender
+    # Fallback chain: Chirp3 → Chirp → Neural2 → any available voice
     voice_selection_criteria:
       - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
       - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
@@ -209,21 +261,37 @@ tts_config:
       - { language_code: "en-US", ssml_gender: "FEMALE" }
       - { language_code: "en-US", ssml_gender: "MALE" }
 
-    # Speech parameters
+    # Speech synthesis parameters
+    # speaking_rate: Speed multiplier (0.25-4.0, 1.0=normal, 1.2=20% faster)
+    # pitch: Voice pitch adjustment in semitones (-20.0 to 20.0, 0=natural)
+    # volume_gain_db: Volume adjustment in decibels (-96.0 to 16.0, 0=no change)
     speaking_rate: 1.0
     pitch: 0.0
     volume_gain_db: 0.0
 
-    # API settings
+    # API request configuration
+    # debug: Enable verbose logging of API requests/responses
+    # api_timeout_sec: Maximum wait time for TTS generation
+    # api_max_retries: Number of retry attempts on failure
+    # api_retry_delay_sec: Delay between retry attempts
+    # last_word_buffer_sec: Extra silence at end to prevent word cutoff
     debug: false
     api_timeout_sec: 60
     api_max_retries: 2
     api_retry_delay_sec: 5
     last_word_buffer_sec: 0.3
 
-  # Coqui TTS Settings (Local Processing)
+  # Coqui TTS Settings (Local/Offline Processing)
+  # Pros: Free, no API costs, works offline, privacy-friendly
+  # Cons: Lower voice quality, slower generation, requires local compute
+  # Setup: Automatically downloads models on first use (~200MB)
   coqui:
+    # Model identifier from Coqui TTS model zoo
+    # ljspeech/vits: Fast, decent quality, English only
+    # Explore models: https://github.com/coqui-ai/TTS
     model_name: "tts_models/en/ljspeech/vits"
+
+    # Speaker name for multi-speaker models (null for single-speaker)
     speaker_name: null
 
 # ============================================================================

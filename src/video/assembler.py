@@ -798,19 +798,28 @@ class VideoAssembler:
             stream = probe_data["streams"][0]
             codec = stream.get("codec_name", "")
             pix_fmt = stream.get("pix_fmt", "")
-            fps_str = stream.get("r_frame_rate", "30/1")
+
+            # Load format normalization settings from config
+            format_norm = self.config.format_normalization
+            target_fps = format_norm.get('target_fps', 30.0)
+            fps_tolerance = format_norm.get('fps_tolerance', 0.1)
+            default_fps_string = format_norm.get('default_fps_string', '30/1')
+            target_codec = format_norm.get('target_codec', 'h264')
+            target_pixel_format = format_norm.get('target_pixel_format', 'yuv420p')
+
+            fps_str = stream.get("r_frame_rate", default_fps_string)
 
             # Parse frame rate (format: "num/den")
             try:
                 num, den = map(int, fps_str.split("/"))
-                fps = num / den if den != 0 else 30.0
+                fps = num / den if den != 0 else target_fps
             except (ValueError, ZeroDivisionError):
-                fps = 30.0
+                fps = target_fps
 
             # Check if already in correct format
-            is_h264 = codec == "h264"
-            is_30fps = abs(fps - 30.0) < 0.1  # Within 0.1 fps tolerance
-            is_yuv420p = pix_fmt == "yuv420p"
+            is_h264 = codec == target_codec
+            is_30fps = abs(fps - target_fps) < fps_tolerance  # Within configured tolerance
+            is_yuv420p = pix_fmt == target_pixel_format
 
             if is_h264 and is_30fps and is_yuv420p:
                 # Already correct format
@@ -834,7 +843,7 @@ class VideoAssembler:
             # Transcode to normalized format
             if self.debug_mode:
                 logger.debug(
-                    f"Transcoding {video_path.name} to H.264/30fps/yuv420p "
+                    f"Transcoding {video_path.name} to {target_codec}/{target_fps}fps/{target_pixel_format} "
                     f"(current: {codec}/{fps:.1f}fps/{pix_fmt})"
                 )
 
@@ -847,9 +856,9 @@ class VideoAssembler:
                 "-preset",
                 "medium",
                 "-r",
-                "30",
+                str(int(target_fps)),
                 "-pix_fmt",
-                "yuv420p",
+                target_pixel_format,
                 "-c:a",
                 "copy",  # Copy audio without re-encoding
                 "-y",  # Overwrite output file
@@ -1714,8 +1723,9 @@ class VideoAssembler:
         if aspect_mode == "smart-scale":
             # Calculate percentage difference
             aspect_diff = abs(target_aspect - video_aspect) / target_aspect
-            # Within 10% threshold → crop-to-fit, else letterbox
-            aspect_mode = "crop-to-fit" if aspect_diff <= 0.10 else "letterbox"
+            # Use configured tolerance threshold
+            aspect_tolerance = self.config.aspect_ratio.get('smart_scale_tolerance', 0.10)
+            aspect_mode = "crop-to-fit" if aspect_diff <= aspect_tolerance else "letterbox"
 
         # Use provided output_label or generate one from input_label
         if output_label is None:
@@ -2827,22 +2837,37 @@ class VideoAssembler:
                         subtitle_y = int(image_bottom + spacing_px)
                     else:
                         # Landscape: need font offset to position tight below content
-                        font_offset = font_size * 5.5  # ~418px for 76px font
+                        # Load font offset multiplier from config
+                        from pathlib import Path
+
+                        import yaml
+
+                        font_offset_multiplier = 5.5  # Default
+                        config_path = Path("config/subtitles.yaml")
+                        if config_path.exists():
+                            with open(config_path, encoding="utf-8") as f:
+                                data = yaml.safe_load(f)
+                                text_rendering = data.get("text_rendering", {})
+                                font_offset_multiplier = text_rendering.get("content_aware_font_offset_multiplier", 5.5)
+
+                        font_offset = font_size * font_offset_multiplier
                         subtitle_y = int(image_bottom + spacing_px - font_offset)
 
                     # Ensure subtitle doesn't go off-screen
                     # Allow subtitles to go up to max safe position from config
-                    from pathlib import Path
-
-                    import yaml
-
                     max_safe_y = 0.95  # Default
-                    config_path = Path("config/subtitles.yaml")
-                    if config_path.exists():
-                        with open(config_path, encoding="utf-8") as f:
-                            data = yaml.safe_load(f)
-                            text_rendering = data.get("text_rendering", {})
-                            max_safe_y = text_rendering.get("max_safe_y_position", 0.95)
+                    if 'data' not in locals():
+                        from pathlib import Path
+                        import yaml
+                        config_path = Path("config/subtitles.yaml")
+                        if config_path.exists():
+                            with open(config_path, encoding="utf-8") as f:
+                                data = yaml.safe_load(f)
+                                text_rendering = data.get("text_rendering", {})
+                    else:
+                        text_rendering = data.get("text_rendering", {})
+
+                    max_safe_y = text_rendering.get("max_safe_y_position", 0.95)
 
                     max_y = int(frame_height * max_safe_y)
                     subtitle_y = min(subtitle_y, max_y)

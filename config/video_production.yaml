@@ -252,6 +252,37 @@ audio_settings:
   # Recommendation: 60s provides safety margin for slow refreshes
   freesound_token_refresh_buffer_sec: 60
 
+  # --- Retry and Backoff Configuration ---
+  # Used by: src/audio/freesound_client.py (lines 349-418)
+  # Controls how many times to retry failed operations and delay between attempts
+
+  # Token refresh retry configuration
+  freesound_token_refresh:
+    # Maximum retry attempts for token refresh
+    # After this many failures, fallback to API key or local files
+    max_retries: 2
+
+    # Timeout for token refresh requests (seconds)
+    # Freesound OAuth2 endpoint typically responds in <1s
+    timeout_sec: 5
+
+    # Exponential backoff configuration
+    # Delay = base_delay * (multiplier ** attempt)
+    # Example: 0.5s, 1.0s, 2.0s with base=0.5 and multiplier=2
+    backoff_base_delay_sec: 0.5
+    backoff_multiplier: 2.0
+
+  # Download retry configuration
+  freesound_download:
+    # Maximum retry attempts for downloads
+    # Retries help with transient network issues
+    max_retries: 2
+
+    # Exponential backoff configuration for download retries
+    # Longer base delay since downloads may be rate-limited
+    backoff_base_delay_sec: 1.0
+    backoff_multiplier: 2.0
+
   # --- Download Settings ---
   # Download chunk size for streaming (bytes)
   # Larger = faster downloads but more memory usage
@@ -277,22 +308,39 @@ audio_settings:
 # ============================================================================
 # MEDIA GATHERING
 # ============================================================================
+# Configuration for collecting and filtering media assets (images and videos)
+# Used by: producer.py and media_extractor.py for stock media integration
+#
+# Pipeline Impact:
+# - temp_media_dir: Stores downloaded Pexels/stock assets during production
+# - stock_media_keywords: Influences relevance of stock media searches
+# - Duration limits: Filters stock videos to appropriate lengths
 media_settings:
-  # Temporary directory for media assets
+  # Temporary directory for downloaded stock media assets
+  # Created automatically during video production, can be cleaned up after
+  # Location: Relative to project root
   temp_media_dir: "downloaded_media_assets"
 
-  # Keywords for stock media search
+  # Keywords for stock media search queries
+  # Used when profile enables use_stock_images or use_stock_videos
+  # Tips: Use broad, generic terms; avoid product-specific words
+  # Example searches: "product showcase technology", "modern lifestyle happy customer"
   stock_media_keywords:
     - "product showcase"
     - "modern lifestyle"
     - "technology"
     - "happy customer"
 
-  # Stock video duration limits
+  # Stock video duration constraints (seconds)
+  # Filters search results to clips within this range
+  # Short clips (5-20s) work best for product videos
+  # Longer clips increase file size and processing time
   stock_video_min_duration_sec: 5
   stock_video_max_duration_sec: 20
 
-  # Product title keyword filtering
+  # Product title keyword filtering (minimum word length)
+  # When extracting keywords from product titles for stock searches
+  # Words shorter than this are ignored (filters "the", "a", "is", etc.)
   product_title_keyword_min_length: 3
 
   # NOTE: max_images_per_product and max_videos_per_product are configured in scraper.yaml
@@ -301,11 +349,25 @@ media_settings:
 # ============================================================================
 # STOCK MEDIA SETTINGS
 # ============================================================================
+# Configuration for third-party stock media providers (Pexels for images/videos)
+# Used by: Stock media integration in producer.py
+#
+# Usage:
+# - Enable per-profile using use_stock_images and use_stock_videos flags
+# - No global toggle - each video profile specifies its own media sources
+# - Requires API key from https://www.pexels.com/api/
+#
+# Pipeline Impact:
+# - When enabled, supplements scraped product media with professional stock content
+# - Useful when products have insufficient media or need higher visual quality
 stock_media_settings:
   # NOTE: Stock media usage is controlled by profile flags: use_stock_images, use_stock_videos
   # No global "enabled" flag needed - each profile specifies which media types to use
 
   # Pexels API configuration
+  # Environment variable containing Pexels API key
+  # Get free key from: https://www.pexels.com/api/
+  # Rate limits: 200 requests/hour (free tier)
   pexels_api_key_env_var: "PEXELS_API_KEY"
 
   # Note: Freesound integration removed - background music uses audio_settings instead
@@ -669,6 +731,84 @@ cta_detection:
   fallback_duration: 9999.0
 
 # ============================================================================
+# FORMAT NORMALIZATION SETTINGS
+# ============================================================================
+# Controls video format normalization to ensure compatibility across all content
+# Used by: src/video/assembler.py normalize_video_format() method (lines 801-850)
+#
+# Pipeline Impact:
+# - Ensures all videos use consistent frame rate, codec, and pixel format
+# - Prevents playback issues from format mismatches
+# - Re-encodes videos only when necessary (based on tolerance checks)
+#
+# Performance Notes:
+# - Re-encoding is CPU-intensive (~30-60s per video)
+# - fps_tolerance reduces unnecessary re-encodes (0.1 = 10% tolerance)
+format_normalization:
+  # Target frame rate for all videos (frames per second)
+  # Most displays support 30fps; higher values increase file size
+  target_fps: 30.0
+
+  # FPS tolerance for determining if re-encoding is needed
+  # If video fps is within this tolerance of target, skip re-encode
+  # Example: 0.1 means 29.7-30.3 fps is acceptable
+  fps_tolerance: 0.1
+
+  # Default frame rate string for FFmpeg (numerator/denominator format)
+  # Used as fallback when frame rate cannot be parsed from video metadata
+  default_fps_string: "30/1"
+
+  # Target video codec (h264 for maximum compatibility)
+  # H.264 is supported by virtually all devices and browsers
+  target_codec: "h264"
+
+  # Target pixel format (yuv420p for maximum compatibility)
+  # yuv420p is required for some platforms (iOS Safari, older Android)
+  target_pixel_format: "yuv420p"
+
+# ============================================================================
+# ASPECT RATIO HANDLING
+# ============================================================================
+# Controls how aspect ratio differences are handled in smart-scale mode
+# Used by: src/video/assembler.py _apply_smart_scale_mode() method (line 1718)
+#
+# Pipeline Impact:
+# - Determines when to crop vs letterbox content to match target aspect ratio
+# - Affects visual appearance and how much content is visible
+#
+# Visual Examples:
+# - tolerance=0.10: 16:9 video in 16:9 frame = crop (within 10%)
+# - tolerance=0.05: 4:3 video in 16:9 frame = letterbox (exceeds 5%)
+aspect_ratio:
+  # Tolerance for aspect ratio similarity (fraction, not percentage)
+  # If content aspect ratio is within this tolerance of target, use crop-to-fit
+  # Otherwise use letterbox to show full content with black bars
+  #
+  # Examples:
+  # - 0.10 = 10% tolerance (more aggressive cropping)
+  # - 0.05 = 5% tolerance (more conservative, prefers letterbox)
+  smart_scale_tolerance: 0.10
+
+# ============================================================================
+# TIMING CONSTRAINTS
+# ============================================================================
+# Minimum duration constraints for video segments and subtitle display
+# Used by: src/video/subtitle_positioning.py and assembler.py
+#
+# Pipeline Impact:
+# - Prevents too-short clips that feel jarring or fail to render
+# - Ensures subtitles display long enough to be readable
+timing:
+  # Minimum segment duration in seconds
+  # Prevents creation of video clips shorter than this
+  # Too-short clips can cause rendering issues or feel jarring
+  min_segment_duration_sec: 0.1
+
+  # Minimum safe trim duration (provides buffer for timing accuracy)
+  # Used when trimming video segments to ensure clean cuts
+  min_safe_trim_duration_sec: 0.5
+
+# ============================================================================
 # ATTRIBUTION SETTINGS
 # ============================================================================
 # Video attribution and credits display configuration
@@ -748,10 +888,31 @@ llm_settings:
 # ============================================================================
 # DESCRIPTION SETTINGS
 # ============================================================================
+# AI-generated video description configuration for social media platforms
+# Used by: description_generator.py for creating platform-optimized descriptions
+#
+# Pipeline Impact:
+# - Generates SEO-optimized descriptions for video posts
+# - Includes hashtags, CTAs, and platform-specific formatting
+# - Runs after script generation using same LLM provider
 description_settings:
+  # Enable description generation (disable to skip this step)
   enabled: true
+
+  # Prompt template file path for description generation
+  # Contains platform-specific guidelines and formatting rules
+  # Customize to change description style, length, or CTA approach
   prompt_template_path: "src/ai/prompts/video_description.md"
+
+  # Target platforms for description optimization
+  # Each platform has different character limits and best practices:
+  # - tiktok: 2200 chars, hashtags critical, trending sounds
+  # - youtube: 5000 chars, SEO keywords, detailed descriptions
+  # - instagram: 2200 chars, hashtags, visual-first captions
   target_platforms: ["tiktok", "youtube", "instagram"]
+
+  # Maximum tokens for generated description
+  # 200 tokens ≈ 150-200 words ≈ platform caption + hashtags
   max_tokens: 200
 
 # ============================================================================
