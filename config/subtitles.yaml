@@ -365,9 +365,9 @@ text_rendering:
   min_safe_y_position: 0.05
 
   # Maximum Y position (allows subtitles near bottom of frame)
-  # Increased from 0.95 to 0.98 to support below_content positioning
-  # with large images that may extend lower in the frame
-  max_safe_y_position: 0.98
+  # Maximum Y position for subtitles as fraction of frame height
+  # Set to 0.90 to allow subtitles higher in frame with content-aware positioning
+  max_safe_y_position: 0.90
 
   # Center horizontal position (50% of frame width)
   center_position_fraction: 0.5

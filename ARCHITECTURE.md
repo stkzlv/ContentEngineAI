@@ -296,6 +296,10 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 - **Audio-Based Synchronization**: Perfect timing via actual voiceover transcription (implemented September 2025)
 - **Unified Generation System**: Single path for both ASS and SRT formats with content-aware positioning
 - **Content-Aware Positioning**: Dynamic subtitle placement that analyzes visual content to avoid overlaps
+- **Configurable Video/Subtitle Layout**: Per-profile control of video positioning and subtitle gaps
+  - `video_top_position_percent`: Vertical video start position (default: 10% from top)
+  - `video_content_height_percent`: Video height as frame percentage (default: 75%)
+  - `subtitle_margin`: Gap between content and subtitles (default: 2%)
 - **Pixel-Based Width Constraints**: Intelligent width calculation using font metrics and character-specific sizing
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
 - **Dual ASS Generation**: Regular positioned subtitles + content-aware positioned subtitles for comparison

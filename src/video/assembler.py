@@ -1047,11 +1047,13 @@ class VideoAssembler:
                 )
 
             # Add audio inputs to command
+            # Count actual FFmpeg inputs (number of -i flags)
+            num_visual_inputs = input_cmd_parts.count("-i")
             voiceover_input_idx, music_input_idx = self._prepare_audio_inputs(
                 input_cmd_parts,
                 voiceover_audio_path,
                 music_track_path,
-                len(visual_inputs),
+                num_visual_inputs,
             )
 
             # Build audio processing filters
@@ -1678,6 +1680,8 @@ class VideoAssembler:
         target_height: int,
         video_width: int,
         video_height: int,
+        output_label: str | None = None,
+        video_top_percent: float | None = None,
     ) -> tuple[str, str]:
         """Apply aspect ratio transformation based on configured mode.
 
@@ -1713,27 +1717,39 @@ class VideoAssembler:
             # Within 10% threshold → crop-to-fit, else letterbox
             aspect_mode = "crop-to-fit" if aspect_diff <= 0.10 else "letterbox"
 
-        output_label = f"{input_label}_scaled"
+        # Use provided output_label or generate one from input_label
+        if output_label is None:
+            output_label = f"{input_label}_scaled"
 
         # Letterbox mode: scale with aspect ratio, add black padding
         if aspect_mode == "letterbox":
             # Scale to fit within target dimensions (decrease to fit)
-            # Then pad to exact target size with black bars (centered)
+            # Then pad to exact target size with black bars
+            # Use configurable top position or center if not specified
+            if video_top_percent is not None:
+                # Position video at specified percentage from top
+                y_offset = int(target_height * video_top_percent)
+                pad_y = str(y_offset)
+            else:
+                # Default: center vertically
+                pad_y = "(oh-ih)/2"
+
             filter_string = (
                 f"{input_label}scale={target_width}:{target_height}:"
                 f"force_original_aspect_ratio=decrease,"
                 f"pad={target_width}:{target_height}:"
-                f"(ow-iw)/2:(oh-ih)/2:black{output_label}"
+                f"(ow-iw)/2:{pad_y}:black"
             )
 
         # Crop-to-fit mode: scale to fill, crop excess
         elif aspect_mode == "crop-to-fit":
             # Scale to fill target dimensions (increase to cover)
             # Then crop to exact target size (centered)
+            # Don't add output label here - caller will continue the chain
             filter_string = (
                 f"{input_label}scale={target_width}:{target_height}:"
                 f"force_original_aspect_ratio=increase,"
-                f"crop={target_width}:{target_height}{output_label}"
+                f"crop={target_width}:{target_height}"
             )
 
         else:
@@ -1863,7 +1879,14 @@ class VideoAssembler:
 
             # Apply aspect ratio handling for videos
             if is_video_item:
-                # Use aspect ratio mode for videos
+                # Get video positioning from profile settings (with defaults)
+                if self.profile_settings:
+                    video_top_percent = self.profile_settings.get("video_top_position_percent", 0.10)
+                else:
+                    video_top_percent = 0.10
+
+                # Use aspect ratio mode for videos with configurable positioning
+                # Pass simple label (not [i:v]) to avoid invalid FFmpeg labels like [0:v]_scaled
                 aspect_filter, aspect_label = self._apply_aspect_ratio_mode(
                     f"[{i}:v]",
                     video_settings.video_aspect_mode,
@@ -1871,20 +1894,43 @@ class VideoAssembler:
                     height,
                     orig_w,
                     orig_h,
+                    output_label=f"[v{i}_scaled]",
+                    video_top_percent=video_top_percent,
                 )
                 # Add trim and format after aspect ratio adjustment
+                # aspect_filter doesn't include label, so we add it and continue chain
                 vf_string = (
-                    f"{aspect_filter};"
+                    f"{aspect_filter}{aspect_label};"
                     f"{aspect_label}format={pix_fmt}[v_temp_{i}];"
                     f"[v_temp_{i}]trim=duration={duration},setpts=PTS-STARTPTS{proc_label}"
                 )
-                # Geometry for videos (full frame after aspect ratio handling)
+                # Geometry for videos - use configurable positioning
+                # Get video positioning from profile settings (with defaults)
+                # These settings are at profile level, not in video_settings sub-dict
+                if self.profile_settings:
+                    video_top_percent = self.profile_settings.get("video_top_position_percent", 0.10)
+                    video_height_percent = self.profile_settings.get("video_content_height_percent", 0.75)
+                else:
+                    video_top_percent = 0.10
+                    video_height_percent = 0.75
+
+                # Calculate video geometry based on configuration
+                video_top_pixels = int(height * video_top_percent)
+                video_height_pixels = int(height * video_height_percent)
+
+                logger.debug(
+                    f"Video {i}: Positioned at y={video_top_pixels}px "
+                    f"({video_top_percent*100:.0f}% from top), "
+                    f"height={video_height_pixels}px ({video_height_percent*100:.0f}% of frame)"
+                )
+
+                # Report geometry with configurable positioning
                 geometries.append(
                     VisualGeometry(
                         rendered_x=0,
-                        rendered_y=0,
+                        rendered_y=video_top_pixels,
                         rendered_w=width,
-                        rendered_h=height,
+                        rendered_h=video_height_pixels,
                     )
                 )
             else:
@@ -2755,15 +2801,36 @@ class VideoAssembler:
                         f"margin={unified_config.margin}, spacing={spacing_px}px"
                     )
 
-                    subtitle_y = int(image_bottom + spacing_px)
-
-                    # Ensure subtitle doesn't go off-screen
-                    # (leave room for subtitle height)
-                    # Get font size from unified config
+                    # Get font size from unified config to account for text height
                     from src.video.subtitle_positioning import get_font_size
 
                     font_size = get_font_size(unified_config, frame_height)
 
+                    # Calculate subtitle position accounting for text height
+                    # ASS Alignment=5 (bottom-center) means \pos() y-coordinate is where
+                    # the BOTTOM of the text box sits
+                    # For visibility, we need subtitle bottom to be well within frame
+                    # with enough room for the text to render above it
+
+                    # Calculate subtitle position relative to image bottom
+                    # With Alignment=5 (bottom-center), \pos() y-coordinate is where text BOTTOM sits
+                    # Text renders ABOVE this anchor point
+
+                    # Position subtitles below content with minimal gap
+                    # Need to handle both landscape and portrait orientations differently
+                    frame_height = self.config.video_settings.resolution[1]
+
+                    # Check if portrait (height > width) or landscape
+                    if self.config.video_settings.resolution[1] > self.config.video_settings.resolution[0]:
+                        # Portrait: subtitle anchor should be just below image bottom
+                        # With Alignment=5, y is bottom of text, text renders above
+                        subtitle_y = int(image_bottom + spacing_px)
+                    else:
+                        # Landscape: need font offset to position tight below content
+                        font_offset = font_size * 5.5  # ~418px for 76px font
+                        subtitle_y = int(image_bottom + spacing_px - font_offset)
+
+                    # Ensure subtitle doesn't go off-screen
                     # Allow subtitles to go up to max safe position from config
                     from pathlib import Path
 

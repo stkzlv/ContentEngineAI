@@ -25,7 +25,7 @@ file_naming:
   subtitles_srt: "subtitles.srt"
   subtitles_ass: "subtitles.ass"
   subtitles_content_aware: "subtitles_content_aware.ass"
-  temp_subtitle: "captions.srt"
+  # NOTE: temp_subtitle removed - system uses subtitles.srt, subtitles.ass, etc. directly
 
   # Video output filenames
   # Used by assembler.py for final video generation
@@ -152,14 +152,8 @@ video_settings:
 # AUDIO SETTINGS
 # ============================================================================
 audio_settings:
-  # Audio sample rate (Hz)
-  sample_rate: 44100
-
-  # Audio channels (1=mono, 2=stereo)
-  channels: 2
-
-  # Audio bitrate (kbps)
-  bitrate: 192
+  # NOTE: Audio encoding settings (sample_rate, channels, bitrate) are handled automatically by FFmpeg
+  # Output format is controlled by output_audio_codec and output_audio_bitrate below
 
   # Volume levels (dB)
   music_volume_db: -24.0
@@ -171,6 +165,8 @@ audio_settings:
   # Audio encoding for output
   output_audio_codec: "aac"
   output_audio_bitrate: "192k"
+
+  # Music fade in/out durations (seconds)
   music_fade_in_duration: 2.0
   music_fade_out_duration: 3.0
 
@@ -275,9 +271,8 @@ audio_settings:
   # Background music settings
   background_music:
     enabled: true
-    fade_in_duration: 2.0
-    fade_out_duration: 3.0
-    loop_if_short: true
+    # NOTE: fade_in_duration and fade_out_duration are configured above (lines 170-171)
+    # NOTE: Background music always loops to match video duration
 
 # ============================================================================
 # MEDIA GATHERING
@@ -300,30 +295,15 @@ media_settings:
   # Product title keyword filtering
   product_title_keyword_min_length: 3
 
-  # Maximum items to download per product
-  max_images_per_product: 10
-  max_videos_per_product: 3
-
-  # Image quality settings
-  image_quality:
-    min_width: 300
-    min_height: 300
-    preferred_format: "jpg"
-    max_file_size_mb: 5
-
-  # Video quality settings
-  video_quality:
-    min_duration: 2
-    max_duration: 30
-    preferred_format: "mp4"
-    max_file_size_mb: 50
+  # NOTE: max_images_per_product and max_videos_per_product are configured in scraper.yaml
+  # NOTE: image_quality and video_quality settings are configured in scraper.yaml
 
 # ============================================================================
 # STOCK MEDIA SETTINGS
 # ============================================================================
 stock_media_settings:
-  # Enable stock media usage
-  enabled: false
+  # NOTE: Stock media usage is controlled by profile flags: use_stock_images, use_stock_videos
+  # No global "enabled" flag needed - each profile specifies which media types to use
 
   # Pexels API configuration
   pexels_api_key_env_var: "PEXELS_API_KEY"
@@ -337,18 +317,10 @@ video_profiles:
   # Base profile (shared defaults)
   base:
     description: "Base profile with common settings for all video types."
-    video:
-      preserve_aspect_ratio: true
-      transition_effects:
-        enabled: true
-        duration: 0.5
-    audio:
-      normalize_audio: true
-      background_music:
-        enabled: true
-    subtitles:
-      enabled: true
-      position: "bottom"
+    # NOTE: Video settings (transitions, aspect ratio) controlled by profile-level config
+    # NOTE: Audio normalization handled automatically by pipeline
+    # NOTE: Background music controlled by audio_settings.background_music section
+    # NOTE: Subtitle settings controlled by profile-level subtitle_* config
 
   # Slideshow with images profile
   slideshow_images1:
@@ -504,8 +476,8 @@ video_profiles:
     two_part_subtitles_upper_prefix_replace: ""          # Keep full URL visible
 
     two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
-    two_part_subtitles_lower_margin: 0.05
+    two_part_subtitles_lower_anchor: "below_content"     # Position below images
+    two_part_subtitles_lower_margin: 0.01
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
@@ -555,10 +527,16 @@ video_profiles:
     image_width_percent: 0.85
     image_top_position_percent: 0.15
 
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.15         # Start video 15% from top
+    video_content_height_percent: 0.65       # Video takes 65% of frame height
+    # Remaining 20% at bottom is for subtitles (15% + 65% + 20% = 100%)
+
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.05
+    subtitle_margin: 0.01                    # Minimal gap for tight spacing
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -588,10 +566,14 @@ video_profiles:
     image_width_percent: 0.85
     image_top_position_percent: 0.15
 
+    # Video positioning (for full-frame videos)
+    video_top_position_percent: 0.05         # Start video 5% from top
+    video_content_height_percent: 0.78       # Video takes 78% of frame height
+
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.05
+    subtitle_margin: 0.01                    # Very small gap between video and subtitles
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -690,12 +672,11 @@ cta_detection:
 # ATTRIBUTION SETTINGS
 # ============================================================================
 # Video attribution and credits display configuration
-# NOTE: Feature not yet implemented - configuration placeholder for future development
-# TODO: Implement attribution overlay system in assembler.py
+# NOTE: Attribution feature not implemented, minimal config for Pydantic validation
 attribution_settings:
-  enabled: false  # Disabled - feature pending implementation
-  attribution_template: ""  # Placeholder for future implementation
-  attribution_entry_template: ""  # Placeholder for future implementation
+  enabled: false
+  attribution_template: ""
+  attribution_entry_template: ""
 
 # ============================================================================
 # TEXT-TO-SPEECH SETTINGS

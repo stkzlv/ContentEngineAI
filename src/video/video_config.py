@@ -399,6 +399,14 @@ class VideoProfile(BaseModel):
         None, description="Override video cache directory path"
     )
 
+    # ---- PER-PROFILE VIDEO POSITIONING SETTINGS ----
+    video_top_position_percent: float | None = Field(
+        None, ge=0.0, le=1.0, description="Video vertical start position as fraction (0.0-1.0)"
+    )
+    video_content_height_percent: float | None = Field(
+        None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
+    )
+
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
     # Complete unified subtitle configuration overrides
     subtitle_anchor: str | None = Field(
@@ -1615,6 +1623,12 @@ class VideoConfig(BaseModel):
                     section, field = parts
                     if section in merged_settings:
                         merged_settings[section][field] = value
+
+        # Add video positioning settings from profile (now in Pydantic model)
+        if profile.video_top_position_percent is not None:
+            merged_settings["video_top_position_percent"] = profile.video_top_position_percent
+        if profile.video_content_height_percent is not None:
+            merged_settings["video_content_height_percent"] = profile.video_content_height_percent
 
         return merged_settings
 
