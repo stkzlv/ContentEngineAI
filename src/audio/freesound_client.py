@@ -349,12 +349,12 @@ class FreesoundClient:
         }
 
         # Load retry configuration from config or use defaults
-        if self.config and hasattr(self.config, 'audio_settings'):
-            retry_config = self.config.audio_settings.get('freesound_token_refresh', {})
-            max_retries = retry_config.get('max_retries', 2)
-            timeout_sec = retry_config.get('timeout_sec', 5)
-            backoff_base = retry_config.get('backoff_base_delay_sec', 0.5)
-            backoff_mult = retry_config.get('backoff_multiplier', 2.0)
+        if self.config and hasattr(self.config, "audio_settings"):
+            retry_config = self.config.audio_settings.get("freesound_token_refresh", {})
+            max_retries = retry_config.get("max_retries", 2)
+            timeout_sec = retry_config.get("timeout_sec", 5)
+            backoff_base = retry_config.get("backoff_base_delay_sec", 0.5)
+            backoff_mult = retry_config.get("backoff_multiplier", 2.0)
         else:
             max_retries = 2
             timeout_sec = 5
@@ -426,10 +426,11 @@ class FreesoundClient:
                 )
                 if attempt == max_retries - 1:
                     logger.error(
-                        f"OAuth2 token refresh failed - all attempts timed out after {timeout_sec}s"
+                        f"OAuth2 token refresh failed - all attempts timed out "
+                        f"after {timeout_sec}s"
                     )
                     return False
-                await asyncio.sleep(backoff_base * (backoff_mult ** attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
@@ -538,11 +539,11 @@ class FreesoundClient:
         headers = {"Authorization": f"Bearer {access_token}"}
 
         # Load download retry configuration from config or use defaults
-        if self.config and hasattr(self.config, 'audio_settings'):
-            download_config = self.config.audio_settings.get('freesound_download', {})
-            max_retries = download_config.get('max_retries', 2)
-            backoff_base = download_config.get('backoff_base_delay_sec', 1.0)
-            backoff_mult = download_config.get('backoff_multiplier', 2.0)
+        if self.config and hasattr(self.config, "audio_settings"):
+            download_config = self.config.audio_settings.get("freesound_download", {})
+            max_retries = download_config.get("max_retries", 2)
+            backoff_base = download_config.get("backoff_base_delay_sec", 1.0)
+            backoff_mult = download_config.get("backoff_multiplier", 2.0)
         else:
             max_retries = 2
             backoff_base = 1.0
@@ -658,7 +659,7 @@ class FreesoundClient:
                         f"(sound_id: {sound_id})"
                     )
                     return None
-                await asyncio.sleep(backoff_base * (backoff_mult ** attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientConnectorError as e:
                 logger.warning(
@@ -671,7 +672,7 @@ class FreesoundClient:
                         f"(sound_id: {sound_id})"
                     )
                     return None
-                await asyncio.sleep(backoff_base * (backoff_mult ** attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
@@ -680,7 +681,7 @@ class FreesoundClient:
                 )
                 if attempt == max_retries - 1:
                     return None
-                await asyncio.sleep(backoff_base * (backoff_mult ** attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except RuntimeError as e:
                 if "Session is closed" in str(e) and attempt < max_retries - 1:

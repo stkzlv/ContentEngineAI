@@ -401,7 +401,10 @@ class VideoProfile(BaseModel):
 
     # ---- PER-PROFILE VIDEO POSITIONING SETTINGS ----
     video_top_position_percent: float | None = Field(
-        None, ge=0.0, le=1.0, description="Video vertical start position as fraction (0.0-1.0)"
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Video vertical start position as fraction (0.0-1.0)",
     )
     video_content_height_percent: float | None = Field(
         None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
@@ -1129,6 +1132,18 @@ class VideoConfig(BaseModel):
     whisper_settings: WhisperSettings
     google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)
     video_profiles: dict[str, VideoProfile]
+    aspect_ratio: dict[str, Any] = Field(
+        default_factory=lambda: {"smart_scale_tolerance": 0.10}
+    )
+    format_normalization: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "target_fps": 30.0,
+            "fps_tolerance": 0.1,
+            "default_fps_string": "30/1",
+            "target_codec": "h264",
+            "target_pixel_format": "yuv420p",
+        }
+    )
 
     # New configuration sections for magic numbers
     api_settings: ApiSettings | None = Field(None)
@@ -1626,9 +1641,13 @@ class VideoConfig(BaseModel):
 
         # Add video positioning settings from profile (now in Pydantic model)
         if profile.video_top_position_percent is not None:
-            merged_settings["video_top_position_percent"] = profile.video_top_position_percent
+            merged_settings["video_settings"]["video_top_position_percent"] = (
+                profile.video_top_position_percent
+            )
         if profile.video_content_height_percent is not None:
-            merged_settings["video_content_height_percent"] = profile.video_content_height_percent
+            merged_settings["video_settings"]["video_content_height_percent"] = (
+                profile.video_content_height_percent
+            )
 
         return merged_settings
 

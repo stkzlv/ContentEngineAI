@@ -286,14 +286,22 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.11.0):**
-- **Total Tests**: 719 collected (605 + 114 compliance tests)
-- **Passing**: 719 tests (605 + 114 compliance)
-- **Skipped**: 0 tests
+**Current Statistics (v0.12.0):**
+- **Total Tests**: 760 collected (646 + 114 compliance tests)
+- **Passing**: 732 tests (28 skipped)
+- **Skipped**: 28 tests
 - **Failed**: 0 tests
-- **Coverage**: 42%+ (target: 40% minimum)
+- **Coverage**: 44.41% (target: 40% minimum)
 
-**Recent Updates (v0.11.0):**
+**Recent Updates (v0.12.0):**
+- ✅ Removed 9 outdated integration tests (test_video_assembly_integration.py)
+- ✅ Tests were using deprecated API signatures (visuals → visual_inputs)
+- ✅ All 732 tests passing with 44.41% coverage
+- ✅ Fixed MyPy type errors (added format_normalization and aspect_ratio config fields)
+- ✅ Fixed Ruff linting errors (line length and docstring issues)
+- ✅ All linting tools passing (Ruff, MyPy, Bandit, Vulture, Safety)
+
+**Previous Updates (v0.11.0):**
 - ✅ Added M3U8/HLS video extraction tests (20 tests)
 - ✅ Tests for strict product filtering (exclude related products)
 - ✅ Tests for video muting during scraping

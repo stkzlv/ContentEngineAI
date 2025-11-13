@@ -801,11 +801,11 @@ class VideoAssembler:
 
             # Load format normalization settings from config
             format_norm = self.config.format_normalization
-            target_fps = format_norm.get('target_fps', 30.0)
-            fps_tolerance = format_norm.get('fps_tolerance', 0.1)
-            default_fps_string = format_norm.get('default_fps_string', '30/1')
-            target_codec = format_norm.get('target_codec', 'h264')
-            target_pixel_format = format_norm.get('target_pixel_format', 'yuv420p')
+            target_fps = format_norm.get("target_fps", 30.0)
+            fps_tolerance = format_norm.get("fps_tolerance", 0.1)
+            default_fps_string = format_norm.get("default_fps_string", "30/1")
+            target_codec = format_norm.get("target_codec", "h264")
+            target_pixel_format = format_norm.get("target_pixel_format", "yuv420p")
 
             fps_str = stream.get("r_frame_rate", default_fps_string)
 
@@ -818,7 +818,9 @@ class VideoAssembler:
 
             # Check if already in correct format
             is_h264 = codec == target_codec
-            is_30fps = abs(fps - target_fps) < fps_tolerance  # Within configured tolerance
+            is_30fps = (
+                abs(fps - target_fps) < fps_tolerance
+            )  # Within configured tolerance
             is_yuv420p = pix_fmt == target_pixel_format
 
             if is_h264 and is_30fps and is_yuv420p:
@@ -843,7 +845,8 @@ class VideoAssembler:
             # Transcode to normalized format
             if self.debug_mode:
                 logger.debug(
-                    f"Transcoding {video_path.name} to {target_codec}/{target_fps}fps/{target_pixel_format} "
+                    f"Transcoding {video_path.name} to "
+                    f"{target_codec}/{target_fps}fps/{target_pixel_format} "
                     f"(current: {codec}/{fps:.1f}fps/{pix_fmt})"
                 )
 
@@ -1707,6 +1710,8 @@ class VideoAssembler:
             target_height: Target output height in pixels
             video_width: Source video width in pixels
             video_height: Source video height in pixels
+            output_label: Optional output label override
+            video_top_percent: Optional vertical position override (0.0-1.0)
 
         Returns:
         -------
@@ -1724,8 +1729,12 @@ class VideoAssembler:
             # Calculate percentage difference
             aspect_diff = abs(target_aspect - video_aspect) / target_aspect
             # Use configured tolerance threshold
-            aspect_tolerance = self.config.aspect_ratio.get('smart_scale_tolerance', 0.10)
-            aspect_mode = "crop-to-fit" if aspect_diff <= aspect_tolerance else "letterbox"
+            aspect_tolerance = self.config.aspect_ratio.get(
+                "smart_scale_tolerance", 0.10
+            )
+            aspect_mode = (
+                "crop-to-fit" if aspect_diff <= aspect_tolerance else "letterbox"
+            )
 
         # Use provided output_label or generate one from input_label
         if output_label is None:
@@ -1891,12 +1900,15 @@ class VideoAssembler:
             if is_video_item:
                 # Get video positioning from profile settings (with defaults)
                 if self.profile_settings:
-                    video_top_percent = self.profile_settings.get("video_top_position_percent", 0.10)
+                    video_top_percent = self.profile_settings.get(
+                        "video_top_position_percent", 0.10
+                    )
                 else:
                     video_top_percent = 0.10
 
                 # Use aspect ratio mode for videos with configurable positioning
-                # Pass simple label (not [i:v]) to avoid invalid FFmpeg labels like [0:v]_scaled
+                # Pass simple label (not [i:v]) to avoid invalid FFmpeg labels
+                # like [0:v]_scaled
                 aspect_filter, aspect_label = self._apply_aspect_ratio_mode(
                     f"[{i}:v]",
                     video_settings.video_aspect_mode,
@@ -1918,8 +1930,12 @@ class VideoAssembler:
                 # Get video positioning from profile settings (with defaults)
                 # These settings are at profile level, not in video_settings sub-dict
                 if self.profile_settings:
-                    video_top_percent = self.profile_settings.get("video_top_position_percent", 0.10)
-                    video_height_percent = self.profile_settings.get("video_content_height_percent", 0.75)
+                    video_top_percent = self.profile_settings.get(
+                        "video_top_position_percent", 0.10
+                    )
+                    video_height_percent = self.profile_settings.get(
+                        "video_content_height_percent", 0.75
+                    )
                 else:
                     video_top_percent = 0.10
                     video_height_percent = 0.75
@@ -1931,7 +1947,8 @@ class VideoAssembler:
                 logger.debug(
                     f"Video {i}: Positioned at y={video_top_pixels}px "
                     f"({video_top_percent*100:.0f}% from top), "
-                    f"height={video_height_pixels}px ({video_height_percent*100:.0f}% of frame)"
+                    f"height={video_height_pixels}px "
+                    f"({video_height_percent*100:.0f}% of frame)"
                 )
 
                 # Report geometry with configurable positioning
@@ -2823,15 +2840,18 @@ class VideoAssembler:
                     # with enough room for the text to render above it
 
                     # Calculate subtitle position relative to image bottom
-                    # With Alignment=5 (bottom-center), \pos() y-coordinate is where text BOTTOM sits
-                    # Text renders ABOVE this anchor point
+                    # With Alignment=5 (bottom-center), \pos() y-coordinate
+                    # is where text BOTTOM sits. Text renders ABOVE anchor point
 
                     # Position subtitles below content with minimal gap
-                    # Need to handle both landscape and portrait orientations differently
+                    # Handle both landscape and portrait orientations
                     frame_height = self.config.video_settings.resolution[1]
 
                     # Check if portrait (height > width) or landscape
-                    if self.config.video_settings.resolution[1] > self.config.video_settings.resolution[0]:
+                    if (
+                        self.config.video_settings.resolution[1]
+                        > self.config.video_settings.resolution[0]
+                    ):
                         # Portrait: subtitle anchor should be just below image bottom
                         # With Alignment=5, y is bottom of text, text renders above
                         subtitle_y = int(image_bottom + spacing_px)
@@ -2848,7 +2868,9 @@ class VideoAssembler:
                             with open(config_path, encoding="utf-8") as f:
                                 data = yaml.safe_load(f)
                                 text_rendering = data.get("text_rendering", {})
-                                font_offset_multiplier = text_rendering.get("content_aware_font_offset_multiplier", 5.5)
+                                font_offset_multiplier = text_rendering.get(
+                                    "content_aware_font_offset_multiplier", 5.5
+                                )
 
                         font_offset = font_size * font_offset_multiplier
                         subtitle_y = int(image_bottom + spacing_px - font_offset)
@@ -2856,9 +2878,11 @@ class VideoAssembler:
                     # Ensure subtitle doesn't go off-screen
                     # Allow subtitles to go up to max safe position from config
                     max_safe_y = 0.95  # Default
-                    if 'data' not in locals():
+                    if "data" not in locals():
                         from pathlib import Path
+
                         import yaml
+
                         config_path = Path("config/subtitles.yaml")
                         if config_path.exists():
                             with open(config_path, encoding="utf-8") as f:
