@@ -1694,6 +1694,7 @@ class VideoAssembler:
         video_height: int,
         output_label: str | None = None,
         video_top_percent: float | None = None,
+        target_content_height: int | None = None,
     ) -> tuple[str, str]:
         """Apply aspect ratio transformation based on configured mode.
 
@@ -1707,11 +1708,13 @@ class VideoAssembler:
             input_label: FFmpeg input label (e.g., "[v0]")
             aspect_mode: Mode ("letterbox", "crop-to-fit", "smart-scale")
             target_width: Target output width in pixels
-            target_height: Target output height in pixels
+            target_height: Target output height in pixels (full frame)
             video_width: Source video width in pixels
             video_height: Source video height in pixels
             output_label: Optional output label override
             video_top_percent: Optional vertical position override (0.0-1.0)
+            target_content_height: Optional content height limit (scales to this height,
+                                   then pads to full target_height)
 
         Returns:
         -------
@@ -1742,6 +1745,14 @@ class VideoAssembler:
 
         # Letterbox mode: scale with aspect ratio, add black padding
         if aspect_mode == "letterbox":
+            # Determine scaling target height
+            if target_content_height is not None:
+                # Scale to fit within constrained content area
+                scale_height = target_content_height
+            else:
+                # Scale to fit full frame
+                scale_height = target_height
+
             # Scale to fit within target dimensions (decrease to fit)
             # Then pad to exact target size with black bars
             # Use configurable top position or center if not specified
@@ -1754,11 +1765,18 @@ class VideoAssembler:
                 pad_y = "(oh-ih)/2"
 
             filter_string = (
-                f"{input_label}scale={target_width}:{target_height}:"
+                f"{input_label}scale={target_width}:{scale_height}:"
                 f"force_original_aspect_ratio=decrease,"
                 f"pad={target_width}:{target_height}:"
                 f"(ow-iw)/2:{pad_y}:black"
             )
+
+            # Debug logging
+            if target_content_height is not None:
+                logger.debug(
+                    f"[LETTERBOX] Constrained video: scale to {target_width}x{scale_height}, "
+                    f"pad to {target_width}x{target_height} at Y={pad_y}"
+                )
 
         # Crop-to-fit mode: scale to fill, crop excess
         elif aspect_mode == "crop-to-fit":
@@ -1899,12 +1917,21 @@ class VideoAssembler:
             # Apply aspect ratio handling for videos
             if is_video_item:
                 # Get video positioning from profile settings (with defaults)
-                if self.profile_settings:
-                    video_top_percent = self.profile_settings.get(
-                        "video_top_position_percent", 0.10
+                if self.profile_settings and "video_settings" in self.profile_settings:
+                    vs = self.profile_settings["video_settings"]
+                    video_top_percent = vs.get("video_top_position_percent", 0.10)
+                    video_height_percent = vs.get("video_content_height_percent", 0.75)
+                    logger.debug(
+                        f"[VIDEO POS] Reading from video_settings: "
+                        f"top={video_top_percent:.2%}, height={video_height_percent:.2%}"
                     )
                 else:
                     video_top_percent = 0.10
+                    video_height_percent = 0.75
+                    logger.debug(f"[VIDEO POS] Using defaults (no video_settings)")
+
+                # Calculate target content height from percentage
+                target_content_height = int(height * video_height_percent)
 
                 # Use aspect ratio mode for videos with configurable positioning
                 # Pass simple label (not [i:v]) to avoid invalid FFmpeg labels
@@ -1918,6 +1945,7 @@ class VideoAssembler:
                     orig_h,
                     output_label=f"[v{i}_scaled]",
                     video_top_percent=video_top_percent,
+                    target_content_height=target_content_height,
                 )
                 # Add trim and format after aspect ratio adjustment
                 # aspect_filter doesn't include label, so we add it and continue chain

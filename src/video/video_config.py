@@ -1644,9 +1644,17 @@ class VideoConfig(BaseModel):
             merged_settings["video_settings"]["video_top_position_percent"] = (
                 profile.video_top_position_percent
             )
+            logger.debug(
+                f"[TRACE] Profile '{profile_name}' overrides video_top_position_percent: "
+                f"{profile.video_top_position_percent:.2%}"
+            )
         if profile.video_content_height_percent is not None:
             merged_settings["video_settings"]["video_content_height_percent"] = (
                 profile.video_content_height_percent
+            )
+            logger.debug(
+                f"[TRACE] Profile '{profile_name}' overrides video_content_height_percent: "
+                f"{profile.video_content_height_percent:.2%}"
             )
 
         return merged_settings

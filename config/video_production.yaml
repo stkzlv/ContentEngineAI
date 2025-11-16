@@ -521,8 +521,8 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.9
-    image_top_position_percent: 0.13
+    image_width_percent: 0.75              # Medium size images
+    image_top_position_percent: 0.20       # Position images in upper-middle area
 
     # Two-part subtitle system configuration
     two_part_subtitles_enabled: true
@@ -530,7 +530,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.04
+    two_part_subtitles_upper_margin: 0.06
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
     two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
@@ -539,12 +539,13 @@ video_profiles:
 
     two_part_subtitles_lower_enabled: true
     two_part_subtitles_lower_anchor: "below_content"     # Position below images
-    two_part_subtitles_lower_margin: 0.01
+    two_part_subtitles_lower_margin: 0.02
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
+    subtitle_margin: 0.30                    # Large gap below images (30% of frame = 576px spacing)
 
     # Lower line styling (voiceover subtitles)
     subtitle_style_preset: "modern"
@@ -587,18 +588,18 @@ video_profiles:
 
     # Image positioning (for fallback images)
     image_width_percent: 0.85
-    image_top_position_percent: 0.15
+    image_top_position_percent: 0.45         # Position lower (45% from top = 864px)
 
     # Video positioning (for full-frame videos)
     # Controls vertical placement and subtitle space reservation
-    video_top_position_percent: 0.15         # Start video 15% from top
-    video_content_height_percent: 0.65       # Video takes 65% of frame height
-    # Remaining 20% at bottom is for subtitles (15% + 65% + 20% = 100%)
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
 
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.01                    # Minimal gap for tight spacing
+    subtitle_margin: -0.25                   # Position subtitles right under video (1920 * -0.25 = -480px, brings to ~1152px)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
