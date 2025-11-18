@@ -1774,7 +1774,8 @@ class VideoAssembler:
             # Debug logging
             if target_content_height is not None:
                 logger.debug(
-                    f"[LETTERBOX] Constrained video: scale to {target_width}x{scale_height}, "
+                    f"[LETTERBOX] Constrained video: scale to "
+                    f"{target_width}x{scale_height}, "
                     f"pad to {target_width}x{target_height} at Y={pad_y}"
                 )
 
@@ -1923,12 +1924,13 @@ class VideoAssembler:
                     video_height_percent = vs.get("video_content_height_percent", 0.75)
                     logger.debug(
                         f"[VIDEO POS] Reading from video_settings: "
-                        f"top={video_top_percent:.2%}, height={video_height_percent:.2%}"
+                        f"top={video_top_percent:.2%}, "
+                        f"height={video_height_percent:.2%}"
                     )
                 else:
                     video_top_percent = 0.10
                     video_height_percent = 0.75
-                    logger.debug(f"[VIDEO POS] Using defaults (no video_settings)")
+                    logger.debug("[VIDEO POS] Using defaults (no video_settings)")
 
                 # Calculate target content height from percentage
                 target_content_height = int(height * video_height_percent)

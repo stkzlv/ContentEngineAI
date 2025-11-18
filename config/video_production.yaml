@@ -160,7 +160,7 @@ audio_settings:
   voiceover_volume_db: 3.0
 
   # Audio mixing settings
-  audio_mix_duration: "longest"
+  audio_mix_duration: "first"  # Use first track (voiceover) duration to keep audio/subtitle sync
 
   # Audio encoding for output
   output_audio_codec: "aac"
@@ -545,7 +545,7 @@ video_profiles:
     subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
-    subtitle_margin: 0.30                    # Large gap below images (30% of frame = 576px spacing)
+    subtitle_margin: 0.05                    # Small gap below images (5% of frame = 96px spacing)
 
     # Lower line styling (voiceover subtitles)
     subtitle_style_preset: "modern"
@@ -630,13 +630,15 @@ video_profiles:
     image_top_position_percent: 0.15
 
     # Video positioning (for full-frame videos)
-    video_top_position_percent: 0.05         # Start video 5% from top
-    video_content_height_percent: 0.78       # Video takes 78% of frame height
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
 
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.01                    # Very small gap between video and subtitles
+    subtitle_margin: -0.25                   # Position subtitles right under video (1920 * -0.25 = -480px, brings to ~1152px)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -667,10 +669,16 @@ video_profiles:
     image_width_percent: 0.85
     image_top_position_percent: 0.15
 
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.05
+    subtitle_margin: -0.25                   # Position subtitles right under video (1920 * -0.25 = -480px, brings to ~1152px)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -701,10 +709,16 @@ video_profiles:
     image_width_percent: 0.85
     image_top_position_percent: 0.15
 
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
     # Subtitle configuration - SRT format
     subtitle_format: "srt"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.05
+    subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"

@@ -1645,7 +1645,8 @@ class VideoConfig(BaseModel):
                 profile.video_top_position_percent
             )
             logger.debug(
-                f"[TRACE] Profile '{profile_name}' overrides video_top_position_percent: "
+                f"[TRACE] Profile '{profile_name}' overrides "
+                f"video_top_position_percent: "
                 f"{profile.video_top_position_percent:.2%}"
             )
         if profile.video_content_height_percent is not None:
@@ -1653,7 +1654,8 @@ class VideoConfig(BaseModel):
                 profile.video_content_height_percent
             )
             logger.debug(
-                f"[TRACE] Profile '{profile_name}' overrides video_content_height_percent: "
+                f"[TRACE] Profile '{profile_name}' overrides "
+                f"video_content_height_percent: "
                 f"{profile.video_content_height_percent:.2%}"
             )
 
