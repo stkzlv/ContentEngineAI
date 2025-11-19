@@ -2477,6 +2477,12 @@ class VideoAssembler:
                 # Use upper line's style preset if specified
                 style_preset = upper_config.get("style_preset", "minimal")
                 upper_settings = settings_dict.copy()
+
+                logger.debug(
+                    f"[TWO-PART] settings_dict content_aware="
+                    f"{settings_dict.get('content_aware', 'NOT_SET')}"
+                )
+
                 upper_settings["style_preset"] = style_preset
                 upper_settings["anchor"] = upper_config.get("anchor", "above_content")
                 upper_settings["margin"] = upper_config.get("margin", 0.03)
@@ -2484,8 +2490,17 @@ class VideoAssembler:
                     "font_size_scale", 0.8
                 )
 
+                logger.debug(
+                    f"[TWO-PART] upper_settings content_aware="
+                    f"{upper_settings.get('content_aware', 'NOT_SET')}"
+                )
+
                 try:
                     upper_unified_config = UnifiedSubtitleConfig(**upper_settings)
+                    logger.debug(
+                        f"[TWO-PART] upper_unified_config.content_aware="
+                        f"{upper_unified_config.content_aware}"
+                    )
                     style_config = get_style_config(
                         preset=style_preset,
                         config=upper_unified_config,
@@ -2516,16 +2531,66 @@ class VideoAssembler:
                     geom = geometries[0] if geometries else None
                     visual_bounds = None
 
-                    if upper_unified_config.content_aware and geom:
+                    if upper_unified_config.content_aware:
                         frame_width, frame_height = (
                             self.config.video_settings.resolution
                         )
-                        visual_bounds = VisualBounds(
-                            x=geom.rendered_x / frame_width,
-                            y=geom.rendered_y / frame_height,
-                            width=geom.rendered_w / frame_width,
-                            height=geom.rendered_h / frame_height,
+
+                        logger.debug(
+                            f"[TWO-PART UPPER] content_aware=True, "
+                            f"profile_settings exists="
+                            f"{self.profile_settings is not None}"
                         )
+
+                        # Check if we have configured video positioning
+                        # (preferred for consistent subtitle placement)
+                        has_settings = (
+                            self.profile_settings
+                            and "video_settings" in self.profile_settings
+                        )
+                        if has_settings and self.profile_settings:
+                            vs = self.profile_settings["video_settings"]
+                            video_top_percent = vs.get("video_top_position_percent")
+                            video_height_percent = vs.get(
+                                "video_content_height_percent"
+                            )
+
+                            # Use configured video bounds if both settings exist
+                            has_both = (
+                                video_top_percent is not None
+                                and video_height_percent is not None
+                            )
+                            if has_both:
+                                # Use configured video positioning
+                                visual_bounds = VisualBounds(
+                                    x=0.0,
+                                    y=video_top_percent,
+                                    width=1.0,
+                                    height=video_height_percent,
+                                )
+                                logger.debug(
+                                    f"Upper subtitle using configured bounds: "
+                                    f"y={video_top_percent:.2%}, "
+                                    f"height={video_height_percent:.2%}"
+                                )
+                            elif geom:
+                                # Fall back to detected geometry
+                                visual_bounds = VisualBounds(
+                                    x=geom.rendered_x / frame_width,
+                                    y=geom.rendered_y / frame_height,
+                                    width=geom.rendered_w / frame_width,
+                                    height=geom.rendered_h / frame_height,
+                                )
+                                logger.debug("Upper subtitle using detected geometry")
+                        elif geom:
+                            # No configured positioning, use detected geometry
+                            visual_bounds = VisualBounds(
+                                x=geom.rendered_x / frame_width,
+                                y=geom.rendered_y / frame_height,
+                                width=geom.rendered_w / frame_width,
+                                height=geom.rendered_h / frame_height,
+                            )
+                            logger.debug("Upper subtitle using detected geometry")
 
                     position = calculate_position(
                         upper_unified_config,
@@ -2670,17 +2735,54 @@ class VideoAssembler:
                                 )
 
                                 visual_bounds = None
-                                if lower_unified_config.content_aware and geom:
+                                if lower_unified_config.content_aware:
                                     (
                                         frame_width,
                                         frame_height,
                                     ) = self.config.video_settings.resolution
-                                    visual_bounds = VisualBounds(
-                                        x=geom.rendered_x / frame_width,
-                                        y=geom.rendered_y / frame_height,
-                                        width=geom.rendered_w / frame_width,
-                                        height=geom.rendered_h / frame_height,
+
+                                    # Check for configured video positioning
+                                    has_settings = (
+                                        self.profile_settings
+                                        and "video_settings" in self.profile_settings
                                     )
+                                    if has_settings and self.profile_settings:
+                                        vs = self.profile_settings["video_settings"]
+                                        video_top_percent = vs.get(
+                                            "video_top_position_percent"
+                                        )
+                                        video_height_percent = vs.get(
+                                            "video_content_height_percent"
+                                        )
+
+                                        has_both = (
+                                            video_top_percent is not None
+                                            and video_height_percent is not None
+                                        )
+                                        if has_both:
+                                            # Use configured video positioning
+                                            visual_bounds = VisualBounds(
+                                                x=0.0,
+                                                y=video_top_percent,
+                                                width=1.0,
+                                                height=video_height_percent,
+                                            )
+                                        elif geom:
+                                            # Fall back to detected geometry
+                                            visual_bounds = VisualBounds(
+                                                x=geom.rendered_x / frame_width,
+                                                y=geom.rendered_y / frame_height,
+                                                width=geom.rendered_w / frame_width,
+                                                height=geom.rendered_h / frame_height,
+                                            )
+                                    elif geom:
+                                        # No configured positioning
+                                        visual_bounds = VisualBounds(
+                                            x=geom.rendered_x / frame_width,
+                                            y=geom.rendered_y / frame_height,
+                                            width=geom.rendered_w / frame_width,
+                                            height=geom.rendered_h / frame_height,
+                                        )
 
                                 position = calculate_position(
                                     lower_unified_config,
@@ -2796,7 +2898,91 @@ class VideoAssembler:
 
             # Process each dialogue line for content-aware positioning
             content_aware_events = []
-            settings_dict = self._get_effective_subtitle_settings()
+
+            # Determine which subtitle settings to use based on filename
+            # For two-part subtitles, use the appropriate config
+            is_upper_subtitle = "_upper" in original_ass_path.stem.lower()
+            is_lower_subtitle = (
+                "subtitle" in original_ass_path.stem.lower() and not is_upper_subtitle
+            )
+
+            logger.debug(
+                f"Subtitle file detection: {original_ass_path.name} - "
+                f"is_upper={is_upper_subtitle}, is_lower={is_lower_subtitle}"
+            )
+
+            if is_lower_subtitle and self.profile_settings:
+                # Construct two-part lower subtitle settings from profile
+                # Access subtitle_settings directly to get two-part fields
+                # (not stripped by Pydantic)
+                subtitle_settings = self.profile_settings["subtitle_settings"]
+
+                # Check if two-part subtitles are enabled
+                two_part_enabled = subtitle_settings.get(
+                    "two_part_subtitles_enabled", False
+                )
+                lower_enabled = subtitle_settings.get(
+                    "two_part_subtitles_lower_enabled", False
+                )
+
+                if two_part_enabled and lower_enabled:
+                    # Build lower subtitle settings from config
+                    # Start with validated base settings
+                    settings_dict = self._get_effective_subtitle_settings()
+                    # Override with two-part lower settings
+                    settings_dict["anchor"] = subtitle_settings.get(
+                        "two_part_subtitles_lower_anchor", "below_content"
+                    )
+                    settings_dict["margin"] = subtitle_settings.get(
+                        "two_part_subtitles_lower_margin", 0.02
+                    )
+                    logger.debug(
+                        f"Using two-part lower subtitle settings: "
+                        f"anchor={settings_dict['anchor']}, "
+                        f"margin={settings_dict['margin']}"
+                    )
+                else:
+                    settings_dict = self._get_effective_subtitle_settings()
+                    logger.debug(
+                        "Two-part lower not enabled, using default subtitle settings"
+                    )
+            elif is_upper_subtitle and self.profile_settings:
+                # Construct two-part upper subtitle settings from profile
+                # Access subtitle_settings directly to get two-part fields
+                # (not stripped by Pydantic)
+                subtitle_settings = self.profile_settings["subtitle_settings"]
+
+                # Check if two-part subtitles are enabled
+                two_part_enabled = subtitle_settings.get(
+                    "two_part_subtitles_enabled", False
+                )
+                upper_enabled = subtitle_settings.get(
+                    "two_part_subtitles_upper_enabled", False
+                )
+
+                if two_part_enabled and upper_enabled:
+                    # Build upper subtitle settings from config
+                    # Start with validated base settings
+                    settings_dict = self._get_effective_subtitle_settings()
+                    # Override with two-part upper settings
+                    settings_dict["anchor"] = subtitle_settings.get(
+                        "two_part_subtitles_upper_anchor", "above_content"
+                    )
+                    settings_dict["margin"] = subtitle_settings.get(
+                        "two_part_subtitles_upper_margin", 0.06
+                    )
+                    logger.debug(
+                        f"Using two-part upper subtitle settings: "
+                        f"anchor={settings_dict['anchor']}, "
+                        f"margin={settings_dict['margin']}"
+                    )
+                else:
+                    settings_dict = self._get_effective_subtitle_settings()
+                    logger.debug(
+                        "Two-part upper not enabled, using default subtitle settings"
+                    )
+            else:
+                settings_dict = self._get_effective_subtitle_settings()
 
             # Import and use UnifiedSubtitleConfig for proper validation
             from src.video.subtitle_positioning import (
@@ -2841,21 +3027,66 @@ class VideoAssembler:
                         segment_idx = i
                         break
 
-                # Calculate content-aware position based on image geometry
+                # Calculate content-aware position based on configured or
+                # detected geometry
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
-                    # Calculate subtitle position relative to image using unified config
+                    # Calculate subtitle position relative to content using
+                    # unified config
                     frame_height = self.config.video_settings.resolution[1]
-                    image_bottom = geom.rendered_y + geom.rendered_h
+
+                    # Check if we have configured video positioning
+                    # (preferred for consistent subtitle placement)
+                    has_settings = (
+                        self.profile_settings
+                        and "video_settings" in self.profile_settings
+                    )
+                    if has_settings and self.profile_settings:
+                        vs = self.profile_settings["video_settings"]
+                        video_top_percent = vs.get("video_top_position_percent")
+                        video_height_percent = vs.get("video_content_height_percent")
+
+                        # Use configured video bottom if both settings exist
+                        has_both = (
+                            video_top_percent is not None
+                            and video_height_percent is not None
+                        )
+                        if has_both:
+                            configured_bottom = int(
+                                frame_height
+                                * (video_top_percent + video_height_percent)
+                            )
+                            content_bottom = configured_bottom
+                            logger.debug(
+                                f"Using configured video bottom: "
+                                f"{content_bottom}px "
+                                f"(top={video_top_percent:.2%}, "
+                                f"height={video_height_percent:.2%})"
+                            )
+                        else:
+                            # Fall back to detected geometry
+                            content_bottom = geom.rendered_y + geom.rendered_h
+                            logger.debug(
+                                f"Using detected geometry bottom: "
+                                f"{content_bottom}px"
+                            )
+                    else:
+                        # No configured positioning, use detected geometry
+                        content_bottom = geom.rendered_y + geom.rendered_h
+                        logger.debug(
+                            f"Using detected geometry bottom: " f"{content_bottom}px"
+                        )
 
                     # Use margin from unified config
                     # (margin is as fraction of frame height)
                     spacing_px = unified_config.margin * frame_height
 
                     logger.debug(
-                        f"Content-aware positioning: image_bottom={image_bottom}px, "
-                        f"margin={unified_config.margin}, spacing={spacing_px}px"
+                        f"Content-aware positioning: "
+                        f"content_bottom={content_bottom}px, "
+                        f"margin={unified_config.margin}, "
+                        f"spacing={spacing_px}px"
                     )
 
                     # Get font size from unified config to account for text height
@@ -2882,9 +3113,9 @@ class VideoAssembler:
                         self.config.video_settings.resolution[1]
                         > self.config.video_settings.resolution[0]
                     ):
-                        # Portrait: subtitle anchor should be just below image bottom
+                        # Portrait: subtitle anchor should be just below content bottom
                         # With Alignment=5, y is bottom of text, text renders above
-                        subtitle_y = int(image_bottom + spacing_px)
+                        subtitle_y = int(content_bottom + spacing_px)
                     else:
                         # Landscape: need font offset to position tight below content
                         # Load font offset multiplier from config
@@ -2903,7 +3134,7 @@ class VideoAssembler:
                                 )
 
                         font_offset = font_size * font_offset_multiplier
-                        subtitle_y = int(image_bottom + spacing_px - font_offset)
+                        subtitle_y = int(content_bottom + spacing_px - font_offset)
 
                     # Ensure subtitle doesn't go off-screen
                     # Allow subtitles to go up to max safe position from config
@@ -2928,7 +3159,7 @@ class VideoAssembler:
 
                     logger.debug(
                         f"Subtitle positioned at y={subtitle_y} "
-                        f"(image_bottom={image_bottom}, spacing={spacing_px}px, "
+                        f"(content_bottom={content_bottom}, spacing={spacing_px}px, "
                         f"font_size={font_size}px)"
                     )
 

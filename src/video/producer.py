@@ -1252,6 +1252,29 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     ),
                 }
 
+            # Calculate visual bounds for content-aware positioning
+            from src.video.subtitle_positioning import VisualBounds
+
+            video_top = (
+                ctx.profile.video_top_position_percent
+                or ctx.profile.image_top_position_percent
+                or 0.07
+            )
+            video_height = ctx.profile.video_content_height_percent or 0.8
+            video_width = ctx.profile.image_width_percent or 0.9
+
+            visual_bounds = VisualBounds(
+                x=(1.0 - video_width) / 2,
+                y=video_top,
+                width=video_width,
+                height=video_height,
+            )
+
+            logger.debug(
+                f"Visual bounds for subtitles: "
+                f"y={video_top:.2%}, height={video_height:.2%}"
+            )
+
             if lower_enabled:
                 # Update subtitle settings for lower line positioning
                 lower_subtitle_settings = profile_subtitle_settings.copy()
@@ -1278,6 +1301,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     Path(ctx.run_paths["run_root"])
                     / ctx.config.output_structure.product_subdirs.temp,
                     product_id,
+                    visual_bounds,
                 )
 
                 if not lower_path or not lower_path.exists():
@@ -1340,18 +1364,6 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     )
                     upper_output_path = ctx.run_paths["subtitle_file"].with_name(
                         f"subtitle_upper.{subtitle_format}"
-                    )
-
-                    # Calculate visual bounds for content-aware positioning
-                    from src.video.subtitle_positioning import VisualBounds
-
-                    image_top = ctx.profile.image_top_position_percent or 0.07
-                    image_width = ctx.profile.image_width_percent or 0.9
-                    visual_bounds = VisualBounds(
-                        x=(1.0 - image_width) / 2,  # Center horizontally
-                        y=image_top,
-                        width=image_width,
-                        height=0.8,  # Approximate image height
                     )
 
                     upper_path = create_static_upper_subtitle(

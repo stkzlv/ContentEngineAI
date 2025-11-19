@@ -581,6 +581,7 @@ async def create_unified_subtitles(
     video_config: Any = None,
     temp_dir: Path | None = None,
     product_id: str | None = None,
+    visual_bounds: Any | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -603,6 +604,7 @@ async def create_unified_subtitles(
         video_config: Video configuration for frame size
         temp_dir: Optional temp directory for debug files (defaults to output parent)
         product_id: Product ID for randomization (if applicable)
+        visual_bounds: Optional visual content boundaries for subtitle positioning
 
     Returns:
     -------
@@ -711,6 +713,7 @@ async def create_unified_subtitles(
                 output_path=output_path,
                 format_type=format_type,
                 voiceover_duration=voiceover_duration,
+                visual_bounds=visual_bounds,
                 debug_mode=debug_mode,
             )
         elif script and voiceover_duration:
