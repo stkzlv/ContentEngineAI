@@ -805,6 +805,11 @@ def extract_functional_videos_with_validation(
                 # Re-enabled with DOM context validation to exclude competitor videos
                 for url in direct_videos:
                     if len(video_urls) >= max_videos:
+                        if DEBUG_MODE:
+                            logger.info(
+                                f"🛑 Method 1: Reached video limit "
+                                f"({len(video_urls)}/{max_videos}), stopping extraction"
+                            )
                         break
                     if (
                         url not in video_urls
@@ -916,6 +921,12 @@ def extract_functional_videos_with_validation(
                             # Take only the first m3u8 URL (hero video)
                             for m3u8_url in m3u8_urls[:max_videos]:
                                 if len(video_urls) >= max_videos:
+                                    if DEBUG_MODE:
+                                        logger.info(
+                                            f"🛑 Method 2: Reached video limit "
+                                            f"({len(video_urls)}/{max_videos}), "
+                                            f"stopping network capture"
+                                        )
                                     break
 
                                 if m3u8_url and m3u8_url not in video_urls:
@@ -1015,6 +1026,11 @@ def extract_functional_videos_with_validation(
                 video_elements = driver.select_all("video[src], video source[src]")
                 for video_elem in video_elements:
                     if len(video_urls) >= max_videos:
+                        if DEBUG_MODE:
+                            logger.info(
+                                f"🛑 Method 3a: Reached video limit "
+                                f"({len(video_urls)}/{max_videos}), stopping video element extraction"
+                            )
                         break
 
                     src = video_elem.get_attribute("src")
@@ -1043,6 +1059,11 @@ def extract_functional_videos_with_validation(
                 )
                 for container in video_containers:
                     if len(video_urls) >= max_videos:
+                        if DEBUG_MODE:
+                            logger.info(
+                                f"🛑 Method 3b: Reached video limit "
+                                f"({len(video_urls)}/{max_videos}), stopping container extraction"
+                            )
                         break
 
                     video_url = container.get_attribute(
@@ -1081,14 +1102,30 @@ def extract_functional_videos_with_validation(
     for url in video_urls:
         if url not in unique_urls:
             unique_urls.append(url)
-        if len(unique_urls) >= max_videos:
-            break
+            if len(unique_urls) >= max_videos:
+                if DEBUG_MODE:
+                    logger.info(
+                        f"🛑 Deduplication: Reached video limit "
+                        f"({len(unique_urls)}/{max_videos})"
+                    )
+                break
 
+    # Final summary logging
     if DEBUG_MODE:
-        logger.info(
-            f"🎯 Extracted {len(unique_urls)} videos using systematic approach "
-            f"(limit: {max_videos}) for {current_asin}"
-        )
+        if len(unique_urls) >= max_videos:
+            logger.info(
+                f"🎯 Extracted {len(unique_urls)} videos (hit configured limit) "
+                f"for {current_asin}"
+            )
+        elif len(unique_urls) > 0:
+            logger.info(
+                f"🎯 Extracted {len(unique_urls)} videos (found all available) "
+                f"for {current_asin}"
+            )
+        else:
+            logger.warning(
+                f"⚠️ No videos found for {current_asin} (limit was {max_videos})"
+            )
 
     return unique_urls
 

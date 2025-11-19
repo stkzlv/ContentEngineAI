@@ -944,6 +944,34 @@ ffmpeg_settings:
 
 Video profiles define different strategies for media selection and support per-profile overrides for all visual settings. Each profile can customize image positioning, subtitle styling, and other visual parameters independently.
 
+#### Video Assembly Modes
+
+ContentEngineAI supports multiple video assembly strategies that determine how product videos and images are combined:
+
+**Product Video Profiles** (prioritize product videos):
+
+1. **`product_video_sequential`** - Concatenates all videos sequentially with crossfades
+   - **Single video handling**: Loops video multiple times (3x, 4x, etc.) if too short, trims with fade-out if too long
+   - **Best for**: Showcasing multiple product angles/demos
+
+2. **`product_video_single`** - Uses longest video with seamless looping
+   - **Single video handling**: Loops seamlessly with crossfade transitions at loop points
+   - **Best for**: Single-angle product demos with smooth repetition
+
+3. **`product_video_mixed`** - Interleaves videos and images throughout
+   - **Single video handling**: Places video at full duration, distributes images around it (images → video → images)
+   - **Best for**: Dynamic visual variety with mixed content
+
+4. **`product_video_primary`** - All videos first, then images
+   - **Single video handling**: Uses video once (no looping), fills remainder with images, trims if too long
+   - **Best for**: Ensuring all video content is shown while meeting duration requirements
+
+**Slideshow Profiles** (image-focused, videos ignored):
+
+1. **`slideshow_images1-4`** - Image-only slideshows with different styling
+   - Uses assembly modes: `single_best`, `mixed_media`, or `video_first_fallback`
+   - **Video handling**: Ignores product videos entirely, uses only images
+
 ```yaml
 video_profiles:
   slideshow_images1:

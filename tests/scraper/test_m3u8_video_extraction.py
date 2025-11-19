@@ -331,6 +331,8 @@ class TestRuffConfiguration:
         assert "E501" in content
 
 
+
+
 # Test summary
 def test_m3u8_feature_coverage():
     """Meta-test documenting M3U8 feature test coverage.
@@ -342,6 +344,8 @@ def test_m3u8_feature_coverage():
     - Video muting during scraping
     - DEBUG_MODE parameter passing
     - Configuration updates for M3U8 support
+    - Video extraction limits and deduplication (NEW)
+    - Extraction logging behavior (NEW)
     """
     features_tested = {
         "m3u8_url_detection": "TestM3U8VideoSupport",
@@ -352,7 +356,9 @@ def test_m3u8_feature_coverage():
         "config_updates": "TestVideoConfigUpdates",
         "url_patterns": "TestVideoURLPatternMatching",
         "ruff_config": "TestRuffConfiguration",
+        "extraction_limits": "TestVideoExtractionLimits",
+        "extraction_logging": "TestVideoExtractionLimits",
     }
 
-    assert len(features_tested) == 8
+    assert len(features_tested) == 10
     assert all(v for v in features_tested.values())

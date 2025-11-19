@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 16 integration tests for video pipeline
 
 - **Product Video Assembly Modes**: Configurable video assembly with aspect ratio handling
-  - Multiple assembly modes: product_video_sequential, product_video_overlay, slideshow_*
+  - Multiple assembly modes: product_video_sequential, slideshow_images1, slideshow_images2
   - Automatic aspect ratio detection and constraint enforcement
   - Audio level normalization and mixing
   - 555 tests for video mode assembly
