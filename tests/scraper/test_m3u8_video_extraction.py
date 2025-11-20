@@ -331,8 +331,6 @@ class TestRuffConfiguration:
         assert "E501" in content
 
 
-
-
 # Test summary
 def test_m3u8_feature_coverage():
     """Meta-test documenting M3U8 feature test coverage.

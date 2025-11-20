@@ -1250,6 +1250,28 @@ Common validation errors:
 - **Invalid enum values**: Check allowed values for gender, alignment, etc.
 - **Path validation**: Ensure paths exist and are accessible
 
+## Video Extraction Behavior
+
+ContentEngineAI intentionally extracts **only 1 product video per product** by default to avoid competitor content.
+
+**Why**: Amazon mixes official product videos with competitor videos, user reviews, and sponsored content throughout product pages. Reliably distinguishing between these types is difficult, so the scraper extracts only the first video from the main gallery (typically the official product video).
+
+**Additional videos** visible on Amazon pages are located in:
+- "Videos for this product" widget (requires tab interaction)
+- A+ Content sections
+- Customer review sections
+
+These load dynamically and aren't extracted to avoid bot detection and false positives.
+
+**Configuration** (`config/scraper.yaml`):
+```yaml
+amazon_settings:
+  max_videos_per_product: 10         # Maximum to extract
+  enable_m3u8_monitoring: false      # Network monitoring
+```
+
+**To extract multiple videos**: Enable `enable_m3u8_monitoring`, modify the extraction logic in `media_extractor.py` to click additional thumbnails/tabs, and implement validation to filter competitor content.
+
 ## Scraper Configuration
 
 ContentEngineAI includes an Amazon product scraper with advanced filtering capabilities. The scraper configuration is managed in `config/scraper.yaml`.

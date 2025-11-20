@@ -964,6 +964,10 @@ def extract_functional_videos_with_validation(
                     "#main-image-container",  # Main image container
                     "#imageBlockThumbs",  # Image thumbnails
                     ".imageBlockContainer",  # Image block container
+                    "#immersive-view-front-image",  # Immersive view front image
+                    "#ivTitle",  # Immersive view title/video section
+                    "#immersive-view-main-content",  # Main immersive view content
+                    "[data-a-modal-name='immersive-view']",  # Immersive view modal
                 ]
 
                 # Define excluded sections (where videos should NOT be extracted from)
@@ -978,45 +982,65 @@ def extract_functional_videos_with_validation(
                 ]
 
                 def is_in_product_gallery(element) -> bool:
-                    """Check if video element is within the main product gallery."""
+                    """Check if video element is within the main product gallery.
+
+                    Uses JavaScript to check element containment by finding the element
+                    in the DOM using its src attribute, since Python Element objects
+                    cannot be passed to JavaScript.
+                    """
                     try:
-                        # First, check if element is in any EXCLUDED section (priority check)
-                        for selector in excluded_selectors:
-                            excluded_section = driver.select(selector)
-                            if excluded_section:
-                                is_in_excluded = driver.run_js(
-                                    f"""
-                                    const excluded = document.querySelector('{selector}');
-                                    const element = arguments[0];
-                                    return excluded && excluded.contains(element);
-                                    """,
-                                    element,
-                                )
-                                if is_in_excluded:
-                                    if DEBUG_MODE:
-                                        logger.debug(
-                                            f"❌ Video rejected: in excluded section {selector}"
-                                        )
-                                    return False
+                        # Get the video source URL to identify the element in JavaScript
+                        video_src = element.get_attribute("src")
+                        if not video_src:
+                            return False
 
-                        # Then check if element is within any valid gallery section
-                        for selector in valid_gallery_selectors:
-                            gallery = driver.select(selector)
-                            if gallery:
-                                # Use JavaScript to check if element is descendant of gallery
-                                is_descendant = driver.run_js(
-                                    f"""
-                                    const gallery = document.querySelector('{selector}');
-                                    const element = arguments[0];
-                                    return gallery && gallery.contains(element);
-                                    """,
-                                    element,
-                                )
-                                if is_descendant:
-                                    return True
+                        # Build JavaScript that checks containment without passing Element object
+                        js_code = f"""
+                        (function() {{
+                            // Find the video element by its src attribute
+                            const videoElements = document.querySelectorAll('video[src], video source[src]');
+                            let targetElement = null;
 
-                        # If not in valid gallery and not in excluded section, reject it
-                        return False
+                            for (const elem of videoElements) {{
+                                if (elem.src === '{video_src}' ||
+                                    (elem.tagName === 'SOURCE' && elem.src === '{video_src}')) {{
+                                    targetElement = elem.tagName === 'SOURCE' ? elem.parentElement : elem;
+                                    break;
+                                }}
+                            }}
+
+                            if (!targetElement) return false;
+
+                            // Check if element is in any EXCLUDED section (priority check)
+                            const excludedSelectors = {excluded_selectors};
+                            for (const selector of excludedSelectors) {{
+                                const excluded = document.querySelector(selector);
+                                if (excluded && excluded.contains(targetElement)) {{
+                                    return false; // In excluded section
+                                }}
+                            }}
+
+                            // Check if element is within any valid gallery section
+                            const validSelectors = {valid_gallery_selectors};
+                            for (const selector of validSelectors) {{
+                                const gallery = document.querySelector(selector);
+                                if (gallery && gallery.contains(targetElement)) {{
+                                    return true; // In valid gallery
+                                }}
+                            }}
+
+                            return false; // Not in valid gallery
+                        }})();
+                        """
+
+                        result = driver.run_js(js_code)
+
+                        if not result and DEBUG_MODE:
+                            logger.debug(
+                                f"❌ Video rejected (not in product gallery): {video_src[:80]}..."
+                            )
+
+                        return bool(result)
                     except Exception as e:
                         if DEBUG_MODE:
                             logger.debug(f"Context check failed: {e}")
