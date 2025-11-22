@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.11.0"
+version = "0.12.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -111,6 +111,11 @@ ignore = [
 ]
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore line length in files with embedded JavaScript code
+"src/scraper/amazon/media_extractor.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
@@ -141,7 +146,7 @@ ignore_missing_imports = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = ["botasaurus.*", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "aiofiles", "whisper", "pexelsapi.*", "aiohttp.*", "pysrt"]
+module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "aiofiles", "whisper", "pexelsapi.*", "pysrt"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]

@@ -647,6 +647,253 @@ class VideoAssembler:
 
         return audio_filters, final_audio_label
 
+    def _build_audio_filters_with_video_audio(
+        self,
+        voiceover_input_idx: int | None,
+        music_input_idx: int | None,
+        video_audio_indices: list[int],
+        video_audio_handling: str,
+        video_original_volume: float,
+        total_video_duration: float,
+    ) -> tuple[list[str], str]:
+        """Build audio processing filters including video audio handling.
+
+        Extends the base audio filter builder to support product video audio
+        in addition to voiceover and background music. Supports two modes:
+        - remove: Strip all video audio (videos contribute video only)
+        - mixed: Include video audio at configured volume level
+
+        Args:
+        ----
+            voiceover_input_idx: Index of voiceover input in FFmpeg command
+            music_input_idx: Index of music input in FFmpeg command
+            video_audio_indices: List of FFmpeg input indices for videos with audio
+            video_audio_handling: Mode ("remove" or "mixed")
+            video_original_volume: Volume adjustment in dB for video audio
+            total_video_duration: Target video duration for fade calculations
+
+        Returns:
+        -------
+            Tuple of (audio_filters, final_audio_label)
+
+        """
+        audio_settings = self.config.audio_settings
+        audio_filters = []
+        audio_to_mix = []
+
+        # Process voiceover (unchanged from base implementation)
+        if voiceover_input_idx is not None:
+            proc_label = "[a_voice_proc]"
+            audio_filters.append(
+                f"[{voiceover_input_idx}:a]volume={audio_settings.voiceover_volume_db}dB{proc_label}"
+            )
+            audio_to_mix.append(proc_label)
+
+        # Process background music (unchanged from base implementation)
+        if music_input_idx is not None:
+            music_label, proc_label = f"[{music_input_idx}:a]", "[a_music_proc]"
+            fade_out_start = max(
+                0, total_video_duration - audio_settings.music_fade_out_duration
+            )
+            audio_filters.append(
+                f"{music_label}volume={audio_settings.music_volume_db}dB,"
+                f"afade=t=in:st=0:d={audio_settings.music_fade_in_duration},"
+                f"afade=t=out:st={fade_out_start:.3f}:d={audio_settings.music_fade_out_duration}"
+                f"{proc_label}"
+            )
+            audio_to_mix.append(proc_label)
+
+        # Process video audio based on handling mode
+        if video_audio_handling == "mixed" and video_audio_indices:
+            # Mixed mode: add video audio streams with volume adjustment
+            for idx, video_idx in enumerate(video_audio_indices):
+                video_audio_label = f"[a_vid{idx}_proc]"
+                audio_filters.append(
+                    f"[{video_idx}:a]volume={video_original_volume}dB{video_audio_label}"
+                )
+                audio_to_mix.append(video_audio_label)
+
+        # Note: Remove mode doesn't add video audio to mix
+        # (handled by -an flag on inputs)
+
+        # Mix all audio streams
+        final_audio_label = ""
+        if len(audio_to_mix) > 1:
+            final_audio_label = "[a_mixed]"
+            # Use amix with proper input count to handle 3+ streams without clipping
+            audio_filters.append(
+                f"{''.join(audio_to_mix)}amix=inputs={len(audio_to_mix)}:"
+                f"duration={audio_settings.audio_mix_duration}:normalize=0{final_audio_label}"
+            )
+        elif len(audio_to_mix) == 1:
+            final_audio_label = audio_to_mix[0]
+
+        return audio_filters, final_audio_label
+
+    async def _normalize_video_format(
+        self, video_path: Path, cache_dir: Path | None = None
+    ) -> Path:
+        """Normalize video format to H.264/30fps/yuv420p with caching.
+
+        Probes the video to detect codec, frame rate, and pixel format.
+        If the video doesn't match the target format (H.264, 30fps, yuv420p),
+        it transcodes to the normalized format and caches the result.
+
+        Args:
+        ----
+            video_path: Path to the video file to normalize
+            cache_dir: Directory for cached normalized videos (uses config if None)
+
+        Returns:
+        -------
+            Path to the normalized video (original if already correct,
+            cached if transcoded)
+
+        """
+        # Use configured cache directory if not provided
+        if cache_dir is None:
+            video_settings = self.config.video_settings
+            cache_dir = Path(video_settings.video_cache_dir)
+
+        # Ensure cache directory exists
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Probe video format
+        try:
+            cmd = [
+                self.ffprobe_path,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=codec_name,r_frame_rate,pix_fmt",
+                "-of",
+                "json",
+                str(video_path),
+            ]
+
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+
+            if proc.returncode != 0:
+                logger.warning(
+                    f"FFprobe failed for {video_path.name}, "
+                    f"using original: {stderr.decode()}"
+                )
+                return video_path
+
+            # Parse probe results
+            probe_data = json.loads(stdout.decode())
+            if not probe_data.get("streams"):
+                logger.warning(
+                    f"No video stream found in {video_path.name}, using original"
+                )
+                return video_path
+
+            stream = probe_data["streams"][0]
+            codec = stream.get("codec_name", "")
+            pix_fmt = stream.get("pix_fmt", "")
+
+            # Load format normalization settings from config
+            format_norm = self.config.format_normalization
+            target_fps = format_norm.get("target_fps", 30.0)
+            fps_tolerance = format_norm.get("fps_tolerance", 0.1)
+            default_fps_string = format_norm.get("default_fps_string", "30/1")
+            target_codec = format_norm.get("target_codec", "h264")
+            target_pixel_format = format_norm.get("target_pixel_format", "yuv420p")
+
+            fps_str = stream.get("r_frame_rate", default_fps_string)
+
+            # Parse frame rate (format: "num/den")
+            try:
+                num, den = map(int, fps_str.split("/"))
+                fps = num / den if den != 0 else target_fps
+            except (ValueError, ZeroDivisionError):
+                fps = target_fps
+
+            # Check if already in correct format
+            is_h264 = codec == target_codec
+            is_30fps = (
+                abs(fps - target_fps) < fps_tolerance
+            )  # Within configured tolerance
+            is_yuv420p = pix_fmt == target_pixel_format
+
+            if is_h264 and is_30fps and is_yuv420p:
+                # Already correct format
+                if self.debug_mode:
+                    logger.debug(
+                        f"Video {video_path.name} already H.264/30fps/yuv420p, "
+                        "skipping transcode"
+                    )
+                return video_path
+
+            # Generate cache path
+            cache_filename = f"{video_path.stem}_normalized.mp4"
+            cache_path = cache_dir / cache_filename
+
+            # Check if already cached
+            if cache_path.exists():
+                if self.debug_mode:
+                    logger.debug(f"Using cached normalized video: {cache_path.name}")
+                return cache_path
+
+            # Transcode to normalized format
+            if self.debug_mode:
+                logger.debug(
+                    f"Transcoding {video_path.name} to "
+                    f"{target_codec}/{target_fps}fps/{target_pixel_format} "
+                    f"(current: {codec}/{fps:.1f}fps/{pix_fmt})"
+                )
+
+            transcode_cmd = [
+                self.ffmpeg_path,
+                "-i",
+                str(video_path),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-r",
+                str(int(target_fps)),
+                "-pix_fmt",
+                target_pixel_format,
+                "-c:a",
+                "copy",  # Copy audio without re-encoding
+                "-y",  # Overwrite output file
+                str(cache_path),
+            ]
+
+            transcode_proc = await asyncio.create_subprocess_exec(
+                *transcode_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, transcode_stderr = await transcode_proc.communicate()
+
+            if transcode_proc.returncode != 0:
+                logger.error(
+                    f"Transcode failed for {video_path.name}: "
+                    f"{transcode_stderr.decode()}, using original"
+                )
+                return video_path
+
+            if self.debug_mode:
+                logger.debug(f"Transcode complete: {cache_path.name}")
+
+            return cache_path
+
+        except Exception as e:
+            logger.error(
+                f"Error normalizing video format for {video_path.name}: {e}, "
+                "using original"
+            )
+            return video_path
+
     def _build_ffmpeg_command(
         self,
         input_cmd_parts: list[str],
@@ -812,11 +1059,13 @@ class VideoAssembler:
                 )
 
             # Add audio inputs to command
+            # Count actual FFmpeg inputs (number of -i flags)
+            num_visual_inputs = input_cmd_parts.count("-i")
             voiceover_input_idx, music_input_idx = self._prepare_audio_inputs(
                 input_cmd_parts,
                 voiceover_audio_path,
                 music_track_path,
-                len(visual_inputs),
+                num_visual_inputs,
             )
 
             # Build audio processing filters
@@ -861,37 +1110,749 @@ class VideoAssembler:
                 logger.error(f"FFmpeg failed. Stderr: {stderr}")
                 return None
 
+    async def _assemble_videos_by_mode(
+        self,
+        mode: str,
+        video_files: list[Path],
+        image_files: list[Path],
+        target_duration: float,
+    ) -> tuple[list[tuple[Path, float, bool]], str]:
+        """Dispatch video assembly to mode-specific strategy.
+
+        This method implements the strategy pattern to route video assembly
+        to the appropriate algorithm based on the configured mode.
+
+        Args:
+        ----
+            mode: Assembly mode (sequential/single_best/mixed_media/fallback)
+            video_files: List of product video file paths
+            image_files: List of product image file paths
+            target_duration: Target duration in seconds to match
+
+        Returns:
+        -------
+            Tuple of (timed_visuals, mode_info) where:
+            - timed_visuals: List of (Path, duration, is_video) tuples
+            - mode_info: String describing the mode used
+
+        Raises:
+        ------
+            ValueError: If mode is not one of the supported modes
+            NotImplementedError: If mode strategy is not yet implemented
+
+        """
+        valid_modes = [
+            "sequential",
+            "single_best",
+            "mixed_media",
+            "video_first_fallback",
+        ]
+
+        if mode not in valid_modes:
+            raise ValueError(
+                f"Invalid video_assembly_mode: '{mode}'. "
+                f"Must be one of: {', '.join(valid_modes)}"
+            )
+
+        # Route to appropriate strategy
+        if mode == "sequential":
+            return await self._assemble_sequential(
+                video_files, image_files, target_duration
+            )
+        elif mode == "single_best":
+            return await self._assemble_single_best(
+                video_files, image_files, target_duration
+            )
+        elif mode == "mixed_media":
+            return await self._assemble_mixed_media(
+                video_files, image_files, target_duration
+            )
+        elif mode == "video_first_fallback":
+            return await self._assemble_video_first_fallback(
+                video_files, image_files, target_duration
+            )
+
+        # This should never be reached due to validation above
+        raise ValueError(f"Unhandled mode: {mode}")
+
+    async def _assemble_sequential(
+        self,
+        video_files: list[Path],
+        image_files: list[Path],
+        target_duration: float,
+    ) -> tuple[list[tuple[Path, float, bool]], str]:
+        """Assemble videos sequentially with duration matching.
+
+        Concatenates all product videos end-to-end with crossfade transitions.
+        Handles insufficient/excessive duration by looping videos, adding images,
+        or trimming with fade-out.
+
+        Args:
+        ----
+            video_files: List of product video file paths
+            image_files: List of product image file paths
+            target_duration: Target duration in seconds to match
+
+        Returns:
+        -------
+            Tuple of (timed_visuals, mode_info) where:
+            - timed_visuals: List of (Path, duration, is_video) tuples
+            - mode_info: String describing the assembly mode used
+
+        """
+        timed_visuals: list[tuple[Path, float, bool]] = []
+        video_settings = self.config.video_settings
+        tolerance = video_settings.video_duration_tolerance_sec
+
+        # Edge case: No videos at all - use images only
+        if not video_files:
+            if image_files:
+                image_duration = target_duration / len(image_files)
+                for img in image_files:
+                    timed_visuals.append((img, image_duration, False))
+                mode_info = f"sequential (no videos, {len(image_files)} images)"
+                return timed_visuals, mode_info
+            else:
+                mode_info = "sequential (no media available)"
+                return timed_visuals, mode_info
+
+        # Get durations of all videos
+        video_durations = await asyncio.gather(
+            *[self._get_media_duration(vf) for vf in video_files]
+        )
+
+        # Edge case: Single video
+        if len(video_files) == 1:
+            video_duration = video_durations[0]
+            duration_diff = target_duration - video_duration
+
+            if abs(duration_diff) <= tolerance:
+                # Perfect match - use as-is
+                timed_visuals.append((video_files[0], video_duration, True))
+                mode_info = "sequential (1 video, perfect match)"
+            elif duration_diff > tolerance:
+                # Need more duration - loop video or add images
+                loops_needed = int(
+                    (target_duration + video_duration - 1) / video_duration
+                )
+                current_duration = 0.0
+
+                for _ in range(loops_needed):
+                    remaining = target_duration - current_duration
+                    if remaining >= video_duration:
+                        timed_visuals.append((video_files[0], video_duration, True))
+                        current_duration += video_duration
+                    else:
+                        # Partial loop for last iteration
+                        timed_visuals.append((video_files[0], remaining, True))
+                        current_duration += remaining
+                        break
+
+                # Fill remaining with images if needed
+                if current_duration < target_duration - tolerance and image_files:
+                    remaining_duration = target_duration - current_duration
+                    image_duration = remaining_duration / len(image_files)
+                    for img in image_files:
+                        timed_visuals.append((img, image_duration, False))
+
+                mode_info = f"sequential (1 video looped {loops_needed}x)"
+            else:
+                # Too long - trim video
+                timed_visuals.append((video_files[0], target_duration, True))
+                mode_info = "sequential (1 video trimmed)"
+
+            return timed_visuals, mode_info
+
+        # Multiple videos: concatenate in order
+        total_video_duration = sum(video_durations)
+
+        # Add all videos in sequence
+        for video_path, duration in zip(video_files, video_durations, strict=False):
+            timed_visuals.append((video_path, duration, True))
+
+        duration_diff = target_duration - total_video_duration
+
+        # Check if duration is within tolerance
+        if abs(duration_diff) <= tolerance:
+            # Perfect match
+            mode_info = f"sequential ({len(video_files)} videos, perfect match)"
+        elif duration_diff > tolerance:
+            # Insufficient duration - loop or add images
+            remaining_duration = duration_diff
+
+            # Try looping the last video
+            if video_files:
+                last_video = video_files[-1]
+                last_duration = video_durations[-1]
+
+                while remaining_duration > tolerance:
+                    if remaining_duration >= last_duration:
+                        timed_visuals.append((last_video, last_duration, True))
+                        remaining_duration -= last_duration
+                    else:
+                        # Partial loop
+                        timed_visuals.append((last_video, remaining_duration, True))
+                        remaining_duration = 0
+                        break
+
+            # If still short and have images, add them
+            if remaining_duration > tolerance and image_files:
+                image_duration = remaining_duration / len(image_files)
+                for img in image_files:
+                    timed_visuals.append((img, image_duration, False))
+                mode_info = f"sequential ({len(video_files)} videos + images)"
+            else:
+                mode_info = f"sequential ({len(video_files)} videos looped)"
+        else:
+            # Excessive duration - trim last video
+            excess = abs(duration_diff)
+            last_idx = len(timed_visuals) - 1
+
+            if last_idx >= 0:
+                last_path, last_duration, last_is_video = timed_visuals[last_idx]
+                new_duration = max(0.1, last_duration - excess)
+                timed_visuals[last_idx] = (last_path, new_duration, last_is_video)
+
+            mode_info = f"sequential ({len(video_files)} videos, last trimmed)"
+
+        return timed_visuals, mode_info
+
+    async def _assemble_single_best(
+        self,
+        video_files: list[Path],
+        image_files: list[Path],
+        target_duration: float,
+    ) -> tuple[list[tuple[Path, float, bool]], str]:
+        """Assemble using single best video with seamless looping.
+
+        Selects the longest video by duration and loops it seamlessly
+        to match the target duration. Applies crossfades at loop points
+        for smooth transitions.
+
+        Args:
+        ----
+            video_files: List of product video file paths
+            image_files: List of product image file paths
+            target_duration: Target duration in seconds to match
+
+        Returns:
+        -------
+            Tuple of (timed_visuals, mode_info) where:
+            - timed_visuals: List of (Path, duration, is_video) tuples
+            - mode_info: String describing the assembly mode used
+
+        """
+        import math
+
+        timed_visuals: list[tuple[Path, float, bool]] = []
+        video_settings = self.config.video_settings
+        tolerance = video_settings.video_duration_tolerance_sec
+
+        # Edge case: No videos at all - fallback to images
+        if not video_files:
+            if image_files:
+                image_duration = target_duration / len(image_files)
+                for img in image_files:
+                    timed_visuals.append((img, image_duration, False))
+                mode_info = f"single_best (no videos, {len(image_files)} images)"
+                return timed_visuals, mode_info
+            else:
+                mode_info = "single_best (no media available)"
+                return timed_visuals, mode_info
+
+        # Get durations of all videos
+        video_durations = await asyncio.gather(
+            *[self._get_media_duration(vf) for vf in video_files]
+        )
+
+        # Find longest video
+        longest_idx = 0
+        longest_duration = video_durations[0]
+
+        for idx, duration in enumerate(video_durations):
+            if duration > longest_duration:
+                longest_duration = duration
+                longest_idx = idx
+
+        best_video = video_files[longest_idx]
+
+        # Calculate loop count needed
+        # Use ceil to ensure we have at least enough duration
+        loops_needed = math.ceil(target_duration / longest_duration)
+
+        # Edge case: Single loop is enough (duration within tolerance)
+        if loops_needed == 1 and abs(longest_duration - target_duration) <= tolerance:
+            timed_visuals.append((best_video, longest_duration, True))
+            mode_info = f"single_best (1 loop, perfect match, {longest_duration:.1f}s)"
+            return timed_visuals, mode_info
+
+        # Generate looped timeline
+        current_duration = 0.0
+
+        for _ in range(loops_needed):
+            remaining = target_duration - current_duration
+
+            if remaining >= longest_duration:
+                # Full loop
+                timed_visuals.append((best_video, longest_duration, True))
+                current_duration += longest_duration
+            else:
+                # Partial loop for last iteration (trim to fit)
+                if remaining > 0:
+                    timed_visuals.append((best_video, remaining, True))
+                    current_duration += remaining
+                break
+
+        # If still short and have images, add them to fill gap
+        duration_diff = target_duration - current_duration
+        if duration_diff > tolerance and image_files:
+            image_duration = duration_diff / len(image_files)
+            for img in image_files:
+                timed_visuals.append((img, image_duration, False))
+            mode_info = (
+                f"single_best ({loops_needed} loops + images, {longest_duration:.1f}s)"
+            )
+        else:
+            mode_info = (
+                f"single_best ({loops_needed} loops, {longest_duration:.1f}s video)"
+            )
+
+        return timed_visuals, mode_info
+
+    async def _assemble_mixed_media(
+        self,
+        video_files: list[Path],
+        image_files: list[Path],
+        target_duration: float,
+    ) -> tuple[list[tuple[Path, float, bool]], str]:
+        """Assemble videos and images interleaved across timeline.
+
+        Distributes videos evenly across the timeline at calculated intervals,
+        filling gaps with images. This creates visual variety by alternating
+        between video content and static images.
+
+        Args:
+        ----
+            video_files: List of product video file paths
+            image_files: List of product image file paths
+            target_duration: Target duration in seconds to match
+
+        Returns:
+        -------
+            Tuple of (timed_visuals, mode_info) where:
+            - timed_visuals: List of (Path, duration, is_video) tuples
+            - mode_info: String describing the assembly mode used
+
+        """
+        timed_visuals: list[tuple[Path, float, bool]] = []
+        video_settings = self.config.video_settings
+        tolerance = video_settings.video_duration_tolerance_sec
+
+        # Edge case: No videos - fallback to sequential images
+        if not video_files:
+            if image_files:
+                img_duration = target_duration / len(image_files)
+                for img in image_files:
+                    timed_visuals.append((img, img_duration, False))
+                mode_info = f"mixed_media (no videos, {len(image_files)} images)"
+                return timed_visuals, mode_info
+            else:
+                mode_info = "mixed_media (no media available)"
+                return timed_visuals, mode_info
+
+        # Edge case: No images - fallback to sequential videos
+        if not image_files:
+            # Get video durations
+            video_durations = await asyncio.gather(
+                *[self._get_media_duration(vf) for vf in video_files]
+            )
+            total_video_duration = sum(video_durations)
+
+            # Add all videos
+            for video_path, duration in zip(video_files, video_durations, strict=False):
+                timed_visuals.append((video_path, duration, True))
+
+            # Handle duration mismatch
+            if total_video_duration < target_duration - tolerance:
+                # Loop last video
+                last_video = video_files[-1]
+                last_duration = video_durations[-1]
+                remaining = target_duration - total_video_duration
+
+                while remaining > tolerance:
+                    if remaining >= last_duration:
+                        timed_visuals.append((last_video, last_duration, True))
+                        remaining -= last_duration
+                    else:
+                        timed_visuals.append((last_video, remaining, True))
+                        break
+
+            mode_info = f"mixed_media (no images, {len(video_files)} videos)"
+            return timed_visuals, mode_info
+
+        # Mixed mode: Interleave videos and images
+        # Get video durations
+        video_durations = await asyncio.gather(
+            *[self._get_media_duration(vf) for vf in video_files]
+        )
+        total_video_duration = sum(video_durations)
+
+        # Calculate how much time is available for images
+        remaining_for_images = target_duration - total_video_duration
+
+        if remaining_for_images <= 0:
+            # Videos already exceed target - just use videos sequentially
+            for video_path, duration in zip(video_files, video_durations, strict=False):
+                timed_visuals.append((video_path, duration, True))
+            mode_info = f"mixed_media ({len(video_files)} videos, no space for images)"
+            return timed_visuals, mode_info
+
+        # Distribute videos evenly across timeline
+        # Create slots: image, video, image, video, ..., image
+        num_videos = len(video_files)
+        num_image_slots = num_videos + 1  # One before, between, and after videos
+
+        # Calculate image duration for each slot
+        if num_image_slots > len(image_files):
+            # Not enough images to fill all slots - use available images
+            img_per_slot = len(image_files) // num_image_slots
+            if img_per_slot == 0:
+                # Very few images - distribute them across slots
+                img_duration = remaining_for_images / len(image_files)
+            else:
+                img_duration = remaining_for_images / len(image_files)
+        else:
+            # More images than slots - use subset and distribute evenly
+            img_duration = remaining_for_images / len(image_files)
+
+        # Build interleaved timeline
+        image_idx = 0
+        images_per_slot = max(1, len(image_files) // num_image_slots)
+        remaining_images = len(image_files)
+
+        # Add images before first video
+        if image_idx < len(image_files):
+            for _ in range(min(images_per_slot, remaining_images)):
+                if image_idx < len(image_files):
+                    timed_visuals.append((image_files[image_idx], img_duration, False))
+                    image_idx += 1
+                    remaining_images -= 1
+
+        # Interleave videos and images
+        for video_idx, (video_path, video_duration) in enumerate(
+            zip(video_files, video_durations, strict=False)
+        ):
+            # Add video
+            timed_visuals.append((video_path, video_duration, True))
+
+            # Add images after this video (except after last video)
+            if video_idx < num_videos - 1 or remaining_images > 0:
+                for _ in range(min(images_per_slot, remaining_images)):
+                    if image_idx < len(image_files):
+                        timed_visuals.append(
+                            (image_files[image_idx], img_duration, False)
+                        )
+                        image_idx += 1
+                        remaining_images -= 1
+
+        # Add any remaining images at the end
+        while image_idx < len(image_files):
+            timed_visuals.append((image_files[image_idx], img_duration, False))
+            image_idx += 1
+
+        # Calculate actual total duration
+        total_duration = sum(dur for _, dur, _ in timed_visuals)
+
+        mode_info = (
+            f"mixed_media ({len(video_files)} videos, {len(image_files)} images, "
+            f"{total_duration:.1f}s)"
+        )
+        return timed_visuals, mode_info
+
+    async def _assemble_video_first_fallback(
+        self,
+        video_files: list[Path],
+        image_files: list[Path],
+        target_duration: float,
+    ) -> tuple[list[tuple[Path, float, bool]], str]:
+        """Assemble videos first, fallback to images for remaining duration.
+
+        This strategy prioritizes product videos by playing all of them first
+        sequentially, then fills any remaining duration with images. This ensures
+        that all video content is shown while meeting target duration requirements.
+
+        Strategy:
+        1. Play all videos sequentially at start
+        2. Calculate remaining duration after videos
+        3. Fill remaining time with images (if any)
+        4. Apply transition at video-to-image boundary
+
+        Args:
+        ----
+            video_files: List of video file paths
+            image_files: List of image file paths
+            target_duration: Target total duration in seconds
+
+        Returns:
+        -------
+            Tuple containing:
+            - timed_visuals: List of (Path, duration, is_video) tuples
+            - mode_info: String describing the assembly mode used
+
+        """
+        timed_visuals: list[tuple[Path, float, bool]] = []
+        video_settings = self.config.video_settings
+        tolerance = video_settings.video_duration_tolerance_sec
+
+        # Edge case: No videos - fallback to images only
+        if not video_files:
+            if image_files:
+                img_duration = target_duration / len(image_files)
+                for img in image_files:
+                    timed_visuals.append((img, img_duration, False))
+                mode_info = (
+                    f"video_first_fallback (no videos, {len(image_files)} images)"
+                )
+                return timed_visuals, mode_info
+            else:
+                mode_info = "video_first_fallback (no media available)"
+                return timed_visuals, mode_info
+
+        # Get all video durations
+        video_durations = await asyncio.gather(
+            *[self._get_media_duration(vf) for vf in video_files]
+        )
+        total_video_duration = sum(video_durations)
+
+        # Add all videos first (priority content)
+        for video_path, duration in zip(video_files, video_durations, strict=False):
+            timed_visuals.append((video_path, duration, True))
+
+        # Calculate remaining duration for images
+        remaining_duration = target_duration - total_video_duration
+
+        # Case 1: Videos exceed or match target duration
+        if remaining_duration <= tolerance:
+            # Videos fill entire duration (no space for images)
+            if total_video_duration > target_duration + tolerance:
+                # Videos exceed - trim last video
+                if len(timed_visuals) > 0:
+                    last_path, last_dur, _ = timed_visuals[-1]
+                    overage = total_video_duration - target_duration
+                    trimmed_duration = max(0.5, last_dur - overage)
+                    timed_visuals[-1] = (last_path, trimmed_duration, True)
+                    mode_info = (
+                        f"video_first_fallback ({len(video_files)} videos trimmed, "
+                        f"{total_video_duration:.1f}s)"
+                    )
+                else:
+                    mode_info = "video_first_fallback (no videos to trim)"
+            else:
+                # Videos match target within tolerance
+                mode_info = (
+                    f"video_first_fallback ({len(video_files)} videos, "
+                    f"{total_video_duration:.1f}s)"
+                )
+            return timed_visuals, mode_info
+
+        # Case 2: Videos don't fill target - add images for remainder
+        if image_files and remaining_duration > tolerance:
+            # Calculate image duration to fill remaining time
+            img_duration = remaining_duration / len(image_files)
+
+            # Add all images after videos
+            for img in image_files:
+                timed_visuals.append((img, img_duration, False))
+
+            total_duration = total_video_duration + (img_duration * len(image_files))
+            mode_info = (
+                f"video_first_fallback ({len(video_files)} videos + "
+                f"{len(image_files)} images, {total_duration:.1f}s)"
+            )
+        elif not image_files:
+            # No images available - videos only
+            mode_info = (
+                f"video_first_fallback ({len(video_files)} videos only, "
+                f"{total_video_duration:.1f}s < target)"
+            )
+        else:
+            # Remaining duration too small for images
+            mode_info = (
+                f"video_first_fallback ({len(video_files)} videos, "
+                f"{total_video_duration:.1f}s)"
+            )
+
+        return timed_visuals, mode_info
+
+    def _apply_aspect_ratio_mode(
+        self,
+        input_label: str,
+        aspect_mode: str,
+        target_width: int,
+        target_height: int,
+        video_width: int,
+        video_height: int,
+        output_label: str | None = None,
+        video_top_percent: float | None = None,
+        target_content_height: int | None = None,
+    ) -> tuple[str, str]:
+        """Apply aspect ratio transformation based on configured mode.
+
+        Generates FFmpeg filter strings for different aspect ratio handling modes:
+        - letterbox: Maintain aspect ratio with black padding (centered)
+        - crop-to-fit: Scale to fill frame and crop edges (centered)
+        - smart-scale: Auto-select based on aspect ratio similarity (10% threshold)
+
+        Args:
+        ----
+            input_label: FFmpeg input label (e.g., "[v0]")
+            aspect_mode: Mode ("letterbox", "crop-to-fit", "smart-scale")
+            target_width: Target output width in pixels
+            target_height: Target output height in pixels (full frame)
+            video_width: Source video width in pixels
+            video_height: Source video height in pixels
+            output_label: Optional output label override
+            video_top_percent: Optional vertical position override (0.0-1.0)
+            target_content_height: Optional content height limit (scales to this height,
+                                   then pads to full target_height)
+
+        Returns:
+        -------
+            Tuple containing:
+            - filter_string: FFmpeg filter chain string
+            - output_label: Output label for the filtered stream
+
+        """
+        # Calculate aspect ratios
+        target_aspect = target_width / target_height
+        video_aspect = video_width / video_height
+
+        # Smart-scale: auto-select mode based on aspect ratio similarity
+        if aspect_mode == "smart-scale":
+            # Calculate percentage difference
+            aspect_diff = abs(target_aspect - video_aspect) / target_aspect
+            # Use configured tolerance threshold
+            aspect_tolerance = self.config.aspect_ratio.get(
+                "smart_scale_tolerance", 0.10
+            )
+            aspect_mode = (
+                "crop-to-fit" if aspect_diff <= aspect_tolerance else "letterbox"
+            )
+
+        # Use provided output_label or generate one from input_label
+        if output_label is None:
+            output_label = f"{input_label}_scaled"
+
+        # Letterbox mode: scale with aspect ratio, add black padding
+        if aspect_mode == "letterbox":
+            # Determine scaling target height
+            if target_content_height is not None:
+                # Scale to fit within constrained content area
+                scale_height = target_content_height
+            else:
+                # Scale to fit full frame
+                scale_height = target_height
+
+            # Scale to fit within target dimensions (decrease to fit)
+            # Then pad to exact target size with black bars
+            # Use configurable top position or center if not specified
+            if video_top_percent is not None:
+                # Position video at specified percentage from top
+                y_offset = int(target_height * video_top_percent)
+                pad_y = str(y_offset)
+            else:
+                # Default: center vertically
+                pad_y = "(oh-ih)/2"
+
+            filter_string = (
+                f"{input_label}scale={target_width}:{scale_height}:"
+                f"force_original_aspect_ratio=decrease,"
+                f"pad={target_width}:{target_height}:"
+                f"(ow-iw)/2:{pad_y}:black"
+            )
+
+            # Debug logging
+            if target_content_height is not None:
+                logger.debug(
+                    f"[LETTERBOX] Constrained video: scale to "
+                    f"{target_width}x{scale_height}, "
+                    f"pad to {target_width}x{target_height} at Y={pad_y}"
+                )
+
+        # Crop-to-fit mode: scale to fill, crop excess
+        elif aspect_mode == "crop-to-fit":
+            # Scale to fill target dimensions (increase to cover)
+            # Then crop to exact target size (centered)
+            # Don't add output label here - caller will continue the chain
+            filter_string = (
+                f"{input_label}scale={target_width}:{target_height}:"
+                f"force_original_aspect_ratio=increase,"
+                f"crop={target_width}:{target_height}"
+            )
+
+        else:
+            # Invalid mode - fallback to letterbox with warning
+            logger.warning(
+                f"Invalid aspect_mode '{aspect_mode}', falling back to letterbox"
+            )
+            filter_string = (
+                f"{input_label}scale={target_width}:{target_height}:"
+                f"force_original_aspect_ratio=decrease,"
+                f"pad={target_width}:{target_height}:"
+                f"(ow-iw)/2:(oh-ih)/2:black{output_label}"
+            )
+
+        return filter_string, output_label
+
     async def _build_visual_chain(
         self,
         visual_inputs: list[Path],
         total_video_duration: float,
         is_relative_mode: bool,
     ) -> tuple[
-        list[str], list[str], list[tuple[Path, float, bool]], str, list[VisualGeometry]
+        list[str],
+        list[str],
+        list[tuple[Path, float, bool]],
+        str,
+        list[VisualGeometry],
+        bool,
     ]:
         # Get effective video settings with profile/CLI overrides applied
         video_settings_dict = self._get_effective_video_settings()
         video_settings = self.config.video_settings
         video_files = [path for path in visual_inputs if self._is_video(path)]
         image_files = [path for path in visual_inputs if not self._is_video(path)]
-        video_durations = await asyncio.gather(
-            *[self._get_media_duration(p) for p in video_files]
-        )
-        total_video_clip_duration = sum(video_durations)
 
+        # Apply format normalization to videos when enabled
+        if video_files and video_settings.enable_format_normalization:
+            if self.debug_mode:
+                logger.debug(
+                    f"Normalizing {len(video_files)} videos to H.264/30fps/yuv420p"
+                )
+            video_files = await asyncio.gather(
+                *[self._normalize_video_format(vf) for vf in video_files]
+            )
+
+        # Assemble videos using configured mode
         timed_visuals: list[tuple[Path, float, bool]] = []
-        for path, duration in zip(video_files, video_durations, strict=False):
-            timed_visuals.append((path, duration, True))
+        mode_info = ""
 
-        if image_files:
-            num_visuals_total = len(visual_inputs)
+        if video_files:
+            # Call video assembly mode dispatcher
+            timed_visuals, mode_info = await self._assemble_videos_by_mode(
+                video_settings.video_assembly_mode,
+                video_files,
+                image_files,
+                total_video_duration,
+            )
+        elif image_files:
+            # Backward compatibility: image-only behavior
+            num_visuals_total = len(image_files)
             if num_visuals_total > 1:
                 num_transitions = num_visuals_total - 1
                 transition_duration = video_settings.transition_duration_sec
-                total_gross_image_duration = (
-                    total_video_duration
-                    - total_video_clip_duration
-                    + (num_transitions * transition_duration)
+                total_gross_image_duration = total_video_duration + (
+                    num_transitions * transition_duration
                 )
                 if total_gross_image_duration > 0:
                     image_segment_duration = total_gross_image_duration / len(
@@ -908,9 +1869,36 @@ class VideoAssembler:
                         timed_visuals.append((path, image_segment_duration, False))
             elif num_visuals_total == 1:
                 timed_visuals.append((image_files[0], total_video_duration, False))
+            mode_info = f"image_only ({len(image_files)} images)"
 
         if not timed_visuals:
             raise ValueError("No visual media could be prepared for the timeline.")
+
+        if self.debug_mode and mode_info:
+            logger.debug(f"Visual assembly mode: {mode_info}")
+
+        # Detect no-video scenario: if profile is video-centric but has no videos,
+        # apply image-optimized positioning to avoid excessive black bars
+        has_any_videos = any(is_video for _, _, is_video in timed_visuals)
+        image_positioning_overridden = False
+        if not has_any_videos and self.profile_settings:
+            # Check if profile has video positioning settings (video-centric profile)
+            # These settings are in merged_settings["video_settings"], not ["profile"]
+            vs_dict = self.profile_settings.get("video_settings", {})
+            has_video_positioning = (
+                vs_dict.get("video_top_position_percent") is not None
+                or vs_dict.get("video_content_height_percent") is not None
+            )
+
+            if has_video_positioning:
+                # Override with image-optimized positioning like slideshow profiles
+                video_settings_dict["image_top_position_percent"] = 0.15
+                video_settings_dict["image_width_percent"] = 0.85
+                image_positioning_overridden = True
+                logger.info(
+                    "No videos detected in video-centric profile - "
+                    "applying image-optimized positioning (top=15%, width=85%)"
+                )
 
         input_cmd_parts: list[str] = []
         filter_parts: list[str] = []
@@ -935,8 +1923,8 @@ class VideoAssembler:
             if scaled_heights:
                 uniform_height = min(scaled_heights)
 
-        for i, (path, duration, is_video) in enumerate(timed_visuals):
-            if is_video:
+        for i, (path, duration, is_video_item) in enumerate(timed_visuals):
+            if is_video_item:
                 input_cmd_parts.extend(["-i", str(path)])
             else:
                 input_cmd_parts.extend(
@@ -953,91 +1941,174 @@ class VideoAssembler:
                 )
 
             proc_label = f"[v_proc_{i}]"
-            scaled_w_base = int(width * video_settings_dict["image_width_percent"])
             orig_w, orig_h = all_visuals_dims[i]
 
-            scaled_w, scaled_h = 0, 0
-            target_y_pos = video_settings_dict["image_top_position_percent"] * height
-
-            # Calculate subtitle space reservation to prevent overlap
-            subtitle_reserved_space = 0
-            try:
-                # Check if subtitles are enabled at the profile level
-                if self.profile_settings:
-                    subtitle_settings_dict = self.profile_settings.get(
-                        "subtitle_settings", {}
-                    )
-                    subtitle_enabled = (
-                        subtitle_settings_dict.get("enabled", False)
-                        if subtitle_settings_dict
-                        else False
+            # Apply aspect ratio handling for videos
+            if is_video_item:
+                # Get video positioning from profile settings (with defaults)
+                if self.profile_settings and "video_settings" in self.profile_settings:
+                    vs = self.profile_settings["video_settings"]
+                    video_top_percent = vs.get("video_top_position_percent", 0.10)
+                    video_height_percent = vs.get("video_content_height_percent", 0.75)
+                    logger.debug(
+                        f"[VIDEO POS] Reading from video_settings: "
+                        f"top={video_top_percent:.2%}, "
+                        f"height={video_height_percent:.2%}"
                     )
                 else:
-                    subtitle_enabled = False
+                    video_top_percent = 0.10
+                    video_height_percent = 0.75
+                    logger.debug("[VIDEO POS] Using defaults (no video_settings)")
 
-                if subtitle_enabled:
-                    subtitle_settings = self._get_effective_subtitle_settings()
-                    # Estimate subtitle height based on font size and margins
-                    font_size_scale = subtitle_settings.get("font_size_scale", 1.0)
-                    base_font_height = height * 0.05  # Base font height (~5% of frame)
-                    font_height = base_font_height * font_size_scale
+                # Calculate target content height from percentage
+                target_content_height = int(height * video_height_percent)
 
-                    margin = subtitle_settings.get("margin", 0.05)
-                    margin_pixels = height * margin
+                # Use aspect ratio mode for videos with configurable positioning
+                # Pass simple label (not [i:v]) to avoid invalid FFmpeg labels
+                # like [0:v]_scaled
+                aspect_filter, aspect_label = self._apply_aspect_ratio_mode(
+                    f"[{i}:v]",
+                    video_settings.video_aspect_mode,
+                    width,
+                    height,
+                    orig_w,
+                    orig_h,
+                    output_label=f"[v{i}_scaled]",
+                    video_top_percent=video_top_percent,
+                    target_content_height=target_content_height,
+                )
+                # Add trim and format after aspect ratio adjustment
+                # aspect_filter doesn't include label, so we add it and continue chain
+                vf_string = (
+                    f"{aspect_filter}{aspect_label};"
+                    f"{aspect_label}format={pix_fmt}[v_temp_{i}];"
+                    f"[v_temp_{i}]trim=duration={duration},setpts=PTS-STARTPTS{proc_label}"
+                )
+                # Geometry for videos - use configurable positioning
+                # Get video positioning from profile settings (with defaults)
+                # These settings are at profile level, not in video_settings sub-dict
+                if self.profile_settings:
+                    video_top_percent = self.profile_settings.get(
+                        "video_top_position_percent", 0.10
+                    )
+                    video_height_percent = self.profile_settings.get(
+                        "video_content_height_percent", 0.75
+                    )
+                else:
+                    video_top_percent = 0.10
+                    video_height_percent = 0.75
 
-                    # Reserve space for font + outline + margin + buffer for multi-line
-                    subtitle_reserved_space = int(font_height * 1.3 + margin_pixels)
-            except Exception as e:
-                # If we can't get subtitle settings, use conservative default
+                # Calculate video geometry based on configuration
+                video_top_pixels = int(height * video_top_percent)
+                video_height_pixels = int(height * video_height_percent)
+
                 logger.debug(
-                    f"Could not calculate subtitle space from settings ({e}), "
-                    "using default 15% reservation"
+                    f"Video {i}: Positioned at y={video_top_pixels}px "
+                    f"({video_top_percent*100:.0f}% from top), "
+                    f"height={video_height_pixels}px "
+                    f"({video_height_percent*100:.0f}% of frame)"
                 )
-                subtitle_reserved_space = int(height * 0.15)
 
-            max_available_height = height - target_y_pos - subtitle_reserved_space
-            logger.debug(
-                f"Image {i}: Reserved {subtitle_reserved_space}px for subtitles, "
-                f"max available height: {max_available_height}px (frame: {height}px, "
-                f"top pos: {int(target_y_pos)}px)"
-            )
-
-            if not is_relative_mode and uniform_height > 0:
-                scaled_h = uniform_height
-                scaled_w = (
-                    int(scaled_h * (orig_w / orig_h)) if orig_h > 0 else scaled_w_base
+                # Report geometry with configurable positioning
+                geometries.append(
+                    VisualGeometry(
+                        rendered_x=0,
+                        rendered_y=video_top_pixels,
+                        rendered_w=width,
+                        rendered_h=video_height_pixels,
+                    )
                 )
-                vf_scale = f"scale={scaled_w}:{scaled_h}"
             else:
-                scaled_w = scaled_w_base
-                scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else -1
+                # Existing image handling logic
+                scaled_w_base = int(width * video_settings_dict["image_width_percent"])
+                scaled_w, scaled_h = 0, 0
+                target_y_pos = (
+                    video_settings_dict["image_top_position_percent"] * height
+                )
 
-                # Ensure scaled height doesn't exceed available space in frame
-                if scaled_h > max_available_height:
-                    scaled_h = int(max_available_height)
+                # Calculate subtitle space reservation to prevent overlap
+                subtitle_reserved_space = 0
+                try:
+                    # Check if subtitles are enabled at the profile level
+                    if self.profile_settings:
+                        subtitle_settings_dict = self.profile_settings.get(
+                            "subtitle_settings", {}
+                        )
+                        subtitle_enabled = (
+                            subtitle_settings_dict.get("enabled", False)
+                            if subtitle_settings_dict
+                            else False
+                        )
+                    else:
+                        subtitle_enabled = False
+
+                    if subtitle_enabled:
+                        subtitle_settings = self._get_effective_subtitle_settings()
+                        # Estimate subtitle height based on font size and margins
+                        font_size_scale = subtitle_settings.get("font_size_scale", 1.0)
+                        base_font_height = height * 0.05
+                        font_height = base_font_height * font_size_scale
+
+                        margin = subtitle_settings.get("margin", 0.05)
+                        margin_pixels = height * margin
+
+                        # Reserve space for font + outline + margin + buffer
+                        subtitle_reserved_space = int(font_height * 1.3 + margin_pixels)
+                except Exception as e:
+                    # If we can't get subtitle settings, use conservative default
+                    logger.debug(
+                        f"Could not calculate subtitle space from settings ({e}), "
+                        "using default 15% reservation"
+                    )
+                    subtitle_reserved_space = int(height * 0.15)
+
+                max_available_height = height - target_y_pos - subtitle_reserved_space
+                logger.debug(
+                    f"Image {i}: Reserved {subtitle_reserved_space}px for subtitles, "
+                    f"max available height: {max_available_height}px "
+                    f"(frame: {height}px, top pos: {int(target_y_pos)}px)"
+                )
+
+                if not is_relative_mode and uniform_height > 0:
+                    scaled_h = uniform_height
                     scaled_w = (
                         int(scaled_h * (orig_w / orig_h))
                         if orig_h > 0
                         else scaled_w_base
                     )
+                    vf_scale = f"scale={scaled_w}:{scaled_h}"
+                else:
+                    scaled_w = scaled_w_base
+                    scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else -1
 
-                vf_scale = f"scale={scaled_w}:{scaled_h}"
+                    # Ensure scaled height doesn't exceed available space in frame
+                    if scaled_h > max_available_height:
+                        scaled_h = int(max_available_height)
+                        scaled_w = (
+                            int(scaled_h * (orig_w / orig_h))
+                            if orig_h > 0
+                            else scaled_w_base
+                        )
 
-            geometries.append(
-                VisualGeometry(
-                    rendered_x=int((width - scaled_w) / 2),
-                    rendered_y=int(target_y_pos),
-                    rendered_w=scaled_w,
-                    rendered_h=scaled_h,
+                    vf_scale = f"scale={scaled_w}:{scaled_h}"
+
+                geometries.append(
+                    VisualGeometry(
+                        rendered_x=int((width - scaled_w) / 2),
+                        rendered_y=int(target_y_pos),
+                        rendered_w=scaled_w,
+                        rendered_h=scaled_h,
+                    )
                 )
-            )
 
-            vf_string = (
-                f"[{i}:v]{vf_scale},setsar=1,"
-                f"pad={width}:{height}:(ow-iw)/2:{target_y_pos}:color={video_settings.pad_color},"
-                f"format={pix_fmt}[v_temp_{i}];"
-                f"[v_temp_{i}]trim=duration={duration},setpts=PTS-STARTPTS{proc_label}"
-            )
+                vf_string = (
+                    f"[{i}:v]{vf_scale},setsar=1,"
+                    f"pad={width}:{height}:(ow-iw)/2:{target_y_pos}:"
+                    f"color={video_settings.pad_color},"
+                    f"format={pix_fmt}[v_temp_{i}];"
+                    f"[v_temp_{i}]trim=duration={duration},setpts=PTS-STARTPTS{proc_label}"
+                )
+
             filter_parts.append(vf_string)
             stream_labels.append(proc_label)
 
@@ -1065,6 +2136,7 @@ class VideoAssembler:
             timed_visuals,
             final_video_stream_label,
             geometries,
+            image_positioning_overridden,
         )
 
     async def _build_subtitle_graph(
@@ -1092,6 +2164,7 @@ class VideoAssembler:
             timed_visuals,
             final_visual_stream,
             geometries,
+            image_positioning_overridden,
         ) = await self._build_visual_chain(
             visual_inputs, total_video_duration, use_content_aware
         )
@@ -1115,7 +2188,11 @@ class VideoAssembler:
                     logger.debug(f"Visual geometries available: {len(geometries)}")
 
                 content_aware_ass_path = await self._create_content_aware_ass_file(
-                    subtitle_path, geometries, timed_visuals, temp_sub_dir
+                    subtitle_path,
+                    geometries,
+                    timed_visuals,
+                    temp_sub_dir,
+                    image_positioning_overridden,
                 )
                 if content_aware_ass_path:
                     ass_path = content_aware_ass_path.as_posix().replace(":", r"\:")
@@ -1405,6 +2482,7 @@ class VideoAssembler:
             timed_visuals,
             final_visual_stream,
             geometries,
+            image_positioning_overridden,
         ) = await self._build_visual_chain(
             visual_inputs, total_video_duration, use_content_aware
         )
@@ -1434,6 +2512,12 @@ class VideoAssembler:
                 # Use upper line's style preset if specified
                 style_preset = upper_config.get("style_preset", "minimal")
                 upper_settings = settings_dict.copy()
+
+                logger.debug(
+                    f"[TWO-PART] settings_dict content_aware="
+                    f"{settings_dict.get('content_aware', 'NOT_SET')}"
+                )
+
                 upper_settings["style_preset"] = style_preset
                 upper_settings["anchor"] = upper_config.get("anchor", "above_content")
                 upper_settings["margin"] = upper_config.get("margin", 0.03)
@@ -1441,8 +2525,17 @@ class VideoAssembler:
                     "font_size_scale", 0.8
                 )
 
+                logger.debug(
+                    f"[TWO-PART] upper_settings content_aware="
+                    f"{upper_settings.get('content_aware', 'NOT_SET')}"
+                )
+
                 try:
                     upper_unified_config = UnifiedSubtitleConfig(**upper_settings)
+                    logger.debug(
+                        f"[TWO-PART] upper_unified_config.content_aware="
+                        f"{upper_unified_config.content_aware}"
+                    )
                     style_config = get_style_config(
                         preset=style_preset,
                         config=upper_unified_config,
@@ -1473,16 +2566,66 @@ class VideoAssembler:
                     geom = geometries[0] if geometries else None
                     visual_bounds = None
 
-                    if upper_unified_config.content_aware and geom:
+                    if upper_unified_config.content_aware:
                         frame_width, frame_height = (
                             self.config.video_settings.resolution
                         )
-                        visual_bounds = VisualBounds(
-                            x=geom.rendered_x / frame_width,
-                            y=geom.rendered_y / frame_height,
-                            width=geom.rendered_w / frame_width,
-                            height=geom.rendered_h / frame_height,
+
+                        logger.debug(
+                            f"[TWO-PART UPPER] content_aware=True, "
+                            f"profile_settings exists="
+                            f"{self.profile_settings is not None}"
                         )
+
+                        # Check if we have configured video positioning
+                        # (preferred for consistent subtitle placement)
+                        has_settings = (
+                            self.profile_settings
+                            and "video_settings" in self.profile_settings
+                        )
+                        if has_settings and self.profile_settings:
+                            vs = self.profile_settings["video_settings"]
+                            video_top_percent = vs.get("video_top_position_percent")
+                            video_height_percent = vs.get(
+                                "video_content_height_percent"
+                            )
+
+                            # Use configured video bounds if both settings exist
+                            has_both = (
+                                video_top_percent is not None
+                                and video_height_percent is not None
+                            )
+                            if has_both:
+                                # Use configured video positioning
+                                visual_bounds = VisualBounds(
+                                    x=0.0,
+                                    y=video_top_percent,
+                                    width=1.0,
+                                    height=video_height_percent,
+                                )
+                                logger.debug(
+                                    f"Upper subtitle using configured bounds: "
+                                    f"y={video_top_percent:.2%}, "
+                                    f"height={video_height_percent:.2%}"
+                                )
+                            elif geom:
+                                # Fall back to detected geometry
+                                visual_bounds = VisualBounds(
+                                    x=geom.rendered_x / frame_width,
+                                    y=geom.rendered_y / frame_height,
+                                    width=geom.rendered_w / frame_width,
+                                    height=geom.rendered_h / frame_height,
+                                )
+                                logger.debug("Upper subtitle using detected geometry")
+                        elif geom:
+                            # No configured positioning, use detected geometry
+                            visual_bounds = VisualBounds(
+                                x=geom.rendered_x / frame_width,
+                                y=geom.rendered_y / frame_height,
+                                width=geom.rendered_w / frame_width,
+                                height=geom.rendered_h / frame_height,
+                            )
+                            logger.debug("Upper subtitle using detected geometry")
 
                     position = calculate_position(
                         upper_unified_config,
@@ -1523,7 +2666,11 @@ class VideoAssembler:
                 # For content-aware positioning, regenerate ASS file with visual bounds
                 if use_content_aware and geometries:
                     content_aware_ass_path = await self._create_content_aware_ass_file(
-                        subtitle_lower_path, geometries, timed_visuals, temp_sub_dir
+                        subtitle_lower_path,
+                        geometries,
+                        timed_visuals,
+                        temp_sub_dir,
+                        image_positioning_overridden,
                     )
                     if content_aware_ass_path:
                         ass_path_lower = content_aware_ass_path.as_posix().replace(
@@ -1627,17 +2774,54 @@ class VideoAssembler:
                                 )
 
                                 visual_bounds = None
-                                if lower_unified_config.content_aware and geom:
+                                if lower_unified_config.content_aware:
                                     (
                                         frame_width,
                                         frame_height,
                                     ) = self.config.video_settings.resolution
-                                    visual_bounds = VisualBounds(
-                                        x=geom.rendered_x / frame_width,
-                                        y=geom.rendered_y / frame_height,
-                                        width=geom.rendered_w / frame_width,
-                                        height=geom.rendered_h / frame_height,
+
+                                    # Check for configured video positioning
+                                    has_settings = (
+                                        self.profile_settings
+                                        and "video_settings" in self.profile_settings
                                     )
+                                    if has_settings and self.profile_settings:
+                                        vs = self.profile_settings["video_settings"]
+                                        video_top_percent = vs.get(
+                                            "video_top_position_percent"
+                                        )
+                                        video_height_percent = vs.get(
+                                            "video_content_height_percent"
+                                        )
+
+                                        has_both = (
+                                            video_top_percent is not None
+                                            and video_height_percent is not None
+                                        )
+                                        if has_both:
+                                            # Use configured video positioning
+                                            visual_bounds = VisualBounds(
+                                                x=0.0,
+                                                y=video_top_percent,
+                                                width=1.0,
+                                                height=video_height_percent,
+                                            )
+                                        elif geom:
+                                            # Fall back to detected geometry
+                                            visual_bounds = VisualBounds(
+                                                x=geom.rendered_x / frame_width,
+                                                y=geom.rendered_y / frame_height,
+                                                width=geom.rendered_w / frame_width,
+                                                height=geom.rendered_h / frame_height,
+                                            )
+                                    elif geom:
+                                        # No configured positioning
+                                        visual_bounds = VisualBounds(
+                                            x=geom.rendered_x / frame_width,
+                                            y=geom.rendered_y / frame_height,
+                                            width=geom.rendered_w / frame_width,
+                                            height=geom.rendered_h / frame_height,
+                                        )
 
                                 position = calculate_position(
                                     lower_unified_config,
@@ -1692,6 +2876,7 @@ class VideoAssembler:
         geometries: list[VisualGeometry],
         timed_visuals: list[tuple[Path, float, bool]],
         temp_dir: Path,
+        image_positioning_overridden: bool = False,
     ) -> Path | None:
         """Create a new ASS file with content-aware positioning based on image geometry.
 
@@ -1701,6 +2886,7 @@ class VideoAssembler:
             geometries: List of visual geometries for each timeline segment
             timed_visuals: List of visual timeline data
             temp_dir: Temporary directory for content-aware ASS file
+            image_positioning_overridden: Whether image positioning was overridden
 
         Returns:
         -------
@@ -1753,7 +2939,91 @@ class VideoAssembler:
 
             # Process each dialogue line for content-aware positioning
             content_aware_events = []
-            settings_dict = self._get_effective_subtitle_settings()
+
+            # Determine which subtitle settings to use based on filename
+            # For two-part subtitles, use the appropriate config
+            is_upper_subtitle = "_upper" in original_ass_path.stem.lower()
+            is_lower_subtitle = (
+                "subtitle" in original_ass_path.stem.lower() and not is_upper_subtitle
+            )
+
+            logger.debug(
+                f"Subtitle file detection: {original_ass_path.name} - "
+                f"is_upper={is_upper_subtitle}, is_lower={is_lower_subtitle}"
+            )
+
+            if is_lower_subtitle and self.profile_settings:
+                # Construct two-part lower subtitle settings from profile
+                # Access subtitle_settings directly to get two-part fields
+                # (not stripped by Pydantic)
+                subtitle_settings = self.profile_settings["subtitle_settings"]
+
+                # Check if two-part subtitles are enabled
+                two_part_enabled = subtitle_settings.get(
+                    "two_part_subtitles_enabled", False
+                )
+                lower_enabled = subtitle_settings.get(
+                    "two_part_subtitles_lower_enabled", False
+                )
+
+                if two_part_enabled and lower_enabled:
+                    # Build lower subtitle settings from config
+                    # Start with validated base settings
+                    settings_dict = self._get_effective_subtitle_settings()
+                    # Override with two-part lower settings
+                    settings_dict["anchor"] = subtitle_settings.get(
+                        "two_part_subtitles_lower_anchor", "below_content"
+                    )
+                    settings_dict["margin"] = subtitle_settings.get(
+                        "two_part_subtitles_lower_margin", 0.02
+                    )
+                    logger.debug(
+                        f"Using two-part lower subtitle settings: "
+                        f"anchor={settings_dict['anchor']}, "
+                        f"margin={settings_dict['margin']}"
+                    )
+                else:
+                    settings_dict = self._get_effective_subtitle_settings()
+                    logger.debug(
+                        "Two-part lower not enabled, using default subtitle settings"
+                    )
+            elif is_upper_subtitle and self.profile_settings:
+                # Construct two-part upper subtitle settings from profile
+                # Access subtitle_settings directly to get two-part fields
+                # (not stripped by Pydantic)
+                subtitle_settings = self.profile_settings["subtitle_settings"]
+
+                # Check if two-part subtitles are enabled
+                two_part_enabled = subtitle_settings.get(
+                    "two_part_subtitles_enabled", False
+                )
+                upper_enabled = subtitle_settings.get(
+                    "two_part_subtitles_upper_enabled", False
+                )
+
+                if two_part_enabled and upper_enabled:
+                    # Build upper subtitle settings from config
+                    # Start with validated base settings
+                    settings_dict = self._get_effective_subtitle_settings()
+                    # Override with two-part upper settings
+                    settings_dict["anchor"] = subtitle_settings.get(
+                        "two_part_subtitles_upper_anchor", "above_content"
+                    )
+                    settings_dict["margin"] = subtitle_settings.get(
+                        "two_part_subtitles_upper_margin", 0.06
+                    )
+                    logger.debug(
+                        f"Using two-part upper subtitle settings: "
+                        f"anchor={settings_dict['anchor']}, "
+                        f"margin={settings_dict['margin']}"
+                    )
+                else:
+                    settings_dict = self._get_effective_subtitle_settings()
+                    logger.debug(
+                        "Two-part upper not enabled, using default subtitle settings"
+                    )
+            else:
+                settings_dict = self._get_effective_subtitle_settings()
 
             # Import and use UnifiedSubtitleConfig for proper validation
             from src.video.subtitle_positioning import (
@@ -1798,51 +3068,152 @@ class VideoAssembler:
                         segment_idx = i
                         break
 
-                # Calculate content-aware position based on image geometry
+                # Calculate content-aware position based on configured or
+                # detected geometry
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
-                    # Calculate subtitle position relative to image using unified config
+                    # Calculate subtitle position relative to content using
+                    # unified config
                     frame_height = self.config.video_settings.resolution[1]
-                    image_bottom = geom.rendered_y + geom.rendered_h
+
+                    # Check if we have configured video positioning
+                    # (preferred for consistent subtitle placement)
+                    # However, if image positioning was overridden (no videos),
+                    # always use detected geometry
+                    if image_positioning_overridden:
+                        # Image positioning was overridden, use detected geometry
+                        content_bottom = geom.rendered_y + geom.rendered_h
+                        logger.debug(
+                            f"Using detected geometry bottom (image positioning "
+                            f"overridden): {content_bottom}px"
+                        )
+                    else:
+                        has_settings = (
+                            self.profile_settings
+                            and "video_settings" in self.profile_settings
+                        )
+                        if has_settings and self.profile_settings:
+                            vs = self.profile_settings["video_settings"]
+                            video_top_percent = vs.get("video_top_position_percent")
+                            video_height_percent = vs.get(
+                                "video_content_height_percent"
+                            )
+
+                            # Use configured video bottom if both settings exist
+                            has_both = (
+                                video_top_percent is not None
+                                and video_height_percent is not None
+                            )
+                            if has_both:
+                                configured_bottom = int(
+                                    frame_height
+                                    * (video_top_percent + video_height_percent)
+                                )
+                                content_bottom = configured_bottom
+                                logger.debug(
+                                    f"Using configured video bottom: "
+                                    f"{content_bottom}px "
+                                    f"(top={video_top_percent:.2%}, "
+                                    f"height={video_height_percent:.2%})"
+                                )
+                            else:
+                                # Fall back to detected geometry
+                                content_bottom = geom.rendered_y + geom.rendered_h
+                                logger.debug(
+                                    f"Using detected geometry bottom: "
+                                    f"{content_bottom}px"
+                                )
+                        else:
+                            # No configured positioning, use detected geometry
+                            content_bottom = geom.rendered_y + geom.rendered_h
+                            logger.debug(
+                                f"Using detected geometry bottom: "
+                                f"{content_bottom}px"
+                            )
 
                     # Use margin from unified config
                     # (margin is as fraction of frame height)
                     spacing_px = unified_config.margin * frame_height
 
                     logger.debug(
-                        f"Content-aware positioning: image_bottom={image_bottom}px, "
-                        f"margin={unified_config.margin}, spacing={spacing_px}px"
+                        f"Content-aware positioning: "
+                        f"content_bottom={content_bottom}px, "
+                        f"margin={unified_config.margin}, "
+                        f"spacing={spacing_px}px"
                     )
 
-                    subtitle_y = int(image_bottom + spacing_px)
-
-                    # Ensure subtitle doesn't go off-screen
-                    # (leave room for subtitle height)
-                    # Get font size from unified config
+                    # Get font size from unified config to account for text height
                     from src.video.subtitle_positioning import get_font_size
 
                     font_size = get_font_size(unified_config, frame_height)
 
+                    # Calculate subtitle position accounting for text height
+                    # ASS Alignment=5 (bottom-center) means \pos() y-coordinate is where
+                    # the BOTTOM of the text box sits
+                    # For visibility, we need subtitle bottom to be well within frame
+                    # with enough room for the text to render above it
+
+                    # Calculate subtitle position relative to image bottom
+                    # With Alignment=5 (bottom-center), \pos() y-coordinate
+                    # is where text BOTTOM sits. Text renders ABOVE anchor point
+
+                    # Position subtitles below content with minimal gap
+                    # Handle both landscape and portrait orientations
+                    frame_height = self.config.video_settings.resolution[1]
+
+                    # Check if portrait (height > width) or landscape
+                    if (
+                        self.config.video_settings.resolution[1]
+                        > self.config.video_settings.resolution[0]
+                    ):
+                        # Portrait: subtitle anchor should be just below content bottom
+                        # With Alignment=5, y is bottom of text, text renders above
+                        subtitle_y = int(content_bottom + spacing_px)
+                    else:
+                        # Landscape: need font offset to position tight below content
+                        # Load font offset multiplier from config
+                        from pathlib import Path
+
+                        import yaml
+
+                        font_offset_multiplier = 5.5  # Default
+                        config_path = Path("config/subtitles.yaml")
+                        if config_path.exists():
+                            with open(config_path, encoding="utf-8") as f:
+                                data = yaml.safe_load(f)
+                                text_rendering = data.get("text_rendering", {})
+                                font_offset_multiplier = text_rendering.get(
+                                    "content_aware_font_offset_multiplier", 5.5
+                                )
+
+                        font_offset = font_size * font_offset_multiplier
+                        subtitle_y = int(content_bottom + spacing_px - font_offset)
+
+                    # Ensure subtitle doesn't go off-screen
                     # Allow subtitles to go up to max safe position from config
-                    from pathlib import Path
-
-                    import yaml
-
                     max_safe_y = 0.95  # Default
-                    config_path = Path("config/subtitles.yaml")
-                    if config_path.exists():
-                        with open(config_path, encoding="utf-8") as f:
-                            data = yaml.safe_load(f)
-                            text_rendering = data.get("text_rendering", {})
-                            max_safe_y = text_rendering.get("max_safe_y_position", 0.95)
+                    if "data" not in locals():
+                        from pathlib import Path
+
+                        import yaml
+
+                        config_path = Path("config/subtitles.yaml")
+                        if config_path.exists():
+                            with open(config_path, encoding="utf-8") as f:
+                                data = yaml.safe_load(f)
+                                text_rendering = data.get("text_rendering", {})
+                    else:
+                        text_rendering = data.get("text_rendering", {})
+
+                    max_safe_y = text_rendering.get("max_safe_y_position", 0.95)
 
                     max_y = int(frame_height * max_safe_y)
                     subtitle_y = min(subtitle_y, max_y)
 
                     logger.debug(
                         f"Subtitle positioned at y={subtitle_y} "
-                        f"(image_bottom={image_bottom}, spacing={spacing_px}px, "
+                        f"(content_bottom={content_bottom}, spacing={spacing_px}px, "
                         f"font_size={font_size}px)"
                     )
 

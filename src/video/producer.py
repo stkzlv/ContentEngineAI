@@ -114,6 +114,11 @@ def validate_media_requirements(
 ) -> tuple[bool, str]:
     """Validate if gathered media meets minimum requirements for video creation.
 
+    Implements Requirement 8: Media Validation and Error Handling
+    - Enables video-first profiles when ≥1 video available
+    - Falls back to image-only processing when no videos
+    - Logs clear messages about mode selection
+
     Args:
     ----
         scraped_images: List of scraped image paths
@@ -144,6 +149,10 @@ def validate_media_requirements(
     total_media = total_image_count + total_video_count
 
     uses_scraped_videos = getattr(profile, "use_scraped_videos", True)
+    video_assembly_mode = (
+        getattr(profile, "video_assembly_mode", None)
+        or config.video_settings.video_assembly_mode
+    )
 
     # Get media requirements from config (must match scraper validation)
     MIN_TOTAL_MEDIA = config.video_settings.min_total_media
@@ -158,6 +167,10 @@ def validate_media_requirements(
         )
         return (False, msg)
 
+    # Determine mode selection based on video availability (Requirement 8.1, 8.2)
+    is_video_first_profile = uses_scraped_videos and video_assembly_mode is not None
+    has_videos = total_video_count > 0
+
     # If profile doesn't use videos, need more images for slideshow
     if (
         not uses_scraped_videos or total_video_count == 0
@@ -168,6 +181,12 @@ def validate_media_requirements(
                 f"but only have {total_image_count}"
             )
         else:
+            # No videos available - graceful fallback (Requirement 8.2)
+            if is_video_first_profile:
+                logger.info(
+                    "Video-first profile selected but no videos available - "
+                    "falling back to image-only processing"
+                )
             msg = (
                 f"No videos found, need at least {MIN_IMAGES_IF_NO_VIDEO} images "
                 f"but only have {total_image_count}"
@@ -177,8 +196,8 @@ def validate_media_requirements(
     # If we have videos, we can work with fewer images
     if total_video_count > 0 and total_image_count < MIN_IMAGES_WITH_VIDEO:
         msg = (
-            f"Have {total_video_count} video(s) but only {total_image_count} image(s), "
-            f"need at least {MIN_IMAGES_WITH_VIDEO}"
+            f"Have {total_video_count} video(s) but only {total_image_count} "
+            f"image(s), need at least {MIN_IMAGES_WITH_VIDEO}"
         )
         return (False, msg)
 
@@ -186,6 +205,28 @@ def validate_media_requirements(
     if total_media == MIN_TOTAL_MEDIA:
         logger.warning(
             f"Minimal media count ({total_media}) - video quality may be limited"
+        )
+
+    # Log mode selection (Requirement 8.5 - clear logging)
+    if is_video_first_profile and has_videos:
+        logger.info(
+            f"Video-first mode enabled: {total_video_count} video(s) available "
+            f"for assembly mode '{video_assembly_mode}'"
+        )
+    elif has_videos and not uses_scraped_videos:
+        logger.info(
+            f"Profile configured to exclude videos - using image-only processing "
+            f"({total_video_count} video(s) available but ignored)"
+        )
+    elif has_videos:
+        logger.info(
+            f"Video processing enabled: {total_video_count} video(s) available "
+            f"(legacy mode - no assembly mode configured)"
+        )
+    else:
+        logger.info(
+            f"Image-only processing: {total_image_count} image(s) available "
+            f"(no videos found)"
         )
 
     msg = (
@@ -1183,7 +1224,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         "two_part_subtitles_upper_style_preset", "minimal"
                     ),
                     "use_full_duration": merged_profile_settings.get(
-                        "two_part_subtitles_upper_use_full_duration", True
+                        "two_part_subtitles_upper_use_full_duration", False
                     ),
                     "randomize_effects": merged_profile_settings.get(
                         "two_part_subtitles_upper_randomize_effects", False
@@ -1211,6 +1252,29 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     ),
                 }
 
+            # Calculate visual bounds for content-aware positioning
+            from src.video.subtitle_positioning import VisualBounds
+
+            video_top = (
+                ctx.profile.video_top_position_percent
+                or ctx.profile.image_top_position_percent
+                or 0.07
+            )
+            video_height = ctx.profile.video_content_height_percent or 0.8
+            video_width = ctx.profile.image_width_percent or 0.9
+
+            visual_bounds = VisualBounds(
+                x=(1.0 - video_width) / 2,
+                y=video_top,
+                width=video_width,
+                height=video_height,
+            )
+
+            logger.debug(
+                f"Visual bounds for subtitles: "
+                f"y={video_top:.2%}, height={video_height:.2%}"
+            )
+
             if lower_enabled:
                 # Update subtitle settings for lower line positioning
                 lower_subtitle_settings = profile_subtitle_settings.copy()
@@ -1237,6 +1301,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     Path(ctx.run_paths["run_root"])
                     / ctx.config.output_structure.product_subdirs.temp,
                     product_id,
+                    visual_bounds,
                 )
 
                 if not lower_path or not lower_path.exists():
@@ -1299,18 +1364,6 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     )
                     upper_output_path = ctx.run_paths["subtitle_file"].with_name(
                         f"subtitle_upper.{subtitle_format}"
-                    )
-
-                    # Calculate visual bounds for content-aware positioning
-                    from src.video.subtitle_positioning import VisualBounds
-
-                    image_top = ctx.profile.image_top_position_percent or 0.07
-                    image_width = ctx.profile.image_width_percent or 0.9
-                    visual_bounds = VisualBounds(
-                        x=(1.0 - image_width) / 2,  # Center horizontally
-                        y=image_top,
-                        width=image_width,
-                        height=0.8,  # Approximate image height
                     )
 
                     upper_path = create_static_upper_subtitle(

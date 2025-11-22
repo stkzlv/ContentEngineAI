@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **627 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **719 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -91,6 +91,11 @@ tests/
 ├── test_profile_cli_overrides.py    # Profile & CLI override tests (15 tests)
 ├── test_scraper_config_enhanced.py  # Scraper config (23 tests)
 ├── test_media_validation.py         # Media validation (10 tests)
+│
+├── # Scraper Tests
+├── scraper/
+│   ├── test_video_integration.py    # Video pipeline integration (16 tests)
+│   └── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
 │
 ├── # Pipeline Tests
 ├── test_pipeline_graph.py           # Pipeline dependencies
@@ -281,14 +286,31 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.11.0):**
-- **Total Tests**: 627 collected (513 + 114 compliance tests)
-- **Passing**: 606 tests (492 + 114 compliance)
-- **Skipped**: 21 tests
+**Current Statistics:**
+- **Total Tests**: 761 collected (647 + 114 compliance tests)
+- **Passing**: 743 tests (28 skipped)
+- **Skipped**: 28 tests
 - **Failed**: 0 tests
-- **Coverage**: 42.79% (target: 40% minimum)
+- **Coverage**: 44.11% (target: 40% minimum)
 
-**Recent Updates (v0.11.0):**
+**Recent Updates:**
+- ✅ Added Freesound OAuth2 `quote_mode="never"` test
+- ✅ Test verifies proper .env file token persistence without quote wrapping
+- ✅ Prevents HTTP 400 authentication errors from quoted tokens
+- ✅ Removed 9 outdated integration tests (test_video_assembly_integration.py)
+- ✅ Tests were using deprecated API signatures (visuals → visual_inputs)
+- ✅ Fixed MyPy type errors (added format_normalization and aspect_ratio config fields)
+- ✅ Fixed Ruff linting errors (line length and docstring issues)
+- ✅ All 743 tests passing with 44.11% coverage
+- ✅ Test suite review completed: All tests current with codebase
+- ✅ All linting tools passing (Ruff, MyPy, Bandit, Vulture, Safety)
+
+**Previous Updates (v0.11.0):**
+- ✅ Added M3U8/HLS video extraction tests (20 tests)
+- ✅ Tests for strict product filtering (exclude related products)
+- ✅ Tests for video muting during scraping
+- ✅ Tests for DEBUG_MODE parameter passing
+- ✅ Tests for FFmpeg M3U8 to MP4 conversion
 - ✅ Added Freesound OAuth2 integration tests (344 tests)
 - ✅ Enhanced audio client unit tests (755+ tests with mocking)
 - ✅ Added CTA detection configuration validation

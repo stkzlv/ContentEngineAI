@@ -118,14 +118,37 @@ global_settings:
     min_duration: 1.0
 
     # Maximum videos to extract per product
-    # Limits number of videos downloaded to prevent excessive bandwidth usage
+    # Attempts to extract all available product videos from the page
     # Affects: Video extraction loop limits, download time, bandwidth
-    max_videos_per_product: 5
+    max_videos_per_product: 10
 
     # Mute video tabs to prevent audio overlap during extraction
     # Prevents audio from playing in browser during video scraping
     # Affects: Browser behavior, audio output, debugging comfort
     mute_video_tabs: true
+
+    # Enable video metadata extraction using FFprobe
+    # Extracts duration, resolution, codec, format, bitrate, and audio presence
+    # Affects: Video validation pipeline, metadata availability for producer
+    enable_metadata_extraction: true
+
+    # Enable M3U8 network monitoring for video extraction
+    # When true, monitors browser network traffic to capture HLS stream URLs
+    # When false, relies on direct element extraction only
+    # Affects: Video extraction method, useful for platforms using HLS streaming
+    enable_m3u8_monitoring: false
+
+    # M3U8 stream conversion timeout (seconds) - for FFmpeg HLS to MP4 conversion
+    # Maximum time to wait for FFmpeg to convert M3U8 streams to MP4
+    # Only used when M3U8 URLs are detected
+    # Affects: Video download reliability, prevents timeouts on large videos
+    m3u8_download_timeout: 120
+
+    # Network capture timeout (seconds) - for monitoring browser network traffic
+    # How long to monitor network requests when capturing M3U8 video URLs
+    # Only used when enable_m3u8_monitoring is true
+    # Affects: Video URL capture completeness, time spent on network monitoring
+    network_capture_timeout: 20
 
   # ---- Download Configuration ----
   # Controls HTTP download behavior, timeouts, and bandwidth optimization
@@ -134,6 +157,17 @@ global_settings:
     # Maximum time to wait for download to complete
     # Affects: Download reliability, prevents hanging on slow connections
     download_timeout: 30
+
+    # Video-specific download timeout (seconds)
+    # Extended timeout for large video files compared to images
+    # Affects: Video download reliability, prevents timeouts on slow connections
+    video_download_timeout: 300
+
+    # Number of retry attempts for video downloads
+    # Videos are retried on transient failures (network errors, timeouts)
+    # Uses exponential backoff defined in retry_config section
+    # Affects: Video download resilience, success rate on flaky networks
+    retry_video_downloads: 2
 
     # Chunk size for streaming downloads (bytes)
     # Amount of data read per iteration during streaming download

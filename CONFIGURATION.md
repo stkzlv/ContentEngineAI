@@ -498,13 +498,67 @@ subtitle_settings:
 - Content-aware positioning for both lines
 - Source field configuration for flexible data mapping
 - Profile-specific configuration support
+- **CTA-synchronized timing**: Upper line appears only during CTA moments
 
 </details>
 
 <details>
-<summary><strong>6. TTS (Text-to-Speech) Configuration</strong></summary>
+<summary><strong>6. CTA Detection Configuration</strong></summary>
 
-### 6. TTS (Text-to-Speech) Configuration
+### 6. CTA Detection Configuration
+
+CTA (Call-to-Action) detection enables synchronized display of promotional content (like affiliate links) during relevant voiceover moments.
+
+```yaml
+cta_detection:
+  # Minimum total duration for CTA windows
+  # If detected CTA < this value, falls back to full video duration
+  min_cta_duration: 0.5              # seconds
+
+  # Fallback duration when voiceover unavailable
+  fallback_duration: 9999.0          # seconds (effectively full duration)
+
+  # CTA keyword detection
+  keywords:
+    - "link"
+    - "bio"
+    - "check out"
+    - "visit"
+    - "follow"
+    - "share"
+    - "like"
+    - "subscribe"
+    - "click"
+    - "tap"
+    - "swipe"
+    - "purchase"
+    - "buy"
+    - "shop"
+    - "get"
+
+  # Matching behavior
+  case_sensitive: false              # Case-insensitive keyword matching
+  merge_gap_threshold: 0.5           # Merge CTA segments within 0.5s
+```
+
+**Use Cases:**
+- Display affiliate links only when user hears "check out the link in bio"
+- Show promotional URLs during relevant voiceover moments
+- Synchronize calls-to-action with speech patterns
+
+**How It Works:**
+1. Analyzes lower subtitle text for CTA keywords
+2. Detects timing windows where keywords appear
+3. Merges nearby segments (within `merge_gap_threshold`)
+4. Displays upper subtitle only during detected windows
+5. Falls back to full duration if total CTA time < `min_cta_duration`
+
+</details>
+
+<details>
+<summary><strong>7. TTS (Text-to-Speech) Configuration</strong></summary>
+
+### 7. TTS (Text-to-Speech) Configuration
 
 ```yaml
 tts_config:
@@ -732,13 +786,33 @@ audio_settings:
 
 **Manual Token Refresh:**
 
-If refresh token becomes invalid, regenerate using OAuth2 setup script:
+If refresh token becomes invalid or expires, regenerate using OAuth2 setup script:
 
 ```bash
 poetry run python tools/freesound_oauth2_setup.py \
   --client-id YOUR_CLIENT_ID \
   --client-secret YOUR_CLIENT_SECRET
 ```
+
+**Troubleshooting Token Refresh:**
+
+If token refresh fails with timeout errors:
+
+1. **Check network connectivity**: Ensure you can reach `https://freesound.org`
+2. **Verify credentials**: Confirm `FREESOUND_CLIENT_ID`, `FREESOUND_CLIENT_SECRET`, and `FREESOUND_REFRESH_TOKEN` are correct in `.env`
+3. **Regenerate token**: If refresh token is expired or invalid, run OAuth2 setup script again
+4. **Check timeout settings**: Default is 5s - increase if needed in `config/video_production.yaml`:
+   ```yaml
+   audio_settings:
+     freesound_token_refresh:
+       timeout_sec: 10  # Increase if network is slow
+   ```
+5. **Fallback behavior**: System automatically falls back to HQ preview downloads if OAuth2 fails
+
+**Token Storage Location:**
+- Primary: `.env` file in project root (automatically updated by system)
+- Format: `FREESOUND_REFRESH_TOKEN=your_token_here`
+- Auto-update: New refresh tokens are saved automatically using `dotenv.set_key()`
 
 #### Search Configuration
 
@@ -883,26 +957,39 @@ audio_settings:
 ### 10. Speech-to-Text Settings
 
 ```yaml
-# Whisper STT settings (primary, fixed September 2025)
+# Whisper STT settings (primary)
 whisper_settings:
   enabled: true
-  model_size: "small"                # tiny, base, small, medium, large (default: small for quality/speed balance)
+  model_size: "small"                # tiny, base, small, medium, large
   language: "en"                     # Language code
-  device: "auto"                     # auto, cpu, cuda
-  compute_type: "float16"            # float16, int8, int8_float16
-  word_timestamps: true              # Enable word-level timing (required for perfect subtitle sync)
-  
-# Google Cloud STT settings (fallback, implemented September 2025)
+  device: "cpu"                      # auto, cpu, cuda
+  model_device: "cpu"                # Device for model inference
+  model_in_memory: false             # Keep model in memory between uses
+  fp16: false                        # Use 16-bit floating point
+  beam_size: 5                       # Beam search size
+  temperature: 0.0                   # Sampling temperature
+  compression_ratio_threshold: 2.4   # Detect repetitive text
+  logprob_threshold: -1.0            # Filter low-confidence words
+  no_speech_threshold: 0.2           # Detect silence vs speech
+  condition_on_previous_text: true   # Use context for accuracy
+
+  # Timeout settings (configurable for system performance)
+  base_timeout_sec: 120              # Base timeout before audio duration added
+  duration_multiplier: 6.0           # Multiplier for audio duration (timeout = base + duration * multiplier)
+  max_timeout_sec: 900               # Maximum timeout (15 minutes)
+  progress_monitor_interval_sec: 30  # Progress monitoring interval
+  enable_resource_monitoring: true   # Monitor CPU/memory during transcription
+  enable_resource_cleanup: true      # Cleanup resources after processing
+
+# Google Cloud STT settings (fallback)
 google_cloud_stt_settings:
   enabled: true
   api_key_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
   language_code: "en-US"
-  enable_word_time_offsets: true     # Required for audio-based subtitle synchronization
-  use_enhanced: true                 # Use enhanced models when available
+  enable_word_time_offsets: true     # Required for subtitle synchronization
+  use_enhanced: true                 # Use enhanced models
   sample_rate_hertz: 16000
   encoding: "LINEAR16"
-  enable_word_time_offsets: true
-  use_enhanced: true
 ```
 
 </details>
@@ -943,6 +1030,34 @@ ffmpeg_settings:
 ### 12. Video Profiles with Per-Profile Settings
 
 Video profiles define different strategies for media selection and support per-profile overrides for all visual settings. Each profile can customize image positioning, subtitle styling, and other visual parameters independently.
+
+#### Video Assembly Modes
+
+ContentEngineAI supports multiple video assembly strategies that determine how product videos and images are combined:
+
+**Product Video Profiles** (prioritize product videos):
+
+1. **`product_video_sequential`** - Concatenates all videos sequentially with crossfades
+   - **Single video handling**: Loops video multiple times (3x, 4x, etc.) if too short, trims with fade-out if too long
+   - **Best for**: Showcasing multiple product angles/demos
+
+2. **`product_video_single`** - Uses longest video with seamless looping
+   - **Single video handling**: Loops seamlessly with crossfade transitions at loop points
+   - **Best for**: Single-angle product demos with smooth repetition
+
+3. **`product_video_mixed`** - Interleaves videos and images throughout
+   - **Single video handling**: Places video at full duration, distributes images around it (images → video → images)
+   - **Best for**: Dynamic visual variety with mixed content
+
+4. **`product_video_primary`** - All videos first, then images
+   - **Single video handling**: Uses video once (no looping), fills remainder with images, trims if too long
+   - **Best for**: Ensuring all video content is shown while meeting duration requirements
+
+**Slideshow Profiles** (image-focused, videos ignored):
+
+1. **`slideshow_images1-4`** - Image-only slideshows with different styling
+   - Uses assembly modes: `single_best`, `mixed_media`, or `video_first_fallback`
+   - **Video handling**: Ignores product videos entirely, uses only images
 
 ```yaml
 video_profiles:
@@ -1221,6 +1336,28 @@ Common validation errors:
 - **Missing required fields**: Check for typos in field names
 - **Invalid enum values**: Check allowed values for gender, alignment, etc.
 - **Path validation**: Ensure paths exist and are accessible
+
+## Video Extraction Behavior
+
+ContentEngineAI intentionally extracts **only 1 product video per product** by default to avoid competitor content.
+
+**Why**: Amazon mixes official product videos with competitor videos, user reviews, and sponsored content throughout product pages. Reliably distinguishing between these types is difficult, so the scraper extracts only the first video from the main gallery (typically the official product video).
+
+**Additional videos** visible on Amazon pages are located in:
+- "Videos for this product" widget (requires tab interaction)
+- A+ Content sections
+- Customer review sections
+
+These load dynamically and aren't extracted to avoid bot detection and false positives.
+
+**Configuration** (`config/scraper.yaml`):
+```yaml
+amazon_settings:
+  max_videos_per_product: 10         # Maximum to extract
+  enable_m3u8_monitoring: false      # Network monitoring
+```
+
+**To extract multiple videos**: Enable `enable_m3u8_monitoring`, modify the extraction logic in `media_extractor.py` to click additional thumbnails/tabs, and implement validation to filter competitor content.
 
 ## Scraper Configuration
 

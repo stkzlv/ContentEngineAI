@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - Unreleased
+
+### Added
+- **M3U8/HLS Video Support**: Native support for M3U8 playlist video extraction
+  - FFmpeg-based M3U8 to MP4 conversion with audio stream handling
+  - Strict product filtering to exclude related/sponsored products
+  - Video muting during scraping for improved performance
+  - DEBUG_MODE parameter passing through scraper pipeline
+  - 20 comprehensive tests for M3U8 extraction
+  - 16 integration tests for video pipeline
+
+- **Product Video Assembly Modes**: Configurable video assembly with aspect ratio handling
+  - Multiple assembly modes: product_video_sequential, slideshow_images1, slideshow_images2
+  - Automatic aspect ratio detection and constraint enforcement
+  - Audio level normalization and mixing
+  - 555 tests for video mode assembly
+  - 483 tests for video transformations
+
+- **Configurable Video Positioning**: Height-constrained video placement
+  - `video_top_position_percent` and `video_content_height_percent` settings
+  - Content-aware subtitle positioning using configured video bounds
+  - Consistent subtitle placement across all video profiles
+  - Enhanced visual bounds calculation for subtitle generation
+
+- **CTA Detection & Synchronization**: Keyword-based call-to-action detection
+  - 15 configurable CTA keywords (`link`, `bio`, `visit`, `shop`, etc.)
+  - Automatic timing window detection from subtitle text
+  - CTA-synchronized upper subtitle display (shows only during CTA moments)
+  - Configurable minimum duration threshold and merge gap
+  - Centralized configuration in `config/video_production.yaml`
+
+- **Whisper Timeout Configuration**: Adjustable timeout settings for transcription
+  - `base_timeout_sec`: Base timeout before audio duration (default: 120s)
+  - `duration_multiplier`: Audio duration multiplier (default: 6.0x)
+  - `max_timeout_sec`: Maximum timeout cap (default: 900s)
+  - Resource monitoring and cleanup options
+  - All settings moved from code to `config/ai_services.yaml`
+
+### Changed
+- **Subtitle Margin Adjustments**: Fine-tuned two-part subtitle spacing
+  - Lower subtitle margin: 0.02 → 0.04 (improved readability)
+  - Upper subtitle margin: 0.05 → 0.06 (better visual separation)
+
+- **Video Profile Enhancements**: Extended all product_video_* profiles
+  - Added two-part subtitle configuration to all profiles
+  - ASS format with randomized fonts, colors, and effects
+  - Content-aware positioning enabled across all profiles
+  - Subtitle max line length: 38 characters, max words per line: 2
+
+- **Script Generation**: Refined video script prompts
+  - Removed price mentions from hook examples
+  - Enhanced hook quality guidelines
+
+### Fixed
+- **Type Checking**: Resolved MyPy type narrowing errors
+  - Fixed 3 indexing errors for optional `profile_settings` (assembler.py:2552, 2750, 3046)
+  - Added explicit None checks for type safety
+
+- **Code Quality**: Fixed Ruff linting violations
+  - Resolved 3 line length issues (88-character limit)
+  - Added missing docstring parameter documentation
+
+- **Content-Aware Positioning**: Improved subtitle placement accuracy
+  - Prefer configured video bounds over detected geometry
+  - Fallback to geometry detection when config unavailable
+  - Consistent positioning for both upper and lower subtitles
+  - Better logging for debugging positioning issues
+
+### Technical
+- **Test Infrastructure**: Comprehensive test coverage expansion
+  - Total tests: 760 (732 passing, 28 skipped)
+  - Coverage: 44.16% (exceeds 40% minimum target)
+  - Test review completed: All tests verified against current codebase
+  - New test categories: M3U8 extraction, video assembly, media validation
+
+- **Media Validation**: Enhanced video extraction validation
+  - 411 tests for media validator
+  - 194 tests for video extraction validation
+  - Strict filtering for product-related content only
+
+- **Configuration System**: Extended video production configuration
+  - Video positioning parameters in all profiles
+  - Two-part subtitle settings with anchor points
+  - Content-aware positioning with visual bounds
+
 ## [0.11.0] - 2025-10-28
 
 ### Added

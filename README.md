@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.11.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.12.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update**: Freesound OAuth2 authentication and configurable CTA detection system.
+> **🚀 Latest Update (v0.12.0)**: M3U8/HLS video extraction, product video assembly modes, configurable positioning, and CTA-synchronized subtitles.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
@@ -15,12 +15,12 @@
 
 - **🤖 End-to-End Automation**: Complete video production from scraping to final output
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎨 Style Presets**: 5 production-ready presets (`minimal`, `modern`, `bold`, `animated`, `random`) with configurable effects
-- **🎯 Content-Aware Subtitles**: Dynamic positioning that intelligently avoids visual content overlap
+- **🎥 Advanced Video Extraction**: M3U8/HLS support with strict quality filtering and deduplication
+- **🎬 Product Video Modes**: Sequential assembly, gallery transitions, and image-only slideshows
+- **🎯 Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
 - **🎵 Stock Music**: Freesound.org integration with OAuth2 auth and local fallback
 - **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
-- **🛡️ Multi-Provider Fallbacks**: OpenRouter, Google Cloud, local models for reliability
 
 ## 🚀 Quick Start
 

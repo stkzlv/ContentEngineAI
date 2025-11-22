@@ -6,6 +6,7 @@ with proper error handling and file management.
 
 import contextlib
 import logging
+import subprocess
 from pathlib import Path as PathLib
 from typing import Any
 
@@ -47,6 +48,68 @@ _enhanced_task_config = {
     "max_retry": 3,  # Reasonable retry count
     # Output handled by custom output function in get_task_config_for_outputs()
 }
+
+
+def convert_m3u8_to_mp4(
+    m3u8_url: str, output_path: PathLib, timeout: int = 120
+) -> bool:
+    """Convert M3U8 HLS stream to MP4 file using ffmpeg.
+
+    Args:
+    ----
+        m3u8_url: URL of the m3u8 playlist
+        output_path: Path where to save the converted MP4
+        timeout: Maximum time to wait for conversion (seconds)
+
+    Returns:
+    -------
+        True if conversion successful, False otherwise
+
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # FFmpeg command to download and convert m3u8 to mp4
+        cmd = [
+            "ffmpeg",
+            "-protocol_whitelist",
+            "file,http,https,tcp,tls,crypto",
+            "-i",
+            m3u8_url,
+            "-c",
+            "copy",  # Copy streams without re-encoding (faster)
+            "-bsf:a",
+            "aac_adtstoasc",  # Fix audio stream format
+            "-y",  # Overwrite output file if exists
+            str(output_path),
+        ]
+
+        logger.info(f"🎬 Converting m3u8 to mp4: {output_path.name}")
+        logger.debug(f"   Command: {' '.join(cmd)}")
+
+        # Run ffmpeg with timeout
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        if result.returncode == 0:
+            logger.info(f"✅ Successfully converted to MP4: {output_path.name}")
+            return True
+        else:
+            logger.error(f"❌ FFmpeg conversion failed with code {result.returncode}")
+            logger.error(f"   stderr: {result.stderr[:500]}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"❌ FFmpeg conversion timed out after {timeout}s")
+        return False
+    except FileNotFoundError:
+        logger.error("❌ FFmpeg not found. Please install: sudo apt install ffmpeg")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during m3u8 conversion: {e}")
+        return False
 
 
 @task(**_enhanced_task_config)
@@ -259,29 +322,18 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 logger.debug(f"   • Full traceback: {traceback.format_exc()}")
             continue
 
-    # Filter out M3U8 playlist files (they're not actual videos)
-    filtered_video_urls = []
-    m3u8_count = 0
-
-    for url in video_urls:
-        if url and ".m3u8" in url:
-            m3u8_count += 1
-            if DEBUG_MODE:
-                logger.debug(
-                    f"🎥 [VIDEO FILTER] Skipping M3U8 playlist file: {url[:80]}..."
-                )
-        else:
-            filtered_video_urls.append(url)
+    # Count video types for logging
+    m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
+    mp4_count = len(video_urls) - m3u8_count
 
     if DEBUG_MODE:
         logger.info(f"🎥 [VIDEO DOWNLOAD] Starting video downloads for ASIN: {asin}")
-        logger.info(f"🎥 [VIDEO FILTER] Filtered out {m3u8_count} M3U8 playlist files")
         logger.info(
-            f"🎥 [VIDEO FILTER] Downloading {len(filtered_video_urls)} "
-            f"actual video files"
+            f"🎥 [VIDEO TYPES] M3U8 streams: {m3u8_count}, " f"Direct MP4: {mp4_count}"
         )
+        logger.info(f"🎥 [VIDEO DOWNLOAD] Processing {len(video_urls)} total videos")
 
-    for i, url in enumerate(filtered_video_urls):
+    for i, url in enumerate(video_urls):
         try:
             if not url or not url.startswith("http"):
                 if DEBUG_MODE:
@@ -294,15 +346,29 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             filename = get_filename_pattern("video", asin=asin, index=i, ext="mp4")
             file_path = videos_dir / filename
 
+            # Check if this is an M3U8 stream or direct MP4
+            is_m3u8 = ".m3u8" in url
+
             if DEBUG_MODE:
+                video_type = "M3U8 stream" if is_m3u8 else "MP4 file"
                 logger.info(
-                    f"🎥 [VIDEO DOWNLOAD] Downloading video "
-                    f"{i+1}/{len(filtered_video_urls)}: {filename}"
+                    f"🎥 [VIDEO DOWNLOAD] Processing video "
+                    f"{i+1}/{len(video_urls)}: {filename} ({video_type})"
                 )
                 logger.info(f"   • URL: {url[:100]}...")
                 logger.info(f"   • Path: {file_path}")
 
-            success = download_file_sync(url, file_path)
+            # Handle M3U8 streams (convert to MP4) or direct MP4 download
+            if is_m3u8:
+                # Get m3u8 conversion timeout from config
+                global_settings = CONFIG.get("global_settings", {})
+                video_config = global_settings.get("video_config", {})
+                m3u8_timeout = video_config.get("m3u8_download_timeout", 120)
+
+                success = convert_m3u8_to_mp4(url, file_path, timeout=m3u8_timeout)
+            else:
+                # Use 300s timeout for direct MP4 downloads
+                success = download_file_sync(url, file_path, timeout=300)
             if success:
                 # Post-download validation using comprehensive validator
                 if DEBUG_MODE:
@@ -437,7 +503,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             f"downloaded and validated successfully"
         )
         logger.info(
-            f"   • Videos: {len(downloaded_videos)}/{len(filtered_video_urls)} "
+            f"   • Videos: {len(downloaded_videos)}/{len(video_urls)} "
             f"downloaded and validated successfully"
         )
         if downloaded_images:
@@ -454,115 +520,162 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def download_file_sync(url: str, file_path: PathLib) -> bool:
-    """Synchronous file download utility using requests
+def download_file_sync(
+    url: str, file_path: PathLib, timeout: int | None = None, max_retries: int = 2
+) -> bool:
+    """Synchronous file download utility using requests with retry logic.
 
     Args:
     ----
         url: URL to download
         file_path: Path to save the file
+        timeout: Request timeout in seconds (default: 30s for images, 300s for videos)
+        max_retries: Maximum number of retry attempts on failure (default: 2)
 
     Returns:
     -------
         True if successful, False otherwise
 
     """
+    import time
+
+    # Import DEBUG_MODE from main module
     try:
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
+        from . import scraper
 
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
+        DEBUG_MODE = scraper.DEBUG_MODE
+    except Exception:
+        DEBUG_MODE = False
 
-        # Get config values for download
-        try:
-            download_config = CONFIG.get("global_settings", {}).get(
-                "download_config", {}
-            )
-            amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
-            download_headers = amazon_config.get("http_headers", {}).get(
-                "media_download", {}
-            )
-
-            download_timeout = download_config.get(
-                "download_timeout",
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_timeout", 30),
-            )
-            chunk_size = download_config.get("download_chunk_size", 8192)
-        except Exception:
-            # Fallback values from config
-            download_timeout = (
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_timeout", 30)
-            )
-            chunk_size = (
-                CONFIG.get("global_settings", {})
-                .get("download_config", {})
-                .get("download_chunk_size", 8192)
-            )
-            download_headers = (
-                CONFIG.get("scrapers", {})
-                .get("amazon", {})
-                .get("http_headers", {})
-                .get(
-                    "media_download",
-                    {
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/125.0.0.0 Safari/537.36"
-                        ),
-                        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.9",
-                        "Referer": "https://www.amazon.com/",
-                    },
-                )
-            )
-
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
-
-        response = requests.get(
-            url, headers=download_headers, timeout=download_timeout, stream=True
+    # Get config values for download
+    try:
+        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
+        amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
+        download_headers = amazon_config.get("http_headers", {}).get(
+            "media_download", {}
         )
-        response.raise_for_status()
 
-        # Ensure parent directory exists
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+        default_timeout = download_config.get("download_timeout", 30)
+        chunk_size = download_config.get("download_chunk_size", 8192)
+    except Exception:
+        # Fallback values from config
+        default_timeout = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_timeout", 30)
+        )
+        chunk_size = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_chunk_size", 8192)
+        )
+        download_headers = (
+            CONFIG.get("scrapers", {})
+            .get("amazon", {})
+            .get("http_headers", {})
+            .get(
+                "media_download",
+                {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/125.0.0.0 Safari/537.36"
+                    ),
+                    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.amazon.com/",
+                },
+            )
+        )
 
-        with open(file_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:  # filter out keep-alive chunks
-                    f.write(chunk)
+    # Use provided timeout or default
+    effective_timeout = timeout if timeout is not None else default_timeout
 
-        # Verify file was created and has content
-        if file_path.exists() and file_path.stat().st_size > 0:
-            if DEBUG_MODE:
-                file_size = file_path.stat().st_size
+    # Retry loop with exponential backoff
+    for attempt in range(max_retries + 1):
+        try:
+            if DEBUG_MODE and attempt > 0:
                 logging.getLogger(__name__).debug(
-                    f"✅ Downloaded {file_size} bytes to {file_path.name}"
+                    f"🔄 Retry attempt {attempt}/{max_retries} for: {url}"
                 )
-            return True
-        else:
+            elif DEBUG_MODE:
+                logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
+
+            response = requests.get(
+                url,
+                headers=download_headers,
+                timeout=effective_timeout,
+                stream=True,
+            )
+            response.raise_for_status()
+
+            # Ensure parent directory exists
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if chunk:  # filter out keep-alive chunks
+                        f.write(chunk)
+
+            # Verify file was created and has content
+            if file_path.exists() and file_path.stat().st_size > 0:
+                if DEBUG_MODE:
+                    file_size = file_path.stat().st_size
+                    logging.getLogger(__name__).debug(
+                        f"✅ Downloaded {file_size} bytes to {file_path.name}"
+                    )
+                return True
+            else:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).warning(
+                        f"❌ File not created or empty: {file_path}"
+                    )
+                # Don't retry if file is empty
+                return False
+
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as e:
+            # These are transient errors worth retrying
             if DEBUG_MODE:
                 logging.getLogger(__name__).warning(
-                    f"❌ File not created or empty: {file_path}"
+                    f"⚠️ Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
                 )
+
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
+
+            # If this was the last attempt, fail
+            if attempt >= max_retries:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).error(
+                        f"❌ Download failed after {max_retries + 1} attempts: {url}"
+                    )
+                return False
+
+            # Exponential backoff: 1s, 2s, 4s...
+            backoff_time = 2**attempt
+            if DEBUG_MODE:
+                logging.getLogger(__name__).debug(
+                    f"⏳ Waiting {backoff_time}s before retry..."
+                )
+            time.sleep(backoff_time)
+
+        except Exception as e:
+            # Non-transient errors - don't retry
+            if DEBUG_MODE:
+                logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
             return False
 
-    except Exception as e:
-        if DEBUG_MODE:
-            logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
-        # Clean up partial file
-        if file_path.exists():
-            with contextlib.suppress(Exception):
-                file_path.unlink()
-        return False
+    return False
 
 
 def _validate_image_size_before_download(

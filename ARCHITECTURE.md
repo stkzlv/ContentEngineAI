@@ -179,20 +179,87 @@ dependencies = {
 
 ### 3. Video Assembly (`src/video/assembler.py`)
 
-**Purpose**: Combines all elements into final MP4 video using FFmpeg.
+**Purpose**: Combines all elements into final MP4 video using FFmpeg with intelligent video assembly strategies.
 
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
+- **Video Assembly Modes**: Four configurable strategies for video-first content
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes
+- **Audio Normalization**: Configurable video audio handling (remove/mixed)
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation
 - **Subtitle Rendering**: Styled subtitle embedding with customization
 - **Audio Mixing**: Multi-track audio with volume control
 - **Verification**: Post-assembly quality checks
 
+#### Video Assembly Modes
+
+ContentEngineAI supports **4 video assembly modes** optimized for different content styles:
+
+**1. Sequential Mode** (`video_assembly_mode: "sequential"`)
+- Concatenates all product videos end-to-end with crossfade transitions
+- Loops videos if total duration < voiceover length
+- Adds images to fill remaining time if needed
+- **Best for**: Showcasing multiple product angles/demos
+
+**2. Single Best Mode** (`video_assembly_mode: "single_best"`)
+- Selects the longest video and loops it seamlessly
+- Creates smooth infinite loop effect with crossfade at loop point
+- **Best for**: Single-angle product demonstrations with clean looping
+
+**3. Mixed Media Mode** (`video_assembly_mode: "mixed_media"`)
+- Interleaves videos and images throughout the timeline
+- Distributes videos evenly across duration
+- Fills gaps between videos with images
+- **Best for**: Dynamic visual variety mixing motion and static content
+
+**4. Video-First Fallback Mode** (`video_assembly_mode: "video_first_fallback"`)
+- Plays all product videos first (priority content)
+- Fills remaining duration with images
+- **Best for**: Ensuring videos are always shown while using images as filler
+
+#### Aspect Ratio Handling
+
+**Letterbox Mode** (`video_aspect_mode: "letterbox"`)
+```
+Original: 16:9 landscape video
+Target:   9:16 vertical frame
+Result:   Video centered with black bars (preserves aspect ratio)
+```
+
+**Crop-to-Fit Mode** (`video_aspect_mode: "crop-to-fit"`)
+```
+Original: 16:9 landscape video
+Target:   9:16 vertical frame
+Result:   Video scaled to fill frame, edges cropped (centers crop region)
+```
+
+**Smart-Scale Mode** (`video_aspect_mode: "smart-scale"`)
+```
+Automatically chooses between letterbox and crop based on aspect ratio difference:
+- ≤10% difference → Use crop-to-fit (minimal distortion)
+- >10% difference → Use letterbox (preserve content)
+```
+
+#### Audio Handling
+
+**Remove Mode** (`video_audio_handling: "remove"`)
+- Strips all original audio from product videos
+- Final mix: voiceover + background music only
+- **Best for**: Clean professional sound or videos with poor/distracting audio
+
+**Mixed Mode** (`video_audio_handling: "mixed"`)
+- Preserves original video audio at reduced volume (default: -30dB)
+- Final mix: voiceover + background music + video audio (ambient)
+- Volume configurable via `video_original_volume` (-60 to 0 dB)
+- **Best for**: Including ambient product sounds (unboxing, demos, ASMR)
+
 **FFmpeg Integration:**
 - **Complex Filters**: Dynamic filter graph construction
-- **Crossfade Transitions**: Smooth visual transitions
-- **Aspect Ratio Preservation**: Smart scaling and positioning
+- **Crossfade Transitions**: Smooth visual transitions (configurable duration)
+- **Aspect Ratio Transformations**: scale, pad, crop filters with smart positioning
+- **Format Normalization**: Auto-conversion to H.264/30fps/yuv420p for compatibility
 - **Subtitle Styling**: Font, color, positioning customization
+- **Multi-Track Audio**: amix filter with volume normalization
 
 ### 4. AI Integration (`src/ai/script_generator.py`)
 
@@ -229,6 +296,10 @@ dependencies = {
 - **Audio-Based Synchronization**: Perfect timing via actual voiceover transcription (implemented September 2025)
 - **Unified Generation System**: Single path for both ASS and SRT formats with content-aware positioning
 - **Content-Aware Positioning**: Dynamic subtitle placement that analyzes visual content to avoid overlaps
+- **Configurable Video/Subtitle Layout**: Per-profile control of video positioning and subtitle gaps
+  - `video_top_position_percent`: Vertical video start position (default: 10% from top)
+  - `video_content_height_percent`: Video height as frame percentage (default: 75%)
+  - `subtitle_margin`: Gap between content and subtitles (default: 2%)
 - **Pixel-Based Width Constraints**: Intelligent width calculation using font metrics and character-specific sizing
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
 - **Dual ASS Generation**: Regular positioned subtitles + content-aware positioned subtitles for comparison
@@ -271,7 +342,265 @@ Affiliate Link → URL Shortener → [Primary Provider]
                                  [Original URL]
 ```
 
-### 7. Amazon Scraping Features
+### 7. Video Processing and Extraction
+
+#### Overview
+
+ContentEngineAI's Amazon scraper includes comprehensive video detection, extraction, validation, and metadata capture capabilities. The system reliably identifies product-specific videos from Amazon pages, downloads them with robust error handling, and extracts detailed metadata for use in the video production pipeline.
+
+#### Video Extraction Flow
+
+```
+Product Page → Multi-Method Extraction → URL Validation → Download → FFprobe Metadata → Storage
+     │                    │                      │             │              │              │
+     │         ┌──────────┴──────────┐          │             │              │              │
+     │         │                     │          │             │              │              │
+     │    Script Data       Video Elements   HEAD Request  Streaming     Duration      videos/ dir
+     │    ASIN Matching     VDP Navigation   (1KB test)    Download    Resolution     Relative paths
+     │    Quality Filter                                   300s timeout  Codec info    in data.json
+```
+
+#### Multi-Method Video Extraction
+
+The scraper employs a three-tier extraction strategy to maximize video discovery:
+
+**Method 1: Script Data Extraction**
+- Parses `window.P.register()` JavaScript blocks for video URLs
+- Identifies product videos via ASIN matching in JSON metadata
+- Filters video URLs from structured product data
+- Prioritizes highest quality versions available
+
+**Method 2: Video Element Detection**
+- Scans DOM for `<video>` elements and sources
+- Extracts MP4 URLs from video player configurations
+- Validates URLs against Amazon CDN domains
+
+**Method 3: VDP (Video Detail Page) Navigation**
+- Follows VDP links for high-resolution video streams
+- Extracts video data from dedicated video pages
+- Captures multi-angle and detailed product views
+
+#### Video Metadata Extraction (`src/scraper/amazon/media_validator.py`)
+
+**Purpose**: Extract comprehensive video metadata using FFprobe for pipeline decision-making.
+
+**Implementation**:
+```python
+def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
+    """
+    Extract video metadata using FFprobe.
+
+    Returns:
+        {
+            'duration': float,        # Video duration in seconds
+            'width': int,            # Video width in pixels
+            'height': int,           # Video height in pixels
+            'codec': str,            # Video codec (h264, vp9, etc.)
+            'format': str,           # Container format (mp4, webm, etc.)
+            'bitrate': int,          # Bitrate in bits per second
+            'has_audio': bool        # Audio stream presence
+        }
+    """
+```
+
+**Features**:
+- **FFprobe Integration**: Uses FFprobe for comprehensive metadata extraction
+- **Graceful Degradation**: Returns `None` if FFprobe unavailable or video corrupted
+- **Structured Output**: Provides standardized metadata dict for all videos
+- **Error Handling**: Logs warnings but doesn't fail validation on metadata errors
+
+#### Video Validation and Quality Filtering
+
+**URL Validation** (`src/scraper/amazon/media_extractor.py:1261-1286`):
+- HEAD request validation (1KB range) before full download
+- Amazon CDN domain verification for security
+- Accessibility checks to filter broken links
+- Random delay (0.5-1.5s) to mimic human behavior
+
+**Quality Thresholds**:
+- **Minimum Resolution**: 640px (width or height)
+- **Minimum Duration**: 1.0 seconds
+- **File Format**: MP4 containers only
+- **Domain Whitelist**: Amazon CDN domains only
+
+**Enhanced Validation** (`verify_video_file()`):
+```python
+def verify_video_file(file_path: Path) -> tuple[bool, str, dict[str, Any]]:
+    """
+    Validate video file and extract metadata.
+
+    Returns:
+        (is_valid, reason, metadata_dict)
+    """
+```
+
+Returns validation status, reason, and metadata in single call for efficient pipeline integration.
+
+#### Robust Download Handling
+
+**Extended Timeouts**:
+- **Images**: 30 seconds timeout
+- **Videos**: 300 seconds timeout (configurable)
+- **Retry Logic**: 2 retry attempts with exponential backoff
+
+**Streaming Downloads**:
+- Chunk-based streaming (8KB chunks) for memory efficiency
+- Progress tracking for large files
+- Graceful handling of network interruptions
+
+**Error Recovery**:
+- Automatic retry with exponential backoff
+- Continues processing other videos on single failure
+- Product processing succeeds even if all videos fail
+- Detailed error logging with actionable messages
+
+#### Video Storage Organization
+
+**Directory Structure**:
+```
+outputs/{ASIN}/
+├── data.json                 # Product data with video paths
+├── images/                   # Product images
+│   ├── image_0.jpg
+│   └── image_1.jpg
+└── videos/                   # Product videos
+    ├── video_0.mp4          # First extracted video
+    ├── video_1.mp4          # Second extracted video
+    └── video_N.mp4          # Additional videos
+```
+
+**Naming Convention**:
+- Sequential indexing: `video_{index}.mp4`
+- Relative paths stored in `data.json`
+- Automatic directory creation if missing
+
+**Product Data Integration**:
+```json
+{
+  "asin": "B0BTYCRJSS",
+  "videos": [
+    "https://m.media-amazon.com/video1.mp4",
+    "https://m.media-amazon.com/video2.mp4"
+  ],
+  "downloaded_videos": [
+    "videos/video_0.mp4",
+    "videos/video_1.mp4"
+  ]
+}
+```
+
+#### Configuration Options
+
+**Video Processing** (`config/scraper.yaml:video_config`):
+```yaml
+video_config:
+  min_dimension: 640              # Minimum width/height (pixels)
+  min_duration: 1.0               # Minimum duration (seconds)
+  max_videos_per_product: 5       # Download limit per product
+  mute_video_tabs: true           # Prevent audio during extraction
+  enable_metadata_extraction: true # FFprobe metadata extraction
+```
+
+**Download Settings** (`config/scraper.yaml:download_config`):
+```yaml
+download_config:
+  download_timeout: 30            # Image timeout (seconds)
+  video_download_timeout: 300     # Video timeout (seconds)
+  retry_video_downloads: 2        # Retry attempts for videos
+  download_chunk_size: 8192       # Streaming chunk size (bytes)
+  validation_range_bytes: "0-1023" # HEAD request range
+```
+
+**Rate Limiting** (`config/scraper.yaml:rate_limiting`):
+```yaml
+rate_limiting:
+  video_validation_delay: [0.5, 1.5]  # Random delay range (seconds)
+```
+
+#### Troubleshooting Video Processing
+
+**Problem**: Videos not detected on product page
+
+**Solutions**:
+1. Enable debug mode to see extraction attempts:
+   ```bash
+   poetry run python -m src.scraper.amazon.scraper --keywords "ASIN" --debug
+   ```
+2. Check if product page actually has videos (not all products have video content)
+3. Review logs for JavaScript parsing errors or ASIN matching issues
+4. Verify network connectivity to Amazon CDN
+
+**Problem**: Video downloads timing out
+
+**Solutions**:
+1. Increase timeout in `config/scraper.yaml`:
+   ```yaml
+   download_config:
+     video_download_timeout: 600  # Increase to 10 minutes
+   ```
+2. Check network speed and stability
+3. Verify retry settings are enabled:
+   ```yaml
+   download_config:
+     retry_video_downloads: 2
+   ```
+
+**Problem**: FFprobe metadata extraction failing
+
+**Solutions**:
+1. Verify FFmpeg/FFprobe installation:
+   ```bash
+   ffprobe -version
+   ```
+2. Check video file integrity:
+   ```bash
+   ffprobe -v error outputs/{ASIN}/videos/video_0.mp4
+   ```
+3. Disable metadata extraction if FFprobe unavailable:
+   ```yaml
+   video_config:
+     enable_metadata_extraction: false
+   ```
+
+**Problem**: Low-quality videos being downloaded
+
+**Solutions**:
+1. Increase quality thresholds:
+   ```yaml
+   video_config:
+     min_dimension: 1280  # Require 720p minimum
+     min_duration: 5.0    # Require longer videos
+   ```
+2. Review validation logs to see why videos passed filtering
+3. Check if higher quality versions available on product page
+
+**Problem**: Video processing errors causing product failures
+
+**Solutions**:
+1. Check error logs for specific failure reasons
+2. Verify graceful degradation is working (product should succeed without videos)
+3. Review retry logic configuration:
+   ```yaml
+   retry_config:
+     default_max_retries: 3
+     base_delay: 1.0
+     backoff_factor: 2.0
+   ```
+
+#### Performance Characteristics
+
+**Video Extraction Performance**:
+- URL extraction: <5 seconds per product
+- Concurrent downloads: Max 3 simultaneous videos
+- Average video download: 30-90 seconds (depends on file size and network)
+- Metadata extraction: <2 seconds per video (FFprobe)
+
+**Resource Usage**:
+- Memory: Streaming downloads prevent memory spikes
+- Network: Chunk-based transfers minimize bandwidth waste
+- CPU: Minimal (FFprobe is lightweight)
+
+### 8. Amazon Scraping Features
 
 #### Search Parameters
 
@@ -294,7 +623,7 @@ Affiliate Link → URL Shortener → [Primary Provider]
 - `date-desc-rank` - Newest first
 - `featured-rank` - Featured items first
 
-### 8. Multi-Platform Web Scraping Architecture
+### 9. Multi-Platform Web Scraping Architecture
 
 #### **Platform Registry System (`src/scraper/__init__.py`)**
 

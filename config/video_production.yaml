@@ -25,7 +25,7 @@ file_naming:
   subtitles_srt: "subtitles.srt"
   subtitles_ass: "subtitles.ass"
   subtitles_content_aware: "subtitles_content_aware.ass"
-  temp_subtitle: "captions.srt"
+  # NOTE: temp_subtitle removed - system uses subtitles.srt, subtitles.ass, etc. directly
 
   # Video output filenames
   # Used by assembler.py for final video generation
@@ -152,25 +152,21 @@ video_settings:
 # AUDIO SETTINGS
 # ============================================================================
 audio_settings:
-  # Audio sample rate (Hz)
-  sample_rate: 44100
-
-  # Audio channels (1=mono, 2=stereo)
-  channels: 2
-
-  # Audio bitrate (kbps)
-  bitrate: 192
+  # NOTE: Audio encoding settings (sample_rate, channels, bitrate) are handled automatically by FFmpeg
+  # Output format is controlled by output_audio_codec and output_audio_bitrate below
 
   # Volume levels (dB)
   music_volume_db: -24.0
   voiceover_volume_db: 3.0
 
   # Audio mixing settings
-  audio_mix_duration: "longest"
+  audio_mix_duration: "first"  # Use first track (voiceover) duration to keep audio/subtitle sync
 
   # Audio encoding for output
   output_audio_codec: "aac"
   output_audio_bitrate: "192k"
+
+  # Music fade in/out durations (seconds)
   music_fade_in_duration: 2.0
   music_fade_out_duration: 3.0
 
@@ -256,6 +252,37 @@ audio_settings:
   # Recommendation: 60s provides safety margin for slow refreshes
   freesound_token_refresh_buffer_sec: 60
 
+  # --- Retry and Backoff Configuration ---
+  # Used by: src/audio/freesound_client.py (lines 349-418)
+  # Controls how many times to retry failed operations and delay between attempts
+
+  # Token refresh retry configuration
+  freesound_token_refresh:
+    # Maximum retry attempts for token refresh
+    # After this many failures, fallback to API key or local files
+    max_retries: 2
+
+    # Timeout for token refresh requests (seconds)
+    # Freesound OAuth2 endpoint typically responds in <1s
+    timeout_sec: 5
+
+    # Exponential backoff configuration
+    # Delay = base_delay * (multiplier ** attempt)
+    # Example: 0.5s, 1.0s, 2.0s with base=0.5 and multiplier=2
+    backoff_base_delay_sec: 0.5
+    backoff_multiplier: 2.0
+
+  # Download retry configuration
+  freesound_download:
+    # Maximum retry attempts for downloads
+    # Retries help with transient network issues
+    max_retries: 2
+
+    # Exponential backoff configuration for download retries
+    # Longer base delay since downloads may be rate-limited
+    backoff_base_delay_sec: 1.0
+    backoff_multiplier: 2.0
+
   # --- Download Settings ---
   # Download chunk size for streaming (bytes)
   # Larger = faster downloads but more memory usage
@@ -275,57 +302,72 @@ audio_settings:
   # Background music settings
   background_music:
     enabled: true
-    fade_in_duration: 2.0
-    fade_out_duration: 3.0
-    loop_if_short: true
+    # NOTE: fade_in_duration and fade_out_duration are configured above (lines 170-171)
+    # NOTE: Background music always loops to match video duration
 
 # ============================================================================
 # MEDIA GATHERING
 # ============================================================================
+# Configuration for collecting and filtering media assets (images and videos)
+# Used by: producer.py and media_extractor.py for stock media integration
+#
+# Pipeline Impact:
+# - temp_media_dir: Stores downloaded Pexels/stock assets during production
+# - stock_media_keywords: Influences relevance of stock media searches
+# - Duration limits: Filters stock videos to appropriate lengths
 media_settings:
-  # Temporary directory for media assets
+  # Temporary directory for downloaded stock media assets
+  # Created automatically during video production, can be cleaned up after
+  # Location: Relative to project root
   temp_media_dir: "downloaded_media_assets"
 
-  # Keywords for stock media search
+  # Keywords for stock media search queries
+  # Used when profile enables use_stock_images or use_stock_videos
+  # Tips: Use broad, generic terms; avoid product-specific words
+  # Example searches: "product showcase technology", "modern lifestyle happy customer"
   stock_media_keywords:
     - "product showcase"
     - "modern lifestyle"
     - "technology"
     - "happy customer"
 
-  # Stock video duration limits
+  # Stock video duration constraints (seconds)
+  # Filters search results to clips within this range
+  # Short clips (5-20s) work best for product videos
+  # Longer clips increase file size and processing time
   stock_video_min_duration_sec: 5
   stock_video_max_duration_sec: 20
 
-  # Product title keyword filtering
+  # Product title keyword filtering (minimum word length)
+  # When extracting keywords from product titles for stock searches
+  # Words shorter than this are ignored (filters "the", "a", "is", etc.)
   product_title_keyword_min_length: 3
 
-  # Maximum items to download per product
-  max_images_per_product: 10
-  max_videos_per_product: 3
-
-  # Image quality settings
-  image_quality:
-    min_width: 300
-    min_height: 300
-    preferred_format: "jpg"
-    max_file_size_mb: 5
-
-  # Video quality settings
-  video_quality:
-    min_duration: 2
-    max_duration: 30
-    preferred_format: "mp4"
-    max_file_size_mb: 50
+  # NOTE: max_images_per_product and max_videos_per_product are configured in scraper.yaml
+  # NOTE: image_quality and video_quality settings are configured in scraper.yaml
 
 # ============================================================================
 # STOCK MEDIA SETTINGS
 # ============================================================================
+# Configuration for third-party stock media providers (Pexels for images/videos)
+# Used by: Stock media integration in producer.py
+#
+# Usage:
+# - Enable per-profile using use_stock_images and use_stock_videos flags
+# - No global toggle - each video profile specifies its own media sources
+# - Requires API key from https://www.pexels.com/api/
+#
+# Pipeline Impact:
+# - When enabled, supplements scraped product media with professional stock content
+# - Useful when products have insufficient media or need higher visual quality
 stock_media_settings:
-  # Enable stock media usage
-  enabled: false
+  # NOTE: Stock media usage is controlled by profile flags: use_stock_images, use_stock_videos
+  # No global "enabled" flag needed - each profile specifies which media types to use
 
   # Pexels API configuration
+  # Environment variable containing Pexels API key
+  # Get free key from: https://www.pexels.com/api/
+  # Rate limits: 200 requests/hour (free tier)
   pexels_api_key_env_var: "PEXELS_API_KEY"
 
   # Note: Freesound integration removed - background music uses audio_settings instead
@@ -337,18 +379,10 @@ video_profiles:
   # Base profile (shared defaults)
   base:
     description: "Base profile with common settings for all video types."
-    video:
-      preserve_aspect_ratio: true
-      transition_effects:
-        enabled: true
-        duration: 0.5
-    audio:
-      normalize_audio: true
-      background_music:
-        enabled: true
-    subtitles:
-      enabled: true
-      position: "bottom"
+    # NOTE: Video settings (transitions, aspect ratio) controlled by profile-level config
+    # NOTE: Audio normalization handled automatically by pipeline
+    # NOTE: Background music controlled by audio_settings.background_music section
+    # NOTE: Subtitle settings controlled by profile-level subtitle_* config
 
   # Slideshow with images profile
   slideshow_images1:
@@ -450,7 +484,7 @@ video_profiles:
     two_part_subtitles_upper_margin: 0.04
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Can be: minimal, modern, bold, animated
-    two_part_subtitles_upper_use_full_duration: true     # Display for entire video
+    two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
     two_part_subtitles_upper_randomize_effects: false    # Can enable for randomized effects
     two_part_subtitles_upper_prefix_replace: "Product: " # Replace URL prefix (e.g., "https://" → "Product: ")
 
@@ -487,8 +521,8 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.9
-    image_top_position_percent: 0.12
+    image_width_percent: 0.75              # Medium size images
+    image_top_position_percent: 0.20       # Position images in upper-middle area
 
     # Two-part subtitle system configuration
     two_part_subtitles_enabled: true
@@ -496,7 +530,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.04
+    two_part_subtitles_upper_margin: 0.06
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
     two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
@@ -504,13 +538,14 @@ video_profiles:
     two_part_subtitles_upper_prefix_replace: ""          # Keep full URL visible
 
     two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
-    two_part_subtitles_lower_margin: 0.05
+    two_part_subtitles_lower_anchor: "below_content"     # Position below images
+    two_part_subtitles_lower_margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
+    subtitle_margin: 0.05                    # Small gap below images (5% of frame = 96px spacing)
 
     # Lower line styling (voiceover subtitles)
     subtitle_style_preset: "modern"
@@ -526,6 +561,251 @@ video_profiles:
     subtitle_max_duration: 4.0
     subtitle_min_duration: 0.5
 
+  # ========================================================================
+  # VIDEO ASSEMBLY PROFILES
+  # ========================================================================
+  # Product video profiles using scraped videos with different assembly strategies
+  # All profiles use product videos as primary content with configurable fallback
+
+  # Sequential video assembly - play all videos end-to-end
+  product_video_sequential:
+    description: "Concatenates all product videos sequentially with crossfade transitions. Best for showcasing multiple product angles/demos."
+    use_scraped_images: true                   # Use images as fallback
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "sequential"          # Play all videos in sequence
+    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop (10% threshold)
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -30.0               # Video audio at -30dB (background level)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # 0.5s crossfade between videos
+
+    # Image positioning (for fallback images)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.45         # Position lower (45% from top = 864px)
+
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
+    # Two-part subtitle system (CTA-synchronized)
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_anchor: "above_content"
+    two_part_subtitles_upper_margin: 0.03                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"
+    two_part_subtitles_upper_use_full_duration: false
+    two_part_subtitles_upper_randomize_effects: false
+    two_part_subtitles_upper_prefix_replace: ""
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "below_content"
+    two_part_subtitles_lower_margin: 0.03                    # Gap below content (3% spacing)
+
+    # Subtitle configuration - ASS format
+    subtitle_format: "ass"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.03                    # Gap below content (3% = ~58px spacing from image bottom)
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Single best video - loop longest video to fill duration
+  product_video_single:
+    description: "Selects and loops the longest product video to match voiceover duration. Ideal for single-angle product demos."
+    use_scraped_images: true                   # Use images as fallback
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "single_best"         # Use longest video, loop to fill
+    video_aspect_mode: "crop-to-fit"           # Crop to fill frame (good for looping)
+    video_audio_handling: "remove"             # Strip video audio (cleaner for loops)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Smooth loop transition
+
+    # Image positioning (for fallback images)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
+    # Two-part subtitle system (CTA-synchronized)
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_anchor: "above_content"
+    two_part_subtitles_upper_margin: 0.03                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"
+    two_part_subtitles_upper_use_full_duration: false
+    two_part_subtitles_upper_randomize_effects: false
+    two_part_subtitles_upper_prefix_replace: ""
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "below_content"
+    two_part_subtitles_lower_margin: 0.03                    # Gap below content (3% spacing)
+
+    # Subtitle configuration - ASS format
+    subtitle_format: "ass"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.03                    # Gap below content (3% = ~58px spacing from image bottom)
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Mixed media - interleave videos and images throughout
+  product_video_mixed:
+    description: "Interleaves product videos and images throughout timeline. Creates dynamic visual variety."
+    use_scraped_images: true                   # Primary content: mix of videos and images
+    use_scraped_videos: true                   # Primary content: mix of videos and images
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "mixed_media"         # Interleave videos and images
+    video_aspect_mode: "letterbox"             # Preserve aspect ratio with padding
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -35.0               # Video audio at -35dB (more subtle)
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Crossfade between all media
+
+    # Image positioning
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
+    # Two-part subtitle system (CTA-synchronized)
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_anchor: "above_content"
+    two_part_subtitles_upper_margin: 0.03                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"
+    two_part_subtitles_upper_use_full_duration: false
+    two_part_subtitles_upper_randomize_effects: false
+    two_part_subtitles_upper_prefix_replace: ""
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "below_content"
+    two_part_subtitles_lower_margin: 0.03                    # Gap below content (3% spacing)
+
+    # Subtitle configuration - ASS format
+    subtitle_format: "ass"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.03                    # Gap below content (3% = ~58px spacing from image bottom)
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
+  # Video-first fallback - prioritize all videos, then images
+  product_video_primary:
+    description: "Plays all product videos first, then fills remaining time with images. Ensures videos are always shown."
+    use_scraped_images: true                   # Use images to fill remaining duration
+    use_scraped_videos: true                   # Primary content: scraped product videos
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Video assembly configuration
+    video_assembly_mode: "video_first_fallback"  # All videos first, then images
+    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop
+    video_audio_handling: "mixed"              # Include video audio at reduced volume
+    video_original_volume: -30.0               # Video audio at -30dB
+    enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
+
+    # Transition settings
+    video_transition_duration: 0.5             # Crossfade between all media
+
+    # Image positioning (for remaining duration)
+    image_width_percent: 0.85
+    image_top_position_percent: 0.15
+
+    # Video positioning (for full-frame videos)
+    # Controls vertical placement and subtitle space reservation
+    video_top_position_percent: 0.20         # Position higher (20% from top = 384px)
+    video_content_height_percent: 0.40       # Video takes 40% of frame height (768px)
+    # Video ends at 60% (20% + 40% = 60% = 1152px), leaving 40% at bottom for subtitles
+
+    # Two-part subtitle system (CTA-synchronized)
+    two_part_subtitles_enabled: true
+    two_part_subtitles_upper_enabled: true
+    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_anchor: "above_content"
+    two_part_subtitles_upper_margin: 0.03                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_font_size_scale: 0.7
+    two_part_subtitles_upper_style_preset: "minimal"
+    two_part_subtitles_upper_use_full_duration: false
+    two_part_subtitles_upper_randomize_effects: false
+    two_part_subtitles_upper_prefix_replace: ""
+
+    two_part_subtitles_lower_enabled: true
+    two_part_subtitles_lower_anchor: "below_content"
+    two_part_subtitles_lower_margin: 0.03                    # Gap below content (3% spacing)
+
+    # Subtitle configuration - ASS format
+    subtitle_format: "ass"
+    subtitle_anchor: "below_content"
+    subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
+    subtitle_content_aware: true
+    subtitle_horizontal_alignment: "center"
+    subtitle_style_preset: "bold"
+    subtitle_font_size_scale: 1.0
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: true
+    subtitle_max_line_length: 38
+    subtitle_max_words_per_line: 2
+
 # ============================================================================
 # CTA DETECTION SETTINGS
 # ============================================================================
@@ -539,22 +819,123 @@ video_profiles:
 cta_detection:
   # Minimum total duration (seconds) for detected CTA windows
   # If total CTA duration < this value, fall back to full video duration
-  min_cta_duration: 2.0
+  min_cta_duration: 0.5
 
   # Fallback duration (seconds) when voiceover duration unavailable
   # Used as placeholder for static subtitles
   fallback_duration: 9999.0
 
+  # CTA keyword detection settings
+  keywords:
+    - "link"
+    - "bio"
+    - "check out"
+    - "visit"
+    - "follow"
+    - "share"
+    - "like"
+    - "subscribe"
+    - "click"
+    - "tap"
+    - "swipe"
+    - "purchase"
+    - "buy"
+    - "shop"
+    - "get"
+
+  # Whether keyword matching is case-sensitive
+  case_sensitive: false
+
+  # Maximum gap (seconds) between CTA segments to merge into one window
+  merge_gap_threshold: 0.5
+
+# ============================================================================
+# FORMAT NORMALIZATION SETTINGS
+# ============================================================================
+# Controls video format normalization to ensure compatibility across all content
+# Used by: src/video/assembler.py normalize_video_format() method (lines 801-850)
+#
+# Pipeline Impact:
+# - Ensures all videos use consistent frame rate, codec, and pixel format
+# - Prevents playback issues from format mismatches
+# - Re-encodes videos only when necessary (based on tolerance checks)
+#
+# Performance Notes:
+# - Re-encoding is CPU-intensive (~30-60s per video)
+# - fps_tolerance reduces unnecessary re-encodes (0.1 = 10% tolerance)
+format_normalization:
+  # Target frame rate for all videos (frames per second)
+  # Most displays support 30fps; higher values increase file size
+  target_fps: 30.0
+
+  # FPS tolerance for determining if re-encoding is needed
+  # If video fps is within this tolerance of target, skip re-encode
+  # Example: 0.1 means 29.7-30.3 fps is acceptable
+  fps_tolerance: 0.1
+
+  # Default frame rate string for FFmpeg (numerator/denominator format)
+  # Used as fallback when frame rate cannot be parsed from video metadata
+  default_fps_string: "30/1"
+
+  # Target video codec (h264 for maximum compatibility)
+  # H.264 is supported by virtually all devices and browsers
+  target_codec: "h264"
+
+  # Target pixel format (yuv420p for maximum compatibility)
+  # yuv420p is required for some platforms (iOS Safari, older Android)
+  target_pixel_format: "yuv420p"
+
+# ============================================================================
+# ASPECT RATIO HANDLING
+# ============================================================================
+# Controls how aspect ratio differences are handled in smart-scale mode
+# Used by: src/video/assembler.py _apply_smart_scale_mode() method (line 1718)
+#
+# Pipeline Impact:
+# - Determines when to crop vs letterbox content to match target aspect ratio
+# - Affects visual appearance and how much content is visible
+#
+# Visual Examples:
+# - tolerance=0.10: 16:9 video in 16:9 frame = crop (within 10%)
+# - tolerance=0.05: 4:3 video in 16:9 frame = letterbox (exceeds 5%)
+aspect_ratio:
+  # Tolerance for aspect ratio similarity (fraction, not percentage)
+  # If content aspect ratio is within this tolerance of target, use crop-to-fit
+  # Otherwise use letterbox to show full content with black bars
+  #
+  # Examples:
+  # - 0.10 = 10% tolerance (more aggressive cropping)
+  # - 0.05 = 5% tolerance (more conservative, prefers letterbox)
+  smart_scale_tolerance: 0.10
+
+# ============================================================================
+# TIMING CONSTRAINTS
+# ============================================================================
+# Minimum duration constraints for video segments and subtitle display
+# Used by: src/video/subtitle_positioning.py and assembler.py
+#
+# Pipeline Impact:
+# - Prevents too-short clips that feel jarring or fail to render
+# - Ensures subtitles display long enough to be readable
+timing:
+  # Minimum segment duration in seconds
+  # Prevents creation of video clips shorter than this
+  # Too-short clips can cause rendering issues or feel jarring
+  min_segment_duration_sec: 0.1
+
+  # Minimum safe trim duration (provides buffer for timing accuracy)
+  # Used when trimming video segments to ensure clean cuts
+  min_safe_trim_duration_sec: 0.5
+
 # ============================================================================
 # ATTRIBUTION SETTINGS
 # ============================================================================
 # Video attribution and credits display configuration
-# NOTE: Feature not yet implemented - configuration placeholder for future development
-# TODO: Implement attribution overlay system in assembler.py
+# NOTE: Attribution feature not implemented, minimal config for Pydantic validation
 attribution_settings:
-  enabled: false  # Disabled - feature pending implementation
-  attribution_template: ""  # Placeholder for future implementation
-  attribution_entry_template: ""  # Placeholder for future implementation
+  enabled: false
+  attribution_template: ""
+  attribution_entry_template: ""
 
 # ============================================================================
 # TEXT-TO-SPEECH SETTINGS
@@ -626,10 +1007,31 @@ llm_settings:
 # ============================================================================
 # DESCRIPTION SETTINGS
 # ============================================================================
+# AI-generated video description configuration for social media platforms
+# Used by: description_generator.py for creating platform-optimized descriptions
+#
+# Pipeline Impact:
+# - Generates SEO-optimized descriptions for video posts
+# - Includes hashtags, CTAs, and platform-specific formatting
+# - Runs after script generation using same LLM provider
 description_settings:
+  # Enable description generation (disable to skip this step)
   enabled: true
+
+  # Prompt template file path for description generation
+  # Contains platform-specific guidelines and formatting rules
+  # Customize to change description style, length, or CTA approach
   prompt_template_path: "src/ai/prompts/video_description.md"
+
+  # Target platforms for description optimization
+  # Each platform has different character limits and best practices:
+  # - tiktok: 2200 chars, hashtags critical, trending sounds
+  # - youtube: 5000 chars, SEO keywords, detailed descriptions
+  # - instagram: 2200 chars, hashtags, visual-first captions
   target_platforms: ["tiktok", "youtube", "instagram"]
+
+  # Maximum tokens for generated description
+  # 200 tokens ≈ 150-200 words ≈ platform caption + hashtags
   max_tokens: 200
 
 # ============================================================================

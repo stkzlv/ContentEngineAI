@@ -211,6 +211,7 @@ class AsyncSemaphore:
 
 
 # Global semaphore instances for different operation types
-ffmpeg_semaphore = AsyncSemaphore(max_concurrent=2)  # FFmpeg is CPU intensive
+# Performance: Increased from 2→4 to reduce bottleneck (v0.12.0)
+ffmpeg_semaphore = AsyncSemaphore(max_concurrent=4)  # FFmpeg is CPU intensive
 io_semaphore = AsyncSemaphore(max_concurrent=8)  # I/O operations
 network_semaphore = AsyncSemaphore(max_concurrent=4)  # Network operations

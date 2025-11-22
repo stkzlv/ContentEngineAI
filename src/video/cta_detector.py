@@ -44,35 +44,21 @@ def detect_cta_timing_windows(
         if cta_config and hasattr(cta_config, "keywords"):
             cta_keywords = cta_config.keywords
         else:
-            # Fallback defaults if config not available
-            cta_keywords = [
-                "link",
-                "bio",
-                "check out",
-                "visit",
-                "follow",
-                "share",
-                "like",
-                "subscribe",
-                "click",
-                "tap",
-                "swipe",
-                "purchase",
-                "buy",
-                "shop",
-                "get",
-            ]
+            # Configuration not available - see config/video_production.yaml
+            cta_keywords = []
 
     if case_sensitive is None:
         if cta_config and hasattr(cta_config, "case_sensitive"):
             case_sensitive = cta_config.case_sensitive
         else:
+            # Configuration not available - see config/video_production.yaml
             case_sensitive = False
 
     if merge_gap_threshold is None:
         if cta_config and hasattr(cta_config, "merge_gap_threshold"):
             merge_gap_threshold = cta_config.merge_gap_threshold
         else:
+            # Configuration not available - see config/video_production.yaml
             merge_gap_threshold = 0.5
 
     cta_windows = []

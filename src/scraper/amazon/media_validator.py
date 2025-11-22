@@ -19,6 +19,117 @@ from .config import CONFIG
 logger = logging.getLogger(__name__)
 
 
+def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
+    """Extract comprehensive metadata from a video file using FFprobe.
+
+    Args:
+    ----
+        file_path: Path to the video file
+
+    Returns:
+    -------
+        Dictionary containing video metadata with keys:
+            - duration: Video duration in seconds (float)
+            - width: Video width in pixels (int)
+            - height: Video height in pixels (int)
+            - codec: Video codec name (str)
+            - format: Container format name (str)
+            - bitrate: Video bitrate in bits/second (int)
+            - has_audio: Whether video has audio stream (bool)
+        Returns None if FFprobe is unavailable or extraction fails.
+
+    """
+    try:
+        if not file_path.exists():
+            logger.warning(f"Video file does not exist: {file_path}")
+            return None
+
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "stream=codec_name,codec_type,width,height,duration,bit_rate",
+            "-show_entries",
+            "format=duration,size,bit_rate,format_name",
+            "-of",
+            "json",
+            str(file_path),
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        if result.returncode != 0:
+            logger.warning(f"FFprobe failed for {file_path}: {result.stderr}")
+            return None
+
+        try:
+            probe_data = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse FFprobe output for {file_path}: {e}")
+            return None
+
+        streams = probe_data.get("streams", [])
+        format_info = probe_data.get("format", {})
+
+        video_streams = [s for s in streams if s.get("codec_type") == "video"]
+        audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
+
+        if not video_streams:
+            logger.warning(f"No video streams found in {file_path}")
+            return None
+
+        video_stream = video_streams[0]
+
+        duration = None
+        if "duration" in video_stream:
+            with contextlib.suppress(ValueError, TypeError):
+                duration = float(video_stream["duration"])
+        if duration is None and "duration" in format_info:
+            with contextlib.suppress(ValueError, TypeError):
+                duration = float(format_info["duration"])
+
+        width = video_stream.get("width")
+        height = video_stream.get("height")
+        codec = video_stream.get("codec_name")
+
+        bitrate = None
+        if "bit_rate" in video_stream:
+            with contextlib.suppress(ValueError, TypeError):
+                bitrate = int(video_stream["bit_rate"])
+        if bitrate is None and "bit_rate" in format_info:
+            with contextlib.suppress(ValueError, TypeError):
+                bitrate = int(format_info["bit_rate"])
+
+        format_name = format_info.get("format_name", "unknown")
+
+        if duration is None or width is None or height is None or codec is None:
+            logger.warning(f"Incomplete metadata for {file_path}")
+            return None
+
+        metadata = {
+            "duration": duration,
+            "width": width,
+            "height": height,
+            "codec": codec,
+            "format": format_name,
+            "bitrate": bitrate,
+            "has_audio": len(audio_streams) > 0,
+        }
+
+        return metadata
+
+    except subprocess.TimeoutExpired:
+        logger.warning(f"FFprobe timeout for {file_path}")
+        return None
+    except subprocess.SubprocessError as e:
+        logger.warning(f"FFprobe subprocess error for {file_path}: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Unexpected error extracting metadata from {file_path}: {e}")
+        return None
+
+
 class MediaValidationResult:
     """Represents the result of media file validation."""
 
@@ -28,11 +139,13 @@ class MediaValidationResult:
         is_valid: bool,
         validation_data: dict,
         issues: list = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.file_path = file_path
         self.is_valid = is_valid
         self.validation_data = validation_data
         self.issues = issues or []
+        self.metadata = metadata or {}
 
     def to_dict(self) -> dict:
         """Convert validation result to dictionary."""
@@ -41,6 +154,7 @@ class MediaValidationResult:
             "is_valid": self.is_valid,
             "validation_data": self.validation_data,
             "issues": self.issues,
+            "metadata": self.metadata,
         }
 
 
@@ -183,7 +297,11 @@ def verify_video_file(
 
     Returns:
     -------
-        MediaValidationResult with detailed validation information
+        MediaValidationResult with detailed validation information and metadata.
+        The result includes a metadata dict with video properties (duration, width,
+        height, codec, format, bitrate, has_audio) extracted via FFprobe. Metadata
+        will be empty dict if extraction fails, ensuring validation is not affected
+        by FFprobe availability.
 
     """
     # Get config values if not provided
@@ -390,7 +508,20 @@ def verify_video_file(
         validation_data["validation_error"] = str(e)
 
     is_valid = len(issues) == 0
-    return MediaValidationResult(file_path, is_valid, validation_data, issues)
+
+    # Extract video metadata if validation passed or file exists
+    metadata = {}
+    if file_path.exists():
+        extracted_metadata = extract_video_metadata(file_path)
+        if extracted_metadata:
+            metadata = extracted_metadata
+        elif is_valid:
+            # Log warning only if validation passed but metadata extraction failed
+            logger.debug(
+                f"Validation passed but metadata extraction failed for {file_path}"
+            )
+
+    return MediaValidationResult(file_path, is_valid, validation_data, issues, metadata)
 
 
 def validate_media_batch(

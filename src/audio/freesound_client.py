@@ -35,7 +35,7 @@ def update_env_file(key_to_update: str, new_value: str):
             )
             return
 
-        set_key(env_path, key_to_update, new_value)
+        set_key(env_path, key_to_update, new_value, quote_mode="never")
         logger.info(f"Successfully updated '{key_to_update}' in {env_path}")
     except Exception as e:
         logger.error(f"Failed to automatically update .env file: {e}", exc_info=True)
@@ -68,11 +68,12 @@ class FreesoundClient:
 
     """
 
-    def __init__(self, **kwargs: str) -> None:
+    def __init__(self, config: Any | None = None, **kwargs: str) -> None:
         """Initialize FreesoundClient with API credentials and OAuth2 configuration.
 
         Args:
         ----
+            config: VideoConfig object for accessing retry/backoff configuration
             **kwargs: Credential configuration parameters:
                 - FREESOUND_API_KEY: API key for search/preview operations (required for
                   search)
@@ -83,6 +84,7 @@ class FreesoundClient:
                   downloads)
 
         """
+        self.config = config
         self.fs_api_client: freesound.FreesoundClient = freesound.FreesoundClient()
         self._api_key: str | None = kwargs.get("FREESOUND_API_KEY")
 
@@ -346,10 +348,22 @@ class FreesoundClient:
             "refresh_token": self.oauth_refresh_token,
         }
 
-        max_retries = 2
+        # Load retry configuration from config or use defaults
+        if self.config and hasattr(self.config, "audio_settings"):
+            retry_config = self.config.audio_settings.get("freesound_token_refresh", {})
+            max_retries = retry_config.get("max_retries", 2)
+            timeout_sec = retry_config.get("timeout_sec", 5)
+            backoff_base = retry_config.get("backoff_base_delay_sec", 0.5)
+            backoff_mult = retry_config.get("backoff_multiplier", 2.0)
+        else:
+            max_retries = 2
+            timeout_sec = 5
+            backoff_base = 0.5
+            backoff_mult = 2.0
+
         for attempt in range(max_retries):
             try:
-                timeout = aiohttp.ClientTimeout(total=5)
+                timeout = aiohttp.ClientTimeout(total=timeout_sec)
                 async with session.post(
                     "https://freesound.org/apiv2/oauth2/access_token/",
                     data=payload,
@@ -412,10 +426,11 @@ class FreesoundClient:
                 )
                 if attempt == max_retries - 1:
                     logger.error(
-                        "OAuth2 token refresh failed - all attempts timed out after 5s"
+                        f"OAuth2 token refresh failed - all attempts timed out "
+                        f"after {timeout_sec}s"
                     )
                     return False
-                await asyncio.sleep(0.5 * (2**attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
@@ -523,7 +538,17 @@ class FreesoundClient:
         download_url = f"https://freesound.org/apiv2/sounds/{sound_id}/download/"
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        max_retries = 2
+        # Load download retry configuration from config or use defaults
+        if self.config and hasattr(self.config, "audio_settings"):
+            download_config = self.config.audio_settings.get("freesound_download", {})
+            max_retries = download_config.get("max_retries", 2)
+            backoff_base = download_config.get("backoff_base_delay_sec", 1.0)
+            backoff_mult = download_config.get("backoff_multiplier", 2.0)
+        else:
+            max_retries = 2
+            backoff_base = 1.0
+            backoff_mult = 2.0
+
         for attempt in range(max_retries):
             try:
                 timeout = aiohttp.ClientTimeout(total=timeout_sec)
@@ -634,7 +659,7 @@ class FreesoundClient:
                         f"(sound_id: {sound_id})"
                     )
                     return None
-                await asyncio.sleep(1.0 * (2**attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientConnectorError as e:
                 logger.warning(
@@ -647,7 +672,7 @@ class FreesoundClient:
                         f"(sound_id: {sound_id})"
                     )
                     return None
-                await asyncio.sleep(1.0 * (2**attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
@@ -656,7 +681,7 @@ class FreesoundClient:
                 )
                 if attempt == max_retries - 1:
                     return None
-                await asyncio.sleep(1.0 * (2**attempt))
+                await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except RuntimeError as e:
                 if "Session is closed" in str(e) and attempt < max_retries - 1:

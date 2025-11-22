@@ -3,10 +3,10 @@
   "title": "Requirements Compliance - Design Document",
   "filePath": ".spec-workflow/specs/requirements-compliance/design.md",
   "type": "document",
-  "status": "rejected",
+  "status": "approved",
   "createdAt": "2025-10-21T08:16:19.508Z",
   "category": "spec",
   "categoryName": "requirements-compliance",
-  "response": "I don't understand what it's all about.",
-  "respondedAt": "2025-10-21T08:20:58.346Z"
+  "response": "Approved via dashboard",
+  "respondedAt": "2025-11-06T20:34:27.015Z"
 }
