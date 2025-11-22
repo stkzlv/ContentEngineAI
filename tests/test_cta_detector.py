@@ -94,7 +94,8 @@ class TestCTATimingDetection:
             {"text": "Check the link in bio", "start_time": 2.0, "end_time": 4.0},
             {"text": "Thank you for watching", "start_time": 4.0, "end_time": 6.0},
         ]
-        windows = detect_cta_timing_windows(segments)
+        keywords = ["link", "bio", "check out", "visit"]
+        windows = detect_cta_timing_windows(segments, cta_keywords=keywords)
         assert len(windows) == 1
         assert windows[0] == (2.0, 4.0)
 
@@ -106,7 +107,8 @@ class TestCTATimingDetection:
             {"text": "Here are the features", "start_time": 4.0, "end_time": 8.0},
             {"text": "Follow and subscribe", "start_time": 8.0, "end_time": 10.0},
         ]
-        windows = detect_cta_timing_windows(segments)
+        keywords = ["visit", "follow", "subscribe"]
+        windows = detect_cta_timing_windows(segments, cta_keywords=keywords)
         # All CTA segments are merged into one continuous window
         assert len(windows) == 1
         assert windows[0] == (2.0, 10.0)
@@ -117,7 +119,8 @@ class TestCTATimingDetection:
             {"text": "Check out the link", "start_time": 0.0, "end_time": 2.0},
             {"text": "Visit our bio", "start_time": 2.1, "end_time": 4.0},
         ]
-        windows = detect_cta_timing_windows(segments)
+        keywords = ["check out", "link", "visit", "bio"]
+        windows = detect_cta_timing_windows(segments, cta_keywords=keywords)
         # Should be merged into one continuous window (first to last)
         assert len(windows) == 1
         assert windows[0] == (0.0, 4.0)
@@ -132,7 +135,8 @@ class TestCTATimingDetection:
             {"text": "More content", "start_time": 10.0, "end_time": 15.0},
             {"text": "Visit the link in bio", "start_time": 15.0, "end_time": 18.0},
         ]
-        windows = detect_cta_timing_windows(segments)
+        keywords = ["follow", "like", "visit", "link", "bio"]
+        windows = detect_cta_timing_windows(segments, cta_keywords=keywords)
         # Should be merged into one continuous window from first CTA to last CTA
         assert len(windows) == 1
         assert windows[0] == (2.0, 18.0)

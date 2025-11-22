@@ -1810,7 +1810,12 @@ class VideoAssembler:
         total_video_duration: float,
         is_relative_mode: bool,
     ) -> tuple[
-        list[str], list[str], list[tuple[Path, float, bool]], str, list[VisualGeometry]
+        list[str],
+        list[str],
+        list[tuple[Path, float, bool]],
+        str,
+        list[VisualGeometry],
+        bool,
     ]:
         # Get effective video settings with profile/CLI overrides applied
         video_settings_dict = self._get_effective_video_settings()
@@ -1871,6 +1876,29 @@ class VideoAssembler:
 
         if self.debug_mode and mode_info:
             logger.debug(f"Visual assembly mode: {mode_info}")
+
+        # Detect no-video scenario: if profile is video-centric but has no videos,
+        # apply image-optimized positioning to avoid excessive black bars
+        has_any_videos = any(is_video for _, _, is_video in timed_visuals)
+        image_positioning_overridden = False
+        if not has_any_videos and self.profile_settings:
+            # Check if profile has video positioning settings (video-centric profile)
+            # These settings are in merged_settings["video_settings"], not ["profile"]
+            vs_dict = self.profile_settings.get("video_settings", {})
+            has_video_positioning = (
+                vs_dict.get("video_top_position_percent") is not None
+                or vs_dict.get("video_content_height_percent") is not None
+            )
+
+            if has_video_positioning:
+                # Override with image-optimized positioning like slideshow profiles
+                video_settings_dict["image_top_position_percent"] = 0.15
+                video_settings_dict["image_width_percent"] = 0.85
+                image_positioning_overridden = True
+                logger.info(
+                    "No videos detected in video-centric profile - "
+                    "applying image-optimized positioning (top=15%, width=85%)"
+                )
 
         input_cmd_parts: list[str] = []
         filter_parts: list[str] = []
@@ -2108,6 +2136,7 @@ class VideoAssembler:
             timed_visuals,
             final_video_stream_label,
             geometries,
+            image_positioning_overridden,
         )
 
     async def _build_subtitle_graph(
@@ -2135,6 +2164,7 @@ class VideoAssembler:
             timed_visuals,
             final_visual_stream,
             geometries,
+            image_positioning_overridden,
         ) = await self._build_visual_chain(
             visual_inputs, total_video_duration, use_content_aware
         )
@@ -2158,7 +2188,11 @@ class VideoAssembler:
                     logger.debug(f"Visual geometries available: {len(geometries)}")
 
                 content_aware_ass_path = await self._create_content_aware_ass_file(
-                    subtitle_path, geometries, timed_visuals, temp_sub_dir
+                    subtitle_path,
+                    geometries,
+                    timed_visuals,
+                    temp_sub_dir,
+                    image_positioning_overridden,
                 )
                 if content_aware_ass_path:
                     ass_path = content_aware_ass_path.as_posix().replace(":", r"\:")
@@ -2448,6 +2482,7 @@ class VideoAssembler:
             timed_visuals,
             final_visual_stream,
             geometries,
+            image_positioning_overridden,
         ) = await self._build_visual_chain(
             visual_inputs, total_video_duration, use_content_aware
         )
@@ -2631,7 +2666,11 @@ class VideoAssembler:
                 # For content-aware positioning, regenerate ASS file with visual bounds
                 if use_content_aware and geometries:
                     content_aware_ass_path = await self._create_content_aware_ass_file(
-                        subtitle_lower_path, geometries, timed_visuals, temp_sub_dir
+                        subtitle_lower_path,
+                        geometries,
+                        timed_visuals,
+                        temp_sub_dir,
+                        image_positioning_overridden,
                     )
                     if content_aware_ass_path:
                         ass_path_lower = content_aware_ass_path.as_posix().replace(
@@ -2837,6 +2876,7 @@ class VideoAssembler:
         geometries: list[VisualGeometry],
         timed_visuals: list[tuple[Path, float, bool]],
         temp_dir: Path,
+        image_positioning_overridden: bool = False,
     ) -> Path | None:
         """Create a new ASS file with content-aware positioning based on image geometry.
 
@@ -2846,6 +2886,7 @@ class VideoAssembler:
             geometries: List of visual geometries for each timeline segment
             timed_visuals: List of visual timeline data
             temp_dir: Temporary directory for content-aware ASS file
+            image_positioning_overridden: Whether image positioning was overridden
 
         Returns:
         -------
@@ -3038,45 +3079,58 @@ class VideoAssembler:
 
                     # Check if we have configured video positioning
                     # (preferred for consistent subtitle placement)
-                    has_settings = (
-                        self.profile_settings
-                        and "video_settings" in self.profile_settings
-                    )
-                    if has_settings and self.profile_settings:
-                        vs = self.profile_settings["video_settings"]
-                        video_top_percent = vs.get("video_top_position_percent")
-                        video_height_percent = vs.get("video_content_height_percent")
-
-                        # Use configured video bottom if both settings exist
-                        has_both = (
-                            video_top_percent is not None
-                            and video_height_percent is not None
+                    # However, if image positioning was overridden (no videos),
+                    # always use detected geometry
+                    if image_positioning_overridden:
+                        # Image positioning was overridden, use detected geometry
+                        content_bottom = geom.rendered_y + geom.rendered_h
+                        logger.debug(
+                            f"Using detected geometry bottom (image positioning "
+                            f"overridden): {content_bottom}px"
                         )
-                        if has_both:
-                            configured_bottom = int(
-                                frame_height
-                                * (video_top_percent + video_height_percent)
+                    else:
+                        has_settings = (
+                            self.profile_settings
+                            and "video_settings" in self.profile_settings
+                        )
+                        if has_settings and self.profile_settings:
+                            vs = self.profile_settings["video_settings"]
+                            video_top_percent = vs.get("video_top_position_percent")
+                            video_height_percent = vs.get(
+                                "video_content_height_percent"
                             )
-                            content_bottom = configured_bottom
-                            logger.debug(
-                                f"Using configured video bottom: "
-                                f"{content_bottom}px "
-                                f"(top={video_top_percent:.2%}, "
-                                f"height={video_height_percent:.2%})"
+
+                            # Use configured video bottom if both settings exist
+                            has_both = (
+                                video_top_percent is not None
+                                and video_height_percent is not None
                             )
+                            if has_both:
+                                configured_bottom = int(
+                                    frame_height
+                                    * (video_top_percent + video_height_percent)
+                                )
+                                content_bottom = configured_bottom
+                                logger.debug(
+                                    f"Using configured video bottom: "
+                                    f"{content_bottom}px "
+                                    f"(top={video_top_percent:.2%}, "
+                                    f"height={video_height_percent:.2%})"
+                                )
+                            else:
+                                # Fall back to detected geometry
+                                content_bottom = geom.rendered_y + geom.rendered_h
+                                logger.debug(
+                                    f"Using detected geometry bottom: "
+                                    f"{content_bottom}px"
+                                )
                         else:
-                            # Fall back to detected geometry
+                            # No configured positioning, use detected geometry
                             content_bottom = geom.rendered_y + geom.rendered_h
                             logger.debug(
                                 f"Using detected geometry bottom: "
                                 f"{content_bottom}px"
                             )
-                    else:
-                        # No configured positioning, use detected geometry
-                        content_bottom = geom.rendered_y + geom.rendered_h
-                        logger.debug(
-                            f"Using detected geometry bottom: " f"{content_bottom}px"
-                        )
 
                     # Use margin from unified config
                     # (margin is as fraction of frame height)

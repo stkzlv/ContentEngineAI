@@ -132,8 +132,8 @@ whisper_settings:
 
   # Timeout settings for Whisper processing
   base_timeout_sec: 120
-  duration_multiplier: 3.0
-  max_timeout_sec: 600
+  duration_multiplier: 6.0  # Increased from 3.0 for reliable transcription
+  max_timeout_sec: 900  # Increased from 600 for longer audio
 
   # Progress monitoring interval in seconds
   progress_monitor_interval_sec: 30

@@ -35,7 +35,7 @@ def update_env_file(key_to_update: str, new_value: str):
             )
             return
 
-        set_key(env_path, key_to_update, new_value)
+        set_key(env_path, key_to_update, new_value, quote_mode="never")
         logger.info(f"Successfully updated '{key_to_update}' in {env_path}")
     except Exception as e:
         logger.error(f"Failed to automatically update .env file: {e}", exc_info=True)

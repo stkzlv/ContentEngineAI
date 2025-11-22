@@ -1224,7 +1224,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         "two_part_subtitles_upper_style_preset", "minimal"
                     ),
                     "use_full_duration": merged_profile_settings.get(
-                        "two_part_subtitles_upper_use_full_duration", True
+                        "two_part_subtitles_upper_use_full_duration", False
                     ),
                     "randomize_effects": merged_profile_settings.get(
                         "two_part_subtitles_upper_randomize_effects", False

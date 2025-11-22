@@ -286,21 +286,24 @@ poetry run pytest -n auto
 
 ### Test Status
 
-**Current Statistics (v0.12.0):**
-- **Total Tests**: 760 collected (646 + 114 compliance tests)
-- **Passing**: 732 tests (28 skipped)
+**Current Statistics:**
+- **Total Tests**: 761 collected (647 + 114 compliance tests)
+- **Passing**: 743 tests (28 skipped)
 - **Skipped**: 28 tests
 - **Failed**: 0 tests
-- **Coverage**: 44.16% (target: 40% minimum)
+- **Coverage**: 44.11% (target: 40% minimum)
 
-**Recent Updates (v0.12.0):**
+**Recent Updates:**
+- ✅ Added Freesound OAuth2 `quote_mode="never"` test
+- ✅ Test verifies proper .env file token persistence without quote wrapping
+- ✅ Prevents HTTP 400 authentication errors from quoted tokens
 - ✅ Removed 9 outdated integration tests (test_video_assembly_integration.py)
 - ✅ Tests were using deprecated API signatures (visuals → visual_inputs)
-- ✅ All 732 tests passing with 44.16% coverage
 - ✅ Fixed MyPy type errors (added format_normalization and aspect_ratio config fields)
 - ✅ Fixed Ruff linting errors (line length and docstring issues)
+- ✅ All 743 tests passing with 44.11% coverage
+- ✅ Test suite review completed: All tests current with codebase
 - ✅ All linting tools passing (Ruff, MyPy, Bandit, Vulture, Safety)
-- ✅ Test review completed: All tests verified against current codebase
 
 **Previous Updates (v0.11.0):**
 - ✅ Added M3U8/HLS video extraction tests (20 tests)

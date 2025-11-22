@@ -275,7 +275,7 @@ Test subtitle line three
         with patch.object(
             assembler, "_get_media_dimensions", return_value=(1920, 1080)
         ):
-            filters, input_cmd_parts, _, _, _ = await assembler._build_visual_chain(
+            filters, input_cmd_parts, _, _, _, _ = await assembler._build_visual_chain(
                 visual_inputs=sample_visuals,
                 total_video_duration=total_duration,
                 is_relative_mode=False,
@@ -344,6 +344,7 @@ Test subtitle line three
                 filters,
                 input_cmd_parts,
                 timed_visuals,
+                _,
                 _,
                 _,
             ) = await assembler._build_visual_chain(

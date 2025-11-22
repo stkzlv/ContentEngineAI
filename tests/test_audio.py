@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from src.audio.freesound_client import FreesoundClient
+from src.audio.freesound_client import FreesoundClient, update_env_file
 
 
 class TestFreesoundClient:
@@ -546,6 +546,28 @@ class TestFreesoundOAuth2:
             result = await client._get_valid_oauth2_token(mock_session)
 
             assert result is None
+
+    def test_update_env_file_uses_quote_mode_never(self, tmp_path):
+        """Test update_env_file uses quote_mode='never' to prevent quotes."""
+        env_file = tmp_path / ".env"
+        env_file.write_text("FREESOUND_REFRESH_TOKEN=old_token\n")
+
+        with (
+            patch("src.audio.freesound_client.set_key") as mock_set_key,
+            patch("src.audio.freesound_client.Path") as mock_path_class,
+        ):
+            mock_path_instance = MagicMock()
+            mock_path_instance.resolve.return_value.parent.parent.parent = tmp_path
+            mock_path_class.return_value = mock_path_instance
+
+            update_env_file("FREESOUND_REFRESH_TOKEN", "new_token_value")
+
+            mock_set_key.assert_called_once_with(
+                tmp_path / ".env",
+                "FREESOUND_REFRESH_TOKEN",
+                "new_token_value",
+                quote_mode="never",
+            )
 
 
 class TestFreesoundDownloads:

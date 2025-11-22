@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.12.0] - 2025-11-19
+## [0.12.0] - Unreleased
 
 ### Added
 - **M3U8/HLS Video Support**: Native support for M3U8 playlist video extraction
@@ -30,6 +30,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Content-aware subtitle positioning using configured video bounds
   - Consistent subtitle placement across all video profiles
   - Enhanced visual bounds calculation for subtitle generation
+
+- **CTA Detection & Synchronization**: Keyword-based call-to-action detection
+  - 15 configurable CTA keywords (`link`, `bio`, `visit`, `shop`, etc.)
+  - Automatic timing window detection from subtitle text
+  - CTA-synchronized upper subtitle display (shows only during CTA moments)
+  - Configurable minimum duration threshold and merge gap
+  - Centralized configuration in `config/video_production.yaml`
+
+- **Whisper Timeout Configuration**: Adjustable timeout settings for transcription
+  - `base_timeout_sec`: Base timeout before audio duration (default: 120s)
+  - `duration_multiplier`: Audio duration multiplier (default: 6.0x)
+  - `max_timeout_sec`: Maximum timeout cap (default: 900s)
+  - Resource monitoring and cleanup options
+  - All settings moved from code to `config/ai_services.yaml`
 
 ### Changed
 - **Subtitle Margin Adjustments**: Fine-tuned two-part subtitle spacing

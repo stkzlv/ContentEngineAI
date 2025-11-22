@@ -279,7 +279,7 @@ def create_static_upper_subtitle(
     try:
         # Extract upper line configuration (flat keys from profile settings)
         use_full_duration = subtitle_settings.get(
-            "two_part_subtitles_upper_use_full_duration", True
+            "two_part_subtitles_upper_use_full_duration", False
         )
         randomize_effects = subtitle_settings.get(
             "two_part_subtitles_upper_randomize_effects", False
@@ -412,17 +412,40 @@ def create_static_upper_subtitle(
                     ]
 
                     if total_duration < min_cta_duration:
-                        logger.warning(
-                            f"Detected CTA windows too short "
-                            f"({total_duration:.2f}s < {min_cta_duration}s): "
-                            f"{windows_str}. Using full duration instead."
-                        )
-                        cta_windows = None
-                        end_time = (
-                            voiceover_duration
-                            if voiceover_duration
-                            else fallback_duration
-                        )
+                        # CTA windows too short - use fallback
+                        if use_full_duration:
+                            logger.warning(
+                                f"Detected CTA windows too short "
+                                f"({total_duration:.2f}s < {min_cta_duration}s): "
+                                f"{windows_str}. Using full duration."
+                            )
+                            cta_windows = None
+                            end_time = (
+                                voiceover_duration
+                                if voiceover_duration
+                                else fallback_duration
+                            )
+                        else:
+                            # Use default duration at end of video
+                            default_cta_duration = 5.0
+                            logger.warning(
+                                f"Detected CTA windows too short "
+                                f"({total_duration:.2f}s < {min_cta_duration}s): "
+                                f"{windows_str}. Using {default_cta_duration}s at end"
+                            )
+                            if voiceover_duration:
+                                start_time = max(
+                                    0, voiceover_duration - default_cta_duration
+                                )
+                                cta_windows = [(start_time, voiceover_duration)]
+                                end_time = 0.0
+                                logger.info(
+                                    f"Fallback CTA: {start_time:.2f}-"
+                                    f"{voiceover_duration:.2f}s"
+                                )
+                            else:
+                                cta_windows = None
+                                end_time = fallback_duration
                     else:
                         logger.info(
                             f"Detected {len(cta_windows)} CTA timing windows: "
@@ -432,12 +455,37 @@ def create_static_upper_subtitle(
                         # (won't be used for CTA-based subtitles)
                         end_time = 0.0
                 else:
-                    logger.warning(
-                        "No CTA moments detected, using full duration fallback"
-                    )
-                    end_time = (
-                        voiceover_duration if voiceover_duration else fallback_duration
-                    )
+                    # No CTA detected - use reasonable default duration
+                    if use_full_duration:
+                        logger.warning(
+                            "No CTA moments detected, using full duration fallback "
+                            "(use_full_duration=True)"
+                        )
+                        end_time = (
+                            voiceover_duration
+                            if voiceover_duration
+                            else fallback_duration
+                        )
+                    else:
+                        # Show for last 5 seconds of video as fallback
+                        default_cta_duration = 5.0
+                        logger.warning(
+                            f"No CTA detected, use_full_duration=False. "
+                            f"Using {default_cta_duration}s at end"
+                        )
+                        if voiceover_duration:
+                            # Create a single CTA window at the end of the video
+                            start_time = max(
+                                0, voiceover_duration - default_cta_duration
+                            )
+                            cta_windows = [(start_time, voiceover_duration)]
+                            end_time = 0.0  # Won't be used with CTA windows
+                            logger.info(
+                                f"Fallback CTA: {start_time:.2f}-"
+                                f"{voiceover_duration:.2f}s"
+                            )
+                        else:
+                            end_time = fallback_duration
             except Exception as e:
                 logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")
                 # Use configured fallback duration

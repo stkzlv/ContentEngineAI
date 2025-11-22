@@ -566,8 +566,8 @@ class WhisperSettings(BaseModel):
 
     # Timeout settings for Whisper processing
     base_timeout_sec: int = Field(120)
-    duration_multiplier: float = Field(3.0)
-    max_timeout_sec: int = Field(600)
+    duration_multiplier: float = Field(6.0)  # Increased from 3.0
+    max_timeout_sec: int = Field(900)  # Increased from 600
     progress_monitor_interval_sec: int = Field(30)
     enable_resource_monitoring: bool = Field(True)
     enable_resource_cleanup: bool = Field(True)
@@ -2276,9 +2276,10 @@ except Exception as e:
             condition_on_previous_text=True,
             task="transcribe",
             patience=None,
+            # Timeout settings with Field() defaults
             base_timeout_sec=120,
-            duration_multiplier=3.0,
-            max_timeout_sec=600,
+            duration_multiplier=6.0,
+            max_timeout_sec=900,
             progress_monitor_interval_sec=30,
             enable_resource_monitoring=True,
             enable_resource_cleanup=True,

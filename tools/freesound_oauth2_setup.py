@@ -15,13 +15,15 @@ The script will:
 3. Copy the authorization code from the redirect URL
 4. Paste it into the script
 5. Script exchanges code for refresh token
-6. Update FREESOUND_REFRESH_TOKEN in your .env file
+6. Automatically update FREESOUND_REFRESH_TOKEN in your .env file
 """
 
 import argparse
 import sys
+from pathlib import Path
 
 import requests
+from dotenv import set_key
 
 
 def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | None:
@@ -94,13 +96,32 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
         print("\n✓ SUCCESS! Tokens obtained from Freesound.\n")
         print(f"Access Token (expires in {expires_in}s):")
         print(f"  {access_token}\n")
-        print("Refresh Token (save this to .env):")
+        print("Refresh Token:")
         print(f"  {refresh_token}\n")
         print("-" * 50)
-        print("\nNext Steps:")
-        print("1. Copy the refresh token above")
-        print("2. Update FREESOUND_REFRESH_TOKEN in your .env file:")
-        print(f"   FREESOUND_REFRESH_TOKEN={refresh_token}")
+
+        # Auto-update .env file
+        env_path = Path(__file__).parent.parent / ".env"
+        if env_path.exists():
+            try:
+                set_key(
+                    str(env_path),
+                    "FREESOUND_REFRESH_TOKEN",
+                    refresh_token,
+                    quote_mode="never",
+                )
+                print(f"\n✓ Automatically updated {env_path.name}")
+                print("  FREESOUND_REFRESH_TOKEN has been saved.")
+            except Exception as e:
+                print(f"\n⚠ Could not auto-update .env file: {e}")
+                print("\nManual update required:")
+                print(f"  FREESOUND_REFRESH_TOKEN={refresh_token}")
+        else:
+            print(f"\n⚠ .env file not found at: {env_path}")
+            print("\nManual setup required:")
+            print("1. Create a .env file in the project root")
+            print(f"2. Add: FREESOUND_REFRESH_TOKEN={refresh_token}")
+
         print("\nThe system will automatically refresh access tokens as needed.")
 
         return str(refresh_token)
