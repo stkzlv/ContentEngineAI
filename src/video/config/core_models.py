@@ -1,0 +1,1872 @@
+# src/video/config/core_models.py
+"""Core configuration models including VideoConfig, paths, cleanup, and optimization."""
+import fnmatch
+import json
+import logging
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Literal
+
+import yaml
+from pydantic import BaseModel, Field, ValidationError, model_validator
+
+from src.utils import MAX_FILENAME_LENGTH
+from src.video.config.audio_models import (
+    AudioProcessingSettings,
+    AudioSettings,
+    GoogleCloudSTTSettings,
+    TTSConfig,
+)
+from src.video.config.constants import (
+    ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
+    DEFAULT_FALLBACK_FONT,
+    DEFAULT_WHISPER_MODEL_DIR,
+    DOWNLOAD_DEFAULT_TIMEOUT_SEC,
+    DOWNLOAD_RETRY_ATTEMPTS,
+    DOWNLOAD_RETRY_MAX_WAIT_SEC,
+    DOWNLOAD_RETRY_MIN_WAIT_SEC,
+    FALLBACK_FONT_ALTERNATIVES,
+    FONT_FILE_EXTENSIONS,
+    FONT_REGULAR_SUFFIXES,
+    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
+    FREESOUND_DEFAULT_MAX_RESULTS,
+    FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
+    LLM_MAX_TOKENS,
+    LLM_MODEL_FETCH_TIMEOUT_SEC,
+    LLM_RETRY_ATTEMPTS,
+    LLM_RETRY_MAX_WAIT_SEC,
+    LLM_RETRY_MIN_WAIT_SEC,
+    LLM_RETRY_MULTIPLIER,
+    LLM_TEMPERATURE,
+    LLM_TIMEOUT_SECONDS,
+    SUBTITLE_FALLBACK_SPACING_PERCENT,
+    TEXT_NORMALIZATION_PATTERN,
+    TEXT_WHITESPACE_PATTERN,
+    TEXT_WHITESPACE_REPLACEMENT,
+    WHISPER_MAX_CHARS_PER_LINE,
+    WHISPER_MAX_SEGMENT_DURATION_SEC,
+    WHISPER_MAX_WORDS_PER_SEGMENT,
+    WHISPER_MIN_SEGMENT_DURATION_SEC,
+    WHISPER_MIN_SEGMENT_GAP_SEC,
+    WHISPER_MIN_WORDS_PER_SEGMENT,
+    WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE,
+)
+from src.video.config.subtitle_models import (
+    SubtitleEffectsSettings,
+    SubtitleSegmentationSettings,
+)
+from src.video.config.visual_models import (
+    CTADetectionSettings,
+    MediaSettings,
+    MediaValidationSettings,
+    StockMediaSettings,
+    VideoProcessingSettings,
+    VideoProfile,
+    VideoSettings,
+)
+
+logger = logging.getLogger(__name__)
+
+class LLMSettings(BaseModel):
+    provider: str
+    api_key_env_var: str
+    models: list[str] = Field(..., min_length=1)
+    prompt_template_path: str
+    target_audience: str = Field("General audience")
+    base_url: str | None = Field(None)
+    auto_select_free_model: bool = Field(True)
+    max_tokens: int = Field(LLM_MAX_TOKENS)
+    temperature: float = Field(LLM_TEMPERATURE)
+    timeout_seconds: int = Field(LLM_TIMEOUT_SECONDS)
+
+
+class DescriptionSettings(BaseModel):
+    """Configuration settings for AI-generated video descriptions.
+
+    Controls the generation of social media descriptions using LLM providers.
+    """
+
+    enabled: bool = Field(True, description="Enable or disable description generation")
+    prompt_template_path: str = Field(
+        "src/ai/prompts/video_description.md",
+        description="Path to prompt template file for description generation",
+    )
+    target_platforms: list[str] = Field(
+        ["tiktok", "youtube", "instagram"],
+        description="Target platforms for description optimization",
+    )
+    max_tokens: int = Field(200, description="Maximum tokens for LLM response")
+    min_description_chars: int = Field(
+        50, description="Minimum character count for valid descriptions"
+    )
+    min_description_words: int = Field(
+        10, description="Minimum word count for valid descriptions"
+    )
+    require_hashtags: bool = Field(
+        True, description="Whether descriptions must include hashtags"
+    )
+    require_ad_hashtag: bool = Field(
+        True, description="Whether descriptions must include #ad hashtag"
+    )
+
+
+class StockMediaSettings(BaseModel):
+    pexels_api_key_env_var: str
+    source: str = Field("Pexels")
+
+
+class FFmpegSettings(BaseModel):
+    executable_path: str | None = Field(None)
+    temp_ffmpeg_dir: str = Field("ffmpeg_work")
+    intermediate_segment_preset: str = Field("ultrafast")
+    final_assembly_timeout_sec: int = Field(600)
+    rw_timeout_microseconds: int = Field(30000000)  # 30 seconds for I/O operations
+
+
+class AttributionSettings(BaseModel):
+    attribution_file_name: str = Field("ATTRIBUTIONS.txt")
+    attribution_template: str
+    attribution_entry_template: str
+
+
+class VideoProfile(BaseModel):
+    description: str
+    use_scraped_images: bool = Field(False)
+    use_scraped_videos: bool = Field(False)
+    use_stock_images: bool = Field(False)
+    use_stock_videos: bool = Field(False)
+    stock_image_count: int = Field(0, ge=0)
+    stock_video_count: int = Field(0, ge=0)
+    use_dynamic_image_count: bool = Field(False)
+
+    # Profile-specific subtitle positioning (optional)
+    subtitle_positioning: dict[str, Any] | None = Field(
+        None, description="Profile-specific subtitle positioning overrides"
+    )
+
+    # ---- PER-PROFILE IMAGE SETTINGS ----
+    # Image positioning and sizing overrides
+    image_width_percent: float | None = Field(
+        None, description="Override global image width as percentage of frame (0.0-1.0)"
+    )
+    image_top_position_percent: float | None = Field(
+        None, description="Override global image top position as percentage (0.0-1.0)"
+    )
+    preserve_aspect_ratio: bool | None = Field(
+        None, description="Override global aspect ratio preservation setting"
+    )
+
+    # ---- PER-PROFILE VIDEO ASSEMBLY SETTINGS ----
+    # Video assembly configuration overrides (Requirement 7, 10)
+    video_assembly_mode: (
+        Literal["sequential", "single_best", "mixed_media", "video_first_fallback"]
+        | None
+    ) = Field(None, description="Override video assembly strategy mode")
+    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
+        Field(None, description="Override aspect ratio handling mode")
+    )
+    video_audio_handling: Literal["remove", "mixed"] | None = Field(
+        None, description="Override video audio handling (remove or mix)"
+    )
+    video_original_volume: float | None = Field(
+        None,
+        ge=-60.0,
+        le=0.0,
+        description="Override video audio volume in dB (-60 to 0)",
+    )
+    video_transition_duration: float | None = Field(
+        None, description="Override video transition duration in seconds"
+    )
+    enable_format_normalization: bool | None = Field(
+        None, description="Override format normalization setting"
+    )
+    video_cache_dir: str | None = Field(
+        None, description="Override video cache directory path"
+    )
+
+    # ---- PER-PROFILE VIDEO POSITIONING SETTINGS ----
+    video_top_position_percent: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Video vertical start position as fraction (0.0-1.0)",
+    )
+    video_content_height_percent: float | None = Field(
+        None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
+    )
+
+    # ---- PER-PROFILE SUBTITLE SETTINGS ----
+    # Complete unified subtitle configuration overrides
+    subtitle_anchor: str | None = Field(
+        None,
+        description=(
+            "Override subtitle anchor: top, center, bottom, "
+            "above_content, below_content"
+        ),
+    )
+    subtitle_margin: float | None = Field(
+        None,
+        description="Override subtitle margin as fraction of frame height (0.0-0.5)",
+    )
+    subtitle_content_aware: bool | None = Field(
+        None, description="Override content-aware positioning setting"
+    )
+    subtitle_style_preset: str | None = Field(
+        None,
+        description="Override style preset: minimal, modern, bold, random",
+    )
+    subtitle_font_size_scale: float | None = Field(
+        None, description="Override font size scale factor (0.5-2.0)"
+    )
+    subtitle_horizontal_alignment: str | None = Field(
+        None, description="Override text alignment: left, center, right"
+    )
+
+    # Advanced subtitle styling overrides
+    subtitle_font_name: str | None = Field(
+        None, description="Override subtitle font family"
+    )
+    subtitle_font_color: str | None = Field(
+        None, description="Override subtitle text color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_outline_color: str | None = Field(
+        None, description="Override subtitle outline color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_background_color: str | None = Field(
+        None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
+    )
+    subtitle_randomize_fonts: bool | None = Field(
+        None, description="Override font randomization setting"
+    )
+    subtitle_randomize_colors: bool | None = Field(
+        None, description="Override color randomization setting"
+    )
+    subtitle_randomize_effects: bool | None = Field(
+        None, description="Override effect randomization setting"
+    )
+
+    # Text formatting overrides
+    subtitle_max_line_length: int | None = Field(
+        None, description="Override maximum characters per subtitle line"
+    )
+    subtitle_max_words_per_line: int | None = Field(
+        None,
+        description=(
+            "Override maximum words per subtitle line (0 to disable word-based limit)"
+        ),
+    )
+    subtitle_max_subtitle_width_fraction: float | None = Field(
+        None,
+        description=(
+            "Override max subtitle width as fraction of frame width (0.0-1.0)"
+        ),
+    )
+    subtitle_max_duration: float | None = Field(
+        None, description="Override maximum subtitle duration in seconds"
+    )
+    subtitle_min_duration: float | None = Field(
+        None, description="Override minimum subtitle duration in seconds"
+    )
+
+    # Manual selection overrides (for testing/debugging)
+    subtitle_selected_font: str | None = Field(
+        None, description="Override with specific font (bypasses randomization)"
+    )
+    subtitle_selected_color_pair: str | None = Field(
+        None, description="Override with specific color pair name"
+    )
+
+    # ---- TWO-PART SUBTITLE SYSTEM ----
+    # Per-profile overrides for two-part subtitle system
+    two_part_subtitles_enabled: bool | None = Field(
+        None, description="Override two-part subtitle system enabled/disabled"
+    )
+    two_part_subtitles_upper_enabled: bool | None = Field(
+        None, description="Override upper subtitle line enabled/disabled"
+    )
+    two_part_subtitles_upper_source_field: str | None = Field(
+        None,
+        description=(
+            "Override field name to use for upper subtitle "
+            "(e.g. 'shortened_affiliate_link')"
+        ),
+    )
+    two_part_subtitles_upper_custom_url: str | None = Field(
+        None,
+        description=(
+            "Override with custom URL to display in upper subtitle "
+            "(overrides source_field when set)"
+        ),
+    )
+    two_part_subtitles_upper_anchor: str | None = Field(
+        None, description="Override upper subtitle anchor: top, above_content, etc."
+    )
+    two_part_subtitles_upper_margin: float | None = Field(
+        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
+    )
+    two_part_subtitles_upper_font_size_scale: float | None = Field(
+        None, description="Override upper subtitle font size scale (0.5-2.0)"
+    )
+    two_part_subtitles_upper_style_preset: str | None = Field(
+        None, description="Override upper subtitle style preset: minimal, modern, bold"
+    )
+    two_part_subtitles_upper_use_full_duration: bool | None = Field(
+        None, description="Override upper subtitle to display for full video duration"
+    )
+    two_part_subtitles_upper_randomize_effects: bool | None = Field(
+        None, description="Override upper subtitle effect randomization"
+    )
+    two_part_subtitles_upper_prefix_replace: str | None = Field(
+        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
+    )
+    two_part_subtitles_lower_enabled: bool | None = Field(
+        None, description="Override lower subtitle line enabled/disabled"
+    )
+    two_part_subtitles_lower_anchor: str | None = Field(
+        None, description="Override lower subtitle anchor: bottom, below_content, etc."
+    )
+    two_part_subtitles_lower_margin: float | None = Field(
+        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
+    )
+
+
+class WhisperSettings(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
+    enabled: bool = Field(True)
+    model_size: str = Field("small")
+    model_device: str = Field("cpu")
+    model_in_memory: bool = Field(False)
+    model_download_root: str = Field("")
+    temperature: float = Field(0.0)
+    language: str = Field("en")
+    beam_size: int = Field(5)
+    fp16: bool = Field(False)
+    compression_ratio_threshold: float = Field(2.4)
+    logprob_threshold: float = Field(-1.0)
+    no_speech_threshold: float = Field(0.2)
+    condition_on_previous_text: bool = Field(True)
+    task: str = Field("transcribe")
+    patience: float | None = Field(None)
+
+    # Timeout settings for Whisper processing
+    base_timeout_sec: int = Field(120)
+    duration_multiplier: float = Field(6.0)  # Increased from 3.0
+    max_timeout_sec: int = Field(900)  # Increased from 600
+    progress_monitor_interval_sec: int = Field(30)
+    enable_resource_monitoring: bool = Field(True)
+    enable_resource_cleanup: bool = Field(True)
+
+
+class GoogleCloudSTTSettings(BaseModel):
+    enabled: bool = Field(True)
+    language_code: str = Field("en-US")
+    encoding: str = Field("LINEAR16")
+    sample_rate_hertz: int = Field(24000)
+    use_enhanced: bool = Field(True)
+    api_timeout_sec: int = Field(120)
+    api_max_retries: int = Field(2)
+    api_retry_delay_sec: int = Field(10)
+    use_speech_adaptation_if_script_provided: bool = Field(True)
+    adaptation_boost_value: float = Field(15.0, gt=0, le=20)
+
+
+class ApiSettings(BaseModel):
+    """Configuration for API timeouts, retries, and network settings."""
+
+    llm_model_fetch_timeout_sec: int = Field(LLM_MODEL_FETCH_TIMEOUT_SEC)
+    llm_retry_attempts: int = Field(LLM_RETRY_ATTEMPTS)
+    llm_retry_min_wait_sec: int = Field(LLM_RETRY_MIN_WAIT_SEC)
+    llm_retry_max_wait_sec: int = Field(LLM_RETRY_MAX_WAIT_SEC)
+    llm_retry_multiplier: int = Field(LLM_RETRY_MULTIPLIER)
+    stock_media_concurrent_downloads: int = Field(5)
+    stock_media_search_multiplier: int = Field(2)
+    stock_media_max_per_page: int = Field(80)
+    default_request_timeout_sec: int = Field(15)
+    default_retry_attempts: int = Field(3)
+    default_retry_delay_sec: int = Field(5)
+    download_timeout_sec: int = Field(DOWNLOAD_DEFAULT_TIMEOUT_SEC)
+    download_retry_attempts: int = Field(DOWNLOAD_RETRY_ATTEMPTS)
+    download_retry_min_wait_sec: int = Field(DOWNLOAD_RETRY_MIN_WAIT_SEC)
+    download_retry_max_wait_sec: int = Field(DOWNLOAD_RETRY_MAX_WAIT_SEC)
+
+
+class TextProcessingSettings(BaseModel):
+    """Configuration for text processing and subtitle generation."""
+
+    script_chars_per_second_estimate: int = Field(15)
+    script_min_duration_sec: float = Field(0.05)
+    subtitle_text_similarity_min_confidence: float = Field(0.5)
+    subtitle_min_segment_duration_sec: float = Field(0.1)
+    subtitle_max_segment_duration_sec: float = Field(5.0)
+    subtitle_min_words_per_segment: int = Field(3)
+    subtitle_max_words_per_segment: int = Field(10)
+    subtitle_max_chars_per_line: int = Field(42)
+    subtitle_min_segment_gap_sec: float = Field(0.1)
+
+
+class AudioProcessingSettings(BaseModel):
+    """Configuration for audio processing and TTS settings."""
+
+    coqui_gpu_enabled: bool = Field(False)
+    google_tts_audio_encoding: str = Field("LINEAR16")
+    min_audio_file_size_bytes: int = Field(100)
+    audio_validation_timeout_sec: int = Field(30)
+
+
+class VideoProcessingSettings(BaseModel):
+    """Configuration for video processing and FFmpeg operations."""
+
+    ffmpeg_probe_streams: str = Field("v:0")
+    ffmpeg_probe_entries: str = Field("stream=width,height")
+    ffmpeg_probe_format: str = Field("csv=s=x:p=0")
+    video_stream_check_timeout_sec: int = Field(30)
+    min_frame_count: int = Field(1)
+    visual_aspect_ratio_tolerance: float = Field(0.01)
+    visual_scaling_precision: int = Field(2)
+
+
+class FilesystemSettings(BaseModel):
+    """Configuration for file system operations and supported formats."""
+
+    temp_file_cleanup_delay_sec: int = Field(5)
+    file_operation_timeout_sec: int = Field(30)
+    max_filename_length: int = Field(MAX_FILENAME_LENGTH)
+    supported_image_extensions: list[str] = Field(
+        [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+    )
+    supported_video_extensions: list[str] = Field(
+        [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+    )
+    supported_audio_extensions: list[str] = Field([".wav", ".mp3", ".aac", ".flac"])
+
+
+class SubtitleEffectsSettings(BaseModel):
+    """Configuration for ASS subtitle effects and animations."""
+
+    # Karaoke timing parameters
+    karaoke_timing_min_ms: int = Field(
+        20, description="Minimum karaoke timing per word in milliseconds"
+    )
+    karaoke_timing_max_ms: int = Field(
+        200, description="Maximum karaoke timing per word in milliseconds"
+    )
+
+    # Karaoke visual effect parameters
+    karaoke_primary_color: str = Field(
+        "&H00FFFFFF", description="Primary color (before sweep, ASS format)"
+    )
+    karaoke_secondary_color: str = Field(
+        "&H0000FFFF", description="Secondary color (fill during sweep, ASS format)"
+    )
+    karaoke_outline_color: str | None = Field(
+        None, description="Outline color for karaoke (optional, ASS format)"
+    )
+    karaoke_use_fill: bool = Field(
+        True, description="Use \\kf (fill) instead of \\k (timing only)"
+    )
+
+    # Effect duration factors (multiplied by segment duration)
+    pulse_duration_factor: int = Field(
+        500, description="Duration factor for pulse animations in ms"
+    )
+    bounce_duration_factor: int = Field(
+        300, description="Duration factor for bounce animations in ms"
+    )
+    glow_duration_factor: int = Field(
+        400, description="Duration factor for glow effects in ms"
+    )
+
+    # Scale effect parameters
+    pulse_scale_max: int = Field(
+        110, description="Maximum scale percentage for pulse effect"
+    )
+    pulse_scale_normal: int = Field(
+        100, description="Normal scale percentage for pulse effect"
+    )
+
+    # Movement effect parameters
+    movement_distance_pixels: int = Field(
+        50, description="Vertical movement distance in pixels for movement effect"
+    )
+
+    # Rotation bounce parameters
+    bounce_rotation_max: int = Field(
+        5, description="Maximum rotation degrees for bounce effect"
+    )
+    bounce_rotation_min: int = Field(
+        -5, description="Minimum rotation degrees for bounce effect"
+    )
+    bounce_rotation_rest: int = Field(
+        0, description="Rest rotation degrees for bounce effect"
+    )
+
+    # Typewriter effect parameters
+    typewriter_char_reveal_max_sec: float = Field(
+        0.1, description="Maximum character reveal time for typewriter effect"
+    )
+    typewriter_min_timing_ms: int = Field(
+        50, description="Minimum timing for typewriter effect in ms"
+    )
+
+    # Fade effect parameters
+    fade_duration_ms: int = Field(
+        300, description="Default fade in/out duration in milliseconds"
+    )
+
+
+class TextRenderingSettings(BaseModel):
+    """Configuration for text rendering and character width estimation."""
+
+    # Character width factors
+    narrow_char_width_factor: float = Field(
+        0.4, description="Width factor for narrow characters (i, l, etc.)"
+    )
+    wide_char_width_factor: float = Field(
+        1.2, description="Width factor for wide characters (m, w, etc.)"
+    )
+    space_char_width_factor: float = Field(
+        0.3, description="Width factor for space characters"
+    )
+
+    # Text layout parameters
+    default_margin_fraction: float = Field(
+        0.1, description="Default margin fraction for positioning"
+    )
+    default_font_size_scale: float = Field(
+        1.0, description="Default font size scale factor"
+    )
+    max_chars_per_line: int = Field(38, description="Maximum characters per line")
+
+    # Subtitle duration limits
+    max_subtitle_duration_sec: float = Field(
+        4.5, description="Maximum subtitle duration in seconds"
+    )
+    min_subtitle_duration_sec: float = Field(
+        0.4, description="Minimum subtitle duration in seconds"
+    )
+
+    # Safe positioning boundaries
+    min_safe_y_position: float = Field(
+        0.05, description="Minimum safe Y position as fraction of frame height"
+    )
+    max_safe_y_position: float = Field(
+        0.95, description="Maximum safe Y position as fraction of frame height"
+    )
+    center_position_fraction: float = Field(0.5, description="Center position fraction")
+    left_position_fraction: float = Field(
+        0.1, description="Left alignment position fraction"
+    )
+    right_position_fraction: float = Field(
+        0.9, description="Right alignment position fraction"
+    )
+
+    # Font size boundaries
+    base_font_size_percent: float = Field(
+        0.04, description="Base font size as percentage of frame height"
+    )
+    min_font_size: int = Field(16, description="Minimum font size in pixels")
+    max_font_size: int = Field(100, description="Maximum font size in pixels")
+
+
+class SubtitleSegmentationSettings(BaseModel):
+    """Configuration for subtitle segmentation and text processing logic."""
+
+    # Word count thresholds
+    min_words_for_sentence_break: int = Field(
+        3, description="Minimum words required for sentence break"
+    )
+    min_words_natural_break: int = Field(
+        3, description="Minimum words for natural break"
+    )
+    min_words_duration_limit: int = Field(
+        3, description="Minimum words for duration limit break"
+    )
+
+    # Fallback duration
+    fallback_segment_duration_sec: float = Field(
+        2.5, description="Fallback segment duration in seconds"
+    )
+
+
+class ScraperTimingSettings(BaseModel):
+    """Configuration for scraper delays and timeouts."""
+
+    # Download parameters
+    download_timeout_sec: int = Field(30, description="Download timeout in seconds")
+    download_chunk_size: int = Field(8192, description="Download chunk size in bytes")
+    validation_timeout_sec: int = Field(
+        10, description="File validation timeout in seconds"
+    )
+    max_concurrent_downloads: int = Field(5, description="Maximum concurrent downloads")
+
+    # Retry configuration
+    default_max_retries: int = Field(3, description="Default maximum retry attempts")
+    base_delay_sec: float = Field(
+        1.0, description="Base delay between retries in seconds"
+    )
+    backoff_factor: float = Field(2.0, description="Exponential backoff factor")
+    max_delay_sec: float = Field(
+        60.0, description="Maximum delay between retries in seconds"
+    )
+
+    # Filename and browser settings
+    max_filename_length: int = Field(200, description="Maximum filename length")
+    browser_size_percent: float = Field(
+        0.8, description="Browser window size as percentage of monitor"
+    )
+
+    # Human simulation delays
+    human_delay_min_sec: float = Field(
+        0.5, description="Minimum human-like delay in seconds"
+    )
+    human_delay_max_sec: float = Field(
+        2.0, description="Maximum human-like delay in seconds"
+    )
+
+
+class MediaValidationSettings(BaseModel):
+    """Configuration for media validation thresholds."""
+
+    # Image validation parameters
+    min_high_res_dimension: int = Field(
+        1500, description="Minimum dimension for high-resolution images"
+    )
+    min_high_res_file_size: int = Field(
+        10000, description="Minimum file size for high-resolution images in bytes"
+    )
+
+
+class LLMValidationSettings(BaseModel):
+    """Configuration for LLM response validation."""
+
+    # Retry parameters
+    llm_max_retry_attempts: int = Field(
+        2, description="Maximum retry attempts for LLM requests"
+    )
+
+    # Description validation thresholds
+    min_description_chars: int = Field(
+        50, description="Minimum character length for generated descriptions"
+    )
+    min_description_words: int = Field(
+        10, description="Minimum word count for generated descriptions"
+    )
+    description_retry_attempts: int = Field(
+        2, description="Maximum retry attempts for incomplete descriptions"
+    )
+
+
+class URLShortenerSettings(BaseModel):
+    """Configuration for URL shortening services."""
+
+    enabled: bool = Field(True, description="Enable URL shortening feature")
+    provider: str = Field("picsee", description="Primary URL shortening provider")
+    fallback_providers: list[str] = Field(
+        default_factory=list, description="Fallback providers to try if primary fails"
+    )
+
+    # API configuration
+    api_timeout_sec: int = Field(30, description="Request timeout in seconds")
+    api_max_retries: int = Field(3, description="Maximum retry attempts")
+    api_retry_delay_sec: int = Field(2, description="Base retry delay in seconds")
+    api_retry_backoff_multiplier: float = Field(
+        2.0, description="Exponential backoff multiplier"
+    )
+
+    # Picsee-specific configuration
+    picsee_api_key_env_var: str = Field(
+        "PICSEE_API_KEY", description="Environment variable for Picsee API key"
+    )
+    picsee_custom_domain: str | None = Field(
+        None, description="Optional custom branded short domain (BSD) for Picsee"
+    )
+    picsee_max_bulk_size: int = Field(
+        100, description="Maximum URLs per Picsee bulk request"
+    )
+
+    # Bitly-specific configuration (placeholder for future implementation)
+    bitly_api_key_env_var: str = Field(
+        "BITLY_API_KEY", description="Environment variable for Bitly API key"
+    )
+    bitly_custom_domain: str | None = Field(
+        None, description="Optional custom domain for Bitly"
+    )
+
+    # TinyURL-specific configuration (placeholder for future implementation)
+    tinyurl_api_key_env_var: str = Field(
+        "TINYURL_API_KEY", description="Environment variable for TinyURL API key"
+    )
+
+    # Integration settings
+    shorten_on_scrape: bool = Field(
+        True, description="Automatically shorten affiliate links during scraping"
+    )
+    include_in_descriptions: bool = Field(
+        True, description="Include shortened links in video descriptions"
+    )
+    fallback_to_original: bool = Field(
+        True, description="Use original URL if shortening fails"
+    )
+    enable_caching: bool = Field(
+        True, description="Cache shortened URLs to avoid re-shortening"
+    )
+    cache_ttl_hours: int = Field(
+        168, description="Cache TTL in hours (default: 7 days)"
+    )
+
+
+class DebugSettings(BaseModel):
+    """Configuration for debug output and development settings."""
+
+    max_log_line_length: int = Field(200)
+    debug_file_retention_days: int = Field(7)
+    intermediate_file_cleanup: bool = Field(True)
+    cleanup_on_success: bool = Field(False)
+    cleanup_on_failure: bool = Field(False)
+    cleanup_whisper_files: bool = Field(False)
+    operation_timing_threshold_sec: float = Field(5.0)
+    memory_usage_warning_mb: int = Field(1000)
+
+
+class ProductFiles(BaseModel):
+    """File names within each product directory"""
+
+    scraped_data: str = Field("data.json")
+    script: str = Field("script.txt")
+    description: str = Field("description.txt")
+    voiceover: str = Field("voiceover.wav")
+    subtitles: str = Field("subtitles.srt")
+    final_video: str = Field("video_{profile}.mp4")
+    attribution: str = Field("attributions.txt")
+
+
+class ProductTempFiles(BaseModel):
+    """Temporary/debug files within product temp directory"""
+
+    metadata: str = Field("metadata.json")
+    performance: str = Field("performance.json")
+    ffmpeg_log: str = Field("ffmpeg_command.log")
+    media_validation_report: str = Field("media_validation_report.json")
+    whisper_result_raw: str = Field("whisper_result_raw.json")
+    whisper_vs_script: str = Field("whisper_vs_script.txt")
+    whisper_word_list: str = Field("whisper_word_list.json")
+    gathered_visuals: str = Field("gathered_visuals.json")
+    music_choice: str = Field("music_choice.json")
+    voiceover_duration: str = Field("voiceover_duration.txt")
+
+
+class ProductSubdirs(BaseModel):
+    """Subdirectories within each product directory"""
+
+    images: str = Field("images")
+    videos: str = Field("videos")
+    music: str = Field("music")
+    temp: str = Field("temp")
+
+
+class GlobalDirs(BaseModel):
+    """Global directories shared across all products"""
+
+    cache: str = Field("cache")
+    logs: str = Field("logs")
+    reports: str = Field("reports")
+    temp: str = Field("temp")
+
+
+class OutputStructure(BaseModel):
+    """Simplified, product-oriented output structure"""
+
+    product_directory_pattern: str = Field("{product_id}")
+    product_files: ProductFiles = Field(default_factory=lambda: ProductFiles())  # type: ignore[call-arg]
+    product_temp_files: ProductTempFiles = Field(default_factory=ProductTempFiles)  # type: ignore[arg-type]
+    product_subdirs: ProductSubdirs = Field(default_factory=lambda: ProductSubdirs())  # type: ignore[call-arg]
+    global_dirs: GlobalDirs = Field(default_factory=lambda: GlobalDirs())  # type: ignore[call-arg]
+
+
+class CleanupConfig(BaseModel):
+    """Cleanup and maintenance settings"""
+
+    remove_temp_on_success: bool = Field(True)
+    keep_temp_on_failure: bool = Field(True)
+    cache_max_age_hours: int = Field(168)  # 7 days
+    debug_file_patterns: list[str] = Field(
+        [
+            "incomplete_script_*.txt",  # AI model attempt files
+            "voiceover_whisper_*.json",  # Whisper debug outputs
+            "voiceover_whisper_*.txt",  # Whisper comparison files
+            "*_ffmpeg_command.log",  # FFmpeg command logs
+        ]
+    )
+
+
+class PathConfig(BaseModel):
+    """Path building configuration"""
+
+    use_product_oriented_structure: bool = Field(True)
+    cleanup: CleanupConfig = Field(default_factory=lambda: CleanupConfig())  # type: ignore[call-arg]
+
+    # Internal files configuration
+    gathered_visuals: str = Field("gathered_visuals.json")
+    temp_dir: str = Field("temp")
+    music_dir: str = Field("music")
+
+
+# Removed FilePatterns class - replaced by simplified ProductFiles
+
+
+class CleanupSettings(BaseModel):
+    enabled: bool = Field(True)
+    dry_run: bool = Field(False)
+    max_age_days: int = Field(7)
+    preserve_patterns: list[str] = Field(
+        ["*.md", "*.txt", ".gitkeep", "cache/**", "backup/**"]
+    )
+    force_cleanup_patterns: list[str] = Field(
+        ["*.tmp", "*.temp", "~*", ".DS_Store", "Thumbs.db", "*.log.old"]
+    )
+    cleanup_empty_dirs: bool = Field(True)
+    create_report: bool = Field(True)
+    report_file: str = Field("cleanup_report.json")
+
+
+class OptimizationSettings(BaseModel):
+    # Background Processing Configuration
+    background_max_concurrent_tasks: int = Field(3)
+    background_thread_pool_workers: int = Field(2)
+    background_cache_ttl_sec: int = Field(600)
+    stock_media_prefetch_priority: int = Field(2)
+    tts_warming_priority: int = Field(3)
+    background_max_recent_completed: int = Field(5)
+    background_cleanup_timeout_sec: float = Field(5.0)
+    stock_prefetch_max_images: int = Field(3)
+    stock_prefetch_max_videos: int = Field(2)
+    stock_prefetch_max_keywords: int = Field(5)
+    stock_prefetch_top_keywords: int = Field(2)
+    stock_keyword_min_length: int = Field(3)
+    stock_max_descriptive_words: int = Field(3)
+
+    # Performance Monitoring Configuration
+    performance_history_max_runs: int = Field(100)
+    performance_monitoring_interval_sec: float = Field(0.1)
+    memory_mb_conversion_factor: int = Field(1048576)
+    performance_report_summary_limit: int = Field(50)
+    performance_report_detailed_limit: int = Field(20)
+    performance_report_trends_days: int = Field(30)
+    performance_report_recent_runs: int = Field(10)
+    performance_report_max_runs: int = Field(1000)
+
+    # Connection Pooling Configuration
+    connection_pool_total_limit: int = Field(100)
+    connection_pool_host_limit: int = Field(20)
+    connection_pool_dns_ttl_sec: int = Field(300)
+    connection_pool_keepalive_timeout_sec: int = Field(60)
+    connection_pool_cleanup_interval_sec: int = Field(300)
+    connection_pool_total_timeout_sec: int = Field(300)
+    connection_pool_connect_timeout_sec: int = Field(30)
+    connection_pool_read_timeout_sec: int = Field(60)
+    download_manager_max_concurrent: int = Field(5)
+    download_chunk_size_bytes: int = Field(8192)
+
+    # Memory-Mapped I/O Configuration
+    mmap_file_size_threshold_bytes: int = Field(1048576)  # 1MB
+    mmap_chunk_size_bytes: int = Field(67108864)  # 64MB
+    mmap_memory_usage_threshold: float = Field(0.8)
+    mmap_fallback_memory_limit_bytes: int = Field(1073741824)  # 1GB
+
+    # Async I/O Configuration
+    async_ffmpeg_max_concurrent: int = Field(2)
+    async_io_max_concurrent: int = Field(8)
+    async_network_max_concurrent: int = Field(4)
+    async_default_timeout_sec: int = Field(300)
+    async_ffprobe_timeout_sec: int = Field(30)
+
+    # Caching Configuration
+    cache_media_metadata_ttl_sec: int = Field(86400)  # 24 hours
+    cache_api_response_ttl_sec: int = Field(3600)  # 1 hour
+    cache_key_max_length: int = Field(16)
+
+
+class VideoConfig(BaseModel):
+    global_output_directory: str = Field("outputs")
+    output_structure: OutputStructure = Field(
+        default_factory=lambda: OutputStructure()  # type: ignore[call-arg]
+    )
+    path_config: PathConfig = Field(
+        default_factory=lambda: PathConfig()  # type: ignore[call-arg]
+    )
+    cleanup_settings: CleanupSettings = Field(
+        default_factory=lambda: CleanupSettings()  # type: ignore[call-arg]
+    )
+    pipeline_timeout_sec: int = Field(
+        900, description="Total pipeline timeout in seconds (15 minutes default)"
+    )
+    duration_padding_sec: float = Field(
+        0.5, description="Duration padding added to prevent audio cutoff in seconds"
+    )
+    video_settings: VideoSettings
+    media_settings: MediaSettings
+    audio_settings: AudioSettings
+    tts_config: TTSConfig
+    llm_settings: LLMSettings
+    description_settings: DescriptionSettings
+    stock_media_settings: StockMediaSettings
+    ffmpeg_settings: FFmpegSettings
+    attribution_settings: AttributionSettings
+    subtitle_settings: dict[str, Any]  # Now loaded from config/subtitles.yaml
+    whisper_settings: WhisperSettings
+    google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)
+    video_profiles: dict[str, VideoProfile]
+    aspect_ratio: dict[str, Any] = Field(
+        default_factory=lambda: {"smart_scale_tolerance": 0.10}
+    )
+    format_normalization: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "target_fps": 30.0,
+            "fps_tolerance": 0.1,
+            "default_fps_string": "30/1",
+            "target_codec": "h264",
+            "target_pixel_format": "yuv420p",
+        }
+    )
+
+    # New configuration sections for magic numbers
+    api_settings: ApiSettings | None = Field(None)
+    text_processing: TextProcessingSettings | None = Field(None)
+    audio_processing: AudioProcessingSettings | None = Field(None)
+    video_processing: VideoProcessingSettings | None = Field(None)
+    filesystem: FilesystemSettings | None = Field(None)
+    debug_settings: DebugSettings | None = Field(None)
+    optimization_settings: OptimizationSettings | None = Field(None)
+
+    # ASS effects and text rendering configuration
+    subtitle_effects: SubtitleEffectsSettings | None = Field(None)
+    text_rendering: TextRenderingSettings | None = Field(None)
+    subtitle_segmentation: SubtitleSegmentationSettings | None = Field(None)
+    scraper_timing: ScraperTimingSettings | None = Field(None)
+    media_validation: MediaValidationSettings | None = Field(None)
+    llm_validation: LLMValidationSettings | None = Field(None)
+    url_shortener_settings: URLShortenerSettings | None = Field(None)
+    cta_detection: CTADetectionSettings | None = Field(None)
+
+    project_root: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent,
+        init=False,
+    )
+    global_output_root_path: Path = Field(default_factory=Path, init=False)
+    video_production_base_runs_path: Path = Field(default_factory=Path, init=False)
+    general_video_producer_log_dir_path: Path = Field(default_factory=Path, init=False)
+    scraper_data_base_path: Path = Field(default_factory=Path, init=False)
+    secrets: dict[str, str] = Field(default_factory=dict, init=False)
+
+    @model_validator(mode="after")
+    def derive_and_resolve_paths(self) -> "VideoConfig":
+        self.global_output_root_path = self.project_root / self.global_output_directory
+
+        # For backward compatibility, keep some basic paths
+        self.video_production_base_runs_path = self.global_output_root_path
+        self.general_video_producer_log_dir_path = (
+            self.global_output_root_path / self.output_structure.global_dirs.logs
+        )
+        self.scraper_data_base_path = self.global_output_root_path
+
+        resolved_music_paths = []
+        for p_item in self.audio_settings.background_music_paths:
+            p_obj = Path(p_item)
+            resolved_music_paths.append(
+                self.project_root / p_obj if not p_obj.is_absolute() else p_obj
+            )
+        self.audio_settings.background_music_paths = resolved_music_paths
+
+        llm_template_path_obj = Path(self.llm_settings.prompt_template_path)
+        self.llm_settings.prompt_template_path = str(
+            (self.project_root / llm_template_path_obj)
+            if not llm_template_path_obj.is_absolute()
+            else llm_template_path_obj
+        )
+
+        font_dir_obj = Path(self.subtitle_settings["font_directory"])
+        self.subtitle_settings["font_directory"] = str(
+            (self.project_root / font_dir_obj)
+            if not font_dir_obj.is_absolute()
+            else font_dir_obj
+        )
+        return self
+
+    def get_profile(self, profile_name: str) -> VideoProfile:
+        if profile_name not in self.video_profiles:
+            raise KeyError(f"Video profile '{profile_name}' not found.")
+        return self.video_profiles[profile_name]
+
+    def get_profile_merged_settings(
+        self, profile_name: str, cli_overrides: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Get settings with profile-specific overrides applied.
+
+        This method merges global configuration settings with profile-specific
+        overrides, providing a complete settings object for video production.
+
+        Precedence order (highest to lowest):
+        1. CLI overrides (passed as parameter)
+        2. Profile-specific settings
+        3. Global YAML configuration
+
+        Args:
+        ----
+            profile_name: Name of the video profile to get merged settings for
+            cli_overrides: Optional CLI overrides to apply with highest precedence
+
+        Returns:
+        -------
+            Dictionary containing merged settings with profile overrides applied
+
+        """
+        profile = self.get_profile(profile_name)
+
+        # Start with global settings as base
+        merged_settings = {
+            # Video/Image settings from video_settings
+            "video_settings": {
+                "image_width_percent": self.video_settings.image_width_percent,
+                "image_top_position_percent": (
+                    self.video_settings.image_top_position_percent
+                ),
+                "preserve_aspect_ratio": self.video_settings.preserve_aspect_ratio,
+                "resolution": self.video_settings.resolution,
+                "frame_rate": self.video_settings.frame_rate,
+                "output_codec": self.video_settings.output_codec,
+                "output_pixel_format": self.video_settings.output_pixel_format,
+                "output_preset": self.video_settings.output_preset,
+                "default_image_duration_sec": (
+                    self.video_settings.default_image_duration_sec
+                ),
+                "transition_duration_sec": self.video_settings.transition_duration_sec,
+                "total_duration_limit_sec": (
+                    self.video_settings.total_duration_limit_sec
+                ),
+                "video_duration_tolerance_sec": (
+                    self.video_settings.video_duration_tolerance_sec
+                ),
+                "min_video_file_size_mb": self.video_settings.min_video_file_size_mb,
+                "inter_product_delay_min_sec": (
+                    self.video_settings.inter_product_delay_min_sec
+                ),
+                "inter_product_delay_max_sec": (
+                    self.video_settings.inter_product_delay_max_sec
+                ),
+                "min_visual_segment_duration_sec": (
+                    self.video_settings.min_visual_segment_duration_sec
+                ),
+                "dynamic_image_count_limit": (
+                    self.video_settings.dynamic_image_count_limit
+                ),
+                "verification_probe_timeout_sec": (
+                    self.video_settings.verification_probe_timeout_sec
+                ),
+                "default_max_chars_per_line": (
+                    self.video_settings.default_max_chars_per_line
+                ),
+                "subtitle_box_border_width": (
+                    self.video_settings.subtitle_box_border_width
+                ),
+                "image_loop": self.video_settings.image_loop,
+                "pad_color": self.video_settings.pad_color,
+                # Video assembly configuration (Requirement 7, 10)
+                "video_assembly_mode": self.video_settings.video_assembly_mode,
+                "video_aspect_mode": self.video_settings.video_aspect_mode,
+                "video_audio_handling": self.video_settings.video_audio_handling,
+                "video_original_volume": self.video_settings.video_original_volume,
+                "video_transition_duration": (
+                    self.video_settings.video_transition_duration
+                ),
+                "enable_format_normalization": (
+                    self.video_settings.enable_format_normalization
+                ),
+                "video_cache_dir": self.video_settings.video_cache_dir,
+            },
+            # Subtitle settings from subtitle_settings and unified positioning
+            "subtitle_settings": {
+                # Core unified subtitle positioning
+                "anchor": self.subtitle_settings["anchor"],
+                "margin": self.subtitle_settings["margin"],
+                "content_aware": self.subtitle_settings["content_aware"],
+                "style_preset": self.subtitle_settings["style_preset"],
+                "font_size_scale": self.subtitle_settings["font_size_scale"],
+                "horizontal_alignment": self.subtitle_settings["horizontal_alignment"],
+                # Font and color settings
+                "font_name": self.subtitle_settings["font_name"],
+                "font_color": self.subtitle_settings["font_color"],
+                "outline_color": self.subtitle_settings["outline_color"],
+                "back_color": self.subtitle_settings["back_color"],
+                "randomize_effects": self.subtitle_settings["randomize_effects"],
+                # Text formatting
+                "max_line_length": self.subtitle_settings["max_line_length"],
+                "max_words_per_line": self.subtitle_settings["max_words_per_line"],
+                "max_subtitle_duration": (
+                    self.subtitle_settings.get("max_subtitle_duration")
+                    or self.subtitle_settings.get("max_subtitle_duration_sec", 4.5)
+                ),
+                "min_subtitle_duration": (
+                    self.subtitle_settings.get("min_subtitle_duration")
+                    or self.subtitle_settings.get("min_subtitle_duration_sec", 0.4)
+                ),
+                # Advanced settings (pass through from original)
+                "enabled": self.subtitle_settings["enabled"],
+                # Legacy fields removed: positioning_mode, alignment, margin_v_percent,
+                # relative_positioning, absolute_positioning
+                "font_directory": self.subtitle_settings["font_directory"],
+                "font_size_percent": self.subtitle_settings["font_size_percent"],
+                "font_width_to_height_ratio": (
+                    self.subtitle_settings["font_width_to_height_ratio"]
+                ),
+                "randomize_fonts": (
+                    self.subtitle_settings.get("randomize_fonts")
+                    or self.subtitle_settings.get("use_random_font", False)
+                ),
+                "randomize_colors": (
+                    self.subtitle_settings.get("randomize_colors")
+                    or self.subtitle_settings.get("use_random_colors", False)
+                ),
+                "available_fonts": self.subtitle_settings.get("available_fonts", []),
+                "available_color_combinations": self.subtitle_settings.get(
+                    "available_color_combinations", []
+                ),
+                "temp_subtitle_dir": self.subtitle_settings.get(
+                    "temp_subtitle_dir", "temp"
+                ),
+                "temp_subtitle_filename": self.subtitle_settings.get(
+                    "temp_subtitle_filename", "captions.srt"
+                ),
+                "save_srt_with_video": self.subtitle_settings.get(
+                    "save_srt_with_video", True
+                ),
+                "subtitle_format": self.subtitle_settings.get("subtitle_format", "srt"),
+                "script_paths": self.subtitle_settings.get("script_paths", []),
+                "bold": self.subtitle_settings.get("bold", False),
+                "outline_thickness": self.subtitle_settings.get("outline_thickness", 2),
+                "shadow": self.subtitle_settings.get("shadow", 0),
+                # Two-part subtitle system settings
+                "two_part_subtitles_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                ).get("enabled", False),
+                "two_part_subtitles_upper_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("enabled", True),
+                "two_part_subtitles_upper_source_field": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("source_field", "shortened_affiliate_link"),
+                "two_part_subtitles_upper_custom_url": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("custom_url"),
+                "two_part_subtitles_upper_anchor": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("anchor", "above_content"),
+                "two_part_subtitles_upper_margin": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("margin", 0.03),
+                "two_part_subtitles_upper_font_size_scale": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("upper_line", {})
+                .get("font_size_scale", 0.75),
+                "two_part_subtitles_upper_style_preset": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("style_preset", "minimal")
+                ),
+                "two_part_subtitles_upper_use_full_duration": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("use_full_duration", True)
+                ),
+                "two_part_subtitles_upper_randomize_effects": (
+                    self.subtitle_settings.get("two_part_subtitles", {})
+                    .get("upper_line", {})
+                    .get("randomize_effects", False)
+                ),
+                "two_part_subtitles_lower_enabled": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("enabled", True),
+                "two_part_subtitles_lower_anchor": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("anchor", "below_content"),
+                "two_part_subtitles_lower_margin": self.subtitle_settings.get(
+                    "two_part_subtitles", {}
+                )
+                .get("lower_line", {})
+                .get("margin", 0.05),
+            },
+            # Profile information
+            "profile": {
+                "name": profile_name,
+                "description": profile.description,
+                "use_scraped_images": profile.use_scraped_images,
+                "use_scraped_videos": profile.use_scraped_videos,
+                "use_stock_images": profile.use_stock_images,
+                "use_stock_videos": profile.use_stock_videos,
+                "stock_image_count": profile.stock_image_count,
+                "stock_video_count": profile.stock_video_count,
+                "use_dynamic_image_count": profile.use_dynamic_image_count,
+            },
+        }
+
+        # Apply profile-specific image setting overrides
+        if profile.image_width_percent is not None:
+            merged_settings["video_settings"]["image_width_percent"] = (
+                profile.image_width_percent
+            )
+        if profile.image_top_position_percent is not None:
+            merged_settings["video_settings"]["image_top_position_percent"] = (
+                profile.image_top_position_percent
+            )
+        if profile.preserve_aspect_ratio is not None:
+            merged_settings["video_settings"]["preserve_aspect_ratio"] = (
+                profile.preserve_aspect_ratio
+            )
+
+        # Apply video assembly configuration overrides from profile
+        if profile.video_assembly_mode is not None:
+            merged_settings["video_settings"]["video_assembly_mode"] = (
+                profile.video_assembly_mode
+            )
+        if profile.video_aspect_mode is not None:
+            merged_settings["video_settings"]["video_aspect_mode"] = (
+                profile.video_aspect_mode
+            )
+        if profile.video_audio_handling is not None:
+            merged_settings["video_settings"]["video_audio_handling"] = (
+                profile.video_audio_handling
+            )
+        if profile.video_original_volume is not None:
+            merged_settings["video_settings"]["video_original_volume"] = (
+                profile.video_original_volume
+            )
+        if profile.video_transition_duration is not None:
+            merged_settings["video_settings"]["video_transition_duration"] = (
+                profile.video_transition_duration
+            )
+        if profile.enable_format_normalization is not None:
+            merged_settings["video_settings"]["enable_format_normalization"] = (
+                profile.enable_format_normalization
+            )
+        if profile.video_cache_dir is not None:
+            merged_settings["video_settings"]["video_cache_dir"] = (
+                profile.video_cache_dir
+            )
+
+        # Apply profile-specific subtitle setting overrides
+        if profile.subtitle_anchor is not None:
+            merged_settings["subtitle_settings"]["anchor"] = profile.subtitle_anchor
+        if profile.subtitle_margin is not None:
+            merged_settings["subtitle_settings"]["margin"] = profile.subtitle_margin
+        if profile.subtitle_content_aware is not None:
+            merged_settings["subtitle_settings"]["content_aware"] = (
+                profile.subtitle_content_aware
+            )
+        if profile.subtitle_style_preset is not None:
+            merged_settings["subtitle_settings"]["style_preset"] = (
+                profile.subtitle_style_preset
+            )
+        if profile.subtitle_font_size_scale is not None:
+            merged_settings["subtitle_settings"]["font_size_scale"] = (
+                profile.subtitle_font_size_scale
+            )
+        if profile.subtitle_horizontal_alignment is not None:
+            merged_settings["subtitle_settings"]["horizontal_alignment"] = (
+                profile.subtitle_horizontal_alignment
+            )
+
+        # Apply advanced subtitle styling overrides
+        if profile.subtitle_font_name is not None:
+            merged_settings["subtitle_settings"]["font_name"] = (
+                profile.subtitle_font_name
+            )
+        if profile.subtitle_font_color is not None:
+            merged_settings["subtitle_settings"]["font_color"] = (
+                profile.subtitle_font_color
+            )
+        if profile.subtitle_outline_color is not None:
+            merged_settings["subtitle_settings"]["outline_color"] = (
+                profile.subtitle_outline_color
+            )
+        if profile.subtitle_background_color is not None:
+            merged_settings["subtitle_settings"]["back_color"] = (
+                profile.subtitle_background_color
+            )
+        if profile.subtitle_randomize_fonts is not None:
+            merged_settings["subtitle_settings"]["randomize_fonts"] = (
+                profile.subtitle_randomize_fonts
+            )
+        if profile.subtitle_randomize_colors is not None:
+            merged_settings["subtitle_settings"]["randomize_colors"] = (
+                profile.subtitle_randomize_colors
+            )
+        if profile.subtitle_randomize_effects is not None:
+            merged_settings["subtitle_settings"]["randomize_effects"] = (
+                profile.subtitle_randomize_effects
+            )
+
+        # Apply text formatting overrides
+        if profile.subtitle_max_line_length is not None:
+            merged_settings["subtitle_settings"]["max_line_length"] = (
+                profile.subtitle_max_line_length
+            )
+        if profile.subtitle_max_words_per_line is not None:
+            merged_settings["subtitle_settings"]["max_words_per_line"] = (
+                profile.subtitle_max_words_per_line
+            )
+        if profile.subtitle_max_subtitle_width_fraction is not None:
+            merged_settings["subtitle_settings"]["max_subtitle_width_fraction"] = (
+                profile.subtitle_max_subtitle_width_fraction
+            )
+        if profile.subtitle_max_duration is not None:
+            merged_settings["subtitle_settings"]["max_subtitle_duration"] = (
+                profile.subtitle_max_duration
+            )
+        if profile.subtitle_min_duration is not None:
+            merged_settings["subtitle_settings"]["min_subtitle_duration"] = (
+                profile.subtitle_min_duration
+            )
+
+        # Apply manual selection overrides
+        if profile.subtitle_selected_font is not None:
+            merged_settings["subtitle_settings"]["selected_font"] = (
+                profile.subtitle_selected_font
+            )
+        if profile.subtitle_selected_color_pair is not None:
+            merged_settings["subtitle_settings"]["selected_color_pair"] = (
+                profile.subtitle_selected_color_pair
+            )
+
+        # Apply two-part subtitle system overrides from profile
+        if profile.two_part_subtitles_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_enabled"] = (
+                profile.two_part_subtitles_enabled
+            )
+        if profile.two_part_subtitles_upper_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_enabled"] = (
+                profile.two_part_subtitles_upper_enabled
+            )
+        if profile.two_part_subtitles_upper_source_field is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_source_field"
+            ] = profile.two_part_subtitles_upper_source_field
+        if profile.two_part_subtitles_upper_custom_url is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_custom_url"
+            ] = profile.two_part_subtitles_upper_custom_url
+        if profile.two_part_subtitles_upper_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_anchor"] = (
+                profile.two_part_subtitles_upper_anchor
+            )
+        if profile.two_part_subtitles_upper_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_upper_margin"] = (
+                profile.two_part_subtitles_upper_margin
+            )
+        if profile.two_part_subtitles_upper_font_size_scale is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_font_size_scale"
+            ] = profile.two_part_subtitles_upper_font_size_scale
+        if profile.two_part_subtitles_upper_style_preset is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_style_preset"
+            ] = profile.two_part_subtitles_upper_style_preset
+        if profile.two_part_subtitles_upper_use_full_duration is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_use_full_duration"
+            ] = profile.two_part_subtitles_upper_use_full_duration
+        if profile.two_part_subtitles_upper_randomize_effects is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_randomize_effects"
+            ] = profile.two_part_subtitles_upper_randomize_effects
+        if profile.two_part_subtitles_upper_prefix_replace is not None:
+            merged_settings["subtitle_settings"][
+                "two_part_subtitles_upper_prefix_replace"
+            ] = profile.two_part_subtitles_upper_prefix_replace
+        if profile.two_part_subtitles_lower_enabled is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_enabled"] = (
+                profile.two_part_subtitles_lower_enabled
+            )
+        if profile.two_part_subtitles_lower_anchor is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_anchor"] = (
+                profile.two_part_subtitles_lower_anchor
+            )
+        if profile.two_part_subtitles_lower_margin is not None:
+            merged_settings["subtitle_settings"]["two_part_subtitles_lower_margin"] = (
+                profile.two_part_subtitles_lower_margin
+            )
+
+        # Apply legacy subtitle_positioning overrides if present
+        if profile.subtitle_positioning:
+            merged_settings["subtitle_settings"].update(profile.subtitle_positioning)
+
+        # Apply CLI overrides (highest precedence)
+        if cli_overrides:
+            for key, value in cli_overrides.items():
+                # Parse dot notation (e.g., "video_settings.image_width_percent")
+                parts = key.split(".")
+                if len(parts) == 2:
+                    section, field = parts
+                    if section in merged_settings:
+                        merged_settings[section][field] = value
+
+        # Add video positioning settings from profile (now in Pydantic model)
+        if profile.video_top_position_percent is not None:
+            merged_settings["video_settings"]["video_top_position_percent"] = (
+                profile.video_top_position_percent
+            )
+            logger.debug(
+                f"[TRACE] Profile '{profile_name}' overrides "
+                f"video_top_position_percent: "
+                f"{profile.video_top_position_percent:.2%}"
+            )
+        if profile.video_content_height_percent is not None:
+            merged_settings["video_settings"]["video_content_height_percent"] = (
+                profile.video_content_height_percent
+            )
+            logger.debug(
+                f"[TRACE] Profile '{profile_name}' overrides "
+                f"video_content_height_percent: "
+                f"{profile.video_content_height_percent:.2%}"
+            )
+
+        return merged_settings
+
+    def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:
+        """Generate all paths for a product using simplified product-oriented structure.
+
+        Returns flat structure: outputs/{product_id}/
+        """
+        from src.utils import sanitize_filename
+
+        safe_product_id = sanitize_filename(product_id)
+        safe_profile_name = sanitize_filename(profile_name)
+
+        # Product root directory
+        product_dir = self.global_output_root_path / safe_product_id
+
+        # Product subdirectories
+        images_dir = product_dir / self.output_structure.product_subdirs.images
+        videos_dir = product_dir / self.output_structure.product_subdirs.videos
+        music_dir = product_dir / self.output_structure.product_subdirs.music
+        temp_dir = product_dir / self.output_structure.product_subdirs.temp
+
+        # Product files (in root)
+        files = self.output_structure.product_files
+        temp_files = self.output_structure.product_temp_files
+
+        return {
+            # Directories
+            "product_root": product_dir,
+            "images_dir": images_dir,
+            "videos_dir": videos_dir,
+            "music_dir": music_dir,
+            "temp_dir": temp_dir,
+            # Core production files (in product root)
+            "scraped_data": product_dir / files.scraped_data,
+            "script": product_dir / files.script,
+            "description": product_dir / files.description,
+            "voiceover": product_dir / files.voiceover,
+            "subtitles": product_dir / self._get_subtitle_filename(files.subtitles),
+            "final_video": product_dir
+            / files.final_video.format(
+                product_id=product_id, profile=safe_profile_name
+            ),
+            "attribution": product_dir / files.attribution,
+            # Debug/temp files (in temp directory)
+            "metadata": temp_dir / temp_files.metadata,
+            "performance": temp_dir / temp_files.performance,
+            "ffmpeg_log": temp_dir / temp_files.ffmpeg_log,
+            "media_validation_report": temp_dir
+            / f"{product_id}_{temp_files.media_validation_report}",
+            "whisper_result_raw": temp_dir
+            / f"{product_id}_{temp_files.whisper_result_raw}",
+            "whisper_vs_script": temp_dir / temp_files.whisper_vs_script,
+            "whisper_word_list": temp_dir
+            / f"{product_id}_{temp_files.whisper_word_list}",
+            "gathered_visuals": temp_dir / temp_files.gathered_visuals,
+            "music_choice": temp_dir / temp_files.music_choice,
+            "voiceover_duration": temp_dir / temp_files.voiceover_duration,
+            # Legacy compatibility
+            "project_root": product_dir,
+            "working_dir": temp_dir,
+            "audio_dir": temp_dir,
+            "visual_dir": temp_dir,
+            "text_dir": temp_dir,
+            "pipeline_state": temp_dir / temp_files.metadata,  # Renamed to temp
+        }
+
+    def _get_subtitle_filename(self, default_filename: str) -> str:
+        """Get subtitle filename with correct extension based on subtitle format."""
+        if self.subtitle_settings.get("subtitle_format") == "ass":
+            return default_filename.replace(".srt", ".ass")
+        return default_filename
+
+    def get_global_paths(self) -> dict[str, Path]:
+        """Generate global shared paths."""
+        global_dirs = self.output_structure.global_dirs
+
+        return {
+            "cache": self.global_output_root_path / global_dirs.cache,
+            "logs": self.global_output_root_path / global_dirs.logs,
+            "reports": self.global_output_root_path / global_dirs.reports,
+            "temp": self.global_output_root_path / global_dirs.temp,
+        }
+
+    def get_scraper_data_path(self, product_id: str) -> Path:
+        """Get path for scraped product data in simplified structure."""
+        from src.utils import sanitize_filename
+
+        safe_product_id = sanitize_filename(product_id)
+        product_dir = self.global_output_root_path / safe_product_id
+
+        return product_dir / self.output_structure.product_files.scraped_data
+
+    def get_expected_global_paths(self) -> set[Path]:
+        """Generate expected global directory paths."""
+        expected = set()
+        global_paths = self.get_global_paths()
+
+        for path in global_paths.values():
+            expected.add(path)
+
+        return expected
+
+    # Legacy method name for backward compatibility
+    def get_video_project_paths(
+        self, product_id: str, profile_name: str
+    ) -> dict[str, Path]:
+        """Legacy method - redirects to get_product_paths for backward compatibility."""
+        return self.get_product_paths(product_id, profile_name)
+
+    def cleanup_outputs_directory(self, dry_run: bool | None = None) -> dict[str, Any]:
+        """Clean up unexpected files and directories in outputs directory.
+
+        Args:
+        ----
+            dry_run: Override config dry_run setting if provided
+
+
+        Returns:
+        -------
+            Dictionary with cleanup statistics and actions taken
+
+        """
+        if not self.cleanup_settings.enabled:
+            logger.info("Cleanup is disabled in configuration")
+            return {"status": "disabled", "actions": []}
+
+        # Override dry_run if explicitly provided
+        is_dry_run = dry_run if dry_run is not None else self.cleanup_settings.dry_run
+
+        logger.info(f"Starting outputs directory cleanup (dry_run={is_dry_run})")
+
+        cleanup_report: dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
+            "dry_run": is_dry_run,
+            "config": {
+                "max_age_days": self.cleanup_settings.max_age_days,
+                "preserve_patterns": self.cleanup_settings.preserve_patterns,
+                "force_cleanup_patterns": self.cleanup_settings.force_cleanup_patterns,
+            },
+            "actions": [],
+            "statistics": {
+                "files_removed": 0,
+                "directories_removed": 0,
+                "bytes_freed": 0,
+                "errors": 0,
+            },
+        }
+
+        if not self.global_output_root_path.exists():
+            logger.info(
+                f"Outputs directory does not exist: {self.global_output_root_path}"
+            )
+            return cleanup_report
+
+        # Get expected paths
+        expected_paths = self.get_expected_global_paths()
+        cutoff_date = datetime.now() - timedelta(
+            days=self.cleanup_settings.max_age_days
+        )
+
+        # Walk through all files and directories
+        for item in self.global_output_root_path.rglob("*"):
+            try:
+                # Skip if path is expected (or parent of expected path)
+                if self._is_path_expected(item, expected_paths):
+                    continue
+
+                # Check age requirement for files
+                if item.is_file():
+                    file_age = datetime.fromtimestamp(item.stat().st_mtime)
+                    if file_age > cutoff_date and not self._should_force_cleanup(item):
+                        continue
+
+                # Check preserve patterns (skip if should preserve)
+                if self._should_preserve(item):
+                    continue
+
+                # Perform cleanup
+                action = self._cleanup_item(item, is_dry_run)
+                if action:
+                    cleanup_report["actions"].append(action)
+                    if action["action"] == "removed_file":
+                        cleanup_report["statistics"]["files_removed"] += 1
+                        cleanup_report["statistics"]["bytes_freed"] += action.get(
+                            "size", 0
+                        )
+                    elif action["action"] == "removed_directory":
+                        cleanup_report["statistics"]["directories_removed"] += 1
+
+            except Exception as e:
+                error_msg = f"Error processing {item}: {e}"
+                logger.error(error_msg)
+                cleanup_report["actions"].append(
+                    {
+                        "action": "error",
+                        "path": str(item),
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+                cleanup_report["statistics"]["errors"] += 1
+
+        # Clean up empty directories if configured
+        if self.cleanup_settings.cleanup_empty_dirs:
+            self._cleanup_empty_directories(cleanup_report, is_dry_run)
+
+        # Save report if configured
+        if self.cleanup_settings.create_report and not is_dry_run:
+            self._save_cleanup_report(cleanup_report)
+
+        files_removed = cleanup_report["statistics"]["files_removed"]
+        dirs_removed = cleanup_report["statistics"]["directories_removed"]
+        bytes_freed = cleanup_report["statistics"]["bytes_freed"]
+        logger.info(
+            f"Cleanup completed: {files_removed} files, "
+            f"{dirs_removed} directories removed, {bytes_freed} bytes freed"
+        )
+
+        return cleanup_report
+
+    def _is_path_expected(self, path: Path, expected_paths: set[Path]) -> bool:
+        """Check if a path is expected based on configured structure."""
+        # Check if path itself is expected
+        if path in expected_paths:
+            return True
+
+        # Check if path is under any expected directory
+        for expected in expected_paths:
+            try:
+                path.relative_to(expected)
+                return True
+            except ValueError:
+                continue
+
+        # Check if path matches expected patterns
+        rel_path = path.relative_to(self.global_output_root_path)
+
+        # Videos structure: videos/{product_id}/{profile_name}/...
+        if (
+            rel_path.parts
+            and rel_path.parts[0] == "videos"  # Static videos directory
+            and len(rel_path.parts) >= 3
+        ):  # Has product_id and profile_name
+            return True
+
+        # Scraper structure: data/{platform}/{run_id}/...
+        return bool(
+            rel_path.parts
+            and rel_path.parts[0] == "data"  # Static data directory
+            and len(rel_path.parts) >= 3
+        )  # Has platform and run_id
+
+    def _should_preserve(self, path: Path) -> bool:
+        """Check if path matches preserve patterns."""
+        rel_path = path.relative_to(self.global_output_root_path)
+        rel_str = str(rel_path)
+
+        for pattern in self.cleanup_settings.preserve_patterns:
+            if fnmatch.fnmatch(rel_str, pattern) or fnmatch.fnmatch(path.name, pattern):
+                return True
+        return False
+
+    def _should_force_cleanup(self, path: Path) -> bool:
+        """Check if path matches force cleanup patterns."""
+        rel_path = path.relative_to(self.global_output_root_path)
+        rel_str = str(rel_path)
+
+        for pattern in self.cleanup_settings.force_cleanup_patterns:
+            if fnmatch.fnmatch(rel_str, pattern) or fnmatch.fnmatch(path.name, pattern):
+                return True
+        return False
+
+    def _cleanup_item(self, path: Path, dry_run: bool) -> dict[str, Any] | None:
+        """Clean up a single file or directory."""
+        action: dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
+            "path": str(path.relative_to(self.global_output_root_path)),
+        }
+
+        try:
+            if path.is_file():
+                size = path.stat().st_size
+                action.update(
+                    {
+                        "action": (
+                            "removed_file" if not dry_run else "would_remove_file"
+                        ),
+                        "size": size,
+                    }
+                )
+
+                if not dry_run:
+                    path.unlink()
+                    logger.debug(f"Removed file: {path}")
+                else:
+                    logger.debug(f"Would remove file: {path}")
+
+            elif path.is_dir():
+                action_name = (
+                    "removed_directory" if not dry_run else "would_remove_directory"
+                )
+                action.update(
+                    {
+                        "action": action_name,
+                    }
+                )
+
+                if not dry_run:
+                    shutil.rmtree(path)
+                    logger.debug(f"Removed directory: {path}")
+                else:
+                    logger.debug(f"Would remove directory: {path}")
+
+            return action
+
+        except Exception as e:
+            logger.error(f"Failed to remove {path}: {e}")
+            action.update(
+                {
+                    "action": "error",
+                    "error": str(e),
+                }
+            )
+            return action
+
+    def _cleanup_empty_directories(self, report: dict[str, Any], dry_run: bool) -> None:
+        """Remove empty directories after file cleanup."""
+        # Walk from deepest to shallowest to remove nested empty dirs
+        for item in sorted(
+            self.global_output_root_path.rglob("*"),
+            key=lambda p: len(p.parts),
+            reverse=True,
+        ):
+            if item.is_dir():
+                try:
+                    # Check if directory is empty and not an expected base directory
+                    if not any(item.iterdir()) and not self._is_expected_base_directory(
+                        item
+                    ):
+                        action_name = (
+                            "removed_empty_directory"
+                            if not dry_run
+                            else "would_remove_empty_directory"
+                        )
+                        relative_path = str(
+                            item.relative_to(self.global_output_root_path)
+                        )
+                        action = {
+                            "action": action_name,
+                            "path": relative_path,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+
+                        if not dry_run:
+                            item.rmdir()
+                            logger.debug(f"Removed empty directory: {item}")
+                            report["statistics"]["directories_removed"] += 1
+                        else:
+                            logger.debug(f"Would remove empty directory: {item}")
+
+                        report["actions"].append(action)
+
+                except OSError:
+                    # Directory not empty or permission error
+                    pass
+
+    def _is_expected_base_directory(self, path: Path) -> bool:
+        """Check if directory is an expected base directory.
+
+        These directories should not be removed.
+        """
+        expected_bases = {
+            self.global_output_root_path / "videos",  # Static videos directory
+            self.global_output_root_path / "data",  # Static scraper data directory
+            self.global_output_root_path / self.output_structure.global_dirs.logs,
+            self.global_output_root_path / self.output_structure.global_dirs.temp,
+            self.global_output_root_path / self.output_structure.global_dirs.cache,
+        }
+        return path in expected_bases
+
+    def _save_cleanup_report(self, report: dict[str, Any]) -> None:
+        """Save cleanup report to file."""
+        try:
+            report_path = (
+                self.global_output_root_path / self.cleanup_settings.report_file
+            )
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with report_path.open("w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+
+            logger.info(f"Cleanup report saved to: {report_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to save cleanup report: {e}")
+
+
+def load_video_config(config_path: Path) -> VideoConfig:
+    """Load video configuration from YAML file.
+
+    Args:
+        config_path: Path to the video configuration YAML file
+
+    Returns:
+        VideoConfig: Parsed and validated configuration object
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        ValueError: If config validation fails
+    """
+    logger.info(f"Loading video config from: {config_path}")
+    if not config_path.is_file():
+        raise FileNotFoundError(f"Video config file not found: {config_path}")
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+        if not isinstance(config_data, dict):
+            raise ValueError("Config file is not a valid dictionary.")
+        return VideoConfig(**config_data)
+    except ValidationError as e:
+        logger.error(f"Config validation error: {e}")
+        raise ValueError("Config validation failed.") from e
+    except Exception as e:
+        logger.error(f"Error parsing config data: {e}", exc_info=True)
+        raise ValueError("Unexpected error during config parsing.") from e

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.12.0] - Unreleased
+## [0.12.0] - 2025-11-22
 
 ### Added
 - **M3U8/HLS Video Support**: Native support for M3U8 playlist video extraction
