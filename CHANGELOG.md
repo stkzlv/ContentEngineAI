@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2025-11-25
+
+### Changed
+- **Architecture Refactoring**: Modularized configuration and producer systems
+  - Split monolithic `video_config.py` (1150 lines) into specialized modules:
+    - `config/core_models.py` - Main VideoConfig and core settings
+    - `config/audio_models.py` - TTS, STT, and audio processing
+    - `config/visual_models.py` - Video, images, and media settings
+    - `config/subtitle_models.py` - Subtitle effects and segmentation
+    - `config/constants.py` - Shared constants
+  - Split monolithic `producer.py` (2514 lines) into producer package:
+    - `producer/cli.py` - Command-line interface
+    - `producer/steps.py` - Pipeline step implementations
+    - `producer/orchestration.py` - Pipeline execution logic
+    - `producer/state.py` - State management
+    - `producer/context.py` - Context models
+    - `producer/utils.py` - Utility functions
+  - Improved subtitle positioning: margins increased from 0.03 to 0.10 for better visibility
+
+### Fixed
+- **Code Quality**: Comprehensive linting and cleanup
+  - Removed 248 duplicate class definitions across config modules
+  - Removed 13 unused constant imports
+  - Fixed MD5 hash security warnings with `usedforsecurity=False`
+  - Fixed line length violations (88-character limit)
+  - All linters passing: Ruff, MyPy, Bandit, Vulture, Safety
+
+### Technical
+- **Test Infrastructure**: Updated test suite for new architecture
+  - Total tests: 736 passing (28 skipped)
+  - Coverage: 45.04% (exceeds 40% minimum target)
+  - Updated test imports for modular structure
+  - All compliance and integration tests passing
+
 ## [0.12.0] - 2025-11-22
 
 ### Added

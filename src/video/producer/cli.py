@@ -1,5 +1,6 @@
 # src/video/producer/cli.py
 """CLI argument parsing and batch processing for video producer."""
+
 import argparse
 import asyncio
 import json

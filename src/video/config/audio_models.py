@@ -1,5 +1,6 @@
 # src/video/config/audio_models.py
 """Audio-related configuration models for TTS, STT, and audio processing."""
+
 import logging
 from pathlib import Path
 
@@ -20,7 +21,6 @@ from src.video.config.constants import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 
 class AudioSettings(BaseModel):

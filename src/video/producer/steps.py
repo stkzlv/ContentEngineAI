@@ -1,5 +1,6 @@
 # src/video/producer/steps.py
 """Pipeline step implementations for video production."""
+
 import asyncio
 import json
 import logging
@@ -95,7 +96,6 @@ def _load_artifacts_generate_subtitles(ctx: PipelineContext):
 def _load_artifacts_download_music(ctx: PipelineContext):
     """Load artifacts from completed download_music step."""
     logger.debug("Loaded artifacts for skipped step 'download_music'")
-
 
 
 async def step_gather_visuals(ctx: PipelineContext):
@@ -966,5 +966,3 @@ async def step_assemble_video(ctx: PipelineContext):
     if not results["success"]:
         logger.warning(f"Verification for {final_video_path.name} reported issues.")
     logger.info(f"Video successfully created: {final_video_path}")
-
-

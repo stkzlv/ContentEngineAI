@@ -1,5 +1,6 @@
 # src/video/producer/state.py
 """Pipeline state management and path utilities."""
+
 import asyncio
 import json
 import logging
@@ -31,6 +32,7 @@ VALID_STEPS = [
     STEP_DOWNLOAD_MUSIC,
     STEP_ASSEMBLE_VIDEO,
 ]
+
 
 def _clean_producer_files(
     run_paths: dict[str, Path], config: VideoConfig, product_id: str, profile_name: str

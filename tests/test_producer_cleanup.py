@@ -68,13 +68,13 @@ class TestProducerCleanup:
             "voiceover.wav",  # Should be cleaned
             "subtitles.ass",  # Should be cleaned
             "subtitles_content_aware.ass",  # Should be cleaned
-            "subtitle_upper.ass", # Should be cleaned
+            "subtitle_upper.ass",  # Should be cleaned
             "metadata.json",  # Should be cleaned (in temp)
             "performance.json",  # Should be cleaned (in temp)
             f"video_{self.product_id}_{self.profile_name}.mp4",  # Should be cleaned
-            f"video_{self.profile_name}.mp4", # Should be cleaned (old pattern)
-            "ATTRIBUTIONS.txt", # Should be cleaned
-            "gathered_visuals.json", # Should be cleaned
+            f"video_{self.profile_name}.mp4",  # Should be cleaned (old pattern)
+            "ATTRIBUTIONS.txt",  # Should be cleaned
+            "gathered_visuals.json",  # Should be cleaned
         ]
 
         # Create temp dir
@@ -121,8 +121,8 @@ class TestProducerCleanup:
         assert not (product_dir / "script.txt").exists()
         assert not (product_dir / "voiceover.wav").exists()
         assert not (product_dir / "subtitles.ass").exists()
-        assert not (product_dir / "temp").exists() # Temp dir should be removed
-        assert not (product_dir / "music").exists() # Music dir should be removed
+        assert not (product_dir / "temp").exists()  # Temp dir should be removed
+        assert not (product_dir / "music").exists()  # Music dir should be removed
         assert not (product_dir / "gathered_visuals.json").exists()
         assert not (product_dir / "ATTRIBUTIONS.txt").exists()
         assert not (product_dir / "debug_test.log").exists()

@@ -1,5 +1,6 @@
 # src/video/producer/utils.py
 """Producer utility functions for logging and validation."""
+
 import logging
 from pathlib import Path
 
@@ -41,7 +42,6 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
     logger.info(f"Logging configured - Level: {log_level_name}, File: {log_file}")
     return log_file
-
 
 
 def validate_media_requirements(

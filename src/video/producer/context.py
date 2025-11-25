@@ -1,5 +1,6 @@
 # src/video/producer/context.py
 """Pipeline context and exception classes."""
+
 import asyncio
 from pathlib import Path
 from typing import Any

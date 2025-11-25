@@ -1,5 +1,6 @@
 # src/video/config/core_models.py
 """Core configuration models including VideoConfig, paths, cleanup, and optimization."""
+
 import fnmatch
 import json
 import logging
@@ -50,6 +51,7 @@ from src.video.config.visual_models import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 class LLMSettings(BaseModel):
     provider: str

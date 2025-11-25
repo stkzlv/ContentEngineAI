@@ -1,5 +1,6 @@
 # src/video/config/visual_models.py
 """Visual configuration models for video, images, and media settings."""
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator

@@ -194,11 +194,13 @@ class TestOptimizationIntegration:
         """Test that optimization utilities are properly integrated in their modules."""
         # Verify PipelineGraph is available in pipeline_graph module
         from src.video.pipeline_graph import PipelineGraph, StepStatus
+
         assert PipelineGraph is not None
         assert StepStatus is not None
 
         # Verify connection pooling utilities are available
         from src.utils.connection_pool import get_http_session, http_get
+
         assert get_http_session is not None
         assert http_get is not None
 
@@ -208,6 +210,7 @@ class TestOptimizationIntegration:
             copy_file_mmap,
             is_file_suitable_for_mmap,
         )
+
         assert copy_file_mmap is not None
         assert is_file_suitable_for_mmap is not None
         assert MemoryMappedFile is not None
@@ -216,6 +219,7 @@ class TestOptimizationIntegration:
         import inspect
 
         from src.video.producer.orchestration import execute_pipeline_parallel
+
         source = inspect.getsource(execute_pipeline_parallel)
         assert (
             "PipelineGraph" in source

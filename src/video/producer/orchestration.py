@@ -1,5 +1,6 @@
 # src/video/producer/orchestration.py
 """Pipeline orchestration and high-level execution logic."""
+
 import asyncio
 import json
 import logging
@@ -184,8 +185,6 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}", exc_info=True)
         return False
-
-
 
 
 async def create_video_for_product(
@@ -423,5 +422,3 @@ async def create_video_for_product(
                 f"Run failed. Files preserved in "
                 f"{run_paths.get('run_root')} for resume."
             )
-
-

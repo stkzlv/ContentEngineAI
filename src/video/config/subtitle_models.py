@@ -1,5 +1,6 @@
 # src/video/config/subtitle_models.py
 """Subtitle configuration models for effects and segmentation."""
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
