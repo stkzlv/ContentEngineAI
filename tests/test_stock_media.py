@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.video.config import VideoConfig
 from src.video.stock_media import StockMediaFetcher
-from src.video.video_config import VideoConfig
 
 
 class TestStockMediaFetcher:

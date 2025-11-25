@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
+from src.video.config import VideoConfig
 from src.video.tts import TTSManager
-from src.video.video_config import VideoConfig
 
 
 class TestTTSManager:

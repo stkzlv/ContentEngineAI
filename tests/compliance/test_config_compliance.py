@@ -633,7 +633,7 @@ def test_req_12_1_pydantic_catches_type_errors():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import GoogleCloudTTSSettings
+    from src.video.config import GoogleCloudTTSSettings
 
     # Invalid type: speaking_rate should be float, not string
     invalid_config = {
@@ -668,7 +668,7 @@ def test_req_12_1_pydantic_catches_missing_required_fields():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import GoogleCloudTTSSettings
+    from src.video.config import GoogleCloudTTSSettings
 
     # Missing required field: language_code
     invalid_config = {
@@ -702,7 +702,7 @@ def test_req_12_1_pydantic_catches_constraint_violations():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import TTSConfig
+    from src.video.config import TTSConfig
 
     # Constraint violation: provider_order requires min_length=1
     # Empty list violates min_length=1
@@ -729,7 +729,7 @@ def test_req_12_2_validation_errors_contain_field_names():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     # Multiple invalid fields
     invalid_config = {
@@ -762,7 +762,7 @@ def test_req_12_2_validation_errors_describe_expected_values():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     # Value outside valid range
     invalid_config = {
@@ -797,7 +797,7 @@ def test_req_12_2_nested_validation_errors_have_clear_paths():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import GoogleCloudTTSSettings
+    from src.video.config import GoogleCloudTTSSettings
 
     # Nested validation error
     invalid_config = {
@@ -841,7 +841,7 @@ def test_req_12_1_12_2_custom_validator_provides_clear_error():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import TTSConfig
+    from src.video.config import TTSConfig
 
     # Test that validation error provides clear field information
     # TTSConfig validates provider_order has corresponding settings
@@ -870,7 +870,7 @@ def test_req_12_2_validation_aggregates_multiple_errors():
     """
     from pydantic import ValidationError
 
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     # Multiple validation errors
     invalid_config = {

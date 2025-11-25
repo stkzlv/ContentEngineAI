@@ -14,6 +14,7 @@ from typing import Any
 import pysrt
 
 from src.utils import ensure_dirs_exist
+from src.video.config import config
 from src.video.result_types import SubtitleResult
 from src.video.subtitle_positioning import (
     Position,
@@ -23,7 +24,6 @@ from src.video.subtitle_positioning import (
     get_font_size,
     get_style_config,
 )
-from src.video.video_config import config
 
 logger = logging.getLogger(__name__)
 

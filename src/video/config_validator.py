@@ -11,12 +11,12 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from src.video.config import VideoConfig
 from src.video.subtitle_positioning import (
     PositionAnchor,
     StylePreset,
     create_unified_config_from_settings,
 )
-from src.video.video_config import VideoConfig
 
 logger = logging.getLogger(__name__)
 

@@ -19,7 +19,7 @@ import psutil
 
 from src.utils import ensure_dirs_exist, format_timestamp
 from src.utils.circuit_breaker import google_stt_circuit_breaker
-from src.video.video_config import (
+from src.video.config import (
     DEFAULT_WHISPER_MODEL_DIR,
     GoogleCloudSTTSettings,
     WhisperSettings,
@@ -163,7 +163,7 @@ async def generate_subtitles_with_whisper(
         create_whisper_debug = debug_mode
         if debug_mode:
             try:
-                from .video_config import CONFIG  # type: ignore[attr-defined]
+                from .video_config import CONFIG  # type: ignore[import-untyped]
 
                 create_whisper_debug = (
                     CONFIG.get("video_producer", {})

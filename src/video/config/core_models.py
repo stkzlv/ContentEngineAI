@@ -1,4 +1,6 @@
-# src/video/video_config.py
+# src/video/config/core_models.py
+"""Core configuration models including VideoConfig, paths, cleanup, and optimization."""
+
 import fnmatch
 import json
 import logging
@@ -8,278 +10,47 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import (
-    BaseModel,
-    Field,
-    ValidationError,
-    model_validator,
+from pydantic import BaseModel, Field, ValidationError, model_validator
+
+from src.utils import MAX_FILENAME_LENGTH
+from src.video.config.audio_models import (
+    AudioSettings,
+    GoogleCloudSTTSettings,
+    TTSConfig,
+)
+from src.video.config.constants import (
+    ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
+    DEFAULT_FALLBACK_FONT,
+    DEFAULT_WHISPER_MODEL_DIR,
+    DOWNLOAD_DEFAULT_TIMEOUT_SEC,
+    DOWNLOAD_RETRY_ATTEMPTS,
+    DOWNLOAD_RETRY_MAX_WAIT_SEC,
+    DOWNLOAD_RETRY_MIN_WAIT_SEC,
+    FALLBACK_FONT_ALTERNATIVES,
+    FONT_FILE_EXTENSIONS,
+    FONT_REGULAR_SUFFIXES,
+    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
+    FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
+    LLM_MAX_TOKENS,
+    LLM_MODEL_FETCH_TIMEOUT_SEC,
+    LLM_RETRY_ATTEMPTS,
+    LLM_RETRY_MAX_WAIT_SEC,
+    LLM_RETRY_MIN_WAIT_SEC,
+    LLM_RETRY_MULTIPLIER,
+    LLM_TEMPERATURE,
+    LLM_TIMEOUT_SECONDS,
 )
 
-# Import file handling defaults from utils to avoid circular imports
-from src.utils import MAX_FILENAME_LENGTH
+# Subtitle/video models defined locally in this file
+from src.video.config.visual_models import (
+    CTADetectionSettings,
+    MediaSettings,
+    StockMediaSettings,
+    VideoProfile,
+    VideoSettings,
+)
 
 logger = logging.getLogger(__name__)
-
-TTS_SPEAKING_RATE_MIN = 0.25
-TTS_SPEAKING_RATE_MAX = 4.0
-TTS_PITCH_MIN = -20.0
-TTS_PITCH_MAX = 20.0
-LLM_MAX_TOKENS = 350
-LLM_TEMPERATURE = 0.7
-LLM_TIMEOUT_SECONDS = 90
-FONT_FILE_EXTENSIONS = [".ttf", ".otf"]
-FONT_REGULAR_SUFFIXES = ["-regular", "-r"]
-DEFAULT_FALLBACK_FONT = "Arial"
-FALLBACK_FONT_ALTERNATIVES = ["Montserrat", "Rubik", "Poppins", "Gabarito"]
-SRT_TIME_SEPARATOR = " --> "
-SRT_BLOCK_SEPARATOR = "\n\n"
-SRT_MIN_BLOCK_LINES = 3
-SRT_TIME_HOUR_SEPARATOR = ":"
-SRT_TIME_MINUTE_SEPARATOR = ":"
-SRT_TIME_SECOND_SEPARATOR = ","
-SRT_HOURS_IN_SECONDS = 3600
-SRT_MINUTES_IN_SECONDS = 60
-SRT_MILLISECONDS_DIVISOR = 1000
-SRT_LINE_IDENTIFIER = "-->"
-SRT_ENCODING = "utf-8"
-TEXT_NORMALIZATION_PATTERN = r"[^\w\s]"
-TEXT_WHITESPACE_PATTERN = r"\s+"
-TEXT_WHITESPACE_REPLACEMENT = " "
-ASS_COLOR_PATTERN = r"&H(?:(\w{2}))?(\w{2})(\w{2})(\w{2})"
-ASS_DEFAULT_ALPHA = "00"
-RGB_HEX_FORMAT = "0x{red}{green}{blue}"
-RGB_OPACITY_FORMAT = "{rgb_hex}@{opacity:.2f}"
-FULL_OPACITY_THRESHOLD = 0.99
-DEFAULT_WHISPER_MODEL_DIR = "~/.cache/whisper_models"
-WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE = 0.5
-WHISPER_MIN_SEGMENT_DURATION_SEC = 0.1
-WHISPER_MAX_SEGMENT_DURATION_SEC = 5.0
-WHISPER_MIN_WORDS_PER_SEGMENT = 3
-WHISPER_MAX_WORDS_PER_SEGMENT = 10
-WHISPER_MAX_CHARS_PER_LINE = 42
-WHISPER_MIN_SEGMENT_GAP_SEC = 0.1
-ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE = 20
-ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH = 5
-ASSEMBLER_IMAGE_LOOP = 1
-ASSEMBLER_PAD_COLOR = "black"
-
-# Freesound API defaults
-FREESOUND_DEFAULT_MAX_RESULTS = 15
-FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC = 10
-FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC = 60
-FREESOUND_TOKEN_EXPIRY_SEC = 3600
-FREESOUND_TOKEN_REFRESH_BUFFER_SEC = 60
-FREESOUND_DOWNLOAD_CHUNK_SIZE = 8192 * 4
-
-# LLM API defaults
-LLM_MODEL_FETCH_TIMEOUT_SEC = 15
-DOWNLOAD_DEFAULT_TIMEOUT_SEC = 30
-DOWNLOAD_RETRY_ATTEMPTS = 3
-DOWNLOAD_RETRY_MIN_WAIT_SEC = 2
-DOWNLOAD_RETRY_MAX_WAIT_SEC = 10
-LLM_RETRY_MULTIPLIER = 1
-LLM_RETRY_MIN_WAIT_SEC = 2
-LLM_RETRY_MAX_WAIT_SEC = 30
-LLM_RETRY_ATTEMPTS = 5
-
-# Subtitle positioning fallback
-SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
-
-
-# Legacy positioning settings removed - Use UnifiedSubtitleConfig from
-# subtitle_positioning.py
-
-
-# Legacy SubtitleSettings removed in v0.8.0
-# Use subtitle_settings dict from config/subtitles.yaml via UnifiedSubtitleConfig
-
-
-class CTADetectionSettings(BaseModel):
-    min_cta_duration: float = Field(
-        2.0, description="Minimum total duration (seconds) for detected CTA windows"
-    )
-    fallback_duration: float = Field(
-        9999.0, description="Fallback duration (seconds) when voiceover unavailable"
-    )
-
-
-class VideoSettings(BaseModel):
-    resolution: tuple[int, int] = Field(
-        ..., description="Video resolution as (width, height)"
-    )
-    frame_rate: int
-    output_codec: str = Field("libx264")
-    output_pixel_format: str = Field("yuv420p")
-    output_preset: str = Field("medium")
-    image_width_percent: float = Field(0.75)
-    image_top_position_percent: float = Field(0.20)
-    default_image_duration_sec: float = Field(3.0)
-    transition_duration_sec: float = Field(0.5)
-    total_duration_limit_sec: int = Field(90)
-    video_duration_tolerance_sec: float = Field(1.0)
-    min_video_file_size_mb: float = Field(0.1)
-    inter_product_delay_min_sec: float = Field(1.5)
-    inter_product_delay_max_sec: float = Field(4.0)
-    min_visual_segment_duration_sec: float = Field(0.1)
-    dynamic_image_count_limit: int = Field(25)
-    verification_probe_timeout_sec: int = Field(30)
-    preserve_aspect_ratio: bool = Field(True)
-    default_max_chars_per_line: int = Field(ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE)
-    subtitle_box_border_width: int = Field(ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH)
-    image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
-    pad_color: str = Field(ASSEMBLER_PAD_COLOR)
-
-    # Media validation requirements (must match scraper config)
-    min_total_media: int = Field(3, description="Minimum total media files required")
-    min_images_if_no_video: int = Field(5, description="Minimum images when no videos")
-    min_images_with_video: int = Field(
-        2, description="Minimum images when videos exist"
-    )
-
-    # Video assembly configuration fields (Requirement 7, 10)
-    video_assembly_mode: Literal[
-        "sequential", "single_best", "mixed_media", "video_first_fallback"
-    ] = Field(
-        "sequential",
-        description="Video assembly strategy mode",
-    )
-    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] = Field(
-        "letterbox",
-        description="Aspect ratio handling (letterbox/crop-to-fit/smart-scale)",
-    )
-    video_audio_handling: Literal["remove", "mixed"] = Field(
-        "remove",
-        description="Audio handling (remove original audio or mix with voiceover)",
-    )
-    video_original_volume: float = Field(
-        -20.0,
-        ge=-60.0,
-        le=0.0,
-        description="Original video volume adjustment in dB (range: -60 to 0)",
-    )
-    video_transition_duration: float = Field(
-        0.5, description="Duration of transitions between video clips in seconds"
-    )
-    enable_format_normalization: bool = Field(
-        True,
-        description="Enable video format normalization (H.264, 30fps, yuv420p)",
-    )
-    video_cache_dir: str = Field(
-        "cache/videos", description="Directory for cached normalized videos"
-    )
-
-    @model_validator(mode="after")
-    def validate_resolution(self) -> "VideoSettings":
-        width, height = self.resolution
-        if width <= 0 or height <= 0:
-            raise ValueError("Resolution width and height must be positive")
-        return self
-
-
-class MediaSettings(BaseModel):
-    stock_media_keywords: list[str]
-    stock_video_min_duration_sec: int
-    stock_video_max_duration_sec: int
-    temp_media_dir: str = Field("downloaded_media_assets")
-    product_title_keyword_min_length: int = Field(3)
-
-
-class AudioSettings(BaseModel):
-    music_volume_db: float
-    voiceover_volume_db: float
-    audio_mix_duration: str = Field("longest")
-    background_music_paths: list[Path]
-    freesound_api_key_env_var: str
-    freesound_client_id_env_var: str = Field("FREESOUND_CLIENT_ID")
-    freesound_client_secret_env_var: str = Field("FREESOUND_CLIENT_SECRET")  # noqa: S106
-    freesound_refresh_token_env_var: str = Field("FREESOUND_REFRESH_TOKEN")  # noqa: S106
-    freesound_sort: str = Field("rating_desc")
-    freesound_search_query: str
-    freesound_filters: str
-    freesound_max_results: int
-    freesound_max_search_duration_sec: int = Field(9999)
-    freesound_api_timeout_sec: int = Field(FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC)
-    freesound_download_timeout_sec: int = Field(FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC)
-    freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC)
-    freesound_token_refresh_buffer_sec: int = Field(FREESOUND_TOKEN_REFRESH_BUFFER_SEC)
-    freesound_download_chunk_size: int = Field(FREESOUND_DOWNLOAD_CHUNK_SIZE)
-    output_audio_codec: str = Field("aac")
-    output_audio_bitrate: str = Field("192k")
-    music_fade_in_duration: float = Field(2.0)
-    music_fade_out_duration: float = Field(3.0)
-
-
-class GoogleCloudVoiceCriteria(BaseModel):
-    language_code: str
-    ssml_gender: str | None = Field(None)
-    name_contains: str | None = Field(None)
-
-
-class GoogleCloudTTSSettings(BaseModel):
-    model_config = {"protected_namespaces": ()}
-
-    model_name: str
-    language_code: str
-    voice_selection_criteria: list[GoogleCloudVoiceCriteria] = Field(..., min_length=1)
-    speaking_rate: float = Field(1.0)
-    pitch: float = Field(0.0)
-    volume_gain_db: float = Field(0.0)
-    debug: bool = Field(False)
-    api_timeout_sec: int = Field(60)
-    api_max_retries: int = Field(2)
-    api_retry_delay_sec: int = Field(5)
-    last_word_buffer_sec: float = Field(0.3)
-
-    @model_validator(mode="after")
-    def check_audio_config_ranges(self) -> "GoogleCloudTTSSettings":
-        if not (TTS_SPEAKING_RATE_MIN <= self.speaking_rate <= TTS_SPEAKING_RATE_MAX):
-            logger.warning(f"Google TTS rate {self.speaking_rate} outside range.")
-        if not (TTS_PITCH_MIN <= self.pitch <= TTS_PITCH_MAX):
-            logger.warning(f"Google TTS pitch {self.pitch} outside range.")
-        return self
-
-
-class CoquiTTSSettings(BaseModel):
-    model_config = {"protected_namespaces": ()}
-
-    model_name: str
-    speaker_name: str | None = Field(None)
-
-
-class TTSConfig(BaseModel):
-    provider_order: list[str] = Field(..., min_length=1)
-    google_cloud: GoogleCloudTTSSettings | None = Field(None)
-    coqui: CoquiTTSSettings | None = Field(None)
-
-    @model_validator(mode="after")
-    def check_provider_settings_exist(self) -> "TTSConfig":
-        valid_providers = []
-        try:
-            from src.video.tts import COQUI_AVAILABLE, GOOGLE_CLOUD_AVAILABLE
-        except ImportError:
-            GOOGLE_CLOUD_AVAILABLE, COQUI_AVAILABLE = False, False
-
-        for name in self.provider_order:
-            if (
-                name == "google_cloud" and self.google_cloud and GOOGLE_CLOUD_AVAILABLE
-            ) or (name == "coqui" and self.coqui and COQUI_AVAILABLE):
-                valid_providers.append(name)
-            else:
-                logger.warning(
-                    f"TTS provider '{name}' skipped (unavailable or config missing)."
-                )
-        if not valid_providers:
-            # In test environments or when no providers are available,
-            # allow empty provider list but log warning
-            logger.warning(
-                "No usable TTS providers configured/available. "
-                "This configuration can only be used for testing or components "
-                "that don't require TTS."
-            )
-            self.provider_order = []
-        else:
-            self.provider_order = valid_providers
-        return self
 
 
 class LLMSettings(BaseModel):
@@ -325,11 +96,6 @@ class DescriptionSettings(BaseModel):
     )
 
 
-class StockMediaSettings(BaseModel):
-    pexels_api_key_env_var: str
-    source: str = Field("Pexels")
-
-
 class FFmpegSettings(BaseModel):
     executable_path: str | None = Field(None)
     temp_ffmpeg_dir: str = Field("ffmpeg_work")
@@ -342,207 +108,6 @@ class AttributionSettings(BaseModel):
     attribution_file_name: str = Field("ATTRIBUTIONS.txt")
     attribution_template: str
     attribution_entry_template: str
-
-
-class VideoProfile(BaseModel):
-    description: str
-    use_scraped_images: bool = Field(False)
-    use_scraped_videos: bool = Field(False)
-    use_stock_images: bool = Field(False)
-    use_stock_videos: bool = Field(False)
-    stock_image_count: int = Field(0, ge=0)
-    stock_video_count: int = Field(0, ge=0)
-    use_dynamic_image_count: bool = Field(False)
-
-    # Profile-specific subtitle positioning (optional)
-    subtitle_positioning: dict[str, Any] | None = Field(
-        None, description="Profile-specific subtitle positioning overrides"
-    )
-
-    # ---- PER-PROFILE IMAGE SETTINGS ----
-    # Image positioning and sizing overrides
-    image_width_percent: float | None = Field(
-        None, description="Override global image width as percentage of frame (0.0-1.0)"
-    )
-    image_top_position_percent: float | None = Field(
-        None, description="Override global image top position as percentage (0.0-1.0)"
-    )
-    preserve_aspect_ratio: bool | None = Field(
-        None, description="Override global aspect ratio preservation setting"
-    )
-
-    # ---- PER-PROFILE VIDEO ASSEMBLY SETTINGS ----
-    # Video assembly configuration overrides (Requirement 7, 10)
-    video_assembly_mode: (
-        Literal["sequential", "single_best", "mixed_media", "video_first_fallback"]
-        | None
-    ) = Field(None, description="Override video assembly strategy mode")
-    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
-        Field(None, description="Override aspect ratio handling mode")
-    )
-    video_audio_handling: Literal["remove", "mixed"] | None = Field(
-        None, description="Override video audio handling (remove or mix)"
-    )
-    video_original_volume: float | None = Field(
-        None,
-        ge=-60.0,
-        le=0.0,
-        description="Override video audio volume in dB (-60 to 0)",
-    )
-    video_transition_duration: float | None = Field(
-        None, description="Override video transition duration in seconds"
-    )
-    enable_format_normalization: bool | None = Field(
-        None, description="Override format normalization setting"
-    )
-    video_cache_dir: str | None = Field(
-        None, description="Override video cache directory path"
-    )
-
-    # ---- PER-PROFILE VIDEO POSITIONING SETTINGS ----
-    video_top_position_percent: float | None = Field(
-        None,
-        ge=0.0,
-        le=1.0,
-        description="Video vertical start position as fraction (0.0-1.0)",
-    )
-    video_content_height_percent: float | None = Field(
-        None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
-    )
-
-    # ---- PER-PROFILE SUBTITLE SETTINGS ----
-    # Complete unified subtitle configuration overrides
-    subtitle_anchor: str | None = Field(
-        None,
-        description=(
-            "Override subtitle anchor: top, center, bottom, "
-            "above_content, below_content"
-        ),
-    )
-    subtitle_margin: float | None = Field(
-        None,
-        description="Override subtitle margin as fraction of frame height (0.0-0.5)",
-    )
-    subtitle_content_aware: bool | None = Field(
-        None, description="Override content-aware positioning setting"
-    )
-    subtitle_style_preset: str | None = Field(
-        None,
-        description="Override style preset: minimal, modern, bold, random",
-    )
-    subtitle_font_size_scale: float | None = Field(
-        None, description="Override font size scale factor (0.5-2.0)"
-    )
-    subtitle_horizontal_alignment: str | None = Field(
-        None, description="Override text alignment: left, center, right"
-    )
-
-    # Advanced subtitle styling overrides
-    subtitle_font_name: str | None = Field(
-        None, description="Override subtitle font family"
-    )
-    subtitle_font_color: str | None = Field(
-        None, description="Override subtitle text color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_outline_color: str | None = Field(
-        None, description="Override subtitle outline color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_background_color: str | None = Field(
-        None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_randomize_fonts: bool | None = Field(
-        None, description="Override font randomization setting"
-    )
-    subtitle_randomize_colors: bool | None = Field(
-        None, description="Override color randomization setting"
-    )
-    subtitle_randomize_effects: bool | None = Field(
-        None, description="Override effect randomization setting"
-    )
-
-    # Text formatting overrides
-    subtitle_max_line_length: int | None = Field(
-        None, description="Override maximum characters per subtitle line"
-    )
-    subtitle_max_words_per_line: int | None = Field(
-        None,
-        description=(
-            "Override maximum words per subtitle line (0 to disable word-based limit)"
-        ),
-    )
-    subtitle_max_subtitle_width_fraction: float | None = Field(
-        None,
-        description=(
-            "Override max subtitle width as fraction of frame width (0.0-1.0)"
-        ),
-    )
-    subtitle_max_duration: float | None = Field(
-        None, description="Override maximum subtitle duration in seconds"
-    )
-    subtitle_min_duration: float | None = Field(
-        None, description="Override minimum subtitle duration in seconds"
-    )
-
-    # Manual selection overrides (for testing/debugging)
-    subtitle_selected_font: str | None = Field(
-        None, description="Override with specific font (bypasses randomization)"
-    )
-    subtitle_selected_color_pair: str | None = Field(
-        None, description="Override with specific color pair name"
-    )
-
-    # ---- TWO-PART SUBTITLE SYSTEM ----
-    # Per-profile overrides for two-part subtitle system
-    two_part_subtitles_enabled: bool | None = Field(
-        None, description="Override two-part subtitle system enabled/disabled"
-    )
-    two_part_subtitles_upper_enabled: bool | None = Field(
-        None, description="Override upper subtitle line enabled/disabled"
-    )
-    two_part_subtitles_upper_source_field: str | None = Field(
-        None,
-        description=(
-            "Override field name to use for upper subtitle "
-            "(e.g. 'shortened_affiliate_link')"
-        ),
-    )
-    two_part_subtitles_upper_custom_url: str | None = Field(
-        None,
-        description=(
-            "Override with custom URL to display in upper subtitle "
-            "(overrides source_field when set)"
-        ),
-    )
-    two_part_subtitles_upper_anchor: str | None = Field(
-        None, description="Override upper subtitle anchor: top, above_content, etc."
-    )
-    two_part_subtitles_upper_margin: float | None = Field(
-        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
-    )
-    two_part_subtitles_upper_font_size_scale: float | None = Field(
-        None, description="Override upper subtitle font size scale (0.5-2.0)"
-    )
-    two_part_subtitles_upper_style_preset: str | None = Field(
-        None, description="Override upper subtitle style preset: minimal, modern, bold"
-    )
-    two_part_subtitles_upper_use_full_duration: bool | None = Field(
-        None, description="Override upper subtitle to display for full video duration"
-    )
-    two_part_subtitles_upper_randomize_effects: bool | None = Field(
-        None, description="Override upper subtitle effect randomization"
-    )
-    two_part_subtitles_upper_prefix_replace: str | None = Field(
-        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
-    )
-    two_part_subtitles_lower_enabled: bool | None = Field(
-        None, description="Override lower subtitle line enabled/disabled"
-    )
-    two_part_subtitles_lower_anchor: str | None = Field(
-        None, description="Override lower subtitle anchor: bottom, below_content, etc."
-    )
-    two_part_subtitles_lower_margin: float | None = Field(
-        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
-    )
 
 
 class WhisperSettings(BaseModel):
@@ -571,19 +136,6 @@ class WhisperSettings(BaseModel):
     progress_monitor_interval_sec: int = Field(30)
     enable_resource_monitoring: bool = Field(True)
     enable_resource_cleanup: bool = Field(True)
-
-
-class GoogleCloudSTTSettings(BaseModel):
-    enabled: bool = Field(True)
-    language_code: str = Field("en-US")
-    encoding: str = Field("LINEAR16")
-    sample_rate_hertz: int = Field(24000)
-    use_enhanced: bool = Field(True)
-    api_timeout_sec: int = Field(120)
-    api_max_retries: int = Field(2)
-    api_retry_delay_sec: int = Field(10)
-    use_speech_adaptation_if_script_provided: bool = Field(True)
-    adaptation_boost_value: float = Field(15.0, gt=0, le=20)
 
 
 class ApiSettings(BaseModel):
@@ -1165,7 +717,7 @@ class VideoConfig(BaseModel):
     cta_detection: CTADetectionSettings | None = Field(None)
 
     project_root: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent.parent,
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent.parent,
         init=False,
     )
     global_output_root_path: Path = Field(default_factory=Path, init=False)
@@ -2057,6 +1609,22 @@ class VideoConfig(BaseModel):
 
 
 def load_video_config(config_path: Path) -> VideoConfig:
+    """Load video configuration from YAML file.
+
+    Args:
+    ----
+        config_path: Path to the video configuration YAML file
+
+    Returns:
+    -------
+        VideoConfig: Parsed and validated configuration object
+
+    Raises:
+    ------
+        FileNotFoundError: If config file doesn't exist
+        ValueError: If config validation fails
+
+    """
     logger.info(f"Loading video config from: {config_path}")
     if not config_path.is_file():
         raise FileNotFoundError(f"Video config file not found: {config_path}")
@@ -2072,230 +1640,3 @@ def load_video_config(config_path: Path) -> VideoConfig:
     except Exception as e:
         logger.error(f"Error parsing config data: {e}", exc_info=True)
         raise ValueError("Unexpected error during config parsing.") from e
-
-
-# Load default config from modular structure
-try:
-    from src.video.config_adapter import load_video_config_modular
-
-    config = load_video_config_modular()
-    logger.info("Default video config loaded from modular structure")
-except Exception as e:
-    logger.error(f"Failed to load default configuration from modular structure: {e}")
-    config = VideoConfig(
-        global_output_directory="outputs",
-        output_structure=OutputStructure(),  # type: ignore[call-arg]
-        cleanup_settings=CleanupSettings(),  # type: ignore[call-arg]
-        pipeline_timeout_sec=900,
-        video_settings=VideoSettings(
-            resolution=(1080, 1920),
-            frame_rate=30,
-            output_codec="libx264",
-            output_pixel_format="yuv420p",
-            output_preset="medium",
-            min_total_media=3,
-            min_images_if_no_video=5,
-            min_images_with_video=2,
-            image_width_percent=0.75,
-            image_top_position_percent=0.20,
-            default_image_duration_sec=3.0,
-            transition_duration_sec=0.5,
-            total_duration_limit_sec=90,
-            video_duration_tolerance_sec=1.0,
-            min_video_file_size_mb=0.1,
-            inter_product_delay_min_sec=1.5,
-            inter_product_delay_max_sec=4.0,
-            min_visual_segment_duration_sec=0.1,
-            dynamic_image_count_limit=25,
-            verification_probe_timeout_sec=30,
-            preserve_aspect_ratio=True,
-            default_max_chars_per_line=ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
-            subtitle_box_border_width=ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH,
-            image_loop=ASSEMBLER_IMAGE_LOOP,
-            pad_color=ASSEMBLER_PAD_COLOR,
-            # Video assembly fields
-            video_assembly_mode="sequential",
-            video_aspect_mode="letterbox",
-            video_audio_handling="remove",
-            video_original_volume=-20.0,
-            video_transition_duration=0.5,
-            enable_format_normalization=True,
-            video_cache_dir="cache/videos",
-        ),
-        media_settings=MediaSettings(
-            stock_media_keywords=["product", "showcase"],
-            stock_video_min_duration_sec=5,
-            stock_video_max_duration_sec=20,
-            temp_media_dir="downloaded_media_assets",
-            product_title_keyword_min_length=3,
-        ),
-        audio_settings=AudioSettings(
-            music_volume_db=-20.0,
-            voiceover_volume_db=3.0,
-            audio_mix_duration="longest",
-            background_music_paths=[
-                Path("static/background-music-calm-soft-334182.mp3")
-            ],
-            freesound_api_key_env_var="FREESOUND_API_KEY",
-            freesound_client_id_env_var="FREESOUND_CLIENT_ID",
-            freesound_client_secret_env_var="FREESOUND_CLIENT_SECRET",  # noqa: S106
-            freesound_refresh_token_env_var="FREESOUND_REFRESH_TOKEN",  # noqa: S106
-            freesound_sort="rating_desc",
-            freesound_search_query="ambient background music",
-            freesound_filters="type:wav duration:[10 TO 300]",
-            freesound_max_results=10,
-            freesound_max_search_duration_sec=9999,
-            freesound_api_timeout_sec=30,
-            freesound_download_timeout_sec=300,
-            freesound_token_expiry_sec=3600,
-            freesound_token_refresh_buffer_sec=300,
-            freesound_download_chunk_size=8192,
-            output_audio_codec="aac",
-            output_audio_bitrate="192k",
-            music_fade_in_duration=2.0,
-            music_fade_out_duration=3.0,
-        ),
-        tts_config=TTSConfig(
-            provider_order=["google_cloud"],
-            google_cloud=None,
-            coqui=None,
-        ),
-        llm_settings=LLMSettings(
-            provider="openrouter",
-            api_key_env_var="OPENROUTER_API_KEY",
-            models=["gpt-3.5-turbo"],
-            prompt_template_path="prompts/product_script_template.txt",
-            target_audience="General audience",
-            base_url=None,
-            auto_select_free_model=True,
-            max_tokens=LLM_MAX_TOKENS,
-            temperature=LLM_TEMPERATURE,
-            timeout_seconds=LLM_TIMEOUT_SECONDS,
-        ),
-        description_settings=DescriptionSettings(
-            enabled=True,
-            prompt_template_path="prompts/video_description_template.txt",
-            target_platforms=["tiktok", "youtube", "instagram"],
-            max_tokens=250,
-            min_description_chars=50,
-            min_description_words=10,
-            require_hashtags=True,
-            require_ad_hashtag=True,
-        ),
-        stock_media_settings=StockMediaSettings(
-            pexels_api_key_env_var="PEXELS_API_KEY",
-            source="Pexels",
-        ),
-        ffmpeg_settings=FFmpegSettings(
-            executable_path=None,
-            temp_ffmpeg_dir="ffmpeg_work",
-            intermediate_segment_preset="ultrafast",
-            final_assembly_timeout_sec=600,
-            rw_timeout_microseconds=30000000,
-        ),
-        api_settings=ApiSettings(
-            llm_model_fetch_timeout_sec=15,
-            llm_retry_attempts=3,
-            llm_retry_min_wait_sec=2,
-            llm_retry_max_wait_sec=30,
-            llm_retry_multiplier=1,
-            stock_media_concurrent_downloads=5,
-            stock_media_search_multiplier=2,
-            stock_media_max_per_page=80,
-            default_request_timeout_sec=15,
-            default_retry_attempts=3,
-            default_retry_delay_sec=5,
-            download_timeout_sec=30,
-            download_retry_attempts=3,
-            download_retry_min_wait_sec=2,
-            download_retry_max_wait_sec=10,
-        ),
-        text_processing=TextProcessingSettings(
-            script_chars_per_second_estimate=15,
-            script_min_duration_sec=0.05,
-            subtitle_text_similarity_min_confidence=0.5,
-            subtitle_min_segment_duration_sec=0.1,
-            subtitle_max_segment_duration_sec=5.0,
-            subtitle_min_words_per_segment=3,
-            subtitle_max_words_per_segment=10,
-            subtitle_max_chars_per_line=42,
-            subtitle_min_segment_gap_sec=0.1,
-        ),
-        audio_processing=AudioProcessingSettings(
-            coqui_gpu_enabled=False,
-            google_tts_audio_encoding="LINEAR16",
-            min_audio_file_size_bytes=100,
-            audio_validation_timeout_sec=30,
-        ),
-        video_processing=VideoProcessingSettings(
-            ffmpeg_probe_streams="v:0",
-            ffmpeg_probe_entries="stream=width,height",
-            ffmpeg_probe_format="csv=s=x:p=0",
-            video_stream_check_timeout_sec=30,
-            min_frame_count=1,
-            visual_aspect_ratio_tolerance=0.01,
-            visual_scaling_precision=2,
-        ),
-        filesystem=FilesystemSettings(
-            temp_file_cleanup_delay_sec=5,
-            file_operation_timeout_sec=30,
-            max_filename_length=255,
-            supported_image_extensions=[".jpg", ".jpeg", ".png", ".webp", ".bmp"],
-            supported_video_extensions=[".mp4", ".avi", ".mov", ".mkv", ".webm"],
-            supported_audio_extensions=[".wav", ".mp3", ".aac", ".flac"],
-        ),
-        debug_settings=DebugSettings(
-            max_log_line_length=200,
-            debug_file_retention_days=7,
-            intermediate_file_cleanup=True,
-            cleanup_on_success=False,
-            cleanup_on_failure=False,
-            cleanup_whisper_files=False,
-            operation_timing_threshold_sec=5.0,
-            memory_usage_warning_mb=1000,
-        ),
-        attribution_settings=AttributionSettings(
-            attribution_file_name="ATTRIBUTIONS.txt",
-            attribution_template="",
-            attribution_entry_template="",
-        ),
-        subtitle_settings={},  # Use config/subtitles.yaml in production
-        whisper_settings=WhisperSettings(
-            enabled=True,
-            model_size="small",
-            model_device="cpu",
-            model_in_memory=False,
-            model_download_root="",
-            temperature=0.0,
-            language="en",
-            beam_size=5,
-            fp16=False,
-            compression_ratio_threshold=2.4,
-            logprob_threshold=-1.0,
-            no_speech_threshold=0.4,
-            condition_on_previous_text=True,
-            task="transcribe",
-            patience=None,
-            # Timeout settings with Field() defaults
-            base_timeout_sec=120,
-            duration_multiplier=6.0,
-            max_timeout_sec=900,
-            progress_monitor_interval_sec=30,
-            enable_resource_monitoring=True,
-            enable_resource_cleanup=True,
-        ),
-        google_cloud_stt_settings=GoogleCloudSTTSettings(
-            enabled=True,
-            language_code="en-US",
-            encoding="LINEAR16",
-            sample_rate_hertz=24000,
-            use_enhanced=True,
-            api_timeout_sec=120,
-            api_max_retries=2,
-            api_retry_delay_sec=10,
-            use_speech_adaptation_if_script_provided=True,
-            adaptation_boost_value=15.0,
-        ),
-        video_profiles={},
-    )
-    logger.warning("Using fallback configuration")

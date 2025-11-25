@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 
 from src.video.assembler import VideoAssembler
-from src.video.video_config import VideoConfig, load_video_config
+from src.video.config import VideoConfig, load_video_config
 
 
 class TestVideoAssembler:

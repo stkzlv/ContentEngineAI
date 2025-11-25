@@ -27,7 +27,7 @@ from pexelsapi.pexels import Pexels
 
 from src.utils import download_file, ensure_dirs_exist, get_filename_from_url
 from src.utils.circuit_breaker import pexels_circuit_breaker
-from src.video.video_config import MediaSettings, StockMediaSettings
+from src.video.config import MediaSettings, StockMediaSettings
 
 # Configure module logger
 logger = logging.getLogger(__name__)

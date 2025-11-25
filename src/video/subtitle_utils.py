@@ -12,6 +12,7 @@ from typing import Any
 import pysrt
 
 from src.utils import ensure_dirs_exist
+from src.video.config import GoogleCloudSTTSettings, WhisperSettings
 from src.video.result_types import SubtitleResult
 from src.video.stt_functions import (
     GOOGLE_CLOUD_STT_AVAILABLE,
@@ -21,7 +22,6 @@ from src.video.stt_functions import (
 )
 from src.video.subtitle_positioning import create_unified_config_from_settings
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
-from src.video.video_config import GoogleCloudSTTSettings, WhisperSettings
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +392,7 @@ def create_static_upper_subtitle(
                 cta_windows = detect_cta_timing_windows(subtitle_segments)
 
                 # Get CTA detection config
-                from src.video.video_config import config
+                from src.video.config import config
 
                 min_cta_duration = (
                     config.cta_detection.min_cta_duration
@@ -489,7 +489,7 @@ def create_static_upper_subtitle(
             except Exception as e:
                 logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")
                 # Use configured fallback duration
-                from src.video.video_config import config
+                from src.video.config import config
 
                 fallback_duration = (
                     config.cta_detection.fallback_duration
@@ -499,7 +499,7 @@ def create_static_upper_subtitle(
                 end_time = fallback_duration
         else:
             # Use configured fallback duration
-            from src.video.video_config import config
+            from src.video.config import config
 
             fallback_duration = (
                 config.cta_detection.fallback_duration

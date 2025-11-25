@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from src.utils import ensure_dirs_exist
-from src.video.video_config import (
+from src.video.config import (
     CoquiTTSSettings,
     GoogleCloudTTSSettings,
     GoogleCloudVoiceCriteria,
@@ -156,7 +156,7 @@ def _initialize_coqui_tts_model(settings: CoquiTTSSettings) -> Any | None:
         try:
             logger.info(f"Loading Coqui TTS model: {settings.model_name}")
             # Use configurable GPU setting
-            from src.video.video_config import config
+            from src.video.config import config
 
             use_gpu = (
                 config.audio_processing.coqui_gpu_enabled
@@ -352,7 +352,7 @@ async def _generate_google_cloud_speech(
 
     voice_params = texttospeech.VoiceSelectionParams(**voice_params_kwargs)
     # Use configurable audio encoding
-    from src.video.video_config import config
+    from src.video.config import config
 
     encoding_name = (
         config.audio_processing.google_tts_audio_encoding

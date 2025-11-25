@@ -26,7 +26,7 @@ from src.utils.async_io import (
     ffmpeg_semaphore,
 )
 from src.utils.caching import cache_media_metadata, get_cached_media_metadata
-from src.video.video_config import (
+from src.video.config import (
     DEFAULT_FALLBACK_FONT,
     FALLBACK_FONT_ALTERNATIVES,
     FONT_FILE_EXTENSIONS,

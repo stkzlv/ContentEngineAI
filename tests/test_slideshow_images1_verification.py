@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
-from src.video.video_config import VideoConfig
 
 logger = logging.getLogger(__name__)
 

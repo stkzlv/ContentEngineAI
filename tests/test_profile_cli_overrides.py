@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.video.video_config import VideoConfig, VideoProfile, load_video_config
+from src.video.config import VideoConfig, VideoProfile, load_video_config
 
 
 @pytest.mark.unit

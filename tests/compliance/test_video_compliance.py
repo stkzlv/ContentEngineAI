@@ -405,7 +405,7 @@ def test_req_6_2_video_config_exposes_two_part_settings():
     # This is tested by checking the source code references these settings
     import inspect
 
-    from src.video.video_config import VideoConfig
+    from src.video.config import VideoConfig
 
     video_config_source = inspect.getsource(VideoConfig)
     assert (
@@ -561,7 +561,7 @@ def test_req_6_5_two_part_system_can_be_enabled_or_disabled():
 @pytest.mark.unit
 def test_req_7_1_video_profile_model_has_override_fields():
     """Test that VideoProfile model defines subtitle override fields per req 7.1."""
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     # Get field names from the VideoProfile model
     profile_fields = set(VideoProfile.model_fields.keys())
@@ -645,7 +645,7 @@ def test_req_7_2_profile_settings_override_globals():
 @pytest.mark.unit
 def test_req_7_1_profile_override_fields_are_optional():
     """Test that all profile override fields are optional per req 7.1."""
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     # Create minimal profile (should work with only description)
     minimal_profile = VideoProfile(description="Test profile")
@@ -703,7 +703,7 @@ def test_req_7_2_multiple_profiles_with_different_overrides():
 @pytest.mark.unit
 def test_req_7_3_videoconfig_has_merge_method():
     """Test that VideoConfig has profile merging functionality per req 7.3."""
-    from src.video.video_config import VideoConfig
+    from src.video.config import VideoConfig
 
     # Verify VideoConfig has the merging method
     assert hasattr(
@@ -720,7 +720,7 @@ def test_req_7_3_videoconfig_has_merge_method():
 @pytest.mark.unit
 def test_req_7_1_image_positioning_overrides_in_profile():
     """Test that profiles support image positioning overrides per req 7.1."""
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     profile_fields = set(VideoProfile.model_fields.keys())
 
@@ -739,7 +739,7 @@ def test_req_7_1_image_positioning_overrides_in_profile():
 @pytest.mark.unit
 def test_req_7_2_profile_text_formatting_overrides():
     """Test that profiles support text formatting overrides per req 7.2."""
-    from src.video.video_config import VideoProfile
+    from src.video.config import VideoProfile
 
     profile_fields = set(VideoProfile.model_fields.keys())
 
@@ -1531,7 +1531,7 @@ def test_req_9_9_effect_consistency_across_segments():
 @pytest.mark.unit
 def test_req_10_1_tts_provider_order_configuration():
     """Test that TTS config defines provider order per req 10.1."""
-    from src.video.video_config import TTSConfig
+    from src.video.config import TTSConfig
 
     # Test valid configuration
     config = TTSConfig(
@@ -1596,15 +1596,15 @@ async def test_req_10_3_tts_fallback_succeeds_on_second_provider():
     from pathlib import Path
     from unittest.mock import AsyncMock, patch
 
+    from src.video.config import CoquiTTSSettings, TTSConfig
     from src.video.tts import TTSManager
-    from src.video.video_config import CoquiTTSSettings, TTSConfig
 
     # Mock availability flags before creating config
     with (
         patch("src.video.tts.GOOGLE_CLOUD_AVAILABLE", True),
         patch("src.video.tts.COQUI_AVAILABLE", True),
     ):
-        from src.video.video_config import (
+        from src.video.config import (
             GoogleCloudTTSSettings,
             GoogleCloudVoiceCriteria,
         )
@@ -1750,7 +1750,7 @@ def test_req_10_3_tts_config_validates_providers():
     # The validator filters provider_order to only include available providers
     import inspect
 
-    from src.video.video_config import TTSConfig
+    from src.video.config import TTSConfig
 
     # Check if TTSConfig has model_validator for provider validation
     source = inspect.getsource(TTSConfig)
@@ -1764,7 +1764,7 @@ def test_req_10_3_tts_config_validates_providers():
 def test_req_10_2_voice_selection_criteria_configurable():
     """Test that voice selection criteria is configurable per req 10.2."""
     # Test voice selection criteria configuration exists
-    from src.video.video_config import GoogleCloudTTSSettings, GoogleCloudVoiceCriteria
+    from src.video.config import GoogleCloudTTSSettings, GoogleCloudVoiceCriteria
 
     criteria = GoogleCloudVoiceCriteria(
         language_code="en-US",
@@ -1794,7 +1794,7 @@ def test_req_10_2_voice_selection_criteria_configurable():
 @pytest.mark.unit
 def test_req_10_1_stt_settings_separate_from_tts():
     """Test that STT settings are independent from TTS per req 10.1."""
-    from src.video.video_config import (
+    from src.video.config import (
         GoogleCloudSTTSettings,
         TTSConfig,
         WhisperSettings,

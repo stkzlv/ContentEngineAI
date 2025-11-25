@@ -13,7 +13,7 @@ from dotenv import set_key
 from src.utils import download_file as util_download_file
 from src.utils import ensure_dirs_exist, sanitize_filename
 from src.utils.circuit_breaker import freesound_circuit_breaker
-from src.video.video_config import (
+from src.video.config import (
     FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
     FREESOUND_DOWNLOAD_CHUNK_SIZE,
     FREESOUND_TOKEN_EXPIRY_SEC,
