@@ -7,7 +7,7 @@ smart-scale) and audio handling (remove, mixed) following requirements 2 and 3.
 import pytest
 
 from src.video.assembler import VideoAssembler
-from src.video.video_config import VideoConfig
+from src.video.config import VideoConfig
 
 
 @pytest.fixture

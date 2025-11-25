@@ -34,7 +34,7 @@ from tenacity import (
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import openrouter_circuit_breaker
-from src.video.video_config import (
+from src.video.config import (
     LLM_MODEL_FETCH_TIMEOUT_SEC,
     LLM_RETRY_ATTEMPTS,
     LLM_RETRY_MAX_WAIT_SEC,

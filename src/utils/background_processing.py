@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from src.scraper.amazon.scraper import ProductData
-from src.video.video_config import VideoConfig, VideoProfile
+from src.video.config import VideoConfig, VideoProfile
 
 logger = logging.getLogger(__name__)
 

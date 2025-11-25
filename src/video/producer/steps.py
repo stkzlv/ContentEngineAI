@@ -16,7 +16,11 @@ from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
-from src.video.producer.context import InsufficientMediaError, PipelineContext, PipelineError
+from src.video.producer.context import (
+    InsufficientMediaError,
+    PipelineContext,
+    PipelineError,
+)
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
     STEP_CREATE_VOICEOVER,

@@ -1,6 +1,5 @@
 # src/video/producer/__init__.py
-"""
-Video producer module - Modular structure with backward compatibility.
+"""Video producer module - Modular structure with backward compatibility.
 
 This module has been refactored into smaller, focused modules:
 - context.py: PipelineContext and exception classes
@@ -20,6 +19,12 @@ from src.video.producer.context import (  # noqa: F401
     InsufficientMediaError,
     PipelineContext,
     PipelineError,
+)
+
+# Re-export orchestration functions
+from src.video.producer.orchestration import (  # noqa: F401
+    create_video_for_product,
+    execute_pipeline_parallel,
 )
 
 # Re-export state management functions and constants
@@ -43,12 +48,6 @@ from src.video.producer.state import (  # noqa: F401
     save_visuals_info,
 )
 
-# Re-export utility functions
-from src.video.producer.utils import (  # noqa: F401
-    setup_logging,
-    validate_media_requirements,
-)
-
 # Re-export pipeline step functions
 from src.video.producer.steps import (  # noqa: F401
     step_assemble_video,
@@ -60,10 +59,10 @@ from src.video.producer.steps import (  # noqa: F401
     step_generate_subtitles,
 )
 
-# Re-export orchestration functions
-from src.video.producer.orchestration import (  # noqa: F401
-    create_video_for_product,
-    execute_pipeline_parallel,
+# Re-export utility functions
+from src.video.producer.utils import (  # noqa: F401
+    setup_logging,
+    validate_media_requirements,
 )
 
 __all__ = [

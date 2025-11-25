@@ -203,16 +203,23 @@ class TestOptimizationIntegration:
         assert http_get is not None
 
         # Verify memory-mapped I/O utilities are available
-        from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap, MemoryMappedFile
+        from src.utils.memory_mapped_io import (
+            MemoryMappedFile,
+            copy_file_mmap,
+            is_file_suitable_for_mmap,
+        )
         assert copy_file_mmap is not None
         assert is_file_suitable_for_mmap is not None
         assert MemoryMappedFile is not None
 
         # Verify producer orchestration uses PipelineGraph internally
-        from src.video.producer import orchestration
         import inspect
-        source = inspect.getsource(orchestration.execute_pipeline_parallel)
-        assert "PipelineGraph" in source, "PipelineGraph should be used in orchestration"
+
+        from src.video.producer.orchestration import execute_pipeline_parallel
+        source = inspect.getsource(execute_pipeline_parallel)
+        assert (
+            "PipelineGraph" in source
+        ), "PipelineGraph should be used in orchestration"
 
     def test_freesound_client_integration_missing(self):
         """Test that identifies missing connection pooling in Freesound client."""

@@ -19,12 +19,12 @@ from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
 from src.utils.performance import PerformanceHistoryManager
+from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.producer.orchestration import create_video_for_product
 from src.video.producer.state import VALID_STEPS
 from src.video.producer.utils import setup_logging
-from src.video.video_config import VideoConfig
 
 logger = logging.getLogger(__name__)
 
@@ -426,7 +426,7 @@ async def main():
                 "--batch-profile and --fail-fast can only be used with --batch"
             )
 
-    project_root = Path(__file__).resolve().parent.parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
     load_dotenv(project_root / ".env")
 
     # Build CLI overrides dict from parsed arguments

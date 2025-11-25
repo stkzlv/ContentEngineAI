@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from src.video.video_config import VideoConfig, VideoProfile
+from src.video.config import VideoConfig, VideoProfile
 
 logger = logging.getLogger(__name__)
 

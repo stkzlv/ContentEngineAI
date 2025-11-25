@@ -19,10 +19,15 @@ from src.utils.background_processing import (
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
 from src.utils.performance import PerformanceHistoryManager, performance_monitor
+from src.video.config import VideoConfig, VideoProfile
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.pipeline_graph import PipelineGraph, StepStatus
-from src.video.producer.context import InsufficientMediaError, PipelineContext, PipelineError
+from src.video.producer.context import (
+    InsufficientMediaError,
+    PipelineContext,
+    PipelineError,
+)
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
     STEP_CREATE_VOICEOVER,
@@ -55,7 +60,6 @@ from src.video.producer.steps import (
     step_generate_subtitles,
 )
 from src.video.producer.utils import setup_logging, validate_media_requirements
-from src.video.video_config import VideoConfig, VideoProfile
 
 logger = logging.getLogger(__name__)
 

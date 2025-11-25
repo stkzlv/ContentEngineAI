@@ -1,14 +1,11 @@
 # src/video/config/__init__.py
-"""
-Video configuration module - Modular structure with backward compatibility.
+"""Video configuration module - Modular structure with backward compatibility.
 
 All classes are re-exported from this module to maintain backward compatibility
-with existing imports like: from src.video.video_config import VideoConfig
+with existing imports like: from src.video.config import VideoConfig
 """
 
 # Re-export all constants
-from src.video.config.constants import *  # noqa: F403, F401
-
 # Re-export audio models
 from src.video.config.audio_models import (  # noqa: F401
     AudioProcessingSettings,
@@ -19,23 +16,7 @@ from src.video.config.audio_models import (  # noqa: F401
     GoogleCloudVoiceCriteria,
     TTSConfig,
 )
-
-# Re-export visual models
-from src.video.config.visual_models import (  # noqa: F401
-    CTADetectionSettings,
-    MediaSettings,
-    MediaValidationSettings,
-    StockMediaSettings,
-    VideoProcessingSettings,
-    VideoProfile,
-    VideoSettings,
-)
-
-# Re-export subtitle models
-from src.video.config.subtitle_models import (  # noqa: F401
-    SubtitleEffectsSettings,
-    SubtitleSegmentationSettings,
-)
+from src.video.config.constants import *  # noqa: F403, F401
 
 # Re-export core models (including VideoConfig)
 from src.video.config.core_models import (  # noqa: F401
@@ -65,7 +46,32 @@ from src.video.config.core_models import (  # noqa: F401
     load_video_config,
 )
 
+# Re-export subtitle models
+from src.video.config.subtitle_models import (  # noqa: F401
+    SubtitleEffectsSettings,
+    SubtitleSegmentationSettings,
+)
+
+# Re-export visual models
+from src.video.config.visual_models import (  # noqa: F401
+    CTADetectionSettings,
+    MediaSettings,
+    MediaValidationSettings,
+    StockMediaSettings,
+    VideoProcessingSettings,
+    VideoProfile,
+    VideoSettings,
+)
+
+# Initialize global config singleton for backward compatibility
+# Use load_video_config_modular to properly instantiate VideoConfig Pydantic model
+from src.video.config_adapter import load_video_config_modular
+
+config: VideoConfig = load_video_config_modular()
+
 __all__ = [
+    # Global config singleton
+    "config",
     # Constants (exported via *)
     # Audio models
     "AudioProcessingSettings",

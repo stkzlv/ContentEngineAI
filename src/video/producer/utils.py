@@ -5,7 +5,7 @@ from pathlib import Path
 
 from src.utils import ensure_dirs_exist
 from src.utils.logging_setup import setup_debug_logging
-from src.video.video_config import VideoConfig
+from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
 

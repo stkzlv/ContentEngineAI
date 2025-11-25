@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 
 from src.scraper.amazon.scraper import ProductData
-from src.video.video_config import VideoConfig, VideoProfile
+from src.video.config import VideoConfig, VideoProfile
 
 
 class PipelineError(Exception):

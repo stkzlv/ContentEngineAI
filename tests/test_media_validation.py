@@ -5,9 +5,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.video.producer import validate_media_requirements
+from src.video.config import VideoConfig, VideoProfile
+from src.video.producer.utils import validate_media_requirements
 from src.video.stock_media import StockMediaInfo
-from src.video.video_config import VideoConfig, VideoProfile
 
 
 class TestProfileAwareValidation:

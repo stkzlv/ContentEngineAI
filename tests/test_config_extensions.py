@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.video.video_config import CleanupConfig, PathConfig
+from src.video.config import CleanupConfig, PathConfig
 
 
 class TestCleanupConfig:

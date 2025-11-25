@@ -9,7 +9,7 @@ import logging
 import re
 from typing import Any
 
-from src.video.video_config import config
+from src.video.config import config
 
 logger = logging.getLogger(__name__)
 

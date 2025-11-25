@@ -7,9 +7,9 @@ import shutil
 from pathlib import Path
 
 from src.utils import ensure_dirs_exist
+from src.video.config import VideoConfig
 from src.video.producer.context import PipelineContext
 from src.video.stock_media import StockMediaInfo
-from src.video.video_config import VideoConfig
 
 logger = logging.getLogger(__name__)
 

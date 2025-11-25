@@ -13,7 +13,6 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from src.utils import MAX_FILENAME_LENGTH
 from src.video.config.audio_models import (
-    AudioProcessingSettings,
     AudioSettings,
     GoogleCloudSTTSettings,
     TTSConfig,
@@ -30,7 +29,6 @@ from src.video.config.constants import (
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
     FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
-    FREESOUND_DEFAULT_MAX_RESULTS,
     FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
     LLM_MAX_TOKENS,
     LLM_MODEL_FETCH_TIMEOUT_SEC,
@@ -40,28 +38,13 @@ from src.video.config.constants import (
     LLM_RETRY_MULTIPLIER,
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
-    SUBTITLE_FALLBACK_SPACING_PERCENT,
-    TEXT_NORMALIZATION_PATTERN,
-    TEXT_WHITESPACE_PATTERN,
-    TEXT_WHITESPACE_REPLACEMENT,
-    WHISPER_MAX_CHARS_PER_LINE,
-    WHISPER_MAX_SEGMENT_DURATION_SEC,
-    WHISPER_MAX_WORDS_PER_SEGMENT,
-    WHISPER_MIN_SEGMENT_DURATION_SEC,
-    WHISPER_MIN_SEGMENT_GAP_SEC,
-    WHISPER_MIN_WORDS_PER_SEGMENT,
-    WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE,
 )
-from src.video.config.subtitle_models import (
-    SubtitleEffectsSettings,
-    SubtitleSegmentationSettings,
-)
+
+# Subtitle/video models defined locally in this file
 from src.video.config.visual_models import (
     CTADetectionSettings,
     MediaSettings,
-    MediaValidationSettings,
     StockMediaSettings,
-    VideoProcessingSettings,
     VideoProfile,
     VideoSettings,
 )
@@ -111,11 +94,6 @@ class DescriptionSettings(BaseModel):
     )
 
 
-class StockMediaSettings(BaseModel):
-    pexels_api_key_env_var: str
-    source: str = Field("Pexels")
-
-
 class FFmpegSettings(BaseModel):
     executable_path: str | None = Field(None)
     temp_ffmpeg_dir: str = Field("ffmpeg_work")
@@ -128,207 +106,6 @@ class AttributionSettings(BaseModel):
     attribution_file_name: str = Field("ATTRIBUTIONS.txt")
     attribution_template: str
     attribution_entry_template: str
-
-
-class VideoProfile(BaseModel):
-    description: str
-    use_scraped_images: bool = Field(False)
-    use_scraped_videos: bool = Field(False)
-    use_stock_images: bool = Field(False)
-    use_stock_videos: bool = Field(False)
-    stock_image_count: int = Field(0, ge=0)
-    stock_video_count: int = Field(0, ge=0)
-    use_dynamic_image_count: bool = Field(False)
-
-    # Profile-specific subtitle positioning (optional)
-    subtitle_positioning: dict[str, Any] | None = Field(
-        None, description="Profile-specific subtitle positioning overrides"
-    )
-
-    # ---- PER-PROFILE IMAGE SETTINGS ----
-    # Image positioning and sizing overrides
-    image_width_percent: float | None = Field(
-        None, description="Override global image width as percentage of frame (0.0-1.0)"
-    )
-    image_top_position_percent: float | None = Field(
-        None, description="Override global image top position as percentage (0.0-1.0)"
-    )
-    preserve_aspect_ratio: bool | None = Field(
-        None, description="Override global aspect ratio preservation setting"
-    )
-
-    # ---- PER-PROFILE VIDEO ASSEMBLY SETTINGS ----
-    # Video assembly configuration overrides (Requirement 7, 10)
-    video_assembly_mode: (
-        Literal["sequential", "single_best", "mixed_media", "video_first_fallback"]
-        | None
-    ) = Field(None, description="Override video assembly strategy mode")
-    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
-        Field(None, description="Override aspect ratio handling mode")
-    )
-    video_audio_handling: Literal["remove", "mixed"] | None = Field(
-        None, description="Override video audio handling (remove or mix)"
-    )
-    video_original_volume: float | None = Field(
-        None,
-        ge=-60.0,
-        le=0.0,
-        description="Override video audio volume in dB (-60 to 0)",
-    )
-    video_transition_duration: float | None = Field(
-        None, description="Override video transition duration in seconds"
-    )
-    enable_format_normalization: bool | None = Field(
-        None, description="Override format normalization setting"
-    )
-    video_cache_dir: str | None = Field(
-        None, description="Override video cache directory path"
-    )
-
-    # ---- PER-PROFILE VIDEO POSITIONING SETTINGS ----
-    video_top_position_percent: float | None = Field(
-        None,
-        ge=0.0,
-        le=1.0,
-        description="Video vertical start position as fraction (0.0-1.0)",
-    )
-    video_content_height_percent: float | None = Field(
-        None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
-    )
-
-    # ---- PER-PROFILE SUBTITLE SETTINGS ----
-    # Complete unified subtitle configuration overrides
-    subtitle_anchor: str | None = Field(
-        None,
-        description=(
-            "Override subtitle anchor: top, center, bottom, "
-            "above_content, below_content"
-        ),
-    )
-    subtitle_margin: float | None = Field(
-        None,
-        description="Override subtitle margin as fraction of frame height (0.0-0.5)",
-    )
-    subtitle_content_aware: bool | None = Field(
-        None, description="Override content-aware positioning setting"
-    )
-    subtitle_style_preset: str | None = Field(
-        None,
-        description="Override style preset: minimal, modern, bold, random",
-    )
-    subtitle_font_size_scale: float | None = Field(
-        None, description="Override font size scale factor (0.5-2.0)"
-    )
-    subtitle_horizontal_alignment: str | None = Field(
-        None, description="Override text alignment: left, center, right"
-    )
-
-    # Advanced subtitle styling overrides
-    subtitle_font_name: str | None = Field(
-        None, description="Override subtitle font family"
-    )
-    subtitle_font_color: str | None = Field(
-        None, description="Override subtitle text color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_outline_color: str | None = Field(
-        None, description="Override subtitle outline color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_background_color: str | None = Field(
-        None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_randomize_fonts: bool | None = Field(
-        None, description="Override font randomization setting"
-    )
-    subtitle_randomize_colors: bool | None = Field(
-        None, description="Override color randomization setting"
-    )
-    subtitle_randomize_effects: bool | None = Field(
-        None, description="Override effect randomization setting"
-    )
-
-    # Text formatting overrides
-    subtitle_max_line_length: int | None = Field(
-        None, description="Override maximum characters per subtitle line"
-    )
-    subtitle_max_words_per_line: int | None = Field(
-        None,
-        description=(
-            "Override maximum words per subtitle line (0 to disable word-based limit)"
-        ),
-    )
-    subtitle_max_subtitle_width_fraction: float | None = Field(
-        None,
-        description=(
-            "Override max subtitle width as fraction of frame width (0.0-1.0)"
-        ),
-    )
-    subtitle_max_duration: float | None = Field(
-        None, description="Override maximum subtitle duration in seconds"
-    )
-    subtitle_min_duration: float | None = Field(
-        None, description="Override minimum subtitle duration in seconds"
-    )
-
-    # Manual selection overrides (for testing/debugging)
-    subtitle_selected_font: str | None = Field(
-        None, description="Override with specific font (bypasses randomization)"
-    )
-    subtitle_selected_color_pair: str | None = Field(
-        None, description="Override with specific color pair name"
-    )
-
-    # ---- TWO-PART SUBTITLE SYSTEM ----
-    # Per-profile overrides for two-part subtitle system
-    two_part_subtitles_enabled: bool | None = Field(
-        None, description="Override two-part subtitle system enabled/disabled"
-    )
-    two_part_subtitles_upper_enabled: bool | None = Field(
-        None, description="Override upper subtitle line enabled/disabled"
-    )
-    two_part_subtitles_upper_source_field: str | None = Field(
-        None,
-        description=(
-            "Override field name to use for upper subtitle "
-            "(e.g. 'shortened_affiliate_link')"
-        ),
-    )
-    two_part_subtitles_upper_custom_url: str | None = Field(
-        None,
-        description=(
-            "Override with custom URL to display in upper subtitle "
-            "(overrides source_field when set)"
-        ),
-    )
-    two_part_subtitles_upper_anchor: str | None = Field(
-        None, description="Override upper subtitle anchor: top, above_content, etc."
-    )
-    two_part_subtitles_upper_margin: float | None = Field(
-        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
-    )
-    two_part_subtitles_upper_font_size_scale: float | None = Field(
-        None, description="Override upper subtitle font size scale (0.5-2.0)"
-    )
-    two_part_subtitles_upper_style_preset: str | None = Field(
-        None, description="Override upper subtitle style preset: minimal, modern, bold"
-    )
-    two_part_subtitles_upper_use_full_duration: bool | None = Field(
-        None, description="Override upper subtitle to display for full video duration"
-    )
-    two_part_subtitles_upper_randomize_effects: bool | None = Field(
-        None, description="Override upper subtitle effect randomization"
-    )
-    two_part_subtitles_upper_prefix_replace: str | None = Field(
-        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
-    )
-    two_part_subtitles_lower_enabled: bool | None = Field(
-        None, description="Override lower subtitle line enabled/disabled"
-    )
-    two_part_subtitles_lower_anchor: str | None = Field(
-        None, description="Override lower subtitle anchor: bottom, below_content, etc."
-    )
-    two_part_subtitles_lower_margin: float | None = Field(
-        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
-    )
 
 
 class WhisperSettings(BaseModel):
@@ -357,19 +134,6 @@ class WhisperSettings(BaseModel):
     progress_monitor_interval_sec: int = Field(30)
     enable_resource_monitoring: bool = Field(True)
     enable_resource_cleanup: bool = Field(True)
-
-
-class GoogleCloudSTTSettings(BaseModel):
-    enabled: bool = Field(True)
-    language_code: str = Field("en-US")
-    encoding: str = Field("LINEAR16")
-    sample_rate_hertz: int = Field(24000)
-    use_enhanced: bool = Field(True)
-    api_timeout_sec: int = Field(120)
-    api_max_retries: int = Field(2)
-    api_retry_delay_sec: int = Field(10)
-    use_speech_adaptation_if_script_provided: bool = Field(True)
-    adaptation_boost_value: float = Field(15.0, gt=0, le=20)
 
 
 class ApiSettings(BaseModel):
@@ -951,7 +715,7 @@ class VideoConfig(BaseModel):
     cta_detection: CTADetectionSettings | None = Field(None)
 
     project_root: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent.parent,
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent.parent,
         init=False,
     )
     global_output_root_path: Path = Field(default_factory=Path, init=False)
@@ -1846,14 +1610,18 @@ def load_video_config(config_path: Path) -> VideoConfig:
     """Load video configuration from YAML file.
 
     Args:
+    ----
         config_path: Path to the video configuration YAML file
 
     Returns:
+    -------
         VideoConfig: Parsed and validated configuration object
 
     Raises:
+    ------
         FileNotFoundError: If config file doesn't exist
         ValueError: If config validation fails
+
     """
     logger.info(f"Loading video config from: {config_path}")
     if not config_path.is_file():

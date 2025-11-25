@@ -6,7 +6,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from src.video.video_config import (
+from src.video.config import (
     AudioSettings,
     LLMSettings,
     TTSConfig,

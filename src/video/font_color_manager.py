@@ -191,7 +191,7 @@ class FontManager:
         available_fonts = self.get_available_fonts()
 
         # Create deterministic random generator
-        hash_object = hashlib.md5(seed.encode())  # noqa: S324
+        hash_object = hashlib.md5(seed.encode(), usedforsecurity=False)
         random_seed = int(hash_object.hexdigest()[:8], 16)
         rng = random.Random(random_seed)  # noqa: S311
 
@@ -281,7 +281,7 @@ class ColorManager:
         available_pairs = self.get_available_color_pairs()
 
         # Create deterministic random generator
-        hash_object = hashlib.md5(seed.encode())  # noqa: S324
+        hash_object = hashlib.md5(seed.encode(), usedforsecurity=False)
         # Different slice for colors
         random_seed = int(hash_object.hexdigest()[8:16], 16)
         rng = random.Random(random_seed)  # noqa: S311

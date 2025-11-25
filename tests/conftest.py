@@ -14,7 +14,7 @@ from aioresponses import aioresponses
 
 from src.scraper.amazon.scraper import ProductData
 from src.scraper.base.models import Platform
-from src.video.video_config import VideoConfig, VideoProfile, load_video_config
+from src.video.config import VideoConfig, VideoProfile, load_video_config
 
 
 @pytest.fixture

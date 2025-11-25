@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.video.assembler import VideoAssembler
-from src.video.video_config import VideoConfig
+from src.video.config import VideoConfig
 
 
 @pytest.fixture
