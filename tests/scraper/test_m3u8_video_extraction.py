@@ -26,57 +26,95 @@ class TestM3U8VideoSupport:
         assert ".mp4" in mp4_url
         assert ".m3u8" not in mp4_url
 
-    def test_ffmpeg_m3u8_conversion_command(self):
+    @pytest.mark.asyncio
+    async def test_ffmpeg_m3u8_conversion_command(self):
         """Test FFmpeg command for M3U8 to MP4 conversion."""
+        import asyncio
+
         from src.scraper.amazon.downloader import convert_m3u8_to_mp4
 
         m3u8_url = "https://example.com/video.m3u8"
         output_path = Path("/tmp/test_video.mp4")  # noqa: S108
 
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
+        # Mock async subprocess
+        mock_process = Mock()
+        mock_process.returncode = 0
+        mock_process.communicate = Mock(return_value=(b"", b""))
 
-            convert_m3u8_to_mp4(m3u8_url, output_path, timeout=30)
+        async def mock_communicate():
+            return (b"", b"")
+
+        mock_process.communicate = mock_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=mock_process
+        ) as mock_exec:
+            result = await convert_m3u8_to_mp4(m3u8_url, output_path, timeout=30)
 
             # Verify FFmpeg was called
-            assert mock_run.called
-            call_args = mock_run.call_args[0][0]
+            assert mock_exec.called
+            call_args = mock_exec.call_args[0]
 
             # Verify correct FFmpeg arguments
             assert "ffmpeg" in call_args
             assert "-i" in call_args
             assert m3u8_url in call_args
             assert str(output_path) in call_args
+            assert result is True
 
-    def test_ffmpeg_conversion_timeout(self):
+    @pytest.mark.asyncio
+    async def test_ffmpeg_conversion_timeout(self):
         """Test FFmpeg conversion respects timeout."""
+        import asyncio
+
         from src.scraper.amazon.downloader import convert_m3u8_to_mp4
 
         m3u8_url = "https://example.com/video.m3u8"
         output_path = Path("/tmp/test_video.mp4")  # noqa: S108
         timeout = 60
 
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
+        # Mock async subprocess
+        mock_process = Mock()
+        mock_process.returncode = 0
 
-            convert_m3u8_to_mp4(m3u8_url, output_path, timeout=timeout)
+        async def mock_communicate():
+            return (b"", b"")
 
-            # Verify timeout parameter passed
-            assert mock_run.call_args[1]["timeout"] == timeout
+        mock_process.communicate = mock_communicate
 
-    def test_ffmpeg_conversion_failure_handling(self):
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_process),
+            patch("asyncio.wait_for") as mock_wait_for,
+        ):
+            mock_wait_for.return_value = (b"", b"")
+
+            await convert_m3u8_to_mp4(m3u8_url, output_path, timeout=timeout)
+
+            # Verify timeout parameter passed to wait_for
+            assert mock_wait_for.called
+            assert mock_wait_for.call_args[1]["timeout"] == timeout
+
+    @pytest.mark.asyncio
+    async def test_ffmpeg_conversion_failure_handling(self):
         """Test FFmpeg conversion handles failures gracefully."""
+        import asyncio
+
         from src.scraper.amazon.downloader import convert_m3u8_to_mp4
 
         m3u8_url = "https://example.com/video.m3u8"
         output_path = Path("/tmp/test_video.mp4")  # noqa: S108
 
-        with patch("subprocess.run") as mock_run:
-            # Simulate FFmpeg failure
-            mock_run.return_value.returncode = 1
-            mock_run.return_value.stderr = "Conversion failed"
+        # Mock async subprocess with failure
+        mock_process = Mock()
+        mock_process.returncode = 1
 
-            result = convert_m3u8_to_mp4(m3u8_url, output_path)
+        async def mock_communicate():
+            return (b"", b"Conversion failed")
+
+        mock_process.communicate = mock_communicate
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await convert_m3u8_to_mp4(m3u8_url, output_path)
 
             # Should return False on failure
             assert result is False

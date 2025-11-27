@@ -4,12 +4,13 @@ This module handles downloading of images and videos using Botasaurus tasks
 with proper error handling and file management.
 """
 
+import asyncio
 import contextlib
 import logging
-import subprocess
 from pathlib import Path as PathLib
 from typing import Any
 
+import aiohttp
 import requests
 from botasaurus import bt
 from botasaurus.task import task  # type: ignore[import-untyped]
@@ -50,10 +51,10 @@ _enhanced_task_config = {
 }
 
 
-def convert_m3u8_to_mp4(
+async def convert_m3u8_to_mp4(
     m3u8_url: str, output_path: PathLib, timeout: int = 120
 ) -> bool:
-    """Convert M3U8 HLS stream to MP4 file using ffmpeg.
+    """Convert M3U8 HLS stream to MP4 file using ffmpeg asynchronously.
 
     Args:
     ----
@@ -66,6 +67,8 @@ def convert_m3u8_to_mp4(
         True if conversion successful, False otherwise
 
     """
+    import asyncio
+
     logger = logging.getLogger(__name__)
 
     try:
@@ -90,20 +93,35 @@ def convert_m3u8_to_mp4(
         logger.info(f"🎬 Converting m3u8 to mp4: {output_path.name}")
         logger.debug(f"   Command: {' '.join(cmd)}")
 
-        # Run ffmpeg with timeout
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        # Run ffmpeg with timeout using async subprocess
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
-        if result.returncode == 0:
-            logger.info(f"✅ Successfully converted to MP4: {output_path.name}")
-            return True
-        else:
-            logger.error(f"❌ FFmpeg conversion failed with code {result.returncode}")
-            logger.error(f"   stderr: {result.stderr[:500]}")
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=timeout
+            )
+
+            if process.returncode == 0:
+                logger.info(f"✅ Successfully converted to MP4: {output_path.name}")
+                return True
+            else:
+                logger.error(
+                    f"❌ FFmpeg conversion failed with code {process.returncode}"
+                )
+                stderr_text = stderr.decode("utf-8", errors="ignore")[:500]
+                logger.error(f"   stderr: {stderr_text}")
+                return False
+
+        except TimeoutError:
+            logger.error(f"❌ FFmpeg conversion timed out after {timeout}s")
+            process.kill()
+            await process.wait()
             return False
 
-    except subprocess.TimeoutExpired:
-        logger.error(f"❌ FFmpeg conversion timed out after {timeout}s")
-        return False
     except FileNotFoundError:
         logger.error("❌ FFmpeg not found. Please install: sudo apt install ffmpeg")
         return False
@@ -112,9 +130,212 @@ def convert_m3u8_to_mp4(
         return False
 
 
+async def _download_media_async(
+    asin: str,
+    image_urls: list[str],
+    video_urls: list[str],
+    platform: str,
+    debug_mode: bool,
+) -> dict[str, Any]:
+    """Async helper function for downloading media files.
+
+    Args:
+    ----
+        asin: Product ASIN
+        image_urls: List of image URLs
+        video_urls: List of video URLs
+        platform: Platform name
+        debug_mode: Debug mode flag
+
+    Returns:
+    -------
+        Dictionary with download results
+
+    """
+    logger = logging.getLogger(__name__)
+
+    # Create aiohttp session for async downloads
+    async with aiohttp.ClientSession() as session:
+        downloaded_images = []
+        downloaded_videos = []
+
+        # Get download configuration
+        global_settings = CONFIG.get("global_settings", {})
+        download_config = global_settings.get("download_config", {})
+        min_image_file_size = download_config.get("min_image_file_size", 10000)
+
+        # Setup output directories
+        from .botasaurus_output import get_outputs_root
+
+        outputs_root = get_outputs_root()
+        product_dir = outputs_root / asin
+        images_dir = product_dir / "images"
+        videos_dir = product_dir / "videos"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        videos_dir.mkdir(parents=True, exist_ok=True)
+
+        # Download images concurrently
+        if image_urls:
+            if debug_mode:
+                logger.info(f"🖼️ [IMAGE DOWNLOAD] Processing {len(image_urls)} images")
+
+            async def download_single_image(i: int, url: str) -> str | None:
+                try:
+                    if not url or not url.startswith("http"):
+                        return None
+
+                    # Validate image before download
+                    if not _validate_image_size_before_download(
+                        url, min_image_file_size, debug_mode, logger
+                    ):
+                        return None
+
+                    # Generate filename
+                    supported_exts = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+                    default_ext = "jpg"
+                    ext = default_ext
+                    for extension in supported_exts:
+                        if url.endswith(extension):
+                            ext = extension.lstrip(".")
+                            break
+
+                    filename = get_filename_pattern(
+                        "image", asin=asin, index=i, ext=ext
+                    )
+                    file_path = images_dir / filename
+
+                    # Download file async
+                    success = await download_file_async(session, url, file_path)
+                    if success:
+                        # Validate downloaded file
+                        validation_result = verify_image_file(file_path)
+                        if validation_result.is_valid:
+                            relative_path = str(file_path.relative_to(outputs_root))
+                            if debug_mode:
+                                file_size = validation_result.validation_data.get(
+                                    "actual_file_size", 0
+                                )
+                                dimensions = (
+                                    validation_result.validation_data.get("width", 0),
+                                    validation_result.validation_data.get("height", 0),
+                                )
+                                dim_str = f"{dimensions[0]}x{dimensions[1]}"
+                                logger.info(
+                                    f"✅ [IMAGE] {filename} "
+                                    f"({file_size} bytes, {dim_str})"
+                                )
+                            return relative_path
+                        else:
+                            with contextlib.suppress(Exception):
+                                file_path.unlink()
+                except Exception as e:
+                    logger.warning(f"❌ [IMAGE] Failed {i+1}: {e}")
+                return None
+
+            # Download images concurrently with semaphore
+            semaphore = asyncio.Semaphore(5)
+
+            async def download_with_semaphore(i: int, url: str) -> str | None:
+                async with semaphore:
+                    return await download_single_image(i, url)
+
+            tasks = [
+                download_with_semaphore(i, url) for i, url in enumerate(image_urls)
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for result in results:
+                if isinstance(result, str):
+                    downloaded_images.append(result)
+
+        # Download videos concurrently
+        if video_urls:
+            if debug_mode:
+                m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
+                mp4_count = len(video_urls) - m3u8_count
+                logger.info(
+                    f"🎥 [VIDEO] Processing {len(video_urls)} videos "
+                    f"(M3U8: {m3u8_count}, MP4: {mp4_count})"
+                )
+
+            async def download_single_video(i: int, url: str) -> str | None:
+                try:
+                    if not url or not url.startswith("http"):
+                        return None
+
+                    filename = get_filename_pattern(
+                        "video", asin=asin, index=i, ext="mp4"
+                    )
+                    file_path = videos_dir / filename
+
+                    # Handle M3U8 streams or direct MP4
+                    is_m3u8 = ".m3u8" in url
+                    if is_m3u8:
+                        video_config = global_settings.get("video_config", {})
+                        m3u8_timeout = video_config.get("m3u8_download_timeout", 120)
+                        success = await convert_m3u8_to_mp4(
+                            url, file_path, timeout=m3u8_timeout
+                        )
+                    else:
+                        success = await download_file_async(
+                            session, url, file_path, timeout=300
+                        )
+
+                    if success:
+                        # Validate downloaded file
+                        validation_result = verify_video_file(file_path)
+                        if validation_result.is_valid:
+                            relative_path = str(file_path.relative_to(outputs_root))
+                            if debug_mode:
+                                file_size = validation_result.validation_data.get(
+                                    "actual_file_size", 0
+                                )
+                                duration = validation_result.validation_data.get(
+                                    "duration", 0
+                                )
+                                logger.info(
+                                    f"✅ [VIDEO] {filename} "
+                                    f"({file_size} bytes, {duration}s)"
+                                )
+                            return relative_path
+                        else:
+                            with contextlib.suppress(Exception):
+                                file_path.unlink()
+                except Exception as e:
+                    logger.warning(f"❌ [VIDEO] Failed {i+1}: {e}")
+                return None
+
+            # Download videos concurrently with semaphore
+            semaphore_video = asyncio.Semaphore(3)  # Fewer concurrent videos
+
+            async def download_video_with_semaphore(i: int, url: str) -> str | None:
+                async with semaphore_video:
+                    return await download_single_video(i, url)
+
+            video_tasks = [
+                download_video_with_semaphore(i, url)
+                for i, url in enumerate(video_urls)
+            ]
+            video_results = await asyncio.gather(*video_tasks, return_exceptions=True)
+
+            for result in video_results:
+                if isinstance(result, str):
+                    downloaded_videos.append(result)
+
+        return {
+            "downloaded_images": downloaded_images,
+            "downloaded_videos": downloaded_videos,
+            "outputs_root": outputs_root,
+            "product_dir": product_dir,
+        }
+
+
 @task(**_enhanced_task_config)
 def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
-    """Download product media files (images and videos) using Botasaurus task
+    """Download product media files (images and videos) using Botasaurus task.
+
+    This function serves as a sync wrapper around the async download logic to maintain
+    compatibility with Botasaurus's task decorator system.
 
     Args:
     ----
@@ -136,300 +357,39 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     image_urls = data.get("images", [])
     video_urls = data.get("videos", [])
     platform = data.get("platform", "amazon")
+    debug_mode = data.get("debug_mode", False)
 
-    # Get debug mode from data parameter to avoid circular imports
-    DEBUG_MODE = data.get("debug_mode", False)
+    if debug_mode:
+        logger.info(f"📥 [MEDIA DOWNLOAD] Starting async download for ASIN: {asin}")
+        logger.info(
+            f"📥 [MEDIA DOWNLOAD] Images: {len(image_urls)}, "
+            f"Videos: {len(video_urls)}"
+        )
 
-    if DEBUG_MODE:
-        logger.info(f"📥 [MEDIA DOWNLOAD] Starting media download for ASIN: {asin}")
-        logger.info(f"📥 [MEDIA DOWNLOAD] Images to download: {len(image_urls)}")
-        logger.info(f"📥 [MEDIA DOWNLOAD] Videos to download: {len(video_urls)}")
-        logger.info(f"📥 [MEDIA DOWNLOAD] Platform: {platform}")
-
-        if image_urls:
-            logger.info("📥 [MEDIA DOWNLOAD] Image URLs:")
-            for i, url in enumerate(image_urls[:3]):  # Show first 3
-                logger.info(f"   {i+1}. {url[:80]}...")
-            if len(image_urls) > 3:
-                logger.info(f"   ... and {len(image_urls) - 3} more images")
-
-        if video_urls:
-            logger.info("📥 [MEDIA DOWNLOAD] Video URLs:")
-            for i, url in enumerate(video_urls[:3]):  # Show first 3
-                logger.info(f"   {i+1}. {url[:80]}...")
-            if len(video_urls) > 3:
-                logger.info(f"   ... and {len(video_urls) - 3} more videos")
-
-    # Create directories using simplified product-oriented structure
-    # Use product-centric directory structure for images and videos
-    from ...utils.outputs_paths import (
-        get_product_directory,
-        get_product_images_directory,
-        get_product_videos_directory,
-    )
-
-    product_dir = get_product_directory(asin)
-    images_dir = get_product_images_directory(asin)
-    videos_dir = get_product_videos_directory(asin)
-
-    if DEBUG_MODE:
-        logger.info("📁 [MEDIA DOWNLOAD] Creating directories:")
-        logger.info(f"   • Product dir: {product_dir}")
-        logger.info(f"   • Images dir: {images_dir}")
-        logger.info(f"   • Videos dir: {videos_dir}")
-
+    # Run async download helper
     try:
-        # Directories are already created by the utility functions
-        pass
-        if DEBUG_MODE:
-            logger.info("✅ [MEDIA DOWNLOAD] Directories created successfully")
+        download_result = asyncio.run(
+            _download_media_async(asin, image_urls, video_urls, platform, debug_mode)
+        )
+
+        downloaded_images = download_result["downloaded_images"]
+        downloaded_videos = download_result["downloaded_videos"]
+        outputs_root = download_result["outputs_root"]
+        product_dir = download_result["product_dir"]
+
     except Exception as e:
-        logger.error(f"❌ [MEDIA DOWNLOAD] Failed to create directories: {e}")
+        logger.error(f"❌ [MEDIA DOWNLOAD] Async download failed: {e}")
         return {
             "asin": asin,
             "downloaded_images": [],
             "downloaded_videos": [],
             "total_images": 0,
             "total_videos": 0,
-            "error": f"Directory creation failed: {e}",
+            "error": f"Download failed: {e}",
         }
 
-    downloaded_images = []
-    downloaded_videos = []
-
-    # Download images with pre-validation
-    if DEBUG_MODE:
-        logger.info(
-            f"🖼️ [IMAGE DOWNLOAD] Starting image downloads with pre-validation for "
-            f"ASIN: {asin}"
-        )
-
-    # Get minimum file size threshold for high-res images (from config)
-    min_file_size = (
-        CONFIG.get("global_settings", {})
-        .get("image_config", {})
-        .get("min_high_res_file_size", 10000)  # 10KB minimum for high-res images
-    )
-
-    for i, url in enumerate(image_urls):
-        try:
-            if not url or not url.startswith("http"):
-                if DEBUG_MODE:
-                    logger.warning(
-                        f"🖼️ [IMAGE DOWNLOAD] Skipping invalid URL {i+1}: {url}"
-                    )
-                continue
-
-            # Pre-download validation: check file size via HEAD request
-            if DEBUG_MODE:
-                logger.info(
-                    f"🖼️ [PRE-VALIDATION] Checking image {i+1}/{len(image_urls)}: "
-                    f"{url[:80]}..."
-                )
-
-            if not _validate_image_size_before_download(
-                url, min_file_size, DEBUG_MODE, logger
-            ):
-                if DEBUG_MODE:
-                    logger.warning(
-                        f"⏭️ [SMART-VALIDATION] Skip image {i+1}: validation failed"
-                    )
-                continue
-
-            # Generate filename using configurable pattern - get extensions from config
-            supported_exts = (
-                CONFIG.get("global_settings", {})
-                .get("media_config", {})
-                .get("supported_image_extensions", [".jpg", ".jpeg", ".png", ".webp"])
-            )
-            default_ext = (
-                CONFIG.get("global_settings", {})
-                .get("media_config", {})
-                .get("default_image_extension", ".jpg")
-                .lstrip(".")
-            )
-
-            ext = default_ext
-            for extension in supported_exts:
-                if url.endswith(extension):
-                    ext = extension.lstrip(".")
-                    break
-
-            filename = get_filename_pattern("image", asin=asin, index=i, ext=ext)
-            file_path = images_dir / filename
-
-            if DEBUG_MODE:
-                logger.info(
-                    f"🖼️ [IMAGE DOWNLOAD] Downloading validated image {i+1}/"
-                    f"{len(image_urls)}: {filename}"
-                )
-                logger.info(f"   • URL: {url[:100]}...")
-                logger.info(f"   • Path: {file_path}")
-
-            # Use download_file_sync for file download
-            success = download_file_sync(url, file_path)
-            if success:
-                # Post-download validation using comprehensive validator
-                if DEBUG_MODE:
-                    logger.info(
-                        f"🔍 [VALIDATION] Validating downloaded image: {filename}"
-                    )
-
-                validation_result = verify_image_file(file_path)
-
-                if validation_result.is_valid:
-                    # Store relative path from outputs root for simplified structure
-                    from ..amazon.botasaurus_output import get_outputs_root
-
-                    outputs_root = get_outputs_root()
-                    relative_path = str(file_path.relative_to(outputs_root))
-                    downloaded_images.append(relative_path)
-
-                    if DEBUG_MODE:
-                        file_size = validation_result.validation_data.get(
-                            "actual_file_size", 0
-                        )
-                        dimensions = (
-                            validation_result.validation_data.get("width", 0),
-                            validation_result.validation_data.get("height", 0),
-                        )
-                        logger.info(
-                            f"✅ [VALIDATION] Image validation passed: {filename} "
-                            f"({file_size} bytes, {dimensions[0]}x{dimensions[1]})"
-                        )
-                else:
-                    # Remove invalid file
-                    with contextlib.suppress(Exception):
-                        file_path.unlink()
-
-                    if DEBUG_MODE:
-                        issues = ", ".join(
-                            validation_result.issues[:3]
-                        )  # Show first 3 issues
-                        logger.warning(f"❌ [VALIDATION] Failed: {filename} - {issues}")
-            else:
-                if DEBUG_MODE:
-                    logger.warning(f"❌ [IMAGE DOWNLOAD] Failed to download {filename}")
-
-        except Exception as e:
-            logger.warning(
-                f"❌ [IMAGE DOWNLOAD] Exception downloading image {i+1} from "
-                f"{url[:50]}...: {e}"
-            )
-            if DEBUG_MODE:
-                import traceback
-
-                logger.debug(f"   • Full traceback: {traceback.format_exc()}")
-            continue
-
-    # Count video types for logging
-    m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
-    mp4_count = len(video_urls) - m3u8_count
-
-    if DEBUG_MODE:
-        logger.info(f"🎥 [VIDEO DOWNLOAD] Starting video downloads for ASIN: {asin}")
-        logger.info(
-            f"🎥 [VIDEO TYPES] M3U8 streams: {m3u8_count}, " f"Direct MP4: {mp4_count}"
-        )
-        logger.info(f"🎥 [VIDEO DOWNLOAD] Processing {len(video_urls)} total videos")
-
-    for i, url in enumerate(video_urls):
-        try:
-            if not url or not url.startswith("http"):
-                if DEBUG_MODE:
-                    logger.warning(
-                        f"🎥 [VIDEO DOWNLOAD] Skipping invalid URL {i+1}: {url}"
-                    )
-                continue
-
-            # Generate filename using configurable pattern
-            filename = get_filename_pattern("video", asin=asin, index=i, ext="mp4")
-            file_path = videos_dir / filename
-
-            # Check if this is an M3U8 stream or direct MP4
-            is_m3u8 = ".m3u8" in url
-
-            if DEBUG_MODE:
-                video_type = "M3U8 stream" if is_m3u8 else "MP4 file"
-                logger.info(
-                    f"🎥 [VIDEO DOWNLOAD] Processing video "
-                    f"{i+1}/{len(video_urls)}: {filename} ({video_type})"
-                )
-                logger.info(f"   • URL: {url[:100]}...")
-                logger.info(f"   • Path: {file_path}")
-
-            # Handle M3U8 streams (convert to MP4) or direct MP4 download
-            if is_m3u8:
-                # Get m3u8 conversion timeout from config
-                global_settings = CONFIG.get("global_settings", {})
-                video_config = global_settings.get("video_config", {})
-                m3u8_timeout = video_config.get("m3u8_download_timeout", 120)
-
-                success = convert_m3u8_to_mp4(url, file_path, timeout=m3u8_timeout)
-            else:
-                # Use 300s timeout for direct MP4 downloads
-                success = download_file_sync(url, file_path, timeout=300)
-            if success:
-                # Post-download validation using comprehensive validator
-                if DEBUG_MODE:
-                    logger.info(
-                        f"🔍 [VALIDATION] Validating downloaded video: {filename}"
-                    )
-
-                validation_result = verify_video_file(file_path)
-
-                if validation_result.is_valid:
-                    # Store relative path from outputs root for simplified structure
-                    from ..amazon.botasaurus_output import get_outputs_root
-
-                    outputs_root = get_outputs_root()
-                    relative_path = str(file_path.relative_to(outputs_root))
-                    downloaded_videos.append(relative_path)
-
-                    if DEBUG_MODE:
-                        file_size = validation_result.validation_data.get(
-                            "actual_file_size", 0
-                        )
-                        duration = validation_result.validation_data.get("duration", 0)
-                        dimensions = (
-                            validation_result.validation_data.get("width", 0),
-                            validation_result.validation_data.get("height", 0),
-                        )
-                        logger.info(
-                            f"✅ [VALIDATION] Passed: {filename} "
-                            f"({file_size//1024}KB,{duration:.1f}s,{dimensions[0]}x{dimensions[1]})"
-                        )
-                else:
-                    # Remove invalid file
-                    with contextlib.suppress(Exception):
-                        file_path.unlink()
-
-                    if DEBUG_MODE:
-                        issues = ", ".join(
-                            validation_result.issues[:3]
-                        )  # Show first 3 issues
-                        logger.warning(
-                            f"❌ [VALIDATION] Video failed: {filename} - {issues}"
-                        )
-            else:
-                if DEBUG_MODE:
-                    logger.warning(f"❌ [VIDEO DOWNLOAD] Failed to download {filename}")
-
-        except Exception as e:
-            logger.warning(
-                f"❌ [VIDEO DOWNLOAD] Exception downloading video {i+1} "
-                f"from {url[:50]}...: {e}"
-            )
-            if DEBUG_MODE:
-                import traceback
-
-                logger.debug(f"   • Full traceback: {traceback.format_exc()}")
-            continue
-
-    # Generate final validation report based on configuration
+    # Generate validation report if enabled
     validation_report = None
-
-    # Check if validation reports should be created
     create_reports = True
     try:
         create_reports = (
@@ -440,13 +400,8 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         create_reports = True
 
-    if create_reports and DEBUG_MODE:
+    if create_reports and debug_mode:
         try:
-            # Collect all downloaded files for final validation report
-            from ..amazon.botasaurus_output import get_outputs_root
-
-            outputs_root = get_outputs_root()
-
             all_files = []
             for img_path in downloaded_images:
                 all_files.append(outputs_root / img_path)
@@ -454,12 +409,10 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 all_files.append(outputs_root / vid_path)
 
             if all_files:
-                # Generate validation report for all downloaded files
                 from .media_validator import validate_media_batch
 
                 validation_results = validate_media_batch(all_files)
 
-                # Save validation report to product directory
                 report_path = product_dir / f"{asin}_media_validation_report.json"
                 validation_report = generate_validation_report(
                     validation_results, report_path
@@ -496,7 +449,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
         else None,
     }
 
-    if DEBUG_MODE:
+    if debug_mode:
         logger.info(f"📊 [MEDIA DOWNLOAD] Download summary for ASIN {asin}:")
         logger.info(
             f"   • Images: {len(downloaded_images)}/{len(image_urls)} "
@@ -664,6 +617,161 @@ def download_file_sync(
                     f"⏳ Waiting {backoff_time}s before retry..."
                 )
             time.sleep(backoff_time)
+
+        except Exception as e:
+            # Non-transient errors - don't retry
+            if DEBUG_MODE:
+                logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
+            return False
+
+    return False
+
+
+async def download_file_async(
+    session: aiohttp.ClientSession,
+    url: str,
+    file_path: PathLib,
+    timeout: int | None = None,
+    max_retries: int = 2,
+) -> bool:
+    """Asynchronous file download utility using aiohttp with retry logic.
+
+    Args:
+    ----
+        session: Aiohttp session for downloads
+        url: URL to download
+        file_path: Path to save the file
+        timeout: Request timeout in seconds (default: 30s for images, 300s for videos)
+        max_retries: Maximum number of retry attempts on failure (default: 2)
+
+    Returns:
+    -------
+        True if successful, False otherwise
+
+    """
+    # Import DEBUG_MODE from main module
+    try:
+        from . import scraper
+
+        DEBUG_MODE = scraper.DEBUG_MODE
+    except Exception:
+        DEBUG_MODE = False
+
+    # Get config values for download
+    try:
+        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
+        amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
+        download_headers = amazon_config.get("http_headers", {}).get(
+            "media_download", {}
+        )
+
+        default_timeout = download_config.get("download_timeout", 30)
+        chunk_size = download_config.get("download_chunk_size", 8192)
+    except Exception:
+        # Fallback values from config
+        default_timeout = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_timeout", 30)
+        )
+        chunk_size = (
+            CONFIG.get("global_settings", {})
+            .get("download_config", {})
+            .get("download_chunk_size", 8192)
+        )
+        download_headers = (
+            CONFIG.get("scrapers", {})
+            .get("amazon", {})
+            .get("http_headers", {})
+            .get(
+                "media_download",
+                {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/125.0.0.0 Safari/537.36"
+                    ),
+                    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.amazon.com/",
+                },
+            )
+        )
+
+    # Use provided timeout or default
+    effective_timeout = timeout if timeout is not None else default_timeout
+
+    # Retry loop with exponential backoff
+    for attempt in range(max_retries + 1):
+        try:
+            if DEBUG_MODE and attempt > 0:
+                logging.getLogger(__name__).debug(
+                    f"🔄 Retry attempt {attempt}/{max_retries} for: {url}"
+                )
+            elif DEBUG_MODE:
+                logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
+
+            async with session.get(  # type: ignore[attr-defined]
+                url,
+                headers=download_headers,
+                timeout=aiohttp.ClientTimeout(total=effective_timeout),
+            ) as response:
+                response.raise_for_status()
+
+                # Ensure parent directory exists
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(file_path, "wb") as f:
+                    async for chunk in response.content.iter_chunked(chunk_size):
+                        if chunk:
+                            f.write(chunk)
+
+            # Verify file was created and has content
+            if file_path.exists() and file_path.stat().st_size > 0:
+                if DEBUG_MODE:
+                    file_size = file_path.stat().st_size
+                    logging.getLogger(__name__).debug(
+                        f"✅ Downloaded {file_size} bytes to {file_path.name}"
+                    )
+                return True
+            else:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).warning(
+                        f"❌ File not created or empty: {file_path}"
+                    )
+                return False
+
+        except (TimeoutError, aiohttp.ClientError) as e:
+            # These are transient errors worth retrying
+            if DEBUG_MODE:
+                logging.getLogger(__name__).warning(
+                    f"⚠️ Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
+                )
+
+            # Clean up partial file
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    file_path.unlink()
+
+            # If this was the last attempt, fail
+            if attempt >= max_retries:
+                if DEBUG_MODE:
+                    logging.getLogger(__name__).error(
+                        f"❌ Download failed after {max_retries + 1} attempts: {url}"
+                    )
+                return False
+
+            # Exponential backoff: 1s, 2s, 4s...
+            backoff_time = 2**attempt
+            if DEBUG_MODE:
+                logging.getLogger(__name__).debug(
+                    f"⏳ Waiting {backoff_time}s before retry..."
+                )
+            await asyncio.sleep(backoff_time)
 
         except Exception as e:
             # Non-transient errors - don't retry
