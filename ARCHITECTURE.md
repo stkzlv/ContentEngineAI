@@ -100,17 +100,19 @@ src/
 │   │   ├── models.py         # Base product data models & registry
 │   │   ├── config.py         # Multi-platform configuration manager
 │   │   ├── utils.py          # Shared utility functions
-│   │   ├── downloader.py     # Base download logic
+│   │   ├── downloader.py     # Base async download logic
 │   │   └── browser_utils.py  # Shared browser utilities
 │   ├── amazon/               # Amazon implementation (11 modules)
 │   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
 │   │   ├── browser_functions.py # Browser automation logic
 │   │   ├── media_extractor.py   # Image/video extraction
-│   │   ├── downloader.py     # Media download functionality
+│   │   ├── downloader.py     # Async media downloads with semaphore rate limiting
 │   │   ├── models.py         # Amazon-specific models
 │   │   ├── config.py         # Amazon configuration management
 │   │   ├── utils.py          # Amazon utility functions
 │   │   └── search_builder.py # Search URL construction
+│   ├── config_models.py      # Pydantic models for type-safe config (v0.14.0+)
+│   ├── config_adapter.py     # Backward-compatible config loader
 │   └── __init__.py           # ScraperFactory & platform registry
 │
 ├── audio/                     # Audio processing components
@@ -696,6 +698,13 @@ ContentEngineAI implements five major optimization categories:
 - Semaphore-based concurrency control
 - Proper resource cleanup and management
 
+**Scraper Async Architecture (v0.14.0+)**:
+- `download_file_async()`: aiohttp-based downloads with retry logic
+- Concurrent image downloads (semaphore limit: 5)
+- Concurrent video downloads (semaphore limit: 3)
+- `convert_m3u8_to_mp4()`: Async FFmpeg subprocess execution
+- Prevents resource exhaustion during high-volume scraping
+
 ### 3. Multi-Level Caching System
 
 **Implementation**: `CacheManager` with TTL support
@@ -766,7 +775,13 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 | `config/ai_services.yaml` | AI providers | 146 | TTS, LLM, description generation |
 | `config/subtitles.yaml` | Subtitle system | 182 | Positioning, styles, effects |
 | `config/performance.yaml` | Resource limits | 204 | Memory, concurrency, optimization |
-| `config/scraper.yaml` | Web scraping | 459 | Browser, timing, validation |
+| `config/scraper.yaml` | Web scraping | 459 | Browser, timing, validation, async downloads |
+
+**Type-Safe Configuration (v0.14.0+):**
+- **Video Pipeline**: Pydantic models in `src/video/config/` (core, audio, visual, subtitle models)
+- **Scraper System**: Pydantic models in `src/scraper/config_models.py` (19 models, 283 lines)
+- **Validation**: Field constraints ensure type safety and valid ranges at startup
+- **Backward Compatible**: Dict-based config adapter maintains legacy support
 
 **Performance Improvements:**
 - **20% faster** configuration loading

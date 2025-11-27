@@ -63,6 +63,8 @@ class DownloadConfig(BaseModel):
     retry_video_downloads: int = Field(default=2, ge=0)
     download_chunk_size: int = Field(default=8192, gt=0)
     validation_range_bytes: str = Field(default="0-1023")
+    concurrent_image_downloads: int = Field(default=5, gt=0)
+    concurrent_video_downloads: int = Field(default=3, gt=0)
 
 
 class SystemTimeouts(BaseModel):

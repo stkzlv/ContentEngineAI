@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **719 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **805 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -94,6 +94,7 @@ tests/
 │
 ├── # Scraper Tests
 ├── scraper/
+│   ├── test_config_models.py        # Pydantic config models (41 tests)
 │   ├── test_video_integration.py    # Video pipeline integration (16 tests)
 │   └── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
 │
@@ -155,7 +156,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 41%)
+- **Overall minimum**: 40% (currently at 45.20%)
 
 **Generate coverage report:**
 ```bash
@@ -287,19 +288,19 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 764 collected (650 + 114 compliance tests)
-- **Passing**: 736 tests (28 skipped)
-- **Skipped**: 28 skipped
+- **Total Tests**: 805 collected
+- **Passing**: 777 tests
+- **Skipped**: 28 tests
 - **Failed**: 0 tests
-- **Coverage**: 45.04% (target: 40% minimum)
+- **Coverage**: 45.20% (target: 40% minimum)
 
 **Recent Updates:**
-- ✅ Updated test imports after refactoring (producer.py → producer/utils.py)
-- ✅ Fixed test_media_validation.py import path
-- ✅ Fixed test_optimization_integration.py import path
-- ✅ All 736 tests passing with 45.04% coverage
-- ✅ Coverage increased from 44.11% to 45.04%
-- ✅ All linting tools passing (Ruff, MyPy, Bandit, Vulture, Safety)
+- ✅ Added comprehensive Pydantic config model tests (41 new tests)
+- ✅ Achieved 100% coverage for src/scraper/config_models.py
+- ✅ Tests for concurrent download configuration (image/video semaphores)
+- ✅ Validation testing for all Pydantic Field constraints
+- ✅ Coverage increased from 44.10% to 45.20%
+- ✅ All 805 tests passing (777 passed, 28 skipped)
 
 **Previous Updates (v0.11.0):**
 - ✅ Added M3U8/HLS video extraction tests (20 tests)

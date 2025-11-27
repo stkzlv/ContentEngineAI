@@ -233,7 +233,9 @@ async def _download_media_async(
                 return None
 
             # Download images concurrently with semaphore
-            semaphore = asyncio.Semaphore(5)
+            download_config = global_settings.get("download_config", {})
+            max_concurrent = download_config.get("concurrent_image_downloads", 5)
+            semaphore = asyncio.Semaphore(max_concurrent)
 
             async def download_with_semaphore(i: int, url: str) -> str | None:
                 async with semaphore:
@@ -277,8 +279,12 @@ async def _download_media_async(
                             url, file_path, timeout=m3u8_timeout
                         )
                     else:
+                        download_config = global_settings.get("download_config", {})
+                        video_timeout = download_config.get(
+                            "video_download_timeout", 300
+                        )
                         success = await download_file_async(
-                            session, url, file_path, timeout=300
+                            session, url, file_path, timeout=video_timeout
                         )
 
                     if success:
@@ -306,7 +312,9 @@ async def _download_media_async(
                 return None
 
             # Download videos concurrently with semaphore
-            semaphore_video = asyncio.Semaphore(3)  # Fewer concurrent videos
+            download_config = global_settings.get("download_config", {})
+            max_concurrent_videos = download_config.get("concurrent_video_downloads", 3)
+            semaphore_video = asyncio.Semaphore(max_concurrent_videos)
 
             async def download_video_with_semaphore(i: int, url: str) -> str | None:
                 async with semaphore_video:

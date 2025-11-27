@@ -181,6 +181,20 @@ global_settings:
     # Affects: Video validation bandwidth usage, validation speed
     validation_range_bytes: "0-1023"  # First 1KB only
 
+    # Async download concurrency limits
+    # Controls maximum number of concurrent downloads to prevent resource exhaustion
+    # Affects: Download performance, memory usage, network load
+
+    # Maximum concurrent image downloads (asyncio.Semaphore limit)
+    # Higher values = faster parallel downloads, more memory/connections
+    # Lower values = more conservative, better for rate limiting
+    concurrent_image_downloads: 5
+
+    # Maximum concurrent video downloads (asyncio.Semaphore limit)
+    # Lower than images due to larger file sizes and longer download times
+    # Prevents overwhelming network and memory resources
+    concurrent_video_downloads: 3
+
   # ---- System Timeouts ----
   # Controls timeouts for system commands and network operations
   system_timeouts:
