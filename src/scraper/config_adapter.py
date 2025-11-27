@@ -8,9 +8,12 @@ All existing CONFIG global usage patterns remain unchanged.
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+
+if TYPE_CHECKING:
+    from src.scraper.config_models import ScraperConfig
 
 logger = logging.getLogger(__name__)
 
@@ -191,3 +194,34 @@ def load_scraper_config_modular(
 
 # Alias for backward compatibility
 load_scraper_config = load_scraper_config_modular
+
+
+def load_scraper_config_pydantic(
+    config_path: str = "config/scraper.yaml", cli_overrides: dict[str, Any] = None
+) -> "ScraperConfig":
+    """Load scraper configuration as Pydantic models.
+
+    Args:
+    ----
+        config_path: Path to configuration file (optional, for compatibility)
+        cli_overrides: CLI arguments to apply with precedence
+
+    Returns:
+    -------
+        Pydantic ScraperConfig instance with validated configuration
+
+    """
+    from src.scraper.config_models import ScraperConfig
+
+    # Load dict config first
+    config_dict = load_scraper_config_modular(config_path, cli_overrides)
+
+    # Transform to Pydantic-compatible structure
+    pydantic_dict = {
+        "global_settings": config_dict.get("global_settings", {}),
+        "amazon": config_dict.get("scrapers", {}).get("amazon", {}),
+    }
+
+    # Create and validate Pydantic model
+    logger.info("Loading scraper config as Pydantic models")
+    return ScraperConfig(**pydantic_dict)
