@@ -130,6 +130,11 @@ class BaseDownloader:
     def download_file_sync(self, url: str, filepath: Path) -> bool:
         """Download a file synchronously.
 
+        .. deprecated:: 0.13.0
+            Use :meth:`download_file_async` instead. This synchronous method will be
+            removed in a future version. Async downloads provide better performance
+            and resource management.
+
         Args:
         ----
             url: URL to download from
@@ -140,6 +145,14 @@ class BaseDownloader:
             True if download successful, False otherwise
 
         """
+        import warnings
+
+        warnings.warn(
+            "download_file_sync is deprecated and will be removed in a future version. "
+            "Use download_file_async instead for better performance.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         try:
             response = requests.get(
                 url,

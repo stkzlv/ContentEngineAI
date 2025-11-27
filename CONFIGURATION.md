@@ -165,7 +165,7 @@ timeout_settings:
 ```
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
-Web scraping and browser settings:
+Web scraping and browser settings with type-safe Pydantic models:
 
 ```yaml
 scraper_settings:
@@ -179,6 +179,17 @@ scraper_settings:
       product_file: "{keyword}_products.json"
 
 global_settings:
+  # Async download configuration (v0.14.0+)
+  download_config:
+    download_timeout: 30              # HTTP download timeout (seconds)
+    video_download_timeout: 300       # Video download timeout (seconds)
+    retry_video_downloads: 2          # Video download retries
+    download_chunk_size: 8192         # Download chunk size (bytes)
+
+    # Async concurrency limits
+    concurrent_image_downloads: 5     # Max parallel image downloads
+    concurrent_video_downloads: 3     # Max parallel video downloads
+
   validation_config:
     # Media validation requirements (must match video_production.yaml)
     min_total_media: 3              # Minimum total media files
@@ -189,6 +200,12 @@ amazon_settings:
   max_results: 10
   skip_unavailable: true
   prime_only: false
+```
+
+**Type Safety (v0.14.0+)**: The scraper uses Pydantic models (`src/scraper/config_models.py`) for configuration validation. Load with:
+```python
+from src.scraper.config_adapter import load_scraper_config_pydantic
+config = load_scraper_config_pydantic()  # Type-safe ScraperConfig instance
 ```
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)

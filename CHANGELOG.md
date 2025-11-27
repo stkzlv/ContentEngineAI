@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2025-11-27
+
+### Added
+- **Pydantic Configuration Models**: Type-safe scraper configuration system
+  - Comprehensive Pydantic models in `src/scraper/config_models.py` (19 models, 283 lines)
+  - Full validation with Field constraints for all scraper settings
+  - Backward-compatible with existing dict-based configuration
+  - `load_scraper_config_pydantic()` function for modern config loading
+  - Matches video pipeline's configuration architecture
+
+- **Concurrent Download Configuration**: Configurable async download limits
+  - `concurrent_image_downloads`: Semaphore limit for image downloads (default: 5)
+  - `concurrent_video_downloads`: Semaphore limit for video downloads (default: 3)
+  - Moved hardcoded values from downloader.py to config/scraper.yaml
+  - Prevents resource exhaustion during high-volume scraping
+
+### Changed
+- **Async I/O Architecture**: Converted scraper to async for improved performance
+  - `convert_m3u8_to_mp4()` converted to async subprocess execution
+  - Added `download_file_async()` helper with aiohttp and retry logic
+  - Implemented concurrent downloads with semaphore rate limiting
+  - Deprecated `download_file_sync()` in BaseDownloader
+  - Maintains Botasaurus compatibility via `asyncio.run()` wrapper
+
+### Fixed
+- **Code Quality**: Enhanced type safety and validation
+  - All configuration values now validated at startup via Pydantic
+  - Eliminated hardcoded concurrency limits
+  - Improved error messages for invalid configuration
+
+### Technical
+- **Test Infrastructure**: Comprehensive coverage for new systems
+  - Added 41 tests for Pydantic config models (100% coverage for config_models.py)
+  - Tests for defaults, custom values, and validation constraints
+  - Tests for concurrent download configuration
+  - Total tests: 805 collected (777 passing, 28 skipped)
+  - Coverage: 45.20% (up from 44.10%)
+
+- **Documentation Updates**:
+  - Marked SCRAPER_ASYNC_REFACTORING.md as completed
+  - Marked SCRAPER_CONFIG_REFACTORING.md as completed
+  - Updated TESTING.md with new test statistics
+
 ## [0.13.0] - 2025-11-25
 
 ### Changed
