@@ -451,3 +451,328 @@ When adding new stock music platforms (AudioJungle, Epidemic Sound, Artlist):
 - Continue processing on individual failures
 - Graceful degradation when services unavailable
 - Clear error messages for missing environment variables
+
+## Batch Processing Requirements
+
+### Video Producer Batch Mode
+
+ContentEngineAI **MUST** support batch processing for automated multi-product video generation.
+
+#### Product Discovery & Selection
+- **Automatic Discovery**: Scan `outputs/` directory for product subdirectories containing `data.json`
+- **Directory Filtering**: Skip global directories (cache, logs, reports, coverage, error_logs, output, outputs, performance_history, unknown_product)
+- **Data Format Support**: Handle both single product objects and product list arrays in `data.json`
+- **Product Identification**: Extract product ID from ASIN, title, or fallback to directory name
+- **Product Indexing**: Support `--product-index` to process specific products by zero-based index
+
+#### Batch Execution Flow
+- **Sequential Processing**: Process products one at a time in directory scan order
+- **Profile Consistency**: Apply same video profile to all products in batch via `--batch-profile` argument
+- **Inter-Product Delays**: Configurable random delay between products (1.5-4.0 sec default) for rate limiting
+- **Progress Tracking**: Log detailed progress with `[N/total]` format for each product
+- **Timeout Management**: Apply global pipeline timeout (900 sec default) per product
+- **State Tracking**: Count succeeded, failed, and skipped products throughout batch
+
+#### Error Handling & Resilience
+- **Fail-Fast Mode**: Optional `--fail-fast` flag to stop batch on first failure
+- **Graceful Continuation**: By default, continue processing remaining products after failures
+- **Insufficient Media Handling**: Skip products without required media, log as "SKIPPED" (not counted as failure)
+- **Timeout Handling**: Log timeout duration, mark product as failed, continue to next product
+- **Exception Handling**: Catch all exceptions per product, log with full traceback in debug mode
+- **Summary Reporting**: Generate comprehensive batch summary with success/failure/skip counts and product lists
+
+#### Performance & Optimization
+- **Background Processing**: Reuse global background processor across all products in batch
+- **HTTP Session Pooling**: Share HTTP session pool across batch for connection efficiency
+- **Performance Monitoring**: Track per-product metrics (duration, memory, CPU) and aggregate statistics
+- **Resource Management**: Clean up per-product resources while maintaining global optimization context
+
+#### Configuration & CLI
+- **Batch Mode Flag**: `--batch` enables batch processing mode
+- **Batch Profile**: `--batch-profile` specifies video profile (required in batch mode unless randomization enabled)
+- **Profile Randomization**: `--random-profile` enables random profile selection per product
+- **Profile Pool**: `--profile-pool` specifies list of profiles for randomization (e.g., `--profile-pool slideshow_images1 product_video_sequential`)
+- **Outputs Directory**: `--outputs-dir` configures scan directory (default: "outputs")
+- **Fail-Fast Flag**: `--fail-fast` stops on first failure
+- **Mode Validation**: Batch mode exclusive with single-product arguments (products_file, profile, --product-index)
+- **Timeout Configuration**: Global `pipeline_timeout_sec` setting applies to each product
+- **Delay Configuration**: `inter_product_delay_min_sec` and `inter_product_delay_max_sec` in video settings
+
+#### Profile Randomization
+- **Random Selection**: When `--random-profile` enabled, randomly select profile for each product from pool
+- **Profile Pool Configuration**:
+  - **CLI Method**: `--profile-pool` accepts space-separated list of profile names
+  - **YAML Method**: `profile_pool` list in batch configuration
+  - **Precedence**: CLI argument overrides YAML configuration
+  - **Default Pool**: If `--random-profile` enabled without pool, use all available profiles from config
+- **Deterministic Randomization**: Use product ID as seed for reproducible profile selection per product
+- **Profile Validation**: Validate all profiles in pool exist before starting batch
+- **Mutual Exclusivity**: Cannot use `--batch-profile` and `--random-profile` together
+- **Per-Product Logging**: Log selected profile name for each product in batch
+- **Statistics Tracking**: Track profile usage distribution in batch summary (e.g., "slideshow_images1: 3, product_video_sequential: 2")
+- **Profile Compatibility**: Skip products if randomly selected profile incompatible with available media (log as skipped)
+
+#### Logging & Monitoring
+- **Batch Start Log**: Report total products discovered and log file path
+- **Per-Product Logs**: Status messages (Processing, Skipped, Successfully completed, Failed) with product ID
+- **Progress Indicators**: `[N/total]` format shows current position in batch
+- **Summary Report**: Final counts and lists of succeeded/failed/skipped products
+- **Debug Mode**: Enhanced logging with exception tracebacks and detailed state information
+
+#### Future Enhancements (Not Required)
+- Parallel product processing with concurrency limits
+- Batch resume capability with state file tracking
+- Progress persistence (JSON export for external monitoring)
+- Batch-specific timeout configuration separate from single-product timeout
+- Product prioritization and filtering by metadata
+- Retry logic for failed products with exponential backoff
+- Batch analytics and aggregate metrics across runs
+
+### Scraper Batch Mode
+
+ContentEngineAI **MUST** support batch scraping for automated multi-product data collection from e-commerce platforms.
+
+#### Input Methods
+- **Single Product ID**: Direct product ID lookup (e.g., ASIN for Amazon) via `--keywords` argument
+- **Keyword Search**: Search-based product discovery with filters (price, rating, shipping, brands)
+- **Product ID List**: Configurable list of product IDs for batch scraping
+  - **CLI Argument**: `--product-ids` accepts space-separated list of product IDs
+  - **YAML Configuration**: `product_ids` list in `config/scraper.yaml` for persistent batch jobs
+  - **Precedence**: CLI argument overrides YAML configuration
+- **Keyword List**: Multiple keyword searches in single execution
+  - **CLI Argument**: `--keywords` accepts space-separated list of keywords
+  - **YAML Configuration**: `keywords` list in `config/scraper.yaml` for persistent searches
+  - **Precedence**: CLI argument overrides YAML configuration
+
+#### Batch Processing Behavior
+- **Sequential Processing**: Process product IDs and keywords one at a time
+- **Individual Validation**: Validate each product ID against platform-specific format before scraping
+- **Fail-Fast Mode**: Optional `--fail-fast` flag to stop batch on first scraping failure
+- **Graceful Continuation**: By default, continue processing remaining items after individual failures
+- **Progress Tracking**: Log progress with `[N/total]` format for each product/keyword
+- **Rate Limiting**: Apply inter-request delays to avoid platform rate limits
+
+#### Product ID List Configuration
+- **YAML Format**:
+  ```yaml
+  scraper:
+    platform: amazon
+    product_ids:
+      - B0BTYCRJSS
+      - B0CPSY5HJY
+      - B0CTTZJRL6
+  ```
+- **CLI Override**: `poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS B0CPSY5HJY B0CTTZJRL6`
+- **Validation**: Each product ID validated against platform format (Amazon: 10-character alphanumeric ASIN)
+- **Deduplication**: Automatically remove duplicate product IDs before processing
+- **Empty List Handling**: Error if both `product_ids` and `keywords` lists are empty
+
+#### Keyword List Configuration
+- **YAML Format**:
+  ```yaml
+  scraper:
+    platform: amazon
+    keywords:
+      - wireless earbuds
+      - bluetooth headphones
+      - noise cancelling headphones
+  ```
+- **CLI Override**: `poetry run python -m src.scraper.amazon.scraper --keywords "wireless earbuds" "bluetooth headphones"`
+- **Search Filters**: Apply same filters (price, rating, prime) to all keyword searches
+- **Result Limits**: Honor `max_products` setting across all keyword searches (not per keyword)
+- **Deduplication**: Remove duplicate products discovered across multiple keyword searches
+
+#### Mixed Mode Processing
+- **Combined Input**: Support both product IDs and keywords in single execution
+- **Processing Order**: Process explicit product IDs first, then keyword searches
+- **Result Aggregation**: Combine results from both sources, deduplicate by product ID
+- **Media Collection**: Continue until `max_products` with media collected (counts both sources)
+
+#### Configuration & CLI
+- **Product ID List**: `--product-ids` CLI argument or `product_ids` YAML list
+- **Keyword List**: `--keywords` CLI argument or `keywords` YAML list
+- **Fail-Fast Flag**: `--fail-fast` stops on first failure
+- **Max Products**: `--max-products` limits total products with media collected across all sources
+- **Precedence**: CLI arguments override YAML configuration
+- **Validation**: Error on empty input (no product IDs or keywords provided)
+
+#### Error Handling
+- **Invalid Product IDs**: Log warning, skip invalid IDs, continue with valid IDs
+- **Search Failures**: Log error, continue to next keyword in list
+- **Partial Results**: Accept partial success if some items in list fail
+- **Summary Reporting**: Report success/failure counts per input type (product IDs vs keywords)
+
+#### Logging & Monitoring
+- **Batch Start Log**: Report total product IDs and keywords to process
+- **Per-Item Logs**: Status messages for each product ID and keyword search
+- **Progress Indicators**: `[N/total]` format for current position
+- **Summary Report**: Final counts of successful/failed scrapes per input source
+- **Debug Mode**: Enhanced logging with detailed scraping state and error details
+
+### Global Pipeline Batch Mode
+
+ContentEngineAI **MUST** support end-to-end batch pipeline execution from scraping to video assembly in a single command.
+
+#### Pipeline Overview
+- **One-Command Execution**: Single command to scrape products and generate videos for all results
+- **Seamless Integration**: Automatic handoff from scraper output to video producer input
+- **Unified Configuration**: Shared configuration for both scraping and video production phases
+- **Progress Tracking**: Continuous progress reporting across both pipeline stages
+- **Error Isolation**: Failures in individual products don't stop entire pipeline
+
+#### Input Configuration
+- **Product ID List**: `--product-ids` CLI argument or `product_ids` YAML list for direct product scraping
+- **Keyword List**: `--keywords` CLI argument or `keywords` YAML list for search-based discovery
+- **Mixed Input**: Support both product IDs and keywords in single pipeline run
+- **Video Profile**: `--profile` or `--batch-profile` specifies video assembly configuration for all products
+- **Precedence**: CLI arguments override YAML configuration
+
+#### Pipeline Execution Flow
+1. **Scraping Phase**:
+   - Process all product IDs and keywords from input configuration
+   - Download product data, images, and videos to `outputs/{product_id}/` directories
+   - Create `data.json` files for each successfully scraped product
+   - Track scraping success/failure counts
+   - Apply rate limiting and inter-request delays
+
+2. **Handoff Phase**:
+   - Scan `outputs/` directory for products with `data.json` files
+   - Filter products based on media availability (minimum requirements per profile)
+   - Build list of scrapable products ready for video production
+   - Log transition from scraping to video production phase
+
+3. **Video Production Phase**:
+   - Process each scraped product through video pipeline
+   - Apply specified video profile to all products (or random profile if randomization enabled)
+   - Generate scripts, voiceovers, subtitles, and assemble videos
+   - Track video production success/failure counts per product
+   - Apply inter-product delays between video generations
+
+#### Mode Selection
+- **Global Batch Flag**: `--global-batch` enables end-to-end pipeline execution
+- **Scraper-Only Mode**: Run scraper without `--global-batch` (existing behavior)
+- **Producer-Only Mode**: Run producer with `--batch` flag on existing scraped data (existing behavior)
+- **Full Pipeline Mode**: Run with `--global-batch` for scrape + produce workflow
+
+#### Configuration Requirements
+- **Unified YAML Config**: Single configuration file section for global batch settings
+  ```yaml
+  global_batch:
+    enabled: false
+    scraper:
+      product_ids: []
+      keywords: []
+      max_products: 10
+      filters:
+        min_price: 0
+        max_price: 1000
+        min_rating: 4.0
+        prime_only: false
+    video:
+      profile: slideshow_images1
+      random_profile: false
+      profile_pool: []
+      fail_fast: false
+  ```
+- **CLI Override**: All YAML settings overridable via command-line arguments
+- **Validation**: Error if global batch enabled without input (no product IDs or keywords)
+
+#### Profile Randomization (Global Batch)
+- **Random Selection**: When `--random-profile` or `global_batch.video.random_profile: true`, randomly select profile per product
+- **Profile Pool Configuration**:
+  - **CLI Method**: `--profile-pool` accepts space-separated list of profile names
+  - **YAML Method**: `global_batch.video.profile_pool` list in configuration
+  - **Precedence**: CLI argument overrides YAML configuration
+  - **Default Pool**: If randomization enabled without pool, use all available profiles from config
+- **Deterministic Randomization**: Use product ID as seed for reproducible profile selection per product
+- **Profile Validation**: Validate all profiles in pool exist before starting pipeline
+- **Mutual Exclusivity**: Cannot use `--profile`/`global_batch.video.profile` and `--random-profile` together
+- **Per-Product Logging**: Log selected profile name for each product during video production phase
+- **Statistics Tracking**: Include profile usage distribution in final summary (e.g., "Profile distribution: slideshow_images1: 5, product_video_sequential: 3, product_video_mixed: 2")
+- **Profile Compatibility**: Skip products if randomly selected profile incompatible with available media (count as skipped, not failed)
+
+#### Error Handling & Resilience
+- **Phase Isolation**: Scraping failures don't prevent video production of successful scrapes
+- **Product Isolation**: Individual product failures don't stop pipeline for other products
+- **Fail-Fast Option**: `--fail-fast` stops entire pipeline on first failure in any phase
+- **Graceful Continuation**: By default, continue processing remaining products after failures
+- **Partial Success**: Accept partial pipeline completion with detailed error reporting
+- **Rollback Prevention**: Don't delete scraped data on video production failures
+
+#### Progress Reporting
+- **Phase Headers**: Clear log headers for "SCRAPING PHASE" and "VIDEO PRODUCTION PHASE"
+- **Scraping Progress**: `[N/total] Scraping product: {product_id}` format
+- **Production Progress**: `[N/total] Producing video: {product_id}` format
+- **Phase Summaries**: Report counts at end of each phase (scraped, produced, failed, skipped)
+- **Final Summary**: Comprehensive report with end-to-end pipeline statistics
+
+#### Summary Reporting
+- **Scraping Summary**:
+  - Total products attempted
+  - Successfully scraped (with data.json created)
+  - Failed scrapes (with product IDs)
+  - Media collection statistics (images, videos per product)
+
+- **Video Production Summary**:
+  - Total videos attempted
+  - Successfully produced (with output paths)
+  - Failed productions (with product IDs and reasons)
+  - Skipped products (insufficient media)
+  - Profile usage distribution (if randomization enabled)
+
+- **Overall Pipeline Summary**:
+  - End-to-end success count (scraped AND produced)
+  - Partial success count (scraped but not produced)
+  - Total failures (scraping or production)
+  - Total pipeline duration
+  - Profile statistics (if randomization enabled)
+
+#### CLI Interface
+```bash
+# Global batch with product IDs and fixed profile
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS B0CPSY5HJY B0CTTZJRL6 \
+  --profile slideshow_images1 \
+  --debug
+
+# Global batch with keywords and random profile selection
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" "bluetooth headphones" \
+  --max-products 10 \
+  --min-rating 4.5 \
+  --random-profile \
+  --profile-pool slideshow_images1 product_video_sequential product_video_mixed \
+  --debug
+
+# Mixed input with filters and profile randomization
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS \
+  --keywords "noise cancelling headphones" \
+  --max-products 5 \
+  --min-price 20 \
+  --max-price 100 \
+  --random-profile \
+  --fail-fast \
+  --debug
+```
+
+#### Performance Optimization
+- **Shared HTTP Session**: Reuse HTTP session pool across scraping and video production
+- **Resource Pooling**: Maintain background processor context across entire pipeline
+- **Parallel Operations**: Where safe, parallelize independent operations within phases
+- **Memory Management**: Clean up per-product resources while maintaining global context
+- **Disk I/O**: Use memory-mapped I/O for large file operations
+
+#### Configuration Validation
+- **Startup Validation**: Validate entire configuration before starting pipeline
+- **Profile Validation**: Ensure video profile exists and is compatible with scraped media
+- **Input Validation**: Verify at least one product ID or keyword provided
+- **Filter Validation**: Check filter combinations are valid (min < max, etc.)
+- **Credential Validation**: Verify required API keys present in environment
+
+#### Logging Requirements
+- **Phase Separation**: Clear visual separation between scraping and production logs
+- **Unified Log File**: Single log file for entire pipeline run with timestamps
+- **Per-Product Tracking**: Track each product through both phases with unique identifiers
+- **Error Correlation**: Link scraping errors to production impacts
+- **Debug Mode**: Enhanced logging across both pipeline phases

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/producer-batch-mode/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-11-29T09:29:17.487Z",
+      "trigger": "initial",
+      "approvalId": "approval_1764408557480_odgquw3zx",
+      "approvalTitle": "Producer Batch Mode Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-11-29T09:31:18.710Z",
+      "trigger": "approved",
+      "approvalId": "approval_1764408557480_odgquw3zx",
+      "approvalTitle": "Producer Batch Mode Requirements"
+    }
+  ]
+}

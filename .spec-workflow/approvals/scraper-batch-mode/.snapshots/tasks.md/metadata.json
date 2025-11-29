@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/scraper-batch-mode/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-11-29T09:27:04.306Z",
+      "trigger": "initial",
+      "approvalId": "approval_1764408424300_j5t69rule",
+      "approvalTitle": "Scraper Batch Mode Tasks"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-11-29T09:27:42.824Z",
+      "trigger": "approved",
+      "approvalId": "approval_1764408424300_j5t69rule",
+      "approvalTitle": "Scraper Batch Mode Tasks"
+    }
+  ]
+}
