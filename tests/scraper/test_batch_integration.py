@@ -118,25 +118,30 @@ class TestProductIDListBatch:
 
     def test_product_id_list_with_failures(self, mock_scraper_with_products):
         """Test product ID list with some failures."""
+
         # Configure mock to fail for second product
         def failing_side_effect(keyword, search_params):
             if keyword == "B0TESTAA11":
-                return [ProductData(
-                    title="Test Product AA",
-                    price="$29.99",
-                    description="Test",
-                    images=[],
-                    videos=[],
-                    affiliate_link="",
-                    url="",
-                    platform=Platform.AMAZON,
-                    asin="B0TESTAA11",
-                    keyword=keyword,
-                )]
+                return [
+                    ProductData(
+                        title="Test Product AA",
+                        price="$29.99",
+                        description="Test",
+                        images=[],
+                        videos=[],
+                        affiliate_link="",
+                        url="",
+                        platform=Platform.AMAZON,
+                        asin="B0TESTAA11",
+                        keyword=keyword,
+                    )
+                ]
             else:
                 raise Exception("Scraping failed")
 
-        mock_scraper_with_products.scrape_products_unified.side_effect = failing_side_effect
+        mock_scraper_with_products.scrape_products_unified.side_effect = (
+            failing_side_effect
+        )
 
         config = BatchConfig(
             product_ids=["B0TESTAA11", "B0TESTBB22"],
@@ -229,23 +234,28 @@ class TestMixedInputBatch:
 
     def test_mixed_input_deduplication(self, mock_scraper_with_products):
         """Test that mixed input correctly deduplicates across sources."""
+
         # Configure mock to return same ASIN from both sources
         def duplicate_side_effect(keyword, search_params):
             # Same product returned for both product ID and keyword
-            return [ProductData(
-                title="Duplicate Product",
-                price="$29.99",
-                description="Test",
-                images=["img1.jpg"],
-                videos=[],
-                affiliate_link="",
-                url="",
-                platform=Platform.AMAZON,
-                asin="B0TESTAA11",  # Same ASIN
-                keyword=keyword,
-            )]
+            return [
+                ProductData(
+                    title="Duplicate Product",
+                    price="$29.99",
+                    description="Test",
+                    images=["img1.jpg"],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin="B0TESTAA11",  # Same ASIN (deduplicate test)
+                    keyword=keyword,
+                )
+            ]
 
-        mock_scraper_with_products.scrape_products_unified.side_effect = duplicate_side_effect
+        mock_scraper_with_products.scrape_products_unified.side_effect = (
+            duplicate_side_effect
+        )
 
         config = BatchConfig(
             product_ids=["B0TESTAA11"],
@@ -353,7 +363,7 @@ class TestConfigurationPrecedence:
     def test_defaults_when_no_yaml_or_cli(self):
         """Test that defaults are used when neither YAML nor CLI provided."""
         # Mock CONFIG dict without batch section
-        mock_config = {}
+        mock_config: dict[str, dict[str, dict[str, int]]] = {}
         with patch("src.scraper.amazon.config.CONFIG", mock_config):
             batch_config = load_batch_config(
                 cli_product_ids=None,
@@ -425,18 +435,20 @@ class TestBatchScraperIntegration:
         def fail_on_second(*args, **kwargs):
             call_count["count"] += 1
             if call_count["count"] == 1:
-                return [ProductData(
-                    title="First Product",
-                    price="$29.99",
-                    description="Test",
-                    images=[],
-                    videos=[],
-                    affiliate_link="",
-                    url="",
-                    platform=Platform.AMAZON,
-                    asin="B0TESTAA11",
-                    keyword="test",
-                )]
+                return [
+                    ProductData(
+                        title="First Product",
+                        price="$29.99",
+                        description="Test",
+                        images=[],
+                        videos=[],
+                        affiliate_link="",
+                        url="",
+                        platform=Platform.AMAZON,
+                        asin="B0TESTAA11",
+                        keyword="test",
+                    )
+                ]
             else:
                 raise Exception("Intentional failure")
 

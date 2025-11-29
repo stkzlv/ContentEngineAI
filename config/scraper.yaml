@@ -386,12 +386,29 @@ batch:
   # List of keywords to search in batch mode
   # Example: ["wireless earbuds", "bluetooth headphones", "noise cancelling headphones"]
   # Empty list means no batch processing via keywords
-  keywords: []
+  keywords:
+    - "smart ring"
+    - "blue light blocking glasses"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure
   # When false: batch continues processing remaining products after failures
   fail_fast: false
+
+  # ---- Batch Logging Configuration ----
+  # Controls batch progress and summary logging format
+  logging:
+    # Separator character for log headers and sections
+    separator_char: "="
+
+    # Separator width (number of characters) for log sections
+    separator_width: 60
+
+    # Number of decimal places for duration display
+    duration_decimal_places: 2
+
+    # Number of decimal places for media statistics averages
+    media_stats_decimal_places: 2
 
 # ============================================================================
 # PLATFORM-SPECIFIC SCRAPERS

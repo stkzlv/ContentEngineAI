@@ -112,9 +112,7 @@ class TestProductIDProcessing:
         assert results[0].source == "product_id"
         assert mock_scraper.scrape_products_unified.call_count == 2
 
-    def test_process_product_ids_invalid_asin(
-        self, mock_scraper, sample_search_params
-    ):
+    def test_process_product_ids_invalid_asin(self, mock_scraper, sample_search_params):
         """Test processing skips invalid ASIN format."""
         config = BatchConfig(
             product_ids=["INVALID", "B0TEST123A"],
@@ -475,7 +473,9 @@ class TestDeduplication:
 
         # Should keep first occurrence and remove duplicate
         assert len(deduplicated) == 2
+        assert deduplicated[0].data is not None
         assert deduplicated[0].data.asin == "B0TEST123A"
+        assert deduplicated[1].data is not None
         assert deduplicated[1].data.asin == "B0TEST456X"
 
     def test_deduplicate_preserves_order(self, mock_scraper, sample_search_params):
@@ -489,7 +489,9 @@ class TestDeduplication:
         )
 
         results = []
-        for i, asin in enumerate(["B0AAAAAAAA", "B0BBBBBBBB", "B0AAAAAAAA", "B0CCCCCCCC", "B0BBBBBBBB"]):
+        for i, asin in enumerate(
+            ["B0AAAAAAAA", "B0BBBBBBBB", "B0AAAAAAAA", "B0CCCCCCCC", "B0BBBBBBBB"]
+        ):
             product = ProductData(
                 title=f"Product {i}",
                 price="$10",
@@ -517,10 +519,13 @@ class TestDeduplication:
 
         # Should keep first occurrences in order: B0AAAAAAAA, B0BBBBBBBB, B0CCCCCCCC
         assert len(deduplicated) == 3
+        assert deduplicated[0].data is not None
         assert deduplicated[0].data.asin == "B0AAAAAAAA"
         assert deduplicated[0].data.title == "Product 0"
+        assert deduplicated[1].data is not None
         assert deduplicated[1].data.asin == "B0BBBBBBBB"
         assert deduplicated[1].data.title == "Product 1"
+        assert deduplicated[2].data is not None
         assert deduplicated[2].data.asin == "B0CCCCCCCC"
 
     def test_deduplicate_handles_no_asin(self, mock_scraper, sample_search_params):

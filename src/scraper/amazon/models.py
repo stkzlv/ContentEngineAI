@@ -218,7 +218,7 @@ class BatchSummary:
     successful: int  # Successfully scraped
     failed: int  # Failed scrapes
     failed_products: list[str]  # ASINs of failed products
-    media_stats: dict[str, int]  # Media collection statistics
+    media_stats: dict[str, int | float]  # Media collection statistics
     duration_sec: float  # Total batch duration
 
 

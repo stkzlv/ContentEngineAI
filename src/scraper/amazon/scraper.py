@@ -940,18 +940,27 @@ def main():
         "--keywords",
         nargs="+",
         required=False,
-        help="Keywords or ASINs to scrape - supports multiple values for batch mode (overrides config file)",
+        help=(
+            "Keywords or ASINs to scrape - supports multiple values "
+            "for batch mode (overrides config file)"
+        ),
     )
     parser.add_argument(
         "--product-ids",
         nargs="+",
         required=False,
-        help="Product IDs (ASINs) for batch scraping - supports multiple values (e.g., --product-ids B0ABC123 B0DEF456)",
+        help=(
+            "Product IDs (ASINs) for batch scraping - supports multiple "
+            "values (e.g., --product-ids B0ABC123 B0DEF456)"
+        ),
     )
     parser.add_argument(
         "--fail-fast",
         action="store_true",
-        help="Stop batch processing on first failure (default: continue processing remaining items)",
+        help=(
+            "Stop batch processing on first failure "
+            "(default: continue processing remaining items)"
+        ),
     )
     parser.add_argument(
         "--debug",
@@ -1044,8 +1053,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Load keywords from config if not provided via CLI
-    if not args.keywords:
+    # Load keywords/product_ids from config if not provided via CLI
+    if not args.keywords and not args.product_ids:
         try:
             # Handle working directory changes from Botasaurus
             project_root = Path(__file__).parent.parent.parent.parent
@@ -1054,25 +1063,53 @@ def main():
                 with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
-                amazon_config = config.get("scrapers", {}).get("amazon", {})
-                config_keywords = amazon_config.get("keywords", [])
+                # Check batch configuration first
+                batch_config = config.get("batch", {})
+                batch_product_ids = batch_config.get("product_ids", [])
+                batch_keywords = batch_config.get("keywords", [])
 
-                if config_keywords:
-                    args.keywords = config_keywords
-                    print(
-                        f"📝 Using keywords from config file: "
-                        f"{', '.join(config_keywords)}"
-                    )
+                # Use batch config if available
+                if batch_product_ids or batch_keywords:
+                    args.product_ids = batch_product_ids if batch_product_ids else None
+                    args.keywords = batch_keywords if batch_keywords else None
+
+                    if batch_product_ids and batch_keywords:
+                        print(
+                            f"📝 Using batch mode from config: "
+                            f"{len(batch_product_ids)} product IDs, "
+                            f"{len(batch_keywords)} keywords"
+                        )
+                    elif batch_product_ids:
+                        print(
+                            f"📝 Using batch product IDs from config: "
+                            f"{', '.join(batch_product_ids)}"
+                        )
+                    else:
+                        print(
+                            f"📝 Using batch keywords from config: "
+                            f"{', '.join(batch_keywords)}"
+                        )
                 else:
-                    print(
-                        "❌ No keywords provided via CLI and no keywords found in "
-                        "config file"
-                    )
-                    print(
-                        "💡 Either use --keywords 'your keyword' or add keywords "
-                        "to config/scraper.yaml"
-                    )
-                    return
+                    # Fallback to single-product mode keywords
+                    amazon_config = config.get("scrapers", {}).get("amazon", {})
+                    config_keywords = amazon_config.get("keywords", [])
+
+                    if config_keywords:
+                        args.keywords = config_keywords
+                        print(
+                            f"📝 Using keywords from config file: "
+                            f"{', '.join(config_keywords)}"
+                        )
+                    else:
+                        print(
+                            "❌ No keywords/product_ids provided via CLI and none "
+                            "found in config file"
+                        )
+                        print(
+                            "💡 Either use --keywords/--product-ids or add to "
+                            "batch section in config/scraper.yaml"
+                        )
+                        return
             else:
                 print("❌ No keywords provided via CLI and config file not found")
                 print("💡 Use --keywords 'your keyword' to specify what to scrape")
@@ -1285,9 +1322,7 @@ def main():
             )
 
     # Detect batch mode: --product-ids provided OR multiple keywords
-    is_batch_mode = bool(args.product_ids) or (
-        args.keywords and len(args.keywords) > 1
-    )
+    is_batch_mode = bool(args.product_ids) or (args.keywords and len(args.keywords) > 1)
 
     # Initialize and run scraper with debug override and debug options
     try:
@@ -1336,7 +1371,7 @@ def main():
             print(f"❌ Failed: {summary.failed}")
             if summary.failed_products:
                 print(f"   Failed Products: {', '.join(summary.failed_products)}")
-            print(f"\n📷 Media Statistics:")
+            print("\n📷 Media Statistics:")
             for key, value in summary.media_stats.items():
                 print(f"   • {key}: {value}")
             print(f"\n⏱️  Duration: {summary.duration_sec:.2f} seconds")
