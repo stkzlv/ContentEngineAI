@@ -40,6 +40,84 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 **📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
 
+## 🔄 Batch Processing
+
+Process multiple products efficiently with batch mode support for both scraper and producer.
+
+### Scraper Batch Mode
+
+**Product ID Lists** - Scrape specific products by ASIN:
+```bash
+# CLI: Multiple product IDs
+poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS B0D6GZF3T4 B0CTTZJRL6 --debug
+
+# YAML Configuration (config/scraper.yaml)
+batch:
+  product_ids:
+    - B0BTYCRJSS
+    - B0D6GZF3T4
+    - B0CTTZJRL6
+```
+
+**Keyword Search** - Find products by search terms with filters:
+```bash
+# CLI: Multiple keywords with filters
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "wireless earbuds" "bluetooth headphones" \
+  --min-price 20 --max-price 100 --min-rating 4.0 --prime-only \
+  --debug
+
+# YAML Configuration
+batch:
+  keywords:
+    - "wireless earbuds"
+    - "bluetooth headphones"
+scrapers:
+  amazon:
+    search_filters:
+      min_price: 20.0
+      max_price: 100.0
+      min_rating: 4.0
+      prime_only: true
+```
+
+**Mixed Mode** - Combine product IDs and keywords:
+```bash
+# Both sources in one batch
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0BTYCRJSS \
+  --keywords "wireless earbuds" \
+  --debug
+```
+
+**Configuration Precedence**: CLI arguments override YAML configuration, which overrides defaults.
+
+**Error Handling**:
+- `--fail-fast`: Stop on first error (default: continue processing)
+- Invalid ASINs are skipped with warnings
+- Duplicate products (by ASIN) are automatically removed
+
+**Batch Summary** - View statistics after completion:
+```
+BATCH SCRAPING SUMMARY
+Total Attempted: 3
+  - Product IDs: 2
+  - Keywords: 1
+Successful: 3
+Failed: 0
+Media Collection Statistics:
+  - total_images: 42
+  - total_videos: 6
+Duration: 45.32 seconds
+```
+
+### Producer Batch Mode
+
+Process all scraped products automatically:
+```bash
+poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
+```
+
 ## 🏗️ Architecture
 
 <details>

@@ -940,7 +940,18 @@ def main():
         "--keywords",
         nargs="+",
         required=False,
-        help="Keywords or ASINs to scrape (overrides config file)",
+        help="Keywords or ASINs to scrape - supports multiple values for batch mode (overrides config file)",
+    )
+    parser.add_argument(
+        "--product-ids",
+        nargs="+",
+        required=False,
+        help="Product IDs (ASINs) for batch scraping - supports multiple values (e.g., --product-ids B0ABC123 B0DEF456)",
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Stop batch processing on first failure (default: continue processing remaining items)",
     )
     parser.add_argument(
         "--debug",
@@ -1273,6 +1284,11 @@ def main():
                 f"${config_defaults.max_price or '∞'}"
             )
 
+    # Detect batch mode: --product-ids provided OR multiple keywords
+    is_batch_mode = bool(args.product_ids) or (
+        args.keywords and len(args.keywords) > 1
+    )
+
     # Initialize and run scraper with debug override and debug options
     try:
         # Collect debug options
@@ -1289,14 +1305,53 @@ def main():
         scraper = BotasaurusAmazonScraper(
             debug_override=debug_override, debug_options=debug_options
         )
-        products = scraper.scrape_products(args.keywords, search_params)
 
-        if products:
-            print("\n✅ Scraping successful!")
-            print(f"📊 Products scraped: {len(products)}")
-            print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+        # Batch mode: use BatchController for multiple products
+        if is_batch_mode:
+            from .batch_controller import BatchController
+            from .config import load_batch_config
+
+            # Load batch configuration with CLI precedence
+            batch_config = load_batch_config(
+                cli_product_ids=args.product_ids,
+                cli_keywords=args.keywords,
+                cli_fail_fast=args.fail_fast,
+            )
+
+            # Override search parameters in batch config with CLI parameters
+            batch_config.search_params = search_params
+
+            # Instantiate and run BatchController
+            controller = BatchController(scraper, batch_config)
+            summary = controller.run_batch()
+
+            # Display final summary
+            print("\n" + "=" * 60)
+            print("✅ BATCH SCRAPING COMPLETED")
+            print("=" * 60)
+            print(f"📊 Total Attempted: {summary.total_attempted}")
+            print(f"   • Product IDs: {summary.product_ids_attempted}")
+            print(f"   • Keywords: {summary.keywords_attempted}")
+            print(f"✅ Successful: {summary.successful}")
+            print(f"❌ Failed: {summary.failed}")
+            if summary.failed_products:
+                print(f"   Failed Products: {', '.join(summary.failed_products)}")
+            print(f"\n📷 Media Statistics:")
+            for key, value in summary.media_stats.items():
+                print(f"   • {key}: {value}")
+            print(f"\n⏱️  Duration: {summary.duration_sec:.2f} seconds")
+            print("=" * 60)
+
+        # Single-product mode: use existing scraper.scrape_products()
         else:
-            print("\n❌ No products scraped")
+            products = scraper.scrape_products(args.keywords, search_params)
+
+            if products:
+                print("\n✅ Scraping successful!")
+                print(f"📊 Products scraped: {len(products)}")
+                print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+            else:
+                print("\n❌ No products scraped")
 
     except Exception as e:
         print(f"\n💥 Scraper failed: {e}")

@@ -11,7 +11,16 @@ ContentEngineAI is an AI-powered video production pipeline for e-commerce platfo
 poetry run python -m src.scraper.amazon.scraper --keywords <ASIN> --debug --clean
 poetry run python -m src.video.producer outputs/<ASIN>/data.json slideshow_images1 --debug
 
-# Batch processing
+# Batch scraping (product IDs)
+poetry run python -m src.scraper.amazon.scraper --product-ids B0ASIN1 B0ASIN2 B0ASIN3 --debug
+
+# Batch scraping (keywords with filters)
+poetry run python -m src.scraper.amazon.scraper --keywords "wireless earbuds" "headphones" --min-price 20 --max-price 100 --min-rating 4.0 --debug
+
+# Batch scraping (mixed mode with fail-fast)
+poetry run python -m src.scraper.amazon.scraper --product-ids B0ASIN1 --keywords "product" --fail-fast --debug
+
+# Batch video production
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
 
 # Advanced scraper usage

@@ -1,0 +1,387 @@
+"""Batch processing orchestration for Amazon scraper.
+
+This module provides the BatchController class for coordinating batch scraping
+operations across multiple product IDs and keywords.
+"""
+
+import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .scraper import BotasaurusAmazonScraper
+
+from .models import BatchConfig, BatchSummary, ProductData, ProductResult
+from .utils import validate_asin_format
+
+
+class BatchController:
+    """Orchestrates batch processing of product IDs and keywords.
+
+    Coordinates sequential scraping of multiple products, handles
+    deduplication, progress tracking, and error handling with
+    fail-fast support.
+    """
+
+    def __init__(self, scraper: "BotasaurusAmazonScraper", config: BatchConfig):
+        """Initialize batch controller.
+
+        Args:
+        ----
+            scraper: BotasaurusAmazonScraper instance for delegating scraping
+            config: BatchConfig with product IDs, keywords, and settings
+
+        """
+        self.scraper = scraper
+        self.config = config
+        self.logger = scraper.logger
+        self.results: list[ProductResult] = []
+        self.seen_asins: set[str] = set()
+
+    def run_batch(self) -> BatchSummary:
+        """Execute complete batch processing workflow.
+
+        Processes product IDs first, then keywords, with deduplication
+        and comprehensive summary reporting.
+
+        Returns
+        -------
+            BatchSummary with detailed statistics and results
+
+        """
+        start_time = time.time()
+
+        self.logger.info("=" * 60)
+        self.logger.info("STARTING BATCH SCRAPING")
+        self.logger.info(f"Product IDs: {len(self.config.product_ids)}")
+        self.logger.info(f"Keywords: {len(self.config.keywords)}")
+        self.logger.info(f"Fail-fast: {self.config.fail_fast}")
+        self.logger.info("=" * 60)
+
+        # Process product IDs first
+        product_id_results = self._process_product_ids()
+
+        # Process keywords (if max products not reached)
+        keyword_results = self._process_keywords()
+
+        # Combine and deduplicate
+        all_results = product_id_results + keyword_results
+        deduplicated_results = self._deduplicate_products(all_results)
+
+        # Generate summary
+        duration_sec = time.time() - start_time
+        summary = self._generate_summary(
+            deduplicated_results,
+            len(self.config.product_ids),
+            len(self.config.keywords),
+            duration_sec,
+        )
+
+        # Log final summary
+        self._log_summary(summary)
+
+        return summary
+
+    def _process_product_ids(self) -> list[ProductResult]:
+        """Process list of product IDs.
+
+        Returns
+        -------
+            List of ProductResult objects for each product ID
+
+        """
+        results: list[ProductResult] = []
+
+        if not self.config.product_ids:
+            return results
+
+        self.logger.info(
+            f"\n{'='*60}\nPROCESSING PRODUCT IDS ({len(self.config.product_ids)} total)\n{'='*60}"
+        )
+
+        for i, product_id in enumerate(self.config.product_ids, 1):
+            # Validate ASIN format
+            if not validate_asin_format(product_id):
+                self.logger.warning(
+                    f"[{i}/{len(self.config.product_ids)}] ⚠️  Invalid ASIN format: {product_id} - Skipping"
+                )
+                results.append(
+                    ProductResult(
+                        product_id=product_id,
+                        success=False,
+                        data=None,
+                        error="Invalid ASIN format",
+                        source="product_id",
+                    )
+                )
+                continue
+
+            self.logger.info(
+                f"[{i}/{len(self.config.product_ids)}] Scraping product: {product_id}"
+            )
+
+            try:
+                # Delegate to existing scraper (single product scraping via keyword/ASIN)
+                products = self.scraper.scrape_products_unified(
+                    keyword=product_id, search_params=self.config.search_params
+                )
+
+                if products and len(products) > 0:
+                    product_data = products[0]
+                    self.logger.info(
+                        f"[{i}/{len(self.config.product_ids)}] ✅ Successfully scraped: {product_id}"
+                    )
+                    results.append(
+                        ProductResult(
+                            product_id=product_id,
+                            success=True,
+                            data=product_data,
+                            error=None,
+                            source="product_id",
+                        )
+                    )
+                else:
+                    self.logger.warning(
+                        f"[{i}/{len(self.config.product_ids)}] ⚠️  No data found for: {product_id}"
+                    )
+                    results.append(
+                        ProductResult(
+                            product_id=product_id,
+                            success=False,
+                            data=None,
+                            error="No data found",
+                            source="product_id",
+                        )
+                    )
+
+            except Exception as e:
+                error_msg = str(e)
+                self.logger.error(
+                    f"[{i}/{len(self.config.product_ids)}] ❌ Failed to scrape {product_id}: {error_msg}"
+                )
+                results.append(
+                    ProductResult(
+                        product_id=product_id,
+                        success=False,
+                        data=None,
+                        error=error_msg,
+                        source="product_id",
+                    )
+                )
+
+                # Fail-fast: stop on first error
+                if self.config.fail_fast:
+                    self.logger.error(
+                        "❌ Fail-fast enabled: Stopping batch after first failure"
+                    )
+                    break
+
+        return results
+
+    def _process_keywords(self) -> list[ProductResult]:
+        """Process list of keywords for product search.
+
+        Returns
+        -------
+            List of ProductResult objects for products found via keywords
+
+        """
+        results: list[ProductResult] = []
+
+        if not self.config.keywords:
+            return results
+
+        # Check if max products already reached
+        successful_count = sum(1 for r in self.results if r.success)
+        if successful_count >= self.config.max_products:
+            self.logger.info(
+                f"Max products ({self.config.max_products}) already reached - skipping keyword processing"
+            )
+            return results
+
+        self.logger.info(
+            f"\n{'='*60}\nPROCESSING KEYWORDS ({len(self.config.keywords)} total)\n{'='*60}"
+        )
+
+        for i, keyword in enumerate(self.config.keywords, 1):
+            self.logger.info(
+                f"[{i}/{len(self.config.keywords)}] Searching keyword: {keyword}"
+            )
+
+            try:
+                # Delegate to existing scraper with search parameters
+                products = self.scraper.scrape_products_unified(
+                    keyword=keyword, search_params=self.config.search_params
+                )
+
+                if products:
+                    self.logger.info(
+                        f"[{i}/{len(self.config.keywords)}] ✅ Found {len(products)} products for: {keyword}"
+                    )
+
+                    # Add each product as a result
+                    for product in products:
+                        product_id = product.asin or product.title or "unknown"
+                        results.append(
+                            ProductResult(
+                                product_id=product_id,
+                                success=True,
+                                data=product,
+                                error=None,
+                                source="keyword",
+                            )
+                        )
+
+                        # Check if max products reached
+                        total_successful = sum(1 for r in results if r.success) + sum(
+                            1 for r in self.results if r.success
+                        )
+                        if total_successful >= self.config.max_products:
+                            self.logger.info(
+                                f"Max products ({self.config.max_products}) reached - stopping keyword processing"
+                            )
+                            return results
+
+                else:
+                    self.logger.warning(
+                        f"[{i}/{len(self.config.keywords)}] ⚠️  No products found for: {keyword}"
+                    )
+
+            except Exception as e:
+                error_msg = str(e)
+                self.logger.error(
+                    f"[{i}/{len(self.config.keywords)}] ❌ Failed to search {keyword}: {error_msg}"
+                )
+
+                # Fail-fast: stop on first error
+                if self.config.fail_fast:
+                    self.logger.error(
+                        "❌ Fail-fast enabled: Stopping batch after first failure"
+                    )
+                    break
+
+        return results
+
+    def _deduplicate_products(self, results: list[ProductResult]) -> list[ProductResult]:
+        """Remove duplicate products by ASIN.
+
+        Product IDs take precedence over keyword results for duplicates.
+
+        Args:
+        ----
+            results: List of ProductResult objects
+
+        Returns:
+        -------
+            Deduplicated list of ProductResult objects
+
+        """
+        seen_asins: set[str] = set()
+        deduplicated: list[ProductResult] = []
+
+        for result in results:
+            # Extract ASIN from result
+            asin = None
+            if result.data and result.data.asin:
+                asin = result.data.asin
+            elif result.product_id and validate_asin_format(result.product_id):
+                asin = result.product_id
+
+            # Skip if already seen
+            if asin and asin in seen_asins:
+                self.logger.debug(f"Skipping duplicate ASIN: {asin}")
+                continue
+
+            # Add to results
+            deduplicated.append(result)
+            if asin:
+                seen_asins.add(asin)
+
+        duplicates_removed = len(results) - len(deduplicated)
+        if duplicates_removed > 0:
+            self.logger.info(
+                f"Deduplication: Removed {duplicates_removed} duplicate product(s)"
+            )
+
+        return deduplicated
+
+    def _generate_summary(
+        self,
+        results: list[ProductResult],
+        product_ids_count: int,
+        keywords_count: int,
+        duration_sec: float,
+    ) -> BatchSummary:
+        """Generate batch processing summary.
+
+        Args:
+        ----
+            results: List of all ProductResult objects
+            product_ids_count: Number of product IDs attempted
+            keywords_count: Number of keywords attempted
+            duration_sec: Total execution time
+
+        Returns:
+        -------
+            BatchSummary with comprehensive statistics
+
+        """
+        successful = sum(1 for r in results if r.success)
+        failed = sum(1 for r in results if not r.success)
+        failed_products = [r.product_id for r in results if not r.success]
+
+        # Calculate media statistics
+        total_images = 0
+        total_videos = 0
+        for result in results:
+            if result.success and result.data:
+                total_images += len(result.data.images or [])
+                total_videos += len(result.data.videos or [])
+
+        media_stats = {
+            "total_images": total_images,
+            "total_videos": total_videos,
+            "avg_images_per_product": (
+                round(total_images / successful, 2) if successful > 0 else 0
+            ),
+            "avg_videos_per_product": (
+                round(total_videos / successful, 2) if successful > 0 else 0
+            ),
+        }
+
+        return BatchSummary(
+            total_attempted=len(results),
+            product_ids_attempted=product_ids_count,
+            keywords_attempted=keywords_count,
+            successful=successful,
+            failed=failed,
+            failed_products=failed_products,
+            media_stats=media_stats,
+            duration_sec=round(duration_sec, 2),
+        )
+
+    def _log_summary(self, summary: BatchSummary):
+        """Log batch summary to console.
+
+        Args:
+        ----
+            summary: BatchSummary to log
+
+        """
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("BATCH SCRAPING SUMMARY")
+        self.logger.info("=" * 60)
+        self.logger.info(f"Total Attempted: {summary.total_attempted}")
+        self.logger.info(f"  - Product IDs: {summary.product_ids_attempted}")
+        self.logger.info(f"  - Keywords: {summary.keywords_attempted}")
+        self.logger.info(f"Successful: {summary.successful}")
+        self.logger.info(f"Failed: {summary.failed}")
+
+        if summary.failed_products:
+            self.logger.info(f"Failed Products: {', '.join(summary.failed_products)}")
+
+        self.logger.info(f"\nMedia Collection Statistics:")
+        for key, value in summary.media_stats.items():
+            self.logger.info(f"  - {key}: {value}")
+
+        self.logger.info(f"\nDuration: {summary.duration_sec:.2f} seconds")
+        self.logger.info("=" * 60)

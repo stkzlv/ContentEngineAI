@@ -372,6 +372,28 @@ global_settings:
     url_asin_pattern: "/dp/([A-Z0-9]{10})"
 
 # ============================================================================
+# BATCH PROCESSING CONFIGURATION
+# ============================================================================
+batch:
+  # Batch mode for processing multiple products in single execution
+  # Can be overridden by CLI arguments (--product-ids, --keywords)
+
+  # List of product IDs (ASINs) to scrape in batch mode
+  # Example: ["B0BTYCRJSS", "B0CPSY5HJY", "B0CTTZJRL6"]
+  # Empty list means no batch processing via product IDs
+  product_ids: []
+
+  # List of keywords to search in batch mode
+  # Example: ["wireless earbuds", "bluetooth headphones", "noise cancelling headphones"]
+  # Empty list means no batch processing via keywords
+  keywords: []
+
+  # Stop entire batch on first failure (default: false, continue processing)
+  # When true: batch stops immediately on first scraping failure
+  # When false: batch continues processing remaining products after failures
+  fail_fast: false
+
+# ============================================================================
 # PLATFORM-SPECIFIC SCRAPERS
 # ============================================================================
 scrapers:
