@@ -1110,3 +1110,28 @@ whisper_settings:
   # Directory for downloaded Whisper models
   # Models are cached here after first download (~1-3GB per model)
   model_download_root: "~/.cache/whisper_models"
+
+# ============================================================================
+# BATCH PROCESSING SETTINGS
+# ============================================================================
+# Configuration for batch video production mode (--batch flag)
+# Used by: producer CLI (cli.py) when processing multiple products
+#
+# Pipeline Impact:
+# - profile_pool: Controls which video profiles are used for random selection
+# - Empty list = all available profiles will be used
+# - Specified list = only those profiles will be randomly selected
+batch:
+  # Profile pool for random profile selection (--random-profile mode)
+  # List of profile names to randomly select from when processing products
+  #
+  # Behavior:
+  # - Empty list [] = Use all available video profiles (default)
+  # - Specific profiles = Only select from the specified profiles
+  # - CLI --profile-pool argument overrides this setting
+  #
+  # Example: ["slideshow_images1", "video_sequential", "mixed_media"]
+  #
+  # Note: This is only used when --random-profile is enabled.
+  # When using --batch-profile, this setting is ignored.
+  profile_pool: []

@@ -100,6 +100,11 @@ tests/
 │   ├── test_batch_controller.py     # Batch mode unit tests (20 tests)
 │   └── test_batch_integration.py    # Batch mode integration tests (14 tests)
 │
+├── # Producer Tests
+├── video/producer/
+│   ├── test_profile_selection.py    # Profile selection utilities (24 tests)
+│   └── test_batch_profile_integration.py # Batch profile randomization (16 tests)
+│
 ├── # Pipeline Tests
 ├── test_pipeline_graph.py           # Pipeline dependencies
 ├── test_producer_cleanup.py         # Cleanup functionality
@@ -290,21 +295,30 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 839 collected
-- **Passing**: 811 tests
+- **Total Tests**: 879 collected
+- **Passing**: 844 tests
 - **Skipped**: 28 tests
-- **Failed**: 0 tests
-- **Coverage**: 45.87% (target: 40% minimum)
+- **Failed**: 7 tests (integration test mock fixtures)
+- **Coverage**: 46.36% (target: 40% minimum)
 
-**Recent Updates (v0.15.0):**
+**Recent Updates (v0.16.0):**
+- ✅ Added producer batch profile randomization tests (40 new tests)
+  - 24 unit tests for profile selection utilities (test_profile_selection.py)
+  - 16 integration tests for batch workflows (test_batch_profile_integration.py)
+- ✅ Tests cover deterministic selection, configuration precedence, usage tracking
+- ✅ Tests verify profile pool validation and error handling
+- ✅ Fixed outdated BatchConfig test parameters (products_per_keyword)
+  - Updated 20 tests in test_batch_controller.py
+  - Updated 9 tests in test_batch_integration.py
+- ✅ Total tests: 879 collected
+
+**Previous Updates (v0.15.0):**
 - ✅ Added batch mode scraper tests (34 new tests: 20 unit + 14 integration)
 - ✅ Achieved 100% coverage for src/scraper/config_models.py
 - ✅ BatchController coverage: 88%
 - ✅ Tests for batch product ID lists, keyword lists, and mixed input
 - ✅ Tests for configuration precedence (CLI > YAML > Defaults)
 - ✅ Tests for deduplication, fail-fast, and progress tracking
-- ✅ Coverage increased from 45.20% to 45.87%
-- ✅ All 839 tests passing (811 passed, 28 skipped)
 
 **Previous Updates (v0.14.0):**
 - ✅ Added comprehensive Pydantic config model tests (41 tests)

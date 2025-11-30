@@ -100,6 +100,7 @@ class TestProductIDListBatch:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -149,6 +150,7 @@ class TestProductIDListBatch:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -172,6 +174,7 @@ class TestKeywordListBatch:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -199,6 +202,7 @@ class TestKeywordListBatch:
             fail_fast=False,
             search_params=search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -221,6 +225,7 @@ class TestMixedInputBatch:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -263,6 +268,7 @@ class TestMixedInputBatch:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -396,6 +402,7 @@ class TestBatchScraperIntegration:
             fail_fast=False,
             search_params=search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -416,6 +423,7 @@ class TestBatchScraperIntegration:
             fail_fast=False,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)
@@ -460,6 +468,7 @@ class TestBatchScraperIntegration:
             fail_fast=True,
             search_params=SearchParameters(),
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper_with_products, config)

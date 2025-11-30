@@ -113,9 +113,53 @@ Duration: 45.32 seconds
 
 ### Producer Batch Mode
 
-Process all scraped products automatically:
+Process all scraped products automatically with flexible profile selection.
+
+**Fixed Profile** - Use the same profile for all products:
 ```bash
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
+```
+
+**Random Profile Selection** - Assign profiles deterministically per product:
+```bash
+# Random selection from all available profiles
+poetry run python -m src.video.producer --batch --random-profile --debug
+
+# Random selection from specific profile pool
+poetry run python -m src.video.producer --batch --random-profile \
+  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --debug
+```
+
+**YAML Configuration** - Define profile pool persistently:
+```yaml
+# config/video_production.yaml
+batch:
+  profile_pool:
+    - slideshow_images1
+    - video_sequential
+    # Empty list defaults to all available profiles
+```
+
+**Profile Randomization Features**:
+- **Deterministic**: Same product ID always gets the same profile (reproducible)
+- **Configuration Precedence**: CLI `--profile-pool` > YAML `profile_pool` > All profiles
+- **Mutual Exclusivity**: Cannot use both `--batch-profile` and `--random-profile`
+- **Profile Distribution**: Summary shows usage statistics after batch completion
+
+**Batch Summary Example**:
+```
+BATCH SUMMARY
+Products Processed: 15
+  - Successful: 14
+  - Skipped: 1 (insufficient media)
+Total Duration: 42.5 seconds
+
+Profile Distribution:
+  - slideshow_images1: 5 (35.7%)
+  - video_sequential: 4 (28.6%)
+  - mixed_media: 3 (21.4%)
+  - slideshow_images2: 2 (14.3%)
 ```
 
 ## 🏗️ Architecture

@@ -25,7 +25,12 @@ from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.producer.orchestration import create_video_for_product
 from src.video.producer.state import VALID_STEPS
-from src.video.producer.utils import setup_logging
+from src.video.producer.utils import (
+    ProfileUsageTracker,
+    load_profile_pool,
+    select_profile_for_product,
+    setup_logging,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +222,27 @@ async def main():
         "--batch-profile",
         type=str,
         help="Video profile to use for batch processing (required with --batch).",
+    )
+    parser.add_argument(
+        "--random-profile",
+        action="store_true",
+        help=(
+            "Enable random profile selection for batch processing. "
+            "Each product gets a randomly selected profile "
+            "(deterministic by product ID). "
+            "Cannot be used with --batch-profile. Requires --batch."
+        ),
+    )
+    parser.add_argument(
+        "--profile-pool",
+        nargs="+",
+        type=str,
+        help=(
+            "List of profile names to randomly select from when "
+            "--random-profile is enabled. "
+            "If not specified, all available profiles will be used. "
+            "Example: --profile-pool slideshow_images1 video_sequential"
+        ),
     )
     parser.add_argument(
         "--outputs-dir",
@@ -411,13 +437,25 @@ async def main():
 
     # Validate argument combinations
     if args.batch:
-        if not args.batch_profile:
-            parser.error("--batch-profile is required when using --batch")
+        # Mutual exclusivity: --batch-profile and --random-profile
+        if args.batch_profile and args.random_profile:
+            parser.error(
+                "Cannot use both --batch-profile and --random-profile. "
+                "Use --batch-profile for a fixed profile or --random-profile "
+                "for randomized selection."
+            )
+        # Require either --batch-profile or --random-profile
+        if not args.batch_profile and not args.random_profile:
+            parser.error(
+                "--batch mode requires either --batch-profile (fixed profile) "
+                "or --random-profile (randomized selection)"
+            )
         if args.products_file or args.profile:
             parser.error(
                 "products_file and profile arguments cannot be used with --batch"
             )
     else:
+        # Non-batch mode validation
         if not args.products_file or not args.profile:
             parser.error(
                 "products_file and profile are required when not using --batch"
@@ -425,6 +463,14 @@ async def main():
         if args.batch_profile or args.fail_fast:
             parser.error(
                 "--batch-profile and --fail-fast can only be used with --batch"
+            )
+        # --random-profile requires --batch
+        if args.random_profile:
+            parser.error("--random-profile can only be used with --batch")
+        # --profile-pool requires --random-profile and --batch
+        if args.profile_pool:
+            parser.error(
+                "--profile-pool can only be used with --batch and --random-profile"
             )
 
     project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -560,28 +606,78 @@ async def main():
     failed_products = []
     session = await get_http_session()  # Use global connection pool
 
+    # Initialize profile selection for batch mode
+    profile_tracker = None
+    profile_pool = None
+    if args.batch and args.random_profile:
+        # Load profile pool with CLI > YAML > all profiles precedence
+        yaml_profile_pool = (
+            config.batch.get("profile_pool") if hasattr(config, "batch") else None
+        )
+        try:
+            profile_pool = load_profile_pool(
+                cli_pool=args.profile_pool,
+                yaml_pool=yaml_profile_pool,
+                config=config,
+            )
+            logger.info(
+                f"Profile randomization enabled with pool: {profile_pool} "
+                f"({len(profile_pool)} profiles)"
+            )
+        except ValueError as e:
+            logger.error(f"Invalid profile pool configuration: {e}")
+            sys.exit(1)
+
+        # Initialize usage tracker
+        profile_tracker = ProfileUsageTracker()
+
     # Enhanced progress reporting for batch mode
     total_products = len(indices)
     if args.batch:
-        logger.info(
-            f"Starting batch processing of {total_products} products with "
-            f"profile '{profile_name}'"
-        )
+        if args.random_profile:
+            logger.info(
+                f"Starting batch processing of {total_products} products with "
+                f"random profile selection"
+            )
+        else:
+            logger.info(
+                f"Starting batch processing of {total_products} products with "
+                f"profile '{profile_name}'"
+            )
 
     for i, idx in enumerate(indices):
         product_dir, product = products_list[idx]
         product_id = product.asin or product.title or f"product_{idx}"
 
-        # Enhanced progress reporting
-        if args.batch:
-            logger.info(f"[{i+1}/{total_products}] Processing product: {product_id}")
+        # Select profile for this product
+        if args.batch and args.random_profile:
+            # Random profile selection (deterministic by product ID)
+            assert profile_pool is not None  # type narrowing
+            assert profile_tracker is not None  # type narrowing
+            current_profile = select_profile_for_product(
+                product_id=product_id,
+                profile_pool=profile_pool,
+                config=config,
+            )
+            profile_tracker.record_usage(current_profile)
+            logger.info(
+                f"[{i+1}/{total_products}] Processing {product_id} "
+                f"with profile '{current_profile}'"
+            )
+        else:
+            # Fixed profile mode
+            current_profile = profile_name
+            if args.batch:
+                logger.info(
+                    f"[{i+1}/{total_products}] Processing product: {product_id}"
+                )
 
         try:
             result_path = await asyncio.wait_for(
                 create_video_for_product(
                     config,
                     product,
-                    profile_name,
+                    current_profile,
                     secrets,
                     session,
                     args.debug,
@@ -638,7 +734,10 @@ async def main():
 
     logger.info("\n--- Run Summary ---")
     if args.batch:
-        logger.info(f"Batch Processing Summary (Profile: {profile_name})")
+        if args.random_profile:
+            logger.info("Batch Processing Summary (Random Profile Selection)")
+        else:
+            logger.info(f"Batch Processing Summary (Profile: {profile_name})")
     logger.info(f"Total Products Processed: {len(indices)}")
     logger.info(f"Succeeded: {succeeded}")
     logger.info(f"Failed: {failed}")
@@ -649,6 +748,11 @@ async def main():
         )
     if failed_products:
         logger.info(f"Failed products: {', '.join(failed_products)}")
+
+    # Profile usage statistics (only for random profile mode)
+    if args.batch and args.random_profile and profile_tracker:
+        logger.info("\n" + profile_tracker.format_summary())
+
     if args.step:
         logger.info(f"NOTE: Run was limited to debug step '{args.step}'.")
     if args.batch and args.fail_fast and failed > 0:

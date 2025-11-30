@@ -72,6 +72,7 @@ class TestBatchControllerInit:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper, config)
@@ -96,6 +97,7 @@ class TestProductIDProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Mock scraper to return products
@@ -120,6 +122,7 @@ class TestProductIDProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = [
@@ -156,6 +159,7 @@ class TestProductIDProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Mock scraper to return empty list
@@ -176,6 +180,7 @@ class TestProductIDProcessing:
             fail_fast=True,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # First product succeeds, second fails
@@ -219,6 +224,7 @@ class TestProductIDProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = [sample_product_data]
@@ -246,6 +252,7 @@ class TestKeywordProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = [sample_product_data]
@@ -267,6 +274,7 @@ class TestKeywordProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Return 3 products for single keyword
@@ -318,6 +326,7 @@ class TestKeywordProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=2,  # Limit to 2 products
+            products_per_keyword=5,
         )
 
         # Each keyword returns 2 products
@@ -343,6 +352,7 @@ class TestKeywordProcessing:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = []
@@ -360,6 +370,7 @@ class TestKeywordProcessing:
             fail_fast=True,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # First keyword succeeds, second fails
@@ -404,6 +415,7 @@ class TestDeduplication:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Create results with duplicate ASINs
@@ -486,6 +498,7 @@ class TestDeduplication:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         results = []
@@ -536,6 +549,7 @@ class TestDeduplication:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Create result without ASIN
@@ -580,6 +594,7 @@ class TestSummaryGeneration:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Create successful and failed results
@@ -634,6 +649,7 @@ class TestSummaryGeneration:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Create products with different media counts
@@ -695,6 +711,7 @@ class TestSummaryGeneration:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         controller = BatchController(mock_scraper, config)
@@ -720,6 +737,7 @@ class TestRunBatch:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = [sample_product_data]
@@ -743,6 +761,7 @@ class TestRunBatch:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         mock_scraper.scrape_products_unified.return_value = [sample_product_data]
@@ -763,6 +782,7 @@ class TestRunBatch:
             fail_fast=False,
             search_params=sample_search_params,
             max_products=10,
+            products_per_keyword=5,
         )
 
         # Both product ID and keyword return same product
