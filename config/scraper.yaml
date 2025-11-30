@@ -395,6 +395,11 @@ batch:
   # When false: batch continues processing remaining products after failures
   fail_fast: false
 
+  # Maximum products to scrape per keyword/product ID (default: 2)
+  # Controls how many products are scraped for each individual keyword or product ID
+  # Example: products_per_keyword: 5 means max 5 products per keyword
+  products_per_keyword: 2
+
   # ---- Batch Logging Configuration ----
   # Controls batch progress and summary logging format
   logging:
@@ -426,7 +431,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 2
+    max_products: 10
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: "stealtech06-20"

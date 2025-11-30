@@ -218,6 +218,7 @@ def load_batch_config(
     cli_keywords: list[str] | None = None,
     cli_fail_fast: bool | None = None,
     cli_max_products: int | None = None,
+    cli_products_per_keyword: int | None = None,
 ) -> "BatchConfig":  # type: ignore[name-defined] # noqa: F821
     """Load batch configuration with CLI > YAML > Defaults precedence.
 
@@ -232,6 +233,7 @@ def load_batch_config(
         cli_keywords: Keywords from CLI --keywords argument
         cli_fail_fast: Fail-fast flag from CLI --fail-fast argument
         cli_max_products: Max products from CLI --max-products argument
+        cli_products_per_keyword: Products per keyword from CLI argument
 
     Returns:
     -------
@@ -249,6 +251,7 @@ def load_batch_config(
     yaml_product_ids = yaml_batch.get("product_ids", [])
     yaml_keywords = yaml_batch.get("keywords", [])
     yaml_fail_fast = yaml_batch.get("fail_fast", False)
+    yaml_products_per_keyword = yaml_batch.get("products_per_keyword", 2)
 
     # Load max_products from scrapers.amazon config
     yaml_max_products = (
@@ -261,6 +264,11 @@ def load_batch_config(
     fail_fast = cli_fail_fast if cli_fail_fast is not None else yaml_fail_fast
     max_products = (
         cli_max_products if cli_max_products is not None else yaml_max_products
+    )
+    products_per_keyword = (
+        cli_products_per_keyword
+        if cli_products_per_keyword is not None
+        else yaml_products_per_keyword
     )
 
     # Validate lists
@@ -279,6 +287,7 @@ def load_batch_config(
         fail_fast=fail_fast,
         search_params=search_params,
         max_products=max_products,
+        products_per_keyword=products_per_keyword,
     )
 
     return batch_config

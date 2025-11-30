@@ -198,11 +198,21 @@ class BotasaurusAmazonScraper(BaseScraper):
             return dict(yaml.safe_load(f) or {})
 
     def scrape_products_unified(
-        self, keyword: str, search_params: SearchParameters | None = None
+        self,
+        keyword: str,
+        search_params: SearchParameters | None = None,
+        max_products: int | None = None,
     ) -> list[ProductData]:
         """Unified method to scrape products in a single browser session"""
         try:
             self.logger.info(f"Starting unified scrape for keyword: {keyword}")
+
+            # Use provided max_products or fall back to config
+            products_limit = (
+                max_products
+                if max_products is not None
+                else self.amazon_config.get("max_products", 5)
+            )
 
             # Prepare data for the unified browser function
             data = {
@@ -211,7 +221,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "search_params": search_params,
                 "debug_mode": DEBUG_MODE,
                 "debug_options": self.debug_options,
-                "max_products": self.amazon_config.get("max_products", 5),
+                "max_products": products_limit,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
@@ -1070,8 +1080,9 @@ def main():
 
                 # Use batch config if available
                 if batch_product_ids or batch_keywords:
-                    args.product_ids = batch_product_ids if batch_product_ids else None
-                    args.keywords = batch_keywords if batch_keywords else None
+                    # Set to list or None (empty list = None to avoid confusion)
+                    args.product_ids = batch_product_ids or None
+                    args.keywords = batch_keywords or None
 
                     if batch_product_ids and batch_keywords:
                         print(

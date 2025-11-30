@@ -131,10 +131,12 @@ class BatchController:
             )
 
             try:
-                # Delegate to existing scraper
+                # Delegate to existing scraper with products_per_keyword limit
                 # (single product scraping via keyword/ASIN)
                 products = self.scraper.scrape_products_unified(
-                    keyword=product_id, search_params=self.config.search_params
+                    keyword=product_id,
+                    search_params=self.config.search_params,
+                    max_products=self.config.products_per_keyword,
                 )
 
                 if products and len(products) > 0:
@@ -226,9 +228,11 @@ class BatchController:
             )
 
             try:
-                # Delegate to existing scraper with search parameters
+                # Delegate to existing scraper with products_per_keyword limit
                 products = self.scraper.scrape_products_unified(
-                    keyword=keyword, search_params=self.config.search_params
+                    keyword=keyword,
+                    search_params=self.config.search_params,
+                    max_products=self.config.products_per_keyword,
                 )
 
                 if products:

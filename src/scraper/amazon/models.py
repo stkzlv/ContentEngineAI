@@ -202,6 +202,7 @@ class BatchConfig:
     fail_fast: bool  # Stop on first failure
     search_params: SearchParameters  # Filters for keyword searches
     max_products: int  # Max products across all sources
+    products_per_keyword: int  # Max products per keyword/product ID
 
 
 @dataclass
