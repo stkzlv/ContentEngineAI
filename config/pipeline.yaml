@@ -1,0 +1,109 @@
+# ContentEngineAI Global Pipeline Configuration
+# End-to-end configuration for scraping and video production
+
+# ============================================================================
+# GLOBAL BATCH PIPELINE
+# ============================================================================
+# Unified configuration for scraping products and producing videos in one command
+# Combines scraper and video producer settings with shared common options
+
+global_batch:
+  # ---- Input Configuration ----
+  # Specify products to process (at least one of product_ids or keywords required)
+
+  # Product IDs (ASINs) to scrape and produce videos for
+  # Example: ["B0ABC123", "B0DEF456", "B0GHI789"]
+  product_ids: []
+
+  # Keywords to search for products
+  # Example: ["wireless earbuds", "smart watch", "bluetooth speaker"]
+  keywords: []
+
+  # Maximum number of products to scrape per keyword
+  # Default: 10
+  max_products: 10
+
+  # ---- Scraper Filter Configuration ----
+  # Optional filters to apply when searching for products
+  scraper_filters:
+    # Minimum price filter (e.g., 10.99)
+    # Default: null (no minimum)
+    min_price: null
+
+    # Maximum price filter (e.g., 99.99)
+    # Default: null (no maximum)
+    max_price: null
+
+    # Minimum rating filter (1-5 stars, e.g., 4.0)
+    # Default: null (no minimum)
+    min_rating: null
+
+    # Filter for Prime eligible items only
+    # Default: false
+    prime_only: false
+
+  # ---- Video Production Configuration ----
+  # Profile selection mode - choose ONE of the following:
+
+  # Fixed profile: Use the same profile for all products
+  # Example: "slideshow_images1"
+  # Mutually exclusive with random_profile
+  profile: null
+
+  # Random profile: Enable random profile selection per product
+  # Each product gets a randomly selected profile (deterministic by product ID)
+  # Mutually exclusive with profile
+  # Default: false
+  random_profile: false
+
+  # Profile pool: List of profiles for random selection
+  # Used when random_profile is true
+  # If empty, all available profiles will be used
+  # Example: ["slideshow_images1", "video_sequential", "product_video_hybrid"]
+  profile_pool: []
+
+  # ---- Common Options ----
+  # Settings that apply to both scraping and video production
+
+  # Stop pipeline on first failure
+  # If true: Pipeline stops immediately when any product fails
+  # If false: Pipeline continues processing remaining products
+  # Default: false
+  fail_fast: false
+
+  # Directory for scraper output and producer input
+  # Default: "outputs"
+  outputs_dir: "outputs"
+
+  # Enable debug mode with detailed logging
+  # Default: false
+  debug: false
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+# Uncomment and modify one of these examples to get started:
+
+# Example 1: Scrape specific product and create video with fixed profile
+# global_batch:
+#   product_ids: ["B0ABC123"]
+#   profile: "slideshow_images1"
+#   debug: true
+
+# Example 2: Search keywords and create videos with random profile selection
+# global_batch:
+#   keywords: ["wireless earbuds", "bluetooth speaker"]
+#   random_profile: true
+#   profile_pool: ["slideshow_images1", "video_sequential"]
+#   max_products: 5
+
+# Example 3: Batch processing with filters and fail-fast
+# global_batch:
+#   product_ids: ["B0ABC123", "B0DEF456", "B0GHI789"]
+#   profile: "product_video_hybrid"
+#   scraper_filters:
+#     min_price: 15.00
+#     max_price: 100.00
+#     min_rating: 4.0
+#     prime_only: true
+#   fail_fast: true

@@ -34,8 +34,8 @@ cp .env.example .env  # Configure API keys
 poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
 
-# 3. Batch process multiple products
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
+# 3. Unified batch pipeline (scrape + produce in one command)
+poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --profile slideshow_images1 --debug
 ```
 
 **📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
@@ -161,6 +161,134 @@ Profile Distribution:
   - mixed_media: 3 (21.4%)
   - slideshow_images2: 2 (14.3%)
 ```
+
+### Global Batch Pipeline
+
+**End-to-end automation** - Scrape products and produce videos in one unified command.
+
+The global batch pipeline orchestrates three phases automatically:
+1. **Scraping Phase** - Acquire product data from specified sources
+2. **Handoff Phase** - Discover and filter products ready for video production
+3. **Production Phase** - Generate videos with configured profile settings
+
+**Product IDs Only**:
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS B0D6GZF3T4 \
+  --profile slideshow_images1 \
+  --debug
+```
+
+**Keywords Only**:
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" "bluetooth speaker" \
+  --max-products 5 \
+  --profile video_sequential \
+  --debug
+```
+
+**Mixed Input with Filters**:
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS \
+  --keywords "smart watch" \
+  --min-price 20 --max-price 100 --min-rating 4.0 \
+  --profile product_video_hybrid \
+  --debug
+```
+
+**Random Profile Mode**:
+```bash
+# Random selection from profile pool
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --random-profile \
+  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --debug
+```
+
+**YAML Configuration** - Define pipeline settings in `config/pipeline.yaml`:
+```yaml
+global_batch:
+  # Input Configuration
+  product_ids:
+    - B0BTYCRJSS
+    - B0D6GZF3T4
+  keywords:
+    - "wireless earbuds"
+  max_products: 10
+
+  # Scraper Filters
+  scraper_filters:
+    min_price: 20.0
+    max_price: 100.0
+    min_rating: 4.0
+    prime_only: true
+
+  # Video Production Settings
+  profile: slideshow_images1  # Fixed profile mode
+  # OR
+  random_profile: true        # Random profile mode
+  profile_pool:
+    - slideshow_images1
+    - video_sequential
+
+  # Error Handling
+  fail_fast: false  # Continue on errors (default)
+
+  # Common Settings
+  outputs_dir: outputs
+  debug: false
+```
+
+**Configuration Precedence**: CLI arguments > YAML configuration > defaults
+
+**Error Handling Options**:
+- `--fail-fast`: Stop pipeline immediately on any failure (scraping or production)
+- Default (no flag): Continue processing all products, report failures in summary
+
+**Pipeline Summary Example**:
+```
+================================================================================
+GLOBAL BATCH PIPELINE SUMMARY
+================================================================================
+
+Scraping Phase:
+  Total Attempted: 3
+  Successful: 3
+  Failed: 0
+  Media Statistics:
+    - total_images: 42
+    - total_videos: 6
+  Duration: 25.4 seconds
+
+Production Phase:
+  Total Attempted: 3
+  Successful: 3
+  Failed: 0
+  Skipped: 0
+  Profile Distribution:
+    - slideshow_images1: 2 (66.7%)
+    - video_sequential: 1 (33.3%)
+  Duration: 87.6 seconds
+
+End-to-End Results:
+  Complete Success: 3
+  Partial Success: 0
+  Total Failures: 0
+  Total Duration: 113.0 seconds
+================================================================================
+```
+
+**Key Features**:
+- **Unified Workflow**: Single command for scrape → produce
+- **Three-Phase Orchestration**: Scraping → Handoff → Production
+- **Flexible Input**: Product IDs, keywords, or both
+- **Smart Filtering**: Handoff phase ensures products have sufficient media
+- **Profile Management**: Fixed profile or random selection per product
+- **Comprehensive Reporting**: Detailed statistics for each phase
+- **Error Resilience**: Graceful handling with fail-fast option
 
 ## 🏗️ Architecture
 

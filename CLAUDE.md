@@ -29,8 +29,14 @@ poetry run python -m src.video.producer --batch --random-profile --debug
 # Batch video production (random from specific pool)
 poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 video_sequential --debug
 
-# Advanced scraper usage
-poetry run python -m src.scraper.amazon.scraper --keywords "product" --min-price 15 --max-price 100 --min-rating 4 --debug --clean
+# Global batch pipeline (unified scrape + produce)
+poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 B0ASIN2 --profile slideshow_images1 --debug
+
+# Global batch pipeline (keywords with filters and random profiles)
+poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --max-products 10 --min-price 20 --min-rating 4.0 --random-profile --profile-pool slideshow_images1 video_sequential --debug
+
+# Global batch pipeline (mixed input with fail-fast)
+poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile product_video_hybrid --fail-fast --debug
 
 # Performance monitoring
 poetry run python tools/performance_report.py --report-type summary
