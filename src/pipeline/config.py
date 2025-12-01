@@ -34,7 +34,8 @@ class GlobalBatchConfig:
 
     Combines scraper and producer settings for end-to-end automation.
 
-    Attributes:
+    Attributes
+    ----------
         product_ids: List of ASINs to scrape directly
         keywords: List of keywords to search for products
         max_products: Maximum number of products to scrape per keyword
@@ -45,6 +46,7 @@ class GlobalBatchConfig:
         fail_fast: Stop pipeline on first failure
         outputs_dir: Directory for scraper output and producer input
         debug: Enable debug logging
+
     """
 
     # Scraper configuration
@@ -70,13 +72,15 @@ class ScrapingPhaseSummary:
 
     Tracks scraping phase execution and results.
 
-    Attributes:
+    Attributes
+    ----------
         total_attempted: Total number of products attempted to scrape
         successful: Number of products scraped successfully
         failed: Number of products that failed to scrape
         failed_products: List of product IDs that failed
         media_stats: Media statistics (e.g., total_images, total_videos)
         duration_sec: Phase duration in seconds
+
     """
 
     total_attempted: int
@@ -93,7 +97,8 @@ class ProductionPhaseSummary:
 
     Tracks video production phase execution and results.
 
-    Attributes:
+    Attributes
+    ----------
         total_attempted: Total number of products attempted to process
         successful: Number of videos produced successfully
         failed: Number of products that failed video production
@@ -102,6 +107,7 @@ class ProductionPhaseSummary:
         skipped_products: List of product IDs that were skipped
         profile_distribution: Profile usage counts (only if randomization enabled)
         duration_sec: Phase duration in seconds
+
     """
 
     total_attempted: int
@@ -121,13 +127,15 @@ class PipelineSummary:
     Aggregates statistics across all phases and calculates
     derived end-to-end metrics.
 
-    Attributes:
+    Attributes
+    ----------
         scraping: Scraping phase summary
         production: Video production phase summary
         end_to_end_success: Products scraped AND produced successfully
         partial_success: Products scraped successfully but not produced
         total_failures: Products that failed in either phase
         total_duration_sec: Total pipeline duration in seconds
+
     """
 
     scraping: ScrapingPhaseSummary
@@ -167,8 +175,10 @@ class PipelineSummary:
             [
                 "",
                 "  Media Statistics:",
-                f"    - Total Images: {self.scraping.media_stats.get('total_images', 0)}",
-                f"    - Total Videos: {self.scraping.media_stats.get('total_videos', 0)}",
+                f"    - Total Images: "
+                f"{self.scraping.media_stats.get('total_images', 0)}",
+                f"    - Total Videos: "
+                f"{self.scraping.media_stats.get('total_videos', 0)}",
                 f"  Duration: {self.scraping.duration_sec:.1f}s",
                 "",
                 "VIDEO PRODUCTION PHASE:",
@@ -267,18 +277,14 @@ def load_global_batch_config(
 
     # Max products
     max_products = (
-        getattr(cli_args, "max_products", None)
-        or yaml_config.get("max_products")
-        or 10
+        getattr(cli_args, "max_products", None) or yaml_config.get("max_products") or 10
     )
 
     # Scraper filters (SearchParameters)
     yaml_filters = yaml_config.get("scraper_filters", {})
     scraper_filters = SearchParameters(
-        min_price=getattr(cli_args, "min_price", None)
-        or yaml_filters.get("min_price"),
-        max_price=getattr(cli_args, "max_price", None)
-        or yaml_filters.get("max_price"),
+        min_price=getattr(cli_args, "min_price", None) or yaml_filters.get("min_price"),
+        max_price=getattr(cli_args, "max_price", None) or yaml_filters.get("max_price"),
         min_rating=getattr(cli_args, "min_rating", None)
         or yaml_filters.get("min_rating"),
         prime_only=getattr(cli_args, "prime_only", False)
@@ -367,8 +373,7 @@ def validate_global_batch_config(
     if config.profile and config.profile not in video_config.video_profiles:
         available = ", ".join(sorted(video_config.video_profiles.keys()))
         raise ValueError(
-            f"Invalid profile: '{config.profile}'\n"
-            f"Available profiles: {available}"
+            f"Invalid profile: '{config.profile}'\n" f"Available profiles: {available}"
         )
 
     # Validate random profile configuration

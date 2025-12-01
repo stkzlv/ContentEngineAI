@@ -42,258 +42,43 @@ poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --p
 
 ## 🔄 Batch Processing
 
-Process multiple products efficiently with batch mode support for both scraper and producer.
+<details>
+<summary><strong>Process multiple products efficiently</strong></summary>
 
-### Scraper Batch Mode
+### Quick Examples
 
-**Product ID Lists** - Scrape specific products by ASIN:
+**Scraper Batch** - Multiple products:
 ```bash
-# CLI: Multiple product IDs
-poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS B0D6GZF3T4 B0CTTZJRL6 --debug
-
-# YAML Configuration (config/scraper.yaml)
-batch:
-  product_ids:
-    - B0BTYCRJSS
-    - B0D6GZF3T4
-    - B0CTTZJRL6
-```
-
-**Keyword Search** - Find products by search terms with filters:
-```bash
-# CLI: Multiple keywords with filters
 poetry run python -m src.scraper.amazon.scraper \
-  --keywords "wireless earbuds" "bluetooth headphones" \
-  --min-price 20 --max-price 100 --min-rating 4.0 --prime-only \
-  --debug
-
-# YAML Configuration
-batch:
-  keywords:
-    - "wireless earbuds"
-    - "bluetooth headphones"
-scrapers:
-  amazon:
-    search_filters:
-      min_price: 20.0
-      max_price: 100.0
-      min_rating: 4.0
-      prime_only: true
-```
-
-**Mixed Mode** - Combine product IDs and keywords:
-```bash
-# Both sources in one batch
-poetry run python -m src.scraper.amazon.scraper \
-  --product-ids B0BTYCRJSS \
+  --product-ids B0ASIN1 B0ASIN2 \
   --keywords "wireless earbuds" \
   --debug
 ```
 
-**Configuration Precedence**: CLI arguments override YAML configuration, which overrides defaults.
-
-**Error Handling**:
-- `--fail-fast`: Stop on first error (default: continue processing)
-- Invalid ASINs are skipped with warnings
-- Duplicate products (by ASIN) are automatically removed
-
-**Batch Summary** - View statistics after completion:
-```
-BATCH SCRAPING SUMMARY
-Total Attempted: 3
-  - Product IDs: 2
-  - Keywords: 1
-Successful: 3
-Failed: 0
-Media Collection Statistics:
-  - total_images: 42
-  - total_videos: 6
-Duration: 45.32 seconds
-```
-
-### Producer Batch Mode
-
-Process all scraped products automatically with flexible profile selection.
-
-**Fixed Profile** - Use the same profile for all products:
+**Producer Batch** - All scraped products:
 ```bash
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
-```
-
-**Random Profile Selection** - Assign profiles deterministically per product:
-```bash
-# Random selection from all available profiles
-poetry run python -m src.video.producer --batch --random-profile --debug
-
-# Random selection from specific profile pool
-poetry run python -m src.video.producer --batch --random-profile \
-  --profile-pool slideshow_images1 video_sequential mixed_media \
+poetry run python -m src.video.producer \
+  --batch \
+  --batch-profile slideshow_images1 \
   --debug
 ```
 
-**YAML Configuration** - Define profile pool persistently:
-```yaml
-# config/video_production.yaml
-batch:
-  profile_pool:
-    - slideshow_images1
-    - video_sequential
-    # Empty list defaults to all available profiles
-```
-
-**Profile Randomization Features**:
-- **Deterministic**: Same product ID always gets the same profile (reproducible)
-- **Configuration Precedence**: CLI `--profile-pool` > YAML `profile_pool` > All profiles
-- **Mutual Exclusivity**: Cannot use both `--batch-profile` and `--random-profile`
-- **Profile Distribution**: Summary shows usage statistics after batch completion
-
-**Batch Summary Example**:
-```
-BATCH SUMMARY
-Products Processed: 15
-  - Successful: 14
-  - Skipped: 1 (insufficient media)
-Total Duration: 42.5 seconds
-
-Profile Distribution:
-  - slideshow_images1: 5 (35.7%)
-  - video_sequential: 4 (28.6%)
-  - mixed_media: 3 (21.4%)
-  - slideshow_images2: 2 (14.3%)
-```
-
-### Global Batch Pipeline
-
-**End-to-end automation** - Scrape products and produce videos in one unified command.
-
-The global batch pipeline orchestrates three phases automatically:
-1. **Scraping Phase** - Acquire product data from specified sources
-2. **Handoff Phase** - Discover and filter products ready for video production
-3. **Production Phase** - Generate videos with configured profile settings
-
-**Product IDs Only**:
+**Global Pipeline** - End-to-end automation:
 ```bash
 poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS B0D6GZF3T4 \
-  --profile slideshow_images1 \
-  --debug
-```
-
-**Keywords Only**:
-```bash
-poetry run python -m src.pipeline.global_batch \
-  --keywords "wireless earbuds" "bluetooth speaker" \
-  --max-products 5 \
+  --keywords "bluetooth speaker" \
   --profile video_sequential \
   --debug
 ```
 
-**Mixed Input with Filters**:
-```bash
-poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS \
-  --keywords "smart watch" \
-  --min-price 20 --max-price 100 --min-rating 4.0 \
-  --profile product_video_hybrid \
-  --debug
-```
+**📖 Complete Batch Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md)
 
-**Random Profile Mode**:
-```bash
-# Random selection from profile pool
-poetry run python -m src.pipeline.global_batch \
-  --keywords "wireless earbuds" \
-  --random-profile \
-  --profile-pool slideshow_images1 video_sequential mixed_media \
-  --debug
-```
-
-**YAML Configuration** - Define pipeline settings in `config/pipeline.yaml`:
-```yaml
-global_batch:
-  # Input Configuration
-  product_ids:
-    - B0BTYCRJSS
-    - B0D6GZF3T4
-  keywords:
-    - "wireless earbuds"
-  max_products: 10
-
-  # Scraper Filters
-  scraper_filters:
-    min_price: 20.0
-    max_price: 100.0
-    min_rating: 4.0
-    prime_only: true
-
-  # Video Production Settings
-  profile: slideshow_images1  # Fixed profile mode
-  # OR
-  random_profile: true        # Random profile mode
-  profile_pool:
-    - slideshow_images1
-    - video_sequential
-
-  # Error Handling
-  fail_fast: false  # Continue on errors (default)
-
-  # Common Settings
-  outputs_dir: outputs
-  debug: false
-```
-
-**Configuration Precedence**: CLI arguments > YAML configuration > defaults
-
-**Error Handling Options**:
-- `--fail-fast`: Stop pipeline immediately on any failure (scraping or production)
-- Default (no flag): Continue processing all products, report failures in summary
-
-**Pipeline Summary Example**:
-```
-================================================================================
-GLOBAL BATCH PIPELINE SUMMARY
-================================================================================
-
-Scraping Phase:
-  Total Attempted: 3
-  Successful: 3
-  Failed: 0
-  Media Statistics:
-    - total_images: 42
-    - total_videos: 6
-  Duration: 25.4 seconds
-
-Production Phase:
-  Total Attempted: 3
-  Successful: 3
-  Failed: 0
-  Skipped: 0
-  Profile Distribution:
-    - slideshow_images1: 2 (66.7%)
-    - video_sequential: 1 (33.3%)
-  Duration: 87.6 seconds
-
-End-to-End Results:
-  Complete Success: 3
-  Partial Success: 0
-  Total Failures: 0
-  Total Duration: 113.0 seconds
-================================================================================
-```
-
-**Key Features**:
-- **Unified Workflow**: Single command for scrape → produce
-- **Three-Phase Orchestration**: Scraping → Handoff → Production
-- **Flexible Input**: Product IDs, keywords, or both
-- **Smart Filtering**: Handoff phase ensures products have sufficient media
-- **Profile Management**: Fixed profile or random selection per product
-- **Comprehensive Reporting**: Detailed statistics for each phase
-- **Error Resilience**: Graceful handling with fail-fast option
+</details>
 
 ## 🏗️ Architecture
 
 <details>
-<summary>Pipeline Overview</summary>
+<summary><strong>Pipeline Overview</strong></summary>
 
 ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
 
@@ -309,14 +94,18 @@ graph TD
 ```
 
 **📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+
 </details>
 
 ## 📚 Documentation
 
+### Core Documentation
+
 | Guide | Description |
 |-------|-------------|
 | **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
-| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Complete configuration reference and options |
+| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Configuration reference and options |
+| **[🔄 BATCH_PROCESSING.md](BATCH_PROCESSING.md)** | Batch processing workflows and automation |
 | **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
 | **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
 
@@ -360,6 +149,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🔄 Batch Processing](BATCH_PROCESSING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

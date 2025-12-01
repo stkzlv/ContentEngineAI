@@ -4,9 +4,10 @@ Tests orchestrator logic in complete isolation by mocking all external
 dependencies (scraper, producer, file system, configuration).
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 from src.pipeline.config import (
     GlobalBatchConfig,
@@ -17,7 +18,6 @@ from src.pipeline.config import (
 from src.pipeline.global_batch import GlobalPipelineOrchestrator
 from src.scraper.amazon.models import ProductData, SearchParameters
 from src.scraper.base.models import Platform
-
 
 # ============================================================================
 # FIXTURES
@@ -228,9 +228,7 @@ def test_handoff_phase_discovers_products(orchestrator):
         ),
     ]
 
-    with patch(
-        "src.video.producer.cli.discover_products_for_batch"
-    ) as mock_discover:
+    with patch("src.video.producer.cli.discover_products_for_batch") as mock_discover:
         mock_discover.return_value = mock_products
 
         products = orchestrator._execute_handoff_phase()
@@ -242,9 +240,7 @@ def test_handoff_phase_discovers_products(orchestrator):
 
 def test_handoff_phase_with_no_products(orchestrator):
     """Test handoff phase handles no ready products gracefully."""
-    with patch(
-        "src.video.producer.cli.discover_products_for_batch"
-    ) as mock_discover:
+    with patch("src.video.producer.cli.discover_products_for_batch") as mock_discover:
         mock_discover.return_value = []
 
         products = orchestrator._execute_handoff_phase()
@@ -357,7 +353,7 @@ async def test_production_phase_with_timeout(orchestrator, mock_video_config):
         mock_load_config.return_value = mock_video_config
         mock_session = AsyncMock()
         mock_session_class.return_value.__aenter__.return_value = mock_session
-        mock_wait_for.side_effect = asyncio.TimeoutError()
+        mock_wait_for.side_effect = TimeoutError()
 
         summary = await orchestrator._execute_production_phase(mock_products)
 
@@ -515,9 +511,7 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(
@@ -533,9 +527,7 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         mock_scraper_class.return_value = mock_scraper
 
         # Mock handoff phase
-        mock_discover.return_value = [
-            (Path("outputs/B0ABC123"), mock_product_data)
-        ]
+        mock_discover.return_value = [(Path("outputs/B0ABC123"), mock_product_data)]
 
         # Mock production phase
         mock_load_config.return_value = mock_video_config
@@ -555,14 +547,14 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
 
 @pytest.mark.asyncio
 async def test_pipeline_with_no_ready_products(orchestrator, mock_video_config):
-    """Test pipeline handles case where scraping succeeds but no products ready for production."""
+    """Test pipeline handles case where scraping succeeds
+    but no products ready for production.
+    """
     with (
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
     ):
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [

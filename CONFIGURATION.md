@@ -2,6 +2,8 @@
 
 ContentEngineAI uses a **unified modular configuration system** that splits settings across specialized files with CLI overrides and environment variable support. This guide explains all configuration options and how to customize the system for your needs.
 
+> **📖 For batch processing workflows**: See [BATCH_PROCESSING.md](BATCH_PROCESSING.md) for complete batch mode usage examples and automation workflows.
+
 ## Configuration Overview
 
 ContentEngineAI implements a **triple-precedence configuration system**:

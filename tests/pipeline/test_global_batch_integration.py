@@ -145,9 +145,7 @@ async def test_pipeline_with_product_ids_only(
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(
@@ -226,9 +224,7 @@ async def test_pipeline_with_keywords_only(
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(
@@ -305,9 +301,7 @@ async def test_pipeline_with_mixed_input(
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(
@@ -416,9 +410,7 @@ async def test_pipeline_fail_fast_at_production_phase(
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(
@@ -529,9 +521,7 @@ async def test_pipeline_with_random_profile_selection(
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
-        patch(
-            "src.video.producer.cli.discover_products_for_batch"
-        ) as mock_discover,
+        patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
         patch("src.video.config.load_video_config") as mock_load_config,
         patch("aiohttp.ClientSession") as mock_session_class,
         patch(

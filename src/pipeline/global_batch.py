@@ -45,7 +45,10 @@ def create_argument_parser():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Global Batch Pipeline - End-to-end Amazon product scraping and video production",
+        description=(
+            "Global Batch Pipeline - "
+            "End-to-end Amazon product scraping and video production"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -53,10 +56,12 @@ Examples:
   python -m src.pipeline --product-ids B0ABC123 --profile slideshow_images1
 
   # Scrape keywords and create videos with random profile selection
-  python -m src.pipeline --keywords "wireless earbuds" --random-profile --profile-pool slideshow_images1 video_sequential
+  python -m src.pipeline --keywords "wireless earbuds" --random-profile \\
+      --profile-pool slideshow_images1 video_sequential
 
   # Batch with filters and fail-fast
-  python -m src.pipeline --product-ids B0ABC123 B0DEF456 --profile slideshow_images1 --fail-fast --debug
+  python -m src.pipeline --product-ids B0ABC123 B0DEF456 \\
+      --profile slideshow_images1 --fail-fast --debug
         """,
     )
 
@@ -66,7 +71,10 @@ Examples:
         "--product-ids",
         nargs="+",
         metavar="ASIN",
-        help="Product IDs (ASINs) to scrape and produce videos for (e.g., B0ABC123 B0DEF456)",
+        help=(
+            "Product IDs (ASINs) to scrape and produce videos for "
+            "(e.g., B0ABC123 B0DEF456)"
+        ),
     )
     input_group.add_argument(
         "--keywords",
@@ -114,14 +122,19 @@ Examples:
         "--profile",
         type=str,
         metavar="NAME",
-        help="Video profile to use for all products (mutually exclusive with --random-profile)",
+        help=(
+            "Video profile to use for all products "
+            "(mutually exclusive with --random-profile)"
+        ),
     )
     producer_group.add_argument(
         "--random-profile",
         action="store_true",
         help=(
-            "Enable random profile selection per product (deterministic by product ID). "
-            "Mutually exclusive with --profile. Requires --profile-pool or uses all available profiles."
+            "Enable random profile selection per product "
+            "(deterministic by product ID). "
+            "Mutually exclusive with --profile. "
+            "Requires --profile-pool or uses all available profiles."
         ),
     )
     producer_group.add_argument(
@@ -165,8 +178,10 @@ class GlobalPipelineOrchestrator:
     treating scraper and producer as black boxes and managing the handoff
     between phases.
 
-    Attributes:
+    Attributes
+    ----------
         config: Unified pipeline configuration
+
     """
 
     def __init__(self, config: GlobalBatchConfig):
@@ -187,7 +202,7 @@ class GlobalPipelineOrchestrator:
         2. Handoff Phase: Discover products ready for video production
         3. Video Production Phase: Generate videos for ready products
 
-        Returns:
+        Returns
         -------
             PipelineSummary with aggregated statistics from all phases
 
@@ -238,11 +253,11 @@ class GlobalPipelineOrchestrator:
         Invokes Amazon scraper with configured product IDs and keywords,
         tracks statistics, and generates phase summary.
 
-        Returns:
+        Returns
         -------
             ScrapingPhaseSummary with scraping statistics
 
-        Raises:
+        Raises
         ------
             Exception: If fail_fast is enabled and scraping fails
 
@@ -263,7 +278,8 @@ class GlobalPipelineOrchestrator:
 
         # Initialize scraper
         scraper = BotasaurusAmazonScraper(
-            output_dir=str(self.config.outputs_dir), debug_mode=self.config.debug
+            output_dir=str(self.config.outputs_dir),
+            debug_mode=self.config.debug,  # type: ignore[call-arg]
         )
 
         # Track statistics
@@ -306,7 +322,9 @@ class GlobalPipelineOrchestrator:
             except Exception as e:
                 failed += 1
                 failed_products.append(input_item)
-                logger.error(f"✗ [{idx}/{total_inputs}] Failed to scrape {input_item}: {e}")
+                logger.error(
+                    f"✗ [{idx}/{total_inputs}] Failed to scrape {input_item}: {e}"
+                )
 
                 if self.config.fail_fast:
                     logger.error("Fail-fast enabled, stopping scraping phase")
@@ -336,7 +354,7 @@ class GlobalPipelineOrchestrator:
         Scans outputs directory for products with data.json and filters
         by media availability based on profile requirements.
 
-        Returns:
+        Returns
         -------
             List of (product_dir, ProductData) tuples for ready products
 
@@ -349,7 +367,8 @@ class GlobalPipelineOrchestrator:
         all_products = discover_products_for_batch(self.config.outputs_dir)
 
         logger.info(
-            f"Found {len(all_products)} product(s) with data.json in {self.config.outputs_dir}"
+            f"Found {len(all_products)} product(s) with data.json in "
+            f"{self.config.outputs_dir}"
         )
 
         # Filter products by media availability
@@ -386,10 +405,9 @@ class GlobalPipelineOrchestrator:
 
         """
         import asyncio
+        import os
 
         import aiohttp
-
-        import os
 
         from src.video.config import load_video_config
         from src.video.producer.orchestration import create_video_for_product
@@ -401,7 +419,7 @@ class GlobalPipelineOrchestrator:
         phase_start = time.time()
 
         # Load video configuration
-        config = load_video_config()
+        config = load_video_config()  # type: ignore[call-arg]
 
         # Build secrets dict from environment variables
         secrets = {
@@ -435,7 +453,7 @@ class GlobalPipelineOrchestrator:
 
         # Create HTTP session for API calls
         async with aiohttp.ClientSession() as session:
-            for idx, (product_dir, product) in enumerate(products, 1):
+            for idx, (_product_dir, product) in enumerate(products, 1):
                 product_id = product.asin or product.title or f"product_{idx}"
 
                 # Select profile for this product
@@ -455,9 +473,11 @@ class GlobalPipelineOrchestrator:
                     )
                 else:
                     # Fixed profile mode
+                    assert self.config.profile is not None
                     current_profile = self.config.profile
-                    assert current_profile is not None
-                    logger.info(f"[{idx}/{total_products}] Processing product: {product_id}")
+                    logger.info(
+                        f"[{idx}/{total_products}] Processing product: {product_id}"
+                    )
 
                 try:
                     # Call video producer with timeout
@@ -507,7 +527,8 @@ class GlobalPipelineOrchestrator:
                     failed += 1
                     failed_products.append(product_id)
                     logger.error(
-                        f"✗ [{idx}/{total_products}] Failed to process {product_id}: {e}",
+                        f"✗ [{idx}/{total_products}] "
+                        f"Failed to process {product_id}: {e}",
                         exc_info=True,
                     )
 
@@ -517,9 +538,7 @@ class GlobalPipelineOrchestrator:
 
         # Generate summary
         duration = time.time() - phase_start
-        profile_distribution = (
-            profile_tracker.get_counts() if profile_tracker else None
-        )
+        profile_distribution = profile_tracker.get_counts() if profile_tracker else None
 
         logger.info(
             f"Production phase complete: {successful} successful, "
@@ -626,19 +645,26 @@ async def main():
         config = load_global_batch_config(args)
 
         # Load video configuration for validation
-        video_config = load_video_config()
+        video_config = load_video_config()  # type: ignore[call-arg]
 
         # Validate configuration
         logger.info("Validating configuration...")
         validate_global_batch_config(config, video_config)
 
         logger.info("Configuration validated successfully")
-        logger.info(f"Inputs: {len(config.product_ids or [])} product IDs, {len(config.keywords or [])} keywords")
+        logger.info(
+            f"Inputs: {len(config.product_ids or [])} product IDs, "
+            f"{len(config.keywords or [])} keywords"
+        )
 
         if config.profile:
             logger.info(f"Profile: {config.profile} (fixed)")
         elif config.random_profile:
-            pool_info = ", ".join(config.profile_pool) if config.profile_pool else "all available"
+            pool_info = (
+                ", ".join(config.profile_pool)
+                if config.profile_pool
+                else "all available"
+            )
             logger.info(f"Profile: random selection from [{pool_info}]")
 
         logger.info(f"Outputs directory: {config.outputs_dir}")
@@ -646,7 +672,7 @@ async def main():
 
         # Execute pipeline
         orchestrator = GlobalPipelineOrchestrator(config)
-        summary = await orchestrator.run_pipeline()
+        await orchestrator.run_pipeline()
 
         # Success
         logger.info("=" * 80)

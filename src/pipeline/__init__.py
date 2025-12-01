@@ -1,4 +1,4 @@
-"""Global batch pipeline package for end-to-end automation.
+r"""Global batch pipeline package for end-to-end automation.
 
 This package orchestrates the complete workflow from scraping products
 to generating promotional videos in a single unified command.
@@ -14,7 +14,8 @@ Three-Phase Pipeline:
 
 Usage:
     # CLI execution
-    python -m src.pipeline.global_batch --product-ids B0ABC123 --profile slideshow_images1
+    python -m src.pipeline.global_batch --product-ids B0ABC123 \\
+        --profile slideshow_images1
 
     # Programmatic execution
     from src.pipeline.global_batch import GlobalPipelineOrchestrator

@@ -1,0 +1,463 @@
+# Batch Processing Guide
+
+Complete guide to batch processing modes in ContentEngineAI for efficient multi-product workflows.
+
+## Overview
+
+ContentEngineAI supports three batch processing modes:
+
+1. **[Scraper Batch Mode](#scraper-batch-mode)** - Scrape multiple products
+2. **[Producer Batch Mode](#producer-batch-mode)** - Generate videos for all scraped products
+3. **[Global Batch Pipeline](#global-batch-pipeline)** - End-to-end automation (scrape + produce)
+
+---
+
+## Scraper Batch Mode
+
+Scrape multiple products efficiently using product IDs, keyword search, or both.
+
+### Product ID Lists
+
+Scrape specific products by ASIN:
+
+```bash
+# CLI: Multiple product IDs
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0BTYCRJSS B0D6GZF3T4 B0CTTZJRL6 \
+  --debug
+```
+
+**YAML Configuration** (`config/scraper.yaml`):
+```yaml
+batch:
+  product_ids:
+    - B0BTYCRJSS
+    - B0D6GZF3T4
+    - B0CTTZJRL6
+```
+
+### Keyword Search
+
+Find products by search terms with optional filters:
+
+```bash
+# CLI: Multiple keywords with filters
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "wireless earbuds" "bluetooth headphones" \
+  --min-price 20 --max-price 100 \
+  --min-rating 4.0 \
+  --prime-only \
+  --debug
+```
+
+**YAML Configuration**:
+```yaml
+batch:
+  keywords:
+    - "wireless earbuds"
+    - "bluetooth headphones"
+  max_products: 10
+
+scrapers:
+  amazon:
+    search_filters:
+      min_price: 20.0
+      max_price: 100.0
+      min_rating: 4.0
+      prime_only: true
+```
+
+### Mixed Mode
+
+Combine product IDs and keywords in a single batch:
+
+```bash
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0BTYCRJSS \
+  --keywords "wireless earbuds" \
+  --debug
+```
+
+### Configuration Precedence
+
+Settings are applied in this order (highest to lowest priority):
+1. **CLI arguments** (command-line flags)
+2. **YAML configuration** (config files)
+3. **Default values** (built-in defaults)
+
+### Error Handling
+
+**Fail-Fast Mode**:
+```bash
+# Stop on first error
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0TEST1 B0TEST2 \
+  --fail-fast \
+  --debug
+```
+
+**Graceful Continuation** (default):
+- Invalid ASINs are skipped with warnings
+- Scraping errors are logged and reported in summary
+- Duplicate products (by ASIN) are automatically removed
+
+### Batch Summary
+
+After completion, view detailed statistics:
+
+```
+================================================================================
+BATCH SCRAPING SUMMARY
+================================================================================
+Total Attempted: 3
+  - Product IDs: 2
+  - Keywords: 1
+Successful: 3
+Failed: 0
+
+Media Collection Statistics:
+  - total_images: 42
+  - total_videos: 6
+  - avg_images_per_product: 14.0
+  - avg_videos_per_product: 2.0
+
+Duration: 45.32 seconds
+================================================================================
+```
+
+---
+
+## Producer Batch Mode
+
+Generate videos for all scraped products with flexible profile selection.
+
+### Fixed Profile Mode
+
+Use the same video profile for all products:
+
+```bash
+poetry run python -m src.video.producer \
+  --batch \
+  --batch-profile slideshow_images1 \
+  --debug
+```
+
+**YAML Configuration** (`config/video_production.yaml`):
+```yaml
+batch:
+  profile: slideshow_images1
+```
+
+### Random Profile Selection
+
+Assign profiles deterministically per product for variety:
+
+```bash
+# Random selection from all available profiles
+poetry run python -m src.video.producer \
+  --batch \
+  --random-profile \
+  --debug
+
+# Random selection from specific profile pool
+poetry run python -m src.video.producer \
+  --batch \
+  --random-profile \
+  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --debug
+```
+
+**YAML Configuration**:
+```yaml
+batch:
+  random_profile: true
+  profile_pool:
+    - slideshow_images1
+    - video_sequential
+    - mixed_media
+    # Empty list defaults to all available profiles
+```
+
+### Profile Randomization Features
+
+- **Deterministic Assignment**: Same product ID always receives the same profile (reproducible builds)
+- **Configuration Precedence**: CLI `--profile-pool` > YAML `profile_pool` > All available profiles
+- **Mutual Exclusivity**: Cannot use both `--batch-profile` and `--random-profile` simultaneously
+- **Distribution Tracking**: Summary displays profile usage statistics
+
+### Batch Summary
+
+Example output after batch completion:
+
+```
+================================================================================
+BATCH PRODUCTION SUMMARY
+================================================================================
+Products Processed: 15
+  - Successful: 14
+  - Skipped: 1 (insufficient media)
+  - Failed: 0
+
+Profile Distribution:
+  - slideshow_images1: 5 (35.7%)
+  - video_sequential: 4 (28.6%)
+  - mixed_media: 3 (21.4%)
+  - slideshow_images2: 2 (14.3%)
+
+Total Duration: 42.5 seconds
+================================================================================
+```
+
+---
+
+## Global Batch Pipeline
+
+End-to-end automation combining scraping and video production in a single unified command.
+
+### Pipeline Architecture
+
+The global batch pipeline orchestrates three phases:
+
+1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords)
+2. **Handoff Phase** - Discover scraped products and filter by media availability
+3. **Production Phase** - Generate videos using configured profile settings
+
+### Usage Examples
+
+#### Product IDs Only
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS B0D6GZF3T4 \
+  --profile slideshow_images1 \
+  --debug
+```
+
+#### Keywords Only
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" "bluetooth speaker" \
+  --max-products 5 \
+  --profile video_sequential \
+  --debug
+```
+
+#### Mixed Input with Filters
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS \
+  --keywords "smart watch" \
+  --min-price 20 --max-price 100 \
+  --min-rating 4.0 \
+  --profile product_video_hybrid \
+  --debug
+```
+
+#### Random Profile Mode
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --random-profile \
+  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --debug
+```
+
+### YAML Configuration
+
+Define persistent pipeline settings in `config/pipeline.yaml`:
+
+```yaml
+global_batch:
+  # Input Configuration
+  product_ids:
+    - B0BTYCRJSS
+    - B0D6GZF3T4
+  keywords:
+    - "wireless earbuds"
+  max_products: 10
+
+  # Scraper Filters
+  scraper_filters:
+    min_price: 20.0
+    max_price: 100.0
+    min_rating: 4.0
+    prime_only: true
+
+  # Video Production Settings
+  profile: slideshow_images1  # Fixed profile mode
+  # OR
+  random_profile: true        # Random profile mode
+  profile_pool:
+    - slideshow_images1
+    - video_sequential
+
+  # Error Handling
+  fail_fast: false  # Continue on errors (default)
+
+  # Common Settings
+  outputs_dir: outputs
+  debug: false
+```
+
+### Configuration Precedence
+
+Settings are merged with this priority order:
+1. **CLI arguments** (highest priority)
+2. **YAML configuration** (`config/pipeline.yaml`)
+3. **Default values** (lowest priority)
+
+### Error Handling
+
+**Fail-Fast Mode**:
+```bash
+# Stop immediately on any failure (scraping OR production)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "product" \
+  --profile slideshow_images1 \
+  --fail-fast \
+  --debug
+```
+
+**Graceful Continuation** (default):
+- Pipeline continues processing remaining products after failures
+- All failures are tracked and reported in final summary
+- Partial success scenarios are clearly identified
+
+### Pipeline Summary
+
+Comprehensive end-to-end statistics:
+
+```
+================================================================================
+GLOBAL PIPELINE SUMMARY
+================================================================================
+
+SCRAPING PHASE:
+  Total Attempted: 3
+  Successful: 3
+  Failed: 0
+
+  Media Statistics:
+    - Total Images: 42
+    - Total Videos: 6
+  Duration: 25.4s
+
+VIDEO PRODUCTION PHASE:
+  Total Attempted: 3
+  Successful: 3
+  Failed: 0
+  Skipped: 0
+
+  Profile Distribution:
+    - slideshow_images1: 2 (66.7%)
+    - video_sequential: 1 (33.3%)
+  Duration: 87.6s
+
+END-TO-END RESULTS:
+  Complete Success (scraped + produced): 3
+  Partial Success (scraped only): 0
+  Total Failures: 0
+
+Total Pipeline Duration: 113.0s
+================================================================================
+```
+
+### Key Features
+
+- **Unified Workflow**: Single command for complete scrape-to-video pipeline
+- **Three-Phase Orchestration**: Automatic coordination across scraping, handoff, and production
+- **Flexible Input Sources**: Support for product IDs, keywords, or both simultaneously
+- **Smart Filtering**: Handoff phase validates products have sufficient media before production
+- **Profile Management**: Fixed profile or deterministic random selection per product
+- **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
+- **Error Resilience**: Graceful failure handling with optional fail-fast mode
+
+---
+
+## Best Practices
+
+### Production Workflows
+
+1. **Test with Small Batches**
+   ```bash
+   # Test with 2-3 products first
+   poetry run python -m src.pipeline.global_batch \
+     --keywords "test product" \
+     --max-products 2 \
+     --profile slideshow_images1 \
+     --debug
+   ```
+
+2. **Use YAML for Reproducible Runs**
+   - Store configuration in `config/pipeline.yaml`
+   - Version control your configuration files
+   - Override specific settings with CLI arguments
+
+3. **Monitor Resource Usage**
+   - Video production is CPU/memory intensive
+   - Consider processing large batches in stages
+   - Use `--debug` flag for detailed logging
+
+4. **Profile Selection Strategy**
+   - **Fixed profile**: Consistent branding across all products
+   - **Random profiles**: Content variety for social media feeds
+   - **Profile pool**: Balance between variety and brand consistency
+
+### Error Recovery
+
+If a batch fails midway:
+
+1. **Check outputs directory** - Successfully processed products are saved
+2. **Review error logs** - Identify specific failures
+3. **Rerun with remaining products** - Use product IDs to continue
+4. **Use fail-fast for debugging** - Isolate issues quickly
+
+### Performance Optimization
+
+- **Parallel processing**: Scraper uses async I/O for multiple products
+- **Caching**: Media downloads are cached to avoid re-fetching
+- **Resource limits**: Set `max_products` to control batch size
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue**: "No products found for batch processing"
+- **Cause**: Handoff phase filters products without sufficient media
+- **Solution**: Check `outputs/` directory for `data.json` files and verify media availability
+
+**Issue**: "Profile not found"
+- **Cause**: Invalid profile name specified
+- **Solution**: Run `poetry run python -m src.video.producer --list-profiles` to see available profiles
+
+**Issue**: "Insufficient media for production"
+- **Cause**: Product has no images or videos after scraping
+- **Solution**: Verify product ASIN is valid and media is available on Amazon
+
+**Issue**: "Configuration file not found"
+- **Cause**: YAML configuration path doesn't exist
+- **Solution**: Create configuration file or verify path in command
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --keywords "product" \
+  --profile slideshow_images1 \
+  --debug  # Detailed logs for each phase
+```
+
+---
+
+## Related Documentation
+
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration reference
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture details
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Additional debugging guidance
