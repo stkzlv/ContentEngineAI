@@ -30,6 +30,7 @@ from src.pipeline.config import (
     ScrapingPhaseSummary,
 )
 from src.scraper.amazon.models import ProductData
+from src.video.config_adapter import load_video_config_modular
 
 logger = logging.getLogger(__name__)
 
@@ -278,9 +279,12 @@ class GlobalPipelineOrchestrator:
 
         # Initialize scraper
         scraper = BotasaurusAmazonScraper(
-            output_dir=str(self.config.outputs_dir),
-            debug_mode=self.config.debug,  # type: ignore[call-arg]
+            debug_override=self.config.debug,
         )
+
+        # Override max_products in scraper config if specified
+        if self.config.max_products is not None:
+            scraper.amazon_config["max_products"] = self.config.max_products
 
         # Track statistics
         successful = 0
@@ -419,7 +423,7 @@ class GlobalPipelineOrchestrator:
         phase_start = time.time()
 
         # Load video configuration
-        config = load_video_config()  # type: ignore[call-arg]
+        config = load_video_config_modular()
 
         # Build secrets dict from environment variables
         secrets = {
@@ -645,7 +649,7 @@ async def main():
         config = load_global_batch_config(args)
 
         # Load video configuration for validation
-        video_config = load_video_config()  # type: ignore[call-arg]
+        video_config = load_video_config_modular()
 
         # Validate configuration
         logger.info("Validating configuration...")

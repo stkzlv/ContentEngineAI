@@ -146,24 +146,24 @@
 
 After implementation, verify:
 
-- [ ] 15.1 Complete pipeline executes: scrape → handoff → produce
-- [ ] 15.2 Product IDs input mode works end-to-end
-- [ ] 15.3 Keywords input mode works end-to-end
-- [ ] 15.4 Mixed input (product IDs + keywords) works correctly
-- [ ] 15.5 CLI arguments override YAML configuration
-- [ ] 15.6 YAML configuration used when no CLI override
-- [ ] 15.7 Validation catches missing inputs before processing
-- [ ] 15.8 Validation catches invalid profiles before processing
-- [ ] 15.9 Fail-fast stops pipeline after scraping phase failure
-- [ ] 15.10 Fail-fast stops pipeline after production phase failure
-- [ ] 15.11 Graceful continuation works (default behavior)
-- [ ] 15.12 Handoff phase filters products by media availability
-- [ ] 15.13 Zero products ready case exits gracefully
-- [ ] 15.14 Fixed profile mode works in production phase
-- [ ] 15.15 Random profile mode works in production phase
-- [ ] 15.16 Scraping summary shows correct statistics
-- [ ] 15.17 Production summary shows correct statistics
-- [ ] 15.18 Final summary shows end-to-end statistics
-- [ ] 15.19 Profile distribution shown when randomization enabled
-- [ ] 15.20 All unit tests pass with good coverage
-- [ ] 15.21 All integration tests pass reliably
+- [x] 15.1 Complete pipeline executes: scrape → handoff → produce
+- [x] 15.2 Product IDs input mode works end-to-end
+- [x] 15.3 Keywords input mode works end-to-end
+- [x] 15.4 Mixed input (product IDs + keywords) works correctly
+- [x] 15.5 CLI arguments override YAML configuration
+- [x] 15.6 YAML configuration used when no CLI override
+- [x] 15.7 Validation catches missing inputs before processing
+- [x] 15.8 Validation catches invalid profiles before processing
+- [x] 15.9 Fail-fast stops pipeline after scraping phase failure
+- [x] 15.10 Fail-fast stops pipeline after production phase failure
+- [x] 15.11 Graceful continuation works (default behavior)
+- [x] 15.12 Handoff phase filters products by media availability
+- [x] 15.13 Zero products ready case exits gracefully
+- [x] 15.14 Fixed profile mode works in production phase
+- [x] 15.15 Random profile mode works in production phase
+- [x] 15.16 Scraping summary shows correct statistics
+- [x] 15.17 Production summary shows correct statistics
+- [x] 15.18 Final summary shows end-to-end statistics
+- [x] 15.19 Profile distribution shown when randomization enabled
+- [x] 15.20 All unit tests pass with good coverage
+- [x] 15.21 All integration tests pass reliably

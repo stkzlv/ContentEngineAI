@@ -123,6 +123,7 @@ async def test_scraping_phase_success(orchestrator, mock_product_data):
             [mock_product_data[1]],  # Second product
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Execute scraping phase
         summary = await orchestrator._execute_scraping_phase()
@@ -156,6 +157,7 @@ async def test_scraping_phase_partial_failure(orchestrator):
             RuntimeError("Scraping failed"),  # Failure
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         summary = await orchestrator._execute_scraping_phase()
 
@@ -177,6 +179,7 @@ async def test_scraping_phase_with_fail_fast(orchestrator):
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = RuntimeError("Scraping failed")
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         with pytest.raises(RuntimeError):
             await orchestrator._execute_scraping_phase()
@@ -193,6 +196,7 @@ async def test_scraping_phase_with_exception(orchestrator):
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = ValueError("Invalid ASIN")
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         with pytest.raises(ValueError):
             await orchestrator._execute_scraping_phase()
@@ -525,6 +529,7 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
             [mock_product_data],  # Second product
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff phase
         mock_discover.return_value = [(Path("outputs/B0ABC123"), mock_product_data)]
@@ -578,6 +583,7 @@ async def test_pipeline_with_no_ready_products(orchestrator, mock_video_config):
             ],
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
         mock_discover.return_value = []  # No ready products
 
         summary = await orchestrator.run_pipeline()

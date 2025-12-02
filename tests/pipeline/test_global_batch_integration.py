@@ -156,6 +156,7 @@ async def test_pipeline_with_product_ids_only(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[product1], [product2]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff phase - both products ready
         mock_discover.return_value = [
@@ -235,6 +236,7 @@ async def test_pipeline_with_keywords_only(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[product1], [product2]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff phase
         mock_discover.return_value = [
@@ -312,6 +314,7 @@ async def test_pipeline_with_mixed_input(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[direct_product], [keyword_product]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff - both ready
         mock_discover.return_value = [
@@ -374,6 +377,7 @@ async def test_pipeline_fail_fast_at_scraping_phase(
             RuntimeError("Scraping failed"),  # Second fails
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Execute pipeline - should raise due to fail-fast
         with pytest.raises(RuntimeError, match="Scraping failed"):
@@ -421,6 +425,7 @@ async def test_pipeline_fail_fast_at_production_phase(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[product1], [product2]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff
         mock_discover.return_value = [
@@ -478,6 +483,7 @@ async def test_pipeline_graceful_continuation_on_failures(
             [product3],  # Third succeeds
         ]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Execute pipeline - should complete despite failure
         summary = await orchestrator.run_pipeline()
@@ -536,6 +542,7 @@ async def test_pipeline_with_random_profile_selection(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[product1], [product2]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff
         mock_discover.return_value = [
@@ -614,6 +621,7 @@ async def test_pipeline_with_zero_products_ready_for_production(
         mock_scraper = Mock()
         mock_scraper.scrape_products.side_effect = [[product1], [product2]]
         mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
 
         # Mock handoff - no products ready (empty list)
         mock_discover.return_value = []

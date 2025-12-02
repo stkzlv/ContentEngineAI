@@ -940,7 +940,7 @@ class VideoConfig(BaseModel):
                     "two_part_subtitles", {}
                 )
                 .get("upper_line", {})
-                .get("margin", 0.03),
+                .get("margin", 0.08),
                 "two_part_subtitles_upper_font_size_scale": self.subtitle_settings.get(
                     "two_part_subtitles", {}
                 )

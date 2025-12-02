@@ -387,6 +387,8 @@ batch:
   # Example: ["wireless earbuds", "bluetooth headphones", "noise cancelling headphones"]
   # Empty list means no batch processing via keywords
   keywords:
+    - "wireless earbuds"
+    - "bluetooth headphones"
     - "smart ring"
     - "blue light blocking glasses"
 

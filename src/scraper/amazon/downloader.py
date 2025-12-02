@@ -376,9 +376,26 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
 
     # Run async download helper
     try:
-        download_result = asyncio.run(
-            _download_media_async(asin, image_urls, video_urls, platform, debug_mode)
-        )
+        # Check if we're already in an async context
+        try:
+            loop = asyncio.get_running_loop()
+            # We're already in an async context, create a task
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    lambda: asyncio.run(
+                        _download_media_async(
+                            asin, image_urls, video_urls, platform, debug_mode
+                        )
+                    )
+                )
+                download_result = future.result()
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            download_result = asyncio.run(
+                _download_media_async(asin, image_urls, video_urls, platform, debug_mode)
+            )
 
         downloaded_images = download_result["downloaded_images"]
         downloaded_videos = download_result["downloaded_videos"]

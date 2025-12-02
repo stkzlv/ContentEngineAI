@@ -378,10 +378,9 @@ def validate_global_batch_config(
 
     # Validate random profile configuration
     if config.random_profile:
+        # If no profile pool specified, use all available profiles
         if not config.profile_pool:
-            raise ValueError(
-                "Random profile mode requires --profile-pool with at least one profile"
-            )
+            config.profile_pool = list(video_config.video_profiles.keys())
 
         # Validate all profiles in pool exist
         invalid_profiles = [
