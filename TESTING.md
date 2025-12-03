@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **839 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **876 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -163,7 +163,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 45.87%)
+- **Overall minimum**: 40% (currently at 46.79%)
 
 **Generate coverage report:**
 ```bash

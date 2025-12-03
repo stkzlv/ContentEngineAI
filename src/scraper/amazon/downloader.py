@@ -378,7 +378,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     try:
         # Check if we're already in an async context
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # We're already in an async context, create a task
             import concurrent.futures
 
@@ -394,7 +394,9 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
         except RuntimeError:
             # No event loop running, safe to use asyncio.run()
             download_result = asyncio.run(
-                _download_media_async(asin, image_urls, video_urls, platform, debug_mode)
+                _download_media_async(
+                    asin, image_urls, video_urls, platform, debug_mode
+                )
             )
 
         downloaded_images = download_result["downloaded_images"]

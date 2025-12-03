@@ -73,7 +73,9 @@ def mock_scraper_with_products():
         )
 
     # Configure mock to return different products based on input
-    def scrape_side_effect(keyword, search_params):
+    def scrape_side_effect(
+        keyword=None, search_params=None, max_products=None, **kwargs
+    ):
         if keyword == "B0TESTAA11":
             return [create_product("B0TESTAA11", "Test Product AA", keyword)]
         elif keyword == "B0TESTBB22":
@@ -121,7 +123,9 @@ class TestProductIDListBatch:
         """Test product ID list with some failures."""
 
         # Configure mock to fail for second product
-        def failing_side_effect(keyword, search_params):
+        def failing_side_effect(
+            keyword=None, search_params=None, max_products=None, **kwargs
+        ):
             if keyword == "B0TESTAA11":
                 return [
                     ProductData(
@@ -241,7 +245,9 @@ class TestMixedInputBatch:
         """Test that mixed input correctly deduplicates across sources."""
 
         # Configure mock to return same ASIN from both sources
-        def duplicate_side_effect(keyword, search_params):
+        def duplicate_side_effect(
+            keyword=None, search_params=None, max_products=None, **kwargs
+        ):
             # Same product returned for both product ID and keyword
             return [
                 ProductData(
@@ -440,7 +446,9 @@ class TestBatchScraperIntegration:
         # Configure mock to fail on second product
         call_count = {"count": 0}
 
-        def fail_on_second(*args, **kwargs):
+        def fail_on_second(
+            keyword=None, search_params=None, max_products=None, **kwargs
+        ):
             call_count["count"] += 1
             if call_count["count"] == 1:
                 return [
