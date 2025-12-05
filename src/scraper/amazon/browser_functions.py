@@ -269,13 +269,6 @@ def scrape_amazon_products_browser_impl(
             print("🔍 [DEBUG] Searching for product cards...")
 
         try:
-            # Get timeout from config - use shorter timeout to prevent hanging
-            global_settings = CONFIG.get("global_settings", {})
-            browser_config = global_settings.get("browser_config", {})
-            timeout = browser_config.get(
-                "search_result_timeout", 5
-            )  # Reduced from 10 to 5
-
             # Get search result selector from config - try more specific selectors first
 
             # More comprehensive list of selectors for Amazon search results
