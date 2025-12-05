@@ -169,9 +169,12 @@ subtitle_settings:
       # Position anchor for upper line
       anchor: "above_content"
       # Spacing from content as fraction of frame height (0.0-0.5)
-      margin: 0.03
+      # IMPORTANT: Must be large enough to prevent overlap with video content
+      # For video_top_position_percent=0.20 (20%), margin should be >=0.08 (8%)
+      # to avoid subtitle overlap (0.20 - 0.08 = 0.12 = 12% position, well above 20% content)
+      margin: 0.08
       # Font size relative to main subtitles (0.5-2.0)
-      font_size_scale: 0.8
+      font_size_scale: 0.75
       # Style preset for upper line (minimal, modern, bold, animated, random)
       style_preset: "minimal"
       # Custom styling (optional, overrides preset)

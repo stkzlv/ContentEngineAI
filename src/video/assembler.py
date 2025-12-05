@@ -2520,7 +2520,7 @@ class VideoAssembler:
 
                 upper_settings["style_preset"] = style_preset
                 upper_settings["anchor"] = upper_config.get("anchor", "above_content")
-                upper_settings["margin"] = upper_config.get("margin", 0.03)
+                upper_settings["margin"] = upper_config.get("margin", 0.08)
                 upper_settings["font_size_scale"] = upper_config.get(
                     "font_size_scale", 0.8
                 )

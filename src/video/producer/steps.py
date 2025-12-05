@@ -542,7 +542,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         "two_part_subtitles_upper_anchor", "above_content"
                     ),
                     "margin": merged_profile_settings.get(
-                        "two_part_subtitles_upper_margin", 0.03
+                        "two_part_subtitles_upper_margin", 0.08
                     ),
                     "font_size_scale": merged_profile_settings.get(
                         "two_part_subtitles_upper_font_size_scale", 0.75

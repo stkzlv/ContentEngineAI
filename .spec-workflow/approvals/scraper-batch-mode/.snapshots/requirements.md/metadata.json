@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/scraper-batch-mode/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-11-29T08:57:36.073Z",
+      "trigger": "initial",
+      "approvalId": "approval_1764406656065_nd9jdj02z",
+      "approvalTitle": "Scraper Batch Mode Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-11-29T09:06:49.479Z",
+      "trigger": "approved",
+      "approvalId": "approval_1764406656065_nd9jdj02z",
+      "approvalTitle": "Scraper Batch Mode Requirements"
+    }
+  ]
+}

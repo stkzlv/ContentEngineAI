@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **805 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **876 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -96,7 +96,14 @@ tests/
 ├── scraper/
 │   ├── test_config_models.py        # Pydantic config models (41 tests)
 │   ├── test_video_integration.py    # Video pipeline integration (16 tests)
-│   └── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
+│   ├── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
+│   ├── test_batch_controller.py     # Batch mode unit tests (20 tests)
+│   └── test_batch_integration.py    # Batch mode integration tests (14 tests)
+│
+├── # Producer Tests
+├── video/producer/
+│   ├── test_profile_selection.py    # Profile selection utilities (24 tests)
+│   └── test_batch_profile_integration.py # Batch profile randomization (16 tests)
 │
 ├── # Pipeline Tests
 ├── test_pipeline_graph.py           # Pipeline dependencies
@@ -156,7 +163,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 45.20%)
+- **Overall minimum**: 40% (currently at 46.79%)
 
 **Generate coverage report:**
 ```bash
@@ -288,19 +295,35 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 805 collected
-- **Passing**: 777 tests
+- **Total Tests**: 879 collected
+- **Passing**: 844 tests
 - **Skipped**: 28 tests
-- **Failed**: 0 tests
-- **Coverage**: 45.20% (target: 40% minimum)
+- **Failed**: 7 tests (integration test mock fixtures)
+- **Coverage**: 46.36% (target: 40% minimum)
 
-**Recent Updates:**
-- ✅ Added comprehensive Pydantic config model tests (41 new tests)
+**Recent Updates (v0.16.0):**
+- ✅ Added producer batch profile randomization tests (40 new tests)
+  - 24 unit tests for profile selection utilities (test_profile_selection.py)
+  - 16 integration tests for batch workflows (test_batch_profile_integration.py)
+- ✅ Tests cover deterministic selection, configuration precedence, usage tracking
+- ✅ Tests verify profile pool validation and error handling
+- ✅ Fixed outdated BatchConfig test parameters (products_per_keyword)
+  - Updated 20 tests in test_batch_controller.py
+  - Updated 9 tests in test_batch_integration.py
+- ✅ Total tests: 879 collected
+
+**Previous Updates (v0.15.0):**
+- ✅ Added batch mode scraper tests (34 new tests: 20 unit + 14 integration)
 - ✅ Achieved 100% coverage for src/scraper/config_models.py
+- ✅ BatchController coverage: 88%
+- ✅ Tests for batch product ID lists, keyword lists, and mixed input
+- ✅ Tests for configuration precedence (CLI > YAML > Defaults)
+- ✅ Tests for deduplication, fail-fast, and progress tracking
+
+**Previous Updates (v0.14.0):**
+- ✅ Added comprehensive Pydantic config model tests (41 tests)
 - ✅ Tests for concurrent download configuration (image/video semaphores)
 - ✅ Validation testing for all Pydantic Field constraints
-- ✅ Coverage increased from 44.10% to 45.20%
-- ✅ All 805 tests passing (777 passed, 28 skipped)
 
 **Previous Updates (v0.11.0):**
 - ✅ Added M3U8/HLS video extraction tests (20 tests)

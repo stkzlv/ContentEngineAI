@@ -2,6 +2,7 @@
 """Producer utility functions for logging and validation."""
 
 import logging
+import random
 from pathlib import Path
 
 from src.utils import ensure_dirs_exist
@@ -174,3 +175,155 @@ def validate_media_requirements(
         f"{len(stock_media)} stock items"
     )
     return (True, msg)
+
+
+# Profile Selection Utilities (Requirement 2.3, 3.3)
+
+
+class ProfileUsageTracker:
+    """Tracks profile usage statistics across batch processing.
+
+    Maintains counts of how many times each profile was selected
+    and provides formatted summary output.
+    """
+
+    def __init__(self) -> None:
+        """Initialize empty usage tracker."""
+        self._usage_counts: dict[str, int] = {}
+
+    def record_usage(self, profile_name: str) -> None:
+        """Record that a profile was used.
+
+        Args:
+        ----
+            profile_name: Name of the profile that was selected
+
+        """
+        self._usage_counts[profile_name] = self._usage_counts.get(profile_name, 0) + 1
+
+    def get_counts(self) -> dict[str, int]:
+        """Get usage counts for all profiles.
+
+        Returns
+        -------
+            Dictionary mapping profile names to usage counts
+
+        """
+        return self._usage_counts.copy()
+
+    def format_summary(self) -> str:
+        """Format usage statistics as a human-readable summary.
+
+        Returns
+        -------
+            Formatted string showing profile distribution
+
+        """
+        if not self._usage_counts:
+            return "No profile usage recorded"
+
+        total = sum(self._usage_counts.values())
+        lines = ["Profile Distribution:"]
+
+        for profile_name, count in sorted(
+            self._usage_counts.items(), key=lambda x: x[1], reverse=True
+        ):
+            percentage = (count / total) * 100
+            lines.append(f"  - {profile_name}: {count} ({percentage:.1f}%)")
+
+        return "\n".join(lines)
+
+
+def select_profile_for_product(
+    product_id: str,
+    profile_pool: list[str],
+    config: VideoConfig,
+) -> str:
+    """Select a profile for a product using deterministic random selection.
+
+    Uses the product ID as a seed to ensure the same product always
+    gets the same profile (deterministic behavior for reproducibility).
+
+    Args:
+    ----
+        product_id: Unique product identifier (ASIN or similar)
+        profile_pool: List of available profile names to choose from
+        config: VideoConfig instance for profile validation
+
+    Returns:
+    -------
+        Selected profile name
+
+    Raises:
+    ------
+        ValueError: If profile_pool is empty or contains invalid profiles
+
+    """
+    if not profile_pool:
+        raise ValueError("Profile pool cannot be empty")
+
+    # Validate all profiles exist in config
+    invalid_profiles = [p for p in profile_pool if p not in config.video_profiles]
+    if invalid_profiles:
+        available = list(config.video_profiles.keys())
+        raise ValueError(
+            f"Invalid profiles in pool: {invalid_profiles}. "
+            f"Available profiles: {available}"
+        )
+
+    # Use hash of product ID for deterministic seeding
+    seed = hash(product_id)
+    rng = random.Random(seed)  # noqa: S311
+
+    # Select profile deterministically
+    selected = rng.choice(profile_pool)
+
+    return selected
+
+
+def load_profile_pool(
+    cli_pool: list[str] | None,
+    yaml_pool: list[str] | None,
+    config: VideoConfig,
+) -> list[str]:
+    """Load profile pool with CLI > YAML > all profiles precedence.
+
+    Implements 3-tier configuration precedence:
+    1. CLI --profile-pool argument (highest priority)
+    2. YAML profile_pool configuration
+    3. All available profiles from config (lowest priority)
+
+    Args:
+    ----
+        cli_pool: Profile pool from CLI --profile-pool argument
+        yaml_pool: Profile pool from YAML configuration
+        config: VideoConfig instance containing available profiles
+
+    Returns:
+    -------
+        List of profile names to use for random selection
+
+    Raises:
+    ------
+        ValueError: If any profiles in pool are invalid
+
+    """
+    # Apply precedence: CLI > YAML > all profiles
+    if cli_pool is not None:
+        pool = cli_pool
+    elif yaml_pool is not None and len(yaml_pool) > 0:
+        pool = yaml_pool
+    else:
+        # Default to all available profiles
+        pool = list(config.video_profiles.keys())
+
+    # Validate all profiles exist
+    invalid_profiles = [p for p in pool if p not in config.video_profiles]
+    if invalid_profiles:
+        available = list(config.video_profiles.keys())
+        raise ValueError(
+            f"Invalid profiles in pool: {invalid_profiles}. "
+            f"Available profiles: {available}"
+        )
+
+    return pool

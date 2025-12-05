@@ -5,21 +5,21 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.14.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.15.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.14.0)**: Async I/O architecture, Pydantic configuration models, and type-safe scraper settings with improved performance.
+> **🚀 Latest Update (v0.15.0)**: Complete batch processing system with unified scrape-then-produce workflow, random profile selection, and deterministic product-to-profile assignment.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
 ## ✨ Key Features
 
 - **🤖 End-to-End Automation**: Complete video production from scraping to final output
+- **📦 Batch Processing**: Process hundreds of products with unified scrape + produce pipeline
+- **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎥 Advanced Video Extraction**: M3U8/HLS support with strict quality filtering and deduplication
-- **🎬 Product Video Modes**: Sequential assembly, gallery transitions, and image-only slideshows
+- **🎥 Product Video Assembly**: 4 modes with aspect ratio handling and audio control
 - **🎯 Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
-- **🎵 Stock Music**: Freesound.org integration with OAuth2 auth and local fallback
 - **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
 
 ## 🚀 Quick Start
@@ -34,16 +34,51 @@ cp .env.example .env  # Configure API keys
 poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
 
-# 3. Batch process multiple products
-poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
+# 3. Unified batch pipeline (scrape + produce in one command)
+poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --profile slideshow_images1 --debug
 ```
 
 **📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
 
+## 🔄 Batch Processing
+
+<details>
+<summary><strong>Process multiple products efficiently</strong></summary>
+
+### Quick Examples
+
+**Scraper Batch** - Multiple products:
+```bash
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0ASIN1 B0ASIN2 \
+  --keywords "wireless earbuds" \
+  --debug
+```
+
+**Producer Batch** - All scraped products:
+```bash
+poetry run python -m src.video.producer \
+  --batch \
+  --batch-profile slideshow_images1 \
+  --debug
+```
+
+**Global Pipeline** - End-to-end automation:
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --keywords "bluetooth speaker" \
+  --profile video_sequential \
+  --debug
+```
+
+**📖 Complete Batch Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md)
+
+</details>
+
 ## 🏗️ Architecture
 
 <details>
-<summary>Pipeline Overview</summary>
+<summary><strong>Pipeline Overview</strong></summary>
 
 ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
 
@@ -59,14 +94,18 @@ graph TD
 ```
 
 **📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+
 </details>
 
 ## 📚 Documentation
 
+### Core Documentation
+
 | Guide | Description |
 |-------|-------------|
 | **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
-| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Complete configuration reference and options |
+| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Configuration reference and options |
+| **[🔄 BATCH_PROCESSING.md](BATCH_PROCESSING.md)** | Batch processing workflows and automation |
 | **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
 | **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
 
@@ -110,6 +149,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🔄 Batch Processing](BATCH_PROCESSING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

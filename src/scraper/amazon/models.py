@@ -184,3 +184,55 @@ class SearchParameters(BaseSearchParameters):
     def encode_brand_filter(self) -> list[str]:
         """Encode brand filters for Amazon p_89 parameter."""
         return [f"p_89:{brand.replace(' ', '+')}" for brand in self.brands]
+
+
+# Batch Processing Data Models
+
+
+@dataclass
+class BatchConfig:
+    """Batch processing configuration.
+
+    Defines configuration for batch scraping operations including
+    product IDs, keywords, error handling, and search parameters.
+    """
+
+    product_ids: list[str]  # Product IDs (ASINs) to scrape
+    keywords: list[str]  # Keywords to search
+    fail_fast: bool  # Stop on first failure
+    search_params: SearchParameters  # Filters for keyword searches
+    max_products: int  # Max products across all sources
+    products_per_keyword: int  # Max products per keyword/product ID
+
+
+@dataclass
+class BatchSummary:
+    """Batch execution summary.
+
+    Contains comprehensive statistics about a batch scraping operation
+    including counts, failures, and media collection statistics.
+    """
+
+    total_attempted: int  # Total products attempted
+    product_ids_attempted: int  # Product IDs attempted
+    keywords_attempted: int  # Keywords attempted
+    successful: int  # Successfully scraped
+    failed: int  # Failed scrapes
+    failed_products: list[str]  # ASINs of failed products
+    media_stats: dict[str, int | float]  # Media collection statistics
+    duration_sec: float  # Total batch duration
+
+
+@dataclass
+class ProductResult:
+    """Individual product scraping result.
+
+    Represents the outcome of scraping a single product,
+    including success status and any error information.
+    """
+
+    product_id: str  # ASIN or keyword
+    success: bool  # Scraping succeeded
+    data: ProductData | None  # Product data if successful
+    error: str | None  # Error message if failed
+    source: str  # "product_id" or "keyword"

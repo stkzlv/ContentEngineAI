@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/global-pipeline-batch-mode/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-11-29T09:39:17.199Z",
+      "trigger": "initial",
+      "approvalId": "approval_1764409157195_ldqo943zy",
+      "approvalTitle": "Global Pipeline Batch Mode Design"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-11-29T09:39:19.785Z",
+      "trigger": "approved",
+      "approvalId": "approval_1764409157195_ldqo943zy",
+      "approvalTitle": "Global Pipeline Batch Mode Design"
+    }
+  ]
+}

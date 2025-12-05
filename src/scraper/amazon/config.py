@@ -213,6 +213,114 @@ def get_default_search_parameters():
         return SearchParameters()
 
 
+def load_batch_config(
+    cli_product_ids: list[str] | None = None,
+    cli_keywords: list[str] | None = None,
+    cli_fail_fast: bool | None = None,
+    cli_max_products: int | None = None,
+    cli_products_per_keyword: int | None = None,
+) -> "BatchConfig":  # type: ignore[name-defined] # noqa: F821
+    """Load batch configuration with CLI > YAML > Defaults precedence.
+
+    Implements 3-tier configuration precedence:
+    1. CLI arguments (highest priority)
+    2. YAML configuration
+    3. Default values (lowest priority)
+
+    Args:
+    ----
+        cli_product_ids: Product IDs from CLI --product-ids argument
+        cli_keywords: Keywords from CLI --keywords argument
+        cli_fail_fast: Fail-fast flag from CLI --fail-fast argument
+        cli_max_products: Max products from CLI --max-products argument
+        cli_products_per_keyword: Products per keyword from CLI argument
+
+    Returns:
+    -------
+        BatchConfig instance with merged configuration from all sources
+
+    Raises:
+    ------
+        ValueError: If both product_ids and keywords are empty after merge
+
+    """
+    from .models import BatchConfig
+
+    # Load YAML batch configuration with defaults
+    yaml_batch = CONFIG.get("batch", {})
+    yaml_product_ids = yaml_batch.get("product_ids", [])
+    yaml_keywords = yaml_batch.get("keywords", [])
+    yaml_fail_fast = yaml_batch.get("fail_fast", False)
+    yaml_products_per_keyword = yaml_batch.get("products_per_keyword", 2)
+
+    # Load max_products from scrapers.amazon config
+    yaml_max_products = (
+        CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 10)
+    )
+
+    # Apply CLI > YAML > Defaults precedence
+    product_ids = cli_product_ids if cli_product_ids is not None else yaml_product_ids
+    keywords = cli_keywords if cli_keywords is not None else yaml_keywords
+    fail_fast = cli_fail_fast if cli_fail_fast is not None else yaml_fail_fast
+    max_products = (
+        cli_max_products if cli_max_products is not None else yaml_max_products
+    )
+    products_per_keyword = (
+        cli_products_per_keyword
+        if cli_products_per_keyword is not None
+        else yaml_products_per_keyword
+    )
+
+    # Validate lists
+    if not isinstance(product_ids, list):
+        raise ValueError(f"product_ids must be a list, got {type(product_ids)}")
+    if not isinstance(keywords, list):
+        raise ValueError(f"keywords must be a list, got {type(keywords)}")
+
+    # Get search parameters for keyword searches
+    search_params = get_default_search_parameters()
+
+    # Create BatchConfig instance
+    batch_config = BatchConfig(
+        product_ids=product_ids,
+        keywords=keywords,
+        fail_fast=fail_fast,
+        search_params=search_params,
+        max_products=max_products,
+        products_per_keyword=products_per_keyword,
+    )
+
+    return batch_config
+
+
+def get_batch_logging_config() -> dict[str, str | int]:
+    """Get batch logging configuration from YAML.
+
+    Returns
+    -------
+        Dictionary with batch logging settings:
+        - separator_char: str
+        - separator_width: int
+        - duration_decimal_places: int
+        - media_stats_decimal_places: int
+
+    """
+    yaml_batch = CONFIG.get("batch", {})
+    logging_config = yaml_batch.get("logging", {})
+
+    separator_char: str = logging_config.get("separator_char", "=")
+    separator_width: int = logging_config.get("separator_width", 60)
+    duration_decimal: int = logging_config.get("duration_decimal_places", 2)
+    media_stats_decimal: int = logging_config.get("media_stats_decimal_places", 2)
+
+    return {
+        "separator_char": separator_char,
+        "separator_width": separator_width,
+        "duration_decimal_places": duration_decimal,
+        "media_stats_decimal_places": media_stats_decimal,
+    }
+
+
 def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
     """Load and apply YAML configuration to global browser settings using config
     adapter

@@ -198,11 +198,21 @@ class BotasaurusAmazonScraper(BaseScraper):
             return dict(yaml.safe_load(f) or {})
 
     def scrape_products_unified(
-        self, keyword: str, search_params: SearchParameters | None = None
+        self,
+        keyword: str,
+        search_params: SearchParameters | None = None,
+        max_products: int | None = None,
     ) -> list[ProductData]:
         """Unified method to scrape products in a single browser session"""
         try:
             self.logger.info(f"Starting unified scrape for keyword: {keyword}")
+
+            # Use provided max_products or fall back to config
+            products_limit = (
+                max_products
+                if max_products is not None
+                else self.amazon_config.get("max_products", 5)
+            )
 
             # Prepare data for the unified browser function
             data = {
@@ -211,7 +221,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "search_params": search_params,
                 "debug_mode": DEBUG_MODE,
                 "debug_options": self.debug_options,
-                "max_products": self.amazon_config.get("max_products", 5),
+                "max_products": products_limit,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
@@ -940,7 +950,27 @@ def main():
         "--keywords",
         nargs="+",
         required=False,
-        help="Keywords or ASINs to scrape (overrides config file)",
+        help=(
+            "Keywords or ASINs to scrape - supports multiple values "
+            "for batch mode (overrides config file)"
+        ),
+    )
+    parser.add_argument(
+        "--product-ids",
+        nargs="+",
+        required=False,
+        help=(
+            "Product IDs (ASINs) for batch scraping - supports multiple "
+            "values (e.g., --product-ids B0ABC123 B0DEF456)"
+        ),
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help=(
+            "Stop batch processing on first failure "
+            "(default: continue processing remaining items)"
+        ),
     )
     parser.add_argument(
         "--debug",
@@ -1033,8 +1063,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Load keywords from config if not provided via CLI
-    if not args.keywords:
+    # Load keywords/product_ids from config if not provided via CLI
+    if not args.keywords and not args.product_ids:
         try:
             # Handle working directory changes from Botasaurus
             project_root = Path(__file__).parent.parent.parent.parent
@@ -1043,25 +1073,54 @@ def main():
                 with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
-                amazon_config = config.get("scrapers", {}).get("amazon", {})
-                config_keywords = amazon_config.get("keywords", [])
+                # Check batch configuration first
+                batch_config = config.get("batch", {})
+                batch_product_ids = batch_config.get("product_ids", [])
+                batch_keywords = batch_config.get("keywords", [])
 
-                if config_keywords:
-                    args.keywords = config_keywords
-                    print(
-                        f"📝 Using keywords from config file: "
-                        f"{', '.join(config_keywords)}"
-                    )
+                # Use batch config if available
+                if batch_product_ids or batch_keywords:
+                    # Set to list or None (empty list = None to avoid confusion)
+                    args.product_ids = batch_product_ids or None
+                    args.keywords = batch_keywords or None
+
+                    if batch_product_ids and batch_keywords:
+                        print(
+                            f"📝 Using batch mode from config: "
+                            f"{len(batch_product_ids)} product IDs, "
+                            f"{len(batch_keywords)} keywords"
+                        )
+                    elif batch_product_ids:
+                        print(
+                            f"📝 Using batch product IDs from config: "
+                            f"{', '.join(batch_product_ids)}"
+                        )
+                    else:
+                        print(
+                            f"📝 Using batch keywords from config: "
+                            f"{', '.join(batch_keywords)}"
+                        )
                 else:
-                    print(
-                        "❌ No keywords provided via CLI and no keywords found in "
-                        "config file"
-                    )
-                    print(
-                        "💡 Either use --keywords 'your keyword' or add keywords "
-                        "to config/scraper.yaml"
-                    )
-                    return
+                    # Fallback to single-product mode keywords
+                    amazon_config = config.get("scrapers", {}).get("amazon", {})
+                    config_keywords = amazon_config.get("keywords", [])
+
+                    if config_keywords:
+                        args.keywords = config_keywords
+                        print(
+                            f"📝 Using keywords from config file: "
+                            f"{', '.join(config_keywords)}"
+                        )
+                    else:
+                        print(
+                            "❌ No keywords/product_ids provided via CLI and none "
+                            "found in config file"
+                        )
+                        print(
+                            "💡 Either use --keywords/--product-ids or add to "
+                            "batch section in config/scraper.yaml"
+                        )
+                        return
             else:
                 print("❌ No keywords provided via CLI and config file not found")
                 print("💡 Use --keywords 'your keyword' to specify what to scrape")
@@ -1273,6 +1332,9 @@ def main():
                 f"${config_defaults.max_price or '∞'}"
             )
 
+    # Detect batch mode: --product-ids provided OR multiple keywords
+    is_batch_mode = bool(args.product_ids) or (args.keywords and len(args.keywords) > 1)
+
     # Initialize and run scraper with debug override and debug options
     try:
         # Collect debug options
@@ -1289,14 +1351,53 @@ def main():
         scraper = BotasaurusAmazonScraper(
             debug_override=debug_override, debug_options=debug_options
         )
-        products = scraper.scrape_products(args.keywords, search_params)
 
-        if products:
-            print("\n✅ Scraping successful!")
-            print(f"📊 Products scraped: {len(products)}")
-            print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+        # Batch mode: use BatchController for multiple products
+        if is_batch_mode:
+            from .batch_controller import BatchController
+            from .config import load_batch_config
+
+            # Load batch configuration with CLI precedence
+            batch_config = load_batch_config(
+                cli_product_ids=args.product_ids,
+                cli_keywords=args.keywords,
+                cli_fail_fast=args.fail_fast,
+            )
+
+            # Override search parameters in batch config with CLI parameters
+            batch_config.search_params = search_params
+
+            # Instantiate and run BatchController
+            controller = BatchController(scraper, batch_config)
+            summary = controller.run_batch()
+
+            # Display final summary
+            print("\n" + "=" * 60)
+            print("✅ BATCH SCRAPING COMPLETED")
+            print("=" * 60)
+            print(f"📊 Total Attempted: {summary.total_attempted}")
+            print(f"   • Product IDs: {summary.product_ids_attempted}")
+            print(f"   • Keywords: {summary.keywords_attempted}")
+            print(f"✅ Successful: {summary.successful}")
+            print(f"❌ Failed: {summary.failed}")
+            if summary.failed_products:
+                print(f"   Failed Products: {', '.join(summary.failed_products)}")
+            print("\n📷 Media Statistics:")
+            for key, value in summary.media_stats.items():
+                print(f"   • {key}: {value}")
+            print(f"\n⏱️  Duration: {summary.duration_sec:.2f} seconds")
+            print("=" * 60)
+
+        # Single-product mode: use existing scraper.scrape_products()
         else:
-            print("\n❌ No products scraped")
+            products = scraper.scrape_products(args.keywords, search_params)
+
+            if products:
+                print("\n✅ Scraping successful!")
+                print(f"📊 Products scraped: {len(products)}")
+                print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+            else:
+                print("\n❌ No products scraped")
 
     except Exception as e:
         print(f"\n💥 Scraper failed: {e}")

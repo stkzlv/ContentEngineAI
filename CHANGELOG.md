@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2025-12-05
+
+### Added
+- **Global Batch Pipeline**: Unified scrape-then-produce workflow
+  - New `src/pipeline/global_batch.py` module (719 lines)
+  - Single command for complete batch operations: scraping + video production
+  - Inherits all scraper and producer batch features
+  - Comprehensive error handling and progress tracking
+  - 1,315 tests for end-to-end batch workflows
+
+- **Scraper Batch Mode**: Process multiple products efficiently
+  - `BatchController` for orchestrating multi-product scraping
+  - Support for product ID lists and keyword searches
+  - Configurable search filters (price range, rating, prime-only)
+  - Products-per-keyword limit for controlled scraping
+  - Deduplication across product IDs and keywords
+  - Fail-fast support for early termination on errors
+  - Detailed batch summary with media statistics
+
+- **Producer Batch Mode**: Automated video production at scale
+  - Batch processing for all scraped product data files
+  - Fixed profile or random profile selection per product
+  - Deterministic randomization with seed-based selection
+  - Configurable profile pools for controlled variety
+  - Usage tracking prevents over-selection of profiles
+  - Profile pool validation and error handling
+
+### Changed
+- **Configuration Architecture**: New batch-specific settings
+  - `config/scraper.yaml`: Batch scraping configuration
+  - `config/video_production.yaml`: Batch profile settings
+  - `config/pipeline.yaml`: Global pipeline configuration
+  - Backward-compatible with existing single-product workflows
+
+- **Subtitle Positioning**: Improved visual clarity
+  - Increased upper subtitle margin from 0.03 to 0.10
+  - Prevents overlap with video content
+  - Better separation between upper and lower subtitles
+
+### Fixed
+- **Test Suite**: Comprehensive batch testing
+  - Fixed batch integration test mock signatures
+  - All tests passing: 876 tests (0 failures)
+  - Coverage: 46.79% (exceeds 40% minimum target)
+  - New test files: `test_batch_controller.py`, `test_batch_integration.py`, `test_global_batch_*.py`
+
+- **Code Quality**: Linting and cleanup
+  - Removed unused variable in async context check
+  - All linters passing: Ruff, MyPy, Bandit, Vulture, Safety, Pytest
+
+### Documentation
+- **BATCH_PROCESSING.md**: Complete user guide for batch operations
+- **REQUIREMENTS.md**: Technical specifications for batch features
+- **Updated guides**: README.md, TESTING.md, CLAUDE.md with batch commands
+
+### Technical
+- **New Modules**:
+  - `src/pipeline/__init__.py` - Pipeline package initialization
+  - `src/pipeline/config.py` - Pipeline configuration loading
+  - `src/pipeline/global_batch.py` - Main orchestration logic
+  - `src/scraper/amazon/batch_controller.py` - Batch scraping controller
+  - `src/video/producer/utils.py` - Profile selection utilities
+
+- **Test Infrastructure**:
+  - 34 scraper batch tests (20 unit + 14 integration)
+  - 40 producer batch tests (24 unit + 16 integration)
+  - 1,315 global pipeline tests (677 orchestrator + 638 integration)
+  - Total: 876 tests passing
+
 ## [0.14.0] - 2025-11-27
 
 ### Added
