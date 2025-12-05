@@ -301,7 +301,7 @@ def scrape_amazon_products_browser_impl(
             # First, wait for any product content to load
             # (critical for headless mode)
             try:
-                driver.wait_for_element(product_selectors[0], timeout=timeout)
+                driver.wait_for_element(product_selectors[0])
             except Exception as e:
                 # Continue even if first selector fails
                 logger.debug(f"Initial selector wait failed: {e}")
@@ -540,7 +540,7 @@ def scrape_amazon_products_browser_impl(
                             driver.google_get(search_url, bypass_cloudflare=True)
                             driver.short_random_sleep()
                             # Re-find product cards since DOM is fresh
-                            driver.wait_for_element(search_selector, timeout)
+                            driver.wait_for_element(search_selector)
                             new_product_cards = driver.select_all(search_selector)
                             if new_product_cards and len(new_product_cards) > i:
                                 product_cards = new_product_cards

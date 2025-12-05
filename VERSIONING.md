@@ -10,6 +10,16 @@ ContentEngineAI follows [Semantic Versioning (SemVer)](https://semver.org/) prin
 - **MINOR**: New features, backward-compatible functionality
 - **PATCH**: Bug fixes, performance improvements, documentation updates
 
+### Version Sequencing
+
+**Version numbers must be sequential** - skipping versions is not allowed, even when a release contains multiple significant features. Each version increment represents a single release, regardless of the number or magnitude of changes included.
+
+**Examples:**
+- ✅ Correct: 0.14.0 → 0.15.0 (sequential)
+- ❌ Incorrect: 0.14.0 → 0.17.0 (skips 0.15.0 and 0.16.0)
+
+This ensures version consistency, predictability, and adherence to semantic versioning principles.
+
 ## Pre-Production Phase (0.x.y)
 
 **Current Status**: ContentEngineAI is in active development toward a stable 1.0.0 release.

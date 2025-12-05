@@ -29,14 +29,14 @@ poetry run python -m src.video.producer --batch --random-profile --debug
 # Batch video production (random from specific pool)
 poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 video_sequential --debug
 
-# Global batch pipeline (unified scrape + produce)
+# Global batch pipeline (fixed profile)
 poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 B0ASIN2 --profile slideshow_images1 --debug
 
-# Global batch pipeline (keywords with filters and random profiles)
+# Global batch pipeline (random profiles with filters)
 poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --max-products 10 --min-price 20 --min-rating 4.0 --random-profile --profile-pool slideshow_images1 video_sequential --debug
 
-# Global batch pipeline (mixed input with fail-fast)
-poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile product_video_hybrid --fail-fast --debug
+# Global batch pipeline (mixed mode with fail-fast)
+poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile slideshow_images1 --fail-fast --debug
 
 # Performance monitoring
 poetry run python tools/performance_report.py --report-type summary
