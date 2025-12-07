@@ -90,6 +90,77 @@ class VideoSettings(BaseModel):
         "cache/videos", description="Directory for cached normalized videos"
     )
 
+    # Subtitle space calculation
+    reserved_space_font_multiplier: float = Field(
+        1.3,
+        description=(
+            "Font height multiplier for calculating subtitle reserved space. "
+            "Determines how much vertical space to reserve for subtitles "
+            "based on font size. Higher values = more reserved space."
+        ),
+    )
+    default_subtitle_reserved_space: float = Field(
+        0.15,
+        description=(
+            "Default subtitle reserved space as fraction of frame height "
+            "(0.0-1.0). Fallback value used when subtitle settings are "
+            "unavailable. Affects vertical positioning of video content."
+        ),
+    )
+
+    # Video content positioning defaults
+    video_top_position_percent: float = Field(
+        0.10,
+        description=(
+            "Default top position for video content as fraction of frame "
+            "height (0.0-1.0). Controls where video content starts vertically "
+            "when no profile override exists. "
+            "Lower values = content positioned higher on frame."
+        ),
+    )
+    video_content_height_percent: float = Field(
+        0.75,
+        description=(
+            "Default height for video content as fraction of frame height "
+            "(0.0-1.0). Determines vertical space allocated to video content. "
+            "Larger values = more space for video, less for subtitles/borders."
+        ),
+    )
+
+    # Video duration constraints
+    min_trimmed_video_duration: float = Field(
+        0.1,
+        description="Minimum duration in seconds for trimmed video clips. "
+        "Videos trimmed shorter than this will be rejected. "
+        "Prevents extremely short clips that may cause playback issues.",
+    )
+    min_last_video_duration: float = Field(
+        0.5,
+        description="Minimum duration in seconds for the last video in a sequence. "
+        "Last video must be at least this long after trimming. "
+        "Ensures smooth ending without abrupt cuts.",
+    )
+
+    # FPS settings for video normalization
+    target_fps: float = Field(
+        30.0,
+        description="Target frame rate for video normalization. "
+        "Videos with different FPS will be converted to this rate. "
+        "Standard value is 30.0 for consistent playback.",
+    )
+    fps_tolerance: float = Field(
+        0.1,
+        description="Acceptable FPS difference threshold for normalization checks. "
+        "If actual FPS differs from target by more than this, normalization occurs. "
+        "Prevents unnecessary re-encoding for minor FPS variations.",
+    )
+    default_fps_string: str = Field(
+        "30/1",
+        description="FFmpeg format string for default frame rate. "
+        "Used in FFmpeg filters (format: numerator/denominator). "
+        "Must match target_fps value.",
+    )
+
     @model_validator(mode="after")
     def validate_resolution(self) -> "VideoSettings":
         width, height = self.resolution
