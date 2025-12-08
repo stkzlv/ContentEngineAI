@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **876 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **839 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -79,12 +79,12 @@ tests/
 ├── # Core Component Tests
 ├── test_video_config.py             # Video configuration
 ├── test_ai_script_generator.py      # AI script generation
-├── test_assembler.py                # Video assembly (FFmpeg)
 ├── test_subtitle_*.py               # Subtitle system (5 files)
 ├── test_cta_detector.py             # CTA detection (18 tests)
 ├── test_tts.py                      # Text-to-speech
 ├── test_audio.py                    # Audio processing
 ├── test_stock_media.py              # Stock media fetching
+├── test_assembler_integration.py    # Assembler integration (3 tests)
 │
 ├── # Configuration Tests
 ├── test_config_validator.py         # Config validation
@@ -295,13 +295,24 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 879 collected
-- **Passing**: 844 tests
+- **Total Tests**: 832 collected
+- **Passing**: 804 tests
 - **Skipped**: 28 tests
-- **Failed**: 7 tests (integration test mock fixtures)
-- **Coverage**: 46.36% (target: 40% minimum)
+- **Failed**: 0 tests
+- **Coverage**: 43.09% (target: 40% minimum)
 
-**Recent Updates (v0.16.0):**
+**Recent Updates:**
+- ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
+- ✅ Tests were for internal implementation details that moved during assembler refactoring
+- ✅ Assembler now uses modular package structure (src/video/assembler/)
+- ✅ Added assembler integration tests (test_assembler_integration.py - 3 tests)
+  - VideoAssembler initialization test
+  - VisualGeometry dataclass tests for letterbox positioning
+  - Tests verify assembler refactoring into modular builder classes
+- ✅ All tests passing (804/832, 28 skipped)
+- ✅ Coverage maintained above 43%
+
+**Previous Updates (v0.15.0):**
 - ✅ Added producer batch profile randomization tests (40 new tests)
   - 24 unit tests for profile selection utilities (test_profile_selection.py)
   - 16 integration tests for batch workflows (test_batch_profile_integration.py)

@@ -144,3 +144,39 @@ whisper_settings:
   # Enable automatic resource cleanup after processing
   enable_resource_cleanup: true
 
+# ============================================================================
+# AUDIO PROCESSING SETTINGS
+# ============================================================================
+audio_processing:
+  # Enable/disable Coqui TTS GPU acceleration
+  coqui_gpu_enabled: false
+
+  # Audio encoding for Google TTS output
+  google_tts_audio_encoding: "LINEAR16"
+
+  # Minimum valid audio file size in bytes
+  min_audio_file_size_bytes: 100
+
+  # Timeout for audio validation operations
+  audio_validation_timeout_sec: 30
+
+  # ---- Silence Removal Settings ----
+  # These settings control automatic silence trimming from TTS-generated voiceovers
+  # CRITICAL: Ensures Whisper STT timestamps align with actual audio
+  # Whisper normalizes timestamps to start at 0 (first detected speech)
+  # Without trimming, subtitles will appear before actual speech starts
+
+  # Enable/disable silence trimming (RECOMMENDED: true)
+  silence_removal_enabled: true
+
+  # Silence detection threshold in decibels
+  # Lower values = more sensitive (detects quieter silence)
+  # -40dB catches most background silence while preserving speech
+  # Range: -60 (very sensitive) to -20 (only very quiet silence)
+  silence_threshold_db: -40
+
+  # Minimum duration to consider as silence (seconds)
+  # Prevents removing very brief pauses between words
+  # 0.1s = 100ms is optimal for natural speech cadence
+  silence_min_duration_sec: 0.1
+

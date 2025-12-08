@@ -418,12 +418,14 @@ class UnifiedSubtitleGenerator:
                     segment_end = current_words[-1]["end_time"]
                     segment_duration = segment_end - current_start
 
-                    # Apply minimum duration
+                    # Apply minimum duration, but prevent overlap with next word
                     if (
                         segment_duration < self.config.min_duration
                         and current_start is not None
                     ):
-                        segment_end = current_start + self.config.min_duration
+                        proposed_end = current_start + self.config.min_duration
+                        # Ensure we don't overlap with next word's start time
+                        segment_end = min(proposed_end, start_time)
 
                     # Respect voiceover duration
                     if voiceover_duration:

@@ -490,7 +490,7 @@ video_profiles:
 
     two_part_subtitles_lower_enabled: true
     two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
-    two_part_subtitles_lower_margin: 0.05
+    two_part_subtitles_lower_margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
@@ -530,7 +530,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.06
+    two_part_subtitles_upper_margin: 0.04
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
     two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
@@ -545,7 +545,7 @@ video_profiles:
     subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
-    subtitle_margin: 0.05                    # Small gap below images (5% of frame = 96px spacing)
+    subtitle_margin: 0.04                    # Small gap below images (4% of frame = ~77px spacing)
 
     # Lower line styling (voiceover subtitles)
     subtitle_style_preset: "modern"
@@ -602,7 +602,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
     two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.10                    # Gap above content (10% spacing)
+    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"
     two_part_subtitles_upper_use_full_duration: false
@@ -611,12 +611,12 @@ video_profiles:
 
     two_part_subtitles_lower_enabled: true
     two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.10                    # Gap below content (10% spacing)
+    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.10                    # Gap below content (10% = ~192px spacing from image bottom)
+    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -661,7 +661,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
     two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.08                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"
     two_part_subtitles_upper_use_full_duration: false
@@ -670,12 +670,12 @@ video_profiles:
 
     two_part_subtitles_lower_enabled: true
     two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.05                    # Gap below content (3% spacing)
+    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.03                    # Gap below content (3% = ~58px spacing from image bottom)
+    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"
@@ -721,7 +721,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
     two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.08                    # Gap above content (3% spacing)
+    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"
     two_part_subtitles_upper_use_full_duration: false
@@ -730,12 +730,12 @@ video_profiles:
 
     two_part_subtitles_lower_enabled: true
     two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.05                    # Gap below content (3% spacing)
+    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
     subtitle_anchor: "below_content"
-    subtitle_margin: 0.03                    # Gap below content (3% = ~58px spacing from image bottom)
+    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_style_preset: "bold"

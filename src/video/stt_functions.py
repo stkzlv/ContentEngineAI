@@ -429,7 +429,11 @@ def _transcribe_helper(audio_path: str, options: dict):
 
 
 def _extract_word_timings(whisper_result: dict) -> list[dict[str, Any]]:
-    """Extract word-level timings from Whisper result."""
+    """Extract word-level timings from Whisper result.
+
+    Note: Whisper provides absolute timestamps relative to the audio file,
+    including any leading silence. No offset adjustment is needed.
+    """
     word_timings: list[dict[str, Any]] = []
 
     if not whisper_result or "segments" not in whisper_result:

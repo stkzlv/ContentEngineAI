@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2025-12-08
+
+### Changed
+- **Assembler Refactoring**: Modular architecture for video assembly
+  - Split monolithic `assembler.py` (3,311 lines) into 7 focused modules
+  - `core.py` - VideoAssembler orchestrator (~690 lines)
+  - `visual_builder.py` - Visual filter chains (~590 lines)
+  - `subtitle_builder.py` - Subtitle positioning (~850 lines)
+  - `audio_builder.py` - Audio filter chains (~200 lines)
+  - `video_strategies.py` - Video mode strategies (~665 lines)
+  - `media_inspector.py` - Media file inspection (~170 lines)
+  - `subtitle_utils.py` - Subtitle parsing/styling (~280 lines)
+  - Improved maintainability and separation of concerns
+  - 100% backward compatibility via `__init__.py` re-exports
+
+### Fixed
+- **Subtitle Positioning**: Fixed letterboxed video positioning
+  - Return actual geometry from `apply_aspect_ratio_mode` for letterbox videos
+  - Compute real scaled dimensions and position based on FFmpeg output
+  - Prefer actual geometry over config-based positioning
+  - Subtitles now correctly positioned relative to letterboxed content
+  - Fixes subtitles being placed too far from ultra-wide videos in portrait frames
+
+### Added
+- **Assembler Integration Tests**: Basic validation for refactored architecture
+  - VideoAssembler initialization test
+  - VisualGeometry dataclass tests for letterbox positioning
+  - 3 new integration tests added to test suite
+
 ## [0.15.0] - 2025-12-05
 
 ### Added

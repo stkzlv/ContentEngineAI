@@ -141,3 +141,25 @@ class AudioProcessingSettings(BaseModel):
     google_tts_audio_encoding: str = Field("LINEAR16")
     min_audio_file_size_bytes: int = Field(100)
     audio_validation_timeout_sec: int = Field(30)
+
+    # Silence removal settings for TTS voiceover trimming
+    # These settings ensure Whisper STT timestamps align with actual audio
+    # Whisper normalizes timestamps to start at first detected speech
+    silence_removal_enabled: bool = Field(
+        True,
+        description="Enable silence trimming from TTS-generated voiceover. "
+        "CRITICAL: Whisper STT normalizes timestamps to start at 0, removing "
+        "leading silence offset. If disabled, subtitles will desync with audio.",
+    )
+    silence_threshold_db: int = Field(
+        -40,
+        description="dB threshold for silence detection. Lower = more sensitive. "
+        "-40dB catches most background silence while preserving speech. "
+        "Range: -60 (very sensitive) to -20 (only very quiet silence).",
+    )
+    silence_min_duration_sec: float = Field(
+        0.1,
+        description="Minimum duration in seconds to consider as silence. "
+        "Prevents removing very brief pauses between words. "
+        "0.1s = 100ms is optimal for natural speech cadence.",
+    )

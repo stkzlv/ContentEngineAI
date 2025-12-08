@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from src.utils import MAX_FILENAME_LENGTH
 from src.video.config.audio_models import (
+    AudioProcessingSettings,
     AudioSettings,
     GoogleCloudSTTSettings,
     TTSConfig,
@@ -40,12 +41,16 @@ from src.video.config.constants import (
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
 )
-
-# Subtitle/video models defined locally in this file
+from src.video.config.subtitle_models import (
+    SubtitleEffectsSettings,
+    SubtitleSegmentationSettings,
+)
 from src.video.config.visual_models import (
     CTADetectionSettings,
     MediaSettings,
+    MediaValidationSettings,
     StockMediaSettings,
+    VideoProcessingSettings,
     VideoProfile,
     VideoSettings,
 )
@@ -102,6 +107,12 @@ class FFmpegSettings(BaseModel):
     intermediate_segment_preset: str = Field("ultrafast")
     final_assembly_timeout_sec: int = Field(600)
     rw_timeout_microseconds: int = Field(30000000)  # 30 seconds for I/O operations
+    verification_timeout_sec: int = Field(
+        30,
+        description="Timeout in seconds for video verification subprocess. "
+        "Controls how long to wait for ffprobe verification before failing. "
+        "Increase if verifying very large or slow-to-probe videos.",
+    )
 
 
 class AttributionSettings(BaseModel):
@@ -172,27 +183,6 @@ class TextProcessingSettings(BaseModel):
     subtitle_min_segment_gap_sec: float = Field(0.1)
 
 
-class AudioProcessingSettings(BaseModel):
-    """Configuration for audio processing and TTS settings."""
-
-    coqui_gpu_enabled: bool = Field(False)
-    google_tts_audio_encoding: str = Field("LINEAR16")
-    min_audio_file_size_bytes: int = Field(100)
-    audio_validation_timeout_sec: int = Field(30)
-
-
-class VideoProcessingSettings(BaseModel):
-    """Configuration for video processing and FFmpeg operations."""
-
-    ffmpeg_probe_streams: str = Field("v:0")
-    ffmpeg_probe_entries: str = Field("stream=width,height")
-    ffmpeg_probe_format: str = Field("csv=s=x:p=0")
-    video_stream_check_timeout_sec: int = Field(30)
-    min_frame_count: int = Field(1)
-    visual_aspect_ratio_tolerance: float = Field(0.01)
-    visual_scaling_precision: int = Field(2)
-
-
 class FilesystemSettings(BaseModel):
     """Configuration for file system operations and supported formats."""
 
@@ -206,80 +196,6 @@ class FilesystemSettings(BaseModel):
         [".mp4", ".avi", ".mov", ".mkv", ".webm"]
     )
     supported_audio_extensions: list[str] = Field([".wav", ".mp3", ".aac", ".flac"])
-
-
-class SubtitleEffectsSettings(BaseModel):
-    """Configuration for ASS subtitle effects and animations."""
-
-    # Karaoke timing parameters
-    karaoke_timing_min_ms: int = Field(
-        20, description="Minimum karaoke timing per word in milliseconds"
-    )
-    karaoke_timing_max_ms: int = Field(
-        200, description="Maximum karaoke timing per word in milliseconds"
-    )
-
-    # Karaoke visual effect parameters
-    karaoke_primary_color: str = Field(
-        "&H00FFFFFF", description="Primary color (before sweep, ASS format)"
-    )
-    karaoke_secondary_color: str = Field(
-        "&H0000FFFF", description="Secondary color (fill during sweep, ASS format)"
-    )
-    karaoke_outline_color: str | None = Field(
-        None, description="Outline color for karaoke (optional, ASS format)"
-    )
-    karaoke_use_fill: bool = Field(
-        True, description="Use \\kf (fill) instead of \\k (timing only)"
-    )
-
-    # Effect duration factors (multiplied by segment duration)
-    pulse_duration_factor: int = Field(
-        500, description="Duration factor for pulse animations in ms"
-    )
-    bounce_duration_factor: int = Field(
-        300, description="Duration factor for bounce animations in ms"
-    )
-    glow_duration_factor: int = Field(
-        400, description="Duration factor for glow effects in ms"
-    )
-
-    # Scale effect parameters
-    pulse_scale_max: int = Field(
-        110, description="Maximum scale percentage for pulse effect"
-    )
-    pulse_scale_normal: int = Field(
-        100, description="Normal scale percentage for pulse effect"
-    )
-
-    # Movement effect parameters
-    movement_distance_pixels: int = Field(
-        50, description="Vertical movement distance in pixels for movement effect"
-    )
-
-    # Rotation bounce parameters
-    bounce_rotation_max: int = Field(
-        5, description="Maximum rotation degrees for bounce effect"
-    )
-    bounce_rotation_min: int = Field(
-        -5, description="Minimum rotation degrees for bounce effect"
-    )
-    bounce_rotation_rest: int = Field(
-        0, description="Rest rotation degrees for bounce effect"
-    )
-
-    # Typewriter effect parameters
-    typewriter_char_reveal_max_sec: float = Field(
-        0.1, description="Maximum character reveal time for typewriter effect"
-    )
-    typewriter_min_timing_ms: int = Field(
-        50, description="Minimum timing for typewriter effect in ms"
-    )
-
-    # Fade effect parameters
-    fade_duration_ms: int = Field(
-        300, description="Default fade in/out duration in milliseconds"
-    )
 
 
 class TextRenderingSettings(BaseModel):
@@ -335,24 +251,13 @@ class TextRenderingSettings(BaseModel):
     min_font_size: int = Field(16, description="Minimum font size in pixels")
     max_font_size: int = Field(100, description="Maximum font size in pixels")
 
-
-class SubtitleSegmentationSettings(BaseModel):
-    """Configuration for subtitle segmentation and text processing logic."""
-
-    # Word count thresholds
-    min_words_for_sentence_break: int = Field(
-        3, description="Minimum words required for sentence break"
-    )
-    min_words_natural_break: int = Field(
-        3, description="Minimum words for natural break"
-    )
-    min_words_duration_limit: int = Field(
-        3, description="Minimum words for duration limit break"
-    )
-
-    # Fallback duration
-    fallback_segment_duration_sec: float = Field(
-        2.5, description="Fallback segment duration in seconds"
+    # Content-aware positioning
+    content_aware_font_offset_multiplier: float = Field(
+        5.5,
+        description="Font offset multiplier for content-aware subtitle positioning. "
+        "Controls how far subtitles are offset from detected content boundaries. "
+        "Higher values = more spacing between subtitles and content. "
+        "Used in calculate_position() to avoid overlapping visual elements.",
     )
 
 
@@ -389,18 +294,6 @@ class ScraperTimingSettings(BaseModel):
     )
     human_delay_max_sec: float = Field(
         2.0, description="Maximum human-like delay in seconds"
-    )
-
-
-class MediaValidationSettings(BaseModel):
-    """Configuration for media validation thresholds."""
-
-    # Image validation parameters
-    min_high_res_dimension: int = Field(
-        1500, description="Minimum dimension for high-resolution images"
-    )
-    min_high_res_file_size: int = Field(
-        10000, description="Minimum file size for high-resolution images in bytes"
     )
 
 

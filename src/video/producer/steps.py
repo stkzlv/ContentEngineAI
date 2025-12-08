@@ -432,9 +432,50 @@ async def step_create_voiceover(ctx: PipelineContext):
         if not vo_path or not vo_path.exists():
             raise PipelineError("TTS generation failed.")
 
-        ctx.voiceover_duration = await _get_video_duration(
-            vo_path, ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
-        )
+        # Trim leading/trailing silence from voiceover
+        # Whisper normalizes timestamps to start at first speech
+        audio_proc = ctx.config.audio_processing
+        if audio_proc and audio_proc.silence_removal_enabled:
+            ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
+            trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
+
+            try:
+                import subprocess
+
+                # Build silenceremove filter with config settings
+                threshold_db = audio_proc.silence_threshold_db
+                min_duration = audio_proc.silence_min_duration_sec
+                silence_filter = (
+                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
+                    f"areverse,"
+                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
+                    f"areverse"
+                )
+                trim_cmd = [
+                    ffmpeg_path,
+                    "-i",
+                    str(vo_path),
+                    "-af",
+                    silence_filter,
+                    "-y",
+                    str(trimmed_vo_path),
+                ]
+                subprocess.run(trim_cmd, check=True, capture_output=True)
+
+                # Replace original with trimmed version
+                trimmed_vo_path.replace(vo_path)
+                logger.debug(
+                    f"Trimmed silence from voiceover "
+                    f"(threshold={threshold_db}dB, min_duration={min_duration}s)"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to trim silence from voiceover: {e}, using original"
+                )
+        else:
+            logger.debug("Silence removal disabled, skipping voiceover trimming")
+
+        ctx.voiceover_duration = await _get_video_duration(vo_path, ffmpeg_path)
         ensure_dirs_exist(ctx.run_paths["voiceover_duration_file"].parent)
         ctx.run_paths["voiceover_duration_file"].write_text(str(ctx.voiceover_duration))
         logger.info(

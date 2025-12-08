@@ -81,7 +81,14 @@ Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
 src/
 ├── video/                      # Central orchestration & video processing
 │   ├── producer.py            # Main pipeline orchestrator
-│   ├── assembler.py           # FFmpeg-based video assembly
+│   ├── assembler/             # FFmpeg-based video assembly (modular)
+│   │   ├── core.py            # VideoAssembler orchestrator
+│   │   ├── visual_builder.py  # Visual filter chains
+│   │   ├── subtitle_builder.py # Subtitle positioning
+│   │   ├── audio_builder.py   # Audio filter chains
+│   │   ├── video_strategies.py # Video mode strategies
+│   │   ├── media_inspector.py # Media file inspection
+│   │   └── subtitle_utils.py  # Subtitle parsing/styling
 │   ├── unified_subtitle_generator.py  # Unified subtitle generation system
 │   ├── stt_functions.py       # Speech-to-text (Whisper, Google Cloud STT)
 │   ├── subtitle_utils.py      # Subtitle generation utilities and coordination
@@ -179,18 +186,27 @@ dependencies = {
 }
 ```
 
-### 3. Video Assembly (`src/video/assembler.py`)
+### 3. Video Assembly (`src/video/assembler/`)
 
 **Purpose**: Combines all elements into final MP4 video using FFmpeg with intelligent video assembly strategies.
+
+**Modular Architecture** (refactored from 3,311-line monolith):
+- **`core.py`** - VideoAssembler orchestrator (~690 lines)
+- **`visual_builder.py`** - Visual filter chains (~590 lines)
+- **`subtitle_builder.py`** - Subtitle positioning (~850 lines)
+- **`audio_builder.py`** - Audio filter chains (~200 lines)
+- **`video_strategies.py`** - Video mode strategies (~665 lines)
+- **`media_inspector.py`** - Media file inspection (~170 lines)
+- **`subtitle_utils.py`** - Subtitle parsing/styling (~280 lines)
 
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
-- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
 - **Audio Normalization**: Configurable video audio handling (remove/mixed)
-- **Filter Graph Construction**: Dynamic FFmpeg filter generation
-- **Subtitle Rendering**: Styled subtitle embedding with customization
-- **Audio Mixing**: Multi-track audio with volume control
+- **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
+- **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
+- **Audio Mixing**: Multi-track audio with volume control and ducking
 - **Verification**: Post-assembly quality checks
 
 #### Video Assembly Modes
