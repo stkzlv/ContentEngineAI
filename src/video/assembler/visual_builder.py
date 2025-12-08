@@ -90,7 +90,7 @@ class VisualFilterBuilder:
         output_label: str | None = None,
         video_top_percent: float | None = None,
         target_content_height: int | None = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, VisualGeometry | None]:
         """Apply aspect ratio transformation based on configured mode.
 
         Generates FFmpeg filter strings for aspect ratio handling:
@@ -112,7 +112,8 @@ class VisualFilterBuilder:
 
         Returns:
         -------
-            Tuple of (filter_string, output_label)
+            Tuple of (filter_string, output_label, geometry)
+            geometry contains actual rendered position and dimensions
 
         """
         # Calculate aspect ratios
@@ -134,6 +135,7 @@ class VisualFilterBuilder:
             output_label = f"{input_label}_scaled"
 
         # Letterbox mode: scale with aspect ratio, add black padding
+        geometry: VisualGeometry | None = None
         if aspect_mode == "letterbox":
             # Determine scaling target height
             if target_content_height is not None:
@@ -155,12 +157,41 @@ class VisualFilterBuilder:
                 f"(ow-iw)/2:{pad_y}:black"
             )
 
+            # Compute actual scaled dimensions (force_original_aspect_ratio=decrease)
+            # Scale to fit within target_width x scale_height while maintaining aspect
+            scale_by_width = target_width / video_width
+            scale_by_height = scale_height / video_height
+            scale_factor = min(scale_by_width, scale_by_height)
+            actual_w = int(video_width * scale_factor)
+            actual_h = int(video_height * scale_factor)
+
+            # Compute actual position within padded frame
+            actual_x = (target_width - actual_w) // 2
+            if video_top_percent is not None:
+                # Content area starts at y_offset, video centered within scale_height
+                content_offset = (scale_height - actual_h) // 2
+                actual_y = y_offset + content_offset
+            else:
+                # Centered in full frame
+                actual_y = (target_height - actual_h) // 2
+
+            geometry = VisualGeometry(
+                rendered_x=actual_x,
+                rendered_y=actual_y,
+                rendered_w=actual_w,
+                rendered_h=actual_h,
+            )
+
             # Debug logging
             if target_content_height is not None:
                 logger.debug(
                     f"[LETTERBOX] Constrained video: scale to "
                     f"{target_width}x{scale_height}, "
                     f"pad to {target_width}x{target_height} at Y={pad_y}"
+                )
+                logger.debug(
+                    f"[LETTERBOX] Actual geometry: {actual_w}x{actual_h} "
+                    f"at ({actual_x}, {actual_y})"
                 )
 
         # Crop-to-fit mode: scale to fill, crop excess
@@ -183,7 +214,7 @@ class VisualFilterBuilder:
                 f"(ow-iw)/2:(oh-ih)/2:black{output_label}"
             )
 
-        return filter_string, output_label
+        return filter_string, output_label, geometry
 
     def _calculate_subtitle_reserved_space(self, height: int) -> int:
         """Calculate subtitle space reservation to prevent overlap.
@@ -424,7 +455,7 @@ class VisualFilterBuilder:
 
                 target_content_height = int(height * video_height_percent)
 
-                aspect_filter, aspect_label = self.apply_aspect_ratio_mode(
+                aspect_filter, aspect_label, actual_geom = self.apply_aspect_ratio_mode(
                     f"[{i}:v]",
                     video_settings.video_aspect_mode,
                     width,
@@ -443,38 +474,30 @@ class VisualFilterBuilder:
                     f"setpts=PTS-STARTPTS{proc_label}"
                 )
 
-                # Re-read video positioning for geometry (matches original)
-                default_top = self.config.video_settings.video_top_position_percent
-                default_height = self.config.video_settings.video_content_height_percent
-                if self.profile_settings:
-                    video_top_percent = self.profile_settings.get(
-                        "video_top_position_percent", default_top
+                # Use actual geometry from apply_aspect_ratio_mode if available
+                if actual_geom:
+                    logger.debug(
+                        f"Video {i}: Actual geometry "
+                        f"y={actual_geom.rendered_y}px, "
+                        f"height={actual_geom.rendered_h}px"
                     )
-                    video_height_percent = self.profile_settings.get(
-                        "video_content_height_percent", default_height
-                    )
+                    geometries.append(actual_geom)
                 else:
-                    video_top_percent = default_top
-                    video_height_percent = default_height
-
-                video_top_pixels = int(height * video_top_percent)
-                video_height_pixels = int(height * video_height_percent)
-
-                logger.debug(
-                    f"Video {i}: Positioned at y={video_top_pixels}px "
-                    f"({video_top_percent * 100:.0f}% from top), "
-                    f"height={video_height_pixels}px "
-                    f"({video_height_percent * 100:.0f}% of frame)"
-                )
-
-                geometries.append(
-                    VisualGeometry(
-                        rendered_x=0,
-                        rendered_y=video_top_pixels,
-                        rendered_w=width,
-                        rendered_h=video_height_pixels,
+                    # Fallback: compute from config (for non-letterbox modes)
+                    video_top_pixels = int(height * video_top_percent)
+                    video_height_pixels = int(height * video_height_percent)
+                    logger.debug(
+                        f"Video {i}: Config-based geometry "
+                        f"y={video_top_pixels}px, height={video_height_pixels}px"
                     )
-                )
+                    geometries.append(
+                        VisualGeometry(
+                            rendered_x=0,
+                            rendered_y=video_top_pixels,
+                            rendered_w=width,
+                            rendered_h=video_height_pixels,
+                        )
+                    )
             else:
                 # Image handling logic
                 scaled_w_base = int(width * video_settings_dict["image_width_percent"])

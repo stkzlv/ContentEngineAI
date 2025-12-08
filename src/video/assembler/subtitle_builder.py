@@ -9,8 +9,6 @@ import re
 import textwrap
 from pathlib import Path
 
-import yaml
-
 from src.video.assembler.subtitle_utils import SubtitleParser, SubtitleStyler
 from src.video.assembler.visual_builder import VisualGeometry
 from src.video.config import VideoConfig
@@ -337,49 +335,9 @@ class SubtitleGraphBuilder:
                             self.config.video_settings.resolution
                         )
 
-                        # Check for configured video positioning (preferred)
-                        has_settings = (
-                            self.profile_settings
-                            and "video_settings" in self.profile_settings
-                        )
-                        if has_settings and self.profile_settings:
-                            vs = self.profile_settings["video_settings"]
-                            video_top_percent = vs.get("video_top_position_percent")
-                            video_height_percent = vs.get(
-                                "video_content_height_percent"
-                            )
-
-                            # Use configured video bounds if both settings exist
-                            if (
-                                video_top_percent is not None
-                                and video_height_percent is not None
-                            ):
-                                visual_bounds = VisualBounds(
-                                    x=0.0,
-                                    y=video_top_percent,
-                                    width=1.0,
-                                    height=video_height_percent,
-                                )
-                                if self.debug_mode:
-                                    logger.debug(
-                                        f"Upper subtitle using configured bounds: "
-                                        f"y={video_top_percent:.2%}, "
-                                        f"height={video_height_percent:.2%}"
-                                    )
-                            elif geom:
-                                # Fall back to detected geometry
-                                visual_bounds = VisualBounds(
-                                    x=geom.rendered_x / frame_width,
-                                    y=geom.rendered_y / frame_height,
-                                    width=geom.rendered_w / frame_width,
-                                    height=geom.rendered_h / frame_height,
-                                )
-                                if self.debug_mode:
-                                    logger.debug(
-                                        "Upper subtitle using detected geometry"
-                                    )
-                        elif geom:
-                            # No configured positioning, use detected geometry
+                        # Prefer actual geometry over config - it reflects real
+                        # letterboxing/scaling
+                        if geom and geom.rendered_h > 0:
                             visual_bounds = VisualBounds(
                                 x=geom.rendered_x / frame_width,
                                 y=geom.rendered_y / frame_height,
@@ -387,7 +345,40 @@ class SubtitleGraphBuilder:
                                 height=geom.rendered_h / frame_height,
                             )
                             if self.debug_mode:
-                                logger.debug("Upper subtitle using detected geometry")
+                                logger.debug(
+                                    f"Upper subtitle using actual geometry: "
+                                    f"y={geom.rendered_y / frame_height:.2%}, "
+                                    f"height={geom.rendered_h / frame_height:.2%}"
+                                )
+                        else:
+                            # Fall back to configured video positioning
+                            has_settings = (
+                                self.profile_settings
+                                and "video_settings" in self.profile_settings
+                            )
+                            if has_settings and self.profile_settings:
+                                vs = self.profile_settings["video_settings"]
+                                video_top_percent = vs.get("video_top_position_percent")
+                                video_height_percent = vs.get(
+                                    "video_content_height_percent"
+                                )
+
+                                if (
+                                    video_top_percent is not None
+                                    and video_height_percent is not None
+                                ):
+                                    visual_bounds = VisualBounds(
+                                        x=0.0,
+                                        y=video_top_percent,
+                                        width=1.0,
+                                        height=video_height_percent,
+                                    )
+                                    if self.debug_mode:
+                                        logger.debug(
+                                            f"Upper subtitle using configured bounds: "
+                                            f"y={video_top_percent:.2%}, "
+                                            f"height={video_height_percent:.2%}"
+                                        )
 
                     position = calculate_position(
                         upper_unified,
@@ -527,45 +518,38 @@ class SubtitleGraphBuilder:
                                         frame_height,
                                     ) = self.config.video_settings.resolution
 
-                                    # Check for configured video positioning (preferred)
-                                    has_settings = (
-                                        self.profile_settings
-                                        and "video_settings" in self.profile_settings
-                                    )
-                                    if has_settings and self.profile_settings:
-                                        vs = self.profile_settings["video_settings"]
-                                        video_top_percent = vs.get(
-                                            "video_top_position_percent"
-                                        )
-                                        video_height_percent = vs.get(
-                                            "video_content_height_percent"
-                                        )
-
-                                        has_both = (
-                                            video_top_percent is not None
-                                            and video_height_percent is not None
-                                        )
-                                        if has_both:
-                                            visual_bounds = VisualBounds(
-                                                x=0.0,
-                                                y=video_top_percent,
-                                                width=1.0,
-                                                height=video_height_percent,
-                                            )
-                                        elif geom:
-                                            visual_bounds = VisualBounds(
-                                                x=geom.rendered_x / frame_width,
-                                                y=geom.rendered_y / frame_height,
-                                                width=geom.rendered_w / frame_width,
-                                                height=geom.rendered_h / frame_height,
-                                            )
-                                    elif geom:
+                                    # Prefer actual geometry over config - reflects
+                                    # real letterboxing
+                                    if geom and geom.rendered_h > 0:
                                         visual_bounds = VisualBounds(
                                             x=geom.rendered_x / frame_width,
                                             y=geom.rendered_y / frame_height,
                                             width=geom.rendered_w / frame_width,
                                             height=geom.rendered_h / frame_height,
                                         )
+                                    else:
+                                        # Fall back to configured video positioning
+                                        ps = self.profile_settings
+                                        has_settings = ps and "video_settings" in ps
+                                        if has_settings and self.profile_settings:
+                                            vs = self.profile_settings["video_settings"]
+                                            video_top_percent = vs.get(
+                                                "video_top_position_percent"
+                                            )
+                                            video_height_percent = vs.get(
+                                                "video_content_height_percent"
+                                            )
+
+                                            if (
+                                                video_top_percent is not None
+                                                and video_height_percent is not None
+                                            ):
+                                                visual_bounds = VisualBounds(
+                                                    x=0.0,
+                                                    y=video_top_percent,
+                                                    width=1.0,
+                                                    height=video_height_percent,
+                                                )
 
                                 position = calculate_position(
                                     lower_unified,
@@ -710,8 +694,9 @@ class SubtitleGraphBuilder:
                 if segment_idx < len(geometries):
                     geom = geometries[segment_idx]
 
-                    # Calculate content bottom
-                    if image_positioning_overridden:
+                    # Calculate content bottom - prefer actual geometry over config
+                    # Geometry contains accurate letterbox/scale positioning
+                    if geom.rendered_h > 0:
                         content_bottom = geom.rendered_y + geom.rendered_h
                     else:
                         content_bottom = self._get_content_bottom(geom, frame_height)

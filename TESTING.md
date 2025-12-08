@@ -84,6 +84,7 @@ tests/
 ├── test_tts.py                      # Text-to-speech
 ├── test_audio.py                    # Audio processing
 ├── test_stock_media.py              # Stock media fetching
+├── test_assembler_integration.py    # Assembler integration (3 tests)
 │
 ├── # Configuration Tests
 ├── test_config_validator.py         # Config validation
@@ -294,19 +295,24 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 839 collected
-- **Passing**: 811 tests
+- **Total Tests**: 832 collected
+- **Passing**: 804 tests
 - **Skipped**: 28 tests
 - **Failed**: 0 tests
-- **Coverage**: 43% (target: 40% minimum)
+- **Coverage**: 43.09% (target: 40% minimum)
 
-**Recent Updates (v0.17.0):**
+**Recent Updates:**
 - ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
 - ✅ Tests were for internal implementation details that moved during assembler refactoring
 - ✅ Assembler now uses modular package structure (src/video/assembler/)
-- ✅ All tests passing after cleanup (839 tests, 0 failures)
+- ✅ Added assembler integration tests (test_assembler_integration.py - 3 tests)
+  - VideoAssembler initialization test
+  - VisualGeometry dataclass tests for letterbox positioning
+  - Tests verify assembler refactoring into modular builder classes
+- ✅ All tests passing (804/832, 28 skipped)
+- ✅ Coverage maintained above 43%
 
-**Previous Updates (v0.16.0):**
+**Previous Updates (v0.15.0):**
 - ✅ Added producer batch profile randomization tests (40 new tests)
   - 24 unit tests for profile selection utilities (test_profile_selection.py)
   - 16 integration tests for batch workflows (test_batch_profile_integration.py)
