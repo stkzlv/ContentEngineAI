@@ -17,6 +17,7 @@
 - **📦 Batch Processing**: Process hundreds of products with unified scrape + produce pipeline
 - **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
+- **🎯 Platform-Specific Metadata**: AI-generated titles, captions, hashtags optimized per platform
 - **🎥 Product Video Assembly**: 4 modes with aspect ratio handling and audio control
 - **🎯 Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
@@ -34,7 +35,10 @@ cp .env.example .env  # Configure API keys
 poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
 
-# 3. Unified batch pipeline (scrape + produce in one command)
+# 3. Generate with platform-specific metadata (YouTube, TikTok, Instagram)
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --target-platform multi --debug
+
+# 4. Unified batch pipeline (scrape + produce in one command)
 poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --profile slideshow_images1 --debug
 ```
 

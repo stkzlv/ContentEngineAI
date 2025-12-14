@@ -2,7 +2,7 @@
 
 ## Phase 1: Foundation (Data Models & Configuration)
 
-- [ ] 1. Create platform metadata data models
+- [x] 1. Create platform metadata data models
   - Files: `src/ai/platform_metadata/models.py`
   - Define `PlatformMetadata` dataclass with all required fields
   - Create Pydantic settings models: `PlatformMetadataSettings`, `YouTubePlatformSettings`, `TikTokPlatformSettings`, `InstagramPlatformSettings`
@@ -11,7 +11,7 @@
   - _Requirements: Req 1 (Multi-Platform Support), Req 3 (Character Limit Enforcement)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer specializing in Pydantic and data modeling | Task: Create comprehensive data models for platform metadata following Requirements 1 and 3, defining PlatformMetadata dataclass and Pydantic settings classes for YouTube/TikTok/Instagram platforms, leveraging existing Pydantic patterns from src/video/config/core_models.py and dataclass patterns from src/scraper/base/models.py | Restrictions: Must use Pydantic Field() for validation, follow existing naming conventions (PascalCase classes, snake_case fields), do not add platform logic to models (data only), maintain immutability with @dataclass(frozen=True) | _Leverage: Extend BaseModel from pydantic, use Field() validators for min/max constraints, follow LLMSettings pattern for API configuration_ | Success: All models have proper type hints, validation rules enforce character limits per platform, settings models validate at instantiation, models serialize/deserialize correctly to JSON | Instructions: 1) Mark this task in-progress in tasks.md by changing [ ] to [-], 2) Implement the models with comprehensive validation, 3) Use log-implementation tool with detailed artifacts field (classes created with methods/properties), 4) Mark task complete [x] in tasks.md after logging_
 
-- [ ] 2. Extend DescriptionSettings configuration model
+- [x] 2. Extend DescriptionSettings configuration model
   - Files: `src/video/config/core_models.py` (modify)
   - Add `platform_metadata: PlatformMetadataSettings | None` field to `DescriptionSettings`
   - Add `target_platform: str` field with default "multi"
@@ -21,7 +21,7 @@
   - _Requirements: Req 4 (Configurable Platform Targeting)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Configuration Engineer with expertise in Pydantic and backward compatibility | Task: Extend DescriptionSettings model following Requirement 4, adding platform_metadata field and target_platform field while maintaining 100% backward compatibility with existing configurations, leveraging patterns from LLMSettings | Restrictions: Must not break existing configurations, make new fields optional with proper defaults, add model_validator if needed for complex validation, do not modify existing field defaults | _Leverage: Use Optional[] for new fields, provide default values, add deprecation warnings if needed_ | Success: Extended model validates correctly, existing configs load without errors, new platform_metadata field is optional, target_platform defaults to "multi", all existing tests pass | Instructions: 1) Mark task in-progress [-] in tasks.md, 2) Extend model with backward compatibility, 3) Log implementation with artifacts showing modified class and new fields, 4) Mark complete [x] after logging_
 
-- [ ] 3. Create YAML configuration for platform metadata
+- [x] 3. Create YAML configuration for platform metadata
   - Files: `config/ai_services.yaml` (modify)
   - Add `platform_metadata:` section with YouTube/TikTok/Instagram subsections
   - Configure character limits, hashtag counts, and platform-specific settings per design
@@ -33,7 +33,7 @@
 
 ## Phase 2: Core Generators (Abstract Base + Shared Utilities)
 
-- [ ] 4. Create abstract base generator interface
+- [x] 4. Create abstract base generator interface
   - Files: `src/ai/platform_metadata/base.py`
   - Define `BasePlatformMetadataGenerator` abstract base class
   - Implement abstract methods: `generate()`, `validate()`, `platform_name` property
@@ -43,7 +43,7 @@
   - _Requirements: Req 5 (LLM-Powered Generation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Software Architect specializing in abstract interfaces and design patterns | Task: Create BasePlatformMetadataGenerator abstract base class following Requirement 5, defining common interface for all platform generators with abstract methods and shared utilities, leveraging ABC patterns from src/scraper/base/models.py and LLM utilities from description_generator.py | Restrictions: Must use ABC module, all abstract methods decorated with @abstractmethod, no platform-specific logic in base class, shared utilities must be protected methods (_method), do not duplicate code from description_generator.py (import and reuse) | _Leverage: Import load_prompt_template, _call_llm_api_with_retry from description_generator.py, extend ABC, use @property for platform_name_ | Success: Abstract interface is well-defined, all abstract methods have proper signatures and docstrings, shared utilities are reusable, subclasses will be forced to implement required methods, no platform-specific logic in base | Instructions: 1) Mark in-progress [-], 2) Implement ABC with @abstractmethod decorators, 3) Log with artifacts (classes: BasePlatformMetadataGenerator with methods listed), 4) Mark complete [x]_
 
-- [ ] 5. Create shared LLM integration utilities module
+- [x] 5. Create shared LLM integration utilities module
   - Files: `src/ai/platform_metadata/__init__.py`
   - Import and re-export shared functions: `load_prompt_template`, `_fetch_and_select_model`, `_call_llm_api_with_retry`
   - Create `generate_with_llm()` helper wrapping common generation pattern
@@ -55,7 +55,7 @@
 
 ## Phase 3: Platform Generators (YouTube, TikTok, Instagram)
 
-- [ ] 6. Implement YouTube metadata generator
+- [x] 6. Implement YouTube metadata generator
   - Files: `src/ai/platform_metadata/youtube.py`
   - Create `YouTubeMetadataGenerator` class extending `BasePlatformMetadataGenerator`
   - Implement `generate()` method: title (50-60 chars), description (up to 5000 chars), 3-5 hashtags, auto-add #Shorts
@@ -65,7 +65,7 @@
   - _Requirements: Req 1 (Multi-Platform), Req 2 (SEO Optimization - YouTube), Req 3 (Character Limits), Req 7 (Validation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer specializing in async programming and LLM integration | Task: Implement YouTubeMetadataGenerator following Requirements 1, 2 (YouTube SEO), 3, and 7, generating title with front-loaded keywords (50-60 chars), description with first 150 chars optimized, and 3-5 hashtags including #Shorts for vertical videos, leveraging BasePlatformMetadataGenerator and shared LLM utilities | Restrictions: Must extend BasePlatformMetadataGenerator, use async/await for all I/O, validate all outputs against YouTubePlatformSettings limits, do not hardcode platform name (use @property), ensure #Shorts tag added automatically for vertical format | _Leverage: Use generate_with_llm() helper, access settings via self.settings, call parent validation first_ | Success: Generator produces valid YouTube metadata, titles are 50-60 chars, descriptions prioritize first 150 chars, 3-5 hashtags with #Shorts for vertical videos, validation catches all limit violations, SEO keywords placed strategically | Instructions: 1) Mark in-progress [-], 2) Implement generator with validation, 3) Log with artifacts (classes: YouTubeMetadataGenerator with generate/validate methods), 4) Mark complete [x]_
 
-- [ ] 7. Implement TikTok metadata generator
+- [x] 7. Implement TikTok metadata generator
   - Files: `src/ai/platform_metadata/tiktok.py`
   - Create `TikTokMetadataGenerator` class extending `BasePlatformMetadataGenerator`
   - Implement `generate()` method: SEO-focused caption (100-300 chars optimal), 3-5 niche hashtags, avoid generic tags
@@ -75,7 +75,7 @@
   - _Requirements: Req 1 (Multi-Platform), Req 2 (SEO Optimization - TikTok), Req 3 (Character Limits), Req 7 (Validation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer with expertise in content optimization and validation patterns | Task: Implement TikTokMetadataGenerator following Requirements 1, 2 (TikTok SEO), 3, and 7, generating SEO-focused captions using exact search phrases (100-300 chars optimal, up to 2200 max) and 3-5 niche hashtags while avoiding generic tags, leveraging BasePlatformMetadataGenerator and shared utilities | Restrictions: Must extend BasePlatformMetadataGenerator, validate caption length with warnings if over 300 chars but under 2200, blacklist generic hashtags from TikTokPlatformSettings.avoid_generic_tags, ensure search-optimized language in captions | _Leverage: Use generate_with_llm() helper, validate against blacklist using settings.avoid_generic_tags, warn on suboptimal length_ | Success: Generator produces valid TikTok captions, optimal length 100-300 chars with warnings if longer, 3-5 niche hashtags with no generic tags, SEO keywords in search-friendly format, validation catches blacklisted hashtags | Instructions: 1) Mark in-progress [-], 2) Implement generator with blacklist validation, 3) Log with artifacts (classes: TikTokMetadataGenerator with methods), 4) Mark complete [x]_
 
-- [ ] 8. Implement Instagram metadata generator
+- [x] 8. Implement Instagram metadata generator
   - Files: `src/ai/platform_metadata/instagram.py`
   - Create `InstagramMetadataGenerator` class extending `BasePlatformMetadataGenerator`
   - Implement `generate()` method: caption (short 3-5 words OR SEO 100-200 chars based on settings), 15-30 hashtags in caption
@@ -88,7 +88,7 @@
 
 ## Phase 4: Factory & Orchestration
 
-- [ ] 9. Implement platform metadata factory
+- [x] 9. Implement platform metadata factory
   - Files: `src/ai/platform_metadata/__init__.py` (modify)
   - Create `PlatformMetadataFactory` class with `create()` static method
   - Add `generate_multi_platform()` static method for parallel generation using `asyncio.gather()`
@@ -98,7 +98,7 @@
   - _Requirements: Req 1 (Multi-Platform Support), Req 4 (Configurable Platform Targeting)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Python Developer specializing in factory patterns and async concurrency | Task: Implement PlatformMetadataFactory following Requirements 1 and 4, creating factory with create() method for single platform instantiation and generate_multi_platform() for parallel generation across all platforms using asyncio.gather(), mapping platform strings to generator classes | Restrictions: Must use dict mapping for extensibility, validate platform name against known platforms, use asyncio.gather() for true parallelism in multi-platform mode, raise ValueError for unknown platforms, ensure all generators use same session and secrets | _Leverage: Import all generator classes, use asyncio.gather(return_exceptions=True) for fault tolerance, map strings to classes_ | Success: Factory correctly instantiates generators by platform name, multi-platform mode runs all three generators in parallel, errors in one platform don't block others, unknown platforms raise clear errors, factory is easily extensible | Instructions: 1) Mark in-progress [-], 2) Implement factory with parallel execution, 3) Log with artifacts (classes: PlatformMetadataFactory with create/generate_multi_platform methods), 4) Mark complete [x]_
 
-- [ ] 10. Modify pipeline step_generate_description for platform awareness
+- [x] 10. Modify pipeline step_generate_description for platform awareness
   - Files: `src/video/producer/steps.py` (modify)
   - Modify `step_generate_description()` to check `ctx.config.description_settings.platform_metadata`
   - If platform metadata enabled: call `PlatformMetadataFactory.create()` or `.generate_multi_platform()`
@@ -112,7 +112,7 @@
 
 ## Phase 5: Prompt Templates
 
-- [ ] 11. Create YouTube metadata prompt template
+- [x] 11. Create YouTube metadata prompt template
   - Files: `src/ai/prompts/youtube_metadata.md`
   - Write comprehensive prompt with YouTube SEO best practices (50-60 char titles, keywords first, 3-5 hashtags, #Shorts for vertical)
   - Include placeholders: {FULL_PRODUCT_NAME}, {PRODUCT_DESCRIPTION}, {PRODUCT_URL}
@@ -120,9 +120,9 @@
   - Purpose: Guide LLM to generate YouTube-optimized metadata
   - _Leverage: `src/ai/prompts/video_description.md` (structure pattern)_
   - _Requirements: Req 2 (SEO Optimization - YouTube), Req 5 (LLM Integration)_
-  - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Content Marketing Specialist with expertise in YouTube SEO and prompt engineering | Task: Create comprehensive YouTube metadata prompt template following Requirements 2 (YouTube SEO) and 5, incorporating 2025 best practices (50-60 char titles, front-loaded keywords, first 150 chars optimization, 3-5 hashtags, #Shorts requirement), using existing prompt structure from video_description.md | Restrictions: Must use exact placeholder names {FULL_PRODUCT_NAME}, {PRODUCT_DESCRIPTION}, {PRODUCT_URL}, include clear instructions for character limits and keyword placement, provide 2-3 high-quality examples, emphasize SEO optimization and #Shorts requirement for vertical videos, no markdown formatting in output | _Leverage: Follow video_description.md structure, add YouTube-specific instructions section, include examples with annotations_ | Success: Prompt template guides LLM to produce YouTube-optimized metadata, titles are 50-60 chars, descriptions prioritize first 150 chars, 3-5 hashtags included with #Shorts for vertical videos, placeholders align with product data fields, examples demonstrate best practices | Instructions: 1) Mark in-progress [-], 2) Write comprehensive prompt with examples, 3) Log with filesCreated (prompt template is content, not code - no artifacts), 4) Mark complete [x]_
+  - _Note: Created during Task 6 implementation_
 
-- [ ] 12. Create TikTok caption prompt template
+- [x] 12. Create TikTok caption prompt template
   - Files: `src/ai/prompts/tiktok_caption.md`
   - Write prompt emphasizing SEO-focused captions with exact search phrases (100-300 chars optimal)
   - Include instructions to avoid generic hashtags (#fyp, #foryoupage, #viral) and use 3-5 niche tags
@@ -131,9 +131,9 @@
   - Purpose: Guide LLM to generate TikTok-optimized captions with SEO keywords
   - _Leverage: `src/ai/prompts/video_description.md` (structure pattern)_
   - _Requirements: Req 2 (SEO Optimization - TikTok), Req 5 (LLM Integration)_
-  - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Social Media Strategist specializing in TikTok content and search optimization | Task: Create TikTok caption prompt template following Requirements 2 (TikTok SEO) and 5, emphasizing search-friendly language with exact phrases users search for (100-300 chars optimal, up to 2200 max), 3-5 niche hashtags while avoiding generic tags, using existing prompt structure | Restrictions: Must use exact placeholder names, explicitly warn against generic hashtags (#fyp, #foryoupage, #viral), emphasize natural search phrases over creative wording, include optimal length guidance (100-300 chars), provide 2-3 examples of search-optimized captions, casual conversational tone | _Leverage: Follow video_description.md structure, add TikTok-specific SEO instructions, include search phrase examples_ | Success: Prompt template guides LLM to produce TikTok-optimized captions, captions use natural search phrases, 100-300 chars optimal length, 3-5 niche hashtags with no generic tags, tone is casual and authentic, examples demonstrate search optimization | Instructions: 1) Mark in-progress [-], 2) Write SEO-focused prompt with examples, 3) Log with filesCreated (no artifacts for templates), 4) Mark complete [x]_
+  - _Note: Created during Task 7 implementation_
 
-- [ ] 13. Create Instagram caption prompt template
+- [x] 13. Create Instagram caption prompt template
   - Files: `src/ai/prompts/instagram_caption.md`
   - Write dual-mode prompt supporting both ultra-short (3-5 words) and SEO-descriptive (100-200 chars) caption styles
   - Include instructions for 15-30 hashtags in caption (not comments), mix of trending/niche/evergreen tags
@@ -143,11 +143,11 @@
   - Purpose: Guide LLM to generate Instagram Reels captions with extensive hashtag strategy
   - _Leverage: `src/ai/prompts/video_description.md` (structure pattern)_
   - _Requirements: Req 2 (SEO Optimization - Instagram), Req 5 (LLM Integration)_
-  - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Instagram Growth Specialist with expertise in Reels optimization and hashtag strategy | Task: Create Instagram caption prompt template following Requirements 2 (Instagram optimization) and 5, supporting dual caption styles (ultra-short 3-5 words OR SEO-descriptive 100-200 chars) with 15-30 hashtags in caption (not comments), using existing prompt structure | Restrictions: Must use exact placeholder names including {CAPTION_STYLE}, clearly differentiate short vs SEO style instructions, emphasize 15-30 hashtag range in CAPTION not comments, include trending/niche/evergreen mix strategy, support emoji if appropriate, provide examples for both styles, avoid oversaturated generic hashtags | _Leverage: Follow video_description.md structure, add style-conditional instructions, provide examples for both caption styles_ | Success: Prompt template guides LLM to produce Instagram-optimized captions in both styles, short captions are 3-5 words, SEO captions are 100-200 chars, 15-30 hashtags always in caption, hashtag mix is balanced, examples demonstrate both styles clearly | Instructions: 1) Mark in-progress [-], 2) Write dual-style prompt with examples, 3) Log with filesCreated (no artifacts), 4) Mark complete [x]_
+  - _Note: Created during Task 8 implementation_
 
 ## Phase 6: CLI Integration
 
-- [ ] 14. Add CLI argument for target platform selection
+- [x] 14. Add CLI argument for target platform selection
   - Files: `src/video/producer/cli.py` (modify)
   - Add `--target-platform` argument with choices: ["youtube", "tiktok", "instagram", "multi"]
   - Override `config.description_settings.target_platform` when CLI arg provided
@@ -159,7 +159,7 @@
 
 ## Phase 7: Testing
 
-- [ ] 15. Create unit tests for data models
+- [x] 15. Create unit tests for data models
   - Files: `tests/ai/test_platform_metadata_models.py`
   - Test `PlatformMetadata` dataclass serialization/deserialization
   - Test Pydantic settings validation (character limits, hashtag counts, required fields)
@@ -169,7 +169,7 @@
   - _Requirements: All (foundational validation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: QA Engineer specializing in Python unit testing and Pydantic validation | Task: Create comprehensive unit tests for platform metadata data models covering all requirements, testing PlatformMetadata serialization, Pydantic settings validation rules, character limits, hashtag counts, and field constraints, leveraging existing Pydantic test patterns from test_video_config.py | Restrictions: Must test both valid and invalid inputs, use pytest.raises for validation errors, test edge cases (empty strings, max limits, None values), mock no external dependencies, ensure test isolation and repeatability | _Leverage: Follow test_video_config.py patterns, use pytest fixtures for test data, test ValidationError scenarios_ | Success: All data models are thoroughly tested, validation rules are verified (min/max constraints), edge cases are covered, serialization/deserialization works correctly, test coverage >90% for models module | Instructions: 1) Mark in-progress [-], 2) Write comprehensive model tests, 3) Log with artifacts (none - tests don't create production code), 4) Mark complete [x]_
 
-- [ ] 16. Create unit tests for platform generators
+- [x] 16. Create unit tests for platform generators
   - Files: `tests/ai/test_youtube_generator.py`, `tests/ai/test_tiktok_generator.py`, `tests/ai/test_instagram_generator.py`
   - Mock LLM API responses for each platform generator
   - Test validation logic (character limits, hashtag counts, required elements)
@@ -180,8 +180,8 @@
   - _Requirements: Req 1-7 (all generator requirements)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: QA Engineer with expertise in async testing and API mocking | Task: Create comprehensive unit tests for all three platform generators covering Requirements 1-7, mocking LLM API responses, testing validation rules per platform (YouTube #Shorts, TikTok blacklist, Instagram hashtag counts), error handling, and fallback scenarios, leveraging existing LLM mocking patterns from test_ai_description_generator.py | Restrictions: Must mock all external API calls using aioresponses, test async methods with pytest-asyncio, validate platform-specific rules strictly, test error scenarios (empty responses, validation failures, API errors), ensure test isolation, no real API calls | _Leverage: Follow test_ai_description_generator.py mocking patterns, use aioresponses for HTTP mocking, pytest-asyncio for async tests_ | Success: All generator methods are tested with mocked LLM responses, validation logic is verified for each platform, platform-specific rules are enforced (YouTube #Shorts, TikTok blacklist, Instagram 15-30 hashtags), error scenarios are handled correctly, test coverage >90% for generators | Instructions: 1) Mark in-progress [-], 2) Write async tests with mocking, 3) Log with artifacts (none for tests), 4) Mark complete [x]_
 
-- [ ] 17. Create integration test for pipeline step modification
-  - Files: `tests/test_platform_metadata_integration.py`
+- [x] 17. Create integration test for pipeline step modification
+  - Files: `tests/integration/test_platform_metadata_integration.py`, `tests/integration/conftest.py`
   - Test end-to-end flow: product data → platform generator → metadata files saved
   - Test multi-platform mode with parallel generation
   - Test fallback to unified description on failures
@@ -192,7 +192,7 @@
   - _Requirements: All (end-to-end validation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Integration Test Engineer with expertise in E2E testing and pipeline validation | Task: Create comprehensive integration tests covering all requirements, testing end-to-end flow from product data through platform generation to metadata file persistence, multi-platform parallel execution, fallback to unified description, artifact loading, and CLI overrides, leveraging existing pipeline test patterns from test_producer_cleanup.py | Restrictions: Must test real pipeline flow (not mocked), use test product data fixtures, verify file creation and content, test both platform-specific and unified modes, validate fallback behavior on errors, ensure cleanup after tests, test CLI argument integration | _Leverage: Follow test_producer_cleanup.py patterns, use pytest fixtures for product data, test file system outputs, pytest-asyncio for async tests_ | Success: Pipeline integration is fully tested end-to-end, metadata files are created correctly for each platform, multi-platform mode runs in parallel, fallback to unified description works on failures, artifact loading handles both old and new formats, CLI overrides work correctly, test coverage >80% for integration scenarios | Instructions: 1) Mark in-progress [-], 2) Write E2E integration tests, 3) Log with artifacts (none for tests), 4) Mark complete [x]_
 
-- [ ] 18. Create validation test for prompt templates
+- [x] 18. Create validation test for prompt templates
   - Files: `tests/ai/test_platform_prompts.py`
   - Load each prompt template and verify placeholder presence
   - Test template formatting with sample product data
@@ -205,7 +205,7 @@
 
 ## Phase 8: Documentation
 
-- [ ] 19. Update CONFIGURATION.md with platform metadata settings
+- [x] 19. Update CONFIGURATION.md with platform metadata settings
   - Files: `CONFIGURATION.md` (modify)
   - Document new `platform_metadata` configuration section
   - Explain each platform's settings and best practices
@@ -216,7 +216,7 @@
   - _Requirements: All (user-facing documentation)_
   - _Prompt: Implement the task for spec platform-specific-optimizations, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Technical Writer with expertise in configuration documentation | Task: Update CONFIGURATION.md with comprehensive platform metadata documentation covering all requirements, explaining platform_metadata settings structure, platform-specific configurations (YouTube/TikTok/Instagram), best practices, configuration examples, and CLI argument usage, following existing documentation structure and style | Restrictions: Must follow existing CONFIGURATION.md formatting and structure, include YAML code blocks with comments, explain each setting's purpose and valid values, provide practical examples for common use cases, document CLI argument with examples, maintain consistency with other config sections | _Leverage: Follow existing CONFIGURATION.md section structure, use markdown code blocks for examples, add cross-references to REQUIREMENTS.md_ | Success: Documentation clearly explains all platform metadata settings, configuration examples are copy-pasteable and correct, CLI usage is documented with examples, best practices are explained per platform, documentation is consistent with existing style | Instructions: 1) Mark in-progress [-], 2) Write comprehensive config documentation, 3) Log with filesModified (no artifacts for docs), 4) Mark complete [x]_
 
-- [ ] 20. Update README.md with platform-specific features
+- [x] 20. Update README.md with platform-specific features
   - Files: `README.md` (modify)
   - Add platform-specific metadata generation to features list
   - Provide quick start example with `--target-platform` argument

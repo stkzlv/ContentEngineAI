@@ -55,6 +55,12 @@ from src.video.config.visual_models import (
     VideoSettings,
 )
 
+# Platform-specific metadata models (optional dependency)
+try:
+    from src.ai.platform_metadata.models import PlatformMetadataSettings
+except ImportError:
+    PlatformMetadataSettings = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,6 +81,7 @@ class DescriptionSettings(BaseModel):
     """Configuration settings for AI-generated video descriptions.
 
     Controls the generation of social media descriptions using LLM providers.
+    Supports both legacy unified mode and new platform-specific metadata generation.
     """
 
     enabled: bool = Field(True, description="Enable or disable description generation")
@@ -98,6 +105,16 @@ class DescriptionSettings(BaseModel):
     )
     require_ad_hashtag: bool = Field(
         True, description="Whether descriptions must include #ad hashtag"
+    )
+
+    # Platform-specific metadata generation (optional, new feature)
+    target_platform: str = Field(
+        "multi",
+        description="Target platform for metadata generation: 'youtube', 'tiktok', 'instagram', or 'multi' for all platforms",
+    )
+    platform_metadata: PlatformMetadataSettings | None = Field(
+        None,
+        description="Platform-specific metadata settings. If None, uses legacy unified description mode for backward compatibility.",
     )
 
 

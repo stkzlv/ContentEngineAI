@@ -76,6 +76,158 @@ description_settings:
   target_platforms: ["tiktok", "youtube", "instagram"]
   max_tokens: 200
 
+  # Target platform for metadata generation
+  # Options: "youtube", "tiktok", "instagram", "multi" (all platforms)
+  # When set to specific platform, generates optimized metadata for that platform only
+  # "multi" generates metadata for all three platforms simultaneously
+  target_platform: "multi"
+
+  # Platform-specific metadata settings
+  # If null, uses legacy unified description mode for backward compatibility
+  # Enable this to generate platform-optimized titles, captions, and hashtags
+  platform_metadata: null  # Set to {} to enable platform-specific metadata
+
+# ============================================================================
+# PLATFORM METADATA SETTINGS (Advanced)
+# ============================================================================
+# Platform-specific metadata optimization for YouTube, TikTok, and Instagram
+# Based on 2025 algorithm best practices and SEO research
+#
+# Pipeline Impact:
+# - Enables platform-specific title/description/hashtag generation
+# - Overrides unified description mode when enabled
+# - Generates separate metadata files per platform (metadata_youtube.json, etc.)
+# - Maintains backward compatibility when disabled (platform_metadata: null)
+#
+# Usage:
+# - Set description_settings.platform_metadata to {} to enable
+# - Configure target_platform to control which platforms to generate for
+# - Adjust per-platform settings to match your content strategy
+platform_metadata_config:
+  # Global enable/disable for platform-specific metadata generation
+  # When false, falls back to legacy unified description mode
+  enabled: true
+
+  # Target platform(s) for metadata generation
+  # Options: "youtube", "tiktok", "instagram", "multi"
+  # This can be overridden per video profile or via CLI arguments
+  target_platform: "multi"
+
+  # ---- YouTube Settings ----
+  # Optimized for YouTube Shorts discovery and search ranking
+  # Key factors: Front-loaded keywords, #Shorts tag, 3-5 targeted hashtags
+  youtube:
+    enabled: true
+
+    # Maximum title length (characters)
+    # YouTube allows 100 chars, but 50-60 is optimal for mobile display
+    # SEO best practice: Place primary keywords in first 50 characters
+    # Recommendation: Keep titles punchy and keyword-rich for Shorts
+    title_length_max: 60
+
+    # Maximum description length (characters)
+    # YouTube allows 5000 chars, but first 150 are shown without "Show more"
+    # SEO best practice: Front-load important info and keywords in first 150 chars
+    # Include call-to-action, product links, and detailed info after
+    description_length_max: 5000
+
+    # Hashtag count range (min-max)
+    # YouTube recommends 3-5 hashtags maximum for best performance
+    # Too many hashtags (>15) can result in all hashtags being ignored
+    # Focus on niche-specific tags rather than generic viral tags
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+
+    # Automatically include #Shorts hashtag for vertical videos <60 seconds
+    # Critical for YouTube Shorts discovery and recommendation algorithm
+    # Set to false if manually managing hashtags or creating long-form content
+    include_shorts_tag: true
+
+    # Enable SEO keyword optimization in title and description
+    # Places high-value search terms at beginning of title
+    # Incorporates exact search phrases in first 150 chars of description
+    # Recommended: true for maximum discoverability
+    seo_keywords: true
+
+  # ---- TikTok Settings ----
+  # Optimized for TikTok's search-engine model (2024+ algorithm shift)
+  # Key factors: Exact search phrases, niche hashtags, avoid generic viral tags
+  tiktok:
+    enabled: true
+
+    # Optimal caption length for engagement (characters)
+    # TikTok allows 2200 chars, but 100-300 is optimal for readability
+    # Algorithm favors concise, searchable captions over creative hooks
+    # Use exact search phrases (e.g., "morning skincare routine") vs creative text
+    caption_length_optimal: 150
+
+    # Maximum caption length (characters)
+    # Hard limit imposed by TikTok platform
+    # Exceeding this will cause caption truncation
+    caption_length_max: 2200
+
+    # Hashtag count range (min-max)
+    # TikTok performs best with 3-5 targeted, niche-specific hashtags
+    # Avoid overusing hashtags - quality over quantity
+    # Mix of trending niche tags + evergreen category tags works best
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+
+    # Enable SEO-focused caption style
+    # true = Use exact search phrases and keywords
+    # false = Allow more creative, hook-based captions
+    # 2025 best practice: true (TikTok is now a search engine)
+    seo_focused: true
+
+    # Generic hashtags to avoid
+    # These tags are overused and provide no discovery value
+    # Algorithm may even penalize content using only generic viral tags
+    # Focus on niche community hashtags instead (e.g., #TechReview vs #FYP)
+    avoid_generic_tags:
+      - "foryoupage"
+      - "fyp"
+      - "viral"
+      - "foryou"
+
+  # ---- Instagram Settings ----
+  # Optimized for Instagram Reels discovery and engagement
+  # Key factors: 15-30 hashtags in caption (not comments), dual caption styles
+  instagram:
+    enabled: true
+
+    # Caption style for Instagram Reels
+    # Options: "short" (3-5 words, ultra-concise) or "seo" (100-200 chars, keyword-rich)
+    # "short" = Trend-following, minimal text (e.g., "This changed everything ✨")
+    # "seo" = Search-optimized, descriptive (e.g., "Best wireless earbuds under $50 for workouts")
+    # Recommendation: "seo" for product content, "short" for viral trends
+    caption_style: "seo"
+
+    # Caption length for "short" style (characters)
+    # Ultra-brief captions that hook viewers immediately
+    # Typically 3-5 words or 10-15 characters
+    # Works well with emoji and strong visual content
+    caption_length_short: 15
+
+    # Caption length for "seo" style (characters)
+    # Descriptive captions with keywords for search discovery
+    # 100-200 characters provides context while staying readable
+    # Include value proposition and keywords for Instagram search
+    caption_length_seo: 200
+
+    # Hashtag count range (min-max)
+    # Instagram allows 30 hashtags and actively encourages using 15-30
+    # CRITICAL: Place hashtags IN CAPTION, not in comments (algorithm change)
+    # Mix trending, niche, and evergreen hashtags for maximum reach
+    # Formula: 5-10 high-volume + 10-15 niche + 5-10 branded/specific
+    hashtag_count_min: 15
+    hashtag_count_max: 30
+
+    # Enable emoji usage in captions and hashtags
+    # Emojis increase engagement and visual appeal on Instagram
+    # Use strategically to break up text and add personality
+    # Recommended: true for lifestyle/consumer products
+    emoji_enabled: true
+
 # ============================================================================
 # WHISPER SETTINGS (Speech-to-Text)
 # ============================================================================

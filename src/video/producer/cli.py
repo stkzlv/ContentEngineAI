@@ -194,6 +194,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
             args.image_top_position_percent
         )
 
+    # Platform targeting
+    if hasattr(args, "target_platform") and args.target_platform is not None:
+        overrides["description_settings.target_platform"] = args.target_platform
+
     return overrides
 
 
@@ -431,6 +435,18 @@ async def main():
         "--image-top-position-percent",
         type=float,
         help="Override image top position as percentage from top (0.0-1.0).",
+    )
+
+    # Platform targeting argument
+    parser.add_argument(
+        "--target-platform",
+        choices=["youtube", "tiktok", "instagram", "multi"],
+        help=(
+            "Override target platform for video metadata and captions. "
+            "Choices: youtube (YouTube Shorts), tiktok (TikTok), "
+            "instagram (Instagram Reels), multi (generate for all platforms). "
+            "Example: --target-platform youtube"
+        ),
     )
 
     args = parser.parse_args()

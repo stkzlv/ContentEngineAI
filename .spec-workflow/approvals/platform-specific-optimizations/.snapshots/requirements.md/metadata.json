@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/platform-specific-optimizations/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-13T12:09:16.420Z",
+      "trigger": "initial",
+      "approvalId": "approval_1765627756408_mxawrzwst",
+      "approvalTitle": "Platform-Specific Optimizations - Requirements Review"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-13T12:10:38.971Z",
+      "trigger": "approved",
+      "approvalId": "approval_1765627756408_mxawrzwst",
+      "approvalTitle": "Platform-Specific Optimizations - Requirements Review"
+    }
+  ]
+}

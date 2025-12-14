@@ -69,10 +69,30 @@ def _load_artifacts_generate_script(ctx: PipelineContext):
 def _load_artifacts_generate_description(ctx: PipelineContext):
     """Load artifacts from completed generate_description step."""
     try:
+        # Try loading platform-specific metadata files first
+        text_dir = ctx.run_paths["description_file"].parent
+        platform_metadata_loaded = False
+
+        for platform in ["youtube", "tiktok", "instagram"]:
+            metadata_file = text_dir / f"metadata_{platform}.json"
+            if metadata_file.exists():
+                platform_metadata_loaded = True
+                logger.debug(f"Found platform metadata file: {metadata_file.name}")
+
+        if platform_metadata_loaded:
+            logger.debug(
+                "Loaded platform metadata artifacts "
+                "for skipped step 'generate_description'"
+            )
+
+        # Load unified description as fallback or complementary data
         description_file = ctx.run_paths["description_file"]
         if description_file.exists():
             ctx.description = description_file.read_text(encoding="utf-8")
-            logger.debug("Loaded artifacts for skipped step 'generate_description'")
+            logger.debug(
+                "Loaded unified description artifact "
+                "for skipped step 'generate_description'"
+            )
     except Exception as e:
         logger.warning(f"Error loading generate_description artifacts: {e}")
 
@@ -354,15 +374,132 @@ async def step_generate_description(ctx: PipelineContext):
 
         # Check if description already exists from previous run
         description_file = ctx.run_paths["description_file"]
-        if description_file.exists():
-            logger.info("Loading existing description from previous run")
-            ctx.description = description_file.read_text(encoding="utf-8")
-            logger.info(
-                f"Loaded existing description from {description_file.name} "
-                f"({len(ctx.description or '')} characters)"
-            )
+        text_dir = description_file.parent
+
+        # Check for existing platform metadata files
+        platform_metadata_exists = any(
+            (text_dir / f"metadata_{platform}.json").exists()
+            for platform in ["youtube", "tiktok", "instagram"]
+        )
+
+        if platform_metadata_exists or description_file.exists():
+            logger.info("Loading existing description/metadata from previous run")
+            if description_file.exists():
+                ctx.description = description_file.read_text(encoding="utf-8")
+                logger.info(
+                    f"Loaded existing description from {description_file.name} "
+                    f"({len(ctx.description or '')} characters)"
+                )
             return
 
+        # Check if platform-specific metadata generation is enabled
+        platform_metadata_enabled = (
+            ctx.config.description_settings.platform_metadata is not None
+        )
+
+        if platform_metadata_enabled:
+            # Attempt platform-specific metadata generation
+            try:
+                logger.info(
+                    "Platform metadata generation enabled, "
+                    "using PlatformMetadataFactory"
+                )
+
+                # Import factory for platform-specific generation
+                from src.ai.platform_metadata import (
+                    PlatformMetadataFactory,
+                    save_metadata_to_file,
+                )
+
+                # Extract platform settings from config
+                pm_config = ctx.config.description_settings.platform_metadata
+                if pm_config is None:
+                    logger.warning("Platform metadata is None, using unified mode")
+                    raise ValueError("Platform metadata config is None")
+
+                platform_settings: dict[str, dict] = {}
+                if pm_config.youtube is not None:
+                    platform_settings["youtube"] = pm_config.youtube.model_dump()
+                if pm_config.tiktok is not None:
+                    platform_settings["tiktok"] = pm_config.tiktok.model_dump()
+                if pm_config.instagram is not None:
+                    platform_settings["instagram"] = pm_config.instagram.model_dump()
+
+                if not platform_settings:
+                    logger.warning(
+                        "Platform metadata enabled but no platform "
+                        "configurations found, falling back to unified mode"
+                    )
+                    raise ValueError("No platform configurations available")
+
+                # Prepare intermediate paths for metadata files
+                intermediate_paths = {
+                    "description": text_dir / "description.txt",
+                    "metadata_youtube": text_dir / "metadata_youtube.json",
+                    "metadata_tiktok": text_dir / "metadata_tiktok.json",
+                    "metadata_instagram": text_dir / "metadata_instagram.json",
+                }
+
+                # Generate metadata for all platforms in parallel
+                factory = PlatformMetadataFactory
+                metadata_results = await factory.generate_multi_platform(
+                    product=ctx.product,
+                    settings=ctx.config.llm_settings,
+                    secrets=ctx.secrets,
+                    session=ctx.session,
+                    platform_settings=platform_settings,
+                    intermediate_paths=intermediate_paths,
+                    debug_mode=ctx.debug_mode,
+                    api_settings=ctx.config.api_settings,
+                )
+
+                # Save metadata to individual platform files
+                ensure_dirs_exist(text_dir)
+                saved_count = 0
+                for platform, metadata in metadata_results.items():
+                    if metadata:
+                        metadata_file = text_dir / f"metadata_{platform}.json"
+                        save_metadata_to_file(metadata, metadata_file)
+                        logger.info(
+                            f"Saved {platform} metadata to {metadata_file.name}"
+                        )
+                        saved_count += 1
+
+                if saved_count == 0:
+                    logger.warning(
+                        "All platform metadata generation failed, "
+                        "falling back to unified mode"
+                    )
+                    raise RuntimeError("All platform metadata generation failed")
+
+                logger.info(
+                    f"Platform metadata generation complete "
+                    f"({saved_count}/{len(metadata_results)} platforms succeeded)"
+                )
+
+                # Set ctx.description to first available platform description
+                # for backward compatibility
+                for platform in ["youtube", "tiktok", "instagram"]:
+                    metadata = metadata_results.get(platform)
+                    if metadata is not None:
+                        ctx.description = metadata.description
+                        logger.debug(
+                            f"Using {platform} description for ctx.description"
+                        )
+                        break
+
+                return  # Success - exit early
+
+            except Exception as e:
+                logger.warning(
+                    f"Platform metadata generation failed: {e}, "
+                    "falling back to unified description mode",
+                    exc_info=ctx.debug_mode,
+                )
+                # Fall through to unified mode
+
+        # Fallback: Use legacy unified description generation
+        logger.info("Using unified description generation mode")
         try:
             description_text = await generate_ai_description(
                 ctx.product,
