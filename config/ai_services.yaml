@@ -84,8 +84,36 @@ description_settings:
 
   # Platform-specific metadata settings
   # If null, uses legacy unified description mode for backward compatibility
-  # Enable this to generate platform-optimized titles, captions, and hashtags
-  platform_metadata: null  # Set to {} to enable platform-specific metadata
+  # Set enabled: true to use platform-optimized titles, captions, and hashtags
+  # Full platform-specific settings defined in platform_metadata_config section below
+  platform_metadata:
+    enabled: true
+    target_platform: "multi"
+    youtube:
+      enabled: true
+      title_length_max: 60
+      description_length_max: 5000
+      hashtag_count_min: 3
+      hashtag_count_max: 5
+      include_shorts_tag: true
+      seo_keywords: true
+    tiktok:
+      enabled: true
+      caption_length_optimal: 150
+      caption_length_max: 2200
+      hashtag_count_min: 3
+      hashtag_count_max: 5
+      avoid_generic_viral_tags: true
+      prioritize_search_keywords: true
+    instagram:
+      enabled: true
+      caption_style: "seo"
+      caption_length_short_max: 30
+      caption_length_seo_max: 200
+      hashtag_count_min: 15
+      hashtag_count_max: 30
+      hashtags_in_caption: true
+      emoji_enabled: true
 
 # ============================================================================
 # PLATFORM METADATA SETTINGS (Advanced)

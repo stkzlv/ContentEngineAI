@@ -18,6 +18,9 @@ from src.video.config.audio_models import (  # noqa: F401
 )
 from src.video.config.constants import *  # noqa: F403, F401
 
+# Re-export LLM settings (separate module to avoid circular imports)
+from src.video.config.llm_settings import LLMSettings  # noqa: F401
+
 # Re-export core models (including VideoConfig)
 from src.video.config.core_models import (  # noqa: F401
     ApiSettings,
@@ -29,7 +32,6 @@ from src.video.config.core_models import (  # noqa: F401
     FFmpegSettings,
     FilesystemSettings,
     GlobalDirs,
-    LLMSettings,
     LLMValidationSettings,
     OptimizationSettings,
     OutputStructure,

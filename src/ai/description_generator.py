@@ -39,9 +39,8 @@ from src.video.config import (
     LLM_RETRY_MAX_WAIT_SEC,
     LLM_RETRY_MIN_WAIT_SEC,
     LLM_RETRY_MULTIPLIER,
-    LLMSettings,
-    config,
 )
+from src.video.config.llm_settings import LLMSettings
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -302,8 +301,8 @@ async def _call_llm_api(
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": config.llm_settings.max_tokens,
-        "temperature": config.llm_settings.temperature,
+        "max_tokens": settings.max_tokens,
+        "temperature": settings.temperature,
     }
 
     # Check if session is None or closed and get a new one if needed
@@ -318,7 +317,7 @@ async def _call_llm_api(
         api_url,
         headers=headers,
         json=payload,
-        timeout=config.llm_settings.timeout_seconds,
+        timeout=settings.timeout_seconds,
     ) as response:
         response.raise_for_status()  # Raise exception for HTTP errors
         data = await response.json()

@@ -19,7 +19,7 @@ from src.ai.platform_metadata.utilities import (
     load_prompt_template,
 )
 from src.scraper.amazon.scraper import ProductData
-from src.video.config import LLMSettings
+from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 
@@ -179,29 +179,35 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 hashtags.append("#ad")
                 logger.debug("Added #ad hashtag for advertising disclosure")
 
-            # Create metadata object (no title for Instagram)
-            metadata = PlatformMetadata(
+            # Create metadata object (no title for Instagram) with validation
+            temp_metadata = PlatformMetadata.create(
                 platform="instagram",
                 title=None,  # Instagram doesn't use titles
                 description=caption,
                 hashtags=hashtags,
                 keywords=keywords,
-                character_counts=self._calculate_character_counts(None, caption),
-                generated_at=datetime.now(timezone.utc).isoformat(),
-                product_id=product.product_id,
+                product_id=product.asin,
             )
 
-            # Validate
-            is_valid, error_msg = self.validate(metadata)
+            # Validate and recreate with proper status if needed
+            is_valid, error_msg = self.validate(temp_metadata)
             if not is_valid:
                 logger.error(f"Instagram metadata validation failed: {error_msg}")
-                metadata.validation_status = "invalid"
-                metadata.validation_messages.append(error_msg)
+                # Recreate with error status
+                metadata = PlatformMetadata.create(
+                    platform="instagram",
+                    title=None,
+                    description=caption,
+                    hashtags=hashtags,
+                    keywords=keywords,
+                    product_id=product.asin,
+                    validation_status="invalid",
+                    validation_messages=[error_msg],
+                )
                 return metadata  # Return with validation errors for debugging
 
-            metadata.validation_status = "valid"
             logger.info("Instagram metadata generated and validated successfully")
-            return metadata
+            return temp_metadata
 
         except Exception as e:
             logger.error(f"Error generating Instagram metadata: {e}", exc_info=True)

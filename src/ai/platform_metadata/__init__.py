@@ -33,7 +33,7 @@ from pathlib import Path
 import aiohttp
 
 from src.scraper.amazon.scraper import ProductData
-from src.video.config import LLMSettings
+from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

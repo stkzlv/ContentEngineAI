@@ -54,27 +54,12 @@ from src.video.config.visual_models import (
     VideoProfile,
     VideoSettings,
 )
+from src.video.config.llm_settings import LLMSettings
 
-# Platform-specific metadata models (optional dependency)
-try:
-    from src.ai.platform_metadata.models import PlatformMetadataSettings
-except ImportError:
-    PlatformMetadataSettings = None  # type: ignore
+# Platform-specific metadata models (no circular import after extracting LLMSettings)
+from src.ai.platform_metadata.models import PlatformMetadataSettings
 
 logger = logging.getLogger(__name__)
-
-
-class LLMSettings(BaseModel):
-    provider: str
-    api_key_env_var: str
-    models: list[str] = Field(..., min_length=1)
-    prompt_template_path: str
-    target_audience: str = Field("General audience")
-    base_url: str | None = Field(None)
-    auto_select_free_model: bool = Field(True)
-    max_tokens: int = Field(LLM_MAX_TOKENS)
-    temperature: float = Field(LLM_TEMPERATURE)
-    timeout_seconds: int = Field(LLM_TIMEOUT_SECONDS)
 
 
 class DescriptionSettings(BaseModel):
