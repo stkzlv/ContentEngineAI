@@ -771,8 +771,45 @@ outputs/B0ASIN123/text/
 ├── description.txt              # Legacy unified description (backward compatible)
 ├── metadata_youtube.json       # YouTube Shorts metadata
 ├── metadata_tiktok.json        # TikTok metadata
-└── metadata_instagram.json     # Instagram Reels metadata
+├── metadata_instagram.json     # Instagram Reels metadata
+└── UPLOAD_INSTRUCTIONS.txt     # Human-readable upload guide (all platforms)
 ```
+
+**Human-Readable Upload Instructions (`UPLOAD_INSTRUCTIONS.txt`):**
+
+The pipeline automatically generates a ready-to-copy text file with formatted posting instructions for all platforms:
+
+```
+================================================================================
+                    READY-TO-POST SOCIAL MEDIA CONTENT
+                        Product: B0ASIN123
+                    Video: video_B0ASIN123_slideshow_images1.mp4
+                    URL: https://amazon.com/dp/B0ASIN123
+================================================================================
+
+📱 ALL PLATFORMS: Upload the same video file to each platform
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📺 YOUTUBE SHORTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TITLE (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Best Wireless Earbuds Under $50 - Amazing Sound Quality
+──────────────────────────────────────────────────────────────────────────────
+
+DESCRIPTION (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Looking for affordable wireless earbuds with premium sound?...
+──────────────────────────────────────────────────────────────────────────────
+
+HASHTAGS (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+#Shorts #WirelessEarbuds #TechReview #ad
+──────────────────────────────────────────────────────────────────────────────
+```
+
+This file contains copy-paste-ready content for all three platforms (YouTube, TikTok, Instagram) with clear section separators and formatting guidance.
 
 **Metadata JSON Structure:**
 
