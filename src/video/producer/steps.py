@@ -410,6 +410,9 @@ async def step_generate_description(ctx: PipelineContext):
                     PlatformMetadataFactory,
                     save_metadata_to_file,
                 )
+                from src.ai.platform_metadata.text_formatter import (
+                    format_upload_instructions,
+                )
 
                 # Extract platform settings from config
                 pm_config = ctx.config.description_settings.platform_metadata
@@ -476,6 +479,24 @@ async def step_generate_description(ctx: PipelineContext):
                     f"Platform metadata generation complete "
                     f"({saved_count}/{len(metadata_results)} platforms succeeded)"
                 )
+
+                # Generate human-readable upload instructions text file
+                try:
+                    instructions_text = format_upload_instructions(
+                        metadata_results=metadata_results,
+                        product_id=ctx.product.asin or "unknown",
+                        video_filename=Path(ctx.run_paths["final_video_output"]).name,
+                        product_name=ctx.product.title or "Product",
+                        product_url=ctx.product.url,
+                    )
+                    instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
+                    instructions_file.write_text(instructions_text, encoding="utf-8")
+                    logger.info(
+                        f"Generated upload instructions: {instructions_file.name}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to generate upload instructions: {e}")
+                    # Non-critical - continue with workflow
 
                 # Set ctx.description to first available platform description
                 # for backward compatibility
@@ -1004,9 +1025,12 @@ async def step_download_music(ctx: PipelineContext):
                 dest_path = ctx.run_paths["assets_dir"] / local_path.name
 
                 # Use memory-mapped I/O for large files, fallback to shutil.copy
-                if is_file_suitable_for_mmap(
-                    local_path, min_size=1024 * 1024
-                ):  # 1MB threshold
+                from src.config_manager import get_config_value
+
+                mmap_threshold = get_config_value(
+                    "optimization_settings.memory.mmap_threshold_bytes", 1048576
+                )
+                if is_file_suitable_for_mmap(local_path, min_size=mmap_threshold):
                     logger.debug(
                         f"Using memory-mapped copy for large file: {local_path.name}"
                     )

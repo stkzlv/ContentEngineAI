@@ -4,11 +4,12 @@ Tests cover LLM response mocking, validation rules, error handling,
 and TikTok-specific requirements (generic hashtag blacklist, caption length).
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 from typing import NamedTuple
+from unittest.mock import AsyncMock, patch
+
 import aiohttp
+import pytest
 
 # Import generator and models using safe method to avoid circular imports
 from src.ai.platform_metadata import models
@@ -30,10 +31,12 @@ class MockLLMSettings(NamedTuple):
 class MockProductData(NamedTuple):
     """Mock product data for testing."""
 
-    product_id: str
-    full_product_name: str
-    product_description: str
-    product_url: str
+    asin: str
+    title: str
+    description: str
+    url: str
+    affiliate_link: str | None = None
+    shortened_affiliate_link: str | None = None
 
 
 @pytest.fixture
@@ -52,10 +55,12 @@ def tiktok_settings():
 def product_data():
     """Sample product data fixture."""
     return MockProductData(
-        product_id="B0TEST456",
-        full_product_name="Smart Fitness Tracker Watch",
-        product_description="Advanced fitness tracker with heart rate monitoring, sleep tracking, GPS, and 10-day battery life. Water-resistant design perfect for athletes.",
-        product_url="https://amazon.com/dp/B0TEST456",
+        asin="B0TEST456",
+        title="Smart Fitness Tracker Watch",
+        description="Advanced fitness tracker with heart rate monitoring, sleep tracking, GPS, and 10-day battery life. Water-resistant design perfect for athletes.",
+        url="https://amazon.com/dp/B0TEST456",
+        affiliate_link="https://amazon.com/dp/B0TEST456?tag=stealtech06-20",
+        shortened_affiliate_link="https://stte.psee.io/test456",
     )
 
 
@@ -129,7 +134,7 @@ KEYWORDS: fitness tracker, smart watch, heart rate monitor, GPS watch, health te
         generator = TikTokMetadataGenerator(tiktok_settings)
 
         # Empty secrets (no API key)
-        empty_secrets = {}
+        empty_secrets: dict[str, str] = {}
 
         metadata = await generator.generate(
             product_data,
@@ -436,7 +441,12 @@ KEYWORDS: fitness, health"""
             platform="tiktok",
             title=None,
             description="Test caption",
-            hashtags=["#viral", "#FitnessTracker", "#Tech", "#ad"],  # #viral is blacklisted
+            hashtags=[
+                "#viral",
+                "#FitnessTracker",
+                "#Tech",
+                "#ad",
+            ],  # #viral is blacklisted
             keywords=["test"],
             character_counts={"title": 0, "description": 12},
             generated_at="2025-01-15T12:00:00Z",

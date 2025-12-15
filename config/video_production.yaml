@@ -821,6 +821,13 @@ cta_detection:
   # If total CTA duration < this value, fall back to full video duration
   min_cta_duration: 0.5
 
+  # Default CTA duration (seconds) for fallback when detection fails
+  # Used when CTA windows are too short or no CTA detected
+  # Shows URL subtitle for this duration at end of video
+  # Used by: src/video/subtitle_utils.py fallback CTA window creation
+  # Affects: Fallback CTA subtitle timing when detection unavailable
+  default_cta_duration: 5.0
+
   # Fallback duration (seconds) when voiceover duration unavailable
   # Used as placeholder for static subtitles
   fallback_duration: 9999.0
@@ -847,6 +854,9 @@ cta_detection:
   case_sensitive: false
 
   # Maximum gap (seconds) between CTA segments to merge into one window
+  # Merges adjacent CTA segments if gap between them < this threshold
+  # Used by: src/video/cta_detector.py to consolidate CTA windows
+  # Affects: Number and timing of CTA subtitle windows
   merge_gap_threshold: 0.5
 
 # ============================================================================

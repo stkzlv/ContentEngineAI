@@ -4,11 +4,12 @@ Tests cover LLM response mocking, validation rules, error handling,
 and Instagram-specific requirements (dual caption styles, 15-30 hashtag count).
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 from typing import NamedTuple
+from unittest.mock import AsyncMock, patch
+
 import aiohttp
+import pytest
 
 # Import generator and models using safe method to avoid circular imports
 from src.ai.platform_metadata import models
@@ -30,10 +31,12 @@ class MockLLMSettings(NamedTuple):
 class MockProductData(NamedTuple):
     """Mock product data for testing."""
 
-    product_id: str
-    full_product_name: str
-    product_description: str
-    product_url: str
+    asin: str
+    title: str
+    description: str
+    url: str
+    affiliate_link: str | None = None
+    shortened_affiliate_link: str | None = None
 
 
 @pytest.fixture
@@ -76,10 +79,12 @@ def instagram_settings_no_emoji():
 def product_data():
     """Sample product data fixture."""
     return MockProductData(
-        product_id="B0TEST789",
-        full_product_name="Portable Phone Charger 20000mAh Power Bank",
-        product_description="High-capacity portable charger with fast charging, 3 USB ports, LED display, and compact design. Perfect for travel and emergencies.",
-        product_url="https://amazon.com/dp/B0TEST789",
+        asin="B0TEST789",
+        title="Portable Phone Charger 20000mAh Power Bank",
+        description="High-capacity portable charger with fast charging, 3 USB ports, LED display, and compact design. Perfect for travel and emergencies.",
+        url="https://amazon.com/dp/B0TEST789",
+        affiliate_link="https://amazon.com/dp/B0TEST789?tag=stealtech06-20",
+        shortened_affiliate_link="https://stte.psee.io/test789",
     )
 
 
@@ -123,19 +128,16 @@ HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAcces
 
 KEYWORDS: portable charger, power bank, travel essentials, phone accessories"""
 
-        # Mock the internal LLM call functions
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template with {CAPTION_STYLE} and {EMOJI_ENABLED}",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt",
-            return_value="Formatted prompt",
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            return_value=mock_llm_response,
+        # Mock the LLM API calls
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                return_value=mock_llm_response,
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -174,19 +176,16 @@ HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAcces
 
 KEYWORDS: portable charger 20000mah, phone power bank, travel tech, fast charging"""
 
-        # Mock the internal LLM call functions
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template with {CAPTION_STYLE} and {EMOJI_ENABLED}",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt",
-            return_value="Formatted prompt",
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            return_value=mock_llm_response,
+        # Mock the LLM generation
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                return_value=mock_llm_response,
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -215,7 +214,7 @@ KEYWORDS: portable charger 20000mah, phone power bank, travel tech, fast chargin
         generator = InstagramMetadataGenerator(instagram_settings_seo)
 
         # Empty secrets (no API key)
-        empty_secrets = {}
+        empty_secrets: dict[str, str] = {}
 
         metadata = await generator.generate(
             product_data,
@@ -242,17 +241,15 @@ KEYWORDS: portable charger 20000mah, phone power bank, travel tech, fast chargin
         generator = InstagramMetadataGenerator(instagram_settings_seo)
 
         # Mock all models failing
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt", return_value="Prompt"
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            side_effect=Exception("API error"),
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                side_effect=Exception("API error"),
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -283,17 +280,15 @@ KEYWORDS: portable charger 20000mah, phone power bank, travel tech, fast chargin
 
 KEYWORDS: tech, review"""
 
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt", return_value="Prompt"
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            return_value=mock_llm_response,
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                return_value=mock_llm_response,
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -326,17 +321,15 @@ HASHTAGS: #Test #Tech #Review #One #Two #Three #Four #Five #Six #Seven #Eight #N
 
 KEYWORDS: test"""
 
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt", return_value="Prompt"
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            return_value=mock_llm_response,
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                return_value=mock_llm_response,
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -371,17 +364,15 @@ HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAcces
 
 KEYWORDS: portable charger, power bank"""
 
-        with patch(
-            "src.ai.platform_metadata.instagram.load_prompt_template",
-            return_value="Template",
-        ), patch(
-            "src.ai.platform_metadata.instagram.format_prompt", return_value="Prompt"
-        ), patch(
-            "src.ai.platform_metadata.instagram.fetch_and_select_model",
-            return_value=None,
-        ), patch(
-            "src.ai.platform_metadata.instagram.call_llm_api_with_retry",
-            return_value=mock_llm_response,
+        with (
+            patch(
+                "src.ai.platform_metadata.utilities.fetch_and_select_model",
+                return_value=None,
+            ),
+            patch(
+                "src.ai.platform_metadata.utilities.call_llm_api_with_retry",
+                return_value=mock_llm_response,
+            ),
         ):
             metadata = await generator.generate(
                 product_data,
@@ -404,9 +395,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="Portable charger 20000mAh with fast charging and 3 USB ports - perfect for travel and emergencies 📱⚡",  # 110 chars
-            hashtags=[
-                f"#Tag{i}" for i in range(15)
-            ]
+            hashtags=[f"#Tag{i}" for i in range(15)]
             + ["#ad"],  # 15 tags + #ad = 16 total
             keywords=["portable charger", "power bank"],
             character_counts={"title": 0, "description": 110},

@@ -7,18 +7,24 @@
 ffmpeg_settings:
   # Path to FFmpeg executable (empty = use system PATH)
   executable_path: ""
-  
+
   # Temporary directory for FFmpeg intermediate files
   temp_ffmpeg_dir: "ffmpeg_work"
-  
+
   # FFmpeg preset for intermediate processing
   intermediate_segment_preset: "ultrafast"
-  
+
   # Maximum time to wait for final video assembly in seconds
   final_assembly_timeout_sec: 600
-  
+
   # FFmpeg I/O timeout in microseconds (30 seconds)
   rw_timeout_microseconds: 30000000
+
+  # FFmpeg validation timeout (seconds)
+  # Maximum time to wait for FFmpeg -version check during startup validation
+  # Used in config_validator.py to verify FFmpeg is available and working
+  # Affects: Application startup validation speed
+  validation_timeout_sec: 10
   
 # ============================================================================
 # OPTIMIZATION SETTINGS
@@ -53,10 +59,18 @@ optimization_settings:
     # Garbage collection settings
     gc_threshold: 0.8
     max_memory_mb: 2048
-    
+
     # Image processing memory limits
     max_image_size_mb: 50
     image_processing_workers: 2
+
+    # Memory-mapped I/O threshold (bytes)
+    # Files larger than this threshold use memory-mapped I/O for faster copying
+    # Files smaller use standard copy methods
+    # Used by: src/video/producer/steps.py for media file operations
+    # Affects: File copy performance for large media files
+    # 1MB = 1048576 bytes (1024 * 1024)
+    mmap_threshold_bytes: 1048576
 
 # ============================================================================
 # API SETTINGS

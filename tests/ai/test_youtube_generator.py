@@ -4,11 +4,12 @@ Tests cover LLM response mocking, validation rules, error handling,
 and YouTube-specific requirements (#Shorts tag, title length, hashtag count).
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
 from typing import NamedTuple
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import aiohttp
+import pytest
 
 # Import generator and models using safe method to avoid circular imports
 from src.ai.platform_metadata import models
@@ -30,10 +31,12 @@ class MockLLMSettings(NamedTuple):
 class MockProductData(NamedTuple):
     """Mock product data for testing."""
 
-    product_id: str
-    full_product_name: str
-    product_description: str
-    product_url: str
+    asin: str
+    title: str
+    description: str
+    url: str
+    affiliate_link: str | None = None
+    shortened_affiliate_link: str | None = None
 
 
 @pytest.fixture
@@ -52,10 +55,12 @@ def youtube_settings():
 def product_data():
     """Sample product data fixture."""
     return MockProductData(
-        product_id="B0TEST123",
-        full_product_name="Wireless Earbuds with Noise Cancellation",
-        product_description="Premium wireless earbuds with active noise cancellation, 30-hour battery life, and crystal-clear sound quality. Perfect for workouts, commutes, and travel.",
-        product_url="https://amazon.com/dp/B0TEST123",
+        asin="B0TEST123",
+        title="Wireless Earbuds with Noise Cancellation",
+        description="Premium wireless earbuds with active noise cancellation, 30-hour battery life, and crystal-clear sound quality. Perfect for workouts, commutes, and travel.",
+        url="https://amazon.com/dp/B0TEST123",
+        affiliate_link="https://amazon.com/dp/B0TEST123?tag=stealtech06-20",
+        shortened_affiliate_link="https://stte.psee.io/test123",
     )
 
 
@@ -134,7 +139,7 @@ KEYWORDS: wireless earbuds 2025, noise cancelling earbuds, best earbuds, premium
         generator = YouTubeMetadataGenerator(youtube_settings)
 
         # Empty secrets (no API key)
-        empty_secrets = {}
+        empty_secrets: dict[str, str] = {}
 
         metadata = await generator.generate(
             product_data,
