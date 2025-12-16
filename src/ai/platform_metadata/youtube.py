@@ -6,7 +6,6 @@ generation, strategic hashtag placement, and validation against YouTube's requir
 
 import logging
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -40,7 +39,9 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         """Initialize YouTube metadata generator.
 
         Args:
+        ----
             settings: Dictionary containing YouTubePlatformSettings configuration
+
         """
         self.settings = settings
 
@@ -48,8 +49,10 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
     def platform_name(self) -> str:
         """Return platform identifier.
 
-        Returns:
+        Returns
+        -------
             "youtube"
+
         """
         return "youtube"
 
@@ -69,6 +72,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         optimized), 3-5 hashtags including #Shorts, and 5-10 SEO keywords.
 
         Args:
+        ----
             product: Product data containing title, description, URL, etc.
             settings: LLM configuration (API keys, models, timeouts)
             secrets: Dictionary containing API keys (OPENROUTER_API_KEY)
@@ -78,6 +82,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             api_settings: Optional API-specific settings override
 
         Returns:
+        -------
             PlatformMetadata object with YouTube-optimized content, or None if
             generation fails or validation fails.
 
@@ -89,6 +94,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             5. Create PlatformMetadata object
             6. Validate against YouTube requirements
             7. Return metadata or None if validation fails
+
         """
         try:
             # Get API key
@@ -135,15 +141,40 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             )
 
             # Add #Shorts if enabled and not present
-            if self.settings.get("include_shorts_tag", True):
-                if "#Shorts" not in hashtags and "#shorts" not in hashtags:
-                    hashtags.insert(0, "#Shorts")
-                    logger.debug("Added #Shorts hashtag automatically")
+            if self.settings.get("include_shorts_tag", True) and (
+                "#Shorts" not in hashtags and "#shorts" not in hashtags
+            ):
+                hashtags.insert(0, "#Shorts")
+                logger.debug("Added #Shorts hashtag automatically")
 
             # Ensure #ad is present
             if "#ad" not in hashtags and "#Ad" not in hashtags:
                 hashtags.append("#ad")
                 logger.debug("Added #ad hashtag for advertising disclosure")
+
+            # Ensure product ID is available
+            if not product.asin:
+                logger.error("Product ASIN is required for metadata generation")
+                return None
+
+            # Validate shortened affiliate link for YouTube
+            if not product.shortened_affiliate_link:
+                logger.warning(
+                    f"Product {product.asin} has no shortened affiliate link. "
+                    "YouTube description will use full affiliate URL. "
+                    "Consider re-running scraper with URL shortening enabled."
+                )
+            elif product.shortened_affiliate_link == product.affiliate_link:
+                logger.warning(
+                    f"Product {product.asin} affiliate link was not shortened. "
+                    "Picsee API may have failed. YouTube description will use "
+                    "full-length URL which may hurt engagement."
+                )
+            else:
+                logger.info(
+                    f"YouTube metadata will use shortened link: "
+                    f"{product.shortened_affiliate_link}"
+                )
 
             # Create metadata object with validation
             # Note: We create with default "valid" status first, then validate
@@ -191,12 +222,15 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         - #ad tag: required for sponsored content
 
         Args:
+        ----
             metadata: PlatformMetadata object to validate
 
         Returns:
+        -------
             Tuple of (is_valid, message):
                 - is_valid: True if all validation checks pass
                 - message: Empty string if valid, detailed error if invalid
+
         """
         errors = []
 
@@ -211,9 +245,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             title_len = len(metadata.title)
             title_max = self.settings["title_length_max"]
             if title_len > title_max:
-                errors.append(
-                    f"Title too long: {title_len} chars (max {title_max})"
-                )
+                errors.append(f"Title too long: {title_len} chars (max {title_max})")
             elif title_len < 50:
                 # Warning, not error - but log it
                 logger.warning(
@@ -224,39 +256,27 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         desc_len = len(metadata.description)
         desc_max = self.settings["description_length_max"]
         if desc_len > desc_max:
-            errors.append(
-                f"Description too long: {desc_len} chars (max {desc_max})"
-            )
+            errors.append(f"Description too long: {desc_len} chars (max {desc_max})")
 
         # Validate hashtag count (3-5)
         hashtag_count = len(metadata.hashtags)
         min_count = self.settings["hashtag_count_min"]
         max_count = self.settings["hashtag_count_max"]
         if hashtag_count < min_count:
-            errors.append(
-                f"Too few hashtags: {hashtag_count} (min {min_count})"
-            )
+            errors.append(f"Too few hashtags: {hashtag_count} (min {min_count})")
         elif hashtag_count > max_count:
-            errors.append(
-                f"Too many hashtags: {hashtag_count} (max {max_count})"
-            )
+            errors.append(f"Too many hashtags: {hashtag_count} (max {max_count})")
 
         # Check for #Shorts tag if required
         if self.settings.get("include_shorts_tag", True):
-            has_shorts = any(
-                tag.lower() == "#shorts" for tag in metadata.hashtags
-            )
+            has_shorts = any(tag.lower() == "#shorts" for tag in metadata.hashtags)
             if not has_shorts:
-                errors.append(
-                    "Missing required #Shorts hashtag for vertical video"
-                )
+                errors.append("Missing required #Shorts hashtag for vertical video")
 
         # Check for #ad tag
         has_ad = any(tag.lower() == "#ad" for tag in metadata.hashtags)
         if not has_ad:
-            errors.append(
-                "Missing required #ad hashtag for advertising disclosure"
-            )
+            errors.append("Missing required #ad hashtag for advertising disclosure")
 
         # Return validation result
         if errors:
@@ -275,11 +295,14 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             KEYWORDS: [keyword1, keyword2, keyword3]
 
         Args:
+        ----
             response: Raw LLM response text
 
         Returns:
+        -------
             Tuple of (title, description, hashtags_list, keywords_list) or None if
             parsing fails.
+
         """
         try:
             # Extract sections using regex

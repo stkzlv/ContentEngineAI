@@ -53,7 +53,10 @@ class TestPlatformMetadata:
 
         assert metadata.platform == "tiktok"
         assert metadata.title is None
-        assert metadata.description == "Best wireless earbuds under $50 with amazing sound quality"
+        assert (
+            metadata.description
+            == "Best wireless earbuds under $50 with amazing sound quality"
+        )
         assert "title" not in metadata.character_counts
         assert metadata.validation_status == "valid"
 
@@ -93,7 +96,9 @@ class TestPlatformMetadata:
         assert metadata.platform == "youtube"
         assert metadata.title == "Best Earbuds 2025"
         assert metadata.character_counts["title"] == len("Best Earbuds 2025")
-        assert metadata.character_counts["description"] == len("Looking for affordable wireless earbuds?")
+        assert metadata.character_counts["description"] == len(
+            "Looking for affordable wireless earbuds?"
+        )
         assert metadata.validation_status == "valid"
         assert metadata.validation_messages == []
         assert metadata.generated_at is not None
@@ -110,7 +115,9 @@ class TestPlatformMetadata:
 
         assert metadata.title is None
         assert "title" not in metadata.character_counts
-        assert metadata.character_counts["description"] == len("Best wireless earbuds under $50")
+        assert metadata.character_counts["description"] == len(
+            "Best wireless earbuds under $50"
+        )
 
     def test_platform_metadata_create_with_validation_messages(self):
         """Test factory method with validation warnings."""
@@ -139,10 +146,10 @@ class TestPlatformMetadata:
         )
 
         with pytest.raises(AttributeError):
-            metadata.platform = "tiktok"
+            metadata.platform = "tiktok"  # type: ignore[misc]
 
         with pytest.raises(AttributeError):
-            metadata.validation_status = "error"
+            metadata.validation_status = "error"  # type: ignore[misc]
 
     def test_platform_metadata_empty_lists(self):
         """Test metadata with empty hashtags and keywords."""

@@ -46,13 +46,16 @@ async def fetch_and_select_model(
     that provides a cleaner public interface.
 
     Args:
+    ----
         settings: LLM configuration settings
         api_key: API key for authentication
         session: Aiohttp session for API calls
         api_settings: Optional API-specific settings override
 
     Returns:
+    -------
         Selected model name or None if auto-selection disabled or failed
+
     """
     return await _fetch_and_select_model(settings, api_key, session, api_settings)
 
@@ -71,6 +74,7 @@ async def call_llm_api_with_retry(
     that provides a cleaner public interface.
 
     Args:
+    ----
         prompt: Formatted prompt to send to LLM
         model: Model identifier to use
         settings: LLM configuration settings
@@ -79,10 +83,13 @@ async def call_llm_api_with_retry(
         api_settings: Optional API-specific settings override
 
     Returns:
+    -------
         LLM response text
 
     Raises:
+    ------
         Exception: If all retry attempts fail
+
     """
     return await _call_llm_api_with_retry(
         prompt, model, settings, api_key, session, api_settings
@@ -108,6 +115,7 @@ async def generate_with_llm(
     5. Call LLM API with retry logic
 
     Args:
+    ----
         template_path: Path to prompt template file
         product: Product data for template formatting
         settings: LLM configuration settings
@@ -117,9 +125,11 @@ async def generate_with_llm(
         debug_mode: Enable verbose logging if True
 
     Returns:
+    -------
         LLM-generated text or None if all attempts fail
 
     Example:
+    -------
         response = await generate_with_llm(
             Path("src/ai/prompts/youtube_metadata.md"),
             product,
@@ -128,6 +138,7 @@ async def generate_with_llm(
             session,
             debug_mode=True
         )
+
     """
     try:
         # Step 1: Load template
@@ -161,7 +172,8 @@ async def generate_with_llm(
                     prompt, model, settings, api_key, session, api_settings
                 )
                 logger.info(
-                    f"Successfully generated content with {model} ({len(response)} chars)"
+                    f"Successfully generated content with {model} "
+                    f"({len(response)} chars)"
                 )
                 return response
 
@@ -190,19 +202,23 @@ def save_metadata_to_file(
     Creates parent directories if they don't exist.
 
     Args:
+    ----
         metadata: PlatformMetadata object to save
         output_path: Path where JSON file will be written
         debug_mode: Enable verbose logging if True
 
     Returns:
+    -------
         True if save succeeded, False otherwise
 
     Example:
+    -------
         success = save_metadata_to_file(
             metadata,
             Path("outputs/B0TESTID/metadata_youtube.json"),
             debug_mode=True
         )
+
     """
     try:
         # Ensure parent directory exists
@@ -229,15 +245,19 @@ def load_metadata_from_file(file_path: Path) -> PlatformMetadata | None:
     Reads JSON file and deserializes into PlatformMetadata object.
 
     Args:
+    ----
         file_path: Path to JSON file containing metadata
 
     Returns:
+    -------
         PlatformMetadata object or None if load failed
 
     Example:
+    -------
         metadata = load_metadata_from_file(
             Path("outputs/B0TESTID/metadata_youtube.json")
         )
+
     """
     try:
         with file_path.open("r", encoding="utf-8") as f:

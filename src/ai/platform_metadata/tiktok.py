@@ -6,7 +6,6 @@ niche hashtag selection, and validation against generic viral tags.
 
 import logging
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -39,7 +38,9 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         """Initialize TikTok metadata generator.
 
         Args:
+        ----
             settings: Dictionary containing TikTokPlatformSettings configuration
+
         """
         self.settings = settings
 
@@ -47,8 +48,10 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
     def platform_name(self) -> str:
         """Return platform identifier.
 
-        Returns:
+        Returns
+        -------
             "tiktok"
+
         """
         return "tiktok"
 
@@ -68,6 +71,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         niche hashtags avoiding generic tags, and search-friendly keywords.
 
         Args:
+        ----
             product: Product data containing title, description, URL, etc.
             settings: LLM configuration (API keys, models, timeouts)
             secrets: Dictionary containing API keys (OPENROUTER_API_KEY)
@@ -77,6 +81,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             api_settings: Optional API-specific settings override
 
         Returns:
+        -------
             PlatformMetadata object with TikTok-optimized content, or None if
             generation fails or validation fails.
 
@@ -88,6 +93,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             5. Create PlatformMetadata object (no title for TikTok)
             6. Validate against TikTok requirements (length, blacklist)
             7. Return metadata or None if validation fails
+
         """
         try:
             # Get API key
@@ -130,6 +136,11 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             if "#ad" not in hashtags and "#Ad" not in hashtags:
                 hashtags.append("#ad")
                 logger.debug("Added #ad hashtag for advertising disclosure")
+
+            # Ensure product ID is available
+            if not product.asin:
+                logger.error("Product ASIN is required for metadata generation")
+                return None
 
             # Create metadata object (no title for TikTok) with validation
             temp_metadata = PlatformMetadata.create(
@@ -175,12 +186,15 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         - #ad tag: Required for sponsored content
 
         Args:
+        ----
             metadata: PlatformMetadata object to validate
 
         Returns:
+        -------
             Tuple of (is_valid, message):
                 - is_valid: True if all validation checks pass
                 - message: Empty string if valid, detailed error if invalid
+
         """
         errors = []
         warnings = []
@@ -197,9 +211,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         max_len = self.settings["caption_length_max"]
 
         if caption_len > max_len:
-            errors.append(
-                f"Caption too long: {caption_len} chars (max {max_len})"
-            )
+            errors.append(f"Caption too long: {caption_len} chars (max {max_len})")
         elif caption_len > optimal_len:
             # Warning, not error - caption is functional but not optimal
             warning_msg = (
@@ -214,13 +226,9 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         min_count = self.settings["hashtag_count_min"]
         max_count = self.settings["hashtag_count_max"]
         if hashtag_count < min_count:
-            errors.append(
-                f"Too few hashtags: {hashtag_count} (min {min_count})"
-            )
+            errors.append(f"Too few hashtags: {hashtag_count} (min {min_count})")
         elif hashtag_count > max_count:
-            errors.append(
-                f"Too many hashtags: {hashtag_count} (max {max_count})"
-            )
+            errors.append(f"Too many hashtags: {hashtag_count} (max {max_count})")
 
         # Check for blacklisted generic hashtags
         avoid_tags = self.settings.get("avoid_generic_tags", [])
@@ -234,16 +242,14 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
 
             if found_generic:
                 errors.append(
-                    f"Generic hashtags found (provide no discovery value): {', '.join(found_generic)}. "
-                    f"Avoid: {', '.join(avoid_tags)}"
+                    f"Generic hashtags found (provide no discovery value): "
+                    f"{', '.join(found_generic)}. Avoid: {', '.join(avoid_tags)}"
                 )
 
         # Check for #ad tag
         has_ad = any(tag.lower() == "#ad" for tag in metadata.hashtags)
         if not has_ad:
-            errors.append(
-                "Missing required #ad hashtag for advertising disclosure"
-            )
+            errors.append("Missing required #ad hashtag for advertising disclosure")
 
         # Return validation result
         if errors:
@@ -261,10 +267,13 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             KEYWORDS: [keyword1, keyword2, keyword3]
 
         Args:
+        ----
             response: Raw LLM response text
 
         Returns:
+        -------
             Tuple of (caption, hashtags_list, keywords_list) or None if parsing fails.
+
         """
         try:
             # Extract sections using regex

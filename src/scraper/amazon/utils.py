@@ -401,24 +401,28 @@ def get_optimal_browser_position(
 
 
 def build_affiliate_url(url: str, associate_tag: str = None) -> str:
-    """Build Amazon affiliate URL with associate tag parameter
+    """Build Amazon affiliate URL with associate tag parameter.
+
+    Extracts ASIN from URL and builds clean affiliate link optimized for
+    URL shortening services. Removes search parameters and tracking tokens
+    to minimize URL length.
 
     Args:
     ----
-        url: Base Amazon URL (e.g., "https://www.amazon.com/dp/B0BTYCRJSS")
+        url: Amazon URL (e.g., "https://www.amazon.com/dp/B0BTYCRJSS")
         associate_tag: Amazon Associates tag (loads from config if None)
 
     Returns:
     -------
-        URL with tag parameter added (e.g., "...?tag=stealtech06-20")
+        Clean URL with tag parameter (e.g., "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20")
 
     Examples:
     --------
         >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS")
         "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20"
 
-        >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS?th=1")
-        "https://www.amazon.com/dp/B0BTYCRJSS?th=1&tag=stealtech06-20"
+        >>> build_affiliate_url("https://www.amazon.com/product/dp/B0BTYCRJSS?dib=...")
+        "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20"
 
     """
     if not url:
@@ -439,23 +443,31 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
     if not associate_tag:
         return url
 
-    # Parse URL to add/update tag parameter
+    # Extract ASIN and build clean URL
     import re
+    from urllib.parse import urlparse
 
-    if "?" in url:
-        # URL already has query parameters
-        # Check for existing tag parameter (must be preceded by ? or &)
-        if "?tag=" in url:
-            # Replace tag parameter after ?
-            url = re.sub(r"\?tag=[^&]*", f"?tag={associate_tag}", url)
-        elif "&tag=" in url:
-            # Replace tag parameter after &
-            url = re.sub(r"&tag=[^&]*", f"&tag={associate_tag}", url)
+    # Extract ASIN from /dp/{ASIN} pattern
+    asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
+    if not asin_match:
+        # Fallback: add tag to original URL if ASIN not found
+        if "?" in url:
+            if "?tag=" in url:
+                url = re.sub(r"\?tag=[^&]*", f"?tag={associate_tag}", url)
+            elif "&tag=" in url:
+                url = re.sub(r"&tag=[^&]*", f"&tag={associate_tag}", url)
+            else:
+                url = f"{url}&tag={associate_tag}"
         else:
-            # Add tag parameter
-            url = f"{url}&tag={associate_tag}"
-    else:
-        # URL has no query parameters
-        url = f"{url}?tag={associate_tag}"
+            url = f"{url}?tag={associate_tag}"
+        return url
 
-    return url
+    # Build clean URL with just domain, /dp/{ASIN}, and associate tag
+    asin = asin_match.group(1)
+    parsed = urlparse(url)
+    domain = f"{parsed.scheme}://{parsed.netloc}"
+
+    # Build clean affiliate URL
+    clean_url = f"{domain}/dp/{asin}?tag={associate_tag}"
+
+    return clean_url

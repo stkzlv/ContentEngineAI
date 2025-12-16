@@ -12,6 +12,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+# Platform-specific metadata models (no circular import after extracting LLMSettings)
+from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
 from src.video.config.audio_models import (
     AudioProcessingSettings,
@@ -41,6 +43,7 @@ from src.video.config.constants import (
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
 )
+from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
@@ -54,10 +57,6 @@ from src.video.config.visual_models import (
     VideoProfile,
     VideoSettings,
 )
-from src.video.config.llm_settings import LLMSettings
-
-# Platform-specific metadata models (no circular import after extracting LLMSettings)
-from src.ai.platform_metadata.models import PlatformMetadataSettings
 
 logger = logging.getLogger(__name__)
 
@@ -95,11 +94,17 @@ class DescriptionSettings(BaseModel):
     # Platform-specific metadata generation (optional, new feature)
     target_platform: str = Field(
         "multi",
-        description="Target platform for metadata generation: 'youtube', 'tiktok', 'instagram', or 'multi' for all platforms",
+        description=(
+            "Target platform for metadata generation: 'youtube', 'tiktok', "
+            "'instagram', or 'multi' for all platforms"
+        ),
     )
     platform_metadata: PlatformMetadataSettings | None = Field(
         None,
-        description="Platform-specific metadata settings. If None, uses legacy unified description mode for backward compatibility.",
+        description=(
+            "Platform-specific metadata settings. If None, uses legacy unified "
+            "description mode for backward compatibility."
+        ),
     )
 
 
@@ -574,7 +579,6 @@ class VideoConfig(BaseModel):
     description_settings: DescriptionSettings
     stock_media_settings: StockMediaSettings
     ffmpeg_settings: FFmpegSettings
-    attribution_settings: AttributionSettings
     subtitle_settings: dict[str, Any]  # Now loaded from config/subtitles.yaml
     whisper_settings: WhisperSettings
     google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)

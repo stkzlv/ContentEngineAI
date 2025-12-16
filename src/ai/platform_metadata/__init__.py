@@ -4,7 +4,15 @@ This package provides platform-optimized metadata generation including titles,
 descriptions, captions, and hashtags tailored to each platform's best practices.
 """
 
+# Import for type hints and async
+import asyncio
+import logging
+from pathlib import Path
+
+import aiohttp
+
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
+from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
 from src.ai.platform_metadata.models import (
     InstagramPlatformSettings,
     PlatformMetadata,
@@ -12,6 +20,7 @@ from src.ai.platform_metadata.models import (
     TikTokPlatformSettings,
     YouTubePlatformSettings,
 )
+from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
 from src.ai.platform_metadata.utilities import (
     call_llm_api_with_retry,
     fetch_and_select_model,
@@ -21,17 +30,7 @@ from src.ai.platform_metadata.utilities import (
     load_prompt_template,
     save_metadata_to_file,
 )
-from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
-from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
 from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
-
-# Import for type hints and async
-import asyncio
-import logging
-from pathlib import Path
-
-import aiohttp
-
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
 
@@ -61,7 +60,7 @@ class PlatformMetadataFactory:
     """
 
     # Platform generator mapping for extensibility
-    _PLATFORM_GENERATORS = {
+    _PLATFORM_GENERATORS: dict[str, type[BasePlatformMetadataGenerator]] = {
         "youtube": YouTubeMetadataGenerator,
         "tiktok": TikTokMetadataGenerator,
         "instagram": InstagramMetadataGenerator,
@@ -72,30 +71,37 @@ class PlatformMetadataFactory:
         """Create a platform-specific metadata generator instance.
 
         Args:
+        ----
             platform: Platform identifier ("youtube", "tiktok", "instagram")
             platform_settings: Platform-specific configuration dict
 
         Returns:
+        -------
             Instance of the appropriate generator class
 
         Raises:
+        ------
             ValueError: If platform name is not recognized
 
         Example:
+        -------
             youtube_gen = PlatformMetadataFactory.create(
                 "youtube",
                 {"title_length_max": 60, "hashtag_count_min": 3, ...}
             )
+
         """
         if platform not in PlatformMetadataFactory._PLATFORM_GENERATORS:
-            known_platforms = ", ".join(PlatformMetadataFactory._PLATFORM_GENERATORS.keys())
+            known_platforms = ", ".join(
+                PlatformMetadataFactory._PLATFORM_GENERATORS.keys()
+            )
             raise ValueError(
                 f"Unknown platform '{platform}'. "
                 f"Supported platforms: {known_platforms}"
             )
 
         generator_class = PlatformMetadataFactory._PLATFORM_GENERATORS[platform]
-        return generator_class(platform_settings)
+        return generator_class(platform_settings)  # type: ignore[call-arg]
 
     @staticmethod
     async def generate_multi_platform(
@@ -115,6 +121,7 @@ class PlatformMetadataFactory:
         return_exceptions=True.
 
         Args:
+        ----
             product: Product data for metadata generation
             settings: LLM configuration (API keys, models, timeouts)
             secrets: Dictionary containing API keys
@@ -130,6 +137,7 @@ class PlatformMetadataFactory:
             api_settings: Optional API-specific settings override
 
         Returns:
+        -------
             Dictionary mapping platform names to PlatformMetadata objects or None:
                 {
                     "youtube": PlatformMetadata(...),
@@ -139,6 +147,7 @@ class PlatformMetadataFactory:
             If a platform fails, its value will be None.
 
         Example:
+        -------
             results = await PlatformMetadataFactory.generate_multi_platform(
                 product, llm_settings, secrets, session,
                 {
@@ -152,6 +161,7 @@ class PlatformMetadataFactory:
 
             if results["youtube"]:
                 print(f"YouTube title: {results['youtube'].title}")
+
         """
         logger.info("Starting multi-platform metadata generation in parallel")
 
@@ -188,9 +198,9 @@ class PlatformMetadataFactory:
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Map results back to platform names
-        results = {}
-        for platform, result in zip(task_platforms, results_list):
-            if isinstance(result, Exception):
+        results: dict[str, PlatformMetadata | None] = {}
+        for platform, result in zip(task_platforms, results_list, strict=False):
+            if isinstance(result, BaseException):
                 logger.error(
                     f"Error generating {platform} metadata: {result}",
                     exc_info=result,
@@ -201,9 +211,11 @@ class PlatformMetadataFactory:
                 status = "success" if result else "failed"
                 logger.info(f"{platform.capitalize()} metadata generation: {status}")
 
+        success_count = sum(1 for v in results.values() if v is not None)
+        total_count = len(results)
         logger.info(
             f"Multi-platform generation complete. "
-            f"Success: {sum(1 for v in results.values() if v is not None)}/{len(results)}"
+            f"Success: {success_count}/{total_count}"
         )
 
         return results

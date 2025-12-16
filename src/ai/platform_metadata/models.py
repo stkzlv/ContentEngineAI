@@ -5,7 +5,7 @@ including Pydantic configuration models and immutable metadata dataclasses.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,8 @@ class PlatformMetadata:
     (YouTube, TikTok, or Instagram) including titles, descriptions, hashtags,
     and validation status.
 
-    Attributes:
+    Attributes
+    ----------
         platform: Platform identifier ("youtube", "tiktok", "instagram")
         title: Platform-specific title (YouTube only, None for others)
         description: Platform-optimized description or caption
@@ -29,6 +30,7 @@ class PlatformMetadata:
         product_id: Product identifier (ASIN or similar)
         validation_status: Validation result ("valid", "warning", "error")
         validation_messages: List of validation details/warnings
+
     """
 
     platform: str
@@ -45,8 +47,10 @@ class PlatformMetadata:
     def to_dict(self) -> dict:
         """Convert metadata to dictionary for JSON serialization.
 
-        Returns:
+        Returns
+        -------
             Dictionary representation of metadata with all fields.
+
         """
         return {
             "platform": self.platform,
@@ -76,6 +80,7 @@ class PlatformMetadata:
         """Factory method to create PlatformMetadata with auto-generated fields.
 
         Args:
+        ----
             platform: Platform identifier
             description: Platform-specific description
             hashtags: List of hashtags
@@ -86,7 +91,10 @@ class PlatformMetadata:
             validation_messages: Optional validation messages
 
         Returns:
-            New PlatformMetadata instance with calculated character counts and timestamp.
+        -------
+            New PlatformMetadata instance with calculated character counts and
+            timestamp.
+
         """
         character_counts = {"description": len(description)}
         if title:
@@ -99,7 +107,7 @@ class PlatformMetadata:
             hashtags=hashtags,
             keywords=keywords,
             character_counts=character_counts,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             product_id=product_id,
             validation_status=validation_status,
             validation_messages=validation_messages or [],
@@ -113,9 +121,7 @@ class YouTubePlatformSettings(BaseModel):
     hashtag counts, and SEO keyword requirements.
     """
 
-    enabled: bool = Field(
-        True, description="Enable YouTube metadata generation"
-    )
+    enabled: bool = Field(True, description="Enable YouTube metadata generation")
     title_length_max: int = Field(
         60,
         ge=1,
@@ -146,9 +152,7 @@ class TikTokPlatformSettings(BaseModel):
     and SEO-focused content requirements.
     """
 
-    enabled: bool = Field(
-        True, description="Enable TikTok metadata generation"
-    )
+    enabled: bool = Field(True, description="Enable TikTok metadata generation")
     caption_length_optimal: int = Field(
         150,
         ge=50,
@@ -181,9 +185,7 @@ class InstagramPlatformSettings(BaseModel):
     and SEO-descriptive (100-200 chars) caption styles with extensive hashtag usage.
     """
 
-    enabled: bool = Field(
-        True, description="Enable Instagram metadata generation"
-    )
+    enabled: bool = Field(True, description="Enable Instagram metadata generation")
     caption_style: str = Field(
         "seo",
         pattern="^(short|seo)$",
@@ -215,12 +217,15 @@ class PlatformMetadataSettings(BaseModel):
     Aggregates settings for YouTube, TikTok, and Instagram with platform targeting
     control. Enables/disables platform-specific metadata generation globally.
 
-    Attributes:
+    Attributes
+    ----------
         enabled: Global enable/disable for platform-specific metadata
-        target_platform: Target platform(s) - "youtube", "tiktok", "instagram", or "multi"
+        target_platform: Target platform(s) - "youtube", "tiktok",
+            "instagram", or "multi"
         youtube: YouTube-specific settings
         tiktok: TikTok-specific settings
         instagram: Instagram-specific settings
+
     """
 
     enabled: bool = Field(
@@ -229,17 +234,19 @@ class PlatformMetadataSettings(BaseModel):
     target_platform: str = Field(
         "multi",
         pattern="^(youtube|tiktok|instagram|multi)$",
-        description="Target platform: 'youtube', 'tiktok', 'instagram', or 'multi' for all",
+        description=(
+            "Target platform: 'youtube', 'tiktok', 'instagram', or 'multi' for all"
+        ),
     )
     youtube: YouTubePlatformSettings = Field(
-        default_factory=YouTubePlatformSettings,
+        default_factory=lambda: YouTubePlatformSettings(),  # type: ignore[call-arg]
         description="YouTube platform settings",
     )
     tiktok: TikTokPlatformSettings = Field(
-        default_factory=TikTokPlatformSettings,
+        default_factory=lambda: TikTokPlatformSettings(),  # type: ignore[call-arg]
         description="TikTok platform settings",
     )
     instagram: InstagramPlatformSettings = Field(
-        default_factory=InstagramPlatformSettings,
+        default_factory=lambda: InstagramPlatformSettings(),  # type: ignore[call-arg]
         description="Instagram platform settings",
     )

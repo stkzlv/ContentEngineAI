@@ -148,6 +148,119 @@ class TestPlatformMetadataFileIntegration:
         assert loaded["platform"] == "youtube"
         assert loaded["validation_status"] == "valid"
 
+    def test_upload_instructions_file_generation(self):
+        """Test UPLOAD_INSTRUCTIONS.txt generation from metadata files."""
+        from src.ai.platform_metadata.models import PlatformMetadata
+        from src.ai.platform_metadata.text_formatter import (
+            format_upload_instructions,
+        )
+
+        self.temp_dir = tempfile.TemporaryDirectory()
+        output_dir = Path(self.temp_dir.name)
+        text_dir = output_dir / self.product_id / "text"
+        text_dir.mkdir(parents=True)
+
+        # Create PlatformMetadata objects for all platforms
+        youtube_metadata = PlatformMetadata(
+            platform="youtube",
+            title="Test Product - Best Features #Shorts",
+            description="Check out this amazing product with great features.",
+            hashtags=["#Shorts", "#Product", "#Review", "#ad"],
+            keywords=["test product", "features"],
+            character_counts={"title": 36, "description": 53},
+            generated_at="2025-01-15T12:00:00Z",
+            product_id=self.product_id,
+            validation_status="valid",
+            validation_messages=[],
+        )
+
+        tiktok_metadata = PlatformMetadata(
+            platform="tiktok",
+            title=None,
+            description="Amazing product features! #Product #Review #TikTokMadeMeBuyIt #ad",
+            hashtags=["#Product", "#Review", "#TikTokMadeMeBuyIt", "#ad"],
+            keywords=["product", "review", "features"],
+            character_counts={"description": 68},
+            generated_at="2025-01-15T12:00:00Z",
+            product_id=self.product_id,
+            validation_status="valid",
+            validation_messages=[],
+        )
+
+        instagram_metadata = PlatformMetadata(
+            platform="instagram",
+            title=None,
+            description="Premium product with exceptional features",
+            hashtags=[f"#Tag{i}" for i in range(20)] + ["#ad"],
+            keywords=["premium product", "features"],
+            character_counts={"description": 43},
+            generated_at="2025-01-15T12:00:00Z",
+            product_id=self.product_id,
+            validation_status="valid",
+            validation_messages=[],
+        )
+
+        # Generate upload instructions
+        metadata_results = {
+            "youtube": youtube_metadata,
+            "tiktok": tiktok_metadata,
+            "instagram": instagram_metadata,
+        }
+
+        instructions_text = format_upload_instructions(
+            metadata_results=metadata_results,
+            product_id=self.product_id,
+            video_filename=f"video_{self.product_id}_test.mp4",
+            product_name="Test Product",
+            product_url=f"https://www.amazon.com/dp/{self.product_id}",
+        )
+
+        # Write to file
+        instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
+        instructions_file.write_text(instructions_text, encoding="utf-8")
+
+        # Verify file exists
+        assert instructions_file.exists()
+
+        # Verify file content
+        content = instructions_file.read_text(encoding="utf-8")
+
+        # Check header
+        assert "READY-TO-POST SOCIAL MEDIA CONTENT" in content
+        assert self.product_id in content
+        assert f"video_{self.product_id}_test.mp4" in content
+
+        # Check platform sections exist
+        assert "🎬 YOUTUBE SHORTS" in content
+        assert "🎵 TIKTOK" in content
+        assert "📷 INSTAGRAM REELS" in content
+
+        # Check YouTube content
+        assert "Test Product - Best Features #Shorts" in content
+        assert "#Shorts #Product #Review #ad" in content
+
+        # Check TikTok content
+        assert "Amazing product features!" in content
+        assert "#TikTokMadeMeBuyIt" in content
+
+        # Check Instagram content
+        assert "Premium product with exceptional features" in content
+        assert "Use all 21 for maximum reach" in content
+
+        # Check summary table
+        assert "📊 METADATA SUMMARY" in content
+        assert "✅ Valid" in content or "✅ valid" in content.lower()
+
+        # Check upload checklist
+        assert "✅ UPLOAD CHECKLIST" in content
+        assert "□ YouTube Shorts:" in content
+        assert "□ TikTok:" in content
+        assert "□ Instagram Reels:" in content
+
+        # Check notes
+        assert "📌 NOTES" in content
+        assert "All include #ad for FTC compliance" in content
+
     def test_metadata_json_schema_compatibility(self):
         """Test that all platform metadata files follow the same schema."""
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -182,7 +295,9 @@ class TestPlatformMetadataFileIntegration:
 
             # Verify all required fields exist
             for field in required_fields:
-                assert field in loaded, f"Missing field '{field}' in {platform} metadata"
+                assert (
+                    field in loaded
+                ), f"Missing field '{field}' in {platform} metadata"
 
             # Verify field types
             assert isinstance(loaded["hashtags"], list)
@@ -335,4 +450,6 @@ class TestPlatformMetadataFileIntegration:
         assert text_dir.is_dir()
         assert metadata_file.exists()
         assert metadata_file.is_file()
-        assert str(metadata_file).endswith(f"{self.product_id}/text/metadata_youtube.json")
+        assert str(metadata_file).endswith(
+            f"{self.product_id}/text/metadata_youtube.json"
+        )

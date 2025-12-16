@@ -762,6 +762,39 @@ poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_im
 - **Hashtags**: 15-30 hashtags IN THE CAPTION (not comments) - algorithm prioritizes caption hashtags
 - **Mix**: Use 5-10 popular tags (100k-1M posts) + 10-15 niche (10k-100k) + 5-10 specific (<10k)
 
+**Understanding Keywords vs Hashtags:**
+
+Platform metadata includes both **hashtags** and **keywords** - they serve different purposes:
+
+| Type | Purpose | Visibility | Where to Use |
+|------|---------|------------|--------------|
+| **Hashtags** | Content discovery & categorization | Visible in video (clickable) | Add to description or dedicated hashtag field |
+| **Keywords** | SEO & search ranking (backend tags) | Hidden from viewers | YouTube Studio "Tags" field (backend only) |
+
+**How to Use Keywords:**
+
+**YouTube Shorts:**
+- Keywords are **critical for SEO** - they help YouTube understand and rank your video in search results
+- During upload in YouTube Studio, find the "Tags" or "Keywords" section (below description field)
+- Copy keywords from `metadata_youtube.json` → Paste as comma-separated tags in YouTube Studio
+- Example keywords: `4K mini projector, portable projector, home theater projector, wifi projector, bluetooth projector`
+- Use 5-10 keywords that match actual search terms users type
+- **Location**: Backend only - viewers never see these tags
+
+**TikTok:**
+- Keywords have **limited SEO value** on TikTok (platform primarily uses hashtags and caption text)
+- Generated keywords are for reference/analytics only
+- TikTok's algorithm analyzes caption text directly for search ranking
+- **Don't manually enter** - no keyword field exists in TikTok upload interface
+
+**Instagram:**
+- Instagram has **no keyword field**
+- Generated keywords are for reference/analytics tracking only
+- Instagram's algorithm relies on hashtags and caption text for discovery
+- **Don't manually enter** - no backend tags system exists
+
+**Current Limitation:** Keywords are generated and saved in `metadata_{platform}.json` files but are **not included in `UPLOAD_INSTRUCTIONS.txt`**. You must manually open the JSON files to copy keywords for YouTube uploads.
+
 **Output Files:**
 
 When platform metadata generation is enabled, the following files are created in `outputs/{product_id}/text/`:

@@ -247,7 +247,8 @@ class VisualFilterBuilder:
                 subtitle_settings = self._get_effective_subtitle_settings()
                 # Estimate subtitle height based on font size and margins
                 font_size_scale = subtitle_settings.get("font_size_scale", 1.0)
-                base_font_height = height * 0.05
+                base_pct = self.config.video_settings.base_font_height_percent
+                base_font_height = height * base_pct
                 font_height = base_font_height * font_size_scale
 
                 margin = subtitle_settings.get("margin", 0.05)
@@ -375,14 +376,17 @@ class VisualFilterBuilder:
             )
 
             if has_video_positioning:
-                # Override with image-optimized positioning
-                video_settings_dict["image_top_position_percent"] = 0.15
-                video_settings_dict["image_width_percent"] = 0.85
+                # Override with image-optimized positioning from config
+                vs = self.config.video_settings
+                fallback_top = vs.fallback_image_top_percent
+                fallback_width = vs.fallback_image_width_percent
+                video_settings_dict["image_top_position_percent"] = fallback_top
+                video_settings_dict["image_width_percent"] = fallback_width
                 image_positioning_overridden = True
                 logger.info(
                     "No videos detected in video-centric profile - "
                     "applying image-optimized positioning "
-                    "(top=15%, width=85%)"
+                    f"(top={fallback_top:.0%}, width={fallback_width:.0%})"
                 )
 
         # Build filter chain
@@ -437,11 +441,11 @@ class VisualFilterBuilder:
                 default_height = self.config.video_settings.video_content_height_percent
                 if self.profile_settings and "video_settings" in self.profile_settings:
                     vs = self.profile_settings["video_settings"]
-                    video_top_percent = vs.get(
-                        "video_top_position_percent", default_top
+                    video_top_percent = getattr(
+                        vs, "video_top_position_percent", default_top
                     )
-                    video_height_percent = vs.get(
-                        "video_content_height_percent", default_height
+                    video_height_percent = getattr(
+                        vs, "video_content_height_percent", default_height
                     )
                     logger.debug(
                         f"[VIDEO POS] Reading from video_settings: "

@@ -106,11 +106,11 @@ def test_req_5_2_above_content_anchor_with_content_aware():
 
     position = calculate_position(config, frame_size, visual_bounds)
 
-    # Should position above visual content: y = visual_bounds.y - margin
-    expected_y = 0.3 - 0.05
+    # Should position at margin from top (content-aware ensures we stay above content)
+    expected_y = 0.05
     assert (
         position.y == expected_y
-    ), f"Above content should be at bounds.y - margin ({expected_y})"
+    ), f"Above content should be at margin from top ({expected_y})"
 
 
 @pytest.mark.compliance

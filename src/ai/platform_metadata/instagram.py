@@ -6,7 +6,6 @@ This module implements Instagram Reels optimization with dual caption styles
 
 import logging
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -43,7 +42,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         """Initialize Instagram metadata generator.
 
         Args:
+        ----
             settings: Dictionary containing InstagramPlatformSettings configuration
+
         """
         self.settings = settings
 
@@ -51,8 +52,10 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
     def platform_name(self) -> str:
         """Return platform identifier.
 
-        Returns:
+        Returns
+        -------
             "instagram"
+
         """
         return "instagram"
 
@@ -72,6 +75,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         settings, with 15-30 hashtags in caption and search-friendly keywords.
 
         Args:
+        ----
             product: Product data containing title, description, URL, etc.
             settings: LLM configuration (API keys, models, timeouts)
             secrets: Dictionary containing API keys (OPENROUTER_API_KEY)
@@ -81,6 +85,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             api_settings: Optional API-specific settings override
 
         Returns:
+        -------
             PlatformMetadata object with Instagram-optimized content, or None if
             generation fails or validation fails.
 
@@ -93,6 +98,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             6. Create PlatformMetadata object (no title for Instagram)
             7. Validate against Instagram requirements
             8. Return metadata or None if validation fails
+
         """
         try:
             # Get API key
@@ -124,7 +130,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             if debug_mode:
                 logger.info(f"Instagram caption style: {caption_style}")
 
-            # Call LLM API directly (can't use generate_with_llm helper due to custom formatting)
+            # Call LLM API directly (custom formatting needed)
             from src.ai.platform_metadata.utilities import (
                 call_llm_api_with_retry,
                 fetch_and_select_model,
@@ -152,7 +158,8 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                         prompt, model, settings, api_key, session, api_settings
                     )
                     logger.info(
-                        f"Successfully generated content with {model} ({len(response)} chars)"
+                        f"Successfully generated content with {model} "
+                        f"({len(response)} chars)"
                     )
                     break
                 except Exception as e:
@@ -178,6 +185,11 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             if "#ad" not in hashtags and "#Ad" not in hashtags:
                 hashtags.append("#ad")
                 logger.debug("Added #ad hashtag for advertising disclosure")
+
+            # Ensure product ID is available
+            if not product.asin:
+                logger.error("Product ASIN is required for metadata generation")
+                return None
 
             # Create metadata object (no title for Instagram) with validation
             temp_metadata = PlatformMetadata.create(
@@ -223,12 +235,15 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         - #ad tag: Required for sponsored content
 
         Args:
+        ----
             metadata: PlatformMetadata object to validate
 
         Returns:
+        -------
             Tuple of (is_valid, message):
                 - is_valid: True if all validation checks pass
                 - message: Empty string if valid, detailed error if invalid
+
         """
         errors = []
 
@@ -269,16 +284,12 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 f"Instagram Reels need 15-30 hashtags for optimal reach."
             )
         elif hashtag_count > max_count:
-            errors.append(
-                f"Too many hashtags: {hashtag_count} (max {max_count})"
-            )
+            errors.append(f"Too many hashtags: {hashtag_count} (max {max_count})")
 
         # Check for #ad tag
         has_ad = any(tag.lower() == "#ad" for tag in metadata.hashtags)
         if not has_ad:
-            errors.append(
-                "Missing required #ad hashtag for advertising disclosure"
-            )
+            errors.append("Missing required #ad hashtag for advertising disclosure")
 
         # Return validation result
         if errors:
@@ -291,11 +302,13 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         Returns caption style based on InstagramPlatformSettings.caption_style.
         Defaults to "seo" if not specified.
 
-        Returns:
+        Returns
+        -------
             "short" for ultra-brief 3-5 word captions
             "seo" for descriptive 100-200 character captions
+
         """
-        caption_style = self.settings.get("caption_style", "seo")
+        caption_style = str(self.settings.get("caption_style", "seo"))
         if caption_style not in ["short", "seo"]:
             logger.warning(
                 f"Invalid caption_style '{caption_style}', defaulting to 'seo'"
@@ -307,11 +320,14 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         """Validate and potentially truncate caption based on style.
 
         Args:
+        ----
             caption: Generated caption text
             style: Caption style ("short" or "seo")
 
         Returns:
+        -------
             Caption (potentially truncated if exceeds style limits)
+
         """
         if style == "short":
             # For short style, roughly check word count
@@ -341,10 +357,13 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             KEYWORDS: [keyword1, keyword2, keyword3]
 
         Args:
+        ----
             response: Raw LLM response text
 
         Returns:
+        -------
             Tuple of (caption, hashtags_list, keywords_list) or None if parsing fails.
+
         """
         try:
             # Extract sections using regex

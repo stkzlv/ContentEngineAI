@@ -781,13 +781,31 @@ async def step_generate_subtitles(ctx: PipelineContext):
             # Calculate visual bounds for content-aware positioning
             from src.video.subtitle_positioning import VisualBounds
 
-            video_top = (
-                ctx.profile.video_top_position_percent
-                or ctx.profile.image_top_position_percent
-                or 0.07
-            )
-            video_height = ctx.profile.video_content_height_percent or 0.8
-            video_width = ctx.profile.image_width_percent or 0.9
+            # Determine which media type is actually being used
+            has_videos = ctx.scraped_videos and len(ctx.scraped_videos) > 0
+            has_images = ctx.scraped_images and len(ctx.scraped_images) > 0
+
+            # Use appropriate position based on actual media type
+            if has_videos:
+                # Videos are present - use video positioning
+                video_top = ctx.profile.video_top_position_percent or 0.07
+                video_height = ctx.profile.video_content_height_percent or 0.8
+                video_width = ctx.profile.image_width_percent or 0.9
+                logger.debug(
+                    "Using video positioning for visual bounds (videos present)"
+                )
+            elif has_images:
+                # Only images - use image positioning
+                video_top = ctx.profile.image_top_position_percent or 0.07
+                video_height = 0.8  # Images use full available height
+                video_width = ctx.profile.image_width_percent or 0.9
+                logger.debug("Using image positioning for visual bounds (images only)")
+            else:
+                # No media - use defaults
+                video_top = 0.07
+                video_height = 0.8
+                video_width = 0.9
+                logger.debug("No media found, using default visual bounds")
 
             visual_bounds = VisualBounds(
                 x=(1.0 - video_width) / 2,

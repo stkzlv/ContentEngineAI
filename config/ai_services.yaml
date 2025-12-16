@@ -46,26 +46,8 @@ llm_settings:
 # ============================================================================
 # TTS CONFIGURATION
 # ============================================================================
-tts_config:
-  # Order of TTS providers to try (first to last)
-  provider_order: ["google_cloud", "coqui"]
-
-  google_cloud:
-    model_name: "en-US-Chirp3-HD"
-    language_code: "en-US"
-    voice_selection_criteria:
-      - language_code: "en-US"
-        ssml_gender: "NEUTRAL"
-    audio_config:
-      audio_encoding: "MP3"
-      sample_rate_hertz: 24000
-    speaking_rate: 1.0
-    pitch: 0.0
-    volume_gain_db: 0.0
-
-  coqui:
-    model_name: "tts_models/en/ek1/tacotron2"
-    enabled: true
+# NOTE: TTS configuration has been moved to config/subtitles.yaml
+# See subtitles.yaml for all text-to-speech settings
 
 # ============================================================================
 # DESCRIPTION SETTINGS

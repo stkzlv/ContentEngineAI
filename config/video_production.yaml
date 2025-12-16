@@ -126,6 +126,18 @@ video_settings:
   image_width_percent: 0.9           # Image width as 90% of frame width
   image_top_position_percent: 0.07   # Top edge at 7% from frame top
 
+  # Fallback positioning for image-only videos (no product videos available)
+  # Used by: visual_builder.py when profile expects videos but only images are available
+  # Pipeline Impact: Ensures consistent positioning when video-centric profiles fall back to images
+  fallback_image_top_percent: 0.15   # Top edge at 15% when falling back to image-only mode
+  fallback_image_width_percent: 0.85 # Width at 85% when falling back to image-only mode
+
+  # Aspect ratio settings for video processing
+  # Used by: visual_builder.py smart-scale mode decision making
+  # Pipeline Impact: Determines whether to letterbox or crop videos to fit frame
+  smart_scale_tolerance: 0.10        # Tolerance threshold (10%) for aspect ratio matching
+                                     # If video aspect differs by <10%, crop-to-fit; else letterbox
+
   # Timing and delays for batch processing
   # Random delays between product videos to avoid detection as automated content
   # Used by: Batch processing mode in producer.py
@@ -138,8 +150,15 @@ video_settings:
   # Note: Modern workflow uses external ASS files, these are legacy fallbacks
   default_max_chars_per_line: 20      # Character limit for subtitle wrapping
   subtitle_box_border_width: 5        # Border thickness around subtitle box
+  base_font_height_percent: 0.05      # Base font size for subtitle height calculation (5% of frame height)
+                                      # Used by: visual_builder.py to estimate subtitle vertical space
   image_loop: 1                       # Number of times to loop images (1=no loop)
   pad_color: "black"                  # Padding color for letterboxing
+
+  # System resource requirements
+  # Used by: config_validator.py to verify system can handle video production
+  # Pipeline Impact: Warns users if system resources are insufficient
+  min_memory_gb: 2.0                  # Minimum RAM required for video production (GB)
 
   # Supported file formats
   # File extensions accepted by the pipeline for media processing
@@ -379,6 +398,12 @@ video_profiles:
   # Base profile (shared defaults)
   base:
     description: "Base profile with common settings for all video types."
+    # Default media sources - use scraped images only
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
     # NOTE: Video settings (transitions, aspect ratio) controlled by profile-level config
     # NOTE: Audio normalization handled automatically by pipeline
     # NOTE: Background music controlled by audio_settings.background_music section
@@ -480,6 +505,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
     two_part_subtitles_upper_margin: 0.04
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -530,7 +556,7 @@ video_profiles:
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
     two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.04
+    two_part_subtitles_upper_margin: 0.16
     two_part_subtitles_upper_font_size_scale: 0.7
     two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
     two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
@@ -937,15 +963,6 @@ timing:
   # Used when trimming video segments to ensure clean cuts
   min_safe_trim_duration_sec: 0.5
 
-# ============================================================================
-# ATTRIBUTION SETTINGS
-# ============================================================================
-# Video attribution and credits display configuration
-# NOTE: Attribution feature not implemented, minimal config for Pydantic validation
-attribution_settings:
-  enabled: false
-  attribution_template: ""
-  attribution_entry_template: ""
 
 # ============================================================================
 # TEXT-TO-SPEECH SETTINGS
@@ -954,95 +971,16 @@ attribution_settings:
 # This section kept for reference only - actual TTS settings loaded from subtitles.yaml
 
 # ============================================================================
-# LLM SETTINGS (Script Generation)
+# LLM SETTINGS
 # ============================================================================
-# Large Language Model configuration for AI script generation
-# Used by: src/ai/script_generator.py for creating video voiceover scripts
-#
-# Pipeline Impact:
-# - Script quality directly affects video engagement and conversions
-# - models: Fallback list (tries in order until one succeeds)
-# - auto_select_free_model: Automatically uses free tier models when available
-# - max_tokens: Controls script length (350 tokens ≈ 60-90 seconds of speech)
-# - temperature: Creativity level (0.0=deterministic, 1.0=creative, 0.7=balanced)
-#
-# OpenRouter aggregates multiple LLM providers (OpenAI, Anthropic, Meta, etc.)
-# Requires: OPENROUTER_API_KEY environment variable
-# Cost: Varies by model ($0-$0.02 per 1K tokens, check current pricing)
-llm_settings:
-  # LLM provider (currently only "openrouter" supported)
-  provider: "openrouter"
-
-  # Environment variable containing OpenRouter API key
-  # Get key from: https://openrouter.ai/
-  api_key_env_var: "OPENROUTER_API_KEY"
-
-  # Auto-select free models when available (recommended for testing)
-  # When true: Prefers free tier models from the models list
-  # When false: Uses first available model regardless of cost
-  auto_select_free_model: true
-
-  # Model fallback list (tries in order)
-  # Format: "provider/model-name" or "provider/model-name:free"
-  # :free suffix = free tier only (no cost but may have rate limits)
-  models:
-    - "openai/gpt-3.5-turbo"              # Fast, good quality, low cost
-    - "deepseek/deepseek-chat-v3-0324:free"  # Free tier, decent quality
-    - "meta-llama/llama-3-8b-instruct:free"  # Free tier, good for scripts
-
-  # Maximum tokens in generated script
-  # 350 tokens ≈ 60-90 seconds of voiceover
-  # Increase for longer scripts, decrease for shorter
-  # Note: Longer scripts = higher API costs
-  max_tokens: 350
-
-  # Temperature: Controls output randomness (0.0-2.0)
-  # 0.0 = deterministic, repetitive (not recommended)
-  # 0.7 = balanced creativity (recommended for marketing scripts)
-  # 1.0+ = highly creative, less predictable
-  temperature: 0.7
-
-  # API timeout and retry configuration
-  # Increase timeout for slower models or poor network
-  timeout_seconds: 90         # Max wait time for API response
-  retry_attempts: 3           # Number of retries on failure
-  retry_min_wait_sec: 2       # Initial retry delay (exponential backoff)
-  retry_max_wait_sec: 30      # Maximum retry delay
-
-  # Prompt template file path
-  # Contains instructions for script generation
-  # Customize to change script style, tone, or structure
-  prompt_template_path: "src/ai/prompts/video_script.md"
+# NOTE: LLM configuration has been moved to config/ai_services.yaml
+# See ai_services.yaml for all AI model settings (script generation, descriptions, metadata)
 
 # ============================================================================
 # DESCRIPTION SETTINGS
 # ============================================================================
-# AI-generated video description configuration for social media platforms
-# Used by: description_generator.py for creating platform-optimized descriptions
-#
-# Pipeline Impact:
-# - Generates SEO-optimized descriptions for video posts
-# - Includes hashtags, CTAs, and platform-specific formatting
-# - Runs after script generation using same LLM provider
-description_settings:
-  # Enable description generation (disable to skip this step)
-  enabled: true
-
-  # Prompt template file path for description generation
-  # Contains platform-specific guidelines and formatting rules
-  # Customize to change description style, length, or CTA approach
-  prompt_template_path: "src/ai/prompts/video_description.md"
-
-  # Target platforms for description optimization
-  # Each platform has different character limits and best practices:
-  # - tiktok: 2200 chars, hashtags critical, trending sounds
-  # - youtube: 5000 chars, SEO keywords, detailed descriptions
-  # - instagram: 2200 chars, hashtags, visual-first captions
-  target_platforms: ["tiktok", "youtube", "instagram"]
-
-  # Maximum tokens for generated description
-  # 200 tokens ≈ 150-200 words ≈ platform caption + hashtags
-  max_tokens: 200
+# NOTE: Description generation settings have been moved to config/ai_services.yaml
+# See ai_services.yaml for platform-specific description configuration
 
 # ============================================================================
 # FFMPEG SETTINGS
@@ -1085,37 +1023,8 @@ ffmpeg_settings:
 # ============================================================================
 # WHISPER SETTINGS (Speech Recognition)
 # ============================================================================
-# OpenAI Whisper model configuration for speech-to-text operations
-# Used by: stt_functions.py for generating word-level timestamps from audio
-#
-# Pipeline Impact:
-# - model_size: Larger models = more accurate but slower and more RAM
-#   - tiny: Fastest, least accurate, 1GB RAM
-#   - small: Good balance (recommended), 2GB RAM
-#   - medium: Better accuracy, 5GB RAM
-#   - large: Best accuracy, 10GB RAM
-# - model_device: "cpu" or "cuda" (GPU acceleration if available)
-# - Used for: Subtitle timing synchronization with voiceover
-whisper_settings:
-  # Enable Whisper transcription for subtitle timing
-  # When false, falls back to estimated timing
-  enabled: true
-
-  # Whisper model size (tiny/small/medium/large)
-  # Smaller = faster but less accurate
-  # Larger = slower but more accurate
-  # Recommended: "small" for production balance
-  model_size: "small"
-
-  # Device for model inference
-  # Options: "cpu", "cuda" (requires NVIDIA GPU + CUDA)
-  # Note: CPU mode is slower but works everywhere
-  model_device: "cpu"
-
-  # Keep model in memory between runs
-  # true = faster for batch processing, uses more RAM
-  # false = reload each time, saves RAM
-  model_in_memory: false
+# NOTE: Whisper configuration has been moved to config/ai_services.yaml
+# See ai_services.yaml for speech-to-text model settings
 
   # Directory for downloaded Whisper models
   # Models are cached here after first download (~1-3GB per model)

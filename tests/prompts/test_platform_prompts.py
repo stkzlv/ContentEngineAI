@@ -102,9 +102,7 @@ class TestYouTubeTemplateStructure:
         formatted = self.template.format(**sample_data)
 
         assert "Test Product - Wireless Headphones" in formatted
-        assert (
-            "High-quality wireless headphones with noise cancellation" in formatted
-        )
+        assert "High-quality wireless headphones with noise cancellation" in formatted
         assert "https://example.com/test-product" in formatted
         assert "{FULL_PRODUCT_NAME}" not in formatted
         assert "{PRODUCT_DESCRIPTION}" not in formatted
@@ -178,9 +176,7 @@ class TestTikTokTemplateStructure:
         formatted = self.template.format(**sample_data)
 
         assert "Test Product - Wireless Headphones" in formatted
-        assert (
-            "High-quality wireless headphones with noise cancellation" in formatted
-        )
+        assert "High-quality wireless headphones with noise cancellation" in formatted
         assert "https://example.com/test-product" in formatted
         assert "{FULL_PRODUCT_NAME}" not in formatted
         assert "{PRODUCT_DESCRIPTION}" not in formatted
@@ -233,9 +229,7 @@ class TestInstagramTemplateStructure:
     def test_hashtag_requirements(self):
         """Test that template specifies hashtag requirements."""
         # Critical Instagram requirement: hashtags in caption, not comments
-        assert (
-            "caption" in self.template.lower() and "comment" in self.template.lower()
-        )
+        assert "caption" in self.template.lower() and "comment" in self.template.lower()
         assert "15-30" in self.template
 
     def test_contains_examples(self):
@@ -246,7 +240,9 @@ class TestInstagramTemplateStructure:
         assert "KEYWORDS:" in self.template
 
         # Should have examples for both styles
-        assert "SHORT STYLE:" in self.template or "short style:" in self.template.lower()
+        assert (
+            "SHORT STYLE:" in self.template or "short style:" in self.template.lower()
+        )
         assert "SEO STYLE:" in self.template or "seo style:" in self.template.lower()
 
     def test_output_format_specified(self):
@@ -267,9 +263,7 @@ class TestInstagramTemplateStructure:
         formatted = self.template.format(**sample_data)
 
         assert "Test Product - Wireless Headphones" in formatted
-        assert (
-            "High-quality wireless headphones with noise cancellation" in formatted
-        )
+        assert "High-quality wireless headphones with noise cancellation" in formatted
         assert "https://example.com/test-product" in formatted
         assert "seo" in formatted
         assert "Use emojis" in formatted
@@ -321,8 +315,7 @@ class TestTemplateConsistency:
         assert "Example" in self.youtube_template or "EXAMPLE" in self.youtube_template
         assert "Example" in self.tiktok_template or "EXAMPLE" in self.tiktok_template
         assert (
-            "Example" in self.instagram_template
-            or "EXAMPLE" in self.instagram_template
+            "Example" in self.instagram_template or "EXAMPLE" in self.instagram_template
         )
 
     def test_all_templates_require_ad_disclosure(self):

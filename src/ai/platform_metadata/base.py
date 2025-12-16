@@ -59,6 +59,7 @@ class BasePlatformMetadataGenerator(ABC):
         according to platform best practices.
 
         Args:
+        ----
             product: Product data containing title, description, URL, etc.
             settings: LLM configuration (API keys, models, timeouts)
             secrets: Dictionary containing API keys and credentials
@@ -68,6 +69,7 @@ class BasePlatformMetadataGenerator(ABC):
             api_settings: Optional API-specific settings override
 
         Returns:
+        -------
             PlatformMetadata object with generated content, or None if generation fails
 
         Implementation Requirements:
@@ -78,6 +80,7 @@ class BasePlatformMetadataGenerator(ABC):
             - Create PlatformMetadata object with extracted data
             - Validate metadata using validate() before returning
             - Return None if validation fails or LLM calls fail after retries
+
         """
         pass
 
@@ -90,9 +93,11 @@ class BasePlatformMetadataGenerator(ABC):
         This method ensures generated metadata meets platform guidelines.
 
         Args:
+        ----
             metadata: PlatformMetadata object to validate
 
         Returns:
+        -------
             Tuple of (is_valid, message):
                 - is_valid: True if metadata passes all validation rules
                 - message: Empty string if valid, detailed error message if invalid
@@ -104,6 +109,7 @@ class BasePlatformMetadataGenerator(ABC):
             - Validate content formatting (e.g., no prohibited characters)
             - Check keyword count if applicable
             - Return specific error messages for failed validations
+
         """
         pass
 
@@ -112,7 +118,8 @@ class BasePlatformMetadataGenerator(ABC):
     def platform_name(self) -> str:
         """Return the platform identifier for this generator.
 
-        Returns:
+        Returns
+        -------
             Platform identifier: "youtube", "tiktok", or "instagram"
 
         This property is used for:
@@ -120,6 +127,7 @@ class BasePlatformMetadataGenerator(ABC):
             - Selecting correct prompt template
             - Naming output files (e.g., metadata_youtube.json)
             - Platform-specific configuration lookup
+
         """
         pass
 
@@ -129,22 +137,27 @@ class BasePlatformMetadataGenerator(ABC):
     def _load_prompt_template(self, template_path: Path) -> str:
         """Load platform-specific prompt template from file.
 
-        This is a convenience wrapper around description_generator.load_prompt_template()
-        that adds platform-specific error handling and logging.
+        Wrapper around description_generator.load_prompt_template() with
+        platform-specific error handling and logging.
 
         Args:
+        ----
             template_path: Path to the prompt template file
 
         Returns:
+        -------
             Loaded prompt template as string
 
         Raises:
+        ------
             FileNotFoundError: If template file doesn't exist
 
         Example:
+        -------
             template = self._load_prompt_template(
                 Path("src/ai/prompts/youtube_metadata.md")
             )
+
         """
         logger.debug(
             f"Loading prompt template for {self.platform_name}: {template_path}"
@@ -158,10 +171,12 @@ class BasePlatformMetadataGenerator(ABC):
         that adds platform-specific logging.
 
         Args:
+        ----
             template: Prompt template string with placeholders
             product: Product data to inject into template
 
         Returns:
+        -------
             Formatted prompt ready for LLM API
 
         Placeholders replaced:
@@ -170,7 +185,9 @@ class BasePlatformMetadataGenerator(ABC):
             - {PRODUCT_URL}: product.shortened_affiliate_link or product.url
 
         Example:
+        -------
             prompt = self._format_product_prompt(template, product)
+
         """
         logger.debug(f"Formatting prompt for {self.platform_name}")
         return format_prompt(template, product)
@@ -184,19 +201,23 @@ class BasePlatformMetadataGenerator(ABC):
         Used for validation and analytics.
 
         Args:
+        ----
             title: Optional title (YouTube only)
             description: Description or caption text
 
         Returns:
+        -------
             Dictionary with character counts, e.g.:
                 {"title": 58, "description": 487} or
                 {"description": 150} if no title
 
         Example:
+        -------
             counts = self._calculate_character_counts(
                 title="Best Wireless Earbuds",
                 description="Check out these amazing earbuds! #ad"
             )
+
         """
         counts = {"description": len(description)}
         if title:
@@ -212,17 +233,21 @@ class BasePlatformMetadataGenerator(ABC):
         and logging a warning. Used when LLM generates content slightly over limits.
 
         Args:
+        ----
             text: Text to potentially truncate
             max_length: Maximum allowed character count
             label: Description for logging (e.g., "YouTube title", "TikTok caption")
 
         Returns:
+        -------
             Original text if within limit, or truncated text with "..." appended
 
         Example:
+        -------
             title = self._truncate_if_needed(
                 llm_title, max_length=60, label="YouTube title"
             )
+
         """
         if len(text) <= max_length:
             return text

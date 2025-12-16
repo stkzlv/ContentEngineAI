@@ -313,3 +313,29 @@ if __name__ == "__main__":
         print("Modular configuration validation passed!")
     else:
         print("Modular configuration validation failed!")
+
+
+def get_config_value(key: str, default: Any = None) -> Any:
+    """Get a configuration value using dot notation from video config.
+
+    Args:
+    ----
+        key: Dot-separated configuration key (e.g. 'video_settings.resolution.width')
+        default: Default value if key is not found
+
+    Returns:
+    -------
+        Configuration value or default
+
+    """
+    manager = get_unified_config_manager()
+    # Prioritize video config as this is primarily used by video processing components
+    current = manager.get_video_config()
+
+    for k in key.split("."):
+        if isinstance(current, dict) and k in current:
+            current = current[k]
+        else:
+            return default
+
+    return current
