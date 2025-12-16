@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.16.0"
+version = "0.17.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -115,6 +115,8 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 # Ignore line length in files with embedded JavaScript code
 "src/scraper/amazon/media_extractor.py" = ["E501"]
+# Ignore line length in test files with long mock LLM responses
+"tests/**/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

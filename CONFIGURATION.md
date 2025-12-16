@@ -646,6 +646,235 @@ llm_settings:
   max_retries: 3
 ```
 
+**Platform-Specific Metadata Generation:**
+
+ContentEngineAI now supports generating platform-optimized metadata (titles, descriptions, captions, hashtags) tailored for YouTube Shorts, TikTok, and Instagram Reels. This is configured via the `platform_metadata` section in `config/ai_services.yaml`.
+
+See **Section 7.1: Platform Metadata Settings** below for detailed configuration.
+
+</details>
+
+<details>
+<summary><strong>7.1. Platform Metadata Settings (YouTube/TikTok/Instagram)</strong></summary>
+
+### 7.1. Platform Metadata Settings
+
+Platform metadata generation creates platform-specific titles, descriptions/captions, hashtags, and keywords optimized for each social media platform's algorithm and best practices (as of 2025).
+
+**Supported Platforms:**
+- **YouTube Shorts**: SEO-optimized titles (50-60 chars), descriptions with first 150 chars critical, 3-5 hashtags including #Shorts
+- **TikTok**: Search-friendly captions (100-300 chars optimal), 3-5 niche hashtags, avoids generic viral tags
+- **Instagram Reels**: Dual caption styles (ultra-short 3-5 words OR SEO 100-200 chars), 15-30 hashtags in caption
+
+**Configuration:**
+
+```yaml
+platform_metadata:
+  enabled: true
+  target_platform: "multi"  # Options: "youtube", "tiktok", "instagram", "multi"
+
+  # YouTube Shorts Configuration
+  youtube:
+    title_length_min: 50
+    title_length_max: 60
+    description_length_max: 5000
+    description_seo_priority_chars: 150  # First 150 chars are critical for SEO
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+    require_shorts_tag: true              # Always include #Shorts
+    require_ad_tag: true                  # Always include #ad
+
+  # TikTok Configuration
+  tiktok:
+    caption_length_optimal_min: 100
+    caption_length_optimal_max: 300
+    caption_length_max: 2200              # Hard limit
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+    require_ad_tag: true                  # Always include #ad
+    avoid_generic_tags: true              # Avoid #fyp, #foryoupage, #viral
+    # Generic tags blacklist
+    generic_hashtags:
+      - "#fyp"
+      - "#foryoupage"
+      - "#foryou"
+      - "#viral"
+
+  # Instagram Reels Configuration
+  instagram:
+    caption_style: "seo"                  # Options: "short" (3-5 words) or "seo" (100-200 chars)
+    caption_length_short_min: 3           # For short style (word count)
+    caption_length_short_max: 5
+    caption_length_seo_min: 100           # For SEO style (character count)
+    caption_length_seo_max: 200
+    hashtag_count_min: 15
+    hashtag_count_max: 30
+    hashtags_in_caption: true             # CRITICAL: Hashtags must be in caption, not comments (2024+ algorithm)
+    require_ad_tag: true                  # Always include #ad
+    emoji_enabled: true                   # Allow emojis in captions
+```
+
+**Platform Targeting Modes:**
+
+1. **Single Platform Mode** (`target_platform: "youtube"`, `"tiktok"`, or `"instagram"`):
+   - Generates metadata for one platform only
+   - Optimized for single-platform distribution
+   - Faster generation (single API call)
+
+2. **Multi-Platform Mode** (`target_platform: "multi"`):
+   - Generates metadata for all three platforms in parallel
+   - Saves separate files: `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
+   - Ideal for cross-platform content distribution
+
+**CLI Override:**
+
+You can override the target platform at runtime using the `--target-platform` argument:
+
+```bash
+# Generate YouTube-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform youtube
+
+# Generate TikTok-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform tiktok
+
+# Generate Instagram-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform instagram
+
+# Generate for all platforms (default)
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform multi
+```
+
+**Best Practices by Platform:**
+
+**YouTube Shorts:**
+- **Title**: 50-60 characters, front-load keywords, use numbers and power words
+- **Description**: First 150 characters are CRITICAL for SEO - optimize heavily
+- **Hashtags**: Always include #Shorts first, then #ad, then 1-3 niche tags
+- **Keywords**: 5-10 search terms users actually type
+
+**TikTok:**
+- **Caption**: 100-300 characters (optimal), use exact search phrases users type
+- **Hashtags**: 3-5 NICHE-SPECIFIC tags only - avoid #fyp, #foryoupage, #viral (provide NO discovery value as of 2024-2025)
+- **SEO Focus**: TikTok is now a search engine - use searchable language, not creative hooks
+
+**Instagram Reels:**
+- **Caption Style**: Choose between ultra-short (3-5 words, punchy hooks) OR SEO-descriptive (100-200 chars, searchable)
+- **Hashtags**: 15-30 hashtags IN THE CAPTION (not comments) - algorithm prioritizes caption hashtags
+- **Mix**: Use 5-10 popular tags (100k-1M posts) + 10-15 niche (10k-100k) + 5-10 specific (<10k)
+
+**Understanding Keywords vs Hashtags:**
+
+Platform metadata includes both **hashtags** and **keywords** - they serve different purposes:
+
+| Type | Purpose | Visibility | Where to Use |
+|------|---------|------------|--------------|
+| **Hashtags** | Content discovery & categorization | Visible in video (clickable) | Add to description or dedicated hashtag field |
+| **Keywords** | SEO & search ranking (backend tags) | Hidden from viewers | YouTube Studio "Tags" field (backend only) |
+
+**How to Use Keywords:**
+
+**YouTube Shorts:**
+- Keywords are **critical for SEO** - they help YouTube understand and rank your video in search results
+- During upload in YouTube Studio, find the "Tags" or "Keywords" section (below description field)
+- Copy keywords from `metadata_youtube.json` → Paste as comma-separated tags in YouTube Studio
+- Example keywords: `4K mini projector, portable projector, home theater projector, wifi projector, bluetooth projector`
+- Use 5-10 keywords that match actual search terms users type
+- **Location**: Backend only - viewers never see these tags
+
+**TikTok:**
+- Keywords have **limited SEO value** on TikTok (platform primarily uses hashtags and caption text)
+- Generated keywords are for reference/analytics only
+- TikTok's algorithm analyzes caption text directly for search ranking
+- **Don't manually enter** - no keyword field exists in TikTok upload interface
+
+**Instagram:**
+- Instagram has **no keyword field**
+- Generated keywords are for reference/analytics tracking only
+- Instagram's algorithm relies on hashtags and caption text for discovery
+- **Don't manually enter** - no backend tags system exists
+
+**Current Limitation:** Keywords are generated and saved in `metadata_{platform}.json` files but are **not included in `UPLOAD_INSTRUCTIONS.txt`**. You must manually open the JSON files to copy keywords for YouTube uploads.
+
+**Output Files:**
+
+When platform metadata generation is enabled, the following files are created in `outputs/{product_id}/text/`:
+
+```
+outputs/B0ASIN123/text/
+├── description.txt              # Legacy unified description (backward compatible)
+├── metadata_youtube.json       # YouTube Shorts metadata
+├── metadata_tiktok.json        # TikTok metadata
+├── metadata_instagram.json     # Instagram Reels metadata
+└── UPLOAD_INSTRUCTIONS.txt     # Human-readable upload guide (all platforms)
+```
+
+**Human-Readable Upload Instructions (`UPLOAD_INSTRUCTIONS.txt`):**
+
+The pipeline automatically generates a ready-to-copy text file with formatted posting instructions for all platforms:
+
+```
+================================================================================
+                    READY-TO-POST SOCIAL MEDIA CONTENT
+                        Product: B0ASIN123
+                    Video: video_B0ASIN123_slideshow_images1.mp4
+                    URL: https://amazon.com/dp/B0ASIN123
+================================================================================
+
+📱 ALL PLATFORMS: Upload the same video file to each platform
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📺 YOUTUBE SHORTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TITLE (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Best Wireless Earbuds Under $50 - Amazing Sound Quality
+──────────────────────────────────────────────────────────────────────────────
+
+DESCRIPTION (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Looking for affordable wireless earbuds with premium sound?...
+──────────────────────────────────────────────────────────────────────────────
+
+HASHTAGS (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+#Shorts #WirelessEarbuds #TechReview #ad
+──────────────────────────────────────────────────────────────────────────────
+```
+
+This file contains copy-paste-ready content for all three platforms (YouTube, TikTok, Instagram) with clear section separators and formatting guidance.
+
+**Metadata JSON Structure:**
+
+Each platform metadata file follows this structure:
+
+```json
+{
+  "platform": "youtube",
+  "title": "Best Wireless Earbuds Under $50 - Amazing Sound Quality",
+  "description": "Looking for affordable wireless earbuds with premium sound?...",
+  "hashtags": ["#Shorts", "#WirelessEarbuds", "#TechReview", "#ad"],
+  "keywords": ["wireless earbuds under 50", "budget wireless earbuds", ...],
+  "character_counts": {
+    "title": 58,
+    "description": 487
+  },
+  "generated_at": "2025-01-15T12:00:00Z",
+  "product_id": "B0ASIN123",
+  "validation_status": "valid",
+  "validation_messages": []
+}
+```
+
+**Validation:**
+
+Platform metadata is automatically validated against platform-specific requirements:
+- **YouTube**: Title length (50-60 chars), #Shorts tag presence, hashtag count (3-5)
+- **TikTok**: Caption length (optimal 100-300, max 2200), no generic hashtags, hashtag count (3-5)
+- **Instagram**: Caption style compliance, hashtag count (15-30), hashtags in caption
+
+Validation failures are logged but don't block generation - invalid metadata is saved with `validation_status: "invalid"` and detailed `validation_messages`.
+
 </details>
 
 <details>

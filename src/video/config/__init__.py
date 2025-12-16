@@ -29,7 +29,6 @@ from src.video.config.core_models import (  # noqa: F401
     FFmpegSettings,
     FilesystemSettings,
     GlobalDirs,
-    LLMSettings,
     LLMValidationSettings,
     OptimizationSettings,
     OutputStructure,
@@ -45,6 +44,9 @@ from src.video.config.core_models import (  # noqa: F401
     WhisperSettings,
     load_video_config,
 )
+
+# Re-export LLM settings (separate module to avoid circular imports)
+from src.video.config.llm_settings import LLMSettings  # noqa: F401
 
 # Re-export subtitle models
 from src.video.config.subtitle_models import (  # noqa: F401

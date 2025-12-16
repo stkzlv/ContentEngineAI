@@ -81,7 +81,10 @@ class VideoConfigValidator:
             import subprocess
 
             result = subprocess.run(
-                [ffmpeg_path, "-version"], capture_output=True, text=True, timeout=10
+                [ffmpeg_path, "-version"],
+                capture_output=True,
+                text=True,
+                timeout=getattr(config.ffmpeg_settings, "validation_timeout_sec", 10),
             )
             if result.returncode != 0:
                 errors.append(f"FFmpeg execution failed: {result.stderr}")

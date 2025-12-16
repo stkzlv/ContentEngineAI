@@ -776,3 +776,19 @@ poetry run python -m src.pipeline.global_batch \
 - **Per-Product Tracking**: Track each product through both phases with unique identifiers
 - **Error Correlation**: Link scraping errors to production impacts
 - **Debug Mode**: Enhanced logging across both pipeline phases
+
+## Platform-Specific Content Optimization
+
+ContentEngineAI **MUST** support platform-specific metadata generation optimized for YouTube, TikTok, and Instagram.
+
+### Core Requirements
+
+- **Multi-Platform Support**: Generate platform-optimized titles, descriptions, captions, and hashtags for YouTube, TikTok, and Instagram
+- **Platform Targeting**: Configurable target platform per video profile or via CLI arguments
+- **SEO Optimization**: Apply platform-specific SEO best practices for discoverability and engagement
+- **Character Limits**: Enforce platform-specific character limits and formatting rules
+- **Hashtag Strategy**: Platform-optimized hashtag counts and selection (YouTube: 3-5, TikTok: 3-5, Instagram: 15-30)
+- **Unified Voiceover**: Maintain single platform-agnostic voiceover script reusable across platforms
+- **LLM Integration**: Use platform-specific prompts to generate optimized metadata via LLM
+- **Validation**: Validate metadata completeness, character limits, and required elements per platform
+- **Backward Compatibility**: Maintain existing unified metadata generation as fallback option

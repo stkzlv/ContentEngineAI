@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/platform-specific-optimizations/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-13T12:12:55.477Z",
+      "trigger": "initial",
+      "approvalId": "approval_1765627975440_5bp1hda29",
+      "approvalTitle": "Platform-Specific Optimizations - Design Review"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-13T12:14:06.578Z",
+      "trigger": "approved",
+      "approvalId": "approval_1765627975440_5bp1hda29",
+      "approvalTitle": "Platform-Specific Optimizations - Design Review"
+    }
+  ]
+}

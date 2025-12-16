@@ -12,6 +12,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+# Platform-specific metadata models (no circular import after extracting LLMSettings)
+from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
 from src.video.config.audio_models import (
     AudioProcessingSettings,
@@ -41,6 +43,7 @@ from src.video.config.constants import (
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
 )
+from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
@@ -58,23 +61,11 @@ from src.video.config.visual_models import (
 logger = logging.getLogger(__name__)
 
 
-class LLMSettings(BaseModel):
-    provider: str
-    api_key_env_var: str
-    models: list[str] = Field(..., min_length=1)
-    prompt_template_path: str
-    target_audience: str = Field("General audience")
-    base_url: str | None = Field(None)
-    auto_select_free_model: bool = Field(True)
-    max_tokens: int = Field(LLM_MAX_TOKENS)
-    temperature: float = Field(LLM_TEMPERATURE)
-    timeout_seconds: int = Field(LLM_TIMEOUT_SECONDS)
-
-
 class DescriptionSettings(BaseModel):
     """Configuration settings for AI-generated video descriptions.
 
     Controls the generation of social media descriptions using LLM providers.
+    Supports both legacy unified mode and new platform-specific metadata generation.
     """
 
     enabled: bool = Field(True, description="Enable or disable description generation")
@@ -98,6 +89,22 @@ class DescriptionSettings(BaseModel):
     )
     require_ad_hashtag: bool = Field(
         True, description="Whether descriptions must include #ad hashtag"
+    )
+
+    # Platform-specific metadata generation (optional, new feature)
+    target_platform: str = Field(
+        "multi",
+        description=(
+            "Target platform for metadata generation: 'youtube', 'tiktok', "
+            "'instagram', or 'multi' for all platforms"
+        ),
+    )
+    platform_metadata: PlatformMetadataSettings | None = Field(
+        None,
+        description=(
+            "Platform-specific metadata settings. If None, uses legacy unified "
+            "description mode for backward compatibility."
+        ),
     )
 
 
@@ -572,7 +579,6 @@ class VideoConfig(BaseModel):
     description_settings: DescriptionSettings
     stock_media_settings: StockMediaSettings
     ffmpeg_settings: FFmpegSettings
-    attribution_settings: AttributionSettings
     subtitle_settings: dict[str, Any]  # Now loaded from config/subtitles.yaml
     whisper_settings: WhisperSettings
     google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)

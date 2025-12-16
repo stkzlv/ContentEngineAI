@@ -329,7 +329,6 @@ def calculate_position(
             data = yaml.safe_load(f)
             text_rendering_config = data.get("text_rendering", {})
 
-    min_safe_y = text_rendering_config.get("min_safe_y_position", 0.05)
     max_safe_y = text_rendering_config.get("max_safe_y_position", 0.95)
     center_fraction = text_rendering_config.get("center_position_fraction", 0.5)
     left_fraction = text_rendering_config.get("left_position_fraction", 0.1)
@@ -350,7 +349,9 @@ def calculate_position(
         base_y = 1.0 - config.margin
     elif config.anchor == PositionAnchor.ABOVE_CONTENT:
         if config.content_aware and visual_bounds:
-            base_y = max(min_safe_y, visual_bounds.y - config.margin)
+            # Position at margin from top (ensures minimum spacing from frame top)
+            # Content-aware ensures we stay above the visual content boundary
+            base_y = config.margin
         else:
             # Fallback: Use top positioning when content_aware is disabled
             # or visual_bounds is not available

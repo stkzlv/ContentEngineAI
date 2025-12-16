@@ -426,8 +426,12 @@ def create_static_upper_subtitle(
                                 else fallback_duration
                             )
                         else:
-                            # Use default duration at end of video
-                            default_cta_duration = 5.0
+                            # Get default CTA duration from config
+                            from src.config_manager import get_config_value
+
+                            default_cta_duration = get_config_value(
+                                "cta_detection.default_cta_duration", 5.0
+                            )
                             logger.warning(
                                 f"Detected CTA windows too short "
                                 f"({total_duration:.2f}s < {min_cta_duration}s): "
@@ -467,8 +471,12 @@ def create_static_upper_subtitle(
                             else fallback_duration
                         )
                     else:
-                        # Show for last 5 seconds of video as fallback
-                        default_cta_duration = 5.0
+                        # Get default CTA duration from config
+                        from src.config_manager import get_config_value
+
+                        default_cta_duration = get_config_value(
+                            "cta_detection.default_cta_duration", 5.0
+                        )
                         logger.warning(
                             f"No CTA detected, use_full_duration=False. "
                             f"Using {default_cta_duration}s at end"

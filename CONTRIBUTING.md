@@ -206,7 +206,7 @@ The project includes comprehensive performance monitoring:
 
 ## Getting Help
 
-- Check existing [Issues](https://github.com/ContentEngineAI/ContentEngineAI/issues)
+- Check existing [Issues](https://github.com/stkzlv/ContentEngineAI/issues)
 - Review [Troubleshooting Guide](TROUBLESHOOTING.md)
 - Ask questions in issue discussions
 - Check the [Development Guide](DEVELOPMENT.md) for detailed technical information

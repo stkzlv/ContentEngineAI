@@ -244,6 +244,12 @@ global_settings:
     # Affects: Edge case validation, prevents accepting empty files
     min_file_size_absolute: 1000  # 1KB minimum
 
+    # FFprobe timeout for media validation (seconds)
+    # Maximum time to wait for FFprobe to analyze video/image metadata
+    # Used in amazon/media_validator.py for extracting duration, resolution, codecs
+    # Affects: Validation performance, prevents hanging on corrupted files
+    ffprobe_timeout_sec: 30
+
   # ---- Debug Configuration ----
   # Controls debug output formatting and verbosity
   debug_config:

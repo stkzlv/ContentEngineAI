@@ -59,7 +59,7 @@ ffmpeg -version
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/ContentEngineAI/ContentEngineAI.git
+git clone https://github.com/stkzlv/ContentEngineAI.git
 cd ContentEngineAI
 ```
 
@@ -220,7 +220,7 @@ Run a quick verification to ensure everything works:
 
 ```bash
 # Check configuration loading
-poetry run python -c "from src.video.video_config import load_config; print('✓ Configuration loads successfully')"
+poetry run python -c "from src.video.config_adapter import load_video_config_modular; print('✓ Configuration loads successfully')"
 
 # Test API connections (optional, requires API keys)
 poetry run python -c "

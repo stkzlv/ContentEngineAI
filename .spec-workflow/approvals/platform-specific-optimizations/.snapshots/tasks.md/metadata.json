@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/platform-specific-optimizations/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-13T12:17:39.576Z",
+      "trigger": "initial",
+      "approvalId": "approval_1765628259562_p1u1c7e4d",
+      "approvalTitle": "Platform-Specific Optimizations - Tasks Review"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-13T12:19:10.399Z",
+      "trigger": "approved",
+      "approvalId": "approval_1765628259562_p1u1c7e4d",
+      "approvalTitle": "Platform-Specific Optimizations - Tasks Review"
+    }
+  ]
+}

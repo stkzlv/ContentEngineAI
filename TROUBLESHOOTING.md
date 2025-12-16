@@ -833,7 +833,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 ### Community Support
 
 1. **Check Existing Issues:**
-   - Search [GitHub Issues](https://github.com/ContentEngineAI/ContentEngineAI/issues)
+   - Search [GitHub Issues](https://github.com/stkzlv/ContentEngineAI/issues)
    - Look for similar problems and solutions
 
 2. **Create New Issue:**

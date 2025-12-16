@@ -57,7 +57,15 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
             str(file_path),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        # Get timeout from config (with fallback)
+        from .config import CONFIG
+
+        timeout = (
+            CONFIG.get("global_settings", {})
+            .get("media_config", {})
+            .get("ffprobe_timeout_sec", 30)
+        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         if result.returncode != 0:
             logger.warning(f"FFprobe failed for {file_path}: {result.stderr}")
@@ -355,7 +363,15 @@ def verify_video_file(
                 str(file_path),
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # Get timeout from config (with fallback)
+            timeout = (
+                CONFIG.get("global_settings", {})
+                .get("media_config", {})
+                .get("ffprobe_timeout_sec", 30)
+            )
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout
+            )
 
             if result.returncode != 0:
                 issues.append(f"FFprobe failed with error: {result.stderr}")

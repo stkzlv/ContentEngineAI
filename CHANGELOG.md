@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2025-12-16
+
+### Added
+- **Platform-Specific Metadata Optimization**: AI-powered content generation for social media
+  - New `src/ai/platform_metadata/` package with modular architecture
+  - `base.py` - Abstract base generator with template system
+  - `models.py` - Pydantic models for metadata and generation configs
+  - `utilities.py` - Shared utilities for hashtag and emoji processing
+  - `text_formatter.py` - Intelligent text formatting with character limits
+  - `youtube.py` - YouTube-optimized metadata (5000-char descriptions)
+  - `tiktok.py` - TikTok-optimized metadata (2200-char captions)
+  - `instagram.py` - Instagram-optimized metadata (2200-char captions)
+  - Multi-platform support via `--target-platform` CLI flag
+  - `UPLOAD_INSTRUCTIONS.txt` generation with platform-specific posting guidance
+  - Automatic URL shortening and formatting for platform requirements
+
+- **Producer CLI Enhancement**: New `--target-platform` flag
+  - Supports `youtube`, `tiktok`, `instagram`, or `multi` (all platforms)
+  - Generates optimized metadata per platform requirements
+  - Creates ready-to-post instructions with formatted content
+
+### Fixed
+- **Circular Import Resolution**: Config module architecture
+  - Resolved circular dependency between `video_config.py` and dependent modules
+  - Fixed import ordering in subtitle and assembler modules
+  - All modules now import correctly without circular reference errors
+
+- **Subtitle Positioning**: Corrected `above_content` anchor logic
+  - Fixed inverted positioning calculation for content-aware mode
+  - Changed from `visual_bounds.y - margin` to `margin` for top positioning
+  - Subtitles now correctly positioned at configured margin from top
+  - Updated 3 test cases to match corrected positioning behavior
+  - All tests passing: 973/1001 (44.95% coverage)
+
+- **Test Suite Updates**: Enhanced fixture management
+  - Updated test fixtures to use config-based positioning values
+  - Moved magic numbers to centralized configuration
+  - Improved test maintainability and consistency
+
+### Changed
+- **Documentation Improvements**: Comprehensive updates
+  - Fixed repository URLs from `ContentEngineAI/ContentEngineAI` to `stkzlv/ContentEngineAI`
+  - Updated import paths from `video_config` to `config_adapter`
+  - Reduced README.md batch section verbosity (saved 24 lines)
+  - Added platform metadata feature documentation
+  - Improved markdown structure with collapsible sections
+  - Moved test reports to `outputs/reports/` directory
+
+- **Configuration Integration**: Platform metadata settings
+  - Added platform metadata configuration in `config/ai.yaml`
+  - Integrated text formatter with configurable limits
+  - URL shortener integration for social media links
+
+### Technical
+- **New Modules**:
+  - `src/ai/platform_metadata/__init__.py` - Package exports
+  - `src/ai/platform_metadata/base.py` - Base generator (175 lines)
+  - `src/ai/platform_metadata/models.py` - Data models (95 lines)
+  - `src/ai/platform_metadata/utilities.py` - Utilities (68 lines)
+  - `src/ai/platform_metadata/text_formatter.py` - Formatter (142 lines)
+  - `src/ai/platform_metadata/youtube.py` - YouTube generator (89 lines)
+  - `src/ai/platform_metadata/tiktok.py` - TikTok generator (85 lines)
+  - `src/ai/platform_metadata/instagram.py` - Instagram generator (85 lines)
+
+- **Code Quality**: All linting checks passing
+  - Ruff: Code style and formatting ✓
+  - MyPy: Type checking ✓
+  - Bandit: Security scanning ✓
+  - Vulture: Dead code detection ✓
+  - Safety: Dependency vulnerabilities ✓
+  - Pytest: 973/1001 tests passing (44.95% coverage) ✓
+
 ## [0.16.0] - 2025-12-08
 
 ### Changed

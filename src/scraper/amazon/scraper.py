@@ -839,8 +839,19 @@ class BotasaurusAmazonScraper(BaseScraper):
                         if integration_config.get("fallback_to_original", True):
                             product.shortened_affiliate_link = product.affiliate_link
 
-            # Run async shortening
-            asyncio.run(shorten_all())
+            # Run async shortening - handle both sync and async contexts
+            try:
+                # Check if we're already in an event loop
+                asyncio.get_running_loop()
+                # We're in an async context, create and await task
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, shorten_all())
+                    future.result()
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run()
+                asyncio.run(shorten_all())
 
             if DEBUG_MODE:
                 shortened_count = sum(1 for p in products if p.shortened_affiliate_link)

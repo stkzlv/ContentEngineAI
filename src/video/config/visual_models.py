@@ -99,6 +99,27 @@ class VideoSettings(BaseModel):
             "based on font size. Higher values = more reserved space."
         ),
     )
+    base_font_height_percent: float = Field(
+        0.05,
+        description=(
+            "Base font size as percentage of frame height (5% default). "
+            "Used for subtitle height estimation in visual_builder.py."
+        ),
+    )
+    fallback_image_top_percent: float = Field(
+        0.15,
+        description=(
+            "Fallback top position for images when video profile expects videos "
+            "but only images are available (15% from top)."
+        ),
+    )
+    fallback_image_width_percent: float = Field(
+        0.85,
+        description=(
+            "Fallback width for images when video profile expects videos "
+            "but only images are available (85% of frame width)."
+        ),
+    )
     default_subtitle_reserved_space: float = Field(
         0.15,
         description=(
