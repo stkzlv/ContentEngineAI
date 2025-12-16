@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.16.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.17.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.16.0)**: Modular assembler architecture with 79% code reduction, improved subtitle positioning for letterboxed videos, and enhanced maintainability.
+> **🚀 Latest Update (v0.17.0)**: Platform-specific metadata optimization with AI-generated titles, captions, and hashtags for YouTube, TikTok, and Instagram with ready-to-post instructions.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
@@ -17,7 +17,7 @@
 - **📦 Batch Processing**: Process hundreds of products with unified scrape + produce pipeline
 - **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎯 Platform-Specific Metadata**: AI-generated titles, captions, hashtags optimized per platform
+- **🎯 Platform-Specific Metadata**: AI-generated titles, captions, hashtags + ready-to-post instructions
 - **🎥 Product Video Assembly**: 4 modes with aspect ratio handling and audio control
 - **🎯 Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
 - **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
@@ -46,38 +46,17 @@ poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --p
 
 ## 🔄 Batch Processing
 
-<details>
-<summary><strong>Process multiple products efficiently</strong></summary>
+Process multiple products with unified scrape + produce pipeline:
 
-### Quick Examples
-
-**Scraper Batch** - Multiple products:
 ```bash
-poetry run python -m src.scraper.amazon.scraper \
-  --product-ids B0ASIN1 B0ASIN2 \
-  --keywords "wireless earbuds" \
-  --debug
-```
-
-**Producer Batch** - All scraped products:
-```bash
-poetry run python -m src.video.producer \
-  --batch \
-  --batch-profile slideshow_images1 \
-  --debug
-```
-
-**Global Pipeline** - End-to-end automation:
-```bash
+# End-to-end batch automation
 poetry run python -m src.pipeline.global_batch \
-  --keywords "bluetooth speaker" \
-  --profile video_sequential \
+  --keywords "wireless earbuds" \
+  --profile slideshow_images1 \
   --debug
 ```
 
-**📖 Complete Batch Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md)
-
-</details>
+**📖 Complete Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md) - Multi-mode batch workflows, filters, randomization
 
 ## 🏗️ Architecture
 
