@@ -1,0 +1,27 @@
+# Publisher Configuration
+# API credentials (use environment variables for security)
+provider: late
+api_key: ${LATE_API_KEY}
+vercel_token: ${LATE_VERCEL_TOKEN}
+
+# Publishing behavior
+immediate_publish: true
+default_platforms:
+  - youtube
+  - tiktok
+  - instagram
+
+# Retry and timeout settings
+max_retries: 3
+timeout: 30.0
+backoff_multiplier: 2.0
+
+# Batch publishing delays (seconds)
+stagger_delay_min: 30
+stagger_delay_max: 60
+
+# Privacy settings per platform
+privacy_settings:
+  youtube: public
+  tiktok: public
+  instagram: everyone

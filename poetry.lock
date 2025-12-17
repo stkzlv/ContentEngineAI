@@ -2736,6 +2736,28 @@ build = ["build", "twine"]
 test = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "late-sdk"
+version = "1.1.1"
+description = "Python SDK for Late API - Social Media Scheduling"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "late_sdk-1.1.1-py3-none-any.whl", hash = "sha256:4debfa814d339c129f2e43929c9207a111b32e9103541fb272a6e3607b6bce86"},
+    {file = "late_sdk-1.1.1.tar.gz", hash = "sha256:43d191a6209de454d24bf47ad2aab2e3b98902bd96d2207cd118ff2c482a9a05"},
+]
+
+[package.dependencies]
+httpx = ">=0.27.0"
+pydantic = ">=2.0.0"
+
+[package.extras]
+ai = ["openai (>=1.0.0)"]
+all = ["anthropic (>=0.40.0)", "mcp (>=1.0.0)", "openai (>=1.0.0)"]
+anthropic = ["anthropic (>=0.40.0)"]
+dev = ["datamodel-code-generator (>=0.26.0)", "mypy (>=1.13.0)", "pytest (>=8.0.0)", "pytest-asyncio (>=0.24.0)", "pytest-cov (>=6.0.0)", "respx (>=0.21.0)", "ruff (>=0.8.0)"]
+mcp = ["mcp (>=1.0.0)"]
+
+[[package]]
 name = "lazy-loader"
 version = "0.4"
 description = "Makes it easy to load subpackages and functions on demand."
@@ -7132,4 +7154,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "7e143c5944a051e7aea46289745b7eabac36049346c8847b09a47962bafdc12c"
+content-hash = "bbace0ed15da7eb1af2c65a354cfffafa84b5f476884dcd499714268b35a3b0c"

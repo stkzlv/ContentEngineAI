@@ -792,3 +792,17 @@ ContentEngineAI **MUST** support platform-specific metadata generation optimized
 - **LLM Integration**: Use platform-specific prompts to generate optimized metadata via LLM
 - **Validation**: Validate metadata completeness, character limits, and required elements per platform
 - **Backward Compatibility**: Maintain existing unified metadata generation as fallback option
+
+## Video Publishing & Scheduling
+
+ContentEngineAI **MUST** support automated video publishing to social media platforms via third-party scheduling services.
+
+### Core Requirements
+
+- **Service Integration**: Publish videos through external scheduling services (e.g., Ayrshare, Buffer, Hootsuite, Later) via API
+- **Multi-Platform Support**: Publish to YouTube, TikTok, Instagram, and other platforms supported by the scheduling service
+- **Scheduled Publishing**: Configure immediate or future publish times with timezone support
+- **Metadata Integration**: Use platform-specific metadata from content optimization system (titles, descriptions, hashtags)
+- **Batch Publishing**: Publish multiple videos across multiple platforms in single workflow
+- **Status Tracking**: Monitor upload status and retrieve published post URLs
+- **Error Handling**: Retry logic for failed uploads, graceful degradation, detailed error reporting
