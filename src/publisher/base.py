@@ -176,7 +176,8 @@ class BasePublisher(ABC):
 
         Raises:
         ------
-            ValidationError: If file doesn't exist, is unreadable, or exceeds size limits
+            ValidationError: If file doesn't exist, is unreadable, or exceeds
+                size limits
             UploadError: If upload fails after retries
             PublisherError: If provider API returns unexpected error
 
@@ -238,7 +239,8 @@ class BasePublisher(ABC):
 
         Raises:
         ------
-            ValidationError: If media_id invalid, platforms empty, or scheduled_time in past
+            ValidationError: If media_id invalid, platforms empty, or
+                scheduled_time in past
             PublishError: If post creation fails
             PublisherError: If API request fails
 
@@ -270,7 +272,7 @@ class BasePublisher(ABC):
         pass
 
     @abstractmethod
-    async def get_status(self, post_id: str) -> dict[str, str | datetime | None]:
+    async def get_status(self, post_id: str) -> dict[str, str | list | datetime | None]:
         """Fetch the current status of a published or scheduled post.
 
         Args:
@@ -282,10 +284,10 @@ class BasePublisher(ABC):
             Dictionary containing:
                 - post_id: Post ID (string)
                 - status: Current status (e.g., "scheduled", "published", "failed")
-                - scheduled_time: Scheduled publish time if applicable (datetime or None)
-                - published_time: Actual publish time if published (datetime or None)
+                - scheduled_time: Scheduled publish time if applicable (datetime)
+                - published_time: Actual publish time if published (datetime)
                 - published_urls: List of platform URLs if published (list[str])
-                - error_message: Error description if status is "failed" (string or None)
+                - error_message: Error description if failed (string or None)
 
         Raises:
         ------

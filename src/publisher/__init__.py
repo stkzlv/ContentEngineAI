@@ -22,6 +22,8 @@ Example Usage
 
 """
 
+# Import provider implementations to trigger registration
+from . import late  # noqa: F401
 from .base import (
     AuthenticationError,
     BasePublisher,

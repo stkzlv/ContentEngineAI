@@ -153,12 +153,12 @@ class PublishMetadata:
 
         Returns
         -------
-            Tuple of (is_valid, error_message)
-                - is_valid: True if all limits respected
-                - error_message: Empty string if valid, detailed error if invalid
+            Tuple of (is_valid, message)
+                - is_valid: True if all limits respected, False otherwise
+                - message: "Content within limits" if valid, error description if invalid
 
         """
-        limits = {
+        limits: dict[Platform, dict[str, int | tuple[int, int]]] = {
             Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
             Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
             Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
@@ -166,36 +166,38 @@ class PublishMetadata:
 
         platform_limits = limits.get(self.platform)
         if not platform_limits:
-            return True, ""
+            return True, "Content within limits"
 
         # Validate title length (YouTube only)
-        if "title" in platform_limits and self.title:
-            max_title = platform_limits["title"]
-            if len(self.title) > max_title:
+        title_limit = platform_limits.get("title")
+        if isinstance(title_limit, int) and self.title:
+            if len(self.title) > title_limit:
                 return (
                     False,
-                    f"Title exceeds {max_title} chars (got {len(self.title)})",
+                    f"Title exceeds {title_limit} chars (got {len(self.title)})",
                 )
 
         # Validate description length
-        if "description" in platform_limits:
-            max_desc = platform_limits["description"]
-            if len(self.description) > max_desc:
+        desc_limit = platform_limits.get("description")
+        if isinstance(desc_limit, int):
+            if len(self.description) > desc_limit:
+                desc_len = len(self.description)
                 return (
                     False,
-                    f"Description exceeds {max_desc} chars (got {len(self.description)})",
+                    f"Description exceeds {desc_limit} chars (got {desc_len})",
                 )
 
         # Validate hashtag count
-        if "hashtags" in platform_limits and self.hashtags:
-            min_tags, max_tags = platform_limits["hashtags"]
+        hashtag_limits = platform_limits.get("hashtags")
+        if isinstance(hashtag_limits, tuple) and self.hashtags:
+            min_tags, max_tags = hashtag_limits
             tag_count = len(self.hashtags)
             if tag_count < min_tags:
-                return False, f"Need at least {min_tags} hashtags (got {tag_count})"
+                return False, f"Hashtags must be between {min_tags} and {max_tags} (got {tag_count})"
             if tag_count > max_tags:
-                return False, f"Max {max_tags} hashtags allowed (got {tag_count})"
+                return False, f"Hashtags must be between {min_tags} and {max_tags} (got {tag_count})"
 
-        return True, ""
+        return True, "Content within limits"
 
     def format_content(self) -> str:
         """Format content for posting (title + description + hashtags).

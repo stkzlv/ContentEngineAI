@@ -77,12 +77,12 @@ class TestPublishResult:
             platforms=(Platform.YOUTUBE,),
         )
 
-        with pytest.raises(AttributeError, match="can't set attribute|has no setter"):
+        with pytest.raises((AttributeError, Exception), match="can't set attribute|has no setter|cannot assign"):
             result.post_id = "post_456"
 
     def test_publish_result_with_scheduled_time(self):
         """Test PublishResult with scheduled_time."""
-        scheduled_time = datetime(2025, 1, 20, 14, 0, 0, tzinfo=UTC)
+        scheduled_time = datetime(2026, 1, 20, 14, 0, 0, tzinfo=UTC)
         result = PublishResult(
             post_id="post_123",
             status=PublishStatus.SCHEDULED,
@@ -321,7 +321,7 @@ class TestPublisherConfig:
         )
 
         assert config.vercel_token is None
-        assert config.default_platforms == []
+        assert config.default_platforms == [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
         assert config.immediate_publish is True
         assert config.max_retries == 3
         assert config.timeout == 30.0

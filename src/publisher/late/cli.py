@@ -33,6 +33,7 @@ from src.publisher import PublisherProvider, create_publisher
 from src.publisher.batch import BatchPublisher
 from src.publisher.config import load_publisher_config
 from src.publisher.models import Platform
+from src.publisher.tracking import is_already_published, record_publish
 from src.utils.logging_setup import setup_debug_logging
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,8 @@ def parse_datetime(datetime_str: str) -> datetime:
 
     Args:
     ----
-        datetime_str: Datetime string (e.g., "2025-01-20 14:00:00" or "2025-01-20T14:00:00")
+        datetime_str: Datetime string (e.g., "2025-01-20 14:00:00"
+            or "2025-01-20T14:00:00")
 
     Returns:
     -------
@@ -173,8 +175,8 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         # Upload video
         logger.info("Uploading video...")
-        media_id = await publisher.upload_media(video_path)
-        logger.info(f"Upload complete: {media_id}")
+        media_url = await publisher.upload_media(video_path)
+        logger.info(f"Upload complete: {media_url}")
 
         # Extract product ID from path (outputs/B0ABC123/video_*.mp4)
         if video_path.parent.parent.name == "outputs":
@@ -185,9 +187,26 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         # Load metadata for content
         from src.publisher.metadata import load_platform_metadata
 
+        # Determine outputs_dir for tracking
+        outputs_dir = (
+            video_path.parent.parent
+            if video_path.parent.parent.name == "outputs"
+            else Path("outputs")
+        )
+
         # Publish to each platform
         for platform in args.platforms:
             logger.info(f"Publishing to {platform.value}...")
+
+            # Check for duplicates (unless --force)
+            if not args.force and is_already_published(
+                product_id, platform.value, outputs_dir
+            ):
+                logger.warning(
+                    f"Product {product_id} already published to {platform.value}. "
+                    f"Use --force to republish."
+                )
+                continue
 
             # Find account for this platform
             platform_account = next(
@@ -200,11 +219,6 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 continue
 
             # Load platform-specific metadata
-            outputs_dir = (
-                video_path.parent.parent
-                if video_path.parent.parent.name == "outputs"
-                else Path("outputs")
-            )
             metadata = load_platform_metadata(product_id, platform, outputs_dir)
 
             if metadata:
@@ -217,7 +231,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
             # Publish
             result = await publisher.publish(
-                media_id=media_id,
+                media_id=media_url,
                 platforms=[
                     {
                         "platform": platform.value,
@@ -231,6 +245,11 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.info(
                 f"Published to {platform.value}: "
                 f"post_id={result['post_id']}, status={result['status']}"
+            )
+
+            # Record successful publish to prevent duplicates
+            record_publish(
+                product_id, platform.value, str(result["post_id"]), outputs_dir
             )
 
         logger.info("Single video publishing complete")
@@ -359,12 +378,17 @@ Examples:
         "--schedule",
         type=str,
         metavar="DATETIME",
-        help="Schedule for later (format: '2025-01-20 14:00:00')",
+        help="Schedule for later (format: '2025-01-20 14:00:00') - RECOMMENDED",
     )
     single_parser.add_argument(
         "--immediate",
         action="store_true",
-        help="Publish immediately (default if --schedule not specified)",
+        help="Publish immediately (requires explicit flag to prevent accidents)",
+    )
+    single_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force republish even if already published to platform",
     )
     single_parser.add_argument(
         "--debug",
@@ -417,20 +441,28 @@ Examples:
             except ValueError as e:
                 parser.error(str(e))
         elif not args.immediate:
-            # Default to immediate if neither specified
-            args.immediate = True
+            # Require explicit --schedule or --immediate
+            parser.error(
+                "Must specify --schedule DATETIME or --immediate. "
+                "Use --schedule to prevent accidental immediate posts."
+            )
 
-        # Convert platform strings to Platform enums
-        args.platforms = [Platform(p.upper()) for p in args.platforms]
+        # Initialize force if not set
+        if not hasattr(args, "force"):
+            args.force = False
+
+        # Convert platform strings to Platform enums (use [] for name lookup)
+        args.platforms = [Platform[p.upper()] for p in args.platforms]
 
     elif args.command == "batch":
         if not args.immediate:
             parser.error(
-                "Batch mode requires --immediate (scheduled publishing not supported in batch mode)"
+                "Batch mode requires --immediate "
+                "(scheduled publishing not supported in batch mode)"
             )
 
-        # Convert platform strings to Platform enums
-        args.platforms = [Platform(p.upper()) for p in args.platforms]
+        # Convert platform strings to Platform enums (use [] for name lookup)
+        args.platforms = [Platform[p.upper()] for p in args.platforms]
 
     # Load .env
     project_root = Path(__file__).resolve().parent.parent.parent.parent

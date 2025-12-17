@@ -29,7 +29,7 @@ def load_platform_metadata(
     Args:
     ----
         product_id: Product identifier (e.g., ASIN "B0ASIN123")
-        platform: Target platform (Platform enum or string "youtube"/"tiktok"/"instagram")
+        platform: Target platform (Platform enum or string like "youtube")
         outputs_dir: Base outputs directory (default: "outputs")
 
     Returns:
@@ -57,12 +57,11 @@ def load_platform_metadata(
         outputs_dir = Path(outputs_dir)
 
     product_dir = outputs_dir / product_id
-    text_dir = product_dir / "text"
 
     logger.info(f"Loading metadata for product {product_id}, platform {platform.value}")
 
     # Try loading from JSON file first
-    json_path = text_dir / f"metadata_{platform.value}.json"
+    json_path = product_dir / f"metadata_{platform.value}.json"
     metadata = _load_from_json(json_path, platform, product_id)
 
     if metadata:
@@ -223,9 +222,8 @@ def _load_from_instructions(
         # Validate character limits
         is_valid, error_msg = metadata.validate_limits()
         if not is_valid:
-            logger.warning(
-                f"Metadata validation failed for {platform.value} from instructions: {error_msg}"
-            )
+            plat = platform.value
+            logger.warning(f"Metadata validation for {plat}: {error_msg}")
 
         logger.debug(
             f"Parsed instructions metadata: title={len(title) if title else 0} chars, "

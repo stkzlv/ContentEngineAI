@@ -75,13 +75,13 @@ class TestPublisherRegistry:
 
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher)
 
-        retrieved_class = PublisherRegistry.get_provider_class(PublisherProvider.LATE)
+        retrieved_class = PublisherRegistry.get_publisher_class(PublisherProvider.LATE)
         assert retrieved_class == TestPublisher
 
     def test_get_provider_class_not_registered(self):
-        """Test retrieving unregistered provider raises ValueError."""
-        with pytest.raises(ValueError, match="Publisher provider .* not registered"):
-            PublisherRegistry.get_provider_class(PublisherProvider.BUFFER)
+        """Test retrieving unregistered provider returns None."""
+        result = PublisherRegistry.get_publisher_class(PublisherProvider.BUFFER)
+        assert result is None
 
     def test_is_provider_supported(self):
         """Test checking if provider is supported."""
@@ -159,7 +159,7 @@ class TestPublisherRegistry:
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher1)
         PublisherRegistry.register(PublisherProvider.BUFFER, TestPublisher2)
 
-        providers = PublisherRegistry.list_providers()
+        providers = PublisherRegistry.get_available_providers()
         assert len(providers) == 2
         assert PublisherProvider.LATE in providers
         assert PublisherProvider.BUFFER in providers
@@ -198,7 +198,7 @@ class TestRegisterPublisherDecorator:
 
         assert PublisherRegistry.is_provider_supported(PublisherProvider.LATE) is True
         assert (
-            PublisherRegistry.get_provider_class(PublisherProvider.LATE)
+            PublisherRegistry.get_publisher_class(PublisherProvider.LATE)
             == TestPublisher
         )
 
@@ -279,11 +279,11 @@ class TestRegisterPublisherDecorator:
         assert PublisherRegistry.is_provider_supported(PublisherProvider.LATE) is True
         assert PublisherRegistry.is_provider_supported(PublisherProvider.BUFFER) is True
         assert (
-            PublisherRegistry.get_provider_class(PublisherProvider.LATE)
+            PublisherRegistry.get_publisher_class(PublisherProvider.LATE)
             == LatePublisher
         )
         assert (
-            PublisherRegistry.get_provider_class(PublisherProvider.BUFFER)
+            PublisherRegistry.get_publisher_class(PublisherProvider.BUFFER)
             == BufferPublisher
         )
 
@@ -402,12 +402,12 @@ class TestCreatePublisher:
 
     def test_create_publisher_unregistered_provider(self):
         """Test creating publisher with unregistered provider raises ValueError."""
-        with pytest.raises(ValueError, match="Publisher provider .* not registered"):
+        with pytest.raises(ValueError, match="Provider .* not registered"):
             create_publisher(PublisherProvider.BUFFER, api_key="test_key")
 
     def test_create_publisher_invalid_provider_string(self):
         """Test creating publisher with invalid provider string raises ValueError."""
-        with pytest.raises(ValueError, match="'invalid_provider' is not a valid"):
+        with pytest.raises(ValueError, match="Invalid provider.*invalid_provider"):
             create_publisher("invalid_provider", api_key="test_key")
 
     def test_create_publisher_with_session(self):

@@ -13,7 +13,7 @@ default_platforms:
 
 # Retry and timeout settings
 max_retries: 3
-timeout: 30.0
+timeout: 120.0  # TikTok video processing can take longer
 backoff_multiplier: 2.0
 
 # Batch publishing delays (seconds)

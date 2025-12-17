@@ -40,7 +40,8 @@ def load_publisher_config(
 
     Raises:
     ------
-        FileNotFoundError: If config file doesn't exist and no env/CLI overrides provided
+        FileNotFoundError: If config file doesn't exist and no env/CLI
+            overrides provided
         ValueError: If required fields missing (provider, api_key)
         ValidationError: If config validation fails
 

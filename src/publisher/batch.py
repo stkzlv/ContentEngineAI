@@ -85,10 +85,10 @@ class BatchPublisher:
         self.stagger_delay_max = stagger_delay_max
         self.fail_fast = fail_fast
 
+        platforms_str = [p.value for p in self.platforms]
         logger.info(
-            f"Initialized BatchPublisher: platforms={[p.value for p in self.platforms]}, "
-            f"stagger_delay={stagger_delay_min}-{stagger_delay_max}s, "
-            f"fail_fast={fail_fast}"
+            f"Initialized BatchPublisher: platforms={platforms_str}, "
+            f"stagger={stagger_delay_min}-{stagger_delay_max}s, fail_fast={fail_fast}"
         )
 
     async def publish_batch(self) -> BatchPublishSummary:
@@ -331,7 +331,7 @@ class BatchPublisher:
                         scheduled_time=None,  # Immediate publish
                     )
 
-                    post_id = result["post_id"]
+                    post_id = str(result["post_id"])
                     post_status = result["status"]
 
                     logger.info(
@@ -340,11 +340,13 @@ class BatchPublisher:
                     )
 
                     # Log published URLs if available
-                    if result.get("published_urls"):
+                    published_urls = result.get("published_urls")
+                    if published_urls and isinstance(published_urls, list):
                         logger.info(
-                            f"[{current_idx}/{total_count}] Published URLs for {platform.value}:"
+                            f"[{current_idx}/{total_count}] "
+                            f"Published URLs for {platform.value}:"
                         )
-                        for url in result["published_urls"]:
+                        for url in published_urls:
                             logger.info(f"[{current_idx}/{total_count}]   - {url}")
 
                     # Fetch and log post status after creation (non-blocking)
@@ -352,24 +354,28 @@ class BatchPublisher:
                         status_info = await self.publisher.get_status(post_id)
                         if status_info["status"] != "unknown":
                             logger.debug(
-                                f"[{current_idx}/{total_count}] Status verification for {platform.value}: "
-                                f"{status_info['status']}"
+                                f"[{current_idx}/{total_count}] Status for "
+                                f"{platform.value}: {status_info['status']}"
                             )
-                            # If status check found additional URLs not in publish response
-                            if status_info["published_urls"] and not result.get(
-                                "published_urls"
+                            # If status check found additional URLs
+                            status_urls = status_info.get("published_urls")
+                            if (
+                                status_urls
+                                and isinstance(status_urls, list)
+                                and not published_urls
                             ):
                                 logger.info(
-                                    f"[{current_idx}/{total_count}] Additional URLs from status check:"
+                                    f"[{current_idx}/{total_count}] "
+                                    f"URLs from status check:"
                                 )
-                                for url in status_info["published_urls"]:
+                                for url in status_urls:
                                     logger.info(
                                         f"[{current_idx}/{total_count}]   - {url}"
                                     )
                     except Exception as status_err:
-                        # Status check failure is non-critical, just log and continue
+                        # Status check failure is non-critical
                         logger.debug(
-                            f"[{current_idx}/{total_count}] Status check failed for {platform.value}: "
+                            f"[{current_idx}/{total_count}] Status check failed: "
                             f"{status_err}"
                         )
 
@@ -417,7 +423,7 @@ class BatchPublisher:
             total_count: Total number of videos
 
         """
-        delay = random.randint(self.stagger_delay_min, self.stagger_delay_max)
+        delay = random.randint(self.stagger_delay_min, self.stagger_delay_max)  # noqa: S311
         logger.info(
             f"[{current_idx}/{total_count}] Waiting {delay}s before next video..."
         )
@@ -465,9 +471,9 @@ class BatchPublisher:
         if summary.platform_results:
             logger.info("-" * 80)
             logger.info("Per-Platform Results:")
-            logger.info(
-                f"{'Platform':<15} {'Successful':<12} {'Failed':<10} {'Total':<10} {'Rate':<10}"
-            )
+            header = f"{'Platform':<15} {'Successful':<12} {'Failed':<10} "
+            header += f"{'Total':<10} {'Rate':<10}"
+            logger.info(header)
             logger.info("-" * 80)
 
             for platform, counts in summary.platform_results.items():
@@ -489,7 +495,7 @@ class BatchPublisher:
             logger.info(f"Errors ({len(summary.errors)} total):")
 
             # Group errors by type for better readability
-            error_types = {}
+            error_types: dict[str, list[str]] = {}
             for error in summary.errors:
                 error_msg = error["error"]
                 # Extract error type (first sentence or up to 50 chars)
