@@ -155,7 +155,7 @@ class PublishMetadata:
         -------
             Tuple of (is_valid, message)
                 - is_valid: True if all limits respected, False otherwise
-                - message: "Content within limits" if valid, error description if invalid
+                - message: "Content within limits" if valid, error desc if invalid
 
         """
         limits: dict[Platform, dict[str, int | tuple[int, int]]] = {
@@ -170,22 +170,24 @@ class PublishMetadata:
 
         # Validate title length (YouTube only)
         title_limit = platform_limits.get("title")
-        if isinstance(title_limit, int) and self.title:
-            if len(self.title) > title_limit:
-                return (
-                    False,
-                    f"Title exceeds {title_limit} chars (got {len(self.title)})",
-                )
+        if (
+            isinstance(title_limit, int)
+            and self.title
+            and len(self.title) > title_limit
+        ):
+            return (
+                False,
+                f"Title exceeds {title_limit} chars (got {len(self.title)})",
+            )
 
         # Validate description length
         desc_limit = platform_limits.get("description")
-        if isinstance(desc_limit, int):
-            if len(self.description) > desc_limit:
-                desc_len = len(self.description)
-                return (
-                    False,
-                    f"Description exceeds {desc_limit} chars (got {desc_len})",
-                )
+        if isinstance(desc_limit, int) and len(self.description) > desc_limit:
+            desc_len = len(self.description)
+            return (
+                False,
+                f"Description exceeds {desc_limit} chars (got {desc_len})",
+            )
 
         # Validate hashtag count
         hashtag_limits = platform_limits.get("hashtags")
@@ -193,9 +195,15 @@ class PublishMetadata:
             min_tags, max_tags = hashtag_limits
             tag_count = len(self.hashtags)
             if tag_count < min_tags:
-                return False, f"Hashtags must be between {min_tags} and {max_tags} (got {tag_count})"
+                return (
+                    False,
+                    f"Hashtags: {min_tags}-{max_tags} required (got {tag_count})",
+                )
             if tag_count > max_tags:
-                return False, f"Hashtags must be between {min_tags} and {max_tags} (got {tag_count})"
+                return (
+                    False,
+                    f"Hashtags: {min_tags}-{max_tags} required (got {tag_count})",
+                )
 
         return True, "Content within limits"
 
@@ -258,6 +266,8 @@ class PublisherConfig:
         backoff_multiplier: Exponential backoff multiplier for retries
         stagger_delay_min: Minimum delay between batch posts (seconds)
         stagger_delay_max: Maximum delay between batch posts (seconds)
+        schedule_config: Configuration for scheduling and validation
+        cleanup_config: Configuration for post-publication cleanup
 
     """
 
@@ -272,6 +282,8 @@ class PublisherConfig:
     backoff_multiplier: float = 2.0
     stagger_delay_min: int = 30
     stagger_delay_max: int = 60
+    schedule_config: "ScheduleConfig" = field(default_factory=lambda: ScheduleConfig())
+    cleanup_config: "CleanupConfig" = field(default_factory=lambda: CleanupConfig())
 
     def __post_init__(self):
         """Post-initialization validation."""
@@ -325,6 +337,8 @@ class PublisherConfig:
             "backoff_multiplier": self.backoff_multiplier,
             "stagger_delay_min": self.stagger_delay_min,
             "stagger_delay_max": self.stagger_delay_max,
+            "schedule_config": self.schedule_config.to_dict(),
+            "cleanup_config": self.cleanup_config.to_dict(),
         }
 
 
@@ -432,4 +446,356 @@ class BatchPublishSummary:
             },
             "errors": self.errors,
             "duration_seconds": self.duration_seconds,
+        }
+
+
+@dataclass(frozen=True)
+class RecurringSlot:
+    """Recurring time slot for automated scheduling.
+
+    Defines a repeating weekly time slot when videos should be published.
+    Used by the auto-scheduling system to assign videos to predefined slots.
+
+    Attributes
+    ----------
+        day_of_week: Day name (monday, tuesday, etc.) - lowercase
+        time: Time in HH:MM:SS format (24-hour)
+        timezone: IANA timezone name (e.g., "UTC", "America/New_York")
+
+    """
+
+    day_of_week: str
+    time: str
+    timezone: str
+
+    def __post_init__(self):
+        """Post-initialization validation."""
+        # Validate day_of_week
+        valid_days = {
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        }
+        if self.day_of_week.lower() not in valid_days:
+            raise ValueError(
+                f"day_of_week must be one of {valid_days}, got '{self.day_of_week}'"
+            )
+
+        # Validate time format (HH:MM:SS)
+        if not self.time or len(self.time.split(":")) != 3:
+            raise ValueError(f"time must be in HH:MM:SS format, got '{self.time}'")
+
+        try:
+            hours, minutes, seconds = map(int, self.time.split(":"))
+            if not (0 <= hours <= 23 and 0 <= minutes <= 59 and 0 <= seconds <= 59):
+                raise ValueError
+        except (ValueError, TypeError) as err:
+            raise ValueError(
+                f"time must have valid HH:MM:SS values, got '{self.time}'"
+            ) from err
+
+        # Validate timezone is not empty
+        if not self.timezone or not self.timezone.strip():
+            raise ValueError("timezone cannot be empty")
+
+    def next_occurrence(self, after: datetime) -> datetime:
+        """Calculate next occurrence of this slot after given datetime.
+
+        Args:
+        ----
+            after: Reference datetime to calculate from (timezone-aware)
+
+        Returns:
+        -------
+            Next occurrence of this slot as timezone-aware datetime
+
+        Raises:
+        ------
+            ValueError: If after is timezone-naive or timezone is invalid
+
+        Example:
+        -------
+            >>> slot = RecurringSlot("monday", "10:00:00", "UTC")
+            >>> from datetime import datetime, UTC
+            >>> after = datetime(2025, 1, 15, 12, 0, tzinfo=UTC)  # Wednesday
+            >>> next_time = slot.next_occurrence(after)
+            >>> # Returns next Monday at 10:00 UTC
+
+        """
+        from zoneinfo import ZoneInfo
+
+        # Validate after has timezone
+        if after.tzinfo is None:
+            raise ValueError("after datetime must be timezone-aware")
+
+        # Parse slot time
+        hour, minute, second = map(int, self.time.split(":"))
+
+        # Get timezone
+        try:
+            tz = ZoneInfo(self.timezone)
+        except Exception as e:
+            raise ValueError(f"Invalid timezone '{self.timezone}': {e}") from e
+
+        # Convert after to slot timezone
+        after_local = after.astimezone(tz)
+
+        # Map day names to weekday numbers (0=Monday, 6=Sunday)
+        day_map = {
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
+        }
+        target_weekday = day_map[self.day_of_week.lower()]
+
+        # Calculate days until target weekday
+        current_weekday = after_local.weekday()
+        days_ahead = target_weekday - current_weekday
+
+        # If target day is today, check if time has passed
+        if days_ahead == 0:
+            slot_time_today = after_local.replace(
+                hour=hour, minute=minute, second=second, microsecond=0
+            )
+            if after_local >= slot_time_today:
+                # Time has passed today, go to next week
+                days_ahead = 7
+        elif days_ahead < 0:
+            # Target day is earlier in week, go to next week
+            days_ahead += 7
+
+        # Calculate next occurrence
+        next_date = after_local.date()
+        from datetime import timedelta
+
+        next_date = next_date + timedelta(days=days_ahead)
+        next_datetime = datetime(
+            next_date.year,
+            next_date.month,
+            next_date.day,
+            hour,
+            minute,
+            second,
+            tzinfo=tz,
+        )
+
+        return next_datetime
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns
+        -------
+            Dictionary representation with all slot data
+
+        """
+        return {
+            "day_of_week": self.day_of_week,
+            "time": self.time,
+            "timezone": self.timezone,
+        }
+
+
+@dataclass
+class ScheduleEntry:
+    """Scheduled post entry in the publishing calendar.
+
+    Represents a single video scheduled for publication to one or more
+    platforms at a specific time. Tracks status throughout the lifecycle.
+
+    Attributes
+    ----------
+        product_id: Unique identifier of the product/video
+        scheduled_time: When the post should be published (timezone-aware)
+        platforms: List of platforms to publish to
+        post_id: Provider-assigned post ID (None until scheduled)
+        status: Current status (pending, scheduled, published, failed)
+        created_at: When this schedule entry was created (timezone-aware)
+        slot_index: Index of recurring slot used (None if manual schedule)
+
+    """
+
+    product_id: str
+    scheduled_time: datetime
+    platforms: list[Platform]
+    post_id: str | None = None
+    status: str = "pending"
+    created_at: datetime = field(default_factory=lambda: datetime.now())
+    slot_index: int | None = None
+
+    def __post_init__(self):
+        """Post-initialization validation."""
+        # Validate product_id
+        if not self.product_id or not self.product_id.strip():
+            raise ValueError("product_id cannot be empty")
+
+        # Validate scheduled_time has timezone
+        if self.scheduled_time.tzinfo is None:
+            raise ValueError("scheduled_time must include timezone information")
+
+        # Validate platforms list
+        if not self.platforms:
+            raise ValueError("platforms cannot be empty")
+
+        # Validate status
+        valid_statuses = {"pending", "scheduled", "published", "failed", "partial"}
+        if self.status not in valid_statuses:
+            raise ValueError(
+                f"status must be one of {valid_statuses}, got '{self.status}'"
+            )
+
+        # Validate slot_index if provided
+        if self.slot_index is not None and self.slot_index < 0:
+            raise ValueError("slot_index must be non-negative")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns
+        -------
+            Dictionary representation with all entry data
+
+        """
+        return {
+            "product_id": self.product_id,
+            "scheduled_time": self.scheduled_time.isoformat(),
+            "platforms": [p.value for p in self.platforms],
+            "post_id": self.post_id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "slot_index": self.slot_index,
+        }
+
+
+@dataclass
+class ScheduleConfig:
+    """Configuration for schedule validation and behavior.
+
+    Controls scheduling rules, conflict prevention, and constraints
+    for the auto-scheduling system.
+
+    Attributes
+    ----------
+        enabled: Whether recurring schedule is enabled
+        slots: List of recurring time slots for auto-scheduling
+        min_post_spacing_hours: Minimum hours between posts on same platform
+        prevent_duplicates: Reject duplicate schedules (same product+platform+time)
+        allow_past_schedules: Allow scheduling posts in the past
+        max_posts_per_day: Maximum posts allowed per day (0 = unlimited)
+        timezone: Default timezone for schedule operations
+
+    """
+
+    enabled: bool = False
+    slots: list[RecurringSlot] = field(default_factory=list)
+    min_post_spacing_hours: int = 2
+    prevent_duplicates: bool = True
+    allow_past_schedules: bool = False
+    max_posts_per_day: int = 10
+    timezone: str = "UTC"
+
+    def __post_init__(self):
+        """Post-initialization validation."""
+        # Validate min_post_spacing_hours
+        if self.min_post_spacing_hours < 0:
+            raise ValueError("min_post_spacing_hours must be non-negative")
+
+        # Validate max_posts_per_day
+        if self.max_posts_per_day < 0:
+            raise ValueError("max_posts_per_day must be non-negative")
+
+        # Validate timezone
+        if not self.timezone or not self.timezone.strip():
+            raise ValueError("timezone cannot be empty")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns
+        -------
+            Dictionary representation with all config data
+
+        """
+        return {
+            "enabled": self.enabled,
+            "slots": [
+                {
+                    "day_of_week": slot.day_of_week,
+                    "time": slot.time,
+                    "timezone": slot.timezone,
+                }
+                for slot in self.slots
+            ],
+            "min_post_spacing_hours": self.min_post_spacing_hours,
+            "prevent_duplicates": self.prevent_duplicates,
+            "allow_past_schedules": self.allow_past_schedules,
+            "max_posts_per_day": self.max_posts_per_day,
+            "timezone": self.timezone,
+        }
+
+
+@dataclass
+class CleanupConfig:
+    """Configuration for post-publication cleanup behavior.
+
+    Controls when and how product directories are removed after successful
+    publication, with safety features to prevent accidental data loss.
+
+    Attributes
+    ----------
+        enabled: Enable automatic cleanup after successful publish
+        verify_before_delete: Query API to confirm publication before cleanup
+        require_all_platforms: Only cleanup if published to ALL platforms
+        archive_before_delete: Create ZIP archive before deletion
+        archive_dir: Directory to store archives
+        keep_published_days: Days to wait before cleanup (0 = immediate)
+        preserve_metadata: Keep metadata JSON files when cleaning
+        preserve_logs: Keep log files when cleaning
+
+    """
+
+    enabled: bool = False
+    verify_before_delete: bool = True
+    require_all_platforms: bool = True
+    archive_before_delete: bool = False
+    archive_dir: Path = field(default_factory=lambda: Path("outputs/archive"))
+    keep_published_days: int = 0
+    preserve_metadata: bool = False
+    preserve_logs: bool = True
+
+    def __post_init__(self):
+        """Post-initialization validation."""
+        # Validate keep_published_days
+        if self.keep_published_days < 0:
+            raise ValueError("keep_published_days must be non-negative")
+
+        # Validate archive_dir if archiving enabled
+        if self.archive_before_delete and not self.archive_dir:
+            raise ValueError("archive_dir required when archive_before_delete is True")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns
+        -------
+            Dictionary representation with all config data
+
+        """
+        return {
+            "enabled": self.enabled,
+            "verify_before_delete": self.verify_before_delete,
+            "require_all_platforms": self.require_all_platforms,
+            "archive_before_delete": self.archive_before_delete,
+            "archive_dir": str(self.archive_dir),
+            "keep_published_days": self.keep_published_days,
+            "preserve_metadata": self.preserve_metadata,
+            "preserve_logs": self.preserve_logs,
         }

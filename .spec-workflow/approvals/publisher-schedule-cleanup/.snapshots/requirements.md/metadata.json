@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/publisher-schedule-cleanup/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-18T10:43:17.737Z",
+      "trigger": "initial",
+      "approvalId": "approval_1766054597695_y2etiyw7e",
+      "approvalTitle": "Requirements: Publisher Schedule & Cleanup"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-18T10:43:22.767Z",
+      "trigger": "approved",
+      "approvalId": "approval_1766054597695_y2etiyw7e",
+      "approvalTitle": "Requirements: Publisher Schedule & Cleanup"
+    }
+  ]
+}

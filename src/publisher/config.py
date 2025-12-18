@@ -13,7 +13,13 @@ from typing import Any
 
 import yaml
 
-from src.publisher.models import Platform, PublisherConfig
+from src.publisher.models import (
+    CleanupConfig,
+    Platform,
+    PublisherConfig,
+    RecurringSlot,
+    ScheduleConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +73,9 @@ def load_publisher_config(
 
     # Load YAML config (lowest precedence)
     yaml_config = _load_yaml_config(config_path)
+
+    # Parse schedule and cleanup configurations from YAML
+    yaml_config = _parse_schedule_and_cleanup_config(yaml_config)
 
     # Apply environment variable overrides (medium precedence)
     config_dict = _apply_env_overrides(yaml_config)
@@ -129,6 +138,124 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Error loading config file {config_path}: {e}")
         return {}
+
+
+def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Parse schedule and cleanup configuration sections from YAML.
+
+    Parses three sections:
+    1. recurring_schedule: enabled, timezone, slots (list of RecurringSlot)
+    2. schedule_validation: min_post_spacing_hours, prevent_duplicates, etc.
+    3. cleanup: enabled, verify_before_delete, require_all_platforms, etc.
+
+    Args:
+    ----
+        config: Raw YAML configuration dictionary
+
+    Returns:
+    -------
+        Configuration with schedule_config and cleanup_config objects
+
+    """
+    result = config.copy()
+
+    # Parse recurring_schedule section
+    recurring_schedule = config.get("recurring_schedule", {})
+    schedule_validation = config.get("schedule_validation", {})
+
+    # Merge recurring_schedule and schedule_validation into ScheduleConfig
+    schedule_config_dict = {}
+
+    # From recurring_schedule section (enabled, timezone, slots)
+    if "enabled" in recurring_schedule:
+        schedule_config_dict["enabled"] = recurring_schedule["enabled"]
+    if "timezone" in recurring_schedule:
+        schedule_config_dict["timezone"] = recurring_schedule["timezone"]
+
+    # Parse slots if present
+    slots_data = recurring_schedule.get("slots", [])
+    if slots_data and isinstance(slots_data, list):
+        try:
+            slots = []
+            for slot_dict in slots_data:
+                slot = RecurringSlot(
+                    day_of_week=slot_dict["day_of_week"],
+                    time=slot_dict["time"],
+                    timezone=slot_dict.get("timezone", recurring_schedule.get("timezone", "UTC")),
+                )
+                slots.append(slot)
+            schedule_config_dict["slots"] = slots
+            logger.debug(f"Parsed {len(slots)} recurring slots from config")
+        except Exception as e:
+            logger.warning(f"Failed to parse recurring slots: {e}, using empty slots")
+            schedule_config_dict["slots"] = []
+
+    # From schedule_validation section
+    if "min_post_spacing_hours" in schedule_validation:
+        schedule_config_dict["min_post_spacing_hours"] = schedule_validation[
+            "min_post_spacing_hours"
+        ]
+    if "prevent_duplicates" in schedule_validation:
+        schedule_config_dict["prevent_duplicates"] = schedule_validation[
+            "prevent_duplicates"
+        ]
+    if "allow_past_schedules" in schedule_validation:
+        schedule_config_dict["allow_past_schedules"] = schedule_validation[
+            "allow_past_schedules"
+        ]
+    if "max_posts_per_day" in schedule_validation:
+        schedule_config_dict["max_posts_per_day"] = schedule_validation[
+            "max_posts_per_day"
+        ]
+
+    # Create ScheduleConfig if any config provided
+    if schedule_config_dict:
+        try:
+            result["schedule_config"] = ScheduleConfig(**schedule_config_dict)
+            logger.debug(f"Parsed schedule config: {schedule_config_dict}")
+        except Exception as e:
+            logger.warning(f"Failed to parse schedule config: {e}, using defaults")
+            result["schedule_config"] = ScheduleConfig()
+    else:
+        result["schedule_config"] = ScheduleConfig()
+
+    # Parse cleanup section
+    cleanup_section = config.get("cleanup", {})
+    cleanup_config_dict = {}
+
+    for key in [
+        "enabled",
+        "verify_before_delete",
+        "require_all_platforms",
+        "archive_before_delete",
+        "keep_published_days",
+        "preserve_metadata",
+        "preserve_logs",
+    ]:
+        if key in cleanup_section:
+            cleanup_config_dict[key] = cleanup_section[key]
+
+    # Handle archive_dir specially (convert to Path)
+    if "archive_dir" in cleanup_section:
+        cleanup_config_dict["archive_dir"] = Path(cleanup_section["archive_dir"])
+
+    # Create CleanupConfig if any config provided
+    if cleanup_config_dict:
+        try:
+            result["cleanup_config"] = CleanupConfig(**cleanup_config_dict)
+            logger.debug(f"Parsed cleanup config: {cleanup_config_dict}")
+        except Exception as e:
+            logger.warning(f"Failed to parse cleanup config: {e}, using defaults")
+            result["cleanup_config"] = CleanupConfig()
+    else:
+        result["cleanup_config"] = CleanupConfig()
+
+    # Remove raw YAML sections (already parsed into objects)
+    result.pop("recurring_schedule", None)
+    result.pop("schedule_validation", None)
+    result.pop("cleanup", None)
+
+    return result
 
 
 def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
@@ -288,6 +415,8 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
     - stagger_delay_max: 60
     - default_platforms: [youtube, tiktok, instagram]
     - privacy_settings: {}
+    - schedule_config: ScheduleConfig() with defaults
+    - cleanup_config: CleanupConfig() with defaults
 
     Args:
     ----
@@ -308,6 +437,8 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "stagger_delay_max": 60,
         "default_platforms": [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
         "privacy_settings": {},
+        "schedule_config": ScheduleConfig(),
+        "cleanup_config": CleanupConfig(),
     }
 
     for key, default_value in defaults.items():
@@ -382,40 +513,13 @@ def create_default_config_file(
     # Ensure parent directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    default_config = {
-        "# Publisher Configuration": None,
-        "# API credentials (use environment variables for security)": None,
-        "provider": "late",
-        "api_key": "${LATE_API_KEY}",
-        "vercel_token": "${LATE_VERCEL_TOKEN}",
-        "# Publishing behavior": None,
-        "immediate_publish": True,
-        "default_platforms": ["youtube", "tiktok", "instagram"],
-        "# Retry and timeout settings": None,
-        "max_retries": 3,
-        "timeout": 30.0,
-        "backoff_multiplier": 2.0,
-        "# Batch publishing delays (seconds)": None,
-        "stagger_delay_min": 30,
-        "stagger_delay_max": 60,
-        "# Privacy settings per platform": None,
-        "privacy_settings": {
-            "youtube": "public",
-            "tiktok": "public",
-            "instagram": "everyone",
-        },
-    }
-
-    # Filter out comment keys (starting with #)
-    yaml_config = {k: v for k, v in default_config.items() if not k.startswith("#")}
-
     with open(output_path, "w", encoding="utf-8") as f:
         # Write with comments manually for better formatting
         f.write("# Publisher Configuration\n")
         f.write("# API credentials (use environment variables for security)\n")
         f.write("provider: late\n")
-        f.write("api_key: ${LATE_API_KEY}\n")
-        f.write("vercel_token: ${LATE_VERCEL_TOKEN}\n\n")
+        f.write('api_key_env_var: "LATE_API_KEY"\n')
+        f.write('vercel_token_env_var: "LATE_VERCEL_TOKEN"\n\n')
         f.write("# Publishing behavior\n")
         f.write("immediate_publish: true\n")
         f.write("default_platforms:\n")

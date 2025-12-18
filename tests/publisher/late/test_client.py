@@ -111,13 +111,13 @@ class TestLatePublisherInit:
         """Test successful initialization with valid parameters."""
         publisher = LatePublisher(
             api_key="sk_test_abc123",
-            vercel_token="vercel_xyz456",
+            vercel_token="vercel_xyz456",  # noqa: S106
             timeout=60.0,
             max_retries=5,
         )
 
         assert publisher._api_key == "sk_test_abc123"
-        assert publisher.vercel_token == "vercel_xyz456"
+        assert publisher.vercel_token == "vercel_xyz456"  # noqa: S105
         assert publisher.timeout == 60.0
         assert publisher.max_retries == 5
         assert publisher.provider == PublisherProvider.LATE
@@ -368,6 +368,7 @@ class TestLatePublisherGetAccounts:
 # - test_get_status_scheduled (passes - relies on same mock pattern but might be flaky)
 # - test_get_status_failed (passes - tests error message extraction)
 # - test_get_status_with_timezone_conversion (passes - tests timezone logic)
+
 
 class TestLatePublisherGetStatus:
     """Test LatePublisher get_status method."""

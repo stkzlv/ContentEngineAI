@@ -766,7 +766,7 @@ class TestMetadataIntegration:
         # Load TikTok metadata
         metadata = load_platform_metadata(product_id, Platform.TIKTOK, outputs_dir)
         assert metadata is not None
-        assert "🔥" in metadata.title
+        assert metadata.title and "🔥" in metadata.title
 
     def test_metadata_character_limits(self, sample_product_with_video):
         """Test that metadata respects platform character limits."""

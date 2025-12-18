@@ -57,6 +57,30 @@ poetry run python tools/performance_report.py --report-type summary
 - Document project status in relevant documentation files
 - Create implementation plans for features/fixes before coding
 
+**Important Documentation**:
+- **CONTRIBUTING.md**: GitHub Flow workflow, branch naming, code style, testing requirements
+- **DEVELOPMENT.md**: Architecture, performance optimization, component development, debugging
+- **VERSIONING.md**: Semantic versioning rules, release process, version support policy
+
+*These files are automatically read by the github-workflow skill during iteration start and releases.*
+
+### Git Commit & PR Guidelines
+
+**Commit Messages**:
+- Use imperative mood (e.g., "Add feature", not "Added feature" or "Adds feature")
+- Keep first line under 50 characters
+- **Never mention authors** in commit messages
+- **Never mention Claude Code, AI tools, or assistants** in commit messages
+- Keep messages short and simple
+- Explain what and why, not how
+
+**Pull Request Descriptions**:
+- **Never mention authors** in PR descriptions
+- **Never mention Claude Code, AI tools, or assistants** in PR descriptions
+- Keep descriptions short and simple
+- Use PR template if available in `.github/`
+- Focus on what changed, why it changed, and how to test
+
 ## Development Workflow (GitHub Flow)
 
 ContentEngineAI follows **GitHub Flow** - a branch-based workflow for features and bug fixes.
@@ -126,6 +150,32 @@ make test-cov      # Run tests with coverage report
 - Squash merge for clean history
 - Address all review feedback
 - Ensure all CI checks pass
+
+### Release Process
+
+**Version Bumping**:
+- Follow semantic versioning: `MAJOR.MINOR.PATCH`
+- Determine version bump based on changes:
+  - **Major** (e.g., 1.0.0 → 2.0.0): Breaking API changes
+  - **Minor** (e.g., 0.17.0 → 0.18.0): New features (backward compatible)
+  - **Patch** (e.g., 0.17.0 → 0.17.1): Bug fixes only
+- Update version in:
+  - `pyproject.toml`
+  - `src/__init__.py` (if `__version__` exists)
+
+**Releases are automated via CI/CD**:
+1. Review changes and determine version bump
+2. Update version in `pyproject.toml` and code files
+3. Update `CHANGELOG.md` with release notes following [Keep a Changelog](https://keepachangelog.com/) format
+4. Commit version bump: `git commit -m "Bump version to 0.18.0"`
+5. Merge PR and switch to main branch
+6. Create and push version tag: `git tag -a v0.18.0 -m "Release v0.18.0"`
+7. CI workflow automatically creates GitHub release with:
+   - Release notes extracted from CHANGELOG.md
+   - Build artifacts (wheel and source distribution)
+   - Tests and linting verification
+
+**Note**: Do not manually create GitHub releases - CI handles this when tags are pushed
 
 ## Available MCP Servers
 

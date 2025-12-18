@@ -806,3 +806,20 @@ ContentEngineAI **MUST** support automated video publishing to social media plat
 - **Batch Publishing**: Publish multiple videos across multiple platforms in single workflow
 - **Status Tracking**: Monitor upload status and retrieve published post URLs
 - **Error Handling**: Retry logic for failed uploads, graceful degradation, detailed error reporting
+
+### Publishing Schedule Configuration
+
+- **Calendar View**: List all scheduled posts with filtering by status, platform, and date range
+- **Recurring Schedules**: Define recurring time slots (e.g., "Monday 9am, Wednesday 2pm") for automated queue-based publishing
+- **Schedule Templates**: Configure default publishing schedules per platform in YAML with CLI overrides
+- **Schedule Validation**: Prevent duplicate scheduling, validate timezone-aware datetimes, enforce minimum spacing between posts
+- **Batch Scheduling**: Schedule multiple videos from outputs directory to recurring calendar slots in single command
+
+### Post-Publication Cleanup
+
+- **Automatic Cleanup**: Remove successfully published product directories from outputs after confirmed publication
+- **Configurable Behavior**: Enable/disable cleanup per platform via YAML `auto_cleanup: true/false` setting
+- **CLI Override**: `--no-cleanup` flag to preserve outputs regardless of configuration
+- **Safety Checks**: Verify publication success via API status check before deletion
+- **Selective Cleanup**: Only remove products published to all configured platforms (multi-platform validation)
+- **Cleanup Logging**: Log all deleted directories with product IDs, platforms, and post URLs for audit trail

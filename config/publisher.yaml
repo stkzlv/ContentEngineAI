@@ -25,3 +25,34 @@ privacy_settings:
   youtube: public
   tiktok: public
   instagram: everyone
+
+# Recurring schedule configuration (disabled by default)
+recurring_schedule:
+  enabled: false
+  timezone: UTC
+  # Example slots (uncomment and customize as needed):
+  # slots:
+  #   - day_of_week: monday
+  #     time: "10:00:00"
+  #   - day_of_week: wednesday
+  #     time: "14:30:00"
+  #   - day_of_week: friday
+  #     time: "18:00:00"
+
+# Schedule validation rules
+schedule_validation:
+  min_post_spacing_hours: 2  # Minimum hours between posts on same platform
+  prevent_duplicates: true   # Reject duplicate product+platform+time schedules
+  allow_past_schedules: false  # Allow scheduling posts in the past
+  max_posts_per_day: 10      # Maximum posts per day (0 = unlimited)
+
+# Post-publication cleanup (disabled by default)
+cleanup:
+  enabled: false  # Enable automatic cleanup after successful publish
+  verify_before_delete: true  # Verify publication via API before cleanup
+  require_all_platforms: true  # Only cleanup when published to ALL platforms
+  archive_before_delete: false  # Create ZIP backup before deletion
+  archive_dir: outputs/archive  # Directory for archived product backups
+  keep_published_days: 0  # Only cleanup products older than N days (0 = any age)
+  preserve_metadata: false  # Keep metadata JSON files when cleaning
+  preserve_logs: true  # Keep log files in outputs/logs/ directory

@@ -77,8 +77,11 @@ class TestPublishResult:
             platforms=(Platform.YOUTUBE,),
         )
 
-        with pytest.raises((AttributeError, Exception), match="can't set attribute|has no setter|cannot assign"):
-            result.post_id = "post_456"
+        with pytest.raises(
+            (AttributeError, Exception),
+            match="can't set attribute|has no setter|cannot assign",
+        ):
+            result.post_id = "post_456"  # type: ignore[misc]
 
     def test_publish_result_with_scheduled_time(self):
         """Test PublishResult with scheduled_time."""
@@ -199,7 +202,7 @@ class TestPublishMetadata:
 
         is_valid, message = metadata.validate_limits()
         assert is_valid is False
-        assert "Hashtags must be between 3 and 15" in message
+        assert "Hashtags: 3-15 required" in message
 
     def test_validate_limits_youtube_too_many_hashtags(self):
         """Test validate_limits for YouTube with more than 15 hashtags."""
@@ -212,7 +215,7 @@ class TestPublishMetadata:
 
         is_valid, message = metadata.validate_limits()
         assert is_valid is False
-        assert "Hashtags must be between 3 and 15" in message
+        assert "Hashtags: 3-15 required" in message
 
     def test_validate_limits_tiktok_valid(self):
         """Test validate_limits for TikTok with valid content."""
@@ -298,7 +301,7 @@ class TestPublisherConfig:
         config = PublisherConfig(
             provider="late",
             api_key="sk_test_123",
-            vercel_token="vercel_token_456",
+            vercel_token="vercel_token_456",  # noqa: S106
             default_platforms=[Platform.YOUTUBE, Platform.TIKTOK],
             immediate_publish=True,
             max_retries=5,
@@ -307,7 +310,7 @@ class TestPublisherConfig:
 
         assert config.provider == "late"
         assert config.api_key == "sk_test_123"
-        assert config.vercel_token == "vercel_token_456"
+        assert config.vercel_token == "vercel_token_456"  # noqa: S105
         assert len(config.default_platforms) == 2
         assert config.immediate_publish is True
         assert config.max_retries == 5
@@ -321,7 +324,11 @@ class TestPublisherConfig:
         )
 
         assert config.vercel_token is None
-        assert config.default_platforms == [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+        assert config.default_platforms == [
+            Platform.YOUTUBE,
+            Platform.TIKTOK,
+            Platform.INSTAGRAM,
+        ]
         assert config.immediate_publish is True
         assert config.max_retries == 3
         assert config.timeout == 30.0
@@ -334,14 +341,14 @@ class TestPublisherConfig:
             provider="late",
             api_key="sk_test_123",
             privacy_settings={
-                "youtube": "public",
-                "tiktok": "public",
-                "instagram": "everyone",
+                Platform.YOUTUBE: "public",
+                Platform.TIKTOK: "public",
+                Platform.INSTAGRAM: "everyone",
             },
         )
 
         assert config.privacy_settings is not None
-        assert config.privacy_settings["youtube"] == "public"
+        assert config.privacy_settings[Platform.YOUTUBE] == "public"
 
 
 class TestBatchPublishSummary:

@@ -138,12 +138,13 @@ class BatchPublisher:
         logger.info(f"Found {len(videos)} video(s) to publish")
         logger.info(f"Target platforms: {[p.value for p in self.platforms]}")
 
-        # Track statistics
+        # Track statistics - initialize with zeros, set total_videos at end
         successful = 0
         failed = 0
         skipped = 0
+        total_video_count = len(videos)
         summary = BatchPublishSummary(
-            total_videos=len(videos),
+            total_videos=0,
             successful=0,
             failed=0,
             skipped=0,
@@ -207,6 +208,7 @@ class BatchPublisher:
 
         # Finalize summary
         batch_duration = time.time() - batch_start
+        summary.total_videos = total_video_count
         summary.duration_seconds = batch_duration
 
         # Log final summary

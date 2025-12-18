@@ -104,8 +104,8 @@ class GlobalConnectionPool:
                 await self._cleanup_task
             self._cleanup_task = None
 
-        if self._session and not self._session.closed:  # type: ignore[attr-defined]
-            await self._session.close()  # type: ignore[attr-defined]
+        if self._session:
+            await self._session.close()
             self._session = None
             logger.debug("Closed HTTP connection pool")
 

@@ -79,7 +79,7 @@ class TestBasePublisher:
     def test_cannot_instantiate_abstract_class(self):
         """Test that BasePublisher cannot be instantiated directly."""
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            BasePublisher()
+            BasePublisher()  # type: ignore[abstract]
 
     def test_must_implement_authenticate(self):
         """Test that concrete class must implement authenticate()."""
@@ -104,7 +104,7 @@ class TestBasePublisher:
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            IncompletePublisher()
+            IncompletePublisher()  # type: ignore[abstract]
 
     def test_must_implement_get_accounts(self):
         """Test that concrete class must implement get_accounts()."""
@@ -129,7 +129,7 @@ class TestBasePublisher:
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            IncompletePublisher()
+            IncompletePublisher()  # type: ignore[abstract]
 
     def test_must_implement_upload_media(self):
         """Test that concrete class must implement upload_media()."""
@@ -154,7 +154,7 @@ class TestBasePublisher:
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            IncompletePublisher()
+            IncompletePublisher()  # type: ignore[abstract]
 
     def test_must_implement_publish(self):
         """Test that concrete class must implement publish()."""
@@ -179,7 +179,7 @@ class TestBasePublisher:
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            IncompletePublisher()
+            IncompletePublisher()  # type: ignore[abstract]
 
     def test_must_implement_get_status(self):
         """Test that concrete class must implement get_status()."""
@@ -204,7 +204,7 @@ class TestBasePublisher:
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            IncompletePublisher()
+            IncompletePublisher()  # type: ignore[abstract]
 
     def test_concrete_implementation_can_be_instantiated(self):
         """Test that complete concrete implementation can be instantiated."""

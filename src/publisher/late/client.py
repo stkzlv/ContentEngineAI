@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp
-from late import Late
+from late import Late  # type: ignore[import-untyped]
 
 from src.publisher.base import (
     AuthenticationError,

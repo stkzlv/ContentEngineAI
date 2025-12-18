@@ -18,6 +18,8 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Configuration](#-configuration)
 - [Platform Metadata](#-platform-metadata)
 - [Batch Publishing](#-batch-publishing)
+- [Publishing Schedule & Calendar](#-publishing-schedule--calendar)
+- [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
 - [API Reference](#-api-reference)
@@ -27,8 +29,10 @@ The Publisher module provides a complete solution for distributing your AI-gener
 ## ✨ Features
 
 - **🌐 Multi-Platform Publishing**: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
-- **📅 Scheduled Posts**: Schedule videos for future publishing
+- **📅 Scheduled Posts**: Schedule videos for future publishing with recurring time slots
+- **📆 Calendar Management**: View and filter all scheduled posts by platform, date, and status
 - **🔄 Batch Publishing**: Upload multiple videos with automatic rate limiting
+- **🗑️ Auto-Cleanup**: Automatically remove published products from outputs directory
 - **📝 Platform-Specific Metadata**: Auto-loads AI-generated titles, descriptions, hashtags
 - **⚡ Smart Uploads**: Large files (>4MB) automatically routed through Vercel CDN
 - **🔁 Retry Logic**: Exponential backoff for rate limits and network errors
@@ -137,6 +141,27 @@ privacy_settings:
   youtube: public
   tiktok: public
   instagram: everyone
+
+# Recurring Schedule (optional)
+recurring_schedule:
+  enabled: false                 # Enable recurring time slots
+  timezone: "UTC"                # Default timezone for slots
+  slots: []                      # Configure in production
+
+# Schedule Validation
+schedule_validation:
+  min_post_spacing_hours: 2      # Minimum hours between posts
+  prevent_duplicates: true       # Block duplicate scheduling
+  allow_past_schedules: false    # Block scheduling in past
+  max_posts_per_day: 10         # Daily post limit per platform
+
+# Post-Publication Cleanup
+cleanup:
+  enabled: false                 # Enable automatic cleanup
+  verify_before_delete: true     # Verify success before deletion
+  require_all_platforms: true    # Require all platforms published
+  archive_before_delete: false   # Archive before cleanup
+  keep_published_days: 0         # Retention period (0=immediate)
 ```
 
 ### 4. Verify Setup
@@ -563,6 +588,253 @@ poetry run python -m src.publisher.late batch \
 - Reduce `stagger_delay_min` for faster processing (risk of rate limits)
 - Use `--fail-fast` to catch issues early
 - Filter products before batch publishing
+
+---
+
+## 📅 Publishing Schedule & Calendar
+
+### Calendar View
+
+List and manage all scheduled posts with filtering capabilities:
+
+```bash
+# View all scheduled posts
+poetry run python -m src.publisher.late calendar list --debug
+
+# Filter by platform
+poetry run python -m src.publisher.late calendar list \
+  --platform youtube --debug
+
+# Filter by date range
+poetry run python -m src.publisher.late calendar list \
+  --date-from "2025-12-19" \
+  --date-to "2025-12-25" \
+  --debug
+
+# Filter by status (scheduled, published, failed)
+poetry run python -m src.publisher.late calendar list \
+  --status scheduled \
+  --debug
+```
+
+**Calendar Response:**
+```
+================================================================================
+SCHEDULED POSTS
+================================================================================
+[1/5] 2025-12-19 09:00:00 UTC (10:00 CET)
+      Product: B09LYF2ST7
+      Platforms: youtube, tiktok, instagram
+      Post IDs: 6943cf76... (instagram), 6943cf78... (tiktok), 6943cf7a... (youtube)
+      Status: scheduled
+--------------------------------------------------------------------------------
+[2/5] 2025-12-20 14:00:00 UTC (15:00 CET)
+      Product: B0BTYCRJSS
+      Platforms: youtube, instagram
+      Post IDs: 6944a12b..., 6944a12d...
+      Status: scheduled
+--------------------------------------------------------------------------------
+...
+```
+
+### Recurring Schedule Configuration
+
+Configure recurring publishing times for automated queue-based publishing:
+
+**Configuration** (`config/publisher.yaml`):
+
+```yaml
+# === Recurring Schedule ===
+recurring_schedule:
+  enabled: true
+  timezone: "Europe/Berlin"  # Default timezone for all schedules
+  slots:
+    # Monday
+    - day: monday
+      time: "09:00:00"
+      platforms: [youtube, tiktok, instagram]
+
+    # Wednesday
+    - day: wednesday
+      time: "14:00:00"
+      platforms: [youtube, instagram]
+
+    # Friday
+    - day: friday
+      time: "18:00:00"
+      platforms: [youtube, tiktok]
+```
+
+**CLI Usage:**
+
+```bash
+# Schedule videos to next available recurring slots
+poetry run python -m src.publisher.late schedule auto \
+  --outputs-dir outputs \
+  --debug
+
+# Preview schedule without publishing
+poetry run python -m src.publisher.late schedule auto \
+  --outputs-dir outputs \
+  --dry-run \
+  --debug
+
+# Skip to specific slot number
+poetry run python -m src.publisher.late schedule auto \
+  --outputs-dir outputs \
+  --start-slot 3 \
+  --debug
+```
+
+**Auto-Scheduling Behavior:**
+1. Loads recurring schedule from configuration
+2. Scans outputs directory for unpublished videos
+3. Finds next available slot (after current time)
+4. Schedules videos sequentially to slots
+5. Validates minimum spacing between posts (configurable)
+6. Reports scheduled times and slot assignments
+
+### Schedule Validation
+
+The publisher enforces schedule validation rules:
+
+**Validation Rules:**
+- No duplicate scheduling (same product + platform + time)
+- Minimum spacing between posts on same platform (configurable: 1-24 hours)
+- Timezone-aware datetime validation
+- Platform-specific posting hour restrictions (if configured)
+
+**Configuration** (`config/publisher.yaml`):
+
+```yaml
+# === Schedule Validation ===
+schedule_validation:
+  min_post_spacing_hours: 2      # Minimum hours between posts on same platform
+  prevent_duplicates: true        # Block duplicate product+platform+time
+  allow_past_schedules: false     # Block scheduling in the past
+  max_posts_per_day: 10          # Platform rate limit (per platform)
+```
+
+---
+
+## 🗑️ Post-Publication Cleanup
+
+### Automatic Cleanup
+
+Automatically remove successfully published product directories from outputs after confirmed publication:
+
+**Configuration** (`config/publisher.yaml`):
+
+```yaml
+# === Post-Publication Cleanup ===
+cleanup:
+  enabled: true                         # Enable automatic cleanup
+  verify_before_delete: true            # Verify publication success before cleanup
+  require_all_platforms: true           # Only cleanup if published to ALL configured platforms
+
+  # Per-platform cleanup settings
+  platforms:
+    youtube:
+      auto_cleanup: true
+    tiktok:
+      auto_cleanup: true
+    instagram:
+      auto_cleanup: true
+    facebook:
+      auto_cleanup: false               # Keep outputs for Facebook posts
+```
+
+**Cleanup Behavior:**
+- **Verification**: Confirms publication success via API status check before deletion
+- **Multi-Platform Validation**: Requires successful publication to ALL configured platforms (unless `require_all_platforms: false`)
+- **Audit Logging**: Logs all deleted directories with product IDs, platforms, and post URLs
+- **Selective Cleanup**: Respects per-platform `auto_cleanup` settings
+
+**CLI Override:**
+
+```bash
+# Disable cleanup for single publish
+poetry run python -m src.publisher.late single \
+  --video outputs/B0ABC/video.mp4 \
+  --platform youtube \
+  --immediate \
+  --no-cleanup
+
+# Disable cleanup for batch publish
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok \
+  --immediate \
+  --no-cleanup \
+  --debug
+```
+
+### Manual Cleanup
+
+Clean up specific products or all published products:
+
+```bash
+# Clean up specific product
+poetry run python -m src.publisher.late cleanup \
+  --product-id B0BTYCRJSS \
+  --debug
+
+# Clean up all published products
+poetry run python -m src.publisher.late cleanup \
+  --all \
+  --debug
+
+# Preview cleanup without deletion
+poetry run python -m src.publisher.late cleanup \
+  --all \
+  --dry-run \
+  --debug
+```
+
+**Safety Features:**
+- **Dry Run Mode**: Preview what would be deleted without actually deleting
+- **Verification**: Double-checks publication status before deletion
+- **Logging**: Detailed audit trail of all cleanup operations
+- **Backup Option**: Optional archive to ZIP before deletion (configurable)
+
+**Advanced Configuration:**
+
+```yaml
+cleanup:
+  enabled: true
+  verify_before_delete: true
+  require_all_platforms: true
+
+  # Archive before cleanup
+  archive_before_delete: false
+  archive_dir: "outputs/archives"
+
+  # Retention period
+  keep_published_days: 0              # 0 = immediate, 7 = keep for 7 days
+
+  # What to preserve
+  preserve_metadata: false            # Keep metadata JSON files
+  preserve_logs: true                 # Keep log files in outputs/logs/
+```
+
+**Cleanup Summary:**
+
+```
+================================================================================
+CLEANUP SUMMARY
+================================================================================
+Total products evaluated: 10
+✅ Cleaned up: 7 products
+   - B0BTYCRJSS (youtube, tiktok, instagram)
+   - B0CPSY5HJY (youtube, instagram)
+   - B0CTTZJRL6 (youtube, tiktok)
+   ...
+⏭️  Skipped: 3 products
+   - B0ABC123 (not published to all platforms)
+   - B0DEF456 (publication failed)
+   - B0GHI789 (cleanup disabled for platform)
+💾 Disk space freed: 1.2 GB
+================================================================================
+```
 
 ---
 

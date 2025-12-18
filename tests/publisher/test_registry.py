@@ -392,12 +392,12 @@ class TestCreatePublisher:
         publisher = create_publisher(
             PublisherProvider.LATE,
             api_key="test_key_123",
-            vercel_token="vercel_token_456",
+            vercel_token="vercel_token_456",  # noqa: S106
             timeout=60.0,
         )
 
         assert publisher.api_key == "test_key_123"
-        assert publisher.vercel_token == "vercel_token_456"
+        assert publisher.vercel_token == "vercel_token_456"  # noqa: S105
         assert publisher.timeout == 60.0
 
     def test_create_publisher_unregistered_provider(self):
