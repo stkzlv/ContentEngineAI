@@ -254,7 +254,7 @@ class TestGetNextSlot:
             manager.get_next_slot(sample_slots, after, slot_index=10)
 
     def test_get_next_slot_finds_earliest(self, sample_slots):
-        """Test get_next_slot returns first available slot from start index."""
+        """Test get_next_slot returns earliest available slot across all slots."""
         manager = ScheduleManager()
 
         # Wednesday Jan 14, 2026 at 9:00 AM
@@ -262,12 +262,12 @@ class TestGetNextSlot:
 
         next_time, next_idx = manager.get_next_slot(sample_slots, after)
 
-        # Returns Monday slot (index 0) - implementation uses early return optimization
-        assert next_time.weekday() == 0  # Monday
-        assert next_time.day == 19  # Jan 19, 2026
-        assert next_time.hour == 10
-        assert next_time.minute == 0
-        assert next_idx == 0
+        # Returns Wednesday slot (index 1) - earliest is same day at 14:30
+        assert next_time.weekday() == 2  # Wednesday
+        assert next_time.day == 14  # Jan 14, 2026 (same day)
+        assert next_time.hour == 14
+        assert next_time.minute == 30
+        assert next_idx == 1
 
     def test_get_next_slot_wraps_around(self, sample_slots):
         """Test get_next_slot wraps around to next week."""
@@ -285,21 +285,21 @@ class TestGetNextSlot:
         assert next_idx == 0
 
     def test_get_next_slot_with_start_index(self, sample_slots):
-        """Test get_next_slot starting from specific index."""
+        """Test get_next_slot still finds earliest even with start_index."""
         manager = ScheduleManager()
 
         # Monday Jan 12, 2026 at 9:00 AM
         after = datetime(2026, 1, 12, 9, 0, tzinfo=UTC)
 
-        # Start from index 1 (Wednesday)
+        # Start from index 1 (Wednesday) - but still finds earliest (Monday)
         next_time, next_idx = manager.get_next_slot(
             sample_slots, after, slot_index=1
         )
 
-        # Should find Wednesday (Jan 14) at 14:30
-        assert next_time.weekday() == 2  # Wednesday
-        assert next_time.day == 14
-        assert next_idx == 1
+        # Should find Monday (Jan 12) at 10:00 - earliest across all slots
+        assert next_time.weekday() == 0  # Monday
+        assert next_time.day == 12
+        assert next_idx == 0
 
     def test_get_next_slot_timezone_conversion(self):
         """Test get_next_slot handles timezone conversions."""

@@ -216,14 +216,10 @@ class ScheduleManager:
             try:
                 next_time = slot.next_occurrence(after)
 
-                # First slot or earlier than current min
+                # Track the earliest next occurrence
                 if min_time is None or next_time < min_time:
                     min_time = next_time
                     min_index = idx
-
-                # If we found a slot in the future for current index, use it
-                if i == 0 and next_time > after:
-                    return next_time, idx
 
             except Exception as e:
                 logger.warning(
@@ -477,30 +473,71 @@ class ScheduleManager:
                             f"Scheduling {product_id} at {next_time} (slot {next_idx})"
                         )
 
-                        # Prepare platforms for publisher (needs dict format)
-                        platform_dicts = [
-                            {"platform": p.value, "account_id": "default"}
-                            for p in platforms
-                        ]
+                        # Get actual account IDs from publisher
+                        accounts = await publisher.get_accounts()
+                        account_map = {
+                            acc["platform"]: acc["account_id"] for acc in accounts
+                        }
 
-                        # Read metadata for content
-                        metadata_path = video.parent / "data.json"
-                        if metadata_path.exists():
-                            import json
+                        # Prepare platforms for publisher
+                        platform_dicts = []
+                        for p in platforms:
+                            account_id = account_map.get(p.value)
+                            if not account_id:
+                                logger.warning(f"No account for {p.value}")
+                                continue
+                            platform_dicts.append({
+                                "platform": p.value,
+                                "account_id": account_id,
+                            })
 
-                            metadata = json.loads(metadata_path.read_text())
-                            content = f"{metadata.get('title', 'Product Video')}\n\n{metadata.get('description', '')}"
-                        else:
-                            content = f"Product video for {product_id}"
+                        if not platform_dicts:
+                            raise ValueError("No valid accounts for platforms")
 
                         # Upload video first (publisher needs media_id)
                         media_id = await publisher.upload_media(video)
 
-                        # Publish with scheduled_time
+                        # Build per-platform content from metadata files
+                        import json
+                        platform_contents = {}
+                        for p in platforms:
+                            meta_file = f"metadata_{p.value}.json"
+                            platform_meta = video.parent / meta_file
+                            if platform_meta.exists():
+                                meta = json.loads(platform_meta.read_text())
+                                desc = meta.get("description", "")
+                                hashtags = meta.get("hashtags", [])
+                                if hashtags:
+                                    desc = f"{desc}\n\n{' '.join(hashtags)}"
+                                if p.value == "youtube" and meta.get("title"):
+                                    platform_contents[p.value] = {
+                                        "content": desc,
+                                        "title": meta.get("title"),
+                                    }
+                                else:
+                                    platform_contents[p.value] = {"content": desc}
+                            else:
+                                # Fallback to data.json
+                                fallback_path = video.parent / "data.json"
+                                if fallback_path.exists():
+                                    fb = json.loads(fallback_path.read_text())
+                                    if isinstance(fb, list) and fb:
+                                        fb = fb[0]
+                                    title = fb.get("title", "Product Video")
+                                    desc = fb.get("description", "")
+                                    platform_contents[p.value] = {
+                                        "content": f"{title}\n\n{desc}"
+                                    }
+                                else:
+                                    platform_contents[p.value] = {
+                                        "content": f"Product video for {product_id}"
+                                    }
+
+                        # Publish with per-platform content
                         result = await publisher.publish(
                             media_id=media_id,
                             platforms=platform_dicts,
-                            content=content,
+                            platform_contents=platform_contents,
                             scheduled_time=next_time,
                         )
 
@@ -513,7 +550,7 @@ class ScheduleManager:
                         self._save_schedule()
 
                         logger.info(
-                            f"Successfully scheduled {product_id} (post_id: {entry.post_id})"
+                            f"Scheduled {product_id} (post: {entry.post_id})"
                         )
                         scheduled_count += 1
 
@@ -567,7 +604,7 @@ class ScheduleManager:
 
         Raises:
         ------
-            ValueError: If entry fails validation (duplicates, spacing, daily limits, etc.)
+            ValueError: If entry fails validation (duplicates, spacing, etc.)
             IOError: If schedule file write fails
 
         Example:

@@ -178,10 +178,11 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             slots = []
             for slot_dict in slots_data:
+                default_tz = recurring_schedule.get("timezone", "UTC")
                 slot = RecurringSlot(
                     day_of_week=slot_dict["day_of_week"],
                     time=slot_dict["time"],
-                    timezone=slot_dict.get("timezone", recurring_schedule.get("timezone", "UTC")),
+                    timezone=slot_dict.get("timezone", default_tz),
                 )
                 slots.append(slot)
             schedule_config_dict["slots"] = slots
@@ -263,7 +264,7 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
 
     Environment variables (medium precedence):
     - LATE_API_KEY / PUBLISHER_API_KEY
-    - LATE_VERCEL_TOKEN / PUBLISHER_VERCEL_TOKEN
+    - BLOB_READ_WRITE_TOKEN / LATE_VERCEL_TOKEN / PUBLISHER_VERCEL_TOKEN
     - PUBLISHER_PROVIDER
     - PUBLISHER_IMMEDIATE
     - PUBLISHER_MAX_RETRIES
@@ -290,9 +291,10 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     if api_key:
         result["api_key"] = api_key
 
-    # Vercel Token
+    # Vercel Token (supports official Vercel SDK naming: BLOB_READ_WRITE_TOKEN)
     vercel_token = (
-        os.environ.get("LATE_VERCEL_TOKEN")
+        os.environ.get("BLOB_READ_WRITE_TOKEN")
+        or os.environ.get("LATE_VERCEL_TOKEN")
         or os.environ.get("PUBLISHER_VERCEL_TOKEN")
         or config.get("vercel_token")
     )

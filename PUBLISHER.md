@@ -93,9 +93,10 @@ Create or update your `.env` file:
 # Required: Late.dev API Key
 LATE_API_KEY=sk_live_your_api_key_here
 
-# Optional: Vercel Token for large file uploads (>4MB)
+# Optional: Vercel Blob Token for large file uploads (>4MB)
 # Required if publishing videos larger than 4MB
-LATE_VERCEL_TOKEN=your_vercel_token_here
+# Get from: Vercel Dashboard → Storage → Create Blob → Settings → BLOB_READ_WRITE_TOKEN
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token_here
 
 # Optional: Override default settings
 LATE_TIMEOUT=30.0
@@ -118,7 +119,7 @@ The publisher uses a three-tier configuration system with the following preceden
 # Publisher Configuration
 provider: late                    # Currently only "late" is supported
 api_key: ${LATE_API_KEY}         # From environment variable
-vercel_token: ${LATE_VERCEL_TOKEN}
+vercel_token: ${BLOB_READ_WRITE_TOKEN}
 
 # Publishing Behavior
 immediate_publish: true           # Default to immediate publishing
@@ -371,7 +372,7 @@ export LATE_API_KEY=sk_live_new_key
 # === Provider Settings ===
 provider: late                      # Publisher provider (only "late" supported)
 api_key: ${LATE_API_KEY}           # API key (use env var for security)
-vercel_token: ${LATE_VERCEL_TOKEN} # Vercel token for large files (optional)
+vercel_token: ${BLOB_READ_WRITE_TOKEN} # Vercel token for large files (optional)
 
 # === Publishing Defaults ===
 immediate_publish: true             # Default to immediate vs scheduled
@@ -988,10 +989,10 @@ WARNING: No metadata found for youtube, using basic content
    # Check codec (H.264), size (<100MB recommended)
    ```
 
-4. For large files (>4MB), verify Vercel token:
+4. For large files (>4MB), verify Vercel Blob token:
    ```bash
-   grep LATE_VERCEL_TOKEN .env
-   # Should be set for files >4MB
+   grep BLOB_READ_WRITE_TOKEN .env
+   # Should be set for files >4MB (get from Vercel Dashboard → Storage → Blob)
    ```
 
 5. Check Late.dev status:

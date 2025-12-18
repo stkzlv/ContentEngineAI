@@ -26,18 +26,25 @@ privacy_settings:
   tiktok: public
   instagram: everyone
 
-# Recurring schedule configuration (disabled by default)
+# Recurring schedule configuration
 recurring_schedule:
-  enabled: false
-  timezone: UTC
-  # Example slots (uncomment and customize as needed):
-  # slots:
-  #   - day_of_week: monday
-  #     time: "10:00:00"
-  #   - day_of_week: wednesday
-  #     time: "14:30:00"
-  #   - day_of_week: friday
-  #     time: "18:00:00"
+  enabled: true
+  timezone: Europe/Berlin  # CET
+  slots:
+    - day_of_week: monday
+      time: "10:00:00"
+    - day_of_week: tuesday
+      time: "10:00:00"
+    - day_of_week: wednesday
+      time: "10:00:00"
+    - day_of_week: thursday
+      time: "10:00:00"
+    - day_of_week: friday
+      time: "10:00:00"
+    - day_of_week: saturday
+      time: "10:00:00"
+    - day_of_week: sunday
+      time: "10:00:00"
 
 # Schedule validation rules
 schedule_validation:
@@ -46,9 +53,9 @@ schedule_validation:
   allow_past_schedules: false  # Allow scheduling posts in the past
   max_posts_per_day: 10      # Maximum posts per day (0 = unlimited)
 
-# Post-publication cleanup (disabled by default)
+# Post-publication cleanup (enabled by default)
 cleanup:
-  enabled: false  # Enable automatic cleanup after successful publish
+  enabled: true  # Automatic cleanup after successful publish
   verify_before_delete: true  # Verify publication via API before cleanup
   require_all_platforms: true  # Only cleanup when published to ALL platforms
   archive_before_delete: false  # Create ZIP backup before deletion

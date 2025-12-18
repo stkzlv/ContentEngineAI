@@ -656,16 +656,23 @@ class LatePublisher(BasePublisher):
                     _upload_large, f"Upload large {video_path.name}"
                 )
 
-            # Extract media URL from response (Late SDK returns files array)
+            # Extract media URL from response
+            # Late SDK returns files array, Vercel Blob returns url directly
             media_url = None
-            if hasattr(media_response, "files") and media_response.files:
-                # Get URL from first uploaded file
+            if hasattr(media_response, "url") and media_response.url:
+                # Vercel Blob SDK response has url attribute directly
+                media_url = str(media_response.url)
+            elif hasattr(media_response, "files") and media_response.files:
+                # Late SDK returns files array
                 first_file = media_response.files[0]
                 media_url = str(first_file.url) if hasattr(first_file, "url") else None
             elif isinstance(media_response, dict):
-                files = media_response.get("files", [])
-                if files:
-                    media_url = files[0].get("url")
+                # Dict response - check for url or files array
+                media_url = media_response.get("url")
+                if not media_url:
+                    files = media_response.get("files", [])
+                    if files:
+                        media_url = files[0].get("url")
 
             if not media_url:
                 raise UploadError(f"No media URL in response: {media_response}")
@@ -684,8 +691,9 @@ class LatePublisher(BasePublisher):
         self,
         media_id: str,
         platforms: list[dict[str, str]],
-        content: str,
+        content: str | None = None,
         scheduled_time: datetime | None = None,
+        platform_contents: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, str | list[str] | datetime | None]:
         """Create and publish/schedule a post via Late.dev.
 
@@ -697,8 +705,10 @@ class LatePublisher(BasePublisher):
         ----
             media_id: Media ID from upload_media()
             platforms: List of dicts with "platform" and "account_id" keys
-            content: Post content (title/description/caption)
+            content: Post content - used if platform_contents not provided
             scheduled_time: Optional UTC datetime for scheduled publishing
+            platform_contents: Optional dict mapping platform name to content dict
+                e.g. {"youtube": {"content": "...", "title": "..."}}
 
         Returns:
         -------
@@ -729,8 +739,9 @@ class LatePublisher(BasePublisher):
             raise ValidationError("media_id cannot be empty")
         if not platforms:
             raise ValidationError("platforms list cannot be empty")
-        if not content or not content.strip():
-            raise ValidationError("content cannot be empty")
+        # Either content or platform_contents must be provided
+        if not platform_contents and (not content or not content.strip()):
+            raise ValidationError("content or platform_contents must be provided")
 
         # Validate each platform entry
         for idx, platform in enumerate(platforms):
@@ -754,21 +765,54 @@ class LatePublisher(BasePublisher):
             # Prepare post data for Late SDK
             publish_now = scheduled_time is None
 
-            # Transform platforms to Late SDK format (accountId instead of account_id)
-            sdk_platforms = [
-                {"platform": p["platform"], "accountId": p["account_id"]}
-                for p in platforms
-            ]
+            # Build SDK platforms with platformSpecificData for per-platform content
+            sdk_platforms = []
+            main_content = content  # Default fallback
+
+            for p in platforms:
+                platform_name = p["platform"]
+                platform_entry = {
+                    "platform": platform_name,
+                    "accountId": p["account_id"],
+                }
+
+                # Add platform-specific data if provided
+                if platform_contents and platform_name in platform_contents:
+                    pc = platform_contents[platform_name]
+                    # Use first platform's content as main content
+                    if main_content is None:
+                        main_content = pc.get("content", "")
+
+                    # Add platformSpecificData for YouTube title
+                    if platform_name == "youtube" and pc.get("title"):
+                        platform_entry["platformSpecificData"] = {
+                            "title": pc["title"],
+                        }
+
+                    # Add TikTok settings
+                    if platform_name == "tiktok":
+                        platform_entry["platformSpecificData"] = {
+                            "tiktokSettings": {
+                                "privacy_level": "PUBLIC_TO_EVERYONE",
+                                "allow_comment": True,
+                                "allow_duet": False,
+                                "allow_stitch": False,
+                                "content_preview_confirmed": True,
+                                "express_consent_given": True,
+                            }
+                        }
+
+                sdk_platforms.append(platform_entry)
 
             async def _create_post():
                 post_data = {
-                    "content": content,
+                    "content": main_content,
                     "platforms": sdk_platforms,
                     "media_items": [{"type": "video", "url": media_id}],
                     "publish_now": publish_now,
                 }
 
-                # Add TikTok settings if publishing to TikTok (required by API)
+                # Add TikTok settings at top level (required by API)
                 has_tiktok = any(
                     p.get("platform", "").lower() == "tiktok" for p in platforms
                 )

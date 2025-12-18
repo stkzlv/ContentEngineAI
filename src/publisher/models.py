@@ -762,7 +762,7 @@ class CleanupConfig:
 
     """
 
-    enabled: bool = False
+    enabled: bool = True
     verify_before_delete: bool = True
     require_all_platforms: bool = True
     archive_before_delete: bool = False

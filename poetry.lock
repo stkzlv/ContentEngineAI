@@ -6774,6 +6774,48 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "vercel"
+version = "0.3.6"
+description = "Python SDK for Vercel"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "vercel-0.3.6-py3-none-any.whl", hash = "sha256:47b2b0f6217f0a8deb12ce4b2838fb017536a756cfc5621c3987f07ef7a3f50b"},
+    {file = "vercel-0.3.6.tar.gz", hash = "sha256:222d2251b573f2c3c3857ceb3b0c49ea2659d49a6a0ac4e4f5b42e5ff4799e3d"},
+]
+
+[package.dependencies]
+anyio = ">=4.0.0"
+httpx = ">=0.27.0"
+pydantic = ">=2.7.0"
+python-dotenv = "*"
+vercel-sandbox = ">=0.0.3"
+
+[package.extras]
+dev = ["build", "mypy", "pytest (>=7.0.0)", "pytest-asyncio", "ruff (>=0.5.0)", "twine"]
+
+[[package]]
+name = "vercel-sandbox"
+version = "0.0.3"
+description = "Python SDK for Vercel Sandbox"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "vercel_sandbox-0.0.3-py3-none-any.whl", hash = "sha256:f8b2460aff051e7e6e76042b9d66c67360a8a31a0f6b6955669ce0cde2856fe9"},
+    {file = "vercel_sandbox-0.0.3.tar.gz", hash = "sha256:27fd51525e9143e3f3e241575aaa77f4247a59f70f4202b46ec720ae464189ea"},
+]
+
+[package.dependencies]
+anyio = ">=4.0.0"
+httpx = ">=0.27.0"
+pydantic = ">=2.7.0"
+python-dotenv = "*"
+vercel = ">=0.3.2"
+
+[package.extras]
+dev = ["build", "mypy", "pytest (>=7.0.0)", "pytest-asyncio", "ruff (>=0.5.0)", "twine"]
+
+[[package]]
 name = "virtualenv"
 version = "20.31.2"
 description = "Virtual Python Environment builder"
@@ -7154,4 +7196,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "bbace0ed15da7eb1af2c65a354cfffafa84b5f476884dcd499714268b35a3b0c"
+content-hash = "62b6126e3f0fcb5ef30450dfda3dfc3917484ecf02f2b94a66cc55842b558ad9"

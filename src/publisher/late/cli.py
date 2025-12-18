@@ -23,7 +23,7 @@ import argparse
 import asyncio
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -70,7 +70,7 @@ def parse_datetime(datetime_str: str) -> datetime:
             dt = datetime.strptime(datetime_str, fmt)
             # Assume UTC if no timezone provided
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             continue
@@ -371,7 +371,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
                     dry_run=False,
                 )
 
-                logger.info(f"✓ Cleanup complete")
+                logger.info("✓ Cleanup complete")
                 logger.info(f"  Products cleaned: {cleanup_summary['cleaned']}")
                 logger.info(f"  Products skipped: {cleanup_summary['skipped']}")
                 logger.info(
@@ -411,11 +411,8 @@ async def cmd_calendar(args: argparse.Namespace, config, session: aiohttp.Client
     """
     logger.info("Listing scheduled posts...")
 
-    # Determine outputs_dir
-    outputs_dir = Path("outputs")
-
     # Create schedule manager
-    schedule_mgr = ScheduleManager(outputs_dir=outputs_dir)
+    schedule_mgr = ScheduleManager()
 
     # Parse date filters if provided
     date_from = None
@@ -425,7 +422,7 @@ async def cmd_calendar(args: argparse.Namespace, config, session: aiohttp.Client
         try:
             date_from = datetime.fromisoformat(args.date_from)
             if date_from.tzinfo is None:
-                date_from = date_from.replace(tzinfo=timezone.utc)
+                date_from = date_from.replace(tzinfo=UTC)
         except ValueError as e:
             logger.error(f"Invalid date-from format: {e}")
             sys.exit(1)
@@ -434,7 +431,7 @@ async def cmd_calendar(args: argparse.Namespace, config, session: aiohttp.Client
         try:
             date_to = datetime.fromisoformat(args.date_to)
             if date_to.tzinfo is None:
-                date_to = date_to.replace(tzinfo=timezone.utc)
+                date_to = date_to.replace(tzinfo=UTC)
         except ValueError as e:
             logger.error(f"Invalid date-to format: {e}")
             sys.exit(1)
@@ -552,9 +549,7 @@ async def cmd_schedule_auto(
         logger.info("Authentication successful")
 
         # Create schedule manager
-        schedule_mgr = ScheduleManager(
-            outputs_dir=args.outputs_dir, config=config.schedule_config
-        )
+        schedule_mgr = ScheduleManager(config=config.schedule_config)
 
         # Auto-schedule videos
         logger.info("Auto-scheduling videos to calendar slots...")
