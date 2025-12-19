@@ -766,12 +766,12 @@ class LatePublisher(BasePublisher):
             publish_now = scheduled_time is None
 
             # Build SDK platforms with platformSpecificData for per-platform content
-            sdk_platforms = []
+            sdk_platforms: list[dict[str, object]] = []
             main_content = content  # Default fallback
 
             for p in platforms:
                 platform_name = p["platform"]
-                platform_entry = {
+                platform_entry: dict[str, object] = {
                     "platform": platform_name,
                     "accountId": p["account_id"],
                 }
@@ -805,7 +805,7 @@ class LatePublisher(BasePublisher):
                 sdk_platforms.append(platform_entry)
 
             async def _create_post():
-                post_data = {
+                post_data: dict[str, object] = {
                     "content": main_content,
                     "platforms": sdk_platforms,
                     "media_items": [{"type": "video", "url": media_id}],
@@ -986,7 +986,8 @@ class LatePublisher(BasePublisher):
             logger.error(error_msg)
             # Log platform details for debugging (without sensitive data)
             logger.error(f"Target platforms: {platform_names}")
-            logger.error(f"Content length: {len(content)} chars")
+            content_len = len(content) if content else 0
+            logger.error(f"Content length: {content_len} chars")
             raise PublishError(error_msg) from e
 
     async def get_status(

@@ -39,7 +39,14 @@ class TestPublisherRegistry:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -67,7 +74,14 @@ class TestPublisherRegistry:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -100,7 +114,14 @@ class TestPublisherRegistry:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -130,7 +151,14 @@ class TestPublisherRegistry:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -150,7 +178,14 @@ class TestPublisherRegistry:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_456"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_456", "status": "published"}
 
             async def get_status(self, post_id):
@@ -190,7 +225,14 @@ class TestRegisterPublisherDecorator:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -220,7 +262,14 @@ class TestRegisterPublisherDecorator:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -249,7 +298,14 @@ class TestRegisterPublisherDecorator:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_late"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "late_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -270,7 +326,14 @@ class TestRegisterPublisherDecorator:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_buffer"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "buffer_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -317,7 +380,14 @@ class TestCreatePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -349,7 +419,14 @@ class TestCreatePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -383,7 +460,14 @@ class TestCreatePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -432,7 +516,14 @@ class TestCreatePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):
@@ -469,7 +560,14 @@ class TestCreatePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {"post_id": "post_123", "status": "published"}
 
             async def get_status(self, post_id):

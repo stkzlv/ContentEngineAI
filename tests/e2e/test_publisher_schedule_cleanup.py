@@ -232,14 +232,10 @@ class TestScheduleWorkflowIntegration:
         assert manager.entries[0].product_id == "B0TEST001"
         assert manager.entries[0].status == "pending"
 
-    def test_add_entry_saves_atomically(
-        self, temp_outputs_dir, schedule_config
-    ):
+    def test_add_entry_saves_atomically(self, temp_outputs_dir, schedule_config):
         """Test add_entry saves to disk atomically."""
         schedule_path = temp_outputs_dir / "schedule.json"
-        manager = ScheduleManager(
-            schedule_path=schedule_path, config=schedule_config
-        )
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
 
         entry = ScheduleEntry(
             product_id="B0TEST001",
@@ -257,9 +253,7 @@ class TestScheduleWorkflowIntegration:
         assert len(data["entries"]) == 1
         assert data["entries"][0]["product_id"] == "B0TEST001"
 
-    def test_list_scheduled_filters_correctly(
-        self, temp_outputs_dir, schedule_config
-    ):
+    def test_list_scheduled_filters_correctly(self, temp_outputs_dir, schedule_config):
         """Test list_scheduled applies filters correctly."""
         schedule_path = temp_outputs_dir / "schedule.json"
 
@@ -290,9 +284,7 @@ class TestScheduleWorkflowIntegration:
         ]
         create_schedule_json(schedule_path, entries)
 
-        manager = ScheduleManager(
-            schedule_path=schedule_path, config=schedule_config
-        )
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
 
         # Filter by platform
         youtube_entries = manager.list_scheduled(platform="youtube")
@@ -333,9 +325,7 @@ class TestScheduleWorkflowIntegration:
     ):
         """Test auto_schedule in dry_run mode doesn't publish."""
         schedule_path = temp_outputs_dir / "schedule.json"
-        manager = ScheduleManager(
-            schedule_path=schedule_path, config=schedule_config
-        )
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
 
         videos = [p["video_path"] for p in multiple_products]
 
@@ -363,16 +353,14 @@ class TestScheduleWorkflowIntegration:
     ):
         """Test auto_schedule skips already published videos."""
         schedule_path = temp_outputs_dir / "schedule.json"
-        manager = ScheduleManager(
-            schedule_path=schedule_path, config=schedule_config
-        )
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
 
         first_product = multiple_products[0]
         videos = [p["video_path"] for p in multiple_products]
 
         # Patch is_already_published to return True for first product
         def mock_is_published(product_id: str, platform: str, outputs_dir=None) -> bool:
-            return product_id == first_product["product_id"]
+            return bool(product_id == first_product["product_id"])
 
         with patch(
             "src.publisher.tracking.is_already_published",
@@ -414,7 +402,9 @@ class TestCleanupWorkflowIntegration:
         create_publish_history(temp_outputs_dir, product_id, "youtube", "post_123")
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(
@@ -422,7 +412,7 @@ class TestCleanupWorkflowIntegration:
         )
 
         assert result["success"] is True
-        assert result["disk_freed"] > 0
+        assert isinstance(result["disk_freed"], int) and result["disk_freed"] > 0
 
         # Verify directory was removed
         assert not product_directory["product_dir"].exists()
@@ -452,7 +442,9 @@ class TestCleanupWorkflowIntegration:
         create_publish_history(temp_outputs_dir, product_id, "youtube", "post_123")
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(
@@ -460,7 +452,7 @@ class TestCleanupWorkflowIntegration:
         )
 
         assert result["success"] is True
-        assert "[DRY RUN]" in result["message"]
+        assert isinstance(result["message"], str) and "[DRY RUN]" in result["message"]
         assert result["disk_freed"] == 0
 
         # Directory should still exist
@@ -486,7 +478,9 @@ class TestCleanupWorkflowIntegration:
         mock_publisher.get_status = AsyncMock(return_value={"status": "failed"})
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(
@@ -494,7 +488,9 @@ class TestCleanupWorkflowIntegration:
         )
 
         assert result["success"] is False
-        assert "not published" in result["message"]
+        assert (
+            isinstance(result["message"], str) and "not published" in result["message"]
+        )
 
         # Directory should still exist
         assert product_directory["product_dir"].exists()
@@ -512,7 +508,9 @@ class TestCleanupWorkflowIntegration:
         disabled_config = CleanupConfig(enabled=False)
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=disabled_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=disabled_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(
@@ -520,7 +518,8 @@ class TestCleanupWorkflowIntegration:
         )
 
         assert result["success"] is False
-        assert "disabled" in result["message"].lower()
+        message = result["message"]
+        assert isinstance(message, str) and "disabled" in message.lower()
         assert product_directory["product_dir"].exists()
 
     @pytest.mark.asyncio
@@ -535,16 +534,19 @@ class TestCleanupWorkflowIntegration:
         # Record all products as published
         for product in multiple_products:
             create_publish_history(
-                temp_outputs_dir, product["product_id"], "youtube", f"post_{product['product_id']}"
+                temp_outputs_dir,
+                product["product_id"],
+                "youtube",
+                f"post_{product['product_id']}",
             )
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
-        summary = await manager.cleanup_all(
-            platforms=[Platform.YOUTUBE], dry_run=False
-        )
+        summary = await manager.cleanup_all(platforms=[Platform.YOUTUBE], dry_run=False)
 
         assert summary["cleaned"] == 3
         assert summary["skipped"] == 0
@@ -583,7 +585,9 @@ class TestCleanupWorkflowIntegration:
         )
 
         assert result["success"] is False
-        assert "not old enough" in result["message"]
+        assert (
+            isinstance(result["message"], str) and "not old enough" in result["message"]
+        )
         assert product_directory["product_dir"].exists()
 
 
@@ -688,7 +692,15 @@ class TestCLIArgumentParsing:
         schedule_parser.add_argument("--dry-run", action="store_true")
 
         args = parser.parse_args(
-            ["schedule", "auto", "--platform", "youtube", "--platform", "tiktok", "--dry-run"]
+            [
+                "schedule",
+                "auto",
+                "--platform",
+                "youtube",
+                "--platform",
+                "tiktok",
+                "--dry-run",
+            ]
         )
 
         assert args.platforms == ["youtube", "tiktok"]
@@ -742,12 +754,22 @@ class TestNoCleanupFlagIntegration:
 
         single_parser = subparsers.add_parser("single")
         single_parser.add_argument("--video", type=Path, required=True)
-        single_parser.add_argument("--platform", action="append", dest="platforms", required=True)
+        single_parser.add_argument(
+            "--platform", action="append", dest="platforms", required=True
+        )
         single_parser.add_argument("--immediate", action="store_true")
         single_parser.add_argument("--no-cleanup", action="store_true")
 
         args = parser.parse_args(
-            ["single", "--video", "test.mp4", "--platform", "youtube", "--immediate", "--no-cleanup"]
+            [
+                "single",
+                "--video",
+                "test.mp4",
+                "--platform",
+                "youtube",
+                "--immediate",
+                "--no-cleanup",
+            ]
         )
 
         assert args.no_cleanup is True
@@ -758,7 +780,9 @@ class TestNoCleanupFlagIntegration:
         subparsers = parser.add_subparsers(dest="command")
 
         batch_parser = subparsers.add_parser("batch")
-        batch_parser.add_argument("--platform", action="append", dest="platforms", required=True)
+        batch_parser.add_argument(
+            "--platform", action="append", dest="platforms", required=True
+        )
         batch_parser.add_argument("--immediate", action="store_true")
         batch_parser.add_argument("--no-cleanup", action="store_true")
 
@@ -894,7 +918,9 @@ class TestComponentIntegration:
 
         # Step 3: Cleanup
         cleanup_mgr = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await cleanup_mgr.cleanup(
@@ -956,7 +982,9 @@ class TestErrorHandling:
     ):
         """Test cleanup handles missing product directory."""
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(
@@ -964,7 +992,7 @@ class TestErrorHandling:
         )
 
         assert result["success"] is False
-        assert "not found" in result["message"]
+        assert isinstance(result["message"], str) and "not found" in result["message"]
 
     @pytest.mark.asyncio
     async def test_cleanup_handles_api_errors(
@@ -982,7 +1010,9 @@ class TestErrorHandling:
         mock_publisher.get_status = AsyncMock(side_effect=Exception("API Error"))
 
         manager = CleanupManager(
-            outputs_dir=temp_outputs_dir, config=cleanup_config, publisher=mock_publisher
+            outputs_dir=temp_outputs_dir,
+            config=cleanup_config,
+            publisher=mock_publisher,
         )
 
         result = await manager.cleanup(

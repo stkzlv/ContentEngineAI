@@ -205,9 +205,7 @@ class CleanupManager:
 
         for platform in platforms:
             # Load publish record to get post_id
-            record = get_publish_record(
-                product_id, platform.value, self.outputs_dir
-            )
+            record = get_publish_record(product_id, platform.value, self.outputs_dir)
 
             if not record:
                 platform_statuses[platform.value] = "not_published"
@@ -262,9 +260,7 @@ class CleanupManager:
             failed = [
                 f"{p}={s}" for p, s in platform_statuses.items() if s != "published"
             ]
-            logger.warning(
-                f"Verification failed for {product_id}: {', '.join(failed)}"
-            )
+            logger.warning(f"Verification failed for {product_id}: {', '.join(failed)}")
 
         return all_published, platform_statuses
 
@@ -331,9 +327,7 @@ class CleanupManager:
             logger.error(f"Failed to create archive for {product_dir}: {e}")
             raise OSError(f"Archive creation failed: {e}") from e
 
-    def _should_cleanup(
-        self, product_id: str, published_at: datetime | None
-    ) -> bool:
+    def _should_cleanup(self, product_id: str, published_at: datetime | None) -> bool:
         """Check if product should be cleaned up based on age.
 
         Applies keep_published_days rule to determine if enough time has
@@ -499,9 +493,7 @@ class CleanupManager:
         # Get post URLs for audit log
         post_urls = []
         for platform in platforms:
-            record = get_publish_record(
-                product_id, platform.value, self.outputs_dir
-            )
+            record = get_publish_record(product_id, platform.value, self.outputs_dir)
             if record and record.get("post_url"):
                 post_urls.append(record["post_url"])
 
@@ -578,8 +570,7 @@ class CleanupManager:
         product_dirs = [
             d
             for d in product_dirs
-            if not d.name.startswith(".")
-            and d.name not in ["archive", "__pycache__"]
+            if not d.name.startswith(".") and d.name not in ["archive", "__pycache__"]
         ]
 
         logger.info(f"Found {len(product_dirs)} product directories")

@@ -68,7 +68,15 @@ def sample_entries():
 @pytest.fixture
 def mock_publisher():
     """Create mock publisher."""
-    publisher = MagicMock()
+    publisher = AsyncMock()
+    publisher.get_accounts = AsyncMock(
+        return_value=[
+            {"platform": "youtube", "account_id": "yt_account_123"},
+            {"platform": "tiktok", "account_id": "tt_account_456"},
+            {"platform": "instagram", "account_id": "ig_account_789"},
+        ]
+    )
+    publisher.upload_media = AsyncMock(return_value="media_url_123")
     publisher.publish = AsyncMock(
         return_value={"post_id": "mock_post_123", "status": "scheduled"}
     )
@@ -218,7 +226,7 @@ class TestScheduleFileOperations:
         assert len(manager2.entries) == len(sample_entries)
 
         # Verify all entries match
-        for original, loaded in zip(sample_entries, manager2.entries):
+        for original, loaded in zip(sample_entries, manager2.entries, strict=False):
             assert loaded.product_id == original.product_id
             assert loaded.scheduled_time == original.scheduled_time
             assert loaded.platforms == original.platforms
@@ -292,9 +300,7 @@ class TestGetNextSlot:
         after = datetime(2026, 1, 12, 9, 0, tzinfo=UTC)
 
         # Start from index 1 (Wednesday) - but still finds earliest (Monday)
-        next_time, next_idx = manager.get_next_slot(
-            sample_slots, after, slot_index=1
-        )
+        next_time, next_idx = manager.get_next_slot(sample_slots, after, slot_index=1)
 
         # Should find Monday (Jan 12) at 10:00 - earliest across all slots
         assert next_time.weekday() == 0  # Monday
@@ -305,12 +311,16 @@ class TestGetNextSlot:
         """Test get_next_slot handles timezone conversions."""
         # Slot in EST
         slots = [
-            RecurringSlot(day_of_week="monday", time="10:00:00", timezone="America/New_York")
+            RecurringSlot(
+                day_of_week="monday", time="10:00:00", timezone="America/New_York"
+            )
         ]
         manager = ScheduleManager()
 
         # Reference time in UTC
-        after = datetime(2026, 1, 12, 16, 0, tzinfo=UTC)  # Monday 16:00 UTC (after 10:00 EST = 15:00 UTC)
+        after = datetime(
+            2026, 1, 12, 16, 0, tzinfo=UTC
+        )  # Monday 16:00 UTC (after 10:00 EST = 15:00 UTC)
 
         next_time, next_idx = manager.get_next_slot(slots, after)
 
@@ -332,7 +342,11 @@ class TestListScheduled:
 
         assert len(result) == 3
         # Should be sorted by scheduled_time
-        assert result[0].scheduled_time < result[1].scheduled_time < result[2].scheduled_time
+        assert (
+            result[0].scheduled_time
+            < result[1].scheduled_time
+            < result[2].scheduled_time
+        )
 
     def test_list_scheduled_empty(self, tmp_schedule_path):
         """Test listing with no entries."""
@@ -353,7 +367,9 @@ class TestListScheduled:
         assert len(result) == 2
         assert all(Platform.YOUTUBE in entry.platforms for entry in result)
 
-    def test_list_scheduled_filter_invalid_platform(self, tmp_schedule_path, sample_entries):
+    def test_list_scheduled_filter_invalid_platform(
+        self, tmp_schedule_path, sample_entries
+    ):
         """Test filtering by invalid platform returns empty."""
         manager = ScheduleManager(schedule_path=tmp_schedule_path)
         manager.entries = sample_entries
@@ -438,7 +454,9 @@ class TestListScheduled:
         # Should return all entries
         assert len(result) == 3
 
-    def test_list_scheduled_naive_datetime_warning(self, tmp_schedule_path, sample_entries):
+    def test_list_scheduled_naive_datetime_warning(
+        self, tmp_schedule_path, sample_entries
+    ):
         """Test naive datetime in filters gets converted to UTC."""
         manager = ScheduleManager(schedule_path=tmp_schedule_path)
         manager.entries = sample_entries
@@ -497,9 +515,7 @@ class TestAddEntry:
 
     def test_add_entry_with_validation(self, tmp_schedule_path, sample_config):
         """Test add_entry respects validation rules."""
-        manager = ScheduleManager(
-            schedule_path=tmp_schedule_path, config=sample_config
-        )
+        manager = ScheduleManager(schedule_path=tmp_schedule_path, config=sample_config)
 
         # Add first entry
         entry1 = ScheduleEntry(
@@ -530,21 +546,34 @@ class TestAutoSchedule:
         self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
     ):
         """Test basic auto-schedule functionality."""
-        manager = ScheduleManager(
-            schedule_path=tmp_schedule_path, config=sample_config
+        # Disable validation rules for basic test
+        config = ScheduleConfig(
+            enabled=True,
+            slots=sample_config.slots,
+            min_post_spacing_hours=0,
+            prevent_duplicates=False,
+            allow_past_schedules=True,
+            max_posts_per_day=0,
         )
+        manager = ScheduleManager(schedule_path=tmp_schedule_path, config=config)
 
-        # Create mock video files
+        # Create mock video files with data.json
         videos = [
             tmp_path / "B0TEST1" / "video_test1.mp4",
             tmp_path / "B0TEST2" / "video_test2.mp4",
         ]
-        for video in videos:
+        for i, video in enumerate(videos):
             video.parent.mkdir(parents=True, exist_ok=True)
             video.touch()
-
-        # Mock upload_media
-        mock_publisher.upload_media = AsyncMock(return_value="media_url_123")
+            # Create data.json for metadata
+            (video.parent / "data.json").write_text(
+                json.dumps(
+                    {
+                        "title": f"Test Product {i+1}",
+                        "description": f"Description {i+1}",
+                    }
+                )
+            )
 
         summary = await manager.auto_schedule(
             videos=videos,
@@ -566,9 +595,7 @@ class TestAutoSchedule:
         self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
     ):
         """Test auto-schedule in dry-run mode."""
-        manager = ScheduleManager(
-            schedule_path=tmp_schedule_path, config=sample_config
-        )
+        manager = ScheduleManager(schedule_path=tmp_schedule_path, config=sample_config)
 
         videos = [tmp_path / "B0TEST1" / "video_test1.mp4"]
         videos[0].parent.mkdir(parents=True, exist_ok=True)
@@ -611,9 +638,7 @@ class TestAutoSchedule:
         self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
     ):
         """Test auto-schedule respects start_slot parameter."""
-        manager = ScheduleManager(
-            schedule_path=tmp_schedule_path, config=sample_config
-        )
+        manager = ScheduleManager(schedule_path=tmp_schedule_path, config=sample_config)
 
         videos = [tmp_path / "B0TEST1" / "video_test1.mp4"]
         videos[0].parent.mkdir(parents=True, exist_ok=True)

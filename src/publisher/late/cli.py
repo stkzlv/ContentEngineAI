@@ -278,17 +278,14 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
 
                 if cleanup_result["success"]:
-                    logger.info(
-                        f"✓ Cleanup complete: {cleanup_result['message']}"
-                    )
-                    if cleanup_result["disk_freed"] > 0:
+                    logger.info(f"✓ Cleanup complete: {cleanup_result['message']}")
+                    disk_freed = cleanup_result["disk_freed"]
+                    if isinstance(disk_freed, int) and disk_freed > 0:
                         logger.info(
-                            f"  Disk space freed: {format_bytes(cleanup_result['disk_freed'])}"
+                            f"  Disk space freed: {format_bytes(disk_freed)}"  # noqa: E501
                         )
                 else:
-                    logger.warning(
-                        f"Cleanup skipped: {cleanup_result['message']}"
-                    )
+                    logger.warning(f"Cleanup skipped: {cleanup_result['message']}")
 
             except Exception as cleanup_error:
                 logger.warning(
@@ -355,9 +352,15 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
         summary = await batch_publisher.publish_batch()
 
         # Automatic cleanup if enabled
-        if config.cleanup_config.enabled and not args.no_cleanup and summary.successful > 0:
+        if (
+            config.cleanup_config.enabled
+            and not args.no_cleanup
+            and summary.successful > 0
+        ):
             logger.info("=" * 80)
-            logger.info("Running automatic cleanup for successfully published products...")
+            logger.info(
+                "Running automatic cleanup for successfully published products..."
+            )
 
             try:
                 cleanup_mgr = CleanupManager(
@@ -375,7 +378,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
                 logger.info(f"  Products cleaned: {cleanup_summary['cleaned']}")
                 logger.info(f"  Products skipped: {cleanup_summary['skipped']}")
                 logger.info(
-                    f"  Total disk space freed: {format_bytes(cleanup_summary['disk_freed'])}"
+                    f"  Total disk space freed: {format_bytes(cleanup_summary['disk_freed'])}"  # noqa: E501
                 )
 
             except Exception as cleanup_error:
@@ -385,7 +388,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
 
         elif args.no_cleanup:
             logger.info("Cleanup disabled via --no-cleanup flag")
-        elif summary.succeeded == 0:
+        elif summary.successful == 0:
             logger.debug("No successful publishes - skipping cleanup")
         else:
             logger.debug("Cleanup not configured in config file")
@@ -399,7 +402,9 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
         sys.exit(1)
 
 
-async def cmd_calendar(args: argparse.Namespace, config, session: aiohttp.ClientSession):
+async def cmd_calendar(
+    args: argparse.Namespace, config, session: aiohttp.ClientSession
+):
     """Execute calendar list command.
 
     Args:
@@ -575,7 +580,7 @@ async def cmd_schedule_auto(
 
         if args.dry_run:
             logger.info(
-                "[DRY RUN] No actual scheduling occurred - run without --dry-run to schedule"
+                "[DRY RUN] No actual scheduling occurred - run without --dry-run to schedule"  # noqa: E501
             )
 
         # Exit with error if any failures
@@ -587,7 +592,7 @@ async def cmd_schedule_auto(
         sys.exit(1)
 
 
-def format_bytes(bytes_value: int) -> str:
+def format_bytes(bytes_value: int | float) -> str:
     """Format bytes to human-readable string (KB, MB, GB).
 
     Args:
@@ -599,11 +604,12 @@ def format_bytes(bytes_value: int) -> str:
         Formatted string (e.g., "1.5 GB")
 
     """
+    value = float(bytes_value)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_value < 1024.0:
-            return f"{bytes_value:.2f} {unit}"
-        bytes_value /= 1024.0
-    return f"{bytes_value:.2f} PB"
+        if value < 1024.0:
+            return f"{value:.2f} {unit}"
+        value /= 1024.0
+    return f"{value:.2f} PB"
 
 
 async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientSession):
@@ -684,8 +690,9 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
 
             if result["success"]:
                 logger.info(f"✓ {result['message']}")
-                if result["disk_freed"] > 0:
-                    logger.info(f"  Disk space freed: {format_bytes(result['disk_freed'])}")
+                disk_freed = result["disk_freed"]
+                if isinstance(disk_freed, int) and disk_freed > 0:
+                    logger.info(f"  Disk space freed: {format_bytes(disk_freed)}")
             else:
                 logger.warning(f"✗ {result['message']}")
                 sys.exit(1)
@@ -706,12 +713,14 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             logger.info("=" * 80)
             logger.info(f"Products cleaned: {summary['cleaned']}")
             logger.info(f"Products skipped: {summary['skipped']}")
-            logger.info(f"Total disk space freed: {format_bytes(summary['disk_freed'])}")
+            logger.info(
+                f"Total disk space freed: {format_bytes(summary['disk_freed'])}"
+            )
             logger.info("=" * 80)
 
             if args.dry_run:
                 logger.info(
-                    "[DRY RUN] No actual deletion occurred - run without --dry-run to cleanup"
+                    "[DRY RUN] No actual deletion occurred - run without --dry-run to cleanup"  # noqa: E501
                 )
 
     except Exception as e:

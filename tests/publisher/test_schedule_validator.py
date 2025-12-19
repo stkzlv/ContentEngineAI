@@ -91,7 +91,9 @@ class TestValidate:
         # Create entry with naive datetime (no tzinfo)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 21, 14, 0, 0, tzinfo=UTC),  # Start with aware
+            scheduled_time=datetime(
+                2026, 1, 21, 14, 0, 0, tzinfo=UTC
+            ),  # Start with aware
             platforms=[Platform.YOUTUBE],
         )
         # Override with naive datetime (bypass __post_init__ validation)

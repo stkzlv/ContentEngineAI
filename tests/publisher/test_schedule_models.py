@@ -1,7 +1,7 @@
 """Unit tests for schedule models."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -41,7 +41,7 @@ def schedule_entry_pending():
     """Create a pending schedule entry."""
     return ScheduleEntry(
         product_id="B0ABC123",
-        scheduled_time=datetime(2026, 1, 20, 14, 0, 0, tzinfo=timezone.utc),
+        scheduled_time=datetime(2026, 1, 20, 14, 0, 0, tzinfo=UTC),
         platforms=[Platform.YOUTUBE, Platform.TIKTOK],
         status="pending",
     )
@@ -52,7 +52,7 @@ def schedule_entry_published():
     """Create a published schedule entry."""
     return ScheduleEntry(
         product_id="B0DEF456",
-        scheduled_time=datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+        scheduled_time=datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC),
         platforms=[Platform.INSTAGRAM],
         post_id="post_12345",
         status="published",
@@ -80,7 +80,7 @@ class TestRecurringSlot:
     def test_next_occurrence_same_week(self, recurring_slot_monday):
         """Test next_occurrence within the same week."""
         # Wednesday Jan 14, 2026 at 8:00 AM
-        after = datetime(2026, 1, 14, 8, 0, 0, tzinfo=timezone.utc)
+        after = datetime(2026, 1, 14, 8, 0, 0, tzinfo=UTC)
 
         next_time = recurring_slot_monday.next_occurrence(after)
 
@@ -95,7 +95,7 @@ class TestRecurringSlot:
     def test_next_occurrence_next_week(self, recurring_slot_monday):
         """Test next_occurrence crossing week boundary."""
         # Monday Jan 19, 2026 at 10:00 AM (after the 9:00 AM slot)
-        after = datetime(2026, 1, 19, 10, 0, 0, tzinfo=timezone.utc)
+        after = datetime(2026, 1, 19, 10, 0, 0, tzinfo=UTC)
 
         next_time = recurring_slot_monday.next_occurrence(after)
 
@@ -125,7 +125,7 @@ class TestRecurringSlot:
     def test_next_occurrence_month_boundary(self, recurring_slot_monday):
         """Test next_occurrence crossing month boundary."""
         # Monday Jan 26, 2026 at 10:00 AM
-        after = datetime(2026, 1, 26, 10, 0, 0, tzinfo=timezone.utc)
+        after = datetime(2026, 1, 26, 10, 0, 0, tzinfo=UTC)
 
         next_time = recurring_slot_monday.next_occurrence(after)
 
@@ -144,7 +144,7 @@ class TestRecurringSlot:
         )
 
         # Monday Dec 29, 2025 at 10:00 AM
-        after = datetime(2025, 12, 29, 10, 0, 0, tzinfo=timezone.utc)
+        after = datetime(2025, 12, 29, 10, 0, 0, tzinfo=UTC)
 
         next_time = slot.next_occurrence(after)
 
@@ -167,7 +167,9 @@ class TestRecurringSlot:
 
     def test_frozen_dataclass(self, recurring_slot_monday):
         """Test that RecurringSlot is immutable."""
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(
+            (AttributeError, TypeError)
+        ):  # Frozen dataclass raises AttributeError
             recurring_slot_monday.time = "10:00"
 
 
@@ -193,7 +195,7 @@ class TestScheduleEntry:
         before = datetime.now()  # Naive datetime, model uses naive created_at
         entry = ScheduleEntry(
             product_id="B0TEST",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=timezone.utc),
+            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
             platforms=[Platform.YOUTUBE],
         )
         after = datetime.now()
@@ -226,7 +228,7 @@ class TestScheduleEntry:
         # This should work - timezone-aware
         entry = ScheduleEntry(
             product_id="B0TEST",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=timezone.utc),
+            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
             platforms=[Platform.YOUTUBE],
         )
         assert entry.scheduled_time.tzinfo is not None
@@ -236,7 +238,7 @@ class TestScheduleEntry:
         with pytest.raises(ValueError, match="platforms cannot be empty"):
             ScheduleEntry(
                 product_id="B0TEST",
-                scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=timezone.utc),
+                scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
                 platforms=[],  # Empty platforms list
             )
 
@@ -245,13 +247,15 @@ class TestScheduleEntry:
         with pytest.raises(ValueError, match="product_id cannot be empty"):
             ScheduleEntry(
                 product_id="",  # Empty product_id
-                scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=timezone.utc),
+                scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
                 platforms=[Platform.YOUTUBE],
             )
 
     def test_validation_timezone_aware(self):
         """Test validation requires timezone-aware datetime."""
-        with pytest.raises(ValueError, match="scheduled_time must include timezone information"):
+        with pytest.raises(
+            ValueError, match="scheduled_time must include timezone information"
+        ):
             ScheduleEntry(
                 product_id="B0TEST",
                 scheduled_time=datetime(2026, 1, 20, 10, 0, 0),  # Naive datetime
@@ -321,7 +325,9 @@ class TestScheduleConfig:
 
     def test_validation_non_negative_spacing(self):
         """Test validation requires non-negative min_post_spacing_hours."""
-        with pytest.raises(ValueError, match="min_post_spacing_hours must be non-negative"):
+        with pytest.raises(
+            ValueError, match="min_post_spacing_hours must be non-negative"
+        ):
             ScheduleConfig(min_post_spacing_hours=-1)
 
     def test_validation_non_negative_max_posts(self):
@@ -338,7 +344,7 @@ class TestCleanupConfig:
         """Test default values for CleanupConfig."""
         config = CleanupConfig()
 
-        assert config.enabled is False
+        assert config.enabled is True  # Updated: default changed to True
         assert config.verify_before_delete is True
         assert config.require_all_platforms is True
         assert config.archive_before_delete is False
@@ -366,5 +372,7 @@ class TestCleanupConfig:
 
     def test_validation_non_negative_keep_days(self):
         """Test validation requires non-negative keep_published_days."""
-        with pytest.raises(ValueError, match="keep_published_days must be non-negative"):
+        with pytest.raises(
+            ValueError, match="keep_published_days must be non-negative"
+        ):
             CleanupConfig(keep_published_days=-1)

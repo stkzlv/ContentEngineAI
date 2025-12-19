@@ -217,6 +217,7 @@ class BasePublisher(ABC):
         platforms: list[dict[str, str]],
         content: str,
         scheduled_time: datetime | None = None,
+        platform_contents: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, str | list[str] | datetime | None]:
         """Create and publish/schedule a post to social media platforms.
 
@@ -228,6 +229,8 @@ class BasePublisher(ABC):
             content: Post content (title/description/caption with metadata)
             scheduled_time: Optional datetime for scheduled publishing (UTC)
                            If None, publishes immediately
+            platform_contents: Optional per-platform content dict mapping platform name
+                             to content dict with "content" and optional "title" keys
 
         Returns:
         -------

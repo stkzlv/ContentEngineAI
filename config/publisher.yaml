@@ -1,8 +1,8 @@
 # Publisher Configuration
 # API credentials (use environment variables for security)
 provider: late
-api_key: ${LATE_API_KEY}
-vercel_token: ${LATE_VERCEL_TOKEN}
+api_key_env_var: "LATE_API_KEY"
+vercel_token_env_var: "LATE_VERCEL_TOKEN"
 
 # Publishing behavior
 immediate_publish: true

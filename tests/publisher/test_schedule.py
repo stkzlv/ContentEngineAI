@@ -15,9 +15,7 @@ from src.publisher.schedule import ScheduleManager
 @pytest.fixture
 def temp_schedule_file():
     """Create a temporary schedule file."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         temp_path = Path(f.name)
     yield temp_path
     if temp_path.exists():
@@ -46,6 +44,13 @@ def schedule_config_with_slots():
 def mock_publisher():
     """Mock publisher instance."""
     publisher = AsyncMock()
+    publisher.get_accounts = AsyncMock(
+        return_value=[
+            {"platform": "youtube", "account_id": "yt_account_123"},
+            {"platform": "tiktok", "account_id": "tt_account_456"},
+            {"platform": "instagram", "account_id": "ig_account_789"},
+        ]
+    )
     publisher.upload_media = AsyncMock(return_value="media_123")
     publisher.publish = AsyncMock(
         return_value={"post_id": "post_456", "status": "scheduled"}
@@ -113,7 +118,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_dry_run_mode(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test dry run mode doesn't actually publish."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -139,7 +148,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_skips_already_published_videos(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test that already published videos are skipped."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -165,7 +178,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_successful_scheduling(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test successful video scheduling."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -199,7 +216,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_slot_wrapping_with_start_slot(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test that slot assignment wraps around with start_slot parameter."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -223,7 +244,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_handles_publish_failures(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test that publish failures are tracked correctly."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -262,7 +287,11 @@ class TestAutoSchedule:
 
     @pytest.mark.asyncio
     async def test_uses_metadata_for_content(
-        self, temp_schedule_file, schedule_config_with_slots, mock_publisher, mock_video_files
+        self,
+        temp_schedule_file,
+        schedule_config_with_slots,
+        mock_publisher,
+        mock_video_files,
     ):
         """Test that metadata from data.json is used for post content."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
@@ -274,12 +303,14 @@ class TestAutoSchedule:
                 publisher=mock_publisher,
             )
 
-            # Check that publish was called with content from metadata
+            # Check that publish was called with platform_contents from metadata
             publish_call = mock_publisher.publish.call_args
-            content = publish_call[1]["content"]
+            platform_contents = publish_call[1]["platform_contents"]
 
-            assert "Test Product 1" in content
-            assert "Description for product 1" in content
+            assert "youtube" in platform_contents
+            youtube_content = platform_contents["youtube"]["content"]
+            assert "Test Product 1" in youtube_content
+            assert "Description for product 1" in youtube_content
 
 
 class TestAddEntry:
@@ -308,13 +339,15 @@ class TestAddEntry:
         # Schedule file should be updated
         assert temp_schedule_file.exists()
 
-    def test_rejects_missing_product_id(self, temp_schedule_file, schedule_config_with_slots):
+    def test_rejects_missing_product_id(
+        self, temp_schedule_file, schedule_config_with_slots
+    ):
         """Test that entry without product_id is rejected."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         # ScheduleEntry __post_init__ validation rejects empty product_id
         with pytest.raises(ValueError, match="product_id cannot be empty"):
-            entry = ScheduleEntry(
+            ScheduleEntry(
                 product_id="",
                 scheduled_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
                 platforms=[Platform.YOUTUBE],
@@ -334,7 +367,7 @@ class TestAddEntry:
 
         # ScheduleEntry __post_init__ validation rejects timezone-naive datetime
         with pytest.raises(ValueError, match="scheduled_time must include timezone"):
-            entry = ScheduleEntry(
+            ScheduleEntry(
                 product_id="B0TEST001",
                 scheduled_time=datetime(2025, 1, 20, 10, 0),  # No tzinfo
                 platforms=[Platform.YOUTUBE],
@@ -345,13 +378,15 @@ class TestAddEntry:
 
         assert len(manager.entries) == 0
 
-    def test_rejects_empty_platforms(self, temp_schedule_file, schedule_config_with_slots):
+    def test_rejects_empty_platforms(
+        self, temp_schedule_file, schedule_config_with_slots
+    ):
         """Test that entry without platforms is rejected."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         # ScheduleEntry __post_init__ validation rejects empty platforms
         with pytest.raises(ValueError, match="platforms cannot be empty"):
-            entry = ScheduleEntry(
+            ScheduleEntry(
                 product_id="B0TEST001",
                 scheduled_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
                 platforms=[],
@@ -362,13 +397,15 @@ class TestAddEntry:
 
         assert len(manager.entries) == 0
 
-    def test_rejects_invalid_status(self, temp_schedule_file, schedule_config_with_slots):
+    def test_rejects_invalid_status(
+        self, temp_schedule_file, schedule_config_with_slots
+    ):
         """Test that entry with invalid status is rejected."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         # ScheduleEntry __post_init__ validation rejects invalid status
         with pytest.raises(ValueError, match="status must be one of"):
-            entry = ScheduleEntry(
+            ScheduleEntry(
                 product_id="B0TEST001",
                 scheduled_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
                 platforms=[Platform.YOUTUBE],
@@ -408,7 +445,10 @@ class TestAddEntry:
         entry2 = ScheduleEntry(
             product_id="B0TEST001",
             scheduled_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
-            platforms=[Platform.TIKTOK, Platform.YOUTUBE],  # Same platforms, different order
+            platforms=[
+                Platform.TIKTOK,
+                Platform.YOUTUBE,
+            ],  # Same platforms, different order
             post_id=None,
             status="pending",
             created_at=datetime.now(UTC),
@@ -428,7 +468,7 @@ class TestAddEntry:
 
         # Make _save_schedule raise an exception
         def mock_save():
-            raise IOError("Disk full")
+            raise OSError("Disk full")
 
         monkeypatch.setattr(manager, "_save_schedule", mock_save)
 

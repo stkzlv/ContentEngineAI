@@ -64,7 +64,9 @@ def product_directory(temp_outputs_dir):
     return product_dir
 
 
-def create_tracking_file(outputs_dir: Path, product_id: str, platform: str, post_id: str):
+def create_tracking_file(
+    outputs_dir: Path, product_id: str, platform: str, post_id: str
+):
     """Helper to create publish tracking file."""
     tracking_path = outputs_dir / "publish_history.json"
     if tracking_path.exists():
@@ -266,9 +268,7 @@ class TestVerifyPublication:
         assert statuses["tiktok"] == "scheduled"
 
     @pytest.mark.asyncio
-    async def test_require_all_platforms_false(
-        self, temp_outputs_dir, mock_publisher
-    ):
+    async def test_require_all_platforms_false(self, temp_outputs_dir, mock_publisher):
         """Test verification with require_all_platforms=False."""
         config = CleanupConfig(
             enabled=True,
@@ -437,7 +437,7 @@ class TestCleanup:
         result = await manager.cleanup("B0TEST001", [Platform.YOUTUBE])
 
         assert result["success"] is False
-        assert "disabled" in result["message"]
+        assert isinstance(result["message"], str) and "disabled" in result["message"]
         assert product_directory.exists()
 
     @pytest.mark.asyncio
@@ -450,7 +450,7 @@ class TestCleanup:
         result = await manager.cleanup("B0MISSING", [Platform.YOUTUBE])
 
         assert result["success"] is False
-        assert "not found" in result["message"]
+        assert isinstance(result["message"], str) and "not found" in result["message"]
 
     @pytest.mark.asyncio
     async def test_cleanup_dry_run(
@@ -463,7 +463,7 @@ class TestCleanup:
         result = await manager.cleanup("B0TEST001", [Platform.YOUTUBE], dry_run=True)
 
         assert result["success"] is True
-        assert "[DRY RUN]" in result["message"]
+        assert isinstance(result["message"], str) and "[DRY RUN]" in result["message"]
         assert result["disk_freed"] == 0
         assert product_directory.exists()
 
@@ -480,7 +480,9 @@ class TestCleanup:
         result = await manager.cleanup("B0TEST001", [Platform.YOUTUBE])
 
         assert result["success"] is False
-        assert "not published" in result["message"]
+        assert (
+            isinstance(result["message"], str) and "not published" in result["message"]
+        )
         assert product_directory.exists()
 
     @pytest.mark.asyncio
@@ -499,7 +501,7 @@ class TestCleanup:
         result = await manager.cleanup("B0TEST001", [Platform.YOUTUBE])
 
         assert result["success"] is True
-        assert result["disk_freed"] > 0
+        assert isinstance(result["disk_freed"], int) and result["disk_freed"] > 0
         assert not product_directory.exists()
         assert manager.audit_log_path.exists()
 
@@ -547,9 +549,7 @@ class TestCleanupAll:
     """Tests for cleanup_all() batch method."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_all_disabled(
-        self, temp_outputs_dir, mock_publisher
-    ):
+    async def test_cleanup_all_disabled(self, temp_outputs_dir, mock_publisher):
         """Test cleanup_all returns early when disabled."""
         config = CleanupConfig(enabled=False)
         manager = CleanupManager(temp_outputs_dir, config, mock_publisher)
@@ -608,9 +608,7 @@ class TestCleanupAll:
         assert (temp_outputs_dir / ".hidden").exists()
 
     @pytest.mark.asyncio
-    async def test_cleanup_all_dry_run(
-        self, temp_outputs_dir, mock_publisher
-    ):
+    async def test_cleanup_all_dry_run(self, temp_outputs_dir, mock_publisher):
         """Test cleanup_all dry_run mode."""
         config = CleanupConfig(enabled=True, verify_before_delete=False)
 
@@ -628,9 +626,7 @@ class TestCleanupAll:
         assert product_dir.exists()
 
     @pytest.mark.asyncio
-    async def test_cleanup_all_handles_errors(
-        self, temp_outputs_dir, mock_publisher
-    ):
+    async def test_cleanup_all_handles_errors(self, temp_outputs_dir, mock_publisher):
         """Test cleanup_all handles individual errors gracefully."""
         config = CleanupConfig(enabled=True, verify_before_delete=True)
 

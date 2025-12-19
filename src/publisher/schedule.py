@@ -9,9 +9,13 @@ import logging
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.publisher.models import Platform, RecurringSlot, ScheduleConfig, ScheduleEntry
 from src.publisher.schedule_validator import ScheduleValidator
+
+if TYPE_CHECKING:
+    from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
 
@@ -276,9 +280,7 @@ class ScheduleManager:
             try:
                 platform_enum = Platform(platform.lower())
                 filtered = [
-                    entry
-                    for entry in filtered
-                    if platform_enum in entry.platforms
+                    entry for entry in filtered if platform_enum in entry.platforms
                 ]
             except ValueError:
                 logger.warning(f"Invalid platform '{platform}', returning empty list")
@@ -296,9 +298,7 @@ class ScheduleManager:
                 date_from = date_from.replace(tzinfo=UTC)
 
             filtered = [
-                entry
-                for entry in filtered
-                if entry.scheduled_time >= date_from
+                entry for entry in filtered if entry.scheduled_time >= date_from
             ]
 
         # Filter by date_to (inclusive)
@@ -308,11 +308,7 @@ class ScheduleManager:
                 logger.warning("date_to is timezone-naive, treating as UTC")
                 date_to = date_to.replace(tzinfo=UTC)
 
-            filtered = [
-                entry
-                for entry in filtered
-                if entry.scheduled_time <= date_to
-            ]
+            filtered = [entry for entry in filtered if entry.scheduled_time <= date_to]
 
         # Sort by scheduled_time (ascending)
         filtered.sort(key=lambda e: e.scheduled_time)
@@ -329,7 +325,7 @@ class ScheduleManager:
         self,
         videos: list[Path],
         platforms: list[Platform],
-        publisher: "BasePublisher",  # type: ignore[name-defined]
+        publisher: "BasePublisher",
         start_slot: int = 0,
         dry_run: bool = False,
     ) -> dict[str, int]:
@@ -486,10 +482,12 @@ class ScheduleManager:
                             if not account_id:
                                 logger.warning(f"No account for {p.value}")
                                 continue
-                            platform_dicts.append({
-                                "platform": p.value,
-                                "account_id": account_id,
-                            })
+                            platform_dicts.append(
+                                {
+                                    "platform": p.value,
+                                    "account_id": account_id,
+                                }
+                            )
 
                         if not platform_dicts:
                             raise ValueError("No valid accounts for platforms")
@@ -499,6 +497,7 @@ class ScheduleManager:
 
                         # Build per-platform content from metadata files
                         import json
+
                         platform_contents = {}
                         for p in platforms:
                             meta_file = f"metadata_{p.value}.json"
@@ -537,21 +536,23 @@ class ScheduleManager:
                         result = await publisher.publish(
                             media_id=media_id,
                             platforms=platform_dicts,
+                            content="",  # Fallback content
                             platform_contents=platform_contents,
                             scheduled_time=next_time,
                         )
 
                         # Update entry with post_id
-                        entry.post_id = result.get("post_id")
+                        post_id_value = result.get("post_id")
+                        entry.post_id = (
+                            str(post_id_value) if post_id_value is not None else None
+                        )
                         entry.status = "scheduled"
 
                         # Add entry to schedule and save
                         self.entries.append(entry)
                         self._save_schedule()
 
-                        logger.info(
-                            f"Scheduled {product_id} (post: {entry.post_id})"
-                        )
+                        logger.info(f"Scheduled {product_id} (post: {entry.post_id})")
                         scheduled_count += 1
 
                     except Exception as e:
@@ -625,9 +626,7 @@ class ScheduleManager:
         is_valid, error_message = validator.validate(entry)
 
         if not is_valid:
-            logger.warning(
-                f"Validation failed for {entry.product_id}: {error_message}"
-            )
+            logger.warning(f"Validation failed for {entry.product_id}: {error_message}")
             raise ValueError(f"Entry validation failed: {error_message}")
 
         # Add to entries list

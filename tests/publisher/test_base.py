@@ -97,7 +97,14 @@ class TestBasePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 pass
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 pass
 
             async def get_status(self, post_id):
@@ -122,7 +129,14 @@ class TestBasePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 pass
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 pass
 
             async def get_status(self, post_id):
@@ -147,7 +161,14 @@ class TestBasePublisher:
             async def get_accounts(self):
                 pass
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 pass
 
             async def get_status(self, post_id):
@@ -200,7 +221,14 @@ class TestBasePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 pass
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 pass
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
@@ -225,7 +253,14 @@ class TestBasePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {
                     "post_id": "post_123",
                     "status": "published",
@@ -267,7 +302,14 @@ class TestBasePublisher:
             async def upload_media(self, video_path, progress_callback=None):
                 return "media_123"
 
-            async def publish(self, media_id, platforms, content, scheduled_time=None):
+            async def publish(
+                self,
+                media_id,
+                platforms,
+                content,
+                scheduled_time=None,
+                platform_contents=None,
+            ):
                 return {
                     "post_id": "post_123",
                     "status": "published",

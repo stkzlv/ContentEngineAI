@@ -147,9 +147,7 @@ class TestVideoDiscovery:
 
         assert videos == []
 
-    def test_discover_videos_ignores_non_video_files(
-        self, mock_publisher, outputs_dir
-    ):
+    def test_discover_videos_ignores_non_video_files(self, mock_publisher, outputs_dir):
         """Test that non-video files are ignored."""
         # Add non-video file
         product_dir = outputs_dir / "B0TEST001"
@@ -174,9 +172,7 @@ class TestBatchPublishing:
         self, mock_publisher, empty_outputs_dir
     ):
         """Test batch publishing with no videos."""
-        batch = BatchPublisher(
-            publisher=mock_publisher, outputs_dir=empty_outputs_dir
-        )
+        batch = BatchPublisher(publisher=mock_publisher, outputs_dir=empty_outputs_dir)
 
         summary = await batch.publish_batch()
 
@@ -197,9 +193,7 @@ class TestBatchPublishing:
         )
 
         # Mock platform metadata
-        with patch(
-            "src.publisher.batch.load_platform_metadata"
-        ) as mock_metadata:
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Test content"
             mock_metadata.return_value = mock_meta
@@ -241,9 +235,7 @@ class TestBatchPublishing:
             fail_fast=False,
         )
 
-        with patch(
-            "src.publisher.batch.load_platform_metadata"
-        ) as mock_metadata:
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Test content"
             mock_metadata.return_value = mock_meta
@@ -292,9 +284,7 @@ class TestBatchPublishing:
         )
 
         # Return None for metadata (missing)
-        with patch(
-            "src.publisher.batch.load_platform_metadata"
-        ) as mock_metadata:
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
             mock_metadata.return_value = None
 
             summary = await batch.publish_batch()
@@ -614,9 +604,7 @@ class TestStaggerDelay:
         )
 
         with (
-            patch(
-                "src.publisher.batch.load_platform_metadata"
-            ) as mock_metadata,
+            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_meta = MagicMock()
@@ -629,14 +617,13 @@ class TestStaggerDelay:
         assert mock_sleep.call_count == 2  # 3 videos, 2 delays
 
     @pytest.mark.asyncio
-    async def test_no_stagger_delay_after_last_video(
-        self, mock_publisher, outputs_dir
-    ):
+    async def test_no_stagger_delay_after_last_video(self, mock_publisher, outputs_dir):
         """Test that no delay is applied after the last video."""
         # Create directory with single video
         for item in outputs_dir.iterdir():
             if item.name != "B0TEST001":
                 import shutil
+
                 shutil.rmtree(item)
 
         batch = BatchPublisher(
@@ -648,9 +635,7 @@ class TestStaggerDelay:
         )
 
         with (
-            patch(
-                "src.publisher.batch.load_platform_metadata"
-            ) as mock_metadata,
+            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_meta = MagicMock()

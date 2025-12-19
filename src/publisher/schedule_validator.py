@@ -52,7 +52,8 @@ class ScheduleValidator:
         self.config = config
         self.existing_entries = existing_entries
         logger.debug(
-            f"ScheduleValidator initialized with {len(existing_entries)} existing entries"
+            f"ScheduleValidator initialized with "
+            f"{len(existing_entries)} existing entries"
         )
 
     def validate(self, entry: ScheduleEntry) -> tuple[bool, str]:
@@ -98,19 +99,20 @@ class ScheduleValidator:
             if entry.scheduled_time < now:
                 return (
                     False,
-                    f"Cannot schedule in the past ({entry.scheduled_time} is before {now}). "
+                    f"Cannot schedule in the past "
+                    f"({entry.scheduled_time} is before {now}). "
                     "Set allow_past_schedules=true in config to override.",
                 )
 
         # 3. Check duplicates if enabled
-        if self.config.prevent_duplicates:
-            if self._is_duplicate(entry):
-                return (
-                    False,
-                    f"Duplicate entry detected: {entry.product_id} already scheduled "
-                    f"at {entry.scheduled_time} for platforms {[p.value for p in entry.platforms]}. "
-                    "Use different time or set prevent_duplicates=false.",
-                )
+        if self.config.prevent_duplicates and self._is_duplicate(entry):
+            platforms_str = [p.value for p in entry.platforms]
+            return (
+                False,
+                f"Duplicate entry detected: {entry.product_id} already scheduled "
+                f"at {entry.scheduled_time} for platforms {platforms_str}. "
+                "Use different time or set prevent_duplicates=false.",
+            )
 
         # 4. Check minimum post spacing on same platform
         spacing_valid, spacing_message = self._check_spacing(entry)
@@ -198,13 +200,15 @@ class ScheduleValidator:
                 # Check if too close
                 if time_diff < spacing_delta:
                     hours_diff = time_diff.total_seconds() / 3600
+                    min_hours = self.config.min_post_spacing_hours
                     return (
                         False,
                         f"Post spacing violation on {platform.value}: "
-                        f"{entry.product_id} scheduled too close to {existing.product_id} "
-                        f"({hours_diff:.1f}h < {self.config.min_post_spacing_hours}h). "
+                        f"{entry.product_id} scheduled too close to "
+                        f"{existing.product_id} "
+                        f"({hours_diff:.1f}h < {min_hours}h). "
                         f"Existing post at {existing.scheduled_time}, "
-                        f"schedule at least {self.config.min_post_spacing_hours}h apart.",
+                        f"schedule at least {min_hours}h apart.",
                     )
 
         return True, ""
