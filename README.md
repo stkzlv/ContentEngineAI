@@ -82,6 +82,8 @@ poetry run python -m src.publisher.late batch \
   --immediate --debug
 ```
 
+**Platform-Specific Content**: When metadata files (`metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`) exist, the publisher creates separate posts for each platform with optimized content.
+
 **📖 Complete Guide**: [PUBLISHER.md](PUBLISHER.md) - Setup, CLI commands, configuration, troubleshooting
 
 ## 🏗️ Architecture

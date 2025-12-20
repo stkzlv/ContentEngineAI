@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from late import Late  # type: ignore[import-untyped]
@@ -783,6 +784,9 @@ class LatePublisher(BasePublisher):
                     if main_content is None:
                         main_content = pc.get("content", "")
 
+                    # Add customContent for this platform
+                    platform_entry["customContent"] = pc.get("content", "")
+
                     # Add platformSpecificData for YouTube title
                     if platform_name == "youtube" and pc.get("title"):
                         platform_entry["platformSpecificData"] = {
@@ -1034,9 +1038,30 @@ class LatePublisher(BasePublisher):
                 else:
                     return self.client.posts.get(post_id)
 
-            post_data = await self._retry_with_backoff(
+            post_response = await self._retry_with_backoff(
                 _get_post, f"Get status for {post_id}"
             )
+
+            # Handle both Pydantic model and dict responses (like publish() does)
+            logger.debug(f"Post response type: {type(post_response)}")
+
+            # Extract post object from response wrapper if present
+            post_data = None
+            if hasattr(post_response, "post") and post_response.post:
+                post_data = post_response.post
+            else:
+                post_data = post_response
+
+            # Extract status - handle both Pydantic model and dict
+            status = "unknown"
+            if hasattr(post_data, "status"):
+                status_val = post_data.status
+                if hasattr(status_val, "value"):
+                    status = str(status_val.value)
+                else:
+                    status = str(status_val)
+            elif isinstance(post_data, dict):
+                status = post_data.get("status", "unknown")
 
             # Parse timestamps with optional timezone conversion
             scheduled_time = None
@@ -1044,13 +1069,29 @@ class LatePublisher(BasePublisher):
             scheduled_time_local = None
             published_time_local = None
 
-            if post_data.get("scheduled_time"):
-                scheduled_time = datetime.fromisoformat(
-                    post_data["scheduled_time"]
-                ).astimezone(UTC)
+            # Get scheduled_time from model or dict
+            scheduled_time_str = None
+            if hasattr(post_data, "scheduledFor"):
+                scheduled_time_str = post_data.scheduledFor
+            elif hasattr(post_data, "scheduled_time"):
+                scheduled_time_str = post_data.scheduled_time
+            elif isinstance(post_data, dict):
+                scheduled_time_str = post_data.get("scheduled_time") or post_data.get(
+                    "scheduledFor"
+                )
+
+            if scheduled_time_str:
+                try:
+                    if isinstance(scheduled_time_str, str):
+                        dt = datetime.fromisoformat(scheduled_time_str)
+                        scheduled_time = dt.astimezone(UTC)
+                    elif isinstance(scheduled_time_str, datetime):
+                        scheduled_time = scheduled_time_str.astimezone(UTC)
+                except Exception as e:
+                    logger.debug(f"Could not parse scheduled_time: {e}")
 
                 # Convert to local timezone if specified
-                if local_timezone:
+                if scheduled_time and local_timezone:
                     try:
                         import zoneinfo
 
@@ -1061,13 +1102,29 @@ class LatePublisher(BasePublisher):
                             f"Could not convert to timezone {local_timezone}: {e}"
                         )
 
-            if post_data.get("published_time"):
-                published_time = datetime.fromisoformat(
-                    post_data["published_time"]
-                ).astimezone(UTC)
+            # Get published_time from model or dict
+            published_time_str = None
+            if hasattr(post_data, "publishedAt"):
+                published_time_str = post_data.publishedAt
+            elif hasattr(post_data, "published_time"):
+                published_time_str = post_data.published_time
+            elif isinstance(post_data, dict):
+                published_time_str = post_data.get("published_time") or post_data.get(
+                    "publishedAt"
+                )
+
+            if published_time_str:
+                try:
+                    if isinstance(published_time_str, str):
+                        dt = datetime.fromisoformat(published_time_str)
+                        published_time = dt.astimezone(UTC)
+                    elif isinstance(published_time_str, datetime):
+                        published_time = published_time_str.astimezone(UTC)
+                except Exception as e:
+                    logger.debug(f"Could not parse published_time: {e}")
 
                 # Convert to local timezone if specified
-                if local_timezone:
+                if published_time and local_timezone:
                     try:
                         import zoneinfo
 
@@ -1079,26 +1136,52 @@ class LatePublisher(BasePublisher):
                         )
 
             # Extract platform-specific results if available
-            platform_results = post_data.get("platform_results", [])
+            platform_results: list[Any] = []
+            if hasattr(post_data, "platforms"):
+                platform_results = post_data.platforms or []
+            elif hasattr(post_data, "platform_results"):
+                platform_results = post_data.platform_results or []
+            elif isinstance(post_data, dict):
+                platform_results = (
+                    post_data.get("platform_results")
+                    or post_data.get("platforms")
+                    or []
+                )
+
+            # Extract published URLs from platforms
+            published_urls = []
+            if hasattr(post_data, "platforms"):
+                for p in post_data.platforms or []:
+                    url = getattr(p, "platformPostUrl", None)
+                    if url:
+                        published_urls.append(str(url))
+            elif isinstance(post_data, dict):
+                published_urls = post_data.get("urls", [])
+
+            # Extract error message
+            error_message = None
+            if hasattr(post_data, "error"):
+                error_message = post_data.error
+            elif isinstance(post_data, dict):
+                error_message = post_data.get("error")
 
             status_info = {
                 "post_id": post_id,
-                "status": post_data.get("status", "unknown"),
+                "status": status,
                 "scheduled_time": scheduled_time,
                 "published_time": published_time,
                 "scheduled_time_local": scheduled_time_local,
                 "published_time_local": published_time_local,
-                "published_urls": post_data.get("urls", []),
-                "error_message": post_data.get("error"),
+                "published_urls": published_urls,
+                "error_message": error_message,
                 "platform_results": platform_results,
             }
 
             # Log status details
             logger.info(f"Post status: {status_info['status']}")
-            if status_info["published_urls"]:
-                logger.debug(
-                    f"Published URLs: {len(status_info['published_urls'])} URL(s)"
-                )
+            published_urls_list = status_info["published_urls"]
+            if published_urls_list and isinstance(published_urls_list, list):
+                logger.debug(f"Published URLs: {len(published_urls_list)} URL(s)")
             if status_info["error_message"]:
                 logger.warning(f"Post error: {status_info['error_message']}")
             if platform_results:

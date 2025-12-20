@@ -385,6 +385,15 @@ class ScheduleManager:
         logger.info(f"Platforms: {', '.join([p.value for p in platforms])}")
         logger.info(f"Start slot: {start_slot}, Dry run: {dry_run}")
 
+        # Sync existing scheduled posts from API to avoid collisions
+        try:
+            logger.debug("Fetching existing scheduled posts from API...")
+            # TODO: Implement API sync - for now relying on local schedule.json
+            # This should call publisher.list_posts(status='scheduled') and
+            # populate self.entries with any posts not already in schedule.json
+        except Exception as e:
+            logger.warning(f"Failed to sync from API: {e}")
+
         # Initialize counters
         scheduled_count = 0
         skipped_count = 0
@@ -434,20 +443,21 @@ class ScheduleManager:
                     failed_count += 1
                     continue
 
-                # Create ScheduleEntry
-                entry = ScheduleEntry(
+                # Validate scheduling (check slot availability for this product)
+                # Note: We'll create separate posts per platform, but validate once
+                # for all
+                temp_entry = ScheduleEntry(
                     product_id=product_id,
                     scheduled_time=next_time,
-                    platforms=platforms.copy(),
+                    platforms=[platforms[0]],  # Validate with first platform only
                     post_id=None,
                     status="pending",
                     created_at=datetime.now(UTC),
                     slot_index=next_idx,
                 )
 
-                # Validate entry before publishing
                 validator = ScheduleValidator(self.config, self.entries)
-                is_valid, error_message = validator.validate(entry)
+                is_valid, error_message = validator.validate(temp_entry)
                 if not is_valid:
                     logger.warning(
                         f"Validation failed for {product_id}: {error_message}"
@@ -532,34 +542,59 @@ class ScheduleManager:
                                         "content": f"Product video for {product_id}"
                                     }
 
-                        # Publish with per-platform content
-                        result = await publisher.publish(
-                            media_id=media_id,
-                            platforms=platform_dicts,
-                            content="",  # Fallback content
-                            platform_contents=platform_contents,
-                            scheduled_time=next_time,
-                        )
+                        # Publish separately per platform to use platform-specific
+                        # content. Late.dev doesn't support customContent per platform
+                        # in single post. Create separate posts and entries for each
+                        # platform.
+                        for platform_dict in platform_dicts:
+                            p_name = platform_dict["platform"]
+                            p_content_data = platform_contents.get(p_name, {})
+                            p_content = p_content_data.get("content", "")
 
-                        # Update entry with post_id
-                        post_id_value = result.get("post_id")
-                        entry.post_id = (
-                            str(post_id_value) if post_id_value is not None else None
-                        )
-                        entry.status = "scheduled"
+                            result = await publisher.publish(
+                                media_id=media_id,
+                                platforms=[platform_dict],  # Single platform per post
+                                content=p_content,
+                                platform_contents={p_name: p_content_data},
+                                scheduled_time=next_time,
+                            )
 
-                        # Add entry to schedule and save
-                        self.entries.append(entry)
+                            # Create separate entry for this platform
+                            platform_entry = ScheduleEntry(
+                                product_id=product_id,
+                                scheduled_time=next_time,
+                                platforms=[Platform(p_name)],
+                                post_id=str(result.get("post_id"))
+                                if result.get("post_id")
+                                else None,
+                                status="scheduled",
+                                created_at=datetime.now(UTC),
+                                slot_index=next_idx,
+                            )
+
+                            # Add to tracking
+                            self.entries.append(platform_entry)
+                            logger.info(
+                                f"Scheduled {product_id} on {p_name} "
+                                f"(post: {platform_entry.post_id})"
+                            )
+
                         self._save_schedule()
-
-                        logger.info(f"Scheduled {product_id} (post: {entry.post_id})")
                         scheduled_count += 1
 
                     except Exception as e:
                         logger.error(f"Failed to schedule {product_id}: {e}")
-                        entry.status = "failed"
-                        # Still add to schedule to track failures
-                        self.entries.append(entry)
+                        # Create failed entry for tracking
+                        failed_entry = ScheduleEntry(
+                            product_id=product_id,
+                            scheduled_time=next_time,
+                            platforms=platforms.copy(),
+                            post_id=None,
+                            status="failed",
+                            created_at=datetime.now(UTC),
+                            slot_index=next_idx,
+                        )
+                        self.entries.append(failed_entry)
                         self._save_schedule()
                         failed_count += 1
                         continue

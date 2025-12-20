@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **839 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1240 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -163,7 +163,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 46.79%)
+- **Overall minimum**: 40% (currently at 46.12%)
 
 **Generate coverage report:**
 ```bash
@@ -295,13 +295,20 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 832 collected
-- **Passing**: 804 tests
-- **Skipped**: 28 tests
+- **Total Tests**: 1240 collected
+- **Passing**: 1219 tests
+- **Skipped**: 21 tests
 - **Failed**: 0 tests
-- **Coverage**: 43.09% (target: 40% minimum)
+- **Coverage**: 46.12% (target: 40% minimum)
 
-**Recent Updates:**
+**Recent Updates (v0.17.0):**
+- ✅ Added publisher module tests (schedule, cleanup, Late.dev client)
+- ✅ Fixed compliance test false positive (YAML parsing instead of raw content matching)
+- ✅ Fixed schedule tests to match per-platform publishing behavior
+- ✅ All tests passing (1219/1240, 21 skipped)
+- ✅ Coverage improved to 46%
+
+**Previous Updates:**
 - ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
 - ✅ Tests were for internal implementation details that moved during assembler refactoring
 - ✅ Assembler now uses modular package structure (src/video/assembler/)
@@ -309,8 +316,6 @@ poetry run pytest -n auto
   - VideoAssembler initialization test
   - VisualGeometry dataclass tests for letterbox positioning
   - Tests verify assembler refactoring into modular builder classes
-- ✅ All tests passing (804/832, 28 skipped)
-- ✅ Coverage maintained above 43%
 
 **Previous Updates (v0.15.0):**
 - ✅ Added producer batch profile randomization tests (40 new tests)

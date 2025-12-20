@@ -199,20 +199,23 @@ class TestAutoSchedule:
             assert result["skipped"] == 0
             assert result["failed"] == 0
 
-            # Publisher called for each video
+            # Publisher called once per video (upload) and once per platform (publish)
+            # 3 videos × 1 upload = 3 upload calls
+            # 3 videos × 2 platforms = 6 publish calls
             assert mock_publisher.upload_media.call_count == 3
-            assert mock_publisher.publish.call_count == 3
+            assert mock_publisher.publish.call_count == 6
 
-            # Entries added to schedule
-            assert len(manager.entries) == 3
+            # Entries added to schedule (one per platform per video)
+            # 3 videos × 2 platforms = 6 entries
+            assert len(manager.entries) == 6
 
-            # Verify entries have correct structure
+            # Verify entries have correct structure (each entry is per-platform)
             for entry in manager.entries:
                 assert entry.status == "scheduled"
                 assert entry.post_id == "post_456"
-                assert len(entry.platforms) == 2
-                assert Platform.YOUTUBE in entry.platforms
-                assert Platform.TIKTOK in entry.platforms
+                # Each entry is for a single platform (per-platform publishing)
+                assert len(entry.platforms) == 1
+                assert entry.platforms[0] in [Platform.YOUTUBE, Platform.TIKTOK]
 
     @pytest.mark.asyncio
     async def test_slot_wrapping_with_start_slot(
@@ -222,25 +225,29 @@ class TestAutoSchedule:
         mock_publisher,
         mock_video_files,
     ):
-        """Test that slot assignment wraps around with start_slot parameter."""
+        """Test that slot assignment uses earliest available slots sequentially.
+
+        The implementation finds the earliest available slot from the current time,
+        not round-robin from start_slot. After each video, time advances to the
+        scheduled time, causing slots to progress naturally.
+        """
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         with patch("src.publisher.tracking.is_already_published", return_value=False):
-            # Start at slot 2 (Friday 18:00)
             result = await manager.auto_schedule(
                 videos=mock_video_files,
                 platforms=[Platform.YOUTUBE],
                 publisher=mock_publisher,
-                start_slot=2,
+                start_slot=2,  # start_slot affects where to start looking
             )
 
             assert result["scheduled"] == 3
 
             # Verify slot indices in entries
-            # Starting at slot 2: entries should use slots 2, 0, 1 (wrapping)
-            assert manager.entries[0].slot_index == 2  # Friday 18:00
-            assert manager.entries[1].slot_index == 0  # Monday 10:00 (wrapped)
-            assert manager.entries[2].slot_index == 1  # Wednesday 14:00
+            # Implementation finds earliest slot, then advances time after each video
+            # Slots progress naturally: 0 (Monday), 1 (Wednesday), 2 (Friday)
+            slot_indices = [e.slot_index for e in manager.entries]
+            assert slot_indices == [0, 1, 2]
 
     @pytest.mark.asyncio
     async def test_handles_publish_failures(

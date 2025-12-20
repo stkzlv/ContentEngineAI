@@ -492,6 +492,39 @@ def test_req_1_4_env_var_references_used(secret_patterns):
 
     import yaml
 
+    def has_sensitive_keys(
+        data: dict | list | Any, sensitive_fields: list[str]
+    ) -> bool:
+        """Recursively check if data contains sensitive field names as actual keys."""
+        if isinstance(data, dict):
+            for key in data:
+                key_lower = str(key).lower()
+                if any(field in key_lower for field in sensitive_fields):
+                    return True
+                if has_sensitive_keys(data[key], sensitive_fields):
+                    return True
+        elif isinstance(data, list):
+            for item in data:
+                if has_sensitive_keys(item, sensitive_fields):
+                    return True
+        return False
+
+    def has_env_var_pattern(data: dict | list | Any) -> bool:
+        """Recursively check if data contains env_var pattern in keys or values."""
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if "env_var" in str(key).lower():
+                    return True
+                if has_env_var_pattern(value):
+                    return True
+        elif isinstance(data, list):
+            for item in data:
+                if has_env_var_pattern(item):
+                    return True
+        elif isinstance(data, str) and "env_var" in data.lower():
+            return True
+        return False
+
     config_dir = Path("config")
     yaml_files = list(config_dir.glob("*.yaml"))
 
@@ -501,14 +534,18 @@ def test_req_1_4_env_var_references_used(secret_patterns):
 
     for yaml_file in yaml_files:
         with open(yaml_file) as f:
-            content = f.read()
+            try:
+                data = yaml.safe_load(f)
+            except yaml.YAMLError:
+                continue  # Skip unparseable files (tested elsewhere)
 
-        # Check if file contains API key fields
-        if any(
-            field in content.lower() for field in secret_patterns["sensitive_fields"]
-        ):
+        if data is None:
+            continue
+
+        # Check if file contains API key fields as actual YAML keys (not comments)
+        if has_sensitive_keys(data, secret_patterns["sensitive_fields"]):
             # Verify it uses env_var pattern
-            if "env_var" in content:
+            if has_env_var_pattern(data):
                 proper_references.append(yaml_file.name)
             else:
                 # File has sensitive fields but no env_var references

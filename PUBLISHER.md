@@ -49,7 +49,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 
 # 2. Configure credentials in .env
 echo "LATE_API_KEY=sk_live_your_key_here" >> .env
-echo "LATE_VERCEL_TOKEN=your_vercel_token_here" >> .env  # Optional, for large files
+echo "BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files >4MB
 
 # 3. Connect your social media accounts
 # Visit https://late.dev/dashboard/accounts and connect platforms
@@ -113,75 +113,25 @@ The publisher uses a three-tier configuration system with the following preceden
 2. **Environment Variables** (`.env`)
 3. **Configuration File** (`config/publisher.yaml`, lowest priority)
 
-**Default Configuration** (`config/publisher.yaml`):
+**Key Configuration** (`config/publisher.yaml`):
 
 ```yaml
-# Publisher Configuration
-provider: late                    # Currently only "late" is supported
-api_key: ${LATE_API_KEY}         # From environment variable
-vercel_token: ${BLOB_READ_WRITE_TOKEN}
-
-# Publishing Behavior
-immediate_publish: true           # Default to immediate publishing
-default_platforms:                # Default platforms if not specified
-  - youtube
-  - tiktok
-  - instagram
-
-# Retry and Timeout Settings
-max_retries: 3                   # Maximum retry attempts
-timeout: 30.0                    # Request timeout in seconds
-backoff_multiplier: 2.0          # Exponential backoff multiplier
-
-# Batch Publishing Delays
-stagger_delay_min: 30            # Minimum delay between batch uploads (seconds)
-stagger_delay_max: 60            # Maximum delay between batch uploads (seconds)
-
-# Privacy Settings per Platform
-privacy_settings:
-  youtube: public
-  tiktok: public
-  instagram: everyone
-
-# Recurring Schedule (optional)
+provider: late
+immediate_publish: true
+default_platforms: [youtube, tiktok, instagram]
+timeout: 120.0              # TikTok needs longer processing time
 recurring_schedule:
-  enabled: false                 # Enable recurring time slots
-  timezone: "UTC"                # Default timezone for slots
-  slots: []                      # Configure in production
-
-# Schedule Validation
-schedule_validation:
-  min_post_spacing_hours: 2      # Minimum hours between posts
-  prevent_duplicates: true       # Block duplicate scheduling
-  allow_past_schedules: false    # Block scheduling in past
-  max_posts_per_day: 10         # Daily post limit per platform
-
-# Post-Publication Cleanup
+  enabled: true             # Auto-schedule to next available slot
+  timezone: "Europe/Berlin"
 cleanup:
-  enabled: false                 # Enable automatic cleanup
-  verify_before_delete: true     # Verify success before deletion
-  require_all_platforms: true    # Require all platforms published
-  archive_before_delete: false   # Archive before cleanup
-  keep_published_days: 0         # Retention period (0=immediate)
+  enabled: true             # Auto-cleanup after successful publish
 ```
+
+See [Configuration](#-configuration) for full options.
 
 ### 4. Verify Setup
 
-Test your configuration:
-
-```bash
-# List connected accounts (tests authentication)
-poetry run python -m src.publisher.late list-accounts --debug
-
-# Expected output:
-# Authentication successful
-# Found 3 connected account(s):
-# --------------------------------------------------------------------------------
-# Platform: youtube
-# Account ID: UCxxxxx
-# Username: YourChannel
-# --------------------------------------------------------------------------------
-```
+Test your configuration by listing connected accounts (see [CLI Usage](#-cli-usage) for details).
 
 ---
 
@@ -261,7 +211,7 @@ poetry run python -m src.publisher.late single \
 **Metadata Loading:**
 
 The `single` command automatically loads platform-specific metadata from:
-1. `outputs/<PRODUCT_ID>/text/metadata_<platform>.json` (preferred)
+1. `outputs/<PRODUCT_ID>/metadata_<platform>.json` (preferred)
 2. `outputs/<PRODUCT_ID>/UPLOAD_INSTRUCTIONS.txt` (fallback)
 
 If no metadata is found, it uses a basic content template.
@@ -315,7 +265,10 @@ poetry run python -m src.publisher.late batch \
 
 - Scans `outputs` directory for product folders
 - Finds videos matching pattern: `video_*_sequential.mp4` or `video_*_slideshow.mp4`
-- Loads metadata for each product from `text/metadata_<platform>.json`
+- Loads metadata for each product from `metadata_<platform>.json`
+- **Creates separate posts per platform when platform-specific metadata exists**
+  - Example: 10 products × 3 platforms = 30 posts total
+  - Each platform receives optimized content from its metadata file
 - Staggers uploads with random delays (30-60s by default) to avoid rate limits
 - Skips products without videos or metadata (continues processing unless `--fail-fast`)
 - Reports summary statistics at completion
@@ -338,7 +291,8 @@ Total products: 10
 
 ## ⚙️ Configuration
 
-### Configuration Precedence
+<details>
+<summary><strong>Configuration Precedence</strong></summary>
 
 The publisher uses a **three-tier configuration system** with the following precedence:
 
@@ -364,7 +318,10 @@ export LATE_API_KEY=sk_live_new_key
 # If no CLI args or env vars, uses config/publisher.yaml defaults
 ```
 
-### Configuration File Structure
+</details>
+
+<details>
+<summary><strong>Configuration File Structure</strong></summary>
 
 **File**: `config/publisher.yaml`
 
@@ -383,7 +340,7 @@ default_platforms:                  # Platforms to use if none specified
 
 # === Retry & Timeout ===
 max_retries: 3                     # Maximum retry attempts on failure
-timeout: 30.0                      # HTTP request timeout (seconds)
+timeout: 120.0                     # HTTP request timeout (TikTok needs longer)
 backoff_multiplier: 2.0            # Exponential backoff multiplier (2^n)
 
 # === Batch Settings ===
@@ -400,7 +357,10 @@ privacy_settings:
   linkedin: public                 # public, connections
 ```
 
-### Environment Variables
+</details>
+
+<details>
+<summary><strong>Environment Variables</strong></summary>
 
 All configuration values can be overridden via environment variables:
 
@@ -408,15 +368,18 @@ All configuration values can be overridden via environment variables:
 # Required
 export LATE_API_KEY=sk_live_your_key
 
-# Optional
-export LATE_VERCEL_TOKEN=your_vercel_token
+# Optional (for large files >4MB)
+export BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx
 export LATE_TIMEOUT=60.0
 export LATE_MAX_RETRIES=5
 export LATE_STAGGER_MIN=10
 export LATE_STAGGER_MAX=30
 ```
 
-### Platform-Specific Settings
+</details>
+
+<details>
+<summary><strong>Platform-Specific Settings</strong></summary>
 
 **YouTube:**
 - Privacy: `public`, `unlisted`, `private`
@@ -434,6 +397,8 @@ export LATE_STAGGER_MAX=30
 - Caption length: 2200 characters
 - Supports scheduled publishing (Reels)
 
+</details>
+
 ---
 
 ## 📝 Platform Metadata
@@ -442,19 +407,46 @@ export LATE_STAGGER_MAX=30
 
 The publisher automatically loads platform-specific metadata generated by the video producer. This metadata includes AI-optimized titles, descriptions, hashtags, and formatting for each platform.
 
+### Platform-Specific Content Architecture
+
+**Important**: When platform-specific metadata is enabled, the publisher creates **separate posts for each platform** rather than a single multi-platform post. This is necessary because Late.dev's API stores custom content per platform but doesn't apply it during publishing.
+
+**Single vs. Multiple Posts:**
+
+```bash
+# Without platform-specific metadata (default)
+# → 1 post published to all 3 platforms (same content)
+poetry run python -m src.publisher.late single \
+  --video outputs/B0ABC/video.mp4 \
+  --platform youtube --platform tiktok --platform instagram \
+  --immediate
+
+# With platform-specific metadata files present
+# → 3 separate posts (each with platform-optimized content)
+#   - YouTube post: metadata_youtube.json content + title
+#   - TikTok post: metadata_tiktok.json content
+#   - Instagram post: metadata_instagram.json content
+```
+
+**Scheduling Implications:**
+
+When scheduling videos with platform-specific metadata:
+- Each platform receives its own scheduled post
+- All platforms for the same product use the same time slot
+- Schedule tracking creates separate entries per platform
+- Example: 3 products → 9 scheduled posts (3 per product)
+
 ### Metadata File Location
 
-Metadata files are stored in the product's `text` directory:
+Metadata files are stored in the product directory root:
 
 ```
 outputs/
 └── B0BTYCRJSS/
     ├── video_B0BTYCRJSS_sequential.mp4
-    ├── text/
-    │   ├── metadata_youtube.json
-    │   ├── metadata_tiktok.json
-    │   ├── metadata_instagram.json
-    │   └── ...
+    ├── metadata_youtube.json
+    ├── metadata_tiktok.json
+    ├── metadata_instagram.json
     └── UPLOAD_INSTRUCTIONS.txt  # Fallback
 ```
 
@@ -529,9 +521,9 @@ poetry run python -m src.video.producer \
   --debug
 
 # This creates:
-# - outputs/B0BTYCRJSS/text/metadata_youtube.json
-# - outputs/B0BTYCRJSS/text/metadata_tiktok.json
-# - outputs/B0BTYCRJSS/text/metadata_instagram.json
+# - outputs/B0BTYCRJSS/metadata_youtube.json
+# - outputs/B0BTYCRJSS/metadata_tiktok.json
+# - outputs/B0BTYCRJSS/metadata_instagram.json
 # - outputs/B0BTYCRJSS/UPLOAD_INSTRUCTIONS.txt
 ```
 
@@ -539,11 +531,12 @@ poetry run python -m src.video.producer \
 
 ## 🔄 Batch Publishing
 
-### Overview
+<details>
+<summary><strong>Overview & Workflow</strong></summary>
 
 Batch publishing processes multiple videos from the `outputs` directory sequentially with automatic rate limiting.
 
-### How Batch Publishing Works
+**How Batch Publishing Works:**
 
 1. **Discovery**: Scans `outputs` directory for product folders
 2. **Video Detection**: Finds videos matching patterns:
@@ -554,7 +547,7 @@ Batch publishing processes multiple videos from the `outputs` directory sequenti
 5. **Error Handling**: Continues on failure (unless `--fail-fast` specified)
 6. **Summary Report**: Displays statistics after completion
 
-### Stagger Delays
+**Stagger Delays:**
 
 To avoid rate limiting, batch publishing adds random delays between uploads:
 
@@ -566,7 +559,7 @@ stagger_delay_max: 60  # Maximum 60 seconds between uploads
 
 **Calculation**: Random delay between min and max (uniform distribution)
 
-### Fail-Fast Mode
+**Fail-Fast Mode:**
 
 By default, batch publishing continues even if individual uploads fail. Use `--fail-fast` to stop on first failure:
 
@@ -578,7 +571,7 @@ poetry run python -m src.publisher.late batch \
   --fail-fast
 ```
 
-### Batch Performance
+**Batch Performance:**
 
 **Expected timing** (for 10 products):
 - Upload time per video: ~10-30s (depending on file size)
@@ -590,11 +583,14 @@ poetry run python -m src.publisher.late batch \
 - Use `--fail-fast` to catch issues early
 - Filter products before batch publishing
 
+</details>
+
 ---
 
 ## 📅 Publishing Schedule & Calendar
 
-### Calendar View
+<details>
+<summary><strong>Calendar View</strong></summary>
 
 List and manage all scheduled posts with filtering capabilities:
 
@@ -638,7 +634,10 @@ SCHEDULED POSTS
 ...
 ```
 
-### Recurring Schedule Configuration
+</details>
+
+<details>
+<summary><strong>Recurring Schedule Configuration</strong></summary>
 
 Configure recurring publishing times for automated queue-based publishing:
 
@@ -648,22 +647,15 @@ Configure recurring publishing times for automated queue-based publishing:
 # === Recurring Schedule ===
 recurring_schedule:
   enabled: true
-  timezone: "Europe/Berlin"  # Default timezone for all schedules
+  timezone: "Europe/Berlin"  # CET timezone
   slots:
-    # Monday
-    - day: monday
-      time: "09:00:00"
-      platforms: [youtube, tiktok, instagram]
-
-    # Wednesday
-    - day: wednesday
-      time: "14:00:00"
-      platforms: [youtube, instagram]
-
-    # Friday
-    - day: friday
-      time: "18:00:00"
-      platforms: [youtube, tiktok]
+    - day_of_week: monday
+      time: "10:00:00"
+    - day_of_week: tuesday
+      time: "10:00:00"
+    - day_of_week: wednesday
+      time: "10:00:00"
+    # ... daily slots at 10:00 AM CET
 ```
 
 **CLI Usage:**
@@ -691,9 +683,13 @@ poetry run python -m src.publisher.late schedule auto \
 1. Loads recurring schedule from configuration
 2. Scans outputs directory for unpublished videos
 3. Finds next available slot (after current time)
-4. Schedules videos sequentially to slots
-5. Validates minimum spacing between posts (configurable)
-6. Reports scheduled times and slot assignments
+4. **Creates separate posts per platform when metadata files exist**
+   - Reads `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
+   - Each platform gets its own post with platform-specific content
+   - All platforms for same product scheduled to same time slot
+5. Schedules videos sequentially to slots
+6. Validates minimum spacing between posts (configurable)
+7. Reports scheduled times and slot assignments
 
 ### Schedule Validation
 
@@ -716,11 +712,14 @@ schedule_validation:
   max_posts_per_day: 10          # Platform rate limit (per platform)
 ```
 
+</details>
+
 ---
 
 ## 🗑️ Post-Publication Cleanup
 
-### Automatic Cleanup
+<details>
+<summary><strong>Automatic Cleanup</strong></summary>
 
 Automatically remove successfully published product directories from outputs after confirmed publication:
 
@@ -769,7 +768,10 @@ poetry run python -m src.publisher.late batch \
   --debug
 ```
 
-### Manual Cleanup
+</details>
+
+<details>
+<summary><strong>Manual Cleanup</strong></summary>
 
 Clean up specific products or all published products:
 
@@ -837,11 +839,14 @@ Total products evaluated: 10
 ================================================================================
 ```
 
+</details>
+
 ---
 
 ## ⚠️ Error Handling
 
-### Retry Logic
+<details>
+<summary><strong>Retry Logic & Rate Limiting</strong></summary>
 
 The publisher implements automatic retry with exponential backoff for transient errors:
 
@@ -878,7 +883,10 @@ The publisher implements automatic retry with exponential backoff for transient 
 - Monitor rate limit headers in debug logs
 - Upgrade Late.dev tier for higher limits
 
-### Error Messages
+</details>
+
+<details>
+<summary><strong>Common Error Messages</strong></summary>
 
 Common error scenarios and their messages:
 
@@ -906,11 +914,14 @@ WARNING: No metadata found for youtube, using basic content
 ```
 **Solution**: Generate metadata with `--target-platform multi` flag
 
+</details>
+
 ---
 
 ## 🔧 Troubleshooting
 
-### Authentication Issues
+<details>
+<summary><strong>Authentication Issues</strong></summary>
 
 **Problem**: `Authentication failed - check your API key`
 
@@ -937,9 +948,10 @@ WARNING: No metadata found for youtube, using basic content
    export LATE_API_KEY=$(echo $LATE_API_KEY | xargs)
    ```
 
----
+</details>
 
-### Rate Limit Errors
+<details>
+<summary><strong>Rate Limit Errors</strong></summary>
 
 **Problem**: `Rate limit exceeded (429)`
 
@@ -966,9 +978,10 @@ WARNING: No metadata found for youtube, using basic content
    - Pro: 1000 req/hour
    - Visit https://late.dev/pricing
 
----
+</details>
 
-### Upload Failures
+<details>
+<summary><strong>Upload Failures</strong></summary>
 
 **Problem**: `Upload failed: Network timeout`
 
@@ -999,16 +1012,17 @@ WARNING: No metadata found for youtube, using basic content
    - Visit https://late.dev/status
    - Check for ongoing incidents
 
----
+</details>
 
-### Missing Metadata
+<details>
+<summary><strong>Missing Metadata</strong></summary>
 
 **Problem**: `No metadata found for <platform>`
 
 **Solutions:**
 1. Verify metadata files exist:
    ```bash
-   ls -la outputs/B0ABC/text/
+   ls -la outputs/B0ABC/
    # Should contain metadata_youtube.json, metadata_tiktok.json, etc.
    ```
 
@@ -1028,12 +1042,13 @@ WARNING: No metadata found for youtube, using basic content
 
 4. Verify JSON format:
    ```bash
-   python -m json.tool outputs/B0ABC/text/metadata_youtube.json
+   python -m json.tool outputs/B0ABC/metadata_youtube.json
    ```
 
----
+</details>
 
-### Platform Connection Issues
+<details>
+<summary><strong>Platform Connection Issues</strong></summary>
 
 **Problem**: `No connected account for <platform>`
 
@@ -1057,9 +1072,10 @@ WARNING: No metadata found for youtube, using basic content
    - Supported: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
    - Check Late.dev documentation for platform-specific requirements
 
----
+</details>
 
-### Debug Mode
+<details>
+<summary><strong>Debug Mode</strong></summary>
 
 Enable verbose debug logging for troubleshooting:
 
@@ -1083,11 +1099,14 @@ poetry run python -m src.publisher.late single \
 outputs/logs/publisher.log
 ```
 
+</details>
+
 ---
 
 ## 📚 API Reference
 
-### Python API
+<details>
+<summary><strong>Python API Usage</strong></summary>
 
 The publisher can also be used programmatically:
 
@@ -1147,7 +1166,7 @@ async def publish_video():
 asyncio.run(publish_video())
 ```
 
-### BasePublisher Interface
+**BasePublisher Interface:**
 
 ```python
 from abc import ABC, abstractmethod
@@ -1181,6 +1200,8 @@ class BasePublisher(ABC):
     ) -> dict:
         """Publish media to platforms."""
 ```
+
+</details>
 
 ---
 
