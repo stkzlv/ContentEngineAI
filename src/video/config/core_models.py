@@ -91,6 +91,15 @@ class DescriptionSettings(BaseModel):
         True, description="Whether descriptions must include #ad hashtag"
     )
 
+    # Metadata mode: unified (single for all platforms) or optimized (platform-specific)
+    metadata_mode: Literal["unified", "optimized"] = Field(
+        "unified",
+        description=(
+            "Metadata mode: 'unified' (single title/description/hashtags for all "
+            "platforms) or 'optimized' (platform-specific SEO-tailored metadata)"
+        ),
+    )
+
     # Platform-specific metadata generation (optional, new feature)
     target_platform: str = Field(
         "multi",

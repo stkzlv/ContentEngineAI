@@ -10,6 +10,7 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class PublisherProvider(Enum):
@@ -316,6 +317,79 @@ class BasePublisher(ABC):
             - Return None for fields not available from provider
             - Log errors but don't raise exception if status check fails
             - Include error_message field if post failed
+
+        """
+        pass
+
+    @abstractmethod
+    async def list_posts(self, status: str | None = None) -> list[dict[str, Any]]:
+        """Fetch all posts from the provider, optionally filtered by status.
+
+        Args:
+        ----
+            status: Optional status filter ('scheduled', 'published', 'failed')
+                   If None, returns all posts
+
+        Returns:
+        -------
+            List of post dictionaries, each containing:
+                - id: Post ID (string)
+                - status: Post status (string)
+                - scheduledFor: Scheduled time if applicable (datetime or None)
+                - platforms: List of platform dicts with platform name
+
+        Raises:
+        ------
+            AuthenticationError: If not authenticated or credentials expired
+            PublisherError: If post listing fails
+
+        Example:
+        -------
+            >>> posts = await publisher.list_posts(status='scheduled')
+            >>> for post in posts:
+            ...     print(f"{post['id']}: {post['scheduledFor']}")
+            post_123: 2025-12-21 10:00:00+00:00
+            post_456: 2025-12-22 10:00:00+00:00
+
+        Implementation Notes
+        --------------------
+            - Return posts in reverse chronological order (newest first)
+            - Include all relevant post metadata
+            - Filter by status if provided
+            - Handle pagination if provider supports it
+            - Convert all timestamps to UTC datetime objects
+
+        """
+        pass
+
+    @abstractmethod
+    async def delete_post(self, post_id: str) -> bool:
+        """Delete a post from the provider.
+
+        Args:
+        ----
+            post_id: The ID of the post to delete
+
+        Returns:
+        -------
+            True if deletion was successful
+
+        Raises:
+        ------
+            AuthenticationError: If not authenticated or credentials expired
+            PublishError: If deletion fails
+
+        Example:
+        -------
+            >>> success = await publisher.delete_post("post_123")
+            >>> if success:
+            ...     print("Post deleted")
+
+        Implementation Notes
+        --------------------
+            - Return True even if post doesn't exist (idempotent)
+            - Log all delete operations for audit trail
+            - Handle rate limiting with exponential backoff
 
         """
         pass

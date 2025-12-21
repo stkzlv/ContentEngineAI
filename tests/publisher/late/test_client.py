@@ -609,3 +609,57 @@ class TestLatePublisherContextManager:
 
         # Custom session should not be closed
         mock_session.close.assert_not_called()
+
+
+class TestLatePublisherDeletePost:
+    """Test LatePublisher delete_post() functionality."""
+
+    @pytest.mark.asyncio
+    async def test_delete_post_success(self):
+        """Test successful post deletion."""
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        publisher.client = MagicMock()
+        publisher.client.posts.delete = AsyncMock(return_value=None)
+
+        result = await publisher.delete_post("post_123")
+
+        assert result is True
+        publisher.client.posts.delete.assert_called_once_with("post_123")
+
+    @pytest.mark.asyncio
+    async def test_delete_post_not_found_returns_true(self):
+        """Test 404 error returns True (post already deleted)."""
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        publisher.client = MagicMock()
+        publisher.client.posts.delete = AsyncMock(
+            side_effect=Exception("404 Not Found")
+        )
+
+        result = await publisher.delete_post("post_123")
+
+        # 404 should be treated as successful deletion
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_delete_post_auth_error(self):
+        """Test 401 error raises AuthenticationError."""
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        publisher.client = MagicMock()
+        publisher.client.posts.delete = AsyncMock(
+            side_effect=Exception("401 Unauthorized")
+        )
+
+        with pytest.raises(AuthenticationError):
+            await publisher.delete_post("post_123")
+
+    @pytest.mark.asyncio
+    async def test_delete_post_other_error_raises_publish_error(self):
+        """Test other errors raise PublishError."""
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        publisher.client = MagicMock()
+        publisher.client.posts.delete = AsyncMock(
+            side_effect=Exception("500 Internal Server Error")
+        )
+
+        with pytest.raises(PublishError):
+            await publisher.delete_post("post_123")

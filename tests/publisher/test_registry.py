@@ -52,6 +52,12 @@ class TestPublisherRegistry:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher)
 
         assert PublisherProvider.LATE in PublisherRegistry._providers
@@ -86,6 +92,12 @@ class TestPublisherRegistry:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher)
 
@@ -127,6 +139,12 @@ class TestPublisherRegistry:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher)
 
         assert PublisherRegistry.is_provider_supported(PublisherProvider.LATE) is True
@@ -164,6 +182,12 @@ class TestPublisherRegistry:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         class TestPublisher2(BasePublisher):
             @property
             def provider(self):
@@ -190,6 +214,12 @@ class TestPublisherRegistry:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         PublisherRegistry.register(PublisherProvider.LATE, TestPublisher1)
         PublisherRegistry.register(PublisherProvider.BUFFER, TestPublisher2)
@@ -238,6 +268,12 @@ class TestRegisterPublisherDecorator:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         assert PublisherRegistry.is_provider_supported(PublisherProvider.LATE) is True
         assert (
             PublisherRegistry.get_publisher_class(PublisherProvider.LATE)
@@ -275,6 +311,12 @@ class TestRegisterPublisherDecorator:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         # Class should still be usable
         assert TestPublisher is not None
         instance = TestPublisher()
@@ -311,6 +353,12 @@ class TestRegisterPublisherDecorator:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         @register_publisher(PublisherProvider.BUFFER)
         class BufferPublisher(BasePublisher):
             @property
@@ -338,6 +386,12 @@ class TestRegisterPublisherDecorator:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         assert PublisherRegistry.is_provider_supported(PublisherProvider.LATE) is True
         assert PublisherRegistry.is_provider_supported(PublisherProvider.BUFFER) is True
@@ -393,6 +447,12 @@ class TestCreatePublisher:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         publisher = create_publisher(PublisherProvider.LATE, api_key="test_key_123")
 
         assert isinstance(publisher, TestPublisher)
@@ -431,6 +491,12 @@ class TestCreatePublisher:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         publisher = create_publisher("late", api_key="test_key_123")
 
@@ -472,6 +538,12 @@ class TestCreatePublisher:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         publisher = create_publisher(
             PublisherProvider.LATE,
@@ -529,6 +601,12 @@ class TestCreatePublisher:
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         mock_session = MagicMock(spec=aiohttp.ClientSession)
         publisher = create_publisher(
             PublisherProvider.LATE,
@@ -572,6 +650,12 @@ class TestCreatePublisher:
 
             async def get_status(self, post_id):
                 return {"post_id": post_id, "status": "published"}
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         publisher1 = create_publisher(PublisherProvider.LATE, api_key="key_1")
         publisher2 = create_publisher(PublisherProvider.LATE, api_key="key_2")

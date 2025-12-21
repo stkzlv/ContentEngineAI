@@ -240,15 +240,17 @@ class CleanupManager:
                 )
                 platform_statuses[platform.value] = "api_error"
 
-        # Determine if all platforms published successfully
+        # Determine if all platforms published/scheduled successfully
+        # Accept both "published" and "scheduled" as valid statuses for cleanup
+        valid_statuses = {"published", "scheduled"}
         if self.config.require_all_platforms:
             all_published = all(
-                status == "published" for status in platform_statuses.values()
+                status in valid_statuses for status in platform_statuses.values()
             )
         else:
-            # At least one platform published
+            # At least one platform published/scheduled
             all_published = any(
-                status == "published" for status in platform_statuses.values()
+                status in valid_statuses for status in platform_statuses.values()
             )
 
         if all_published:

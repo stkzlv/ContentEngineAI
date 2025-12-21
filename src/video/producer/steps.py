@@ -392,12 +392,12 @@ async def step_generate_description(ctx: PipelineContext):
                 )
             return
 
-        # Check if platform-specific metadata generation is enabled
-        platform_metadata_enabled = (
-            ctx.config.description_settings.platform_metadata is not None
+        # Check if platform-specific metadata generation is enabled (optimized mode)
+        use_optimized_mode = (
+            ctx.config.description_settings.metadata_mode == "optimized"
         )
 
-        if platform_metadata_enabled:
+        if use_optimized_mode:
             # Attempt platform-specific metadata generation
             try:
                 logger.info(

@@ -278,6 +278,12 @@ class TestBasePublisher:
                     "error_message": None,
                 }
 
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
+
         # Should not raise
         publisher = ConcretePublisher()
         assert publisher.provider == PublisherProvider.LATE
@@ -326,6 +332,12 @@ class TestBasePublisher:
                     "published_urls": ["https://youtube.com/watch?v=abc"],
                     "error_message": None,
                 }
+
+            async def list_posts(self, status=None):
+                return []
+
+            async def delete_post(self, post_id):
+                return True
 
         publisher = ConcretePublisher()
 

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Check for library availability
 WHISPER_AVAILABLE = False
 try:
-    import whisper  # type: ignore[import-untyped]
+    import whisper
 
     WHISPER_AVAILABLE = True
     logger.debug("Whisper library loaded successfully.")
@@ -163,7 +163,7 @@ async def generate_subtitles_with_whisper(
         create_whisper_debug = debug_mode
         if debug_mode:
             try:
-                from .video_config import CONFIG  # type: ignore[import-untyped]
+                from .video_config import CONFIG
 
                 create_whisper_debug = (
                     CONFIG.get("video_producer", {})

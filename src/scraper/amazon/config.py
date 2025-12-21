@@ -338,10 +338,8 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         # Import here to avoid circular imports
         try:
             from botasaurus import bt
-            from botasaurus.user_agent import UserAgent  # type: ignore[import-untyped]
-            from botasaurus.window_size import (  # type: ignore[import-untyped]
-                WindowSize,
-            )
+            from botasaurus.user_agent import UserAgent
+            from botasaurus.window_size import WindowSize
 
             # Extract browser-specific settings
             global_settings = CONFIG.get("global_settings", {})

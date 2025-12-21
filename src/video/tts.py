@@ -113,7 +113,7 @@ except (ImportError, AttributeError) as e:
 
 # Try to import Coqui TTS dependencies
 try:
-    from TTS.api import TTS  # type: ignore[import-untyped]
+    from TTS.api import TTS
 
     COQUI_AVAILABLE = True
 except (ImportError, OSError) as e:
@@ -124,7 +124,7 @@ except (ImportError, OSError) as e:
     COQUI_AVAILABLE = False
 
 try:
-    import aiofiles  # type: ignore[import-untyped]
+    import aiofiles
 
     AIOFILES_AVAILABLE = True
 except ImportError:

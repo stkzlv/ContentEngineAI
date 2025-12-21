@@ -254,7 +254,9 @@ class TestVerifyPublication:
         async def mock_status(post_id):
             if post_id == "post123":
                 return {"status": "published"}
-            return {"status": "scheduled"}
+            return {
+                "status": "failed"
+            }  # Use "failed" - "scheduled" is valid for cleanup
 
         mock_publisher.get_status = AsyncMock(side_effect=mock_status)
         manager = CleanupManager(temp_outputs_dir, cleanup_config, mock_publisher)
@@ -265,7 +267,7 @@ class TestVerifyPublication:
 
         assert success is False
         assert statuses["youtube"] == "published"
-        assert statuses["tiktok"] == "scheduled"
+        assert statuses["tiktok"] == "failed"
 
     @pytest.mark.asyncio
     async def test_require_all_platforms_false(self, temp_outputs_dir, mock_publisher):
@@ -473,7 +475,8 @@ class TestCleanup:
     ):
         """Test cleanup blocked when verification fails."""
         create_tracking_file(temp_outputs_dir, "B0TEST001", "youtube", "post123")
-        mock_publisher.get_status = AsyncMock(return_value={"status": "scheduled"})
+        # Use "failed" status - "scheduled" is valid for cleanup
+        mock_publisher.get_status = AsyncMock(return_value={"status": "failed"})
 
         manager = CleanupManager(temp_outputs_dir, cleanup_config, mock_publisher)
 

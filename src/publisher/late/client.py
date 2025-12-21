@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-from late import Late  # type: ignore[import-untyped]
+from late import Late
 
 from src.publisher.base import (
     AuthenticationError,
@@ -502,6 +502,153 @@ class LatePublisher(BasePublisher):
             logger.error(error_msg)
             if "401" in str(e) or "403" in str(e):
                 raise AuthenticationError(f"Authentication expired: {e}") from e
+            raise PublishError(error_msg) from e
+
+    async def list_posts(self, status: str | None = None) -> list[dict[str, Any]]:
+        """Fetch all posts from Late.dev, optionally filtered by status.
+
+        Args:
+        ----
+            status: Optional status filter ('scheduled', 'published', 'failed')
+
+        Returns:
+        -------
+            List of post dictionaries with id, status, scheduledFor, platforms
+
+        Raises:
+        ------
+            AuthenticationError: If not authenticated or credentials expired
+            PublishError: If post fetching fails after retries
+
+        Example:
+        -------
+            >>> posts = await publisher.list_posts(status='scheduled')
+            >>> for post in posts:
+            ...     print(f"{post['id']}: {post['scheduledFor']}")
+
+        """
+        logger.info(f"Fetching posts from Late.dev (status={status or 'all'})")
+
+        try:
+
+            async def _fetch_posts():
+                if asyncio.iscoroutinefunction(self.client.posts.list):
+                    return await self.client.posts.list()
+                else:
+                    return self.client.posts.list()
+
+            raw_posts = await self._retry_with_backoff(_fetch_posts, "Fetch posts")
+
+            # Parse and normalize post data
+            # Late SDK returns PostsListResponse with .posts attribute
+            posts_list = raw_posts.posts if hasattr(raw_posts, "posts") else raw_posts
+
+            posts = []
+            for post in posts_list:
+                # Handle both dict and object responses
+                if isinstance(post, dict):
+                    # Already a dict
+                    post_dict = post
+                else:
+                    # Pydantic model or object
+                    # Late SDK uses field_id instead of id
+                    post_id = None
+                    if hasattr(post, "id"):
+                        post_id = str(post.id)
+                    elif hasattr(post, "field_id"):
+                        post_id = str(post.field_id)
+
+                    post_dict = {
+                        "id": post_id,
+                        "status": (
+                            str(post.status).split(".")[-1].lower()
+                            if hasattr(post, "status")
+                            else None
+                        ),
+                        "scheduledFor": (
+                            post.scheduledFor if hasattr(post, "scheduledFor") else None
+                        ),
+                        "platforms": (
+                            [
+                                {
+                                    "platform": str(p.platform).split(".")[-1].lower(),
+                                    "account_id": (
+                                        str(p.field_id)
+                                        if hasattr(p, "field_id")
+                                        else (
+                                            str(p.accountId)
+                                            if hasattr(p, "accountId")
+                                            else None
+                                        )
+                                    ),
+                                }
+                                for p in post.platforms
+                            ]
+                            if hasattr(post, "platforms")
+                            else []
+                        ),
+                    }
+
+                # Apply status filter if provided
+                post_status = post_dict.get("status")
+                if status is None or post_status == status:
+                    posts.append(post_dict)
+
+            logger.info(f"Found {len(posts)} post(s)")
+            return posts
+
+        except Exception as e:
+            error_msg = f"Failed to fetch posts: {e}"
+            logger.error(error_msg)
+            if "401" in str(e) or "403" in str(e):
+                raise AuthenticationError(f"Authentication expired: {e}") from e
+            raise PublishError(error_msg) from e
+
+    async def delete_post(self, post_id: str) -> bool:
+        """Delete a post from Late.dev.
+
+        Args:
+        ----
+            post_id: The ID of the post to delete
+
+        Returns:
+        -------
+            True if deletion was successful
+
+        Raises:
+        ------
+            AuthenticationError: If not authenticated or credentials expired
+            PublishError: If deletion fails
+
+        Example:
+        -------
+            >>> success = await publisher.delete_post("6947ea211395270412c251ed")
+            >>> if success:
+            ...     print("Post deleted")
+
+        """
+        logger.info(f"Deleting post: {post_id}")
+
+        try:
+
+            async def _delete_post():
+                if asyncio.iscoroutinefunction(self.client.posts.delete):
+                    return await self.client.posts.delete(post_id)
+                else:
+                    return self.client.posts.delete(post_id)
+
+            await self._retry_with_backoff(_delete_post, "Delete post")
+            logger.info(f"Post {post_id} deleted successfully")
+            return True
+
+        except Exception as e:
+            error_msg = f"Failed to delete post {post_id}: {e}"
+            logger.error(error_msg)
+            if "401" in str(e) or "403" in str(e):
+                raise AuthenticationError(f"Authentication expired: {e}") from e
+            if "404" in str(e):
+                logger.warning(f"Post {post_id} not found (may already be deleted)")
+                return True  # Consider it deleted if not found
             raise PublishError(error_msg) from e
 
     async def upload_media(

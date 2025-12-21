@@ -144,18 +144,31 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         session: aiohttp ClientSession
 
     """
-    video_path = Path(args.video)
+    product_id = args.product_id
+    outputs_dir = Path("outputs")
+    product_dir = outputs_dir / product_id
 
-    if not video_path.exists():
-        logger.error(f"Video file not found: {video_path}")
+    if not product_dir.exists():
+        logger.error(f"Product directory not found: {product_dir}")
         sys.exit(1)
+
+    # Auto-discover video file
+    video_files = list(product_dir.glob("video_*.mp4"))
+    if not video_files:
+        logger.error(f"No video files found in {product_dir}")
+        sys.exit(1)
+
+    # Use the first video file (usually the most recent or main one)
+    video_path = video_files[0]
+    logger.info(f"Auto-discovered video: {video_path.name}")
+
+    # Default to all 3 platforms if none specified
+    if not args.platforms:
+        args.platforms = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+        logger.info("Using default platforms: youtube, tiktok, instagram")
 
     logger.info(f"Publishing single video: {video_path.name}")
     logger.info(f"Target platforms: {[p.value for p in args.platforms]}")
-    if args.schedule:
-        logger.info(f"Scheduled time: {args.schedule}")
-    else:
-        logger.info("Publishing immediately")
 
     publisher = create_publisher(
         provider=PublisherProvider(config.provider),
@@ -179,31 +192,76 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.error("No connected accounts found")
             sys.exit(1)
 
+        # Auto-discover next slot if --schedule not provided (and not --immediate)
+        schedule_time = args.schedule
+        if not schedule_time and not args.immediate:
+            logger.info("Auto-discovering next available schedule slot...")
+            schedule_mgr = ScheduleManager(config=config.schedule_config)
+            slots = config.schedule_config.slots
+            if not slots:
+                logger.error("No recurring slots configured for auto-discovery")
+                sys.exit(1)
+
+            # Fetch existing scheduled posts from Late.dev to find latest time
+            base_time = datetime.now(UTC)
+            try:
+                logger.debug("Fetching existing scheduled posts from Late.dev...")
+                api_posts = await publisher.list_posts(status="scheduled")
+                logger.debug(f"Found {len(api_posts)} scheduled posts on Late.dev")
+
+                # Find the latest scheduled time from API posts
+                for api_post in api_posts:
+                    scheduled_for = api_post.get("scheduledFor")
+                    if not scheduled_for:
+                        continue
+                    # Parse datetime
+                    if isinstance(scheduled_for, str):
+                        scheduled_dt = datetime.fromisoformat(
+                            scheduled_for.replace("+00:00", "+00:00")
+                        )
+                    else:
+                        scheduled_dt = scheduled_for
+                    # Ensure timezone-aware
+                    if scheduled_dt.tzinfo is None:
+                        scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
+                    if scheduled_dt > base_time:
+                        base_time = scheduled_dt
+                        logger.debug(f"Latest scheduled post: {base_time}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch existing posts: {e}")
+
+            schedule_time, _ = schedule_mgr.get_next_slot(slots, base_time)
+            logger.info(f"Auto-discovered slot: {schedule_time.isoformat()}")
+
+        if schedule_time:
+            logger.info(f"Scheduled time: {schedule_time}")
+        else:
+            logger.info("Publishing immediately")
+
         # Upload video
         logger.info("Uploading video...")
         media_url = await publisher.upload_media(video_path)
         logger.info(f"Upload complete: {media_url}")
 
-        # Extract product ID from path (outputs/B0ABC123/video_*.mp4)
-        if video_path.parent.parent.name == "outputs":
-            product_id = video_path.parent.name
-        else:
-            product_id = video_path.stem
-
-        # Load metadata for content
+        # Load unified metadata (use YouTube metadata as source, fallback to any)
         from src.publisher.metadata import load_platform_metadata
 
-        # Determine outputs_dir for tracking
-        outputs_dir = (
-            video_path.parent.parent
-            if video_path.parent.parent.name == "outputs"
-            else Path("outputs")
-        )
+        unified_metadata = None
+        for platform in [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]:
+            unified_metadata = load_platform_metadata(product_id, platform, outputs_dir)
+            if unified_metadata:
+                logger.info(f"Loaded unified metadata from {platform.value}")
+                break
 
-        # Publish to each platform
+        if unified_metadata:
+            content = unified_metadata.format_content()
+        else:
+            logger.warning("No metadata found, using basic content")
+            content = f"Check out this product: {product_id}"
+
+        # Build platforms list for single multi-platform post
+        platforms_to_publish = []
         for platform in args.platforms:
-            logger.info(f"Publishing to {platform.value}...")
-
             # Check for duplicates (unless --force)
             if not args.force and is_already_published(
                 product_id, platform.value, outputs_dir
@@ -224,39 +282,38 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 logger.warning(f"No connected account for {platform.value}, skipping")
                 continue
 
-            # Load platform-specific metadata
-            metadata = load_platform_metadata(product_id, platform, outputs_dir)
+            platforms_to_publish.append(
+                {
+                    "platform": platform.value,
+                    "account_id": platform_account["account_id"],
+                }
+            )
 
-            if metadata:
-                content = metadata.format_content()
-            else:
-                logger.warning(
-                    f"No metadata found for {platform.value}, using basic content"
+        if not platforms_to_publish:
+            logger.warning("No platforms to publish to after filtering")
+            return
+
+        # Publish single post to all platforms
+        logger.info(
+            f"Publishing to {len(platforms_to_publish)} platform(s) in single post..."
+        )
+        result = await publisher.publish(
+            media_id=media_url,
+            platforms=platforms_to_publish,
+            content=content,
+            scheduled_time=schedule_time,
+        )
+
+        logger.info(
+            f"Published: post_id={result['post_id']}, status={result['status']}"
+        )
+
+        # Record successful publish for each platform
+        for platform in args.platforms:
+            if any(p["platform"] == platform.value for p in platforms_to_publish):
+                record_publish(
+                    product_id, platform.value, str(result["post_id"]), outputs_dir
                 )
-                content = f"Check out this product: {product_id}"
-
-            # Publish
-            result = await publisher.publish(
-                media_id=media_url,
-                platforms=[
-                    {
-                        "platform": platform.value,
-                        "account_id": platform_account["account_id"],
-                    }
-                ],
-                content=content,
-                scheduled_time=args.schedule,
-            )
-
-            logger.info(
-                f"Published to {platform.value}: "
-                f"post_id={result['post_id']}, status={result['status']}"
-            )
-
-            # Record successful publish to prevent duplicates
-            record_publish(
-                product_id, platform.value, str(result["post_id"]), outputs_dir
-            )
 
         logger.info("Single video publishing complete")
 
@@ -560,12 +617,17 @@ async def cmd_schedule_auto(
         logger.info("Auto-scheduling videos to calendar slots...")
         logger.info("-" * 80)
 
+        # Determine cleanup config
+        cleanup_config = None if args.no_cleanup else config.cleanup_config
+
         summary = await schedule_mgr.auto_schedule(
             videos=unpublished_videos,
             platforms=args.platforms,
             publisher=publisher,
             start_slot=0,  # Start from first slot
             dry_run=args.dry_run,
+            cleanup_config=cleanup_config,
+            outputs_dir=args.outputs_dir,
         )
 
         # Display summary
@@ -728,6 +790,38 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         sys.exit(1)
 
 
+async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSession):
+    """Delete a post from Late.dev."""
+    publisher = create_publisher(
+        provider=PublisherProvider(config.provider),
+        api_key=config.api_key,
+        session=session,
+        vercel_token=config.vercel_token,
+        timeout=config.timeout,
+        max_retries=config.max_retries,
+    )
+
+    try:
+        # Authenticate
+        is_authenticated = await publisher.authenticate()
+        if not is_authenticated:
+            logger.error("Authentication failed - check your API key")
+            sys.exit(1)
+
+        logger.info(f"Deleting post: {args.post_id}")
+        success = await publisher.delete_post(args.post_id)
+
+        if success:
+            logger.info(f"Successfully deleted post: {args.post_id}")
+        else:
+            logger.error(f"Failed to delete post: {args.post_id}")
+            sys.exit(1)
+
+    except Exception as e:
+        logger.error(f"Delete failed: {e}", exc_info=args.debug)
+        sys.exit(1)
+
+
 async def main():
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
@@ -769,21 +863,19 @@ Examples:
     # single command
     single_parser = subparsers.add_parser(
         "single",
-        help="Publish a single video",
+        help="Publish a single video by product ID (auto-discovers video and schedule)",
     )
     single_parser.add_argument(
-        "--video",
-        type=Path,
-        required=True,
-        help="Path to video file to publish",
+        "product_id",
+        type=str,
+        help="Product ID (e.g., B00TF9E6XE) - video is auto-discovered from outputs/",
     )
     single_parser.add_argument(
         "--platform",
         action="append",
         dest="platforms",
         choices=["youtube", "tiktok", "instagram", "facebook", "twitter", "linkedin"],
-        required=True,
-        help="Target platform(s) - can be specified multiple times",
+        help="Target platform(s) - defaults to all 3 if not specified",
     )
     single_parser.add_argument(
         "--schedule",
@@ -872,6 +964,11 @@ Examples:
         "--dry-run",
         action="store_true",
         help="Preview scheduling without making changes",
+    )
+    schedule_parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Disable automatic cleanup after successful scheduling",
     )
     schedule_parser.add_argument(
         "--debug",
@@ -963,6 +1060,21 @@ Examples:
         help="Enable debug logging",
     )
 
+    # delete command
+    delete_parser = subparsers.add_parser(
+        "delete",
+        help="Delete a post from Late.dev",
+    )
+    delete_parser.add_argument(
+        "post_id",
+        help="The ID of the post to delete",
+    )
+    delete_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -987,19 +1099,16 @@ Examples:
                 args.schedule = parse_datetime(args.schedule)
             except ValueError as e:
                 parser.error(str(e))
-        elif not args.immediate:
-            # Require explicit --schedule or --immediate
-            parser.error(
-                "Must specify --schedule DATETIME or --immediate. "
-                "Use --schedule to prevent accidental immediate posts."
-            )
+        # Note: If neither --schedule nor --immediate, auto-discover next slot
+
+        # Convert platform strings to Platform enums (if provided)
+        if args.platforms:
+            args.platforms = [Platform[p.upper()] for p in args.platforms]
+        # Else: cmd_single will default to all 3 platforms
 
         # Initialize force if not set
         if not hasattr(args, "force"):
             args.force = False
-
-        # Convert platform strings to Platform enums (use [] for name lookup)
-        args.platforms = [Platform[p.upper()] for p in args.platforms]
 
     elif args.command == "batch":
         if not args.immediate:
@@ -1063,6 +1172,8 @@ Examples:
             await cmd_schedule_auto(args, config, session)
         elif args.command == "cleanup":
             await cmd_cleanup(args, config, session)
+        elif args.command == "delete":
+            await cmd_delete(args, config, session)
 
 
 if __name__ == "__main__":

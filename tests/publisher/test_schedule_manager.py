@@ -664,3 +664,235 @@ class TestAutoSchedule:
         slot_index = manager.entries[0].slot_index
         assert slot_index is not None
         assert 0 <= slot_index <= 2
+
+
+# Test remove_entries, find_duplicates, remove_duplicates
+class TestRemoveEntriesAndDuplicates:
+    """Tests for remove_entries, find_duplicates, and remove_duplicates methods."""
+
+    def test_remove_entries_all_for_product(self, tmp_schedule_path, sample_entries):
+        """Test removing all entries for a product."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = sample_entries.copy()
+        manager._save_schedule()
+
+        removed = manager.remove_entries("B0ABC123")
+
+        assert removed == 1
+        assert len(manager.entries) == 2
+        assert all(e.product_id != "B0ABC123" for e in manager.entries)
+
+    def test_remove_entries_by_platform(self, tmp_schedule_path):
+        """Test removing entries for a specific platform only."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = [
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 21, 10, 0, tzinfo=UTC),
+                platforms=[Platform.TIKTOK],
+            ),
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 22, 10, 0, tzinfo=UTC),
+                platforms=[Platform.INSTAGRAM],
+            ),
+        ]
+        manager._save_schedule()
+
+        removed = manager.remove_entries("B0TEST", platform=Platform.YOUTUBE)
+
+        assert removed == 1
+        assert len(manager.entries) == 2
+        assert all(Platform.YOUTUBE not in e.platforms for e in manager.entries)
+
+    def test_remove_entries_platform_string(self, tmp_schedule_path):
+        """Test removing entries with platform as string."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = [
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+        ]
+        manager._save_schedule()
+
+        removed = manager.remove_entries("B0TEST", platform="youtube")
+
+        assert removed == 1
+        assert len(manager.entries) == 0
+
+    def test_remove_entries_invalid_platform(self, tmp_schedule_path, sample_entries):
+        """Test removing entries with invalid platform returns 0."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = sample_entries.copy()
+
+        removed = manager.remove_entries("B0ABC123", platform="invalid_platform")
+
+        assert removed == 0
+        assert len(manager.entries) == 3  # No entries removed
+
+    def test_remove_entries_no_match(self, tmp_schedule_path, sample_entries):
+        """Test removing entries with no matching product returns 0."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = sample_entries.copy()
+
+        removed = manager.remove_entries("NONEXISTENT")
+
+        assert removed == 0
+        assert len(manager.entries) == 3
+
+    def test_find_duplicates_none(self, tmp_schedule_path, sample_entries):
+        """Test find_duplicates returns empty list when no duplicates."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = sample_entries.copy()
+
+        duplicates = manager.find_duplicates()
+
+        assert duplicates == []
+
+    def test_find_duplicates_exact_match(self, tmp_schedule_path):
+        """Test find_duplicates finds exact duplicates."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        entry1 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+        )
+        entry2 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+        )
+        manager.entries = [entry1, entry2]
+
+        duplicates = manager.find_duplicates()
+
+        assert len(duplicates) == 1
+        assert duplicates[0] == (entry1, entry2)
+
+    def test_find_duplicates_overlapping_platforms(self, tmp_schedule_path):
+        """Test find_duplicates detects overlapping platforms."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        entry1 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+        )
+        entry2 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.TIKTOK, Platform.INSTAGRAM],
+        )
+        manager.entries = [entry1, entry2]
+
+        duplicates = manager.find_duplicates()
+
+        # Overlapping on TIKTOK
+        assert len(duplicates) == 1
+
+    def test_find_duplicates_different_times_not_duplicate(self, tmp_schedule_path):
+        """Test same product/platform at different times is not duplicate."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = [
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 21, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+        ]
+
+        duplicates = manager.find_duplicates()
+
+        assert duplicates == []
+
+    def test_remove_duplicates_keep_first(self, tmp_schedule_path):
+        """Test remove_duplicates keeps first entry."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        entry1 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+            post_id="first_post",
+        )
+        entry2 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+            post_id="second_post",
+        )
+        manager.entries = [entry1, entry2]
+        manager._save_schedule()
+
+        removed = manager.remove_duplicates(keep="first")
+
+        assert removed == 1
+        assert len(manager.entries) == 1
+        assert manager.entries[0].post_id == "first_post"
+
+    def test_remove_duplicates_keep_last(self, tmp_schedule_path):
+        """Test remove_duplicates keeps last entry."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        entry1 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+            post_id="first_post",
+        )
+        entry2 = ScheduleEntry(
+            product_id="B0TEST",
+            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            platforms=[Platform.YOUTUBE],
+            post_id="second_post",
+        )
+        manager.entries = [entry1, entry2]
+        manager._save_schedule()
+
+        removed = manager.remove_duplicates(keep="last")
+
+        assert removed == 1
+        assert len(manager.entries) == 1
+        assert manager.entries[0].post_id == "second_post"
+
+    def test_remove_duplicates_no_duplicates(self, tmp_schedule_path, sample_entries):
+        """Test remove_duplicates returns 0 when no duplicates."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = sample_entries.copy()
+
+        removed = manager.remove_duplicates()
+
+        assert removed == 0
+        assert len(manager.entries) == 3
+
+    def test_remove_duplicates_persists_to_disk(self, tmp_schedule_path):
+        """Test remove_duplicates saves changes to disk."""
+        manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        manager.entries = [
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+            ScheduleEntry(
+                product_id="B0TEST",
+                scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+                platforms=[Platform.YOUTUBE],
+            ),
+        ]
+        manager._save_schedule()
+
+        manager.remove_duplicates()
+
+        # Reload and verify
+        manager2 = ScheduleManager(schedule_path=tmp_schedule_path)
+        assert len(manager2.entries) == 1

@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from botasaurus.browser import Driver  # type: ignore[import-untyped]
+from botasaurus.browser import Driver
 
 
 def exponential_backoff_retry(

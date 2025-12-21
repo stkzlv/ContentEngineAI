@@ -11,7 +11,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.publisher.models import Platform, RecurringSlot, ScheduleConfig, ScheduleEntry
+from src.publisher.models import (
+    CleanupConfig,
+    Platform,
+    RecurringSlot,
+    ScheduleConfig,
+    ScheduleEntry,
+)
 from src.publisher.schedule_validator import ScheduleValidator
 
 if TYPE_CHECKING:
@@ -328,6 +334,8 @@ class ScheduleManager:
         publisher: "BasePublisher",
         start_slot: int = 0,
         dry_run: bool = False,
+        cleanup_config: CleanupConfig | None = None,
+        outputs_dir: Path | None = None,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -341,10 +349,14 @@ class ScheduleManager:
             publisher: Publisher instance for calling publish()
             start_slot: Starting slot index (default: 0)
             dry_run: Preview without publishing (default: False)
+            cleanup_config: Cleanup configuration (default: CleanupConfig() with
+                enabled=True). Runs cleanup after successful scheduling.
+            outputs_dir: Base outputs directory for cleanup (required if cleanup
+                is enabled)
 
         Returns:
         -------
-            Summary dictionary with keys: scheduled, skipped, failed
+            Summary dictionary with keys: scheduled, skipped, failed, cleaned
 
         Raises:
         ------
@@ -385,27 +397,79 @@ class ScheduleManager:
         logger.info(f"Platforms: {', '.join([p.value for p in platforms])}")
         logger.info(f"Start slot: {start_slot}, Dry run: {dry_run}")
 
-        # Sync existing scheduled posts from API to avoid collisions
+        # Import tracking utilities and models
+        from src.publisher.models import Platform
+        from src.publisher.tracking import is_already_published
+
+        # Initialize reference time for calculating next slot
+        current_time = datetime.now(UTC)
+
+        # Find latest scheduled time from API to avoid scheduling conflicts
+        # NOTE: We do NOT create local entries from API posts because the API
+        # doesn't return the original product_id (Amazon ASIN). Creating entries
+        # with placeholder product_ids (e.g., API_abc123) causes confusion and
+        # breaks duplicate detection.
         try:
             logger.debug("Fetching existing scheduled posts from API...")
-            # TODO: Implement API sync - for now relying on local schedule.json
-            # This should call publisher.list_posts(status='scheduled') and
-            # populate self.entries with any posts not already in schedule.json
+            api_posts = await publisher.list_posts(status="scheduled")
+            logger.debug(f"Found {len(api_posts)} scheduled posts on API")
+
+            # Find the latest scheduled time from API posts
+            api_latest_time: datetime | None = None
+            for api_post in api_posts:
+                scheduled_time = api_post.get("scheduledFor")
+                if not scheduled_time:
+                    continue
+
+                # Parse scheduled time (handle both datetime and string)
+                if isinstance(scheduled_time, str):
+                    # Parse ISO format datetime string
+                    time_str = scheduled_time.replace("+00:00", "")
+                    scheduled_dt = datetime.fromisoformat(time_str)
+                else:
+                    scheduled_dt = scheduled_time
+
+                # Ensure timezone-aware
+                if scheduled_dt.tzinfo is None:
+                    scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
+
+                if api_latest_time is None or scheduled_dt > api_latest_time:
+                    api_latest_time = scheduled_dt
+
+            # Use the latest time from both API and local entries
+            if api_latest_time:
+                logger.info(f"Latest API scheduled post: {api_latest_time}")
+            if self.entries:
+                local_latest = max(e.scheduled_time for e in self.entries)
+                logger.info(f"Latest local scheduled post: {local_latest}")
+                if api_latest_time and api_latest_time > local_latest:
+                    current_time = api_latest_time
+                else:
+                    current_time = local_latest
+            elif api_latest_time:
+                current_time = api_latest_time
+
         except Exception as e:
-            logger.warning(f"Failed to sync from API: {e}")
+            logger.warning(f"Failed to check API schedule: {e}")
 
         # Initialize counters
         scheduled_count = 0
         skipped_count = 0
         failed_count = 0
+        cleaned_count = 0
+
+        # Initialize cleanup manager if cleanup enabled
+        cleanup_manager = None
+        if cleanup_config is None:
+            cleanup_config = CleanupConfig()  # Default: enabled=True
+        if cleanup_config.enabled and outputs_dir:
+            from src.publisher.cleanup import CleanupManager
+
+            cleanup_manager = CleanupManager(outputs_dir, cleanup_config, publisher)
+            logger.info("Cleanup enabled - will cleanup after successful scheduling")
 
         # Current slot index (wraps around)
         current_slot = start_slot
-        # Reference time for calculating next slot
-        current_time = datetime.now(UTC)
-
-        # Import tracking utilities
-        from src.publisher.tracking import is_already_published
 
         for video in videos:
             try:
@@ -582,6 +646,28 @@ class ScheduleManager:
                         self._save_schedule()
                         scheduled_count += 1
 
+                        # Cleanup product directory if enabled
+                        if cleanup_manager and not dry_run:
+                            try:
+                                cleanup_result = await cleanup_manager.cleanup(
+                                    product_id, platforms, dry_run=False
+                                )
+                                if cleanup_result.get("success"):
+                                    cleaned_count += 1
+                                    logger.info(
+                                        f"Cleaned up {product_id}: "
+                                        f"{cleanup_result.get('message', 'success')}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"Cleanup skipped for {product_id}: "
+                                        f"{cleanup_result.get('message', 'unknown')}"
+                                    )
+                            except Exception as cleanup_error:
+                                logger.warning(
+                                    f"Cleanup failed for {product_id}: {cleanup_error}"
+                                )
+
                     except Exception as e:
                         logger.error(f"Failed to schedule {product_id}: {e}")
                         # Create failed entry for tracking
@@ -614,13 +700,15 @@ class ScheduleManager:
             f"Auto-schedule complete: "
             f"scheduled={scheduled_count}, "
             f"skipped={skipped_count}, "
-            f"failed={failed_count}"
+            f"failed={failed_count}, "
+            f"cleaned={cleaned_count}"
         )
 
         return {
             "scheduled": scheduled_count,
             "skipped": skipped_count,
             "failed": failed_count,
+            "cleaned": cleaned_count,
         }
 
     def add_entry(self, entry: ScheduleEntry) -> None:
@@ -682,3 +770,137 @@ class ScheduleManager:
             self.entries.pop()
             logger.error(f"Failed to save schedule after adding entry: {e}")
             raise OSError(f"Failed to save schedule: {e}") from e
+
+    def remove_entries(
+        self,
+        product_id: str,
+        platform: Platform | str | None = None,
+    ) -> int:
+        """Remove schedule entries for a product.
+
+        Removes all entries matching the product_id, optionally filtered by platform.
+        Saves changes atomically after removal.
+
+        Args:
+        ----
+            product_id: Product ID to match
+            platform: Optional platform filter (removes only entries for this platform)
+
+        Returns:
+        -------
+            Number of entries removed
+
+        Example:
+        -------
+            >>> # Remove all entries for a product
+            >>> count = manager.remove_entries("B0TEST001")
+            >>> # Remove only YouTube entries
+            >>> count = manager.remove_entries("B0TEST001", platform="youtube")
+
+        """
+        # Convert string to Platform enum
+        if platform is not None and isinstance(platform, str):
+            try:
+                platform = Platform(platform.lower())
+            except ValueError:
+                logger.warning(f"Invalid platform '{platform}'")
+                return 0
+
+        original_count = len(self.entries)
+
+        # Filter out matching entries
+        if platform is not None:
+            self.entries = [
+                e
+                for e in self.entries
+                if not (e.product_id == product_id and platform in e.platforms)
+            ]
+        else:
+            self.entries = [e for e in self.entries if e.product_id != product_id]
+
+        removed_count = original_count - len(self.entries)
+
+        if removed_count > 0:
+            self._save_schedule()
+            logger.info(
+                f"Removed {removed_count} entries for {product_id}"
+                + (f" on {platform.value}" if platform else "")
+            )
+
+        return removed_count
+
+    def find_duplicates(self) -> list[tuple[ScheduleEntry, ScheduleEntry]]:
+        """Find duplicate entries in the schedule.
+
+        A duplicate is defined as two entries with:
+        - Same product_id
+        - Overlapping platforms
+        - Same scheduled_time
+
+        Returns
+        -------
+            List of tuples containing duplicate entry pairs
+
+        """
+        duplicates: list[tuple[ScheduleEntry, ScheduleEntry]] = []
+
+        for i, entry in enumerate(self.entries):
+            for other in self.entries[i + 1 :]:
+                # Check product_id match
+                if entry.product_id != other.product_id:
+                    continue
+
+                # Check scheduled_time match
+                if entry.scheduled_time != other.scheduled_time:
+                    continue
+
+                # Check for overlapping platforms
+                if set(entry.platforms) & set(other.platforms):
+                    duplicates.append((entry, other))
+
+        return duplicates
+
+    def remove_duplicates(self, keep: str = "first") -> int:
+        """Remove duplicate entries from the schedule.
+
+        Args:
+        ----
+            keep: Which duplicate to keep - "first" or "last"
+
+        Returns:
+        -------
+            Number of duplicate entries removed
+
+        """
+        duplicates = self.find_duplicates()
+
+        if not duplicates:
+            logger.info("No duplicates found")
+            return 0
+
+        # Collect entries to remove
+        to_remove: set[int] = set()
+        for entry, other in duplicates:
+            # Find indices
+            try:
+                entry_idx = self.entries.index(entry)
+                other_idx = self.entries.index(other)
+            except ValueError:
+                continue
+
+            # Mark for removal based on keep strategy
+            if keep == "first":
+                to_remove.add(other_idx)
+            else:
+                to_remove.add(entry_idx)
+
+        # Remove entries (in reverse order to preserve indices)
+        for idx in sorted(to_remove, reverse=True):
+            removed = self.entries.pop(idx)
+            logger.debug(f"Removed duplicate: {removed.product_id}")
+
+        if to_remove:
+            self._save_schedule()
+            logger.info(f"Removed {len(to_remove)} duplicate entries")
+
+        return len(to_remove)

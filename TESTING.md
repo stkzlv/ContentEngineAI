@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1240 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1334 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -295,20 +295,27 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1240 collected
-- **Passing**: 1219 tests
-- **Skipped**: 21 tests
+- **Total Tests**: 1334 collected
+- **Passing**: 1269 tests
+- **Skipped**: 65 tests
 - **Failed**: 0 tests
-- **Coverage**: 46.12% (target: 40% minimum)
+- **Coverage**: 45.57% (target: 40% minimum)
 
-**Recent Updates (v0.17.0):**
+**Recent Updates (v0.18.0):**
+- ✅ Added delete_post functionality to publisher base class and Late.dev client
+- ✅ Added 4 new tests for delete_post in TestLatePublisherDeletePost class
+- ✅ Fixed 10 failing publisher tests (added delete_post to test mock classes)
+- ✅ Fixed outdated test assertions in test_upload_instructions_file_generation
+- ✅ Updated test_cleanup.py tests to use "failed" status (implementation accepts "scheduled" as valid)
+- ✅ All tests passing (1269/1334, 65 skipped)
+
+**Previous Updates (v0.17.0):**
 - ✅ Added publisher module tests (schedule, cleanup, Late.dev client)
 - ✅ Fixed compliance test false positive (YAML parsing instead of raw content matching)
 - ✅ Fixed schedule tests to match per-platform publishing behavior
-- ✅ All tests passing (1219/1240, 21 skipped)
 - ✅ Coverage improved to 46%
 
-**Previous Updates:**
+**Previous Updates (assembler refactoring):**
 - ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
 - ✅ Tests were for internal implementation details that moved during assembler refactoring
 - ✅ Assembler now uses modular package structure (src/video/assembler/)
