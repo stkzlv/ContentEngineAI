@@ -198,6 +198,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "target_platform") and args.target_platform is not None:
         overrides["description_settings.target_platform"] = args.target_platform
 
+    # Metadata mode
+    if hasattr(args, "metadata_mode") and args.metadata_mode is not None:
+        overrides["description_settings.metadata_mode"] = args.metadata_mode
+
     return overrides
 
 
@@ -446,6 +450,17 @@ async def main():
             "Choices: youtube (YouTube Shorts), tiktok (TikTok), "
             "instagram (Instagram Reels), multi (generate for all platforms). "
             "Example: --target-platform youtube"
+        ),
+    )
+
+    # Metadata mode argument
+    parser.add_argument(
+        "--metadata-mode",
+        choices=["unified", "optimized"],
+        help=(
+            "Metadata generation mode. "
+            "unified: Single title/description/hashtags for all platforms (default). "
+            "optimized: Platform-specific SEO-tailored metadata."
         ),
     )
 

@@ -81,6 +81,20 @@ Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
 src/
 ├── video/                      # Central orchestration & video processing
 │   ├── producer.py            # Main pipeline orchestrator
+│   ├── producer/              # Producer submodule (v0.17.0+)
+│   │   ├── cli.py             # CLI argument parsing
+│   │   ├── context.py         # Pipeline context management
+│   │   ├── orchestration.py   # Step orchestration logic
+│   │   ├── state.py           # Pipeline state tracking
+│   │   ├── steps.py           # Individual pipeline steps
+│   │   └── utils.py           # Producer utilities
+│   ├── config/                # Pydantic configuration models (v0.14.0+)
+│   │   ├── core_models.py     # Core video settings
+│   │   ├── audio_models.py    # Audio/TTS configuration
+│   │   ├── visual_models.py   # Visual effects settings
+│   │   ├── subtitle_models.py # Subtitle configuration
+│   │   ├── llm_settings.py    # LLM provider settings
+│   │   └── constants.py       # Configuration constants
 │   ├── assembler/             # FFmpeg-based video assembly (modular)
 │   │   ├── core.py            # VideoAssembler orchestrator
 │   │   ├── visual_builder.py  # Visual filter chains
@@ -94,12 +108,20 @@ src/
 │   ├── subtitle_utils.py      # Subtitle generation utilities and coordination
 │   ├── tts.py                 # Text-to-speech with provider fallbacks
 │   ├── stock_media.py         # Stock media fetching (Pexels)
-│   ├── video_config.py        # Pydantic configuration models
+│   ├── video_config.py        # Configuration loader and validation
 │   └── pipeline_graph.py      # Dependency-aware execution framework
 │
 ├── ai/                        # AI & LLM integration
 │   ├── script_generator.py    # Script generation via OpenRouter
 │   ├── description_generator.py # Social media description generation
+│   ├── platform_metadata/     # Platform-specific metadata (v0.17.0+)
+│   │   ├── base.py            # Base metadata generator interface
+│   │   ├── youtube.py         # YouTube metadata generation
+│   │   ├── tiktok.py          # TikTok caption generation
+│   │   ├── instagram.py       # Instagram caption generation
+│   │   ├── models.py          # Metadata data models
+│   │   ├── utilities.py       # Shared utilities
+│   │   └── text_formatter.py  # Platform text formatting
 │   └── prompts/              # LLM prompt templates
 │
 ├── scraper/                   # Multi-platform data collection architecture
@@ -125,19 +147,38 @@ src/
 ├── audio/                     # Audio processing components
 │   └── freesound_client.py   # Music download from Freesound
 │
-└── utils/                     # Performance optimization & utilities
-    ├── performance.py         # Metrics collection & monitoring
-    ├── async_io.py           # Async subprocess management
-    ├── connection_pool.py    # HTTP connection pooling
-    ├── memory_mapped_io.py   # Memory-mapped file operations
-    ├── caching.py            # Multi-level caching system
-    ├── background_processing.py # Background task management
-    ├── script_sanitizer.py   # Text processing utilities
-    └── url_shortener/        # URL shortening abstraction layer
-        ├── base.py           # Base interfaces and models
-        ├── picsee.py         # PicSee API implementation
-        ├── registry.py       # Provider registry and factory
-        └── __init__.py       # Public API exports
+├── utils/                     # Performance optimization & utilities
+│   ├── performance.py         # Metrics collection & monitoring
+│   ├── async_io.py           # Async subprocess management
+│   ├── connection_pool.py    # HTTP connection pooling
+│   ├── memory_mapped_io.py   # Memory-mapped file operations
+│   ├── caching.py            # Multi-level caching system
+│   ├── background_processing.py # Background task management
+│   ├── script_sanitizer.py   # Text processing utilities
+│   └── url_shortener/        # URL shortening abstraction layer
+│       ├── base.py           # Base interfaces and models
+│       ├── picsee.py         # PicSee API implementation
+│       ├── registry.py       # Provider registry and factory
+│       └── __init__.py       # Public API exports
+│
+├── publisher/                 # Social media publishing (v0.18.0+)
+│   ├── base.py               # Base publisher interface
+│   ├── batch.py              # Batch publishing orchestration
+│   ├── cleanup.py            # Post-publish cleanup utilities
+│   ├── config.py             # Publisher configuration
+│   ├── metadata.py           # Metadata resolution logic
+│   ├── models.py             # Publisher data models
+│   ├── registry.py           # Platform registry and factory
+│   ├── schedule.py           # Scheduling utilities
+│   ├── schedule_validator.py # Schedule validation
+│   ├── tracking.py           # Publish status tracking
+│   └── late/                 # Late.dev integration
+│       ├── client.py         # Late API client
+│       └── publisher.py      # Late publisher implementation
+│
+└── pipeline/                  # Batch processing orchestration
+    ├── config.py             # Pipeline configuration
+    └── global_batch.py       # Unified scrape + produce pipeline
 ```
 
 </details>
@@ -778,20 +819,23 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 <summary><strong>System Overview</strong></summary>
 
 **Design Principles:**
-- **Modular YAML Files**: 6 specialized files (1,429 lines total)
+- **Modular YAML Files**: 9 specialized files
 - **Triple Precedence**: CLI overrides > Environment variables > YAML defaults
 - **Zero Breaking Changes**: Existing function signatures preserved through adapters
 - **Production Ready**: Environment variable support for all settings
 
 **Configuration Files:**
-| File | Purpose | Lines | Key Sections |
-|------|---------|-------|--------------|
-| `config/core.yaml` | Global settings | 84 | Output paths, debug, timeouts |
-| `config/video_production.yaml` | Video pipeline | 354 | Resolution, effects, profiles |
-| `config/ai_services.yaml` | AI providers | 146 | TTS, LLM, description generation |
-| `config/subtitles.yaml` | Subtitle system | 182 | Positioning, styles, effects |
-| `config/performance.yaml` | Resource limits | 204 | Memory, concurrency, optimization |
-| `config/scraper.yaml` | Web scraping | 459 | Browser, timing, validation, async downloads |
+| File | Purpose | Key Sections |
+|------|---------|--------------|
+| `config/core.yaml` | Global settings | Output paths, debug, timeouts |
+| `config/video_production.yaml` | Video pipeline | Resolution, effects, profiles |
+| `config/ai_services.yaml` | AI providers | TTS, LLM, description generation |
+| `config/subtitles.yaml` | Subtitle system | Positioning, styles, effects |
+| `config/performance.yaml` | Resource limits | Memory, concurrency, optimization |
+| `config/scraper.yaml` | Web scraping | Browser, timing, validation, async downloads |
+| `config/pipeline.yaml` | Batch processing | Global batch settings, fail-fast mode |
+| `config/publisher.yaml` | Social publishing | Late.dev integration, platform settings |
+| `config/url_shortener.yaml` | URL shortening | Provider settings, affiliate links |
 
 **Type-Safe Configuration (v0.14.0+):**
 - **Video Pipeline**: Pydantic models in `src/video/config/` (core, audio, visual, subtitle models)

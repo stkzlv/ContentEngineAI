@@ -298,8 +298,8 @@ class PicseeURLShortener(BaseURLShortener):
 
     async def cleanup(self) -> None:
         """Close HTTP session if owned by this instance."""
-        if self._owns_session and self._session and not self._session.closed:  # type: ignore[attr-defined]
-            await self._session.close()  # type: ignore[attr-defined]
+        if self._owns_session and self._session:
+            await self._session.close()
 
     async def __aenter__(self) -> "PicseeURLShortener":
         """Async context manager entry."""

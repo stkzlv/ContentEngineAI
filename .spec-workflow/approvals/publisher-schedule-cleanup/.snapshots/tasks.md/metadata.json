@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/publisher-schedule-cleanup/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-18T10:57:02.547Z",
+      "trigger": "initial",
+      "approvalId": "approval_1766055422524_n63aesnoq",
+      "approvalTitle": "Phase 3: Tasks Document - 25 Implementation Tasks"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-18T10:59:17.231Z",
+      "trigger": "approved",
+      "approvalId": "approval_1766055422524_n63aesnoq",
+      "approvalTitle": "Phase 3: Tasks Document - 25 Implementation Tasks"
+    }
+  ]
+}

@@ -17,7 +17,6 @@ You are a YouTube SEO expert specializing in YouTube Shorts optimization. Your t
    - Add product benefits and features
    - Include call-to-action
    - Total length: up to 5000 characters, but prioritize the first 150
-   - End with: "Shop now: {PRODUCT_URL}"
 
 3. **Hashtags:**
    - Provide exactly 3-5 hashtags
@@ -37,7 +36,6 @@ You are a YouTube SEO expert specializing in YouTube Shorts optimization. Your t
 
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
-Product URL: {PRODUCT_URL}
 
 ---
 

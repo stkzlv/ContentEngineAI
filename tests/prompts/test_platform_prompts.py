@@ -57,7 +57,6 @@ class TestYouTubeTemplateStructure:
         required_placeholders = [
             "{FULL_PRODUCT_NAME}",
             "{PRODUCT_DESCRIPTION}",
-            "{PRODUCT_URL}",
         ]
 
         for placeholder in required_placeholders:
@@ -96,17 +95,14 @@ class TestYouTubeTemplateStructure:
         sample_data = {
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
-            "PRODUCT_URL": "https://example.com/test-product",
         }
 
         formatted = self.template.format(**sample_data)
 
         assert "Test Product - Wireless Headphones" in formatted
         assert "High-quality wireless headphones with noise cancellation" in formatted
-        assert "https://example.com/test-product" in formatted
         assert "{FULL_PRODUCT_NAME}" not in formatted
         assert "{PRODUCT_DESCRIPTION}" not in formatted
-        assert "{PRODUCT_URL}" not in formatted
 
 
 class TestTikTokTemplateStructure:
@@ -122,7 +118,6 @@ class TestTikTokTemplateStructure:
         required_placeholders = [
             "{FULL_PRODUCT_NAME}",
             "{PRODUCT_DESCRIPTION}",
-            "{PRODUCT_URL}",
         ]
 
         for placeholder in required_placeholders:
@@ -170,17 +165,14 @@ class TestTikTokTemplateStructure:
         sample_data = {
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
-            "PRODUCT_URL": "https://example.com/test-product",
         }
 
         formatted = self.template.format(**sample_data)
 
         assert "Test Product - Wireless Headphones" in formatted
         assert "High-quality wireless headphones with noise cancellation" in formatted
-        assert "https://example.com/test-product" in formatted
         assert "{FULL_PRODUCT_NAME}" not in formatted
         assert "{PRODUCT_DESCRIPTION}" not in formatted
-        assert "{PRODUCT_URL}" not in formatted
 
 
 class TestInstagramTemplateStructure:
@@ -196,7 +188,6 @@ class TestInstagramTemplateStructure:
         required_placeholders = [
             "{FULL_PRODUCT_NAME}",
             "{PRODUCT_DESCRIPTION}",
-            "{PRODUCT_URL}",
             "{CAPTION_STYLE}",
             "{EMOJI_ENABLED}",
         ]
@@ -255,7 +246,6 @@ class TestInstagramTemplateStructure:
         sample_data = {
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
-            "PRODUCT_URL": "https://example.com/test-product",
             "CAPTION_STYLE": "seo",
             "EMOJI_ENABLED": "Use emojis",
         }
@@ -264,12 +254,10 @@ class TestInstagramTemplateStructure:
 
         assert "Test Product - Wireless Headphones" in formatted
         assert "High-quality wireless headphones with noise cancellation" in formatted
-        assert "https://example.com/test-product" in formatted
         assert "seo" in formatted
         assert "Use emojis" in formatted
         assert "{FULL_PRODUCT_NAME}" not in formatted
         assert "{PRODUCT_DESCRIPTION}" not in formatted
-        assert "{PRODUCT_URL}" not in formatted
         assert "{CAPTION_STYLE}" not in formatted
         assert "{EMOJI_ENABLED}" not in formatted
 

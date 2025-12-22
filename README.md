@@ -5,16 +5,17 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.17.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.18.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.17.0)**: Platform-specific metadata optimization with AI-generated titles, captions, and hashtags for YouTube, TikTok, and Instagram with ready-to-post instructions.
+> **🚀 Latest Update (v0.18.0)**: Enhanced publisher module with scheduling, cleanup, and improved text formatting. Platform-specific metadata optimization for YouTube, TikTok, and Instagram.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
 ## ✨ Key Features
 
-- **🤖 End-to-End Automation**: Complete video production from scraping to final output
-- **📦 Batch Processing**: Process hundreds of products with unified scrape + produce pipeline
+- **🤖 End-to-End Automation**: Complete video production from scraping to publishing
+- **📤 Social Media Publishing**: Automated publishing to YouTube, TikTok, Instagram via Late.dev
+- **📦 Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
 - **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
 - **🎯 Platform-Specific Metadata**: AI-generated titles, captions, hashtags + ready-to-post instructions
@@ -58,6 +59,33 @@ poetry run python -m src.pipeline.global_batch \
 
 **📖 Complete Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md) - Multi-mode batch workflows, filters, randomization
 
+## 📤 Social Media Publishing
+
+Automatically publish generated videos to social media platforms:
+
+```bash
+# 1. Setup Late.dev credentials in .env
+echo "LATE_API_KEY=sk_live_your_key" >> .env
+
+# 2. List connected accounts
+poetry run python -m src.publisher.late list-accounts
+
+# 3. Publish a video immediately
+poetry run python -m src.publisher.late single \
+  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
+  --platform youtube --platform tiktok \
+  --immediate --debug
+
+# 4. Batch publish all videos
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok --platform instagram \
+  --immediate --debug
+```
+
+**Platform-Specific Content**: When metadata files (`metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`) exist, the publisher creates separate posts for each platform with optimized content.
+
+**📖 Complete Guide**: [PUBLISHER.md](PUBLISHER.md) - Setup, CLI commands, configuration, troubleshooting
+
 ## 🏗️ Architecture
 
 <details>
@@ -89,6 +117,7 @@ graph TD
 | **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
 | **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Configuration reference and options |
 | **[🔄 BATCH_PROCESSING.md](BATCH_PROCESSING.md)** | Batch processing workflows and automation |
+| **[📤 PUBLISHER.md](PUBLISHER.md)** | Social media publishing via Late.dev |
 | **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
 | **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
 
@@ -132,6 +161,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🔄 Batch Processing](BATCH_PROCESSING.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🔄 Batch Processing](BATCH_PROCESSING.md)** • **[📤 Publishing](PUBLISHER.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

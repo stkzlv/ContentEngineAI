@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/publisher-schedule-cleanup/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-18T10:49:11.725Z",
+      "trigger": "initial",
+      "approvalId": "approval_1766054951693_dfk0zgr0q",
+      "approvalTitle": "Phase 2: Design Document for Schedule & Cleanup Features"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-18T10:54:04.009Z",
+      "trigger": "approved",
+      "approvalId": "approval_1766054951693_dfk0zgr0q",
+      "approvalTitle": "Phase 2: Design Document for Schedule & Cleanup Features"
+    }
+  ]
+}

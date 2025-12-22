@@ -45,7 +45,6 @@ You are an Instagram Reels growth specialist. Your task is to create a platform-
 
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
-Product URL: {PRODUCT_URL}
 
 ---
 

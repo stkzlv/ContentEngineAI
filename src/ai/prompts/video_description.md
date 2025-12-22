@@ -17,7 +17,6 @@ You are a social media marketing expert. Your task is to create an engaging vide
 
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
-Product URL: {PRODUCT_URL}
 
 ---
 

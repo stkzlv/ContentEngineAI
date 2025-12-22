@@ -7,6 +7,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2025-12-22
+
+### Added
+- **Social Media Publishing**: Complete publishing module for automated video distribution
+  - New `src/publisher/` package with modular architecture for platform publishing
+  - `base.py` - Abstract publisher interface with error handling (54 lines)
+  - `models.py` - Pydantic models for publish metadata, results, and configs (424 lines)
+  - `registry.py` - Publisher provider registry with factory pattern (159 lines)
+  - `late/client.py` - Late.dev integration with retry logic and rate limiting (1,131 lines)
+  - `metadata.py` - Platform metadata loader with fallback support (347 lines)
+  - `batch.py` - Batch publisher with stagger delays and progress tracking (531 lines)
+  - `config.py` - Three-tier configuration system (CLI → Env → YAML) (434 lines)
+  - `late/cli.py` - Command-line interface for publishing operations (1,069 lines)
+  - Multi-platform support: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
+  - Scheduled publishing with immediate and future posting options
+  - Large file support (>4MB) via Vercel CDN integration
+  - Exponential backoff retry logic with configurable max retries
+  - Rate limit handling with `Retry-After` header support
+
+- **Publisher Scheduling System**: Automated video scheduling with recurring calendar
+  - `schedule.py` - Schedule manager with slot allocation (649 lines)
+  - `schedule_validator.py` - Schedule validation and conflict detection (256 lines)
+  - Recurring schedule configuration with weekly time slots
+  - Timezone-aware scheduling (configurable timezone support)
+  - Automatic slot allocation across multiple products and platforms
+  - Platform-specific metadata integration for scheduled posts
+  - Separate posts per platform for customized content
+  - Schedule persistence with JSON tracking (`outputs/schedule.json`)
+  - Calendar view for visualizing upcoming posts
+  - Slot availability validation and conflict prevention
+
+- **Post-Publication Cleanup**: Automated cleanup of published videos
+  - `cleanup.py` - Cleanup manager with safety checks (615 lines)
+  - Automatic cleanup after successful multi-platform publication
+  - Manual cleanup via CLI command
+  - Verification of publication success across all platforms
+  - Configurable safety options (verify before delete, require all platforms)
+  - Dry-run mode for preview before deletion
+  - Detailed cleanup reports with file sizes and paths
+  - Integration with schedule tracking for status verification
+
+- **CLI Commands**: Publishing, scheduling, and cleanup operations
+  - `list-accounts` - List connected social media accounts
+  - `single` - Publish single video to one or more platforms
+  - `batch` - Batch publish all videos in outputs directory
+  - `schedule` - Schedule videos with recurring calendar slots
+  - `cleanup` - Remove published videos with safety checks
+  - `list-schedule` - View upcoming scheduled posts
+  - Platform selection: `--platform youtube --platform tiktok` (repeatable)
+  - Scheduling: `--schedule "2025-01-20 14:00:00"` or `--immediate` or `--use-schedule`
+  - Debug mode: `--debug` for verbose logging
+  - Fail-fast mode: `--fail-fast` to stop on first error
+
+- **Configuration**: Publisher configuration system
+  - `config/publisher.yaml` - Publisher settings (defaults, timeouts, retries)
+  - Environment variables: `LATE_API_KEY`, `LATE_VERCEL_TOKEN`
+  - CLI overrides for all configuration values
+  - Stagger delays for batch publishing (30-60s default)
+  - Per-platform privacy settings
+  - `recurring_schedule` section with weekly time slots
+  - Timezone configuration (default: Europe/Berlin)
+  - Cleanup configuration (enabled, verify_before_delete, require_all_platforms)
+
+- **Documentation**: Comprehensive user and developer guides
+  - `PUBLISHER.md` - 1,251 lines of complete documentation
+    - Setup guide with Late.dev account creation
+    - CLI usage examples with copy-paste commands
+    - Configuration precedence explanation
+    - Platform metadata integration guide
+    - Batch publishing workflows
+    - Publishing schedule and calendar system
+    - Post-publication cleanup guide (automatic and manual)
+    - Error handling and retry logic
+    - Troubleshooting guide for common scenarios
+    - API reference for programmatic usage
+    - Made large sections collapsible for improved readability
+  - Updated `README.md` with publisher section and quick start
+  - Added publisher to core documentation table
+
+- **Testing**: Comprehensive test suite (7,000+ lines)
+  - `tests/publisher/test_base.py` - Base interface tests (422 lines)
+  - `tests/publisher/test_models.py` - Model validation tests (488 lines)
+  - `tests/publisher/test_registry.py` - Registry and factory tests (490 lines)
+  - `tests/publisher/late/test_client.py` - Client tests with mocking (1,023 lines)
+  - `tests/publisher/test_schedule.py` - Schedule manager tests (510 lines)
+  - `tests/publisher/test_schedule_manager.py` - Integration tests (660 lines)
+  - `tests/publisher/test_schedule_validator.py` - Validation tests (658 lines)
+  - `tests/publisher/test_schedule_models.py` - Model tests (378 lines)
+  - `tests/publisher/test_cleanup.py` - Cleanup manager tests (650 lines)
+  - `tests/integration/test_late_publisher.py` - Real API integration tests (548 lines)
+  - `tests/e2e/test_publisher_workflow.py` - End-to-end CLI tests (717 lines)
+  - `tests/e2e/test_publisher_schedule_cleanup.py` - E2E workflow tests (1,027 lines)
+  - Tests skip gracefully when credentials not available
+  - Integration tests require `.env.test` with sandbox credentials
+  - E2E tests validate complete workflow: video → metadata → publish → cleanup
+
+### Fixed
+- **Type Hints**: Python 3.12 compatibility
+  - Changed `callable | None` to `Callable[[int, int], None] | None`
+  - Added `from collections.abc import Callable` imports
+  - Added `from typing import Any` import to `late/client.py`
+  - Fixed type annotation for `platform_results: list[Any]`
+  - Fixed type narrowing for `published_urls_list` in status logging
+  - Fixed in `src/publisher/base.py` and `src/publisher/late/client.py`
+
+- **Code Formatting**: Line length compliance
+  - Fixed 4 line length violations in `schedule.py` (88-character limit)
+  - Split long comment lines for readability
+  - Fixed f-string concatenation for long log messages
+  - Applied Ruff formatting to all publisher code
+
+### Changed
+- **Publisher Architecture**: Enhanced for scheduling and cleanup
+  - Platform-specific posts now created separately for metadata customization
+  - Improved error handling for scheduling conflicts
+  - Added post status checking and verification to client
+
+- **Code Quality**: All linting checks passing
+  - Fixed all Ruff linting issues (import sorting, line length, docstrings)
+  - Fixed all MyPy type annotation errors
+  - All checks passing: Ruff, Ruff Format, MyPy, Bandit, Vulture, Safety, Pytest
+  - Publisher module security: 0 issues (Bandit scan clean)
+
+- **Documentation Structure**: Improved readability
+  - Made large sections collapsible in `PUBLISHER.md` using `<details>` tags
+  - Consolidated duplicate code blocks
+  - Enhanced markdown structure with proper hierarchy
+
+### Technical
+- **New Modules** (13 files, ~7,000 lines):
+  - `src/publisher/__init__.py` - Package exports
+  - `src/publisher/base.py` - Abstract base (54 lines)
+  - `src/publisher/models.py` - Data models (424 lines)
+  - `src/publisher/registry.py` - Registry pattern (159 lines)
+  - `src/publisher/late/__init__.py` - Late.dev package
+  - `src/publisher/late/client.py` - Late client (1,131 lines)
+  - `src/publisher/late/cli.py` - CLI interface (1,069 lines)
+  - `src/publisher/metadata.py` - Metadata loader (347 lines)
+  - `src/publisher/batch.py` - Batch orchestrator (531 lines)
+  - `src/publisher/config.py` - Configuration (434 lines)
+  - `src/publisher/schedule.py` - Schedule management (649 lines)
+  - `src/publisher/schedule_validator.py` - Validation (256 lines)
+  - `src/publisher/cleanup.py` - Cleanup management (615 lines)
+
+- **New Tests** (12 files, ~7,000 lines):
+  - Unit tests for all publisher modules
+  - Integration tests for schedule manager and Late.dev API
+  - E2E tests for complete workflows including cleanup
+  - High coverage with edge case testing
+
+- **Dependencies**:
+  - `late-sdk` - Official Late.dev Python SDK
+  - `aiohttp` - Async HTTP client for API calls
+
 ## [0.17.0] - 2025-12-16
 
 ### Added

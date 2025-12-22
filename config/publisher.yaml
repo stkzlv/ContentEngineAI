@@ -1,0 +1,63 @@
+# Publisher Configuration
+# API credentials (set via environment variables: LATE_API_KEY, LATE_VERCEL_TOKEN)
+provider: late
+
+# Publishing behavior
+immediate_publish: true
+default_platforms:
+  - youtube
+  - tiktok
+  - instagram
+
+# Retry and timeout settings
+max_retries: 3
+timeout: 120.0  # TikTok video processing can take longer
+backoff_multiplier: 2.0
+
+# Batch publishing delays (seconds)
+stagger_delay_min: 30
+stagger_delay_max: 60
+
+# Privacy settings per platform
+privacy_settings:
+  youtube: public
+  tiktok: public
+  instagram: everyone
+
+# Recurring schedule configuration
+recurring_schedule:
+  enabled: true
+  timezone: Europe/Berlin  # CET
+  slots:
+    - day_of_week: monday
+      time: "10:00:00"
+    - day_of_week: tuesday
+      time: "10:00:00"
+    - day_of_week: wednesday
+      time: "10:00:00"
+    - day_of_week: thursday
+      time: "10:00:00"
+    - day_of_week: friday
+      time: "10:00:00"
+    - day_of_week: saturday
+      time: "10:00:00"
+    - day_of_week: sunday
+      time: "10:00:00"
+
+# Schedule validation rules
+schedule_validation:
+  min_post_spacing_hours: 2  # Minimum hours between posts on same platform
+  prevent_duplicates: true   # Reject duplicate product+platform+time schedules
+  allow_past_schedules: false  # Allow scheduling posts in the past
+  max_posts_per_day: 10      # Maximum posts per day (0 = unlimited)
+
+# Post-publication cleanup (enabled by default)
+cleanup:
+  enabled: true  # Automatic cleanup after successful publish
+  verify_before_delete: true  # Verify publication via API before cleanup
+  require_all_platforms: true  # Only cleanup when published to ALL platforms
+  archive_before_delete: false  # Create ZIP backup before deletion
+  archive_dir: outputs/archive  # Directory for archived product backups
+  keep_published_days: 0  # Only cleanup products older than N days (0 = any age)
+  preserve_metadata: false  # Keep metadata JSON files when cleaning
+  preserve_logs: true  # Keep log files in outputs/logs/ directory

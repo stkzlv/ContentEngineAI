@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/late-publisher/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-16T14:35:33.844Z",
+      "trigger": "initial",
+      "approvalId": "approval_1765895733829_kd75earao",
+      "approvalTitle": "Late Publisher Design"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2025-12-16T14:51:40.897Z",
+      "trigger": "approved",
+      "approvalId": "approval_1765895733829_kd75earao",
+      "approvalTitle": "Late Publisher Design"
+    }
+  ]
+}

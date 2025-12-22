@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **839 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1334 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -163,7 +163,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 46.79%)
+- **Overall minimum**: 40% (currently at 46.12%)
 
 **Generate coverage report:**
 ```bash
@@ -295,13 +295,30 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 832 collected
-- **Passing**: 804 tests
-- **Skipped**: 28 tests
+- **Total Tests**: 1334 collected
+- **Passing**: 1269 tests
+- **Skipped**: 65 tests
 - **Failed**: 0 tests
-- **Coverage**: 43.09% (target: 40% minimum)
+- **Coverage**: 45.57% (target: 40% minimum)
 
-**Recent Updates:**
+**Recent Updates (v0.18.0):**
+- ✅ Added delete_post functionality to publisher base class and Late.dev client
+- ✅ Added 4 new tests for delete_post in TestLatePublisherDeletePost class
+- ✅ Fixed 10 failing publisher tests (added delete_post to test mock classes)
+- ✅ Fixed outdated test assertions in test_upload_instructions_file_generation
+- ✅ Updated test_cleanup.py tests to use "failed" status (implementation accepts "scheduled" as valid)
+- ✅ Fixed publisher test_slot_wrapping_with_start_slot assertion (corrected for wrap-around behavior)
+- ✅ Verified platform_metadata module coverage: text_formatter.py (100%), instagram.py (88%), tiktok.py (93%), youtube.py (89%)
+- ✅ Fixed 6 failing tests in test_platform_prompts.py (removed {PRODUCT_URL} placeholder expectations to match updated prompt templates)
+- ✅ All tests passing (1269/1334, 65 skipped)
+
+**Previous Updates (v0.17.0):**
+- ✅ Added publisher module tests (schedule, cleanup, Late.dev client)
+- ✅ Fixed compliance test false positive (YAML parsing instead of raw content matching)
+- ✅ Fixed schedule tests to match per-platform publishing behavior
+- ✅ Coverage improved to 46%
+
+**Previous Updates (assembler refactoring):**
 - ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
 - ✅ Tests were for internal implementation details that moved during assembler refactoring
 - ✅ Assembler now uses modular package structure (src/video/assembler/)
@@ -309,8 +326,6 @@ poetry run pytest -n auto
   - VideoAssembler initialization test
   - VisualGeometry dataclass tests for letterbox positioning
   - Tests verify assembler refactoring into modular builder classes
-- ✅ All tests passing (804/832, 28 skipped)
-- ✅ Coverage maintained above 43%
 
 **Previous Updates (v0.15.0):**
 - ✅ Added producer batch profile randomization tests (40 new tests)

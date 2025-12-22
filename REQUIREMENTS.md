@@ -777,18 +777,42 @@ poetry run python -m src.pipeline.global_batch \
 - **Error Correlation**: Link scraping errors to production impacts
 - **Debug Mode**: Enhanced logging across both pipeline phases
 
-## Platform-Specific Content Optimization
+## Content Metadata
 
-ContentEngineAI **MUST** support platform-specific metadata generation optimized for YouTube, TikTok, and Instagram.
+ContentEngineAI supports two metadata modes for YouTube, TikTok, and Instagram:
+
+- **Unified Mode** (default): Single title/description/hashtags reused across all platforms
+- **Optimized Mode** (optional): Platform-specific metadata with SEO tailored per platform
+
+Both modes include `#ad` for FTC compliance and validate character limits per platform.
+
+## Video Publishing & Scheduling
+
+ContentEngineAI **MUST** support automated video publishing to social media platforms via third-party scheduling services.
 
 ### Core Requirements
 
-- **Multi-Platform Support**: Generate platform-optimized titles, descriptions, captions, and hashtags for YouTube, TikTok, and Instagram
-- **Platform Targeting**: Configurable target platform per video profile or via CLI arguments
-- **SEO Optimization**: Apply platform-specific SEO best practices for discoverability and engagement
-- **Character Limits**: Enforce platform-specific character limits and formatting rules
-- **Hashtag Strategy**: Platform-optimized hashtag counts and selection (YouTube: 3-5, TikTok: 3-5, Instagram: 15-30)
-- **Unified Voiceover**: Maintain single platform-agnostic voiceover script reusable across platforms
-- **LLM Integration**: Use platform-specific prompts to generate optimized metadata via LLM
-- **Validation**: Validate metadata completeness, character limits, and required elements per platform
-- **Backward Compatibility**: Maintain existing unified metadata generation as fallback option
+- **Service Integration**: Publish videos through external scheduling services (e.g., Ayrshare, Buffer, Hootsuite, Later) via API
+- **Multi-Platform Support**: Publish to YouTube, TikTok, Instagram, and other platforms supported by the scheduling service
+- **Scheduled Publishing**: Configure immediate or future publish times with timezone support
+- **Metadata Integration**: Use platform-specific metadata from content optimization system (titles, descriptions, hashtags)
+- **Batch Publishing**: Publish multiple videos across multiple platforms in single workflow
+- **Status Tracking**: Monitor upload status and retrieve published post URLs
+- **Error Handling**: Retry logic for failed uploads, graceful degradation, detailed error reporting
+
+### Publishing Schedule Configuration
+
+- **Calendar View**: List all scheduled posts with filtering by status, platform, and date range
+- **Recurring Schedules**: Define recurring time slots (e.g., "Monday 9am, Wednesday 2pm") for automated queue-based publishing
+- **Schedule Templates**: Configure default publishing schedules per platform in YAML with CLI overrides
+- **Schedule Validation**: Prevent duplicate scheduling, validate timezone-aware datetimes, enforce minimum spacing between posts
+- **Batch Scheduling**: Schedule multiple videos from outputs directory to recurring calendar slots in single command
+
+### Post-Publication Cleanup
+
+- **Automatic Cleanup**: Remove successfully published product directories from outputs after confirmed publication
+- **Configurable Behavior**: Enable/disable cleanup per platform via YAML `auto_cleanup: true/false` setting
+- **CLI Override**: `--no-cleanup` flag to preserve outputs regardless of configuration
+- **Safety Checks**: Verify publication success via API status check before deletion
+- **Selective Cleanup**: Only remove products published to all configured platforms (multi-platform validation)
+- **Cleanup Logging**: Log all deleted directories with product IDs, platforms, and post URLs for audit trail

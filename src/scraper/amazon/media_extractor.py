@@ -10,7 +10,7 @@ import re
 import time
 from pathlib import Path
 
-from botasaurus.browser import Driver  # type: ignore[import-untyped]
+from botasaurus.browser import Driver
 
 from .config import CONFIG
 
