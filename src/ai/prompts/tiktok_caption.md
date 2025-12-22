@@ -40,7 +40,6 @@ TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** ov
 
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
-Product URL: {PRODUCT_URL}
 
 ---
 
