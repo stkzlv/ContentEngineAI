@@ -9,6 +9,9 @@ default_platforms:
   - tiktok
   - instagram
 
+# Content strategy
+use_platform_specific_content: false  # true = separate post per platform with optimized metadata, false = single post for all platforms with unified metadata
+
 # Retry and timeout settings
 max_retries: 3
 timeout: 120.0  # TikTok video processing can take longer

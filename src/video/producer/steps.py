@@ -545,6 +545,57 @@ async def step_generate_description(ctx: PipelineContext):
             f"{ctx.run_paths['description_file'].name}"
         )
 
+        # Generate structured metadata JSON files for publisher
+        try:
+            import re
+            from datetime import datetime, UTC
+            from src.ai.platform_metadata.models import PlatformMetadata
+
+            # Extract hashtags from description
+            hashtag_pattern = r"#(\w+)"
+            hashtag_matches = re.findall(hashtag_pattern, ctx.description)
+            # Deduplicate while preserving order
+            seen = set()
+            hashtags = []
+            for tag in hashtag_matches:
+                if tag.lower() not in seen:
+                    seen.add(tag.lower())
+                    hashtags.append(tag)
+
+            # Generate unified metadata for all platforms
+            text_dir = ctx.run_paths["description_file"].parent
+            platforms_config = [
+                ("youtube", ctx.product.title),  # YouTube gets title
+                ("tiktok", None),  # TikTok no title
+                ("instagram", None),  # Instagram no title
+            ]
+
+            for platform_name, title in platforms_config:
+                metadata = PlatformMetadata.create(
+                    platform=platform_name,
+                    title=title,
+                    description=ctx.description,
+                    hashtags=hashtags,
+                    keywords=[],  # Unified mode doesn't generate keywords
+                    product_id=ctx.product.asin or "unknown",
+                    validation_status="valid",
+                )
+
+                # Save to JSON file
+                metadata_file = text_dir / f"metadata_{platform_name}.json"
+                metadata_dict = metadata.to_dict()
+                with metadata_file.open("w", encoding="utf-8") as f:
+                    json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
+
+                logger.info(f"Saved unified metadata to {metadata_file.name}")
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to generate unified metadata JSON files: {e}",
+                exc_info=ctx.debug_mode,
+            )
+            # Non-critical - description.txt is still available as fallback
+
 
 async def step_create_voiceover(ctx: PipelineContext):
     async with performance_monitor.measure_step(

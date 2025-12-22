@@ -530,21 +530,43 @@ class LatePublisher(BasePublisher):
         logger.info(f"Fetching posts from Late.dev (status={status or 'all'})")
 
         try:
+            # Fetch all posts with pagination
+            all_posts_list = []
+            page = 1
+            page_size = 100  # Max items per page
 
-            async def _fetch_posts():
-                if asyncio.iscoroutinefunction(self.client.posts.list):
-                    return await self.client.posts.list()
-                else:
-                    return self.client.posts.list()
+            while True:
+                async def _fetch_posts_page():
+                    if asyncio.iscoroutinefunction(self.client.posts.list):
+                        return await self.client.posts.list(page=page, limit=page_size)
+                    else:
+                        return self.client.posts.list(page=page, limit=page_size)
 
-            raw_posts = await self._retry_with_backoff(_fetch_posts, "Fetch posts")
+                raw_posts = await self._retry_with_backoff(
+                    _fetch_posts_page,
+                    f"Fetch posts page {page}"
+                )
 
-            # Parse and normalize post data
-            # Late SDK returns PostsListResponse with .posts attribute
-            posts_list = raw_posts.posts if hasattr(raw_posts, "posts") else raw_posts
+                # Parse and normalize post data
+                # Late SDK returns PostsListResponse with .posts attribute
+                posts_list = raw_posts.posts if hasattr(raw_posts, "posts") else raw_posts
+
+                if not posts_list:
+                    # No more posts
+                    break
+
+                all_posts_list.extend(posts_list)
+
+                # Check if we got a full page - if not, we're done
+                if len(posts_list) < page_size:
+                    break
+
+                page += 1
+
+            logger.debug(f"Fetched {len(all_posts_list)} total posts across {page} page(s)")
 
             posts = []
-            for post in posts_list:
+            for post in all_posts_list:
                 # Handle both dict and object responses
                 if isinstance(post, dict):
                     # Already a dict

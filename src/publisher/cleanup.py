@@ -18,6 +18,46 @@ from src.publisher.tracking import get_publish_record
 logger = logging.getLogger(__name__)
 
 
+def get_schedule_entry(
+    product_id: str,
+    platform: str,
+    outputs_dir: Path = Path("outputs"),
+) -> dict[str, Any] | None:
+    """Get schedule entry for product/platform from schedule.json.
+
+    Args:
+    ----
+        product_id: Product identifier
+        platform: Platform name
+        outputs_dir: Root directory containing schedule.json
+
+    Returns:
+    -------
+        Schedule entry dict if found, None otherwise
+
+    """
+    schedule_path = outputs_dir / "schedule.json"
+    if not schedule_path.exists():
+        return None
+
+    try:
+        data = json.loads(schedule_path.read_text())
+        entries = data.get("entries", [])
+
+        # Find entry matching product_id and platform
+        for entry in entries:
+            if entry.get("product_id") == product_id:
+                platforms = entry.get("platforms", [])
+                if platform in platforms:
+                    # Cast to dict to satisfy type checker
+                    return dict(entry) if isinstance(entry, dict) else None
+
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to load schedule.json: {e}")
+        return None
+
+
 class CleanupManager:
     """Manages post-publication cleanup of product directories.
 
@@ -204,26 +244,48 @@ class CleanupManager:
         platform_statuses: dict[str, str] = {}
 
         for platform in platforms:
-            # Load publish record to get post_id
+            # Try loading publish record first (immediate publishing)
             record = get_publish_record(product_id, platform.value, self.outputs_dir)
+
+            # If no publish record, check schedule entries (scheduled posts)
+            if not record:
+                schedule_entry = get_schedule_entry(
+                    product_id, platform.value, self.outputs_dir
+                )
+                if schedule_entry:
+                    record = {
+                        "post_id": str(schedule_entry.get("post_id", "")),
+                        "status": str(schedule_entry.get("status", "")),
+                    }
 
             if not record:
                 platform_statuses[platform.value] = "not_published"
                 logger.warning(
-                    f"No publish record found for {product_id} on {platform.value}"
-                )
-                continue
-
-            post_id = record.get("post_id")
-            if not post_id:
-                platform_statuses[platform.value] = "missing_post_id"
-                logger.warning(
-                    f"Publish record missing post_id for {product_id} on "
+                    f"No publish or schedule record found for {product_id} on "
                     f"{platform.value}"
                 )
                 continue
 
-            # Query API for status
+            post_id = record.get("post_id")
+            local_status = record.get("status", "")
+
+            # For scheduled posts, trust local status (API returns 404)
+            if local_status == "scheduled":
+                platform_statuses[platform.value] = "scheduled"
+                logger.debug(
+                    f"Platform {platform.value} status: scheduled "
+                    f"(post_id: {post_id}, from local record)"
+                )
+                continue
+
+            # For published/unknown status, query API
+            if not post_id:
+                platform_statuses[platform.value] = "missing_post_id"
+                logger.warning(
+                    f"Record missing post_id for {product_id} on {platform.value}"
+                )
+                continue
+
             try:
                 status_info = await self.publisher.get_status(post_id)
                 status = status_info.get("status", "unknown")
@@ -231,7 +293,7 @@ class CleanupManager:
 
                 logger.debug(
                     f"Platform {platform.value} status: {status} "
-                    f"(post_id: {post_id})"
+                    f"(post_id: {post_id}, from API)"
                 )
             except Exception as e:
                 logger.error(

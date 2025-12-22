@@ -691,6 +691,8 @@ class ScheduleConfig:
         allow_past_schedules: Allow scheduling posts in the past
         max_posts_per_day: Maximum posts allowed per day (0 = unlimited)
         timezone: Default timezone for schedule operations
+        use_platform_specific_content: Create separate posts per platform
+            with optimized metadata
 
     """
 
@@ -701,6 +703,7 @@ class ScheduleConfig:
     allow_past_schedules: bool = False
     max_posts_per_day: int = 10
     timezone: str = "UTC"
+    use_platform_specific_content: bool = False
 
     def __post_init__(self):
         """Post-initialization validation."""
