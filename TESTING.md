@@ -307,6 +307,8 @@ poetry run pytest -n auto
 - ✅ Fixed 10 failing publisher tests (added delete_post to test mock classes)
 - ✅ Fixed outdated test assertions in test_upload_instructions_file_generation
 - ✅ Updated test_cleanup.py tests to use "failed" status (implementation accepts "scheduled" as valid)
+- ✅ Fixed publisher test_slot_wrapping_with_start_slot assertion (corrected for wrap-around behavior)
+- ✅ Verified platform_metadata module coverage: text_formatter.py (100%), instagram.py (88%), tiktok.py (93%), youtube.py (89%)
 - ✅ All tests passing (1269/1334, 65 skipped)
 
 **Previous Updates (v0.17.0):**

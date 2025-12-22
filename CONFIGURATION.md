@@ -14,7 +14,7 @@ ContentEngineAI implements a **triple-precedence configuration system**:
 
 ### Modular Architecture
 
-The configuration system uses **7 specialized files** instead of a monolithic configuration:
+The configuration system uses **9 specialized files** instead of a monolithic configuration:
 
 - **`config/core.yaml`** - Global settings and output paths
 - **`config/video_production.yaml`** - Video pipeline and effects
@@ -22,6 +22,8 @@ The configuration system uses **7 specialized files** instead of a monolithic co
 - **`config/subtitles.yaml`** - Subtitle positioning and styling
 - **`config/performance.yaml`** - Resource limits and optimization
 - **`config/scraper.yaml`** - Web scraping and browser settings
+- **`config/pipeline.yaml`** - Batch processing and global pipeline settings
+- **`config/publisher.yaml`** - Social media publishing via Late.dev
 - **`config/url_shortener.yaml`** - URL shortening providers and integration
 
 ### How Configuration Loading Works

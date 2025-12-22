@@ -573,7 +573,7 @@ make perf-report
 poetry run python -c "
 import yaml
 from pathlib import Path
-config_files = ['core.yaml', 'video_production.yaml', 'ai_services.yaml', 'subtitles.yaml', 'performance.yaml', 'scraper.yaml']
+config_files = ['core.yaml', 'video_production.yaml', 'ai_services.yaml', 'subtitles.yaml', 'performance.yaml', 'scraper.yaml', 'pipeline.yaml', 'publisher.yaml', 'url_shortener.yaml']
 for file in config_files:
     with open(f'config/{file}') as f:
         config = yaml.safe_load(f)

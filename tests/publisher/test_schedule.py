@@ -244,10 +244,10 @@ class TestAutoSchedule:
             assert result["scheduled"] == 3
 
             # Verify slot indices in entries
-            # Implementation finds earliest slot, then advances time after each video
-            # Slots progress naturally: 0 (Monday), 1 (Wednesday), 2 (Friday)
+            # With start_slot=2, implementation finds earliest available slot from there
+            # Slots wrap around: 1 (Wednesday), 2 (Friday), 0 (Monday)
             slot_indices = [e.slot_index for e in manager.entries]
-            assert slot_indices == [0, 1, 2]
+            assert slot_indices == [1, 2, 0]
 
     @pytest.mark.asyncio
     async def test_handles_publish_failures(
