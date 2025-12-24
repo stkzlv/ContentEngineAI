@@ -23,7 +23,7 @@ import argparse
 import asyncio
 import logging
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp
@@ -202,14 +202,13 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 logger.error("No recurring slots configured for auto-discovery")
                 sys.exit(1)
 
-            # Fetch existing scheduled posts from Late.dev to find latest time
-            base_time = datetime.now(UTC)
+            # Build set of occupied slot times from ALL posts (scheduled + published)
+            occupied_slot_times: set[datetime] = set()
             try:
-                logger.debug("Fetching existing scheduled posts from Late.dev...")
-                api_posts = await publisher.list_posts(status="scheduled")
-                logger.debug(f"Found {len(api_posts)} scheduled posts on Late.dev")
+                logger.debug("Fetching all posts from Late.dev...")
+                api_posts = await publisher.list_posts()
+                logger.debug(f"Found {len(api_posts)} posts on Late.dev")
 
-                # Find the latest scheduled time from API posts
                 for api_post in api_posts:
                     scheduled_for = api_post.get("scheduledFor")
                     if not scheduled_for:
@@ -224,14 +223,38 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                     # Ensure timezone-aware
                     if scheduled_dt.tzinfo is None:
                         scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
-                    if scheduled_dt > base_time:
-                        base_time = scheduled_dt
-                        logger.debug(f"Latest scheduled post: {base_time}")
+                    # Normalize to minute precision for comparison
+                    normalized = scheduled_dt.replace(second=0, microsecond=0)
+                    occupied_slot_times.add(normalized)
+                logger.debug(f"Occupied slots: {len(occupied_slot_times)} times")
             except Exception as e:
                 logger.warning(f"Failed to fetch existing posts: {e}")
 
-            schedule_time, _ = schedule_mgr.get_next_slot(slots, base_time)
-            logger.info(f"Auto-discovered slot: {schedule_time.isoformat()}")
+            # Find first available slot (gap detection)
+            search_time = datetime.now(UTC)
+            max_attempts = 365  # Search up to a year ahead
+            attempts = 0
+            current_slot = 0
+
+            while attempts < max_attempts:
+                next_time, current_slot = schedule_mgr.get_next_slot(
+                    slots, search_time, slot_index=current_slot
+                )
+                normalized = next_time.replace(second=0, microsecond=0)
+
+                if normalized not in occupied_slot_times:
+                    schedule_time = next_time
+                    logger.info(f"Found available slot: {schedule_time.isoformat()}")
+                    break
+
+                # Slot is occupied, try next
+                search_time = next_time
+                attempts += 1
+                logger.debug(f"Slot {normalized} occupied, trying next...")
+
+            if not schedule_time:
+                logger.error("Could not find available slot within search range")
+                sys.exit(1)
 
         if schedule_time:
             logger.info(f"Scheduled time: {schedule_time}")

@@ -612,15 +612,36 @@ class ScheduleManager:
                         import json
 
                         platform_contents = {}
+
+                        # Try unified metadata.json first
+                        unified_meta_path = video.parent / "metadata.json"
+                        unified_meta = None
+                        if unified_meta_path.exists():
+                            unified_meta = json.loads(unified_meta_path.read_text())
+                            logger.debug(f"Using unified metadata: {unified_meta_path}")
+
                         for p in platforms:
-                            meta_file = f"metadata_{p.value}.json"
-                            platform_meta = video.parent / meta_file
-                            if platform_meta.exists():
-                                meta = json.loads(platform_meta.read_text())
+                            meta = None
+
+                            # Use unified metadata if available
+                            if unified_meta:
+                                meta = unified_meta
+                            else:
+                                # Fallback to platform-specific metadata
+                                meta_file = f"metadata_{p.value}.json"
+                                platform_meta = video.parent / meta_file
+                                if platform_meta.exists():
+                                    meta = json.loads(platform_meta.read_text())
+
+                            if meta:
                                 desc = meta.get("description", "")
                                 hashtags = meta.get("hashtags", [])
                                 if hashtags:
-                                    desc = f"{desc}\n\n{' '.join(hashtags)}"
+                                    hashtag_str = " ".join(
+                                        f"#{t}" if not t.startswith("#") else t
+                                        for t in hashtags
+                                    )
+                                    desc = f"{desc}\n\n{hashtag_str}"
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,

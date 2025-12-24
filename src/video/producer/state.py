@@ -73,6 +73,12 @@ def _clean_producer_files(
         product_root / files.attribution,  # attributions file
         product_root / "~",  # Erroneous home directory from unescaped paths
         product_root / "outputs",  # Erroneous nested outputs directory
+        # Metadata files (unified and platform-specific)
+        product_root / "metadata.json",  # unified mode
+        product_root / "metadata_youtube.json",  # optimized mode
+        product_root / "metadata_tiktok.json",  # optimized mode
+        product_root / "metadata_instagram.json",  # optimized mode
+        product_root / "UPLOAD_INSTRUCTIONS.txt",  # optimized mode instructions
     ]
 
     # Clean all video files with any profile name (video_*_{product_id}_*.mp4)

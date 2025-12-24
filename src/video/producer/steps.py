@@ -69,28 +69,32 @@ def _load_artifacts_generate_script(ctx: PipelineContext):
 def _load_artifacts_generate_description(ctx: PipelineContext):
     """Load artifacts from completed generate_description step."""
     try:
-        # Try loading platform-specific metadata files first
         text_dir = ctx.run_paths["description_file"].parent
-        platform_metadata_loaded = False
 
+        # Try loading unified metadata.json first
+        unified_metadata = text_dir / "metadata.json"
+        if unified_metadata.exists():
+            meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
+            ctx.description = meta.get("description", "")
+            logger.debug(
+                "Loaded unified metadata artifact "
+                "for skipped step 'generate_description'"
+            )
+            return
+
+        # Fallback to platform-specific metadata files
         for platform in ["youtube", "tiktok", "instagram"]:
             metadata_file = text_dir / f"metadata_{platform}.json"
             if metadata_file.exists():
-                platform_metadata_loaded = True
                 logger.debug(f"Found platform metadata file: {metadata_file.name}")
+                return
 
-        if platform_metadata_loaded:
-            logger.debug(
-                "Loaded platform metadata artifacts "
-                "for skipped step 'generate_description'"
-            )
-
-        # Load unified description as fallback or complementary data
+        # Legacy fallback to description.txt
         description_file = ctx.run_paths["description_file"]
         if description_file.exists():
             ctx.description = description_file.read_text(encoding="utf-8")
             logger.debug(
-                "Loaded unified description artifact "
+                "Loaded legacy description.txt artifact "
                 "for skipped step 'generate_description'"
             )
     except Exception as e:
@@ -376,12 +380,25 @@ async def step_generate_description(ctx: PipelineContext):
         description_file = ctx.run_paths["description_file"]
         text_dir = description_file.parent
 
-        # Check for existing platform metadata files
+        # Check for existing metadata files (unified or platform-specific)
+        unified_metadata_path = text_dir / "metadata.json"
         platform_metadata_exists = any(
             (text_dir / f"metadata_{platform}.json").exists()
             for platform in ["youtube", "tiktok", "instagram"]
         )
 
+        # Load from unified metadata.json first
+        if unified_metadata_path.exists():
+            logger.info("Loading existing unified metadata from previous run")
+            meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
+            ctx.description = meta.get("description", "")
+            logger.info(
+                f"Loaded existing description from metadata.json "
+                f"({len(ctx.description or '')} characters)"
+            )
+            return
+
+        # Fallback to platform-specific metadata or description.txt
         if platform_metadata_exists or description_file.exists():
             logger.info("Loading existing description/metadata from previous run")
             if description_file.exists():
@@ -538,63 +555,41 @@ async def step_generate_description(ctx: PipelineContext):
             raise PipelineError("Description generation failed to produce text.")
 
         ctx.description = description_text.strip()
-        ensure_dirs_exist(ctx.run_paths["description_file"].parent)
-        ctx.run_paths["description_file"].write_text(ctx.description, encoding="utf-8")
-        logger.info(
-            f"Description generated and saved to "
-            f"{ctx.run_paths['description_file'].name}"
-        )
 
-        # Generate structured metadata JSON files for publisher
-        try:
-            import re
-            from datetime import datetime, UTC
-            from src.ai.platform_metadata.models import PlatformMetadata
+        # Generate unified metadata.json for publisher (single file for all platforms)
+        import re
+        from datetime import UTC, datetime
 
-            # Extract hashtags from description
-            hashtag_pattern = r"#(\w+)"
-            hashtag_matches = re.findall(hashtag_pattern, ctx.description)
-            # Deduplicate while preserving order
-            seen = set()
-            hashtags = []
-            for tag in hashtag_matches:
-                if tag.lower() not in seen:
-                    seen.add(tag.lower())
-                    hashtags.append(tag)
+        # Extract hashtags from description
+        hashtag_pattern = r"#(\w+)"
+        hashtag_matches = re.findall(hashtag_pattern, ctx.description)
+        # Deduplicate while preserving order
+        seen = set()
+        hashtags = []
+        for tag in hashtag_matches:
+            if tag.lower() not in seen:
+                seen.add(tag.lower())
+                hashtags.append(tag)
 
-            # Generate unified metadata for all platforms
-            text_dir = ctx.run_paths["description_file"].parent
-            platforms_config = [
-                ("youtube", ctx.product.title),  # YouTube gets title
-                ("tiktok", None),  # TikTok no title
-                ("instagram", None),  # Instagram no title
-            ]
+        # Generate single unified metadata file
+        text_dir = ctx.run_paths["description_file"].parent
+        ensure_dirs_exist(text_dir)
+        metadata_dict = {
+            "title": ctx.product.title,
+            "description": ctx.description,
+            "hashtags": hashtags,
+            "keywords": [],
+            "product_id": ctx.product.asin or "unknown",
+            "generated_at": datetime.now(UTC).isoformat(),
+            "mode": "unified",
+        }
 
-            for platform_name, title in platforms_config:
-                metadata = PlatformMetadata.create(
-                    platform=platform_name,
-                    title=title,
-                    description=ctx.description,
-                    hashtags=hashtags,
-                    keywords=[],  # Unified mode doesn't generate keywords
-                    product_id=ctx.product.asin or "unknown",
-                    validation_status="valid",
-                )
+        # Save to single metadata.json file
+        metadata_file = text_dir / "metadata.json"
+        with metadata_file.open("w", encoding="utf-8") as f:
+            json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 
-                # Save to JSON file
-                metadata_file = text_dir / f"metadata_{platform_name}.json"
-                metadata_dict = metadata.to_dict()
-                with metadata_file.open("w", encoding="utf-8") as f:
-                    json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
-
-                logger.info(f"Saved unified metadata to {metadata_file.name}")
-
-        except Exception as e:
-            logger.warning(
-                f"Failed to generate unified metadata JSON files: {e}",
-                exc_info=ctx.debug_mode,
-            )
-            # Non-critical - description.txt is still available as fallback
+        logger.info(f"Saved unified metadata to {metadata_file.name}")
 
 
 async def step_create_voiceover(ctx: PipelineContext):

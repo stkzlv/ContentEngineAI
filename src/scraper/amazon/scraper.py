@@ -6,6 +6,7 @@ the Botasaurus framework with built-in anti-detection and performance optimizati
 """
 
 import logging
+import shutil
 import warnings
 from pathlib import Path
 from typing import Any
@@ -203,7 +204,10 @@ class BotasaurusAmazonScraper(BaseScraper):
         search_params: SearchParameters | None = None,
         max_products: int | None = None,
     ) -> list[ProductData]:
-        """Unified method to scrape products in a single browser session"""
+        """Unified method to scrape products in a single browser session
+
+        Continues scraping until max_products that pass validation are collected.
+        """
         try:
             self.logger.info(f"Starting unified scrape for keyword: {keyword}")
 
@@ -213,6 +217,104 @@ class BotasaurusAmazonScraper(BaseScraper):
                 if max_products is not None
                 else self.amazon_config.get("max_products", 5)
             )
+
+            # Check if count_products_with_media is enabled
+            global_settings = CONFIG.get("global_settings", {})
+            count_products_with_media = global_settings.get(
+                "count_products_with_media", False
+            )
+
+            # If count_products_with_media is enabled, loop until target is reached
+            if count_products_with_media:
+                return self._scrape_until_validated_count_reached(
+                    keyword, search_params, products_limit
+                )
+
+            # Otherwise use traditional single-pass scraping without filtering
+            return self._scrape_single_pass(
+                keyword, search_params, products_limit, filter_validated=False
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error in unified scrape for {keyword}: {e}")
+            return []
+
+    def _scrape_until_validated_count_reached(
+        self,
+        keyword: str,
+        search_params: SearchParameters | None,
+        target_count: int,
+    ) -> list[ProductData]:
+        """Loop scraping until target_count validated products are collected"""
+        validated_products = []
+        total_scraped = 0
+        max_attempts = 50  # Safety limit to prevent infinite loops
+
+        self.logger.info(
+            f"🎯 Target: {target_count} products that pass validation requirements"
+        )
+
+        while len(validated_products) < target_count and total_scraped < max_attempts:
+            remaining = target_count - len(validated_products)
+            batch_size = min(remaining * 3, 15)  # Request 3x to account for filtering
+
+            if DEBUG_MODE:
+                self.logger.info(
+                    f"📊 Progress: {len(validated_products)}/{target_count} validated | "
+                    f"Requesting {batch_size} more products..."
+                )
+
+            # Scrape a batch
+            batch = self._scrape_single_pass(keyword, search_params, batch_size)
+
+            if not batch:
+                self.logger.warning(
+                    f"⚠️ No more products available. Stopping with "
+                    f"{len(validated_products)}/{target_count} validated products."
+                )
+                break
+
+            total_scraped += len(batch)
+            validated_products.extend(batch)
+
+            if DEBUG_MODE:
+                self.logger.info(
+                    f"✅ Batch complete: +{len(batch)} validated products "
+                    f"(total: {len(validated_products)}/{target_count})"
+                )
+
+        # Trim to exact count if we over-collected
+        if len(validated_products) > target_count:
+            validated_products = validated_products[:target_count]
+
+        self.logger.info(
+            f"🎉 Scraping complete: {len(validated_products)} validated products collected"
+        )
+
+        return validated_products
+
+    def _scrape_single_pass(
+        self,
+        keyword: str,
+        search_params: SearchParameters | None,
+        products_limit: int,
+        filter_validated: bool = True,
+    ) -> list[ProductData]:
+        """Single-pass scraping with download and validation
+
+        Args:
+        ----
+            keyword: Search keyword or ASIN
+            search_params: Search parameters for filtering
+            products_limit: Number of products to scrape
+            filter_validated: If True, return only products that pass validation
+
+        Returns:
+        -------
+            List of ProductData objects (filtered if filter_validated=True)
+
+        """
+        try:
 
             # Prepare data for the unified browser function
             data = {
@@ -601,21 +703,20 @@ class BotasaurusAmazonScraper(BaseScraper):
                         f"Product {product.asin} rejected: {rejection_reason} "
                         f"({img_count} images, {vid_count} videos)"
                     )
-                    # Clean up data.json for products without media files
+                    # Clean up entire product directory for filtered products
                     try:
                         product_dir = get_product_directory(product.asin or "unknown")
-                        data_file = product_dir / "data.json"
-                        if data_file.exists():
-                            data_file.unlink()
+                        if product_dir.exists():
+                            shutil.rmtree(product_dir)
                             if DEBUG_MODE:
                                 self.logger.info(
-                                    f"🧹 Cleaned up data.json for filtered product: "
-                                    f"{product.asin}"
+                                    f"🧹 Cleaned up product directory for filtered "
+                                    f"product: {product.asin}"
                                 )
                     except Exception as cleanup_error:
                         if DEBUG_MODE:
                             self.logger.warning(
-                                f"Could not clean up data.json for {product.asin}: "
+                                f"Could not clean up directory for {product.asin}: "
                                 f"{cleanup_error}"
                             )
 
@@ -640,19 +741,19 @@ class BotasaurusAmazonScraper(BaseScraper):
                         f"products scraped, {len(products_with_media)} with media files"
                     )
 
-            # Return only products with actual media files when
-            # count_products_with_media is enabled
-            final_products = (
-                products_with_media if count_products_with_media else products
-            )
-            self.logger.info(
-                f"Completed unified scrape: {len(final_products)} products for "
-                f"{keyword} ({len(products_without_media)} filtered out for no media)"
-            )
+            # Return filtered or all products based on filter_validated parameter
+            final_products = products_with_media if filter_validated else products
+
+            if DEBUG_MODE:
+                self.logger.info(
+                    f"Completed single pass: {len(final_products)} products "
+                    f"({len(products_without_media)} filtered out)"
+                )
+
             return final_products
 
         except Exception as e:
-            self.logger.error(f"Error in unified scrape for {keyword}: {e}")
+            self.logger.error(f"Error in single pass scrape for {keyword}: {e}")
             return []
 
     def scrape_products(
