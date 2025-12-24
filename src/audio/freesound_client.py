@@ -14,7 +14,6 @@ from src.utils import download_file as util_download_file
 from src.utils import ensure_dirs_exist, sanitize_filename
 from src.utils.circuit_breaker import freesound_circuit_breaker
 from src.video.config import (
-    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
     FREESOUND_DOWNLOAD_CHUNK_SIZE,
     FREESOUND_TOKEN_EXPIRY_SEC,
     FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
@@ -263,7 +262,7 @@ class FreesoundClient:
         file_path = output_dir / f"{sanitize_filename(sound_name)}.mp3"
         ensure_dirs_exist(file_path.parent)
 
-        download_timeout = timeout_sec or FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC
+        download_timeout = timeout_sec or 60  # Default download timeout in seconds
         logger.debug(
             f"Downloading {quality} preview for '{sound_name}' "
             f"(timeout: {download_timeout}s)"
@@ -500,7 +499,7 @@ class FreesoundClient:
         sound_id: int,
         output_dir: Path,
         session: aiohttp.ClientSession,
-        timeout_sec: int = FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
+        timeout_sec: int = 60,  # Default download timeout in seconds
     ) -> tuple[Path, dict[str, Any]] | None:
         """Download full-quality sound file using OAuth2 authentication.
 

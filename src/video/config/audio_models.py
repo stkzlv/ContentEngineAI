@@ -8,12 +8,9 @@ from pydantic import BaseModel, Field, model_validator
 
 from src.video.config.constants import (
     DEFAULT_WHISPER_MODEL_DIR,
-    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
-    FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
     FREESOUND_DOWNLOAD_CHUNK_SIZE,
     FREESOUND_TOKEN_EXPIRY_SEC,
     FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
-    LLM_MODEL_FETCH_TIMEOUT_SEC,
     TTS_PITCH_MAX,
     TTS_PITCH_MIN,
     TTS_SPEAKING_RATE_MAX,
@@ -37,8 +34,8 @@ class AudioSettings(BaseModel):
     freesound_filters: str
     freesound_max_results: int
     freesound_max_search_duration_sec: int = Field(9999)
-    freesound_api_timeout_sec: int = Field(FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC)
-    freesound_download_timeout_sec: int = Field(FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC)
+    freesound_api_timeout_sec: int = Field(10)  # Configurable via YAML
+    freesound_download_timeout_sec: int = Field(60)  # Configurable via YAML
     freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC)
     freesound_token_refresh_buffer_sec: int = Field(FREESOUND_TOKEN_REFRESH_BUFFER_SEC)
     freesound_download_chunk_size: int = Field(FREESOUND_DOWNLOAD_CHUNK_SIZE)

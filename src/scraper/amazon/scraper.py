@@ -246,7 +246,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         target_count: int,
     ) -> list[ProductData]:
         """Loop scraping until target_count validated products are collected"""
-        validated_products = []
+        validated_products: list[ProductData] = []
         total_scraped = 0
         max_attempts = 50  # Safety limit to prevent infinite loops
 
@@ -260,8 +260,8 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if DEBUG_MODE:
                 self.logger.info(
-                    f"📊 Progress: {len(validated_products)}/{target_count} validated | "
-                    f"Requesting {batch_size} more products..."
+                    f"📊 Progress: {len(validated_products)}/{target_count} "
+                    f"validated | Requesting {batch_size} more products..."
                 )
 
             # Scrape a batch
@@ -288,7 +288,8 @@ class BotasaurusAmazonScraper(BaseScraper):
             validated_products = validated_products[:target_count]
 
         self.logger.info(
-            f"🎉 Scraping complete: {len(validated_products)} validated products collected"
+            f"🎉 Scraping complete: {len(validated_products)} "
+            f"validated products collected"
         )
 
         return validated_products
@@ -315,7 +316,6 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         """
         try:
-
             # Prepare data for the unified browser function
             data = {
                 "keyword": keyword,

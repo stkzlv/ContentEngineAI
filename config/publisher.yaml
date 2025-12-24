@@ -1,36 +1,155 @@
-# Publisher Configuration
-# API credentials (set via environment variables: LATE_API_KEY, LATE_VERCEL_TOKEN)
+# ============================================================================
+# PUBLISHER CONFIGURATION
+# ============================================================================
+# Social media publishing settings for posting videos to YouTube, TikTok, and Instagram
+# Uses Late.co API for unified cross-platform publishing
+#
+# PIPELINE IMPACT:
+# - Controls when and how videos are published to social media platforms
+# - Manages scheduling, privacy settings, and cleanup after publication
+# - Integrates with video producer output for end-to-end automation
+#
+# SETUP:
+# - Set LATE_API_KEY environment variable with your Late.co API key
+# - Optionally set LATE_VERCEL_TOKEN for Vercel deployment management
+# - Configure platforms and privacy settings for your accounts
+#
+# USAGE:
+# - Immediate publish: Set immediate_publish=true for real-time posting
+# - Scheduled publish: Set immediate_publish=false and configure recurring_schedule
+# - Platform-specific: Set use_platform_specific_content=true for optimized metadata
+# ============================================================================
+
+# ============================================================================
+# PROVIDER SETTINGS
+# ============================================================================
+
+# Publishing service provider
+# Currently supported: "late" (Late.co unified publishing API)
+# Late.co handles cross-platform publishing to YouTube, TikTok, Instagram
+# API Documentation: https://docs.getlate.dev/
 provider: late
 
-# Publishing behavior
+# ============================================================================
+# PUBLISHING BEHAVIOR
+# ============================================================================
+
+# Publish videos immediately vs scheduling for later
+# true = Publish immediately after video production completes
+# false = Use recurring_schedule slots for timed publication
+# Affects: When content goes live, platform algorithm timing
+# Recommendation: false for optimal engagement (publish during peak hours)
 immediate_publish: true
+
+# Default platforms for publishing when not specified per-video
+# Options: youtube, tiktok, instagram
+# Videos will be posted to all enabled platforms simultaneously
+# Affects: Which social media accounts receive content
 default_platforms:
   - youtube
   - tiktok
   - instagram
 
-# Content strategy
-use_platform_specific_content: false  # true = separate post per platform with optimized metadata, false = single post for all platforms with unified metadata
+# ============================================================================
+# CONTENT STRATEGY
+# ============================================================================
 
-# Retry and timeout settings
+# Platform-specific vs unified content mode
+# true = Generate separate optimized metadata per platform (title, description, hashtags)
+#        Uses AI to optimize for each platform's algorithm and character limits
+#        Creates metadata_youtube.json, metadata_tiktok.json, metadata_instagram.json
+# false = Single unified metadata for all platforms
+#         Faster but less optimized for individual platform algorithms
+# Affects: Engagement rates, discoverability, SEO optimization
+# Recommendation: true for maximum reach, false for simple/consistent branding
+use_platform_specific_content: false
+
+# ============================================================================
+# RETRY AND TIMEOUT SETTINGS
+# ============================================================================
+
+# Maximum number of retry attempts for failed API calls
+# Applies to: Video upload, status checks, scheduling operations
+# Higher values = more resilient to transient failures, but longer wait times
+# Uses exponential backoff: delay = backoff_multiplier ^ attempt
 max_retries: 3
-timeout: 120.0  # TikTok video processing can take longer
+
+# API request timeout in seconds
+# How long to wait for a single API call before considering it failed
+# TikTok video processing can take 60-120 seconds for encoding
+# Affects: Upload reliability, time spent waiting on slow connections
+# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_DEFAULT_TIMEOUT_SEC
+timeout: 120.0
+
+# Exponential backoff multiplier for retries
+# Delay between retries = backoff_multiplier ^ attempt_number
+# Example: multiplier=2.0 → delays of 2s, 4s, 8s for attempts 1, 2, 3
+# Affects: Time between retry attempts, server load distribution
 backoff_multiplier: 2.0
 
-# Batch publishing delays (seconds)
+# ============================================================================
+# BATCH PUBLISHING DELAYS
+# ============================================================================
+# Stagger delays prevent overwhelming platform APIs and avoid rate limiting
+# Random delay selected between min and max for each video in batch
+
+# Minimum delay between batch video uploads (seconds)
+# Prevents rapid-fire publishing that could trigger rate limits
+# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_STAGGER_DELAY_MIN_SEC
 stagger_delay_min: 30
+
+# Maximum delay between batch video uploads (seconds)
+# Upper bound for random stagger delay
+# Affects: Total batch processing time, rate limit avoidance
+# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_STAGGER_DELAY_MAX_SEC
 stagger_delay_max: 60
 
-# Privacy settings per platform
+# ============================================================================
+# PRIVACY SETTINGS PER PLATFORM
+# ============================================================================
+# Default privacy/visibility for published videos
+# Can be overridden per-video or per-batch
+
 privacy_settings:
+  # YouTube privacy options: public, unlisted, private
+  # public = Visible to everyone, appears in search and recommendations
+  # unlisted = Only accessible via direct link
+  # private = Only visible to you
   youtube: public
+
+  # TikTok privacy options: public, friends, private
+  # public = Visible to everyone on TikTok
+  # friends = Only visible to followers
+  # private = Only visible to you
   tiktok: public
+
+  # Instagram privacy options: everyone, followers, close_friends
+  # everyone = Visible to all Instagram users
+  # followers = Only visible to your followers
+  # close_friends = Only visible to close friends list
   instagram: everyone
 
-# Recurring schedule configuration
+# ============================================================================
+# RECURRING SCHEDULE CONFIGURATION
+# ============================================================================
+# Automated posting schedule for consistent content delivery
+# Videos are queued and published at specified times
+
 recurring_schedule:
+  # Enable/disable scheduled publishing
+  # true = Use slot-based scheduling instead of immediate publishing
+  # false = Ignore schedule, use immediate_publish setting
   enabled: true
+
+  # Timezone for schedule times (IANA timezone name)
+  # Examples: Europe/Berlin (CET), America/New_York (EST), UTC
+  # Affects: When videos actually go live based on local time
   timezone: Europe/Berlin  # CET
+
+  # Weekly publishing slots
+  # Each slot defines a day and time for automated posting
+  # Times are in 24-hour format (HH:MM:SS) in specified timezone
+  # Algorithm selects nearest available slot for each video
   slots:
     - day_of_week: monday
       time: "10:00:00"
@@ -47,20 +166,79 @@ recurring_schedule:
     - day_of_week: sunday
       time: "10:00:00"
 
-# Schedule validation rules
-schedule_validation:
-  min_post_spacing_hours: 2  # Minimum hours between posts on same platform
-  prevent_duplicates: true   # Reject duplicate product+platform+time schedules
-  allow_past_schedules: false  # Allow scheduling posts in the past
-  max_posts_per_day: 10      # Maximum posts per day (0 = unlimited)
+# ============================================================================
+# SCHEDULE VALIDATION RULES
+# ============================================================================
+# Constraints to prevent scheduling conflicts and spam
 
-# Post-publication cleanup (enabled by default)
+schedule_validation:
+  # Minimum hours between posts on the same platform
+  # Prevents posting multiple videos in rapid succession
+  # Affects: Content spread, algorithm fairness, audience fatigue
+  min_post_spacing_hours: 2
+
+  # Reject duplicate product+platform+time combinations
+  # true = Prevent scheduling same product twice at same time
+  # false = Allow duplicate schedules (may cause errors)
+  prevent_duplicates: true
+
+  # Allow scheduling posts for times in the past
+  # true = Accept past timestamps (will post immediately)
+  # false = Reject past timestamps with validation error
+  allow_past_schedules: false
+
+  # Maximum posts allowed per calendar day (0 = unlimited)
+  # Prevents over-posting that could hurt engagement metrics
+  # Affects: Content pacing, platform algorithm treatment
+  max_posts_per_day: 10
+
+# ============================================================================
+# POST-PUBLICATION CLEANUP
+# ============================================================================
+# Automatic cleanup of local files after successful publication
+# Helps manage disk space for high-volume production
+
 cleanup:
-  enabled: true  # Automatic cleanup after successful publish
-  verify_before_delete: true  # Verify publication via API before cleanup
-  require_all_platforms: true  # Only cleanup when published to ALL platforms
-  archive_before_delete: false  # Create ZIP backup before deletion
-  archive_dir: outputs/archive  # Directory for archived product backups
-  keep_published_days: 0  # Only cleanup products older than N days (0 = any age)
-  preserve_metadata: false  # Keep metadata JSON files when cleaning
-  preserve_logs: true  # Keep log files in outputs/logs/ directory
+  # Enable/disable automatic cleanup after publishing
+  # true = Delete local video files after successful publish
+  # false = Keep all files indefinitely
+  enabled: true
+
+  # Verify publication via API before deleting files
+  # true = Double-check video is live before cleanup
+  # false = Trust publish response without verification
+  # Affects: Data safety, prevents premature deletion
+  verify_before_delete: true
+
+  # Require successful publish to ALL configured platforms
+  # true = Only cleanup when video is live on all platforms
+  # false = Cleanup even if only some platforms succeeded
+  # Affects: Data retention for partial publish failures
+  require_all_platforms: true
+
+  # Create ZIP backup before deletion
+  # true = Archive product directory before cleanup
+  # false = Delete without backup
+  # Affects: Recovery options, disk space usage
+  archive_before_delete: false
+
+  # Directory for archived product backups (if archive_before_delete=true)
+  archive_dir: outputs/archive
+
+  # Only cleanup products published more than N days ago
+  # 0 = Cleanup immediately after successful publish
+  # >0 = Keep files for N days after publish
+  # Affects: Time window for recovering deleted content
+  keep_published_days: 0
+
+  # Preserve metadata JSON files during cleanup
+  # true = Keep data.json, metadata.json, etc.
+  # false = Delete all files including metadata
+  # Affects: Audit trail, re-processing capability
+  preserve_metadata: false
+
+  # Preserve log files in outputs/logs/ directory
+  # true = Keep ffmpeg_command.log, performance.json, etc.
+  # false = Delete logs during cleanup
+  # Affects: Debugging capability, disk space
+  preserve_logs: true

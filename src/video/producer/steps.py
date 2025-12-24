@@ -71,8 +71,8 @@ def _load_artifacts_generate_description(ctx: PipelineContext):
     try:
         text_dir = ctx.run_paths["description_file"].parent
 
-        # Try loading unified metadata.json first
-        unified_metadata = text_dir / "metadata.json"
+        # Try loading unified metadata.json first (in product root)
+        unified_metadata = ctx.run_paths["run_root"] / "metadata.json"
         if unified_metadata.exists():
             meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
             ctx.description = meta.get("description", "")
@@ -381,9 +381,10 @@ async def step_generate_description(ctx: PipelineContext):
         text_dir = description_file.parent
 
         # Check for existing metadata files (unified or platform-specific)
-        unified_metadata_path = text_dir / "metadata.json"
+        product_root = ctx.run_paths["run_root"]
+        unified_metadata_path = product_root / "metadata.json"
         platform_metadata_exists = any(
-            (text_dir / f"metadata_{platform}.json").exists()
+            (product_root / f"metadata_{platform}.json").exists()
             for platform in ["youtube", "tiktok", "instagram"]
         )
 
@@ -453,11 +454,12 @@ async def step_generate_description(ctx: PipelineContext):
                     raise ValueError("No platform configurations available")
 
                 # Prepare intermediate paths for metadata files
+                product_root = ctx.run_paths["run_root"]
                 intermediate_paths = {
                     "description": text_dir / "description.txt",
-                    "metadata_youtube": text_dir / "metadata_youtube.json",
-                    "metadata_tiktok": text_dir / "metadata_tiktok.json",
-                    "metadata_instagram": text_dir / "metadata_instagram.json",
+                    "metadata_youtube": product_root / "metadata_youtube.json",
+                    "metadata_tiktok": product_root / "metadata_tiktok.json",
+                    "metadata_instagram": product_root / "metadata_instagram.json",
                 }
 
                 # Generate metadata for all platforms in parallel
@@ -473,12 +475,11 @@ async def step_generate_description(ctx: PipelineContext):
                     api_settings=ctx.config.api_settings,
                 )
 
-                # Save metadata to individual platform files
-                ensure_dirs_exist(text_dir)
+                # Save metadata to individual platform files (in product root)
                 saved_count = 0
                 for platform, metadata in metadata_results.items():
                     if metadata:
-                        metadata_file = text_dir / f"metadata_{platform}.json"
+                        metadata_file = product_root / f"metadata_{platform}.json"
                         save_metadata_to_file(metadata, metadata_file)
                         logger.info(
                             f"Saved {platform} metadata to {metadata_file.name}"
@@ -571,9 +572,8 @@ async def step_generate_description(ctx: PipelineContext):
                 seen.add(tag.lower())
                 hashtags.append(tag)
 
-        # Generate single unified metadata file
-        text_dir = ctx.run_paths["description_file"].parent
-        ensure_dirs_exist(text_dir)
+        # Generate single unified metadata file (in product root)
+        product_root = ctx.run_paths["run_root"]
         metadata_dict = {
             "title": ctx.product.title,
             "description": ctx.description,
@@ -584,8 +584,8 @@ async def step_generate_description(ctx: PipelineContext):
             "mode": "unified",
         }
 
-        # Save to single metadata.json file
-        metadata_file = text_dir / "metadata.json"
+        # Save to single metadata.json file in product root
+        metadata_file = product_root / "metadata.json"
         with metadata_file.open("w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 

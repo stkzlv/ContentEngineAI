@@ -128,7 +128,7 @@ class TestLatePublisherInit:
 
         assert publisher._api_key == "sk_test_abc123"
         assert publisher.vercel_token is None
-        assert publisher.timeout == 30.0
+        assert publisher.timeout == 120.0
         assert publisher.max_retries == 3
 
     def test_init_empty_api_key(self):

@@ -22,26 +22,11 @@ from src.video.config.audio_models import (
     TTSConfig,
 )
 from src.video.config.constants import (
-    ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
     DEFAULT_FALLBACK_FONT,
     DEFAULT_WHISPER_MODEL_DIR,
-    DOWNLOAD_DEFAULT_TIMEOUT_SEC,
-    DOWNLOAD_RETRY_ATTEMPTS,
-    DOWNLOAD_RETRY_MAX_WAIT_SEC,
-    DOWNLOAD_RETRY_MIN_WAIT_SEC,
     FALLBACK_FONT_ALTERNATIVES,
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
-    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
-    FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
-    LLM_MAX_TOKENS,
-    LLM_MODEL_FETCH_TIMEOUT_SEC,
-    LLM_RETRY_ATTEMPTS,
-    LLM_RETRY_MAX_WAIT_SEC,
-    LLM_RETRY_MIN_WAIT_SEC,
-    LLM_RETRY_MULTIPLIER,
-    LLM_TEMPERATURE,
-    LLM_TIMEOUT_SECONDS,
 )
 from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
@@ -168,21 +153,21 @@ class WhisperSettings(BaseModel):
 class ApiSettings(BaseModel):
     """Configuration for API timeouts, retries, and network settings."""
 
-    llm_model_fetch_timeout_sec: int = Field(LLM_MODEL_FETCH_TIMEOUT_SEC)
-    llm_retry_attempts: int = Field(LLM_RETRY_ATTEMPTS)
-    llm_retry_min_wait_sec: int = Field(LLM_RETRY_MIN_WAIT_SEC)
-    llm_retry_max_wait_sec: int = Field(LLM_RETRY_MAX_WAIT_SEC)
-    llm_retry_multiplier: int = Field(LLM_RETRY_MULTIPLIER)
+    llm_model_fetch_timeout_sec: int = Field(30)  # Configurable via YAML
+    llm_retry_attempts: int = Field(3)  # Configurable via YAML
+    llm_retry_min_wait_sec: int = Field(1)  # Configurable via YAML
+    llm_retry_max_wait_sec: int = Field(30)  # Configurable via YAML
+    llm_retry_multiplier: int = Field(2)  # Configurable via YAML
     stock_media_concurrent_downloads: int = Field(5)
     stock_media_search_multiplier: int = Field(2)
     stock_media_max_per_page: int = Field(80)
     default_request_timeout_sec: int = Field(15)
     default_retry_attempts: int = Field(3)
     default_retry_delay_sec: int = Field(5)
-    download_timeout_sec: int = Field(DOWNLOAD_DEFAULT_TIMEOUT_SEC)
-    download_retry_attempts: int = Field(DOWNLOAD_RETRY_ATTEMPTS)
-    download_retry_min_wait_sec: int = Field(DOWNLOAD_RETRY_MIN_WAIT_SEC)
-    download_retry_max_wait_sec: int = Field(DOWNLOAD_RETRY_MAX_WAIT_SEC)
+    download_timeout_sec: int = Field(30)  # Configurable via YAML
+    download_retry_attempts: int = Field(3)  # Configurable via YAML
+    download_retry_min_wait_sec: int = Field(1)  # Configurable via YAML
+    download_retry_max_wait_sec: int = Field(10)  # Configurable via YAML
 
 
 class TextProcessingSettings(BaseModel):
@@ -420,7 +405,7 @@ class ProductFiles(BaseModel):
 class ProductTempFiles(BaseModel):
     """Temporary/debug files within product temp directory"""
 
-    metadata: str = Field("metadata.json")
+    pipeline_state: str = Field("pipeline_state.json")
     performance: str = Field("performance.json")
     ffmpeg_log: str = Field("ffmpeg_command.log")
     media_validation_report: str = Field("media_validation_report.json")
@@ -1153,17 +1138,18 @@ class VideoConfig(BaseModel):
             "temp_dir": temp_dir,
             # Core production files (in product root)
             "scraped_data": product_dir / files.scraped_data,
-            "script": product_dir / files.script,
-            "description": product_dir / files.description,
-            "voiceover": product_dir / files.voiceover,
-            "subtitles": product_dir / self._get_subtitle_filename(files.subtitles),
             "final_video": product_dir
             / files.final_video.format(
                 product_id=product_id, profile=safe_profile_name
             ),
-            "attribution": product_dir / files.attribution,
+            # Intermediate files (in temp directory)
+            "script": temp_dir / files.script,
+            "description": temp_dir / files.description,
+            "voiceover": temp_dir / files.voiceover,
+            "subtitles": temp_dir / self._get_subtitle_filename(files.subtitles),
+            "attribution": temp_dir / files.attribution,
             # Debug/temp files (in temp directory)
-            "metadata": temp_dir / temp_files.metadata,
+            "pipeline_state": temp_dir / temp_files.pipeline_state,
             "performance": temp_dir / temp_files.performance,
             "ffmpeg_log": temp_dir / temp_files.ffmpeg_log,
             "media_validation_report": temp_dir
@@ -1182,7 +1168,7 @@ class VideoConfig(BaseModel):
             "audio_dir": temp_dir,
             "visual_dir": temp_dir,
             "text_dir": temp_dir,
-            "pipeline_state": temp_dir / temp_files.metadata,  # Renamed to temp
+            "metadata": temp_dir / temp_files.pipeline_state,  # Legacy alias
         }
 
     def _get_subtitle_filename(self, default_filename: str) -> str:

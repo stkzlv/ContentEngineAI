@@ -44,7 +44,7 @@ _task_config.update(get_task_config_for_outputs())
 _enhanced_task_config = {
     **_task_config,
     "raise_exception": True,  # Raise exception to see actual errors
-    "create_error_logs": True,  # Enable error logging for debugging
+    "create_error_logs": False,  # Disabled - botasaurus can't relocate to outputs/
     "close_on_crash": False,  # Keep task open on crash for debugging
     "max_retry": 3,  # Reasonable retry count
     # Output handled by custom output function in get_task_config_for_outputs()

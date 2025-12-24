@@ -245,6 +245,15 @@ class BatchController:
                             )
                         )
 
+                    # Check if max_products limit reached
+                    if len(results) >= self.config.max_products:
+                        self.logger.info(
+                            f"✅ Reached max_products limit "
+                            f"({self.config.max_products}). "
+                            f"Stopping keyword processing."
+                        )
+                        break
+
                 else:
                     self.logger.warning(
                         f"[{i}/{len(self.config.keywords)}] ⚠️  "

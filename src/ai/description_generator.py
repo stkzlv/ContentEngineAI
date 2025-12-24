@@ -33,13 +33,6 @@ from tenacity import (
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import openrouter_circuit_breaker
-from src.video.config import (
-    LLM_MODEL_FETCH_TIMEOUT_SEC,
-    LLM_RETRY_ATTEMPTS,
-    LLM_RETRY_MAX_WAIT_SEC,
-    LLM_RETRY_MIN_WAIT_SEC,
-    LLM_RETRY_MULTIPLIER,
-)
 from src.video.config.llm_settings import LLMSettings
 
 # Configure module logger
@@ -169,7 +162,7 @@ async def _fetch_and_select_model(
         timeout = (
             api_settings.llm_model_fetch_timeout_sec
             if api_settings
-            else LLM_MODEL_FETCH_TIMEOUT_SEC
+            else 30  # Default timeout in seconds
         )
         async with session.get(api_url, headers=headers, timeout=timeout) as response:  # type: ignore[attr-defined]
             response.raise_for_status()
@@ -217,16 +210,14 @@ async def _call_llm_api_with_retry(
 ) -> str:
     """Call the LLM API with manual retry logic for async functions."""
     # Get retry settings
-    multiplier = (
-        api_settings.llm_retry_multiplier if api_settings else LLM_RETRY_MULTIPLIER
-    )
-    min_wait = (
-        api_settings.llm_retry_min_wait_sec if api_settings else LLM_RETRY_MIN_WAIT_SEC
-    )
-    max_wait = (
-        api_settings.llm_retry_max_wait_sec if api_settings else LLM_RETRY_MAX_WAIT_SEC
-    )
-    attempts = api_settings.llm_retry_attempts if api_settings else LLM_RETRY_ATTEMPTS
+    # Exponential backoff multiplier
+    multiplier = api_settings.llm_retry_multiplier if api_settings else 2
+    # Minimum wait in seconds
+    min_wait = api_settings.llm_retry_min_wait_sec if api_settings else 1
+    # Maximum wait in seconds
+    max_wait = api_settings.llm_retry_max_wait_sec if api_settings else 30
+    # Number of retry attempts
+    attempts = api_settings.llm_retry_attempts if api_settings else 3
 
     last_exception = None
 

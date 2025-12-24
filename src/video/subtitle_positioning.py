@@ -12,6 +12,16 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.video.config.constants import (
+    SUBTITLE_BASE_FONT_SIZE_PERCENT,
+    SUBTITLE_CENTER_POSITION_FRACTION,
+    SUBTITLE_LEFT_POSITION_FRACTION,
+    SUBTITLE_MAX_FONT_SIZE,
+    SUBTITLE_MAX_SAFE_Y_POSITION,
+    SUBTITLE_MIN_FONT_SIZE,
+    SUBTITLE_RIGHT_POSITION_FRACTION,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -329,10 +339,18 @@ def calculate_position(
             data = yaml.safe_load(f)
             text_rendering_config = data.get("text_rendering", {})
 
-    max_safe_y = text_rendering_config.get("max_safe_y_position", 0.95)
-    center_fraction = text_rendering_config.get("center_position_fraction", 0.5)
-    left_fraction = text_rendering_config.get("left_position_fraction", 0.1)
-    right_fraction = text_rendering_config.get("right_position_fraction", 0.9)
+    max_safe_y = text_rendering_config.get(
+        "max_safe_y_position", SUBTITLE_MAX_SAFE_Y_POSITION
+    )
+    center_fraction = text_rendering_config.get(
+        "center_position_fraction", SUBTITLE_CENTER_POSITION_FRACTION
+    )
+    left_fraction = text_rendering_config.get(
+        "left_position_fraction", SUBTITLE_LEFT_POSITION_FRACTION
+    )
+    right_fraction = text_rendering_config.get(
+        "right_position_fraction", SUBTITLE_RIGHT_POSITION_FRACTION
+    )
 
     frame_width, frame_height = frame_size
 
@@ -407,17 +425,23 @@ def get_font_size(
                 data = yaml.safe_load(f)
                 text_rendering = data.get("text_rendering", {})
                 base_size_percent = float(
-                    text_rendering.get("base_font_size_percent", 0.04)
+                    text_rendering.get(
+                        "base_font_size_percent", SUBTITLE_BASE_FONT_SIZE_PERCENT
+                    )
                 )
-                min_font = int(text_rendering.get("min_font_size", 16))
-                max_font = int(text_rendering.get("max_font_size", 100))
+                min_font = int(
+                    text_rendering.get("min_font_size", SUBTITLE_MIN_FONT_SIZE)
+                )
+                max_font = int(
+                    text_rendering.get("max_font_size", SUBTITLE_MAX_FONT_SIZE)
+                )
         else:
-            base_size_percent = 0.04
-            min_font = 16
-            max_font = 100
+            base_size_percent = SUBTITLE_BASE_FONT_SIZE_PERCENT
+            min_font = SUBTITLE_MIN_FONT_SIZE
+            max_font = SUBTITLE_MAX_FONT_SIZE
     else:
-        min_font = 16
-        max_font = 100
+        min_font = SUBTITLE_MIN_FONT_SIZE
+        max_font = SUBTITLE_MAX_FONT_SIZE
 
     base_size = int(frame_height * base_size_percent)
     scaled_size = int(base_size * config.font_size_scale)

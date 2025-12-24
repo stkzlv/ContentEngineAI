@@ -555,7 +555,7 @@ outputs/{ASIN}/
 video_config:
   min_dimension: 640              # Minimum width/height (pixels)
   min_duration: 1.0               # Minimum duration (seconds)
-  max_videos_per_product: 5       # Download limit per product
+  max_videos_per_product: 10      # Download limit per product
   mute_video_tabs: true           # Prevent audio during extraction
   enable_metadata_extraction: true # FFprobe metadata extraction
 ```

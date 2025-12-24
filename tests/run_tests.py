@@ -70,7 +70,7 @@ def main():
 
     # Add output format options
     if args.output == "html":
-        base_cmd.extend(["--cov-report=html:htmlcov"])
+        base_cmd.extend(["--cov-report=html:outputs/coverage"])
     elif args.output == "xml":
         base_cmd.extend(["--cov-report=xml"])
 
@@ -91,7 +91,7 @@ def main():
                 "tests/",
                 "--cov=src",
                 "--cov-report=term-missing",
-                "--cov-report=html:htmlcov",
+                "--cov-report=html:outputs/coverage",
             ],
             "Tests with Coverage Report",
         )

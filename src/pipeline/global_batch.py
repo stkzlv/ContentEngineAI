@@ -628,7 +628,7 @@ async def main():
     args = parser.parse_args()
 
     # Set up logging early
-    log_file = Path("logs/global_pipeline.log")
+    log_file = Path("outputs/logs/global_pipeline.log")
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     setup_debug_logging(

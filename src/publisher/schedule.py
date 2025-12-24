@@ -447,8 +447,7 @@ class ScheduleManager:
                 occupied_slot_times.add(normalized)
 
             logger.info(
-                f"Total {len(occupied_slot_times)} occupied slots "
-                f"(API + local)"
+                f"Total {len(occupied_slot_times)} occupied slots " f"(API + local)"
             )
 
             # Log latest post time for debugging, but keep current_time at NOW
