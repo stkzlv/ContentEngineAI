@@ -8,7 +8,7 @@ ContentEngineAI supports three batch processing modes:
 
 1. **[Scraper Batch Mode](#scraper-batch-mode)** - Scrape multiple products
 2. **[Producer Batch Mode](#producer-batch-mode)** - Generate videos for all scraped products
-3. **[Global Batch Pipeline](#global-batch-pipeline)** - End-to-end automation (scrape + produce)
+3. **[Global Batch Pipeline](#global-batch-pipeline)** - End-to-end automation (scrape + produce + publish)
 
 ---
 
@@ -212,15 +212,16 @@ Total Duration: 42.5 seconds
 
 ## Global Batch Pipeline
 
-End-to-end automation combining scraping and video production in a single unified command.
+End-to-end automation combining scraping, video production, and publishing in a single unified command.
 
 ### Pipeline Architecture
 
-The global batch pipeline orchestrates three phases:
+The global batch pipeline orchestrates four phases:
 
 1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords)
 2. **Handoff Phase** - Discover scraped products and filter by media availability
 3. **Production Phase** - Generate videos using configured profile settings
+4. **Publishing Phase** - Upload and publish videos to social media platforms (optional)
 
 ### Usage Examples
 
@@ -265,6 +266,37 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
+#### With Social Media Publishing
+
+```bash
+# Publish to YouTube and TikTok with auto-scheduling (default)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --profile slideshow_images1 \
+  --platforms youtube tiktok \
+  --debug
+
+# Skip publishing (video production only)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --profile slideshow_images1 \
+  --skip-publish \
+  --debug
+
+# Explicit schedule time
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS \
+  --profile slideshow_images1 \
+  --platforms youtube tiktok instagram \
+  --schedule-time "2025-01-20T10:00:00+00:00" \
+  --debug
+```
+
+**Publishing Behavior**:
+- **Auto-Scheduling** (default): Finds first available unoccupied slot in `config/publisher.yaml` recurring schedule
+- **Explicit Scheduling**: Use `--schedule-time` with ISO 8601 format to override auto-scheduling
+- **Cleanup**: Removes product directories after successful multi-platform publish (configurable in `config/publisher.yaml`)
+
 ### YAML Configuration
 
 Define persistent pipeline settings in `config/pipeline.yaml`:
@@ -294,6 +326,15 @@ global_batch:
     - slideshow_images1
     - video_sequential
 
+  # Publishing Settings (optional)
+  skip_publish: false
+  platforms:
+    - youtube
+    - tiktok
+    - instagram
+  schedule_time: null  # null = auto-schedule, or ISO 8601 datetime
+  fail_fast_publish: false
+
   # Error Handling
   fail_fast: false  # Continue on errors (default)
 
@@ -301,6 +342,11 @@ global_batch:
   outputs_dir: outputs
   debug: false
 ```
+
+**Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [PUBLISHER.md](PUBLISHER.md) for details):
+- `immediate_publish: false` enables auto-scheduling
+- `recurring_schedule.slots` defines available time slots
+- `cleanup.enabled: true` removes product directories after successful publish
 
 ### Configuration Precedence
 
@@ -356,24 +402,38 @@ VIDEO PRODUCTION PHASE:
     - video_sequential: 1 (33.3%)
   Duration: 87.6s
 
+PUBLISHING PHASE:
+  Total Attempted: 3
+  Successful: 3
+  Failed: 0
+  Skipped: 0
+
+  Platform Results:
+    - youtube: 3 successful, 0 failed
+    - tiktok: 3 successful, 0 failed
+    - instagram: 3 successful, 0 failed
+  Duration: 45.2s
+
 END-TO-END RESULTS:
-  Complete Success (scraped + produced): 3
-  Partial Success (scraped only): 0
+  Complete Success (scraped + produced + published): 3
+  Partial Success (scraped/produced only): 0
   Total Failures: 0
 
-Total Pipeline Duration: 113.0s
+Total Pipeline Duration: 158.2s
 ================================================================================
 ```
 
 ### Key Features
 
-- **Unified Workflow**: Single command for complete scrape-to-video pipeline
-- **Three-Phase Orchestration**: Automatic coordination across scraping, handoff, and production
+- **Unified Workflow**: Single command for complete scrape-to-publish pipeline
+- **Four-Phase Orchestration**: Automatic coordination across scraping, handoff, production, and publishing
 - **Flexible Input Sources**: Support for product IDs, keywords, or both simultaneously
 - **Smart Filtering**: Handoff phase validates products have sufficient media before production
 - **Profile Management**: Fixed profile or deterministic random selection per product
+- **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
+- **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
-- **Error Resilience**: Graceful failure handling with optional fail-fast mode
+- **Error Resilience**: Graceful failure handling with optional fail-fast mode per phase
 
 ---
 

@@ -184,7 +184,7 @@ class TestAutoSchedule:
         mock_publisher,
         mock_video_files,
     ):
-        """Test successful video scheduling."""
+        """Test successful video scheduling with unified posting (default)."""
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         with patch("src.publisher.tracking.is_already_published", return_value=False):
@@ -199,7 +199,61 @@ class TestAutoSchedule:
             assert result["skipped"] == 0
             assert result["failed"] == 0
 
-            # Publisher called once per video (upload) and once per platform (publish)
+            # Unified mode: Publisher called once per video (upload + publish)
+            # 3 videos × 1 upload = 3 upload calls
+            # 3 videos × 1 publish (all platforms) = 3 publish calls
+            assert mock_publisher.upload_media.call_count == 3
+            assert mock_publisher.publish.call_count == 3
+
+            # Entries added to schedule (one per video with all platforms)
+            assert len(manager.entries) == 3
+
+            # Verify entries have correct structure (unified posts)
+            for entry in manager.entries:
+                assert entry.status == "scheduled"
+                assert entry.post_id == "post_456"
+                # Each entry contains all platforms in one post
+                assert len(entry.platforms) == 2
+                assert Platform.YOUTUBE in entry.platforms
+                assert Platform.TIKTOK in entry.platforms
+
+    @pytest.mark.asyncio
+    async def test_platform_specific_scheduling(
+        self,
+        temp_schedule_file,
+        mock_publisher,
+        mock_video_files,
+    ):
+        """Test platform-specific scheduling mode (optional behavior)."""
+        # Config with platform-specific content enabled
+        config = ScheduleConfig(
+            enabled=True,
+            slots=[
+                RecurringSlot("monday", "10:00:00", "UTC"),
+                RecurringSlot("wednesday", "14:00:00", "UTC"),
+            ],
+            timezone="UTC",
+            use_platform_specific_content=True,  # Enable platform-specific mode
+            min_post_spacing_hours=0,
+            prevent_duplicates=False,
+            allow_past_schedules=True,
+            max_posts_per_day=0,
+        )
+        manager = ScheduleManager(temp_schedule_file, config)
+
+        with patch("src.publisher.tracking.is_already_published", return_value=False):
+            result = await manager.auto_schedule(
+                videos=mock_video_files,
+                platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+                publisher=mock_publisher,
+            )
+
+            # All videos scheduled
+            assert result["scheduled"] == 3
+            assert result["skipped"] == 0
+            assert result["failed"] == 0
+
+            # Platform-specific mode: Publisher called once per platform per video
             # 3 videos × 1 upload = 3 upload calls
             # 3 videos × 2 platforms = 6 publish calls
             assert mock_publisher.upload_media.call_count == 3
@@ -209,11 +263,11 @@ class TestAutoSchedule:
             # 3 videos × 2 platforms = 6 entries
             assert len(manager.entries) == 6
 
-            # Verify entries have correct structure (each entry is per-platform)
+            # Verify entries have correct structure (separate per platform)
             for entry in manager.entries:
                 assert entry.status == "scheduled"
                 assert entry.post_id == "post_456"
-                # Each entry is for a single platform (per-platform publishing)
+                # Each entry is for a single platform
                 assert len(entry.platforms) == 1
                 assert entry.platforms[0] in [Platform.YOUTUBE, Platform.TIKTOK]
 
@@ -245,9 +299,9 @@ class TestAutoSchedule:
 
             # Verify slot indices in entries
             # With start_slot=2, implementation finds earliest available slot from there
-            # Slots wrap around: 1 (Wednesday), 2 (Friday), 0 (Monday)
+            # Slots are scheduled in chronological order: 2 (Friday), 0 (Monday), 1 (Wednesday)
             slot_indices = [e.slot_index for e in manager.entries]
-            assert slot_indices == [1, 2, 0]
+            assert slot_indices == [2, 0, 1]
 
     @pytest.mark.asyncio
     async def test_handles_publish_failures(

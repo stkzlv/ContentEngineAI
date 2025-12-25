@@ -5,16 +5,16 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
 
-**Version**: 0.18.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.19.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.18.0)**: Enhanced publisher module with scheduling, cleanup, and improved text formatting. Platform-specific metadata optimization for YouTube, TikTok, and Instagram.
+> **🚀 Latest Update (v0.19.0)**: Auto-scheduling with occupied slot detection and post-publication cleanup. Global batch pipeline now supports unified scrape + produce + publish workflow with automatic scheduling.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
 ## ✨ Key Features
 
 - **🤖 End-to-End Automation**: Complete video production from scraping to publishing
-- **📤 Social Media Publishing**: Automated publishing to YouTube, TikTok, Instagram via Late.dev
+- **📤 Social Media Publishing**: Auto-scheduling with slot detection + cleanup after publish
 - **📦 Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
 - **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
 - **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
@@ -39,25 +39,32 @@ poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_i
 # 3. Generate with platform-specific metadata (YouTube, TikTok, Instagram)
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --target-platform multi --debug
 
-# 4. Unified batch pipeline (scrape + produce in one command)
-poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --profile slideshow_images1 --debug
+# 4. Unified batch pipeline (scrape + produce + publish in one command)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --profile slideshow_images1 \
+  --platforms youtube tiktok \
+  --debug
 ```
 
 **📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
 
 ## 🔄 Batch Processing
 
-Process multiple products with unified scrape + produce pipeline:
+Process multiple products with unified scrape + produce + publish pipeline:
 
 ```bash
-# End-to-end batch automation
+# End-to-end batch automation with auto-scheduling
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" \
   --profile slideshow_images1 \
+  --platforms youtube tiktok \
   --debug
 ```
 
-**📖 Complete Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md) - Multi-mode batch workflows, filters, randomization
+**Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API. Falls back to immediate publish if all slots occupied within 8-week lookahead.
+
+**📖 Complete Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md) - Multi-mode batch workflows, filters, randomization, publishing
 
 ## 📤 Social Media Publishing
 
@@ -84,7 +91,9 @@ poetry run python -m src.publisher.late batch \
 
 **Platform-Specific Content**: When metadata files (`metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`) exist, the publisher creates separate posts for each platform with optimized content.
 
-**📖 Complete Guide**: [PUBLISHER.md](PUBLISHER.md) - Setup, CLI commands, configuration, troubleshooting
+**Auto-Cleanup**: Product directories are automatically removed after successful multi-platform publish (configurable in `config/publisher.yaml`).
+
+**📖 Complete Guide**: [PUBLISHER.md](PUBLISHER.md) - Setup, auto-scheduling, cleanup, CLI commands, configuration
 
 ## 🏗️ Architecture
 

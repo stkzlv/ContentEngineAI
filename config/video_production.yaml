@@ -114,6 +114,7 @@ video_settings:
   # - Products below these thresholds are rejected during scraping/production
   # - Affects batch processing success rate and output quality
   # - Higher values = better quality but fewer successful videos
+  # NOTE: These values must match config/scraper.yaml validation_config
   min_total_media: 3              # Minimum combined images + videos
   min_images_if_no_video: 5       # Slideshow mode threshold (no product videos)
   min_images_with_video: 2        # Video mode threshold (has product videos)
@@ -1011,6 +1012,7 @@ ffmpeg_settings:
   # Maximum time to wait for final assembly (seconds)
   # Increase for very long videos or slow hardware
   # Used by: assembler.py final encoding timeout
+  # NOTE: Also defined in config/performance.yaml - keep values in sync
   final_assembly_timeout_sec: 600
 
 # ============================================================================

@@ -393,10 +393,12 @@ batch:
   # Example: ["wireless earbuds", "bluetooth headphones", "noise cancelling headphones"]
   # Empty list means no batch processing via keywords
   keywords:
-    - "wireless earbuds"
-    - "bluetooth headphones"
     - "smart ring"
-    - "blue light blocking glasses"
+    - "mini projector"
+    - "portable charger"
+    - "wallet finder"
+    - "car charger"
+    - "LED Strip Lights"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure
@@ -439,7 +441,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 10
+    max_products: 2
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: "stealtech06-20"

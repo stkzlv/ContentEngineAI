@@ -1,7 +1,7 @@
 # Publisher Module - Social Media Publishing
 
 [![Late.dev Integration](https://img.shields.io/badge/Late.dev-Integrated-brightgreen)](https://late.dev)
-[![Version](https://img.shields.io/badge/version-0.18.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.19.0-blue)](CHANGELOG.md)
 
 **Automatically publish your generated videos to social media platforms via Late.dev**
 
@@ -29,7 +29,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 ## ✨ Features
 
 - **🌐 Multi-Platform Publishing**: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
-- **📅 Scheduled Posts**: Schedule videos for future publishing with recurring time slots
+- **📅 Auto-Scheduling**: Automatically finds first available unoccupied slot in recurring schedule
 - **📆 Calendar Management**: View and filter all scheduled posts by platform, date, and status
 - **🔄 Batch Publishing**: Upload multiple videos with automatic rate limiting
 - **🗑️ Auto-Cleanup**: Automatically remove published products from outputs directory
@@ -49,7 +49,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 
 # 2. Configure credentials in .env
 echo "LATE_API_KEY=sk_live_your_key_here" >> .env
-echo "BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files >4MB
+echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files >4MB
 
 # 3. Connect your social media accounts
 # Visit https://late.dev/dashboard/accounts and connect platforms
@@ -95,8 +95,8 @@ LATE_API_KEY=sk_live_your_api_key_here
 
 # Optional: Vercel Blob Token for large file uploads (>4MB)
 # Required if publishing videos larger than 4MB
-# Get from: Vercel Dashboard → Storage → Create Blob → Settings → BLOB_READ_WRITE_TOKEN
-BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token_here
+# Get from: Vercel Dashboard → Storage → Create Blob → Settings → Token
+LATE_VERCEL_TOKEN=vercel_blob_rw_your_token_here
 
 # Optional: Override default settings
 LATE_TIMEOUT=30.0
@@ -329,7 +329,7 @@ export LATE_API_KEY=sk_live_new_key
 # === Provider Settings ===
 provider: late                      # Publisher provider (only "late" supported)
 api_key: ${LATE_API_KEY}           # API key (use env var for security)
-vercel_token: ${BLOB_READ_WRITE_TOKEN} # Vercel token for large files (optional)
+vercel_token: ${LATE_VERCEL_TOKEN} # Vercel token for large files (optional)
 
 # === Publishing Defaults ===
 immediate_publish: true             # Default to immediate vs scheduled
@@ -369,7 +369,7 @@ All configuration values can be overridden via environment variables:
 export LATE_API_KEY=sk_live_your_key
 
 # Optional (for large files >4MB)
-export BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx
+export LATE_VERCEL_TOKEN=vercel_blob_rw_xxx
 export LATE_TIMEOUT=60.0
 export LATE_MAX_RETRIES=5
 export LATE_STAGGER_MIN=10
@@ -682,13 +682,13 @@ poetry run python -m src.publisher.late schedule auto \
 **Auto-Scheduling Behavior:**
 1. Loads recurring schedule from configuration
 2. Scans outputs directory for unpublished videos
-3. Finds next available slot (after current time)
-4. **Creates separate posts per platform when metadata files exist**
+3. **Queries Late.co API** to find occupied slots (8-week lookahead)
+4. Finds first available unoccupied slot by comparing scheduled times
+5. **Creates separate posts per platform when metadata files exist**
    - Reads `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
    - Each platform gets its own post with platform-specific content
    - All platforms for same product scheduled to same time slot
-5. Schedules videos sequentially to slots
-6. Validates minimum spacing between posts (configurable)
+6. Falls back to immediate publishing if all slots occupied
 7. Reports scheduled times and slot assignments
 
 ### Schedule Validation
@@ -1004,7 +1004,7 @@ WARNING: No metadata found for youtube, using basic content
 
 4. For large files (>4MB), verify Vercel Blob token:
    ```bash
-   grep BLOB_READ_WRITE_TOKEN .env
+   grep LATE_VERCEL_TOKEN .env
    # Should be set for files >4MB (get from Vercel Dashboard → Storage → Blob)
    ```
 

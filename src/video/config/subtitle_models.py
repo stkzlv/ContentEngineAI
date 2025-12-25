@@ -6,7 +6,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 from src.video.config.constants import (
-    ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
 )

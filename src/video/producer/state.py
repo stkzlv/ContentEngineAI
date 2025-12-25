@@ -52,27 +52,45 @@ def _clean_producer_files(
     # Producer-generated files to remove (preserve scraper inputs like data.json,
     # images/, videos/)
     producer_files_to_remove = [
-        product_root / files.script,  # script.txt
-        product_root / files.description,  # description.txt
-        product_root / files.voiceover,  # voiceover.wav
-        product_root / files.subtitles,  # subtitles.srt
-        product_root / "subtitles.ass",  # ASS subtitle file
-        product_root / "subtitles_content_aware.ass",  # content-aware subtitle file
-        product_root / "subtitle_upper.ass",  # Upper subtitle (two-part system)
+        # Intermediate files (now in temp/)
+        temp_dir / files.script,  # script.txt
+        temp_dir / files.description,  # description.txt
+        temp_dir / files.voiceover,  # voiceover.wav
+        temp_dir / files.subtitles,  # subtitles.srt
+        temp_dir / "subtitles.ass",  # ASS subtitle file
+        temp_dir / "subtitles_content_aware.ass",  # content-aware subtitle file
+        temp_dir / "subtitle_upper.ass",  # Upper subtitle (two-part system)
+        temp_dir / files.attribution,  # attributions file
+        # Legacy paths (product_root) for backwards compatibility cleanup
+        product_root / files.script,
+        product_root / files.description,
+        product_root / files.voiceover,
+        product_root / files.subtitles,
+        product_root / "subtitles.ass",
+        product_root / "subtitles_content_aware.ass",
+        product_root / "subtitle_upper.ass",
+        product_root / files.attribution,
+        # Final video (stays in product_root)
         product_root
         / files.final_video.format(
             product_id=product_id, profile=safe_profile_name
         ),  # video_{product_id}_{profile}.mp4
         product_root / f"video_{safe_profile_name}.mp4",  # old naming pattern
-        temp_dir / temp_files.metadata,  # metadata.json
+        # Debug/pipeline files (in temp/)
+        temp_dir / temp_files.pipeline_state,  # pipeline_state.json
         temp_dir / temp_files.ffmpeg_log,  # ffmpeg_command.log
         temp_dir / temp_files.performance,  # performance.json
         product_root / config.path_config.temp_dir,  # temp/ directory
         product_root / config.path_config.music_dir,  # music/ directory
-        product_root / config.path_config.gathered_visuals,  # internal producer file
-        product_root / files.attribution,  # attributions file
+        temp_dir / config.path_config.gathered_visuals,  # internal producer file
         product_root / "~",  # Erroneous home directory from unescaped paths
         product_root / "outputs",  # Erroneous nested outputs directory
+        # Metadata files (unified and platform-specific)
+        product_root / "metadata.json",  # unified mode
+        product_root / "metadata_youtube.json",  # optimized mode
+        product_root / "metadata_tiktok.json",  # optimized mode
+        product_root / "metadata_instagram.json",  # optimized mode
+        product_root / "UPLOAD_INSTRUCTIONS.txt",  # optimized mode instructions
     ]
 
     # Clean all video files with any profile name (video_*_{product_id}_*.mp4)

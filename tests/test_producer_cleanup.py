@@ -71,10 +71,10 @@ class TestProducerCleanup:
             "subtitle_upper.ass",  # Should be cleaned
             "metadata.json",  # Should be cleaned (in temp)
             "performance.json",  # Should be cleaned (in temp)
+            "gathered_visuals.json",  # Should be cleaned (in temp)
             f"video_{self.product_id}_{self.profile_name}.mp4",  # Should be cleaned
             f"video_{self.profile_name}.mp4",  # Should be cleaned (old pattern)
             "ATTRIBUTIONS.txt",  # Should be cleaned
-            "gathered_visuals.json",  # Should be cleaned
         ]
 
         # Create temp dir
@@ -85,7 +85,11 @@ class TestProducerCleanup:
         (product_dir / "music" / "song.mp3").write_text("music")
 
         for file_name in files_to_create:
-            if file_name in ["metadata.json", "performance.json"]:
+            if file_name in [
+                "metadata.json",
+                "performance.json",
+                "gathered_visuals.json",
+            ]:
                 file_path = product_dir / "temp" / file_name
             else:
                 file_path = product_dir / file_name
@@ -112,6 +116,7 @@ class TestProducerCleanup:
         assert (product_dir / "data.json").exists()
         assert (product_dir / "script.txt").exists()
         assert (product_dir / "temp" / "metadata.json").exists()
+        assert (product_dir / "temp" / "gathered_visuals.json").exists()
         assert (product_dir / "music" / "song.mp3").exists()
 
         # Execute cleanup
@@ -123,7 +128,6 @@ class TestProducerCleanup:
         assert not (product_dir / "subtitles.ass").exists()
         assert not (product_dir / "temp").exists()  # Temp dir should be removed
         assert not (product_dir / "music").exists()  # Music dir should be removed
-        assert not (product_dir / "gathered_visuals.json").exists()
         assert not (product_dir / "ATTRIBUTIONS.txt").exists()
         assert not (product_dir / "debug_test.log").exists()
 

@@ -6,13 +6,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 from src.video.config.constants import (
-    ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE,
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
-    ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH,
-    FREESOUND_DEFAULT_DOWNLOAD_TIMEOUT_SEC,
-    FREESOUND_DEFAULT_SEARCH_TIMEOUT_SEC,
-    LLM_MODEL_FETCH_TIMEOUT_SEC,
 )
 
 
@@ -46,8 +41,8 @@ class VideoSettings(BaseModel):
     dynamic_image_count_limit: int = Field(25)
     verification_probe_timeout_sec: int = Field(30)
     preserve_aspect_ratio: bool = Field(True)
-    default_max_chars_per_line: int = Field(ASSEMBLER_DEFAULT_MAX_CHARS_PER_LINE)
-    subtitle_box_border_width: int = Field(ASSEMBLER_SUBTITLE_BOX_BORDER_WIDTH)
+    default_max_chars_per_line: int = Field(20)  # Configurable via YAML
+    subtitle_box_border_width: int = Field(5)  # Configurable via YAML
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
 

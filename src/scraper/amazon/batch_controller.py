@@ -207,15 +207,6 @@ class BatchController:
         if not self.config.keywords:
             return results
 
-        # Check if max products already reached
-        successful_count = sum(1 for r in self.results if r.success)
-        if successful_count >= self.config.max_products:
-            self.logger.info(
-                f"Max products ({self.config.max_products}) already reached - "
-                "skipping keyword processing"
-            )
-            return results
-
         self.logger.info(
             f"\n{self.separator}\n"
             f"PROCESSING KEYWORDS ({len(self.config.keywords)} total)\n"
@@ -254,16 +245,14 @@ class BatchController:
                             )
                         )
 
-                        # Check if max products reached
-                        total_successful = sum(1 for r in results if r.success) + sum(
-                            1 for r in self.results if r.success
+                    # Check if max_products limit reached
+                    if len(results) >= self.config.max_products:
+                        self.logger.info(
+                            f"✅ Reached max_products limit "
+                            f"({self.config.max_products}). "
+                            f"Stopping keyword processing."
                         )
-                        if total_successful >= self.config.max_products:
-                            self.logger.info(
-                                f"Max products ({self.config.max_products}) "
-                                "reached - stopping keyword processing"
-                            )
-                            return results
+                        break
 
                 else:
                     self.logger.warning(

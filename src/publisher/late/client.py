@@ -24,6 +24,9 @@ from src.publisher.base import (
     ValidationError,
 )
 from src.publisher.registry import register_publisher
+from src.video.config.constants import (
+    DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +58,8 @@ class LatePublisher(BasePublisher):
         api_key: str,
         vercel_token: str | None = None,
         session: aiohttp.ClientSession | None = None,
-        timeout: float = 30.0,
-        max_retries: int = 3,
+        timeout: float = 120.0,  # Configurable via publisher.yaml
+        max_retries: int = 3,  # Configurable via publisher.yaml
     ):
         """Initialize Late.dev publisher client.
 
@@ -117,6 +120,7 @@ class LatePublisher(BasePublisher):
         logger.debug(
             f"API key: {api_key[:4]}..." if len(api_key) > 4 else "API key set"
         )
+        logger.debug(f"Vercel token: {'set' if vercel_token else 'NOT SET'}")
 
     @property
     def provider(self) -> PublisherProvider:
@@ -238,7 +242,7 @@ class LatePublisher(BasePublisher):
                 # 5xx: Server errors - retry with exponential backoff
                 if 500 <= e.status < 600:
                     if attempt < self.max_retries:
-                        delay = 2 ** (attempt - 1)  # Exponential backoff: 2s, 4s, 8s
+                        delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                         logger.warning(
                             f"{operation_name} server error ({e.status}), retry "
                             f"{attempt}/{self.max_retries} in {delay}s: {e.message}"
@@ -254,7 +258,7 @@ class LatePublisher(BasePublisher):
 
                 # Other 4xx errors - log and retry (might be transient)
                 if attempt < self.max_retries:
-                    delay = 2 ** (attempt - 1)
+                    delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
                         f"{operation_name} failed (HTTP {e.status}), "
                         f"retrying in {delay}s (attempt {attempt}/{self.max_retries}): "
@@ -272,7 +276,7 @@ class LatePublisher(BasePublisher):
                 # Connection errors (DNS, network unreachable, etc.)
                 last_exception = e
                 if attempt < self.max_retries:
-                    delay = 2 ** (attempt - 1)
+                    delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
                         f"{operation_name} connection error, "
                         f"retry {attempt}/{self.max_retries} in {delay}s: {e}"
@@ -289,7 +293,7 @@ class LatePublisher(BasePublisher):
                 # Request timeout
                 last_exception = e
                 if attempt < self.max_retries:
-                    delay = 2 ** (attempt - 1)
+                    delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
                         f"{operation_name} timed out after {self.timeout}s, "
                         f"retrying in {delay}s (attempt {attempt}/{self.max_retries})"
@@ -306,7 +310,7 @@ class LatePublisher(BasePublisher):
                 # Generic aiohttp errors (catch-all for other client errors)
                 last_exception = e
                 if attempt < self.max_retries:
-                    delay = 2 ** (attempt - 1)
+                    delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
                         f"{operation_name} client error, "
                         f"retry {attempt}/{self.max_retries} in {delay}s: {e}"
@@ -348,8 +352,8 @@ class LatePublisher(BasePublisher):
         """
         # Try to extract Retry-After header from response
         # Note: Late SDK may not expose response headers directly
-        # Default to 60 seconds if not available
-        retry_after = 60
+        # Default to configured value if not available
+        retry_after = 60  # Default retry delay in seconds
 
         # Check if error has headers attribute
         if hasattr(error, "headers") and error.headers:
@@ -530,21 +534,51 @@ class LatePublisher(BasePublisher):
         logger.info(f"Fetching posts from Late.dev (status={status or 'all'})")
 
         try:
+            # Fetch all posts with pagination
+            all_posts_list = []
+            page = 1
+            page_size = 100  # Max items per page
 
-            async def _fetch_posts():
-                if asyncio.iscoroutinefunction(self.client.posts.list):
-                    return await self.client.posts.list()
-                else:
-                    return self.client.posts.list()
+            while True:
 
-            raw_posts = await self._retry_with_backoff(_fetch_posts, "Fetch posts")
+                async def _fetch_posts_page(current_page=page):
+                    if asyncio.iscoroutinefunction(self.client.posts.list):
+                        return await self.client.posts.list(
+                            page=current_page, limit=page_size
+                        )
+                    else:
+                        return self.client.posts.list(
+                            page=current_page, limit=page_size
+                        )
 
-            # Parse and normalize post data
-            # Late SDK returns PostsListResponse with .posts attribute
-            posts_list = raw_posts.posts if hasattr(raw_posts, "posts") else raw_posts
+                raw_posts = await self._retry_with_backoff(
+                    _fetch_posts_page, f"Fetch posts page {page}"
+                )
+
+                # Parse and normalize post data
+                # Late SDK returns PostsListResponse with .posts attribute
+                posts_list = (
+                    raw_posts.posts if hasattr(raw_posts, "posts") else raw_posts
+                )
+
+                if not posts_list:
+                    # No more posts
+                    break
+
+                all_posts_list.extend(posts_list)
+
+                # Check if we got a full page - if not, we're done
+                if len(posts_list) < page_size:
+                    break
+
+                page += 1
+
+            logger.debug(
+                f"Fetched {len(all_posts_list)} total posts " f"across {page} page(s)"
+            )
 
             posts = []
-            for post in posts_list:
+            for post in all_posts_list:
                 # Handle both dict and object responses
                 if isinstance(post, dict):
                     # Already a dict

@@ -60,12 +60,20 @@ def load_platform_metadata(
 
     logger.info(f"Loading metadata for product {product_id}, platform {platform.value}")
 
-    # Try loading from JSON file first
-    json_path = product_dir / f"metadata_{platform.value}.json"
-    metadata = _load_from_json(json_path, platform, product_id)
+    # Try loading from unified metadata.json first (unified mode)
+    unified_path = product_dir / "metadata.json"
+    metadata = _load_from_json(unified_path, platform, product_id)
 
     if metadata:
-        logger.info(f"Loaded metadata from JSON: {json_path}")
+        logger.info(f"Loaded metadata from unified JSON: {unified_path}")
+        return metadata
+
+    # Fallback to platform-specific JSON (optimized mode)
+    platform_path = product_dir / f"metadata_{platform.value}.json"
+    metadata = _load_from_json(platform_path, platform, product_id)
+
+    if metadata:
+        logger.info(f"Loaded metadata from platform JSON: {platform_path}")
         return metadata
 
     # Fallback to UPLOAD_INSTRUCTIONS.txt
@@ -80,7 +88,7 @@ def load_platform_metadata(
 
     logger.error(
         f"Could not load metadata for {product_id}/{platform.value} "
-        f"(tried {json_path} and {instructions_path})"
+        f"(tried {unified_path}, {platform_path}, and {instructions_path})"
     )
     return None
 

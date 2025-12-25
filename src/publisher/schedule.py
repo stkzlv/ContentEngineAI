@@ -404,18 +404,19 @@ class ScheduleManager:
         # Initialize reference time for calculating next slot
         current_time = datetime.now(UTC)
 
-        # Find latest scheduled time from API to avoid scheduling conflicts
+        # Build set of occupied slots from API to find gaps
         # NOTE: We do NOT create local entries from API posts because the API
         # doesn't return the original product_id (Amazon ASIN). Creating entries
         # with placeholder product_ids (e.g., API_abc123) causes confusion and
-        # breaks duplicate detection.
+        # breaks duplicate detection. Instead, we track occupied slot times.
+        occupied_slot_times: set[datetime] = set()
         try:
-            logger.debug("Fetching existing scheduled posts from API...")
-            api_posts = await publisher.list_posts(status="scheduled")
-            logger.debug(f"Found {len(api_posts)} scheduled posts on API")
+            logger.debug("Fetching existing posts from API (all statuses)...")
+            # Fetch ALL posts (scheduled + published) to avoid slot conflicts
+            api_posts = await publisher.list_posts()
+            logger.debug(f"Found {len(api_posts)} posts on API")
 
-            # Find the latest scheduled time from API posts
-            api_latest_time: datetime | None = None
+            # Build set of all occupied slot times from API posts
             for api_post in api_posts:
                 scheduled_time = api_post.get("scheduledFor")
                 if not scheduled_time:
@@ -433,21 +434,31 @@ class ScheduleManager:
                 if scheduled_dt.tzinfo is None:
                     scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
 
-                if api_latest_time is None or scheduled_dt > api_latest_time:
-                    api_latest_time = scheduled_dt
+                # Normalize to slot time (remove seconds/microseconds)
+                normalized = scheduled_dt.replace(second=0, microsecond=0)
+                occupied_slot_times.add(normalized)
 
-            # Use the latest time from both API and local entries
-            if api_latest_time:
-                logger.info(f"Latest API scheduled post: {api_latest_time}")
-            if self.entries:
-                local_latest = max(e.scheduled_time for e in self.entries)
-                logger.info(f"Latest local scheduled post: {local_latest}")
-                if api_latest_time and api_latest_time > local_latest:
-                    current_time = api_latest_time
-                else:
-                    current_time = local_latest
-            elif api_latest_time:
-                current_time = api_latest_time
+            logger.info(f"Found {len(occupied_slot_times)} occupied slots from API")
+
+            # Also include local schedule entries in occupied slots
+            # This prevents duplicates and enables proper gap-filling
+            for entry in self.entries:
+                normalized = entry.scheduled_time.replace(second=0, microsecond=0)
+                occupied_slot_times.add(normalized)
+
+            logger.info(
+                f"Total {len(occupied_slot_times)} occupied slots " f"(API + local)"
+            )
+
+            # Log latest post time for debugging, but keep current_time at NOW
+            # to enable gap-filling from current time forward
+            if occupied_slot_times:
+                api_latest_time = max(occupied_slot_times)
+                logger.info(f"Latest post on API: {api_latest_time}")
+                logger.info(
+                    f"Searching for next available slot from now ({current_time}), "
+                    f"skipping {len(occupied_slot_times)} occupied slots"
+                )
 
         except Exception as e:
             logger.warning(f"Failed to check API schedule: {e}")
@@ -492,16 +503,43 @@ class ScheduleManager:
                     skipped_count += 1
                     continue
 
-                # Find next available slot
+                # Find next available slot (skip occupied slots from API)
                 try:
-                    next_time, next_idx = self.get_next_slot(
-                        slots=self.config.slots,
-                        after=current_time,
-                        slot_index=current_slot,
-                    )
-                    logger.debug(
-                        f"Next slot for {product_id}: {next_time} (slot {next_idx})"
-                    )
+                    search_time = current_time
+                    max_attempts = 100  # Safety limit to prevent infinite loop
+                    attempts = 0
+
+                    while attempts < max_attempts:
+                        next_time, next_idx = self.get_next_slot(
+                            slots=self.config.slots,
+                            after=search_time,
+                            slot_index=current_slot,
+                        )
+
+                        # Normalize slot time for comparison
+                        normalized = next_time.replace(second=0, microsecond=0)
+
+                        # Check if slot is occupied by API post
+                        if normalized not in occupied_slot_times:
+                            logger.debug(
+                                f"Next slot for {product_id}: "
+                                f"{next_time} (slot {next_idx})"
+                            )
+                            break
+
+                        # Slot occupied, try next one
+                        logger.debug(
+                            f"Slot {next_time} occupied by API post, trying next slot"
+                        )
+                        search_time = next_time
+                        attempts += 1
+
+                    if attempts >= max_attempts:
+                        raise ValueError(
+                            f"Could not find available slot after "
+                            f"{max_attempts} attempts"
+                        )
+
                 except Exception as e:
                     logger.error(f"Failed to calculate next slot: {e}")
                     failed_count += 1
@@ -573,15 +611,36 @@ class ScheduleManager:
                         import json
 
                         platform_contents = {}
+
+                        # Try unified metadata.json first
+                        unified_meta_path = video.parent / "metadata.json"
+                        unified_meta = None
+                        if unified_meta_path.exists():
+                            unified_meta = json.loads(unified_meta_path.read_text())
+                            logger.debug(f"Using unified metadata: {unified_meta_path}")
+
                         for p in platforms:
-                            meta_file = f"metadata_{p.value}.json"
-                            platform_meta = video.parent / meta_file
-                            if platform_meta.exists():
-                                meta = json.loads(platform_meta.read_text())
+                            meta = None
+
+                            # Use unified metadata if available
+                            if unified_meta:
+                                meta = unified_meta
+                            else:
+                                # Fallback to platform-specific metadata
+                                meta_file = f"metadata_{p.value}.json"
+                                platform_meta = video.parent / meta_file
+                                if platform_meta.exists():
+                                    meta = json.loads(platform_meta.read_text())
+
+                            if meta:
                                 desc = meta.get("description", "")
                                 hashtags = meta.get("hashtags", [])
                                 if hashtags:
-                                    desc = f"{desc}\n\n{' '.join(hashtags)}"
+                                    hashtag_str = " ".join(
+                                        f"#{t}" if not t.startswith("#") else t
+                                        for t in hashtags
+                                    )
+                                    desc = f"{desc}\n\n{hashtag_str}"
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,
@@ -606,28 +665,87 @@ class ScheduleManager:
                                         "content": f"Product video for {product_id}"
                                     }
 
-                        # Publish separately per platform to use platform-specific
-                        # content. Late.dev doesn't support customContent per platform
-                        # in single post. Create separate posts and entries for each
-                        # platform.
-                        for platform_dict in platform_dicts:
-                            p_name = platform_dict["platform"]
-                            p_content_data = platform_contents.get(p_name, {})
-                            p_content = p_content_data.get("content", "")
+                        if self.config.use_platform_specific_content:
+                            # Platform-specific mode: Create separate posts per platform
+                            # with optimized metadata for each platform
+                            for platform_dict in platform_dicts:
+                                p_name = platform_dict["platform"]
+                                p_content_data = platform_contents.get(p_name, {})
+                                p_content = p_content_data.get("content", "")
+
+                                result = await publisher.publish(
+                                    media_id=media_id,
+                                    platforms=[platform_dict],
+                                    content=p_content,
+                                    platform_contents={p_name: p_content_data},
+                                    scheduled_time=next_time,
+                                )
+
+                                # Create separate entry for this platform
+                                platform_entry = ScheduleEntry(
+                                    product_id=product_id,
+                                    scheduled_time=next_time,
+                                    platforms=[Platform(p_name)],
+                                    post_id=str(result.get("post_id"))
+                                    if result.get("post_id")
+                                    else None,
+                                    status="scheduled",
+                                    created_at=datetime.now(UTC),
+                                    slot_index=next_idx,
+                                )
+
+                                self.entries.append(platform_entry)
+                                logger.info(
+                                    f"Scheduled {product_id} on {p_name} "
+                                    f"(post: {platform_entry.post_id})"
+                                )
+
+                            # Mark slot as occupied
+                            occupied_slot_times.add(
+                                next_time.replace(second=0, microsecond=0)
+                            )
+                        else:
+                            # Unified mode (default): Create single post for all
+                            # platforms with shared metadata
+                            unified_content = ""
+                            unified_platform_contents = {}
+
+                            # Use first available platform's content as unified
+                            if platform_contents:
+                                first_platform = next(iter(platform_contents))
+                                unified_content = platform_contents[first_platform].get(
+                                    "content", ""
+                                )
+                                # Copy same content for all platforms
+                                for p_dict in platform_dicts:
+                                    p_name = p_dict["platform"]
+                                    unified_platform_contents[p_name] = {
+                                        "content": unified_content
+                                    }
+                                    # YouTube title if available
+                                    if (
+                                        p_name == "youtube"
+                                        and "title" in platform_contents.get(p_name, {})
+                                    ):
+                                        unified_platform_contents[p_name]["title"] = (
+                                            platform_contents[p_name]["title"]
+                                        )
 
                             result = await publisher.publish(
                                 media_id=media_id,
-                                platforms=[platform_dict],  # Single platform per post
-                                content=p_content,
-                                platform_contents={p_name: p_content_data},
+                                platforms=platform_dicts,  # All platforms in one post
+                                content=unified_content,
+                                platform_contents=unified_platform_contents,
                                 scheduled_time=next_time,
                             )
 
-                            # Create separate entry for this platform
-                            platform_entry = ScheduleEntry(
+                            # Create single entry with all platforms
+                            unified_entry = ScheduleEntry(
                                 product_id=product_id,
                                 scheduled_time=next_time,
-                                platforms=[Platform(p_name)],
+                                platforms=[
+                                    Platform(p["platform"]) for p in platform_dicts
+                                ],
                                 post_id=str(result.get("post_id"))
                                 if result.get("post_id")
                                 else None,
@@ -636,11 +754,18 @@ class ScheduleManager:
                                 slot_index=next_idx,
                             )
 
-                            # Add to tracking
-                            self.entries.append(platform_entry)
+                            self.entries.append(unified_entry)
+                            platform_names = ", ".join(
+                                p["platform"] for p in platform_dicts
+                            )
                             logger.info(
-                                f"Scheduled {product_id} on {p_name} "
-                                f"(post: {platform_entry.post_id})"
+                                f"Scheduled {product_id} on {platform_names} "
+                                f"(post: {unified_entry.post_id})"
+                            )
+
+                            # Mark slot as occupied
+                            occupied_slot_times.add(
+                                next_time.replace(second=0, microsecond=0)
                             )
 
                         self._save_schedule()

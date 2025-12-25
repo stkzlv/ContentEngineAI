@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2025-12-25
+
+### Added
+- **Auto-Scheduling with Occupied Slot Detection**: Publisher now queries Late.co API to find unoccupied time slots
+  - `global_batch.py` - 8-week lookahead to detect occupied slots via API query (623 lines total, +298 new)
+  - Slot normalization at minute precision for accurate comparison
+  - Automatic fallback to immediate publishing when all slots occupied
+  - Debug logging for publisher config and token loading
+  - Integration with global batch pipeline publishing phase
+
+- **Post-Publication Cleanup**: Automatic removal of product directories after successful publish
+  - `global_batch.py` - Cleanup logic integrated into publishing phase
+  - Verification of multi-platform success before deletion
+  - Configurable cleanup settings via `config/publisher.yaml`
+  - Smart cleanup respects `require_all_platforms` configuration
+  - Cleanup only triggers after ALL configured platforms succeed
+
+- **Global Batch Pipeline Publishing Phase**: Complete 4-phase end-to-end automation
+  - Scraping Phase → Handoff Phase → Production Phase → Publishing Phase
+  - Auto-scheduling finds first available slot for each product
+  - Multi-platform publishing with platform-specific metadata
+  - Comprehensive publishing summary with per-platform results
+  - Enhanced error handling with detailed failure tracking
+
+### Changed
+- **Configuration**: Updated publisher configuration with enhanced validation
+  - `config/publisher.yaml` - Added `immediate_publish: false` for auto-scheduling
+  - `recurring_schedule.enabled: true` enables slot-based scheduling
+  - `cleanup.enabled: true` enables automatic cleanup after publish
+  - Enhanced configuration documentation with auto-scheduling examples
+
+- **Documentation**: Comprehensive updates for new features
+  - `BATCH_PROCESSING.md` - Updated to 4-phase pipeline architecture (+78 lines)
+  - Added publishing examples with auto-scheduling and cleanup
+  - Updated YAML configuration section with publishing settings
+  - Updated pipeline summary to include publishing phase results
+  - `PUBLISHER.md` - Updated features list and auto-scheduling behavior (+22 lines)
+  - Changed environment variable from `BLOB_READ_WRITE_TOKEN` to `LATE_VERCEL_TOKEN`
+  - Updated auto-scheduling documentation to explain API querying
+  - `README.md` - Updated quick start and key features (+23 lines)
+  - Added auto-scheduling explanation to batch processing section
+  - Updated social media publishing section with cleanup note
+
+### Fixed
+- **Environment Variables**: Corrected Vercel token variable name throughout documentation
+  - `.env` - Changed from `BLOB_READ_WRITE_TOKEN` to `LATE_VERCEL_TOKEN`
+  - Code maintains backward compatibility with old variable name
+  - All documentation updated to use new variable name
+
+### Testing
+- **Integration Tests**: Comprehensive test coverage for publishing features
+  - `test_global_batch_publishing.py` - 419 new lines of integration tests
+  - Test auto-scheduling finds first unoccupied slot
+  - Test fallback to immediate when all slots occupied
+  - Test cleanup removes directory after successful publish
+  - Test cleanup preserves directory on partial failure
+  - Test Vercel token loaded from environment
+  - Coverage for `global_batch.py` improved from 36% to 72%
+
 ## [0.18.0] - 2025-12-22
 
 ### Added

@@ -36,8 +36,13 @@ def base_config():
         random_profile=False,
         profile_pool=[],
         fail_fast=False,
+        process_all_products=False,
         outputs_dir=Path("outputs"),
         debug=False,
+        skip_publish=True,  # Skip publishing by default in tests
+        platforms=None,
+        schedule_time=None,
+        fail_fast_publish=False,
     )
 
 
@@ -235,7 +240,8 @@ def test_handoff_phase_discovers_products(orchestrator):
     with patch("src.video.producer.cli.discover_products_for_batch") as mock_discover:
         mock_discover.return_value = mock_products
 
-        products = orchestrator._execute_handoff_phase()
+        # Pass scraped product IDs matching the mocked products
+        products = orchestrator._execute_handoff_phase(["B0ABC123", "B0DEF456"])
 
         assert len(products) == 2
         assert products[0][1].asin == "B0ABC123"
@@ -247,7 +253,7 @@ def test_handoff_phase_with_no_products(orchestrator):
     with patch("src.video.producer.cli.discover_products_for_batch") as mock_discover:
         mock_discover.return_value = []
 
-        products = orchestrator._execute_handoff_phase()
+        products = orchestrator._execute_handoff_phase([])
 
         assert len(products) == 0
 
@@ -286,7 +292,9 @@ async def test_production_phase_success(orchestrator, mock_video_config):
         mock_session_class.return_value.__aenter__.return_value = mock_session
         mock_create_video.return_value = Path("outputs/B0ABC123/video.mp4")
 
-        summary = await orchestrator._execute_production_phase(mock_products)
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
 
         assert summary.total_attempted == 1
         assert summary.successful == 1
@@ -322,7 +330,9 @@ async def test_production_phase_with_skipped_products(orchestrator, mock_video_c
         mock_session_class.return_value.__aenter__.return_value = mock_session
         mock_create_video.return_value = None  # Skipped
 
-        summary = await orchestrator._execute_production_phase(mock_products)
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
 
         assert summary.total_attempted == 1
         assert summary.successful == 0
@@ -359,7 +369,9 @@ async def test_production_phase_with_timeout(orchestrator, mock_video_config):
         mock_session_class.return_value.__aenter__.return_value = mock_session
         mock_wait_for.side_effect = TimeoutError()
 
-        summary = await orchestrator._execute_production_phase(mock_products)
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
 
         assert summary.total_attempted == 1
         assert summary.successful == 0
@@ -395,7 +407,9 @@ async def test_production_phase_with_exception(orchestrator, mock_video_config):
         mock_session_class.return_value.__aenter__.return_value = mock_session
         mock_create_video.side_effect = RuntimeError("Video creation failed")
 
-        summary = await orchestrator._execute_production_phase(mock_products)
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
 
         assert summary.total_attempted == 1
         assert summary.successful == 0
@@ -485,7 +499,9 @@ async def test_production_phase_random_profile_mode(orchestrator, mock_video_con
         mock_tracker.get_counts.return_value = {"slideshow_images1": 1}
         mock_tracker_class.return_value = mock_tracker
 
-        summary = await orchestrator._execute_production_phase(mock_products)
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
 
         assert summary.successful == 1
         assert "slideshow_images1" in summary.profile_distribution
@@ -521,6 +537,8 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         patch(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
+        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),
     ):
         # Mock scraping phase - orchestrator has 2 product_ids in config
         mock_scraper = Mock()
@@ -539,6 +557,18 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         mock_session = AsyncMock()
         mock_session_class.return_value.__aenter__.return_value = mock_session
         mock_create_video.return_value = Path("outputs/B0ABC123/video.mp4")
+
+        # Mock publishing phase
+        mock_publisher = AsyncMock()
+        mock_publisher.authenticate = AsyncMock()
+        mock_publisher.get_accounts = AsyncMock(return_value=[{"id": "test"}])
+        mock_publisher.publish_video = AsyncMock(
+            return_value={
+                "success": True,
+                "urls": {"youtube": "https://youtube.com/test"},
+            }
+        )
+        mock_create_publisher.return_value = mock_publisher
 
         # Execute pipeline
         summary = await orchestrator.run_pipeline()
@@ -604,6 +634,7 @@ def test_generate_final_summary():
         total_attempted=3,
         successful=2,
         failed=1,
+        successful_products=["B0ABC123", "B0DEF456"],
         failed_products=["B0FAIL1"],
         media_stats={"total_images": 10, "total_videos": 2},
         duration_sec=15.5,
@@ -623,6 +654,7 @@ def test_generate_final_summary():
     summary = PipelineSummary(
         scraping=scraping_summary,
         production=production_summary,
+        publishing=None,
         end_to_end_success=1,
         partial_success=1,
         total_failures=2,
@@ -641,6 +673,7 @@ def test_summary_format_method():
         total_attempted=2,
         successful=2,
         failed=0,
+        successful_products=["B0ABC123", "B0DEF456"],
         failed_products=[],
         media_stats={"total_images": 5, "total_videos": 1},
         duration_sec=10.0,
@@ -660,6 +693,7 @@ def test_summary_format_method():
     summary = PipelineSummary(
         scraping=scraping_summary,
         production=production_summary,
+        publishing=None,
         end_to_end_success=2,
         partial_success=0,
         total_failures=0,

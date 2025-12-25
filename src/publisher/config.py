@@ -209,6 +209,12 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             "max_posts_per_day"
         ]
 
+    # From top-level config (content strategy)
+    if "use_platform_specific_content" in config:
+        schedule_config_dict["use_platform_specific_content"] = config[
+            "use_platform_specific_content"
+        ]
+
     # Create ScheduleConfig if any config provided
     if schedule_config_dict:
         try:
@@ -255,6 +261,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
+    result.pop("use_platform_specific_content", None)
 
     return result
 

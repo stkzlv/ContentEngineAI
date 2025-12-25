@@ -3,12 +3,6 @@
 
 from pydantic import BaseModel, Field
 
-from src.video.config.constants import (
-    LLM_MAX_TOKENS,
-    LLM_TEMPERATURE,
-    LLM_TIMEOUT_SECONDS,
-)
-
 
 class LLMSettings(BaseModel):
     provider: str
@@ -18,6 +12,6 @@ class LLMSettings(BaseModel):
     target_audience: str = Field("General audience")
     base_url: str | None = Field(None)
     auto_select_free_model: bool = Field(True)
-    max_tokens: int = Field(LLM_MAX_TOKENS)
-    temperature: float = Field(LLM_TEMPERATURE)
-    timeout_seconds: int = Field(LLM_TIMEOUT_SECONDS)
+    max_tokens: int = Field(4096)  # Sensible default, configurable via YAML
+    temperature: float = Field(0.7)  # Sensible default, configurable via YAML
+    timeout_seconds: int = Field(60)  # Sensible default, configurable via YAML

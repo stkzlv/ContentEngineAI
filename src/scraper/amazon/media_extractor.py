@@ -461,10 +461,10 @@ def extract_functional_videos_with_validation(
         max_videos = (
             CONFIG.get("global_settings", {})
             .get("video_config", {})
-            .get("max_videos_per_product", 5)
+            .get("max_videos_per_product", 10)
         )
     except Exception:
-        max_videos = 5
+        max_videos = 10
 
     # Always log to verify function is called
     logger.info(
