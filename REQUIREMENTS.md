@@ -637,6 +637,7 @@ ContentEngineAI **MUST** support end-to-end batch pipeline execution from scrapi
 
 2. **Handoff Phase**:
    - Scan `outputs/` directory for products with `data.json` files
+   - **Process Current Run Only**: By default, filter to products scraped in current run (configurable via `--process-all-products`)
    - Filter products based on media availability (minimum requirements per profile)
    - Build list of scrapable products ready for video production
    - Log transition from scraping to video production phase
@@ -647,6 +648,14 @@ ContentEngineAI **MUST** support end-to-end batch pipeline execution from scrapi
    - Generate scripts, voiceovers, subtitles, and assemble videos
    - Track video production success/failure counts per product
    - Apply inter-product delays between video generations
+
+4. **Publishing Phase**:
+   - Upload videos and publish to configured platforms (YouTube, TikTok, Instagram)
+   - **Auto-Schedule by Default**: Schedule to first available recurring slot when `immediate_publish: false` in publisher.yaml
+   - Support explicit scheduling via `--schedule-time` CLI argument (overrides auto-scheduling)
+   - Support immediate publishing when `immediate_publish: true` in configuration
+   - Track per-platform success/failure rates and publishing errors
+   - Apply staggered delays between platform publishes
 
 #### Mode Selection
 - **Global Batch Flag**: `--global-batch` enables end-to-end pipeline execution
@@ -673,9 +682,15 @@ ContentEngineAI **MUST** support end-to-end batch pipeline execution from scrapi
       random_profile: false
       profile_pool: []
       fail_fast: false
+    publishing:
+      skip_publish: false
+      platforms: [youtube, tiktok, instagram]
+      schedule_time: null  # null = auto-schedule, or ISO 8601 datetime
+      fail_fast_publish: false
   ```
 - **CLI Override**: All YAML settings overridable via command-line arguments
 - **Validation**: Error if global batch enabled without input (no product IDs or keywords)
+- **Publishing Validation**: Verify LATE_API_KEY present if publishing enabled
 
 #### Profile Randomization (Global Batch)
 - **Random Selection**: When `--random-profile` or `global_batch.video.random_profile: true`, randomly select profile per product
@@ -720,22 +735,53 @@ ContentEngineAI **MUST** support end-to-end batch pipeline execution from scrapi
   - Skipped products (insufficient media)
   - Profile usage distribution (if randomization enabled)
 
+- **Publishing Summary** (if publishing enabled):
+  - Total videos attempted to publish
+  - Successfully published to all platforms
+  - Failed publishes (with product IDs and error details)
+  - Skipped videos (missing metadata)
+  - Per-platform success/failure counts
+  - Scheduled publish times for each video
+
 - **Overall Pipeline Summary**:
-  - End-to-end success count (scraped AND produced)
-  - Partial success count (scraped but not produced)
-  - Total failures (scraping or production)
+  - End-to-end success count (scraped AND produced AND published)
+  - Partial success count (scraped but not produced, or produced but not published)
+  - Total failures (scraping, production, or publishing)
   - Total pipeline duration
   - Profile statistics (if randomization enabled)
 
 #### CLI Interface
 ```bash
-# Global batch with product IDs and fixed profile
+# Global batch with product IDs and auto-scheduling (default behavior)
 poetry run python -m src.pipeline.global_batch \
   --product-ids B0BTYCRJSS B0CPSY5HJY B0CTTZJRL6 \
   --profile slideshow_images1 \
   --debug
 
-# Global batch with keywords and random profile selection
+# Process all products in outputs directory (not just current run)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --max-products 5 \
+  --profile slideshow_images1 \
+  --process-all-products \
+  --debug
+
+# Explicit scheduling to specific time (overrides auto-scheduling)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "bluetooth headphones" \
+  --max-products 10 \
+  --profile slideshow_images1 \
+  --schedule-time "2025-12-26T10:00:00+01:00" \
+  --debug
+
+# Skip publishing (scrape and produce only)
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS \
+  --profile slideshow_images1 \
+  --skip-publish \
+  --debug
+
+# Global batch with random profile selection
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" "bluetooth headphones" \
   --max-products 10 \
@@ -744,7 +790,7 @@ poetry run python -m src.pipeline.global_batch \
   --profile-pool slideshow_images1 product_video_sequential product_video_mixed \
   --debug
 
-# Mixed input with filters and profile randomization
+# Mixed input with filters and fail-fast
 poetry run python -m src.pipeline.global_batch \
   --product-ids B0BTYCRJSS \
   --keywords "noise cancelling headphones" \

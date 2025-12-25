@@ -141,6 +141,17 @@ async def test_pipeline_with_product_ids_only(
     product1 = mock_product_data_factory("B0TEST111", "Product 1", has_images=True)
     product2 = mock_product_data_factory("B0TEST222", "Product 2", has_images=True)
 
+    # Mock metadata loading
+    def mock_metadata_factory(*args, **kwargs):
+        mock_metadata = Mock()
+        mock_metadata.format_content = Mock(
+            return_value={
+                "title": "Test Title",
+                "description": "Test Description",
+            }
+        )
+        return mock_metadata
+
     with (
         patch(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
@@ -151,6 +162,12 @@ async def test_pipeline_with_product_ids_only(
         patch(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
+        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch(
+            "src.publisher.metadata.load_platform_metadata",
+            side_effect=mock_metadata_factory,
+        ),
+        patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),
     ):
         # Mock scraper - returns products for each product ID
         mock_scraper = Mock()
@@ -172,6 +189,20 @@ async def test_pipeline_with_product_ids_only(
             temp_outputs_dir / "B0TEST111" / "video.mp4",
             temp_outputs_dir / "B0TEST222" / "video.mp4",
         ]
+
+        # Mock publishing phase
+        mock_publisher = AsyncMock()
+        mock_publisher.authenticate = AsyncMock()
+        mock_publisher.get_accounts = AsyncMock(
+            return_value=[
+                {"id": "test1", "platform": "youtube", "account_id": "acc1"},
+                {"id": "test2", "platform": "tiktok", "account_id": "acc2"},
+                {"id": "test3", "platform": "instagram", "account_id": "acc3"},
+            ]
+        )
+        mock_publisher.upload_media = AsyncMock(return_value="media_id_123")
+        mock_publisher.publish = AsyncMock(return_value={"success": True})
+        mock_create_publisher.return_value = mock_publisher
 
         # Execute pipeline
         summary = await orchestrator.run_pipeline()

@@ -39,7 +39,7 @@ provider: late
 # false = Use recurring_schedule slots for timed publication
 # Affects: When content goes live, platform algorithm timing
 # Recommendation: false for optimal engagement (publish during peak hours)
-immediate_publish: true
+immediate_publish: false
 
 # Default platforms for publishing when not specified per-video
 # Options: youtube, tiktok, instagram

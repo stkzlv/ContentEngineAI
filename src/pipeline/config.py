@@ -18,7 +18,9 @@ Configuration Precedence:
 """
 
 import argparse
+import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +46,8 @@ class GlobalBatchConfig:
         random_profile: Enable random profile selection per product
         profile_pool: List of profiles for random selection
         fail_fast: Stop pipeline on first failure
+        process_all_products: Process all products in outputs dir
+                              (default: only current run)
         outputs_dir: Directory for scraper output and producer input
         debug: Enable debug logging
 
@@ -62,8 +66,15 @@ class GlobalBatchConfig:
 
     # Common configuration
     fail_fast: bool = False
+    process_all_products: bool = False
     outputs_dir: Path = field(default_factory=lambda: Path("outputs"))
     debug: bool = False
+
+    # Publishing configuration
+    skip_publish: bool = False
+    platforms: list[str] | None = None
+    schedule_time: str | None = None
+    fail_fast_publish: bool = False
 
 
 @dataclass
@@ -77,6 +88,7 @@ class ScrapingPhaseSummary:
         total_attempted: Total number of products attempted to scrape
         successful: Number of products scraped successfully
         failed: Number of products that failed to scrape
+        successful_products: List of product IDs scraped successfully
         failed_products: List of product IDs that failed
         media_stats: Media statistics (e.g., total_images, total_videos)
         duration_sec: Phase duration in seconds
@@ -86,6 +98,7 @@ class ScrapingPhaseSummary:
     total_attempted: int
     successful: int
     failed: int
+    successful_products: list[str]
     failed_products: list[str]
     media_stats: dict[str, int]
     duration_sec: float
@@ -121,6 +134,37 @@ class ProductionPhaseSummary:
 
 
 @dataclass
+class PublishingPhaseSummary:
+    """Publishing phase statistics.
+
+    Tracks publishing phase execution and per-platform results.
+
+    Attributes
+    ----------
+        total_attempted: Total number of videos attempted to publish
+        successful: Number of videos published successfully to ALL platforms
+        failed: Number of videos that failed on ANY platform
+        skipped: Number of videos skipped (no metadata/pre-publish errors)
+        failed_videos: List of product IDs that failed
+        skipped_videos: List of product IDs that were skipped
+        platform_results: Per-platform success/failure counts
+        errors: Detailed error information per video
+        duration_sec: Phase duration in seconds
+
+    """
+
+    total_attempted: int
+    successful: int
+    failed: int
+    skipped: int
+    failed_videos: list[str]
+    skipped_videos: list[str]
+    platform_results: dict[str, dict[str, int]]
+    errors: list[dict[str, str]]
+    duration_sec: float
+
+
+@dataclass
 class PipelineSummary:
     """End-to-end pipeline statistics.
 
@@ -131,6 +175,7 @@ class PipelineSummary:
     ----------
         scraping: Scraping phase summary
         production: Video production phase summary
+        publishing: Publishing phase summary (None if --skip-publish)
         end_to_end_success: Products scraped AND produced successfully
         partial_success: Products scraped successfully but not produced
         total_failures: Products that failed in either phase
@@ -140,6 +185,7 @@ class PipelineSummary:
 
     scraping: ScrapingPhaseSummary
     production: ProductionPhaseSummary
+    publishing: PublishingPhaseSummary | None
     end_to_end_success: int
     partial_success: int
     total_failures: int
@@ -213,9 +259,51 @@ class PipelineSummary:
                 percentage = (count / total_uses) * 100
                 lines.append(f"    - {profile_name}: {count} ({percentage:.1f}%)")
 
+        lines.append(f"  Duration: {self.production.duration_sec:.1f}s")
+
+        # Publishing phase statistics (only if publishing was enabled)
+        if self.publishing:
+            lines.extend(
+                [
+                    "",
+                    "PUBLISHING PHASE:",
+                    f"  Total Attempted: {self.publishing.total_attempted}",
+                    f"  Successful: {self.publishing.successful}",
+                    f"  Failed: {self.publishing.failed}",
+                    f"  Skipped: {self.publishing.skipped}",
+                ]
+            )
+
+            if self.publishing.skipped_videos:
+                lines.append(
+                    f"  Skipped Videos (no metadata): "
+                    f"{', '.join(self.publishing.skipped_videos)}"
+                )
+
+            if self.publishing.failed_videos:
+                lines.append(
+                    f"  Failed Videos: {', '.join(self.publishing.failed_videos)}"
+                )
+
+            # Per-platform success rates
+            if self.publishing.platform_results:
+                lines.append("")
+                lines.append("  Platform Results:")
+                for platform, stats in sorted(self.publishing.platform_results.items()):
+                    successful = stats.get("successful", 0)
+                    failed = stats.get("failed", 0)
+                    total = successful + failed
+                    if total > 0:
+                        success_rate = (successful / total) * 100
+                        lines.append(
+                            f"    - {platform.title()}: "
+                            f"{successful}/{total} ({success_rate:.1f}%)"
+                        )
+
+            lines.append(f"  Duration: {self.publishing.duration_sec:.1f}s")
+
         lines.extend(
             [
-                f"  Duration: {self.production.duration_sec:.1f}s",
                 "",
                 "END-TO-END RESULTS:",
                 f"  Complete Success (scraped + produced): {self.end_to_end_success}",
@@ -309,12 +397,31 @@ def load_global_batch_config(
         "fail_fast", False
     )
 
+    process_all_products = getattr(
+        cli_args, "process_all_products", False
+    ) or yaml_config.get("process_all_products", False)
+
     outputs_dir_str = getattr(cli_args, "outputs_dir", None) or yaml_config.get(
         "outputs_dir", "outputs"
     )
     outputs_dir = Path(outputs_dir_str)
 
     debug = getattr(cli_args, "debug", False) or yaml_config.get("debug", False)
+
+    # Publishing configuration
+    skip_publish = getattr(cli_args, "skip_publish", False) or yaml_config.get(
+        "skip_publish", False
+    )
+
+    platforms = getattr(cli_args, "platforms", None) or yaml_config.get("platforms")
+
+    schedule_time = getattr(cli_args, "schedule_time", None) or yaml_config.get(
+        "schedule_time"
+    )
+
+    fail_fast_publish = getattr(
+        cli_args, "fail_fast_publish", False
+    ) or yaml_config.get("fail_fast_publish", False)
 
     return GlobalBatchConfig(
         product_ids=product_ids,
@@ -325,8 +432,13 @@ def load_global_batch_config(
         random_profile=random_profile,
         profile_pool=profile_pool,
         fail_fast=fail_fast,
+        process_all_products=process_all_products,
         outputs_dir=outputs_dir,
         debug=debug,
+        skip_publish=skip_publish,
+        platforms=platforms,
+        schedule_time=schedule_time,
+        fail_fast_publish=fail_fast_publish,
     )
 
 
@@ -340,6 +452,7 @@ def validate_global_batch_config(
     - Profile configuration is valid (profile XOR random_profile)
     - Profile names exist in video configuration
     - Profile pool is not empty when random_profile is enabled
+    - Publishing configuration (LATE_API_KEY, platforms, schedule_time) if enabled
 
     Args:
     ----
@@ -393,3 +506,36 @@ def validate_global_batch_config(
                 f"Invalid profiles in pool: {invalid}\n"
                 f"Available profiles: {available}"
             )
+
+    # Validate publishing configuration (only if publishing is enabled)
+    if not config.skip_publish:
+        # Validate LATE_API_KEY environment variable exists
+        if not os.getenv("LATE_API_KEY"):
+            raise ValueError(
+                "Publishing enabled but LATE_API_KEY environment variable not set.\n"
+                "Either set LATE_API_KEY or use --skip-publish to disable publishing."
+            )
+
+        # Validate platforms if specified
+        if config.platforms:
+            valid_platforms = {"youtube", "tiktok", "instagram"}
+            invalid_platforms = [
+                p for p in config.platforms if p.lower() not in valid_platforms
+            ]
+            if invalid_platforms:
+                invalid = ", ".join(invalid_platforms)
+                raise ValueError(
+                    f"Invalid platforms: {invalid}\n"
+                    f"Valid platforms: youtube, tiktok, instagram"
+                )
+
+        # Validate schedule_time format if specified
+        if config.schedule_time:
+            try:
+                datetime.fromisoformat(config.schedule_time.replace("Z", "+00:00"))
+            except (ValueError, AttributeError) as e:
+                raise ValueError(
+                    f"Invalid schedule_time format: '{config.schedule_time}'\n"
+                    f"Expected ISO 8601 format (e.g., '2025-01-20T10:00:00+00:00')\n"
+                    f"Error: {e}"
+                ) from e

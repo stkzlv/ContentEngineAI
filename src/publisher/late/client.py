@@ -120,6 +120,7 @@ class LatePublisher(BasePublisher):
         logger.debug(
             f"API key: {api_key[:4]}..." if len(api_key) > 4 else "API key set"
         )
+        logger.debug(f"Vercel token: {'set' if vercel_token else 'NOT SET'}")
 
     @property
     def provider(self) -> PublisherProvider:
