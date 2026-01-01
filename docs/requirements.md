@@ -862,3 +862,94 @@ ContentEngineAI **MUST** support automated video publishing to social media plat
 - **Safety Checks**: Verify publication success via API status check before deletion
 - **Selective Cleanup**: Only remove products published to all configured platforms (multi-platform validation)
 - **Cleanup Logging**: Log all deleted directories with product IDs, platforms, and post URLs for audit trail
+
+## Documentation Requirements
+
+ContentEngineAI **MUST** follow GitHub documentation best practices with a structured documentation hierarchy.
+
+### Root-Level Documentation
+
+The following files **MUST** remain in the repository root (GitHub standard locations):
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `README.md` | Project overview, quick start, feature summary | Yes |
+| `CONTRIBUTING.md` | Contribution guidelines, workflow, code standards | Yes |
+| `CODE_OF_CONDUCT.md` | Community standards and behavior expectations | Yes |
+| `SECURITY.md` | Security policy, vulnerability reporting | Yes |
+| `CHANGELOG.md` | Version history following Keep a Changelog format | Yes |
+| `LICENSE` | MIT license text | Yes |
+| `CLAUDE.md` | AI assistant configuration and project context | Optional |
+
+### Documentation Directory Structure
+
+Extended documentation **MUST** be organized in the `docs/` directory:
+
+```
+docs/
+├── installation.md      # Complete installation and setup guide
+├── configuration.md     # Configuration reference and options
+├── architecture.md      # Technical architecture and system design
+├── development.md       # Development setup and workflow
+├── testing.md           # Testing framework and quality assurance
+├── linting.md           # Code quality standards and tools
+├── batch-processing.md  # Batch processing workflows
+├── publisher.md         # Social media publishing guide
+├── troubleshooting.md   # Common issues and solutions
+├── versioning.md        # Versioning strategy and release process
+└── requirements.md      # Project requirements specification
+```
+
+### Documentation Standards
+
+#### Content Guidelines
+
+- **Plain Language**: Use clear, accessible language; define technical terms
+- **Essential Information**: Document core concepts, avoid edge cases that overwhelm readers
+- **Structured Format**: Use headers, lists, and tables for scannable content
+- **Code Examples**: Include working examples with context and expected output
+
+#### Formatting Requirements
+
+- **Markdown Standard**: Use GitHub-Flavored Markdown (GFM)
+- **Line Length**: No hard line length limit; use semantic line breaks
+- **Headers**: Use ATX-style headers (`#`, `##`, `###`)
+- **Links**: Use relative paths for internal links (`docs/configuration.md`)
+- **Code Blocks**: Use fenced code blocks with language identifiers
+
+#### Linking Guidelines
+
+- **Internal Links**: Use relative paths from repository root
+  - Root to docs: `[Configuration](docs/configuration.md)`
+  - Docs to root: `[README](../README.md)`
+  - Docs to docs: `[Testing](testing.md)`
+- **External Links**: Use full URLs with descriptive text
+- **Anchor Links**: Use lowercase, hyphenated anchors (`#batch-processing`)
+
+#### Maintenance Requirements
+
+- **Docs as Code**: Treat documentation like source code (version-controlled, reviewed via PRs)
+- **Sync with Code**: Update documentation in the same PR as related code changes
+- **Link Validation**: Check for broken links before merging (CI integration recommended)
+- **Review Cycle**: Review documentation accuracy quarterly or after major releases
+
+### README Requirements
+
+The README.md **MUST** include:
+
+1. **Project Title & Badges**: Name, version, license, build status
+2. **Description**: One-paragraph project overview
+3. **Key Features**: Bulleted list of main capabilities
+4. **Quick Start**: Minimal steps to first working result
+5. **Documentation Links**: Table linking to detailed guides in `docs/`
+6. **Installation Reference**: Link to full installation guide
+7. **Contributing Reference**: Link to contribution guidelines
+8. **License**: License type with link to LICENSE file
+
+### Version Documentation
+
+Each release **MUST** include:
+
+- **CHANGELOG Entry**: Following Keep a Changelog format (Added, Changed, Deprecated, Removed, Fixed, Security)
+- **Migration Notes**: For breaking changes, provide upgrade instructions
+- **Release Notes**: Summary in GitHub Release description

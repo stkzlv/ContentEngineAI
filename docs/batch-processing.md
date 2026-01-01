@@ -343,7 +343,7 @@ global_batch:
   debug: false
 ```
 
-**Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [PUBLISHER.md](PUBLISHER.md) for details):
+**Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling
 - `recurring_schedule.slots` defines available time slots
 - `cleanup.enabled: true` removes product directories after successful publish
@@ -518,6 +518,6 @@ poetry run python -m src.pipeline.global_batch \
 
 ## Related Documentation
 
-- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration reference
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture details
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Additional debugging guidance
+- **[Configuration](configuration.md)** - Complete configuration reference
+- **[Architecture](architecture.md)** - Technical architecture details
+- **[Troubleshooting](troubleshooting.md)** - Additional debugging guidance

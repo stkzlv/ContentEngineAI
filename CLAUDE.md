@@ -59,8 +59,8 @@ poetry run python tools/performance_report.py --report-type summary
 
 **Important Documentation**:
 - **CONTRIBUTING.md**: GitHub Flow workflow, branch naming, code style, testing requirements
-- **DEVELOPMENT.md**: Architecture, performance optimization, component development, debugging
-- **VERSIONING.md**: Semantic versioning rules, release process, version support policy
+- **docs/development.md**: Architecture, performance optimization, component development, debugging
+- **docs/versioning.md**: Semantic versioning rules, release process, version support policy
 
 *These files are automatically read by the github-workflow skill during iteration start and releases.*
 

@@ -79,7 +79,7 @@ ContentEngineAI follows **GitHub Flow** - a simple, branch-based workflow perfec
 
 ### Code Style Guidelines
 
-**📖 Complete guide**: [LINTING.md](LINTING.md)
+**📖 Complete guide**: [Linting](docs/linting.md)
 
 ```bash
 make lint          # Run all linting checks (7 tools)
@@ -100,7 +100,7 @@ make lint-fix      # Auto-fix issues
 
 ### Testing
 
-**📖 Complete testing guide**: [TESTING.md](TESTING.md)
+**📖 Complete testing guide**: [Testing](docs/testing.md)
 
 ```bash
 make test          # Run all tests with coverage
@@ -155,7 +155,7 @@ make test-unit     # Run unit tests only
 - Pydantic models in `src/video/video_config.py` for validation
 - Environment variables for sensitive information
 
-For detailed architecture information, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For detailed architecture information, see [Architecture](docs/architecture.md).
 
 ## Common Development Tasks
 
@@ -207,9 +207,9 @@ The project includes comprehensive performance monitoring:
 ## Getting Help
 
 - Check existing [Issues](https://github.com/stkzlv/ContentEngineAI/issues)
-- Review [Troubleshooting Guide](TROUBLESHOOTING.md)
+- Review [Troubleshooting Guide](docs/troubleshooting.md)
 - Ask questions in issue discussions
-- Check the [Development Guide](DEVELOPMENT.md) for detailed technical information
+- Check the [Development Guide](docs/development.md) for detailed technical information
 
 ## Code of Conduct
 

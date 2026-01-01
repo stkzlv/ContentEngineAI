@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-312/)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](VERSIONING.md)
+[![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](docs/versioning.md)
 
 **Version**: 0.19.0 | **License**: MIT | **Status**: Pre-Production
 
@@ -47,7 +47,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-**📖 Complete Guide**: [INSTALL.md](INSTALL.md) • **⚙️ Configuration**: [CONFIGURATION.md](CONFIGURATION.md)
+**📖 Complete Guide**: [Installation](docs/installation.md) • **⚙️ Configuration**: [Configuration](docs/configuration.md)
 
 ## 🔄 Batch Processing
 
@@ -64,7 +64,7 @@ poetry run python -m src.pipeline.global_batch \
 
 **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API. Falls back to immediate publish if all slots occupied within 8-week lookahead.
 
-**📖 Complete Guide**: [BATCH_PROCESSING.md](BATCH_PROCESSING.md) - Multi-mode batch workflows, filters, randomization, publishing
+**📖 Complete Guide**: [Batch Processing](docs/batch-processing.md) - Multi-mode batch workflows, filters, randomization, publishing
 
 ## 📤 Social Media Publishing
 
@@ -93,7 +93,7 @@ poetry run python -m src.publisher.late batch \
 
 **Auto-Cleanup**: Product directories are automatically removed after successful multi-platform publish (configurable in `config/publisher.yaml`).
 
-**📖 Complete Guide**: [PUBLISHER.md](PUBLISHER.md) - Setup, auto-scheduling, cleanup, CLI commands, configuration
+**📖 Complete Guide**: [Publisher](docs/publisher.md) - Setup, auto-scheduling, cleanup, CLI commands, configuration
 
 ## 🏗️ Architecture
 
@@ -113,7 +113,7 @@ graph TD
     F --> G
 ```
 
-**📖 Detailed architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+**📖 Detailed architecture**: [Architecture](docs/architecture.md)
 
 </details>
 
@@ -123,22 +123,22 @@ graph TD
 
 | Guide | Description |
 |-------|-------------|
-| **[🛠️ INSTALL.md](INSTALL.md)** | Complete installation and setup guide |
-| **[⚙️ CONFIGURATION.md](CONFIGURATION.md)** | Configuration reference and options |
-| **[🔄 BATCH_PROCESSING.md](BATCH_PROCESSING.md)** | Batch processing workflows and automation |
-| **[📤 PUBLISHER.md](PUBLISHER.md)** | Social media publishing via Late.dev |
-| **[🏗️ ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and system design |
-| **[🔧 TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Solutions for common issues and debugging |
+| **[🛠️ Installation](docs/installation.md)** | Complete installation and setup guide |
+| **[⚙️ Configuration](docs/configuration.md)** | Configuration reference and options |
+| **[🔄 Batch Processing](docs/batch-processing.md)** | Batch processing workflows and automation |
+| **[📤 Publisher](docs/publisher.md)** | Social media publishing via Late.dev |
+| **[🏗️ Architecture](docs/architecture.md)** | Technical architecture and system design |
+| **[🔧 Troubleshooting](docs/troubleshooting.md)** | Solutions for common issues and debugging |
 
 <details>
 <summary><strong>Developer Documentation</strong></summary>
 
 | Document | Purpose |
 |----------|---------|
-| **[👨‍💻 DEVELOPMENT.md](DEVELOPMENT.md)** | Development setup and contribution workflow |
-| **[🧪 TESTING.md](TESTING.md)** | Testing framework and quality assurance |
-| **[✨ LINTING.md](LINTING.md)** | Code quality standards and tools |
-| **[🤝 CONTRIBUTING.md](CONTRIBUTING.md)** | How to contribute code and documentation |
+| **[👨‍💻 Development](docs/development.md)** | Development setup and contribution workflow |
+| **[🧪 Testing](docs/testing.md)** | Testing framework and quality assurance |
+| **[✨ Linting](docs/linting.md)** | Code quality standards and tools |
+| **[🤝 Contributing](CONTRIBUTING.md)** | How to contribute code and documentation |
 
 </details>
 
@@ -158,7 +158,7 @@ make test      # Full test suite with coverage
 make security  # Security vulnerability scan
 ```
 
-**📖 Complete guide**: [DEVELOPMENT.md](DEVELOPMENT.md) • [CONTRIBUTING.md](CONTRIBUTING.md)
+**📖 Complete guide**: [Development](docs/development.md) • [Contributing](CONTRIBUTING.md)
 
 </details>
 
@@ -170,6 +170,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](INSTALL.md)** • **[⚙️ Configuration](CONFIGURATION.md)** • **[🔄 Batch Processing](BATCH_PROCESSING.md)** • **[📤 Publishing](PUBLISHER.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](docs/installation.md)** • **[⚙️ Configuration](docs/configuration.md)** • **[🔄 Batch Processing](docs/batch-processing.md)** • **[📤 Publishing](docs/publisher.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
 
 </div>

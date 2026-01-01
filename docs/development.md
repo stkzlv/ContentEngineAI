@@ -4,7 +4,7 @@ This guide provides detailed information for developers working on ContentEngine
 
 ## Development Environment Setup
 
-**📖 Complete installation guide**: [INSTALL.md](INSTALL.md)
+**📖 Complete installation guide**: [Installation](installation.md)
 
 ```bash
 # Quick setup for developers
@@ -13,7 +13,7 @@ poetry install --with dev && make install-dev
 
 ## Code Quality Standards
 
-**📖 Complete guide**: [LINTING.md](LINTING.md) • [TESTING.md](TESTING.md)
+**📖 Complete guide**: [Linting](linting.md) • [Testing](testing.md)
 
 ```bash
 make lint          # Complete quality check (7 tools)
@@ -23,7 +23,7 @@ make security      # Security vulnerability scan
 
 ## Architecture Deep Dive
 
-**📖 Complete architecture guide**: [ARCHITECTURE.md](ARCHITECTURE.md)
+**📖 Complete architecture guide**: [Architecture](architecture.md)
 
 ContentEngineAI uses a **dependency-aware pipeline** with parallel execution achieving **26% faster execution** through intelligent dependency management and concurrent processing.
 
@@ -304,7 +304,7 @@ stock_media_settings:
 
 ## Testing
 
-**📖 Complete testing guide**: [TESTING.md](TESTING.md)
+**📖 Complete testing guide**: [Testing](testing.md)
 
 ```bash
 make test          # Run all tests with coverage
@@ -313,7 +313,7 @@ make test-unit     # Run unit tests only
 
 ## Usage Examples
 
-**📖 Complete usage guides**: [README.md](README.md) • [BATCH_PROCESSING.md](BATCH_PROCESSING.md)
+**📖 Complete usage guides**: [README.md](../README.md) • [Batch Processing](batch-processing.md)
 
 ```bash
 # Single product
@@ -325,9 +325,9 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 ## Video Assembly
 
-**📖 Complete video configuration**: [CONFIGURATION.md](CONFIGURATION.md#video-assembly-settings)
+**📖 Complete video configuration**: [Configuration](configuration.md#video-assembly-settings)
 
-ContentEngineAI supports 4 video assembly modes: `sequential`, `single_best`, `mixed_media`, `video_first_fallback`. See CONFIGURATION.md for profile details and CLI overrides.
+ContentEngineAI supports 4 video assembly modes: `sequential`, `single_best`, `mixed_media`, `video_first_fallback`. See [Configuration](configuration.md) for profile details and CLI overrides.
 
 ## Debugging and Development Tools
 
@@ -385,7 +385,7 @@ async def my_function():
 
 ## Configuration Development
 
-**📖 Complete configuration guide**: [CONFIGURATION.md](CONFIGURATION.md)
+**📖 Complete configuration guide**: [Configuration](configuration.md)
 
 Configuration is managed through modular YAML files in `config/` with Pydantic validation in `src/video/video_config.py`.
 
@@ -497,7 +497,7 @@ poetry run python tools/performance_report.py --compare baseline.json
 
 ## Contributing
 
-**📖 Complete contributing guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+**📖 Complete contributing guide**: [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 Follow GitHub Flow with feature branches, comprehensive testing, and code quality checks before PRs.
 

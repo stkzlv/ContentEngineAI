@@ -2,7 +2,7 @@
 
 ContentEngineAI uses a **unified modular configuration system** that splits settings across specialized files with CLI overrides and environment variable support. This guide explains all configuration options and how to customize the system for your needs.
 
-> **📖 For batch processing workflows**: See [BATCH_PROCESSING.md](BATCH_PROCESSING.md) for complete batch mode usage examples and automation workflows.
+> **📖 For batch processing workflows**: See [Batch Processing](batch-processing.md) for complete batch mode usage examples and automation workflows.
 
 ## Configuration Overview
 
@@ -1869,4 +1869,4 @@ poetry run python -c "import os; print([k for k in os.environ if 'API_KEY' in k]
 - Use absolute paths when possible
 - Check permissions on directories
 
-For more troubleshooting help, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For more troubleshooting help, see [Troubleshooting](troubleshooting.md).

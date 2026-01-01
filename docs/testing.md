@@ -427,7 +427,7 @@ poetry run pytest -n auto
 - **Pytest Documentation**: https://docs.pytest.org
 - **Coverage Documentation**: https://coverage.readthedocs.io
 - **Mocking Guide**: https://docs.python.org/3/library/unittest.mock.html
-- **Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Contributing Guide**: [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ---
 

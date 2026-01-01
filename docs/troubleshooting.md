@@ -620,7 +620,7 @@ for file in config_files:
    ```
 
 2. **Check Required Fields:**
-   - See [CONFIGURATION.md](CONFIGURATION.md) for required fields
+   - See [Configuration](configuration.md) for required fields
    - Missing fields will cause validation errors
 
 3. **Check Enum Values:**
@@ -843,10 +843,10 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    - Include configuration (remove sensitive keys)
 
 3. **Documentation:**
-   - [Installation Guide](INSTALL.md)
-   - [Configuration Guide](CONFIGURATION.md)
-   - [Development Guide](DEVELOPMENT.md)
-   - [Architecture Documentation](ARCHITECTURE.md)
+   - [Installation Guide](installation.md)
+   - [Configuration Guide](configuration.md)
+   - [Development Guide](development.md)
+   - [Architecture Documentation](architecture.md)
 
 ## Common Error Patterns
 

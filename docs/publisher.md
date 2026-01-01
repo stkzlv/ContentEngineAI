@@ -1,7 +1,7 @@
 # Publisher Module - Social Media Publishing
 
 [![Late.dev Integration](https://img.shields.io/badge/Late.dev-Integrated-brightgreen)](https://late.dev)
-[![Version](https://img.shields.io/badge/version-0.19.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.19.0-blue)](../CHANGELOG.md)
 
 **Automatically publish your generated videos to social media platforms via Late.dev**
 
@@ -1229,7 +1229,7 @@ class BasePublisher(ABC):
 
 ## 🤝 Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ---
 
