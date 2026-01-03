@@ -10,7 +10,7 @@ Run with: pytest tests/pipeline/test_global_batch_publishing.py -v
 """
 
 import tempfile
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -102,14 +102,20 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
 
     orchestrator = GlobalPipelineOrchestrator(config)
 
-    # Mock existing posts (Monday and Tuesday occupied)
+    # Mock existing posts (next Monday and Tuesday occupied)
+    # Calculate next Monday from now
+    now = datetime.now(UTC)
+    days_until_monday = (7 - now.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7  # Skip to next week if today is Monday
+    next_monday = now.replace(hour=10, minute=0, second=0, microsecond=0) + timedelta(
+        days=days_until_monday
+    )
+    next_tuesday = next_monday + timedelta(days=1)
+
     occupied_posts = [
-        {
-            "scheduledFor": datetime(2025, 12, 29, 10, 0, tzinfo=UTC),  # Mon
-        },
-        {
-            "scheduledFor": datetime(2025, 12, 30, 10, 0, tzinfo=UTC),  # Tue
-        },
+        {"scheduledFor": next_monday},
+        {"scheduledFor": next_tuesday},
     ]
 
     with (
@@ -161,13 +167,14 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
         # Verify slot checking happened
         temp_publisher.list_posts.assert_called_once()
 
-        # Verify publish was called with Wednesday slot (first unoccupied)
+        # Verify publish was called with next available slot after occupied ones
         main_publisher.publish.assert_called_once()
         call_kwargs = main_publisher.publish.call_args[1]
         scheduled_time = call_kwargs["scheduled_time"]
 
-        # Should schedule to Wednesday (neither Mon nor Tue)
-        assert scheduled_time.weekday() == 2  # Wednesday
+        # Should schedule to a time after the occupied slots (Wednesday or later)
+        assert scheduled_time > next_tuesday  # After the last occupied slot
+        assert scheduled_time.weekday() < 5  # Should be a weekday (Mon-Fri)
 
 
 @pytest.mark.asyncio

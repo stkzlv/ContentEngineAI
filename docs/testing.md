@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1340 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1164 tests** across unit, integration, and end-to-end categories.
 
 ## Quick Start
 
@@ -15,20 +15,12 @@ make test-cov
 poetry run pytest tests/test_video_config.py -v
 
 # Run by category
-poetry run pytest -m compliance    # Compliance tests only
 poetry run pytest -m unit          # Unit tests only
 poetry run pytest -m integration   # Integration tests only
 poetry run pytest -m e2e           # End-to-end tests only
 ```
 
 ## Test Categories
-
-### Compliance Tests (`@pytest.mark.compliance`)
-- **Purpose**: Validate all documented requirements are implemented correctly
-- **Coverage**: Configuration system, scraper architecture, video production features
-- **Tests**: 114 tests across 12 requirements
-- **Speed**: Fast (< 1s per test)
-- **📖 Complete guide**: [tests/compliance/README.md](tests/compliance/README.md)
 
 ### Unit Tests (`@pytest.mark.unit`)
 - **Purpose**: Test individual functions in isolation
@@ -83,12 +75,6 @@ tests/
 │   ├── test_youtube_generator.py    # YouTube metadata generation
 │   ├── test_text_formatter.py       # Text formatting utilities
 │   └── test_platform_metadata_models.py  # Pydantic models
-│
-├── # Compliance Tests
-├── compliance/
-│   ├── test_config_compliance.py    # Configuration compliance
-│   ├── test_scraper_compliance.py   # Scraper compliance
-│   └── test_video_compliance.py     # Video production compliance
 │
 ├── # End-to-End Tests
 ├── e2e/
@@ -214,7 +200,6 @@ markers = [
     "external: Tests requiring external services",
     "mock: Tests using mocks",
     "asyncio: Async tests",
-    "compliance: Requirements compliance tests",
 ]
 ```
 
@@ -323,116 +308,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1340 collected
-- **Coverage**: Target 40% minimum
-
-**Recent Updates (v0.18.0):**
-- ✅ Added delete_post functionality to publisher base class and Late.dev client
-- ✅ Added 4 new tests for delete_post in TestLatePublisherDeletePost class
-- ✅ Fixed 10 failing publisher tests (added delete_post to test mock classes)
-- ✅ Fixed outdated test assertions in test_upload_instructions_file_generation
-- ✅ Updated test_cleanup.py tests to use "failed" status (implementation accepts "scheduled" as valid)
-- ✅ Fixed publisher test_slot_wrapping_with_start_slot assertion (corrected for wrap-around behavior)
-- ✅ Verified platform_metadata module coverage: text_formatter.py (100%), instagram.py (88%), tiktok.py (93%), youtube.py (89%)
-- ✅ Fixed 6 failing tests in test_platform_prompts.py (removed {PRODUCT_URL} placeholder expectations to match updated prompt templates)
-- ✅ All tests passing (1269/1334, 65 skipped)
-
-**Previous Updates (v0.17.0):**
-- ✅ Added publisher module tests (schedule, cleanup, Late.dev client)
-- ✅ Fixed compliance test false positive (YAML parsing instead of raw content matching)
-- ✅ Fixed schedule tests to match per-platform publishing behavior
-- ✅ Coverage improved to 46%
-
-**Previous Updates (assembler refactoring):**
-- ✅ Removed 65 outdated assembler tests (test_assembler*.py files)
-- ✅ Tests were for internal implementation details that moved during assembler refactoring
-- ✅ Assembler now uses modular package structure (src/video/assembler/)
-- ✅ Added assembler integration tests (test_assembler_integration.py - 3 tests)
-  - VideoAssembler initialization test
-  - VisualGeometry dataclass tests for letterbox positioning
-  - Tests verify assembler refactoring into modular builder classes
-
-**Previous Updates (v0.15.0):**
-- ✅ Added producer batch profile randomization tests (40 new tests)
-  - 24 unit tests for profile selection utilities (test_profile_selection.py)
-  - 16 integration tests for batch workflows (test_batch_profile_integration.py)
-- ✅ Tests cover deterministic selection, configuration precedence, usage tracking
-- ✅ Tests verify profile pool validation and error handling
-- ✅ Fixed outdated BatchConfig test parameters (products_per_keyword)
-  - Updated 20 tests in test_batch_controller.py
-  - Updated 9 tests in test_batch_integration.py
-- ✅ Total tests: 879 collected
-
-**Previous Updates (v0.15.0):**
-- ✅ Added batch mode scraper tests (34 new tests: 20 unit + 14 integration)
-- ✅ Achieved 100% coverage for src/scraper/config_models.py
-- ✅ BatchController coverage: 88%
-- ✅ Tests for batch product ID lists, keyword lists, and mixed input
-- ✅ Tests for configuration precedence (CLI > YAML > Defaults)
-- ✅ Tests for deduplication, fail-fast, and progress tracking
-
-**Previous Updates (v0.14.0):**
-- ✅ Added comprehensive Pydantic config model tests (41 tests)
-- ✅ Tests for concurrent download configuration (image/video semaphores)
-- ✅ Validation testing for all Pydantic Field constraints
-
-**Previous Updates (v0.11.0):**
-- ✅ Added M3U8/HLS video extraction tests (20 tests)
-- ✅ Tests for strict product filtering (exclude related products)
-- ✅ Tests for video muting during scraping
-- ✅ Tests for DEBUG_MODE parameter passing
-- ✅ Tests for FFmpeg M3U8 to MP4 conversion
-- ✅ Added Freesound OAuth2 integration tests (344 tests)
-- ✅ Enhanced audio client unit tests (755+ tests with mocking)
-- ✅ Added CTA detection configuration validation
-- ✅ Tests for minimum duration CTA window validation
-- ✅ Tests for fallback behavior with short CTA windows
-
-**Previous Updates (v0.10.0):**
-- ✅ Removed 3 outdated compliance tests for non-existent config structures
-- ✅ All compliance tests now passing (114/114)
-- ✅ Verified all tests match current codebase implementation
-- ✅ Coverage maintained at 42.79%
-- ✅ Added CTA detection test suite (18 tests, 93% coverage)
-- ✅ Tests for continuous window merging feature
-- ✅ Tests for keyword-based CTA detection
-- ✅ Tests for timing window operations
-- ✅ Updated test documentation
-
-**Previous Updates (v0.9.0):**
-- ✅ Added comprehensive requirements compliance test suite (114 tests)
-- ✅ Configuration system validation (24 tests)
-- ✅ Scraper architecture compliance (22 tests)
-- ✅ Video production features validation (68 tests)
-- ✅ All 12 documented requirements validated (100% pass rate)
-- ✅ Test documentation and status reporting
-- ✅ Added tall image scaling constraint test for assembler bug fix
-- ✅ Removed dead code files (config_cli_integration.py, unified_assembler_integration.py)
-- ✅ Coverage improved to 42.6% (up from 42.0%)
-
-**Previous Updates (v0.8.0):**
-- ✅ Added two-part subtitle system with 335 comprehensive test cases
-- ✅ Consolidated subtitle configuration to dict-based approach
-- ✅ Fixed all linting issues (13 line length, 1 duplicate key, 1 unused variable, MyPy errors)
-- ✅ All 7 linting tools passing (Ruff, Ruff Format, MyPy, Bandit, Vulture, Safety, Pytest)
-- ✅ Coverage maintained at 41% (exceeds 40% minimum target)
-
-**Previous Updates (v0.6.2):**
-- ✅ Added argparse default=None tests (4 new tests in test_profile_cli_overrides.py)
-- ✅ Tests validate boolean flag behavior to prevent unwanted CLI overrides
-- ✅ Removed empty test file (test_config_cli_integration.py)
-- ✅ Profile-specific override tests (test_profile_cli_overrides.py - 15 tests total)
-- ✅ CLI override precedence tests (validates CLI > Profile > YAML)
-- ✅ Verified slideshow_images2 profile configuration
-- ✅ Verified image positioning CLI arguments (--image-width-percent, --image-top-position-percent)
-
-**Previous Updates (v0.6.0):**
-- ✅ Removed outdated legacy subtitle positioning tests (2 files)
-- ✅ Updated scraper configuration tests (23 tests)
-- ✅ Added cross-config validation test
-- ✅ Fixed deprecated config references
-- ✅ Added tests for new subtitle width and word count constraints (2 tests)
-- ✅ Consolidated width settings (removed `max_text_width_percent`)
+- **Total Tests**: 1164 passing
+- **Coverage**: 45.51% (target 40% minimum)
 
 ## Quick Reference
 
