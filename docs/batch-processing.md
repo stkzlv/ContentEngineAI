@@ -266,6 +266,17 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
+#### Process All Existing Products
+
+Process all products already in the outputs directory (skip scraping phase):
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --process-all-products \
+  --profile slideshow_images1 \
+  --debug
+```
+
 #### With Social Media Publishing
 
 ```bash
@@ -326,15 +337,6 @@ global_batch:
     - slideshow_images1
     - video_sequential
 
-  # Publishing Settings (optional)
-  skip_publish: false
-  platforms:
-    - youtube
-    - tiktok
-    - instagram
-  schedule_time: null  # null = auto-schedule, or ISO 8601 datetime
-  fail_fast_publish: false
-
   # Error Handling
   fail_fast: false  # Continue on errors (default)
 
@@ -342,6 +344,8 @@ global_batch:
   outputs_dir: outputs
   debug: false
 ```
+
+**Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`) are CLI-only and not supported in YAML configuration.
 
 **Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling
@@ -493,7 +497,7 @@ If a batch fails midway:
 
 **Issue**: "Profile not found"
 - **Cause**: Invalid profile name specified
-- **Solution**: Run `poetry run python -m src.video.producer --list-profiles` to see available profiles
+- **Solution**: Check available profiles in `config/video_production.yaml` under `video_profiles:` section
 
 **Issue**: "Insufficient media for production"
 - **Cause**: Product has no images or videos after scraping

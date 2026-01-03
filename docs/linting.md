@@ -309,7 +309,7 @@ The optimized linting system provides significant performance benefits:
 
 5. **Use type hints when possible:**
    ```python
-   def process_data(data: List[str]) -> Dict[str, int]:
+   def process_data(data: list[str]) -> dict[str, int]:
        # ...
    ```
 
@@ -319,7 +319,7 @@ The optimized linting system provides significant performance benefits:
 
 7. **Write descriptive docstrings:**
    ```python
-   def calculate_total(items: List[float]) -> float:
+   def calculate_total(items: list[float]) -> float:
        """Calculate the total sum of all items.
 
        Args:
@@ -341,9 +341,8 @@ The optimized linting system provides significant performance benefits:
 
 ## Configuration Files
 
-- `pyproject.toml`: Main configuration for all tools
+- `pyproject.toml`: Main configuration for all tools (including pytest under `[tool.pytest.ini_options]`)
 - `.pre-commit-config.yaml`: Pre-commit hooks configuration
-- `pytest.ini`: Test configuration
 - `Makefile`: Convenient commands for development
 - `tools/lint.py`: **Optimized custom linting script** with parallel execution
 - `reports/`: Directory for generated linting reports (created automatically)

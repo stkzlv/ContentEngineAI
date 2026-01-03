@@ -81,7 +81,7 @@ Video pipeline settings and effects:
 video_settings:
   resolution: [1080, 1920]  # 9:16 vertical format
   frame_rate: 30
-  output_codec: "libx264"
+  codec: "libx264"
 
   # Media validation requirements (must match scraper.yaml)
   min_total_media: 3              # Minimum total media files
@@ -101,26 +101,21 @@ video_profiles:
 ```
 
 ### 3. **AI Services Configuration** (`config/ai_services.yaml`)
-TTS, LLM, and AI provider settings:
+LLM and description generation settings (TTS is in `config/subtitles.yaml`):
 
 ```yaml
-tts_config:
-  providers:
-    - google_cloud_tts
-    - coqui_tts
-  google_cloud_tts:
-    api_key_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
-    voice_selection_criteria:
-      - { language_code: "en-US", name_contains: "Chirp3" }
-
 llm_settings:
   api_key_env_var: "OPENROUTER_API_KEY"
-  models: ["anthropic/claude-3-haiku"]
+  models: ["openai/gpt-3.5-turbo"]
   temperature: 0.7
+
+description_settings:
+  enabled: true
+  target_platform: "multi"  # youtube, tiktok, instagram, or multi
 ```
 
 ### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
-Subtitle positioning, styling, and two-part subtitle system:
+Subtitle positioning, styling, TTS settings, and two-part subtitle system:
 
 ```yaml
 subtitle_settings:
@@ -157,40 +152,34 @@ style_presets:
 Resource limits and optimization:
 
 ```yaml
-performance_settings:
-  max_concurrent_downloads: 5
-  memory_limit_mb: 2048
-  cache_ttl_hours: 24
+optimization_settings:
+  caching:
+    enabled: true
+    ttl_seconds: 3600
+    max_size_mb: 100
+  memory:
+    max_memory_mb: 2048
 
-timeout_settings:
-  api_timeout_sec: 30
-  download_timeout_sec: 60
-  video_processing_timeout_sec: 300
+api_settings:
+  llm:
+    timeout: 90
+    max_retries: 5
 ```
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings with type-safe Pydantic models:
 
 ```yaml
-scraper_settings:
-  debug_mode: true
-  headless: false
-  timeout_sec: 30
-
+global_settings:
+  debug_mode: false
   output_config:
     base_directory: "outputs"
     file_patterns:
       product_file: "{keyword}_products.json"
 
-global_settings:
-  # Async download configuration (v0.14.0+)
   download_config:
     download_timeout: 30              # HTTP download timeout (seconds)
     video_download_timeout: 300       # Video download timeout (seconds)
-    retry_video_downloads: 2          # Video download retries
-    download_chunk_size: 8192         # Download chunk size (bytes)
-
-    # Async concurrency limits
     concurrent_image_downloads: 5     # Max parallel image downloads
     concurrent_video_downloads: 3     # Max parallel video downloads
 
@@ -200,10 +189,11 @@ global_settings:
     min_images_if_no_video: 5       # Minimum images for slideshow mode
     min_images_with_video: 2        # Minimum images when videos available
 
-amazon_settings:
-  max_results: 10
-  skip_unavailable: true
-  prime_only: false
+scrapers:
+  amazon:
+    enabled: true
+    base_url: "https://www.amazon.com"
+    max_products: 10
 ```
 
 **Type Safety (v0.14.0+)**: The scraper uses Pydantic models (`src/scraper/config_models.py`) for configuration validation. Load with:
@@ -581,39 +571,34 @@ cta_detection:
 
 ### 7. TTS (Text-to-Speech) Configuration
 
+**Location**: `config/subtitles.yaml` (under `tts_config` section)
+
 ```yaml
 tts_config:
   # Provider priority order (first = primary)
-  providers:
-    - google_cloud_tts
-    - coqui_tts
-  
+  provider_order: ["google_cloud", "coqui"]
+
   # Google Cloud TTS settings
-  google_cloud_tts:
-    enabled: true
-    api_key_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
-    
-    # Voice selection criteria
+  google_cloud:
+    model_name: "en-US-Chirp3-HD"
     language_code: "en-US"
-    gender: "NEUTRAL"                # NEUTRAL, MALE, FEMALE
-    voice_name_pattern: "Wavenet"    # Prefer Wavenet voices
-    
+
+    # Voice selection criteria (priority order)
+    voice_selection_criteria:
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "FEMALE" }
+
     # Speech parameters
     speaking_rate: 1.0               # Speech rate (0.25-4.0)
     pitch: 0.0                       # Pitch adjustment (-20.0 to 20.0)
     volume_gain_db: 0.0              # Volume adjustment
-    
-    # Timeouts and retries
-    timeout_sec: 30
-    max_retries: 3
-  
+    api_timeout_sec: 60
+
   # Coqui TTS settings (local/fallback)
-  coqui_tts:
-    enabled: true
-    model_name: "tts_models/en/ljspeech/tacotron2-DDC"
-    device: "auto"                   # auto, cpu, cuda
-    speaker_idx: null                # For multi-speaker models
-    timeout_sec: 60
+  coqui:
+    model_name: "tts_models/en/ljspeech/vits"
+    speaker_name: null               # For multi-speaker models
 ```
 
 </details>
@@ -625,27 +610,31 @@ tts_config:
 
 ```yaml
 llm_settings:
-  # API configuration
-  api_base_url: "https://openrouter.ai/api/v1"
+  # LLM provider configuration
+  provider: "openrouter"
+  base_url: "https://openrouter.ai/api/v1"
   api_key_env_var: "OPENROUTER_API_KEY"
-  
+  auto_select_free_model: true
+
   # Model selection with fallbacks
   models:
-    - "anthropic/claude-3-haiku"     # Primary model
-    - "openai/gpt-3.5-turbo"        # Fallback model
-    - "meta-llama/llama-3-8b"       # Second fallback
-  
+    - "openai/gpt-3.5-turbo"              # Primary model
+    - "deepseek/deepseek-chat-v3-0324:free" # Free fallback
+    - "meta-llama/llama-3-8b-instruct:free" # Second free fallback
+
   # Generation parameters
   temperature: 0.7                   # Creativity (0.0-2.0)
-  max_tokens: 500                    # Maximum response length
-  
+  max_tokens: 350                    # Maximum response length
+
   # Prompt configuration
   prompt_template_path: "src/ai/prompts/video_script.md"
-  target_audience: "general consumers"
-  
+  target_audience: "Tech-savvy young adults"
+
   # Timeouts and retries
-  timeout_sec: 30
-  max_retries: 3
+  timeout_seconds: 90
+  retry_attempts: 5
+  retry_min_wait_sec: 2
+  retry_max_wait_sec: 30
 ```
 
 **Platform-Specific Metadata Generation:**
@@ -1394,21 +1383,39 @@ subtitle_randomize_effects: false    # Override effect randomization
 
 ## Timeout Configuration
 
-All pipeline operations have configurable timeouts:
+Timeouts are configured in different files based on component:
 
+**Global Pipeline** (`config/core.yaml`):
 ```yaml
-# Global pipeline timeout
-pipeline_timeout_sec: 900
+pipeline_timeout_sec: 900  # Total pipeline execution timeout
+```
 
-# Component-specific timeouts
-download_timeout_sec: 60           # HTTP downloads
-audio_processing_timeout_sec: 120  # TTS, music processing
-video_processing_timeout_sec: 300  # FFmpeg operations
-api_timeout_sec: 30                # General API calls
-file_operation_timeout_sec: 60     # File I/O operations
-cleanup_delay_sec: 5               # Cleanup delay
+**FFmpeg Operations** (`config/performance.yaml`):
+```yaml
+ffmpeg_settings:
+  final_assembly_timeout_sec: 600  # Video assembly timeout
+  rw_timeout_microseconds: 30000000  # I/O timeout (30 seconds)
+```
 
-# Provider-specific timeouts (see individual provider sections)
+**API Timeouts** (`config/performance.yaml`):
+```yaml
+api_settings:
+  downloads:
+    timeout_sec: 30
+  tts:
+    request_timeout_sec: 60
+  stock_media:
+    request_timeout_sec: 30
+  general:
+    default_request_timeout_sec: 15
+```
+
+**Whisper STT** (`config/ai_services.yaml`):
+```yaml
+whisper_settings:
+  base_timeout_sec: 120
+  duration_multiplier: 6.0
+  max_timeout_sec: 900
 ```
 
 ## Environment Variables
@@ -1437,48 +1444,54 @@ PICSEE_API_KEY="your_picsee_api_key"        # For PicSee URL shortener
 
 ## Performance Tuning
 
-### Concurrency Settings
+Performance settings are configured in `config/performance.yaml`:
+
+### Optimization Settings
 
 ```yaml
-# Global concurrency limits
-max_concurrent_downloads: 5
-max_concurrent_api_calls: 3
+optimization_settings:
+  # Background processing
+  background_processing:
+    enabled: true
+    max_workers: 4
+    queue_size: 100
 
-# Component-specific limits
-stock_media_concurrent_downloads: 3
-tts_concurrent_requests: 2
-subtitle_concurrent_processing: 1
-```
-
-### Caching Configuration
-
-```yaml
-cache_settings:
-  enabled: true
-  cache_dir: "outputs/cache"
-  default_ttl_hours: 24             # Time-to-live for cached items
-  
-  # Cache categories
-  media_metadata_ttl_hours: 168     # 1 week for media metadata
-  api_response_ttl_hours: 24        # 1 day for API responses
-  tts_cache_ttl_hours: 720          # 30 days for TTS results
-  
-  # Cache size limits
-  max_cache_size_mb: 1000           # Maximum cache size
-  cleanup_threshold_percent: 80      # Cleanup when 80% full
-```
-
-### Memory Management
-
-```yaml
-memory_settings:
-  # Memory-mapped I/O thresholds
-  mmap_threshold_mb: 1               # Use mmap for files >1MB
-  max_memory_usage_mb: 2048          # Maximum memory usage
-  
   # Connection pooling
-  http_pool_connections: 10          # HTTP connection pool size
-  http_pool_maxsize: 20              # Maximum connections per host
+  connection_pooling:
+    enabled: true
+    max_connections: 20
+    connection_timeout: 30
+
+  # Async I/O
+  async_io:
+    enabled: true
+    chunk_size: 8192
+    max_concurrent: 10
+
+  # Caching
+  caching:
+    enabled: true
+    ttl_seconds: 3600       # 1 hour
+    max_size_mb: 100
+
+  # Memory optimization
+  memory:
+    gc_threshold: 0.8
+    max_memory_mb: 2048
+    max_image_size_mb: 50
+    mmap_threshold_bytes: 1048576  # 1MB
+```
+
+### Download Settings
+
+```yaml
+api_settings:
+  downloads:
+    timeout_sec: 30
+    retry_attempts: 3
+    max_concurrent_downloads: 5
+    chunk_size_bytes: 1048576   # 1MB
+    max_file_size_mb: 50
 ```
 
 ## CLI Override Arguments
@@ -1493,12 +1506,13 @@ Profile settings can be overridden at runtime using command-line arguments with 
 # Subtitle positioning overrides
 --subtitle-anchor below_content      # Override anchor point
 --subtitle-margin 0.10               # Override margin (0.0-0.5)
---subtitle-content-aware true        # Override content-aware mode
+--content-aware                      # Enable content-aware mode
+--no-content-aware                   # Disable content-aware mode
 
 # Style and formatting overrides
 --preset minimal                     # Override style preset
---subtitle-font-size-scale 0.8       # Override font size scale
---subtitle-max-line-length 30        # Override max line length
+--font-size-scale 0.8                # Override font size scale
+--max-line-length 30                 # Override max line length
 
 # Example: Override slideshow_images2 settings
 poetry run python -m src.video.producer \
@@ -1532,8 +1546,9 @@ video_profiles:
 **Current System (September 2025)**: Uses prioritized voice selection criteria for Chirp 3 HD voices:
 
 ```yaml
+# In config/subtitles.yaml
 tts_config:
-  google_cloud_tts:
+  google_cloud:
     # Priority-based voice selection (Chirp 3 HD → Chirp → Neural2 → Standard)
     voice_selection_criteria:
       # Primary: Chirp 3 HD voices (highest quality)
@@ -1602,9 +1617,10 @@ These load dynamically and aren't extracted to avoid bot detection and false pos
 
 **Configuration** (`config/scraper.yaml`):
 ```yaml
-amazon_settings:
-  max_videos_per_product: 10         # Maximum to extract
-  enable_m3u8_monitoring: false      # Network monitoring
+scrapers:
+  amazon:
+    max_videos_per_product: 10       # Maximum to extract
+    enable_m3u8_monitoring: false    # Network monitoring
 ```
 
 **To extract multiple videos**: Enable `enable_m3u8_monitoring`, modify the extraction logic in `media_extractor.py` to click additional thumbnails/tabs, and implement validation to filter competitor content.
@@ -1672,12 +1688,12 @@ The scraper supports multiple search filtering options via CLI parameters:
 #### Sort Options
 ```bash
 # Sort results by price, reviews, date, etc.
---sort price-asc-rank        # Price: low to high
---sort price-desc-rank       # Price: high to low
---sort review-rank           # Best reviews first
---sort date-desc-rank        # Newest first
---sort featured-rank         # Featured items
---sort relevanceblender      # Default relevance (default)
+--sort price-low             # Price: low to high
+--sort price-high            # Price: high to low
+--sort rating                # Best reviews first
+--sort newest                # Newest first
+--sort featured              # Featured items
+--sort relevance             # Default relevance (default)
 ```
 
 ### Complete Example
@@ -1689,29 +1705,30 @@ poetry run python -m src.scraper.amazon.scraper \
   --min-price 25.0 --max-price 150.0 \
   --min-rating 4 --prime-only \
   --brands Sony Bose Apple \
-  --sort review-rank --debug --clean
+  --sort rating --debug --clean
 ```
 
 ### Scraper Selectors
 
-The scraper uses CSS selectors to extract product information. These are configured in `scraper.yaml`:
+The scraper uses CSS selectors to extract product information. These are configured in `config/scraper.yaml`:
 
 ```yaml
-selectors:
-  product_card: '[data-component-type="s-search-result"]'
-  serp_product_link: '.s-title-instructions-style a.a-link-normal'
-  product_title: '#productTitle'
-  price: '.a-price .a-offscreen'
-  # ... more selectors
-  
-  # Alternative selectors as fallbacks
-  alternative_selectors:
-    product_title:
-      - '.title .a-size-large'
-    price:
-      - '.a-price-whole'
-      - '.a-price-current .a-offscreen'
-    # ... more alternatives
+css_selectors:
+  # Product title selectors (in priority order - first match wins)
+  product_title_selectors:
+    - "#productTitle"
+    - "h1.a-size-large"
+    - ".product-title"
+    - "h1[data-automation-id='product-title']"
+
+  # Search result card selector
+  search_result_card: "div[data-component-type='s-search-result']"
+
+# ASIN validation patterns
+asin_patterns:
+  modern_asin_pattern: "^B0[A-Z0-9]{8}$"   # B0 + 8 chars
+  legacy_asin_pattern: "^[A-Z0-9]{10}$"    # 10 chars
+  url_asin_pattern: "/dp/([A-Z0-9]{10})"   # URL extraction
 ```
 
 ## Configuration Best Practices
@@ -1773,10 +1790,11 @@ subtitle_settings:
 
 #### CTA Detection Settings
 ```yaml
+# In config/video_production.yaml
 cta_detection:
   # Minimum total duration (seconds) for detected CTA windows
   # If total CTA duration < this value, fall back to full video duration
-  min_cta_duration: 2.0
+  min_cta_duration: 0.5
 
   # Fallback duration (seconds) when voiceover duration unavailable
   # Used as placeholder for static subtitles
@@ -1786,7 +1804,7 @@ cta_detection:
 **Purpose**: Validates CTA timing windows for upper subtitle display to prevent blinking subtitles.
 
 **Key Settings**:
-- `min_cta_duration`: Minimum acceptable total duration for CTA windows (default: 2.0s)
+- `min_cta_duration`: Minimum acceptable total duration for CTA windows (default: 0.5s)
 - `fallback_duration`: Large duration used when voiceover unavailable (default: 9999.0s)
 
 **Behavior**: When detected CTA windows are shorter than `min_cta_duration`, the system falls back to displaying the upper subtitle for the full video duration instead of just during brief CTA moments.

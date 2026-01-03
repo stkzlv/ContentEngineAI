@@ -351,7 +351,7 @@ stagger_delay_max: 60              # Max delay between batch uploads (seconds)
 privacy_settings:
   youtube: public                  # public, unlisted, private
   tiktok: public                   # public, friends, private
-  instagram: everyone              # everyone, followers, private
+  instagram: everyone              # everyone, followers, close_friends
   facebook: public                 # public, friends
   twitter: public                  # public
   linkedin: public                 # public, connections
@@ -393,7 +393,7 @@ export LATE_STAGGER_MAX=30
 - Max caption length: 2200 characters (includes hashtags)
 
 **Instagram:**
-- Privacy: `everyone`, `followers`, `private`
+- Privacy: `everyone`, `followers`, `close_friends`
 - Caption length: 2200 characters
 - Supports scheduled publishing (Reels)
 

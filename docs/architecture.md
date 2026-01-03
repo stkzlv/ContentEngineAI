@@ -80,8 +80,7 @@ Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
 ```
 src/
 ├── video/                      # Central orchestration & video processing
-│   ├── producer.py            # Main pipeline orchestrator
-│   ├── producer/              # Producer submodule (v0.17.0+)
+│   ├── producer/              # Main pipeline orchestrator package
 │   │   ├── cli.py             # CLI argument parsing
 │   │   ├── context.py         # Pipeline context management
 │   │   ├── orchestration.py   # Step orchestration logic
@@ -103,13 +102,19 @@ src/
 │   │   ├── video_strategies.py # Video mode strategies
 │   │   ├── media_inspector.py # Media file inspection
 │   │   └── subtitle_utils.py  # Subtitle parsing/styling
-│   ├── unified_subtitle_generator.py  # Unified subtitle generation system
-│   ├── stt_functions.py       # Speech-to-text (Whisper, Google Cloud STT)
-│   ├── subtitle_utils.py      # Subtitle generation utilities and coordination
-│   ├── tts.py                 # Text-to-speech with provider fallbacks
+│   ├── config_adapter.py      # Backward-compatible config loader
+│   ├── config_validator.py    # Configuration validation utilities
+│   ├── cta_detector.py        # Call-to-action detection in scripts
+│   ├── font_color_manager.py  # Font and color management
+│   ├── pipeline_graph.py      # Dependency-aware execution framework
+│   ├── result_types.py        # Pipeline result type definitions
 │   ├── stock_media.py         # Stock media fetching (Pexels)
-│   ├── video_config.py        # Configuration loader and validation
-│   └── pipeline_graph.py      # Dependency-aware execution framework
+│   ├── stt_functions.py       # Speech-to-text (Whisper, Google Cloud STT)
+│   ├── subtitle_positioning.py # Subtitle position calculations
+│   ├── subtitle_utils.py      # Subtitle generation utilities
+│   ├── subtitle_validation.py # Subtitle validation logic
+│   ├── tts.py                 # Text-to-speech with provider fallbacks
+│   └── unified_subtitle_generator.py  # Unified subtitle generation system
 │
 ├── ai/                        # AI & LLM integration
 │   ├── script_generator.py    # Script generation via OpenRouter
@@ -125,21 +130,24 @@ src/
 │   └── prompts/              # LLM prompt templates
 │
 ├── scraper/                   # Multi-platform data collection architecture
-│   ├── base/                 # Platform-agnostic foundation
+│   ├── base/                 # Platform-agnostic foundation (5 modules)
 │   │   ├── models.py         # Base product data models & registry
 │   │   ├── config.py         # Multi-platform configuration manager
 │   │   ├── utils.py          # Shared utility functions
 │   │   ├── downloader.py     # Base async download logic
 │   │   └── browser_utils.py  # Shared browser utilities
-│   ├── amazon/               # Amazon implementation (11 modules)
+│   ├── amazon/               # Amazon implementation (12 modules)
 │   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
+│   │   ├── batch_controller.py # Batch scraping orchestration
 │   │   ├── browser_functions.py # Browser automation logic
-│   │   ├── media_extractor.py   # Image/video extraction
-│   │   ├── downloader.py     # Async media downloads with semaphore rate limiting
-│   │   ├── models.py         # Amazon-specific models
+│   │   ├── botasaurus_output.py # Botasaurus output handling
 │   │   ├── config.py         # Amazon configuration management
-│   │   ├── utils.py          # Amazon utility functions
-│   │   └── search_builder.py # Search URL construction
+│   │   ├── downloader.py     # Async media downloads with semaphore rate limiting
+│   │   ├── media_extractor.py   # Image/video extraction
+│   │   ├── media_validator.py   # Media file validation
+│   │   ├── models.py         # Amazon-specific models
+│   │   ├── search_builder.py # Search URL construction
+│   │   └── utils.py          # Amazon utility functions
 │   ├── config_models.py      # Pydantic models for type-safe config (v0.14.0+)
 │   ├── config_adapter.py     # Backward-compatible config loader
 │   └── __init__.py           # ScraperFactory & platform registry
@@ -174,7 +182,7 @@ src/
 │   ├── tracking.py           # Publish status tracking
 │   └── late/                 # Late.dev integration
 │       ├── client.py         # Late API client
-│       └── publisher.py      # Late publisher implementation
+│       └── cli.py            # Late publisher CLI
 │
 └── pipeline/                  # Batch processing orchestration
     ├── config.py             # Pipeline configuration
@@ -185,7 +193,7 @@ src/
 
 ## Component Details
 
-### 1. Pipeline Engine (`src/video/producer.py`)
+### 1. Pipeline Engine (`src/video/producer/`)
 
 **Purpose**: Orchestrates the entire video production workflow.
 
@@ -852,7 +860,7 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 
 ### Backward Compatibility Layer
 
-The original `video_config.py` system is preserved through adapter classes:
+The original configuration system is preserved through `config_adapter.py`:
 
 **Key Configuration Areas:**
 - **Timeout Management**: All pipeline timeouts configurable
@@ -958,7 +966,7 @@ class BaseProvider(ABC):
 
 **New Media Sources:**
 1. Implement `BaseMediaProvider` interface
-2. Add configuration section to `video_config.py`
+2. Add configuration section to `src/video/config/` models
 3. Register provider in media fetching pipeline
 4. Add attribution tracking support
 

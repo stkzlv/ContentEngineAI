@@ -55,17 +55,25 @@ class PipelineGraph:
 
 **Features:**
 - **Async subprocess management** with timeout control
-- **Semaphore-based concurrency** limits
-- **Proper resource cleanup** and error handling
-- **Non-blocking FFmpeg operations**
+- **Non-blocking FFmpeg operations** with proper cleanup
+- **Media probing** with async ffprobe calls
+- **Proper error handling** and timeout management
 
 ```python
-class AsyncIOManager:
-    async def run_subprocess_async(self, command: List[str], timeout: int):
-        """Non-blocking subprocess execution with timeout"""
-        async with self.semaphore:
-            process = await asyncio.create_subprocess_exec(*command)
-            await asyncio.wait_for(process.wait(), timeout=timeout)
+# Async FFmpeg execution with timeout
+async def async_run_ffmpeg(
+    cmd: list[str],
+    timeout_sec: float = 300.0,
+    log_path: Path | None = None,
+) -> tuple[bool, str, str]:
+    """Run FFmpeg command asynchronously with timeout."""
+    process = await asyncio.create_subprocess_exec(*cmd, ...)
+    stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout_sec)
+    return process.returncode == 0, stdout_str, stderr_str
+
+# Async media probing
+async def async_probe_media(file_path: Path, timeout_sec: float = 30.0) -> dict | None:
+    """Probe media file asynchronously to get metadata."""
 ```
 
 #### 3. Multi-Level Caching System
@@ -74,19 +82,29 @@ class AsyncIOManager:
 
 **Cache Types:**
 - **Media metadata cache**: Eliminates redundant ffprobe calls
-- **API response cache**: LLM responses, stock media searches
-- **TTS cache**: Expensive TTS operations
 - **File-based persistence** with TTL support
+- **Automatic expiration** and cleanup
 
 ```python
-class CacheManager:
-    def __init__(self, cache_dir: Path, default_ttl: int = 3600):
+class PersistentCache:
+    """Persistent file-based cache for API responses and metadata."""
+
+    def __init__(self, cache_dir: Path, ttl_seconds: int = 3600):
         self.cache_dir = cache_dir
-        self.default_ttl = default_ttl
-        self._cache_lock = threading.Lock()
-    
-    async def get_or_compute(self, key: str, compute_func: Callable, ttl: int = None):
-        """Get cached value or compute and cache it"""
+        self.ttl_seconds = ttl_seconds
+
+    def get(self, key: str) -> Any | None:
+        """Get cached value if it exists and hasn't expired."""
+
+    def set(self, key: str, value: Any) -> None:
+        """Store value in cache with timestamp."""
+
+# Global helper functions for media metadata caching
+def cache_media_metadata(file_path: Path, metadata: dict[str, Any]) -> None:
+    """Cache media file metadata."""
+
+def get_cached_media_metadata(file_path: Path) -> dict[str, Any] | None:
+    """Get cached media file metadata."""
 ```
 
 #### 4. Resource Management Optimization
@@ -159,7 +177,7 @@ PIPELINE_DEPENDENCIES = {
 
 3. **Add Configuration:**
 ```python
-# In src/video/video_config.py
+# In src/video/config/core_models.py
 class MyNewStepConfig(BaseModel):
     enabled: bool = True
     timeout_sec: int = 60
@@ -181,15 +199,16 @@ ContentEngineAI uses a modular, extensible architecture for supporting multiple 
 
 #### **1. Implement BaseScraper Interface:**
 ```python
-from src.scraper.base.models import BaseScraper, BaseProductData
-from src.scraper.base.config import register_scraper, Platform
+from src.scraper.base.models import (
+    BaseScraper, BaseProductData, Platform, register_scraper
+)
 
 @register_scraper(Platform.EBAY)  # Auto-registration with platform registry
 class EbayScraper(BaseScraper):
-    async def scrape_products(self, keywords: List[str]) -> List[BaseProductData]:
+    async def scrape_products(self, keywords: list[str]) -> list[BaseProductData]:
         """eBay-specific product scraping implementation"""
         pass
-    
+
     def validate_product_id(self, product_id: str) -> bool:
         """Validate eBay item ID format (12 digits)"""
         return re.match(r'^[0-9]{12}$', product_id) is not None
@@ -307,8 +326,9 @@ stock_media_settings:
 **📖 Complete testing guide**: [Testing](testing.md)
 
 ```bash
-make test          # Run all tests with coverage
-make test-unit     # Run unit tests only
+make test          # Run all tests
+make test-cov      # Run tests with coverage report
+make test-parallel # Run tests in parallel
 ```
 
 ## Usage Examples
@@ -387,7 +407,7 @@ async def my_function():
 
 **📖 Complete configuration guide**: [Configuration](configuration.md)
 
-Configuration is managed through modular YAML files in `config/` with Pydantic validation in `src/video/video_config.py`.
+Configuration is managed through modular YAML files in `config/` with Pydantic validation in `src/video/config/` (core_models.py, visual_models.py, audio_models.py, subtitle_models.py).
 
 ## Performance Optimization Guidelines
 
@@ -439,19 +459,24 @@ async def api_call(url):
 ### Caching
 
 ```python
-# Cache expensive operations
-from src.utils.caching import get_cache_manager
+# Cache expensive operations using PersistentCache
+from pathlib import Path
+from src.utils.caching import PersistentCache
 
-cache = get_cache_manager()
+cache = PersistentCache(Path("outputs/cache"), ttl_seconds=3600)
 
-async def expensive_operation(param):
+def expensive_operation(param):
     cache_key = f"expensive_op_{hash(param)}"
-    
-    async def compute():
-        # Expensive computation
-        return result
-    
-    return await cache.get_or_compute(cache_key, compute, ttl=3600)
+
+    # Check cache first
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Compute and cache result
+    result = compute_expensive_result(param)
+    cache.set(cache_key, result)
+    return result
 ```
 
 ## Release Process
@@ -548,14 +573,19 @@ from src.utils.background_processing import BackgroundProcessor
 async def with_background_tasks():
     async with BackgroundProcessor() as bg:
         # Start background tasks
-        task_id = await bg.submit_task(preload_models)
-        
+        task = await bg.start_task(
+            task_id="preload_models",
+            name="Model Preloading",
+            coro_func=preload_models,
+        )
+
         # Do main work
         result = await main_processing()
-        
+
         # Wait for background tasks if needed
-        await bg.wait_for_task(task_id)
-        
+        if task:
+            await bg.wait_for_task(task.task_id)
+
         return result
 ```
 
@@ -567,7 +597,7 @@ When adding new configuration options, follow these patterns:
 
 **Adding New Settings:**
 ```python
-# 1. Add to Pydantic model in src/video/video_config.py
+# 1. Add to Pydantic model in src/video/config/core_models.py
 class MySettings(BaseModel):
     my_new_setting: float = Field(default=2.5, description="Description of setting")
 
@@ -606,7 +636,7 @@ def use_config_setting(self, config):
 
 **Example Configuration Addition:**
 ```python
-# In video_config.py
+# In src/video/config/core_models.py
 class VideoSettings(BaseModel):
     # Existing settings...
     

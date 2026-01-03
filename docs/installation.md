@@ -279,14 +279,12 @@ For more troubleshooting help, see [Troubleshooting](troubleshooting.md).
 If you plan to contribute to ContentEngineAI:
 
 ```bash
-# Install development dependencies
-poetry install --with dev
-
-# Install pre-commit hooks
-poetry run pre-commit install
+# Install development dependencies and pre-commit hooks
+make install-dev
+make pre-commit
 
 # Run tests to verify setup
-poetry run pytest tests/
+make test
 ```
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed development setup and [Testing](testing.md) for comprehensive testing documentation.
@@ -305,5 +303,5 @@ Once installation is complete:
 If you encounter issues during installation:
 
 - Check [Troubleshooting Guide](troubleshooting.md)
-- Review [GitHub Issues](https://github.com/ContentEngineAI/ContentEngineAI/issues)
+- Review [GitHub Issues](https://github.com/stkzlv/ContentEngineAI/issues)
 - Create a new issue with your system details and error messages

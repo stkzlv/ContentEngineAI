@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1334 tests** across unit, integration, compliance, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1340 tests** across unit, integration, compliance, and end-to-end categories.
 
 ## Quick Start
 
@@ -76,44 +76,67 @@ tests/
 ├── conftest.py                      # Pytest config & shared fixtures
 ├── run_tests.py                     # Test runner script
 │
-├── # Core Component Tests
-├── test_video_config.py             # Video configuration
-├── test_ai_script_generator.py      # AI script generation
-├── test_subtitle_*.py               # Subtitle system (5 files)
-├── test_cta_detector.py             # CTA detection (18 tests)
-├── test_tts.py                      # Text-to-speech
-├── test_audio.py                    # Audio processing
-├── test_stock_media.py              # Stock media fetching
-├── test_assembler_integration.py    # Assembler integration (3 tests)
+├── # AI/Platform Metadata Tests
+├── ai/
+│   ├── test_instagram_generator.py  # Instagram metadata generation
+│   ├── test_tiktok_generator.py     # TikTok metadata generation
+│   ├── test_youtube_generator.py    # YouTube metadata generation
+│   ├── test_text_formatter.py       # Text formatting utilities
+│   └── test_platform_metadata_models.py  # Pydantic models
 │
-├── # Configuration Tests
-├── test_config_validator.py         # Config validation
-├── test_profile_cli_overrides.py    # Profile & CLI override tests (15 tests)
-├── test_scraper_config_enhanced.py  # Scraper config (23 tests)
-├── test_media_validation.py         # Media validation (10 tests)
+├── # Compliance Tests
+├── compliance/
+│   ├── test_config_compliance.py    # Configuration compliance
+│   ├── test_scraper_compliance.py   # Scraper compliance
+│   └── test_video_compliance.py     # Video production compliance
+│
+├── # End-to-End Tests
+├── e2e/
+│   ├── test_publisher_workflow.py   # Publisher workflow tests
+│   └── test_publisher_schedule_cleanup.py  # Schedule cleanup tests
+│
+├── # Integration Tests
+├── integration/
+│   ├── test_freesound_integration.py  # Freesound API integration
+│   ├── test_late_publisher.py       # Late.dev publisher integration
+│   └── test_platform_metadata_integration.py  # Metadata integration
+│
+├── # Pipeline Tests
+├── pipeline/
+│   ├── test_global_batch_integration.py  # Global batch pipeline
+│   ├── test_global_batch_orchestrator.py  # Orchestrator tests
+│   └── test_global_batch_publishing.py  # Publishing integration
+│
+├── # Publisher Tests
+├── publisher/
+│   ├── late/
+│   │   └── test_client.py           # Late.dev API client
+│   ├── test_base.py                 # Base publisher interface
+│   ├── test_batch.py                # Batch publishing
+│   ├── test_cleanup.py              # Cleanup functionality
+│   ├── test_schedule*.py            # Scheduling tests (4 files)
+│   └── test_models.py               # Publisher models
 │
 ├── # Scraper Tests
 ├── scraper/
-│   ├── test_config_models.py        # Pydantic config models (41 tests)
-│   ├── test_video_integration.py    # Video pipeline integration (16 tests)
-│   ├── test_m3u8_video_extraction.py # M3U8/HLS video support (20 tests)
-│   ├── test_batch_controller.py     # Batch mode unit tests (20 tests)
-│   └── test_batch_integration.py    # Batch mode integration tests (14 tests)
+│   ├── test_config_models.py        # Pydantic config models
+│   ├── test_video_integration.py    # Video pipeline integration
+│   ├── test_m3u8_video_extraction.py # M3U8/HLS video support
+│   ├── test_batch_controller.py     # Batch mode unit tests
+│   └── test_batch_integration.py    # Batch mode integration tests
 │
-├── # Producer Tests
+├── # Video Producer Tests
 ├── video/producer/
-│   ├── test_profile_selection.py    # Profile selection utilities (24 tests)
-│   └── test_batch_profile_integration.py # Batch profile randomization (16 tests)
+│   ├── test_profile_selection.py    # Profile selection utilities
+│   └── test_batch_profile_integration.py  # Batch profile randomization
 │
-├── # Pipeline Tests
-├── test_pipeline_graph.py           # Pipeline dependencies
-├── test_producer_cleanup.py         # Cleanup functionality
-├── test_outputs_structure.py        # Output directory structure
-│
-└── # Integration Tests
-    ├── test_optimization_integration.py  # Performance optimizations
-    ├── test_performance.py               # Performance benchmarks
-    └── test_slideshow_images1_verification.py  # Video verification
+└── # Root-level Tests (core components)
+    ├── test_video_config.py         # Video configuration
+    ├── test_ai_script_generator.py  # AI script generation
+    ├── test_subtitle_*.py           # Subtitle system
+    ├── test_audio.py                # Audio processing
+    ├── test_tts.py                  # Text-to-speech
+    └── test_*.py                    # Other component tests
 ```
 
 </details>
@@ -186,7 +209,12 @@ python_functions = ["test_*"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "e2e: End-to-end tests"
+    "e2e: End-to-end tests",
+    "slow: Slow running tests",
+    "external: Tests requiring external services",
+    "mock: Tests using mocks",
+    "asyncio: Async tests",
+    "compliance: Requirements compliance tests",
 ]
 ```
 
@@ -295,11 +323,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1334 collected
-- **Passing**: 1269 tests
-- **Skipped**: 65 tests
-- **Failed**: 0 tests
-- **Coverage**: 45.57% (target: 40% minimum)
+- **Total Tests**: 1340 collected
+- **Coverage**: Target 40% minimum
 
 **Recent Updates (v0.18.0):**
 - ✅ Added delete_post functionality to publisher base class and Late.dev client
@@ -415,7 +440,7 @@ poetry run pytest -n auto
 |---------|-------------|
 | `make test` | Run all tests |
 | `make test-cov` | Run tests with coverage |
-| `make test-unit` | Run unit tests only |
+| `make test-parallel` | Run tests in parallel |
 | `poetry run pytest -v` | Verbose test output |
 | `poetry run pytest -x` | Stop on first failure |
 | `poetry run pytest -k "pattern"` | Run tests matching pattern |
@@ -431,4 +456,4 @@ poetry run pytest -n auto
 
 ---
 
-**💡 Tip**: Use `make test-unit` for fast feedback during development, then run full suite before committing.
+**💡 Tip**: Use `poetry run pytest -m unit` for fast feedback during development, then run full suite before committing.

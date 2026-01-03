@@ -48,7 +48,7 @@ poetry run python -m src.scraper.amazon.scraper --keywords "product" --verbose
 **Debug mode provides:**
 - Detailed console logging (DEBUG level)
 - Persistent log files:
-  - Producer: `outputs/logs/producer/producer.log`
+  - Producer: `outputs/logs/producer.log`
   - Scraper: `outputs/logs/scraper.log`
 - Intermediate file preservation in `outputs/{product_id}/temp/`
 - FFmpeg command logging to `outputs/{product_id}/temp/ffmpeg_command.log`
@@ -885,7 +885,7 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 
 | File | Location | Purpose | Controlled By |
 |------|----------|---------|---------------|
-| **Producer Log** | `outputs/logs/producer/producer.log` | Producer execution log | `--debug` flag |
+| **Producer Log** | `outputs/logs/producer.log` | Producer execution log | `--debug` flag |
 | **Scraper Log** | `outputs/logs/scraper.log` | Scraper execution log | `--debug` or `--verbose` flag |
 | **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | `create_ffmpeg_command_logs: true` |
 | **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports: true` |
