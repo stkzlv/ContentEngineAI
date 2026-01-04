@@ -104,7 +104,6 @@ make lint-fix      # Auto-fix issues
 
 ```bash
 make test          # Run all tests with coverage
-make test-unit     # Run unit tests only
 ```
 
 ## Submitting Changes
@@ -141,18 +140,18 @@ make test-unit     # Run unit tests only
 ## Project Architecture
 
 ### Key Components
-- `src/video/producer.py`: Main pipeline orchestrator
-- `src/video/assembler.py`: FFmpeg-based video assembly
+- `src/video/producer/`: Main pipeline orchestrator (modular package)
+- `src/video/assembler/`: FFmpeg-based video assembly (modular package)
 - `src/ai/script_generator.py`: LLM-powered script generation
 - `src/scraper/`: **Multi-platform e-commerce scraping architecture**
   - `src/scraper/base/`: Platform-agnostic foundation (6 modules)
-  - `src/scraper/amazon/`: Amazon implementation (9 specialized modules)
+  - `src/scraper/amazon/`: Amazon implementation (12 specialized modules)
   - `src/scraper/__init__.py`: ScraperFactory & platform registry
 - `src/utils/`: Shared utilities and performance optimization
 
 ### Configuration
 - All settings controlled via modular config files in `config/` directory
-- Pydantic models in `src/video/video_config.py` for validation
+- Pydantic models in `src/video/config/` for validation
 - Environment variables for sensitive information
 
 For detailed architecture information, see [Architecture](docs/architecture.md).
@@ -200,7 +199,7 @@ The project includes comprehensive performance monitoring:
 ### Debugging
 
 - Use `--debug` flag for detailed logging
-- Check `outputs/logs/producer/video_producer.log` for file logs
+- Check `outputs/logs/producer.log` for file logs
 - Use `--step` to run specific pipeline steps
 - Enable debug mode in configuration for intermediate file saving
 

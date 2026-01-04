@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/video-producer-module/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-01-04T15:36:51.513Z",
+      "trigger": "initial",
+      "approvalId": "approval_1767541011483_8af7bnoe2",
+      "approvalTitle": "Video Producer Module Tasks"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-01-04T15:37:10.552Z",
+      "trigger": "approved",
+      "approvalId": "approval_1767541011483_8af7bnoe2",
+      "approvalTitle": "Video Producer Module Tasks"
+    }
+  ]
+}

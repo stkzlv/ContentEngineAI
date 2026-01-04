@@ -26,12 +26,13 @@ This ensures version consistency, predictability, and adherence to semantic vers
 
 ### 0.x.y Strategy
 
-- **0.1.0**: Initial open source release with core functionality
-- **0.2.x**: Feature enhancements, additional platform support
-- **0.3.x**: Performance optimizations, API refinements
-- **0.4.x**: Advanced features, community-driven improvements
-- **0.9.x**: Release candidates, stability focus
-- **1.0.0**: First stable production release
+Per SemVer spec, 0.x.y is the development sandbox where the API may change freely:
+
+- **Minor (0.X.0)**: New features, enhancements, non-breaking changes
+- **Patch (0.x.Y)**: Bug fixes, performance improvements, documentation
+- **1.0.0**: First stable release (when stability criteria below are met)
+
+There is no predetermined version for reaching 1.0.0 - development continues in 0.x.y until the project meets production-readiness criteria.
 
 ### Breaking Changes in 0.x
 
