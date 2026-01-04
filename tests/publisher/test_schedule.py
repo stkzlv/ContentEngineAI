@@ -282,8 +282,9 @@ class TestAutoSchedule:
         """Test that slot assignment uses earliest available slots sequentially.
 
         The implementation finds the earliest available slot from the current time,
-        not round-robin from start_slot. After each video, time advances to the
-        scheduled time, causing slots to progress naturally.
+        scheduling in chronological order: Monday (slot 0), Wednesday (slot 1),
+        Friday (slot 2). The start_slot parameter suggests a starting point but
+        chronological ordering takes precedence.
         """
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
@@ -292,16 +293,16 @@ class TestAutoSchedule:
                 videos=mock_video_files,
                 platforms=[Platform.YOUTUBE],
                 publisher=mock_publisher,
-                start_slot=2,  # start_slot affects where to start looking
+                start_slot=2,  # start_slot hint (chronological order takes precedence)
             )
 
             assert result["scheduled"] == 3
 
             # Verify slot indices in entries
-            # With start_slot=2, implementation finds earliest available slot from there
-            # Slots are scheduled in chronological order: 2 (Friday), 0 (Monday), 1 (Wednesday)
+            # Slots are scheduled in chronological order from current time:
+            # Monday (slot 0) -> Wednesday (slot 1) -> Friday (slot 2)
             slot_indices = [e.slot_index for e in manager.entries]
-            assert slot_indices == [2, 0, 1]
+            assert slot_indices == [0, 1, 2]
 
     @pytest.mark.asyncio
     async def test_handles_publish_failures(

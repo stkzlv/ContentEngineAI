@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/video-producer-module/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-01-04T15:36:50.938Z",
+      "trigger": "initial",
+      "approvalId": "approval_1767541010907_1fs5tgodj",
+      "approvalTitle": "Video Producer Module Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-01-04T15:37:05.131Z",
+      "trigger": "approved",
+      "approvalId": "approval_1767541010907_1fs5tgodj",
+      "approvalTitle": "Video Producer Module Requirements"
+    }
+  ]
+}

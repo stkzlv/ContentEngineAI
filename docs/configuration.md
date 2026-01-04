@@ -1,0 +1,1890 @@
+# Configuration Guide
+
+ContentEngineAI uses a **unified modular configuration system** that splits settings across specialized files with CLI overrides and environment variable support. This guide explains all configuration options and how to customize the system for your needs.
+
+> **📖 For batch processing workflows**: See [Batch Processing](batch-processing.md) for complete batch mode usage examples and automation workflows.
+
+## Configuration Overview
+
+ContentEngineAI implements a **triple-precedence configuration system**:
+
+1. **CLI Arguments** (highest priority)
+2. **Environment Variables** (medium priority)
+3. **YAML Configuration** (default values)
+
+### Modular Architecture
+
+The configuration system uses **9 specialized files** instead of a monolithic configuration:
+
+- **`config/core.yaml`** - Global settings and output paths
+- **`config/video_production.yaml`** - Video pipeline and effects
+- **`config/ai_services.yaml`** - TTS, LLM, and AI providers
+- **`config/subtitles.yaml`** - Subtitle positioning and styling
+- **`config/performance.yaml`** - Resource limits and optimization
+- **`config/scraper.yaml`** - Web scraping and browser settings
+- **`config/pipeline.yaml`** - Batch processing and global pipeline settings
+- **`config/publisher.yaml`** - Social media publishing via Late.dev
+- **`config/url_shortener.yaml`** - URL shortening providers and integration
+
+### How Configuration Loading Works
+
+1. **Modular Loading**: Each config file is loaded independently
+2. **Environment Resolution**: Variables resolved using `api_key_env_var` mappings
+3. **CLI Override**: Command-line parameters override YAML values
+4. **Validation**: Pydantic models ensure type safety and completeness
+
+**Example:**
+```yaml
+# In config/ai_services.yaml
+llm_settings:
+  api_key_env_var: "OPENROUTER_API_KEY"  # References env var
+  models: ["anthropic/claude-3-haiku"]   # Direct config value
+
+# In .env file
+OPENROUTER_API_KEY=sk-or-v1-your-actual-key-here
+
+# CLI override
+poetry run python -m src.video.producer --models "gpt-4"
+```
+
+## Configuration Files
+
+ContentEngineAI's modular system organizes settings by purpose:
+
+### 1. **Core Configuration** (`config/core.yaml`)
+Global settings and output structure:
+
+```yaml
+# Base output directory and structure
+global_output_directory: "outputs"
+debug_mode: false
+pipeline_timeout_sec: 900
+
+output_structure:
+  product_directory_pattern: "{product_id}"
+  product_files:
+    scraped_data: "data.json"
+    script: "script.txt"
+    voiceover: "voiceover.wav"
+    subtitles: "subtitles.srt"
+    final_video: "video_{product_id}_{profile}.mp4"
+  global_dirs:
+    cache: "cache"
+    logs: "logs"
+    reports: "reports"
+```
+
+### 2. **Video Production Configuration** (`config/video_production.yaml`)
+Video pipeline settings and effects:
+
+```yaml
+video_settings:
+  resolution: [1080, 1920]  # 9:16 vertical format
+  frame_rate: 30
+  codec: "libx264"
+
+  # Media validation requirements (must match scraper.yaml)
+  min_total_media: 3              # Minimum total media files
+  min_images_if_no_video: 5       # Minimum images for slideshow mode
+  min_images_with_video: 2        # Minimum images when videos available
+
+audio_settings:
+  voiceover_volume_db: 0
+  music_volume_db: -20
+  music_fade_in_duration: 2.0
+
+video_profiles:
+  slideshow_images1:
+    description: "Image slideshow optimized for product focus"
+    use_scraped_images: true
+    use_stock_images: false
+```
+
+### 3. **AI Services Configuration** (`config/ai_services.yaml`)
+LLM and description generation settings (TTS is in `config/subtitles.yaml`):
+
+```yaml
+llm_settings:
+  api_key_env_var: "OPENROUTER_API_KEY"
+  models: ["openai/gpt-3.5-turbo"]
+  temperature: 0.7
+
+description_settings:
+  enabled: true
+  target_platform: "multi"  # youtube, tiktok, instagram, or multi
+```
+
+### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
+Subtitle positioning, styling, TTS settings, and two-part subtitle system:
+
+```yaml
+subtitle_settings:
+  enabled: true
+  anchor: "below_content"
+  style_preset: "modern"  # Available: minimal, modern, bold, animated, random
+  content_aware: true
+  font_directory: "static/fonts"
+
+# Define custom style presets
+style_presets:
+  minimal:
+    font_name: "Poppins"
+    effects: []  # No effects for clean look
+    bold: false
+  modern:
+    font_name: "Montserrat"
+    effects: ["karaoke"]
+    bold: true
+  bold:
+    font_name: "Rubik"
+    effects: ["fade"]
+    bold: true
+  animated:
+    font_name: "Gabarito"
+    effects: ["movement"]
+    bold: true
+  random:
+    # Randomly selects from available fonts, colors, and single effect
+    effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke", "movement"]
+```
+
+### 5. **Performance Configuration** (`config/performance.yaml`)
+Resource limits and optimization:
+
+```yaml
+optimization_settings:
+  caching:
+    enabled: true
+    ttl_seconds: 3600
+    max_size_mb: 100
+  memory:
+    max_memory_mb: 2048
+
+api_settings:
+  llm:
+    timeout: 90
+    max_retries: 5
+```
+
+### 6. **Scraper Configuration** (`config/scraper.yaml`)
+Web scraping and browser settings with type-safe Pydantic models:
+
+```yaml
+global_settings:
+  debug_mode: false
+  output_config:
+    base_directory: "outputs"
+    file_patterns:
+      product_file: "{keyword}_products.json"
+
+  download_config:
+    download_timeout: 30              # HTTP download timeout (seconds)
+    video_download_timeout: 300       # Video download timeout (seconds)
+    concurrent_image_downloads: 5     # Max parallel image downloads
+    concurrent_video_downloads: 3     # Max parallel video downloads
+
+  validation_config:
+    # Media validation requirements (must match video_production.yaml)
+    min_total_media: 3              # Minimum total media files
+    min_images_if_no_video: 5       # Minimum images for slideshow mode
+    min_images_with_video: 2        # Minimum images when videos available
+
+scrapers:
+  amazon:
+    enabled: true
+    base_url: "https://www.amazon.com"
+    max_products: 10
+```
+
+**Type Safety (v0.14.0+)**: The scraper uses Pydantic models (`src/scraper/config_models.py`) for configuration validation. Load with:
+```python
+from src.scraper.config_adapter import load_scraper_config_pydantic
+config = load_scraper_config_pydantic()  # Type-safe ScraperConfig instance
+```
+
+### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
+URL shortening providers for affiliate links:
+
+```yaml
+url_shortener:
+  enabled: true                    # Enable/disable URL shortening
+  provider: picsee                 # Primary provider: picsee, bitly, tinyurl
+
+  # Fallback providers (tried in order if primary fails)
+  fallback_providers:
+    - bitly
+    - tinyurl
+
+  # API configuration
+  api:
+    timeout_sec: 30
+    max_retries: 3
+    retry_delay_sec: 2
+    retry_backoff_multiplier: 2
+
+  # PicSee-specific settings
+  picsee:
+    api_key_env_var: PICSEE_API_KEY
+    custom_domain: stte.psee.io    # Optional branded short domain
+    max_bulk_size: 100
+
+  # Integration settings
+  integration:
+    shorten_on_scrape: true        # Auto-shorten during scraping
+    include_in_descriptions: true  # Include in video descriptions
+    fallback_to_original: true     # Use original URL if shortening fails
+    enable_caching: true           # Cache shortened URLs
+    cache_ttl_hours: 168           # 7-day cache TTL
+```
+
+## Core Configuration Sections
+
+<details>
+<summary><strong>1. Global Settings</strong></summary>
+
+### 1. Global Settings
+
+```yaml
+# Pipeline execution timeout (seconds)
+pipeline_timeout_sec: 900
+
+# Logging configuration
+logging_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+debug_mode: false
+
+# Inter-product processing delay
+inter_product_delay_range: [30, 60]  # Random delay in seconds
+```
+
+**Options:**
+- `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 900s)
+- `logging_level`: Controls verbosity of logging output
+- `debug_mode`: Enables detailed tracing and intermediate file retention
+- `inter_product_delay_range`: Random delay between processing multiple products
+
+</details>
+
+<details>
+<summary><strong>2. Output Directory Structure</strong></summary>
+
+### 2. Output Directory Structure
+
+ContentEngineAI uses a **simplified, product-centric** directory structure that's fully configurable:
+
+```yaml
+# Base output directory - all files go under this directory
+global_output_directory: "outputs"
+
+# Product-centric structure configuration
+output_structure:
+  # Product directory pattern
+  product_directory_pattern: "{product_id}"
+  
+  # Files created within each product directory
+  product_files:
+    scraped_data: "data.json"           # Scraped product data
+    script: "script.txt"                # Generated script
+    voiceover: "voiceover.wav"          # Generated audio
+    subtitles: "subtitles.srt"          # Generated subtitles
+    final_video: "video_{profile}.mp4"  # Final video output
+    metadata: "metadata.json"           # Pipeline metadata
+    ffmpeg_log: "ffmpeg_command.log"    # FFmpeg execution log
+  
+  # Subdirectories within each product directory
+  product_subdirs:
+    images: "images"                    # Product images
+    videos: "videos"                    # Product videos  
+    music: "music"                      # Background music
+    temp: "temp"                        # Temporary files
+  
+  # Global directories (shared across all products)
+  global_dirs:
+    cache: "cache"                      # API cache, models
+    logs: "logs"                        # Application logs
+    reports: "reports"                  # Performance reports
+    temp: "temp"                        # Global temp files
+
+# Path building configuration
+path_config:
+  use_product_oriented_structure: true
+  
+  cleanup:
+    remove_temp_on_success: true        # Auto-cleanup temp files
+    keep_temp_on_failure: true          # Preserve debug files
+    cache_max_age_hours: 168            # 7-day cache TTL
+```
+
+### Directory Structure Example
+
+```
+outputs/
+├── B0DLKB5V35/                    # Product directory
+│   ├── data.json                  # Scraped data
+│   ├── script.txt                 # Generated script
+│   ├── voiceover.wav              # Generated audio
+│   ├── subtitles.srt              # Generated subtitles
+│   ├── video_slideshow_images1.mp4 # Final video
+│   ├── metadata.json              # Pipeline metadata
+│   ├── ffmpeg_command.log         # FFmpeg execution log
+│   ├── images/                    # Product images
+│   │   ├── B0DLKB5V35_image_1.jpg
+│   │   └── ...
+│   ├── videos/                    # Product videos
+│   │   ├── B0DLKB5V35_video_1.mp4
+│   │   └── ...
+│   ├── music/                     # Background music
+│   └── temp/                      # Temporary files
+├── cache/                         # Global cache
+│   └── botasaurus/               # Browser cache
+├── logs/                          # Global logs
+│   ├── producer.log
+│   ├── scraper.log
+│   └── debug/
+└── reports/                       # Global reports
+```
+
+**Key Features:**
+- ✅ **No File Conflicts**: Each product in separate directory
+- ✅ **Centralized Management**: `src/utils/outputs_paths.py` handles all paths
+- ✅ **Auto-Cleanup**: Temp files removed on success, preserved on failure
+- ✅ **Configurable**: All paths and patterns controlled via YAML
+- ✅ **Cross-Module Consistency**: Same structure used by scraper and producer
+
+**Pattern Variables:**
+- `{product_id}`: Product identifier (ASIN for Amazon)
+- `{profile}`: Video profile name (e.g., "slideshow_images1")
+- `{platform}`: Source platform (e.g., "amazon")
+- `{timestamp}`: Current timestamp
+- `{ext}`: File extension
+
+</details>
+
+<details>
+<summary><strong>3. Video Settings</strong></summary>
+
+### 3. Video Settings
+
+```yaml
+video_settings:
+  # Output specifications
+  resolution: [1080, 1920]           # Width x Height (9:16 aspect ratio)
+  frame_rate: 30                     # Frames per second
+  output_codec: "libx264"            # Video codec
+  output_pixel_format: "yuv420p"     # Pixel format for compatibility
+  
+  # Duration controls
+  default_image_duration_sec: 3      # Default duration for images
+  min_visual_segment_duration_sec: 2 # Minimum segment duration
+  total_duration_limit_sec: 60       # Maximum video length
+  
+  # Visual positioning
+  image_width_percent: 90            # Image width as % of frame
+  image_top_position_percent: 15     # Top position as % from top
+  
+  # Transitions
+  transition_duration_sec: 1.0       # Crossfade transition duration
+  transition_type: "fade"            # Transition type
+  
+  # Quality settings
+  min_video_file_size_mb: 1          # Minimum output file size
+  video_duration_tolerance_sec: 2    # Acceptable duration variance
+```
+
+</details>
+
+<details>
+<summary><strong>4. Audio Settings</strong></summary>
+
+### 4. Audio Settings
+
+```yaml
+audio_settings:
+  # Volume controls (in decibels)
+  voiceover_volume_db: 0             # Voiceover volume adjustment
+  voiceover_volume_boost_db: 3       # Additional voiceover boost
+  music_volume_db: -20               # Background music volume
+  music_volume_boost_db: 0           # Additional music boost
+  music_min_volume_db: -30           # Minimum music volume
+  
+  # Mixing settings
+  audio_mix_duration: "longest"      # How to handle different audio lengths
+  
+  # Fade effects
+  music_fade_in_sec: 2               # Music fade-in duration
+  music_fade_out_sec: 3              # Music fade-out duration
+```
+
+</details>
+
+<details>
+<summary><strong>5. Subtitle Settings (Unified System)</strong></summary>
+
+### 5. Subtitle Settings (Unified System)
+
+ContentEngineAI uses a unified subtitle positioning system that simplifies configuration while providing powerful content-aware positioning capabilities.
+
+```yaml
+subtitle_settings:
+  enabled: true
+
+  # Unified Positioning
+  anchor: "below_content"            # Positioning anchor: top, center, bottom, above_content, below_content
+  margin: 0.1                        # Margin as fraction of frame height (0.0-0.5)
+  content_aware: true                # Automatically adjust position based on visual content
+  horizontal_alignment: "center"     # Text alignment: left, center, right
+
+  # Style Presets (5 production-ready presets)
+  style_preset: "modern"             # Style preset: minimal, modern, bold, animated, random
+  font_size_scale: 1.0              # Font size multiplier (0.5-2.0)
+
+  # Text Formatting
+  max_line_length: 38                # Maximum characters per line
+  max_duration: 4.5                  # Maximum duration for subtitle segments (seconds)
+  min_duration: 0.4                  # Minimum duration for subtitle segments (seconds)
+
+  # Randomization Options (for 'random' preset)
+  randomize_fonts: false             # Use random font selection from curated collection
+  randomize_colors: false            # Use random coordinated color combinations
+  randomize_effects: false           # Use random animation effects
+
+  # Manual Overrides (Optional)
+  selected_font: null                # Override font selection (font family name)
+  selected_color_pair: null          # Override color pair selection
+
+  # Advanced Positioning (Optional Override)
+  custom_position:                   # Custom position override (advanced users)
+    x: 0.5                          # Horizontal position (0.0-1.0 fraction)
+    y: 0.8                          # Vertical position (0.0-1.0 fraction)
+```
+
+#### Positioning Anchors
+
+- **`top`**: Position at the top of the frame with margin
+- **`center`**: Position at the vertical center of the frame
+- **`bottom`**: Position at the bottom of the frame with margin
+- **`above_content`**: Position above visual content (content-aware)
+- **`below_content`**: Position below visual content (content-aware) - **Recommended**
+
+#### Style Presets
+
+- **`minimal`**: Clean, simple styling with no effects (Arial font)
+- **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold) - **Default**
+- **`bold`**: High contrast styling with fade effect (Gabarito font, bold)
+- **`animated`**: Full animations with movement effect (Gabarito font, bold)
+- **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect from available pool
+
+#### Two-Part Subtitle System
+
+Enable dual independent subtitle lines for displaying static product information alongside timed voiceover subtitles:
+
+```yaml
+subtitle_settings:
+  two_part_subtitles:
+    enabled: false  # Enable dual subtitle lines
+
+    # Upper line (static product info)
+    upper_line:
+      enabled: true
+      source_field: "product_url"      # Field from data.json
+      anchor: "above_content"          # Position anchor
+      margin: 0.03                     # Spacing from content
+      font_size_scale: 0.8            # Relative to main subtitles
+      style_preset: "minimal"          # Style preset
+
+    # Lower line (voiceover subtitles)
+    lower_line:
+      enabled: true
+      anchor: "below_content"
+      margin: 0.05
+      custom_style: null               # Uses main subtitle_settings
+```
+
+**Use Cases:**
+- Display shortened affiliate links while showing voiceover subtitles
+- Show product titles or custom text independently from speech
+- Create two-line subtitle layouts with different styling
+
+**Features:**
+- Independent positioning, styling, and effect randomization per line
+- Content-aware positioning for both lines
+- Source field configuration for flexible data mapping
+- Profile-specific configuration support
+- **CTA-synchronized timing**: Upper line appears only during CTA moments
+
+</details>
+
+<details>
+<summary><strong>6. CTA Detection Configuration</strong></summary>
+
+### 6. CTA Detection Configuration
+
+CTA (Call-to-Action) detection enables synchronized display of promotional content (like affiliate links) during relevant voiceover moments.
+
+```yaml
+cta_detection:
+  # Minimum total duration for CTA windows
+  # If detected CTA < this value, falls back to full video duration
+  min_cta_duration: 0.5              # seconds
+
+  # Fallback duration when voiceover unavailable
+  fallback_duration: 9999.0          # seconds (effectively full duration)
+
+  # CTA keyword detection
+  keywords:
+    - "link"
+    - "bio"
+    - "check out"
+    - "visit"
+    - "follow"
+    - "share"
+    - "like"
+    - "subscribe"
+    - "click"
+    - "tap"
+    - "swipe"
+    - "purchase"
+    - "buy"
+    - "shop"
+    - "get"
+
+  # Matching behavior
+  case_sensitive: false              # Case-insensitive keyword matching
+  merge_gap_threshold: 0.5           # Merge CTA segments within 0.5s
+```
+
+**Use Cases:**
+- Display affiliate links only when user hears "check out the link in bio"
+- Show promotional URLs during relevant voiceover moments
+- Synchronize calls-to-action with speech patterns
+
+**How It Works:**
+1. Analyzes lower subtitle text for CTA keywords
+2. Detects timing windows where keywords appear
+3. Merges nearby segments (within `merge_gap_threshold`)
+4. Displays upper subtitle only during detected windows
+5. Falls back to full duration if total CTA time < `min_cta_duration`
+
+</details>
+
+<details>
+<summary><strong>7. TTS (Text-to-Speech) Configuration</strong></summary>
+
+### 7. TTS (Text-to-Speech) Configuration
+
+**Location**: `config/subtitles.yaml` (under `tts_config` section)
+
+```yaml
+tts_config:
+  # Provider priority order (first = primary)
+  provider_order: ["google_cloud", "coqui"]
+
+  # Google Cloud TTS settings
+  google_cloud:
+    model_name: "en-US-Chirp3-HD"
+    language_code: "en-US"
+
+    # Voice selection criteria (priority order)
+    voice_selection_criteria:
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "FEMALE" }
+
+    # Speech parameters
+    speaking_rate: 1.0               # Speech rate (0.25-4.0)
+    pitch: 0.0                       # Pitch adjustment (-20.0 to 20.0)
+    volume_gain_db: 0.0              # Volume adjustment
+    api_timeout_sec: 60
+
+  # Coqui TTS settings (local/fallback)
+  coqui:
+    model_name: "tts_models/en/ljspeech/vits"
+    speaker_name: null               # For multi-speaker models
+```
+
+</details>
+
+<details>
+<summary><strong>7. LLM Settings</strong></summary>
+
+### 7. LLM Settings
+
+```yaml
+llm_settings:
+  # LLM provider configuration
+  provider: "openrouter"
+  base_url: "https://openrouter.ai/api/v1"
+  api_key_env_var: "OPENROUTER_API_KEY"
+  auto_select_free_model: true
+
+  # Model selection with fallbacks
+  models:
+    - "openai/gpt-3.5-turbo"              # Primary model
+    - "deepseek/deepseek-chat-v3-0324:free" # Free fallback
+    - "meta-llama/llama-3-8b-instruct:free" # Second free fallback
+
+  # Generation parameters
+  temperature: 0.7                   # Creativity (0.0-2.0)
+  max_tokens: 350                    # Maximum response length
+
+  # Prompt configuration
+  prompt_template_path: "src/ai/prompts/video_script.md"
+  target_audience: "Tech-savvy young adults"
+
+  # Timeouts and retries
+  timeout_seconds: 90
+  retry_attempts: 5
+  retry_min_wait_sec: 2
+  retry_max_wait_sec: 30
+```
+
+**Platform-Specific Metadata Generation:**
+
+ContentEngineAI now supports generating platform-optimized metadata (titles, descriptions, captions, hashtags) tailored for YouTube Shorts, TikTok, and Instagram Reels. This is configured via the `platform_metadata` section in `config/ai_services.yaml`.
+
+See **Section 7.1: Platform Metadata Settings** below for detailed configuration.
+
+</details>
+
+<details>
+<summary><strong>7.1. Platform Metadata Settings (YouTube/TikTok/Instagram)</strong></summary>
+
+### 7.1. Platform Metadata Settings
+
+Platform metadata generation creates platform-specific titles, descriptions/captions, hashtags, and keywords optimized for each social media platform's algorithm and best practices (as of 2025).
+
+**Supported Platforms:**
+- **YouTube Shorts**: SEO-optimized titles (50-60 chars), descriptions with first 150 chars critical, 3-5 hashtags including #Shorts
+- **TikTok**: Search-friendly captions (100-300 chars optimal), 3-5 niche hashtags, avoids generic viral tags
+- **Instagram Reels**: Dual caption styles (ultra-short 3-5 words OR SEO 100-200 chars), 15-30 hashtags in caption
+
+**Configuration:**
+
+```yaml
+platform_metadata:
+  enabled: true
+  target_platform: "multi"  # Options: "youtube", "tiktok", "instagram", "multi"
+
+  # YouTube Shorts Configuration
+  youtube:
+    title_length_min: 50
+    title_length_max: 60
+    description_length_max: 5000
+    description_seo_priority_chars: 150  # First 150 chars are critical for SEO
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+    require_shorts_tag: true              # Always include #Shorts
+    require_ad_tag: true                  # Always include #ad
+
+  # TikTok Configuration
+  tiktok:
+    caption_length_optimal_min: 100
+    caption_length_optimal_max: 300
+    caption_length_max: 2200              # Hard limit
+    hashtag_count_min: 3
+    hashtag_count_max: 5
+    require_ad_tag: true                  # Always include #ad
+    avoid_generic_tags: true              # Avoid #fyp, #foryoupage, #viral
+    # Generic tags blacklist
+    generic_hashtags:
+      - "#fyp"
+      - "#foryoupage"
+      - "#foryou"
+      - "#viral"
+
+  # Instagram Reels Configuration
+  instagram:
+    caption_style: "seo"                  # Options: "short" (3-5 words) or "seo" (100-200 chars)
+    caption_length_short_min: 3           # For short style (word count)
+    caption_length_short_max: 5
+    caption_length_seo_min: 100           # For SEO style (character count)
+    caption_length_seo_max: 200
+    hashtag_count_min: 15
+    hashtag_count_max: 30
+    hashtags_in_caption: true             # CRITICAL: Hashtags must be in caption, not comments (2024+ algorithm)
+    require_ad_tag: true                  # Always include #ad
+    emoji_enabled: true                   # Allow emojis in captions
+```
+
+**Platform Targeting Modes:**
+
+1. **Single Platform Mode** (`target_platform: "youtube"`, `"tiktok"`, or `"instagram"`):
+   - Generates metadata for one platform only
+   - Optimized for single-platform distribution
+   - Faster generation (single API call)
+
+2. **Multi-Platform Mode** (`target_platform: "multi"`):
+   - Generates metadata for all three platforms in parallel
+   - Saves separate files: `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
+   - Ideal for cross-platform content distribution
+
+**CLI Override:**
+
+You can override the target platform at runtime using the `--target-platform` argument:
+
+```bash
+# Generate YouTube-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform youtube
+
+# Generate TikTok-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform tiktok
+
+# Generate Instagram-only metadata
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform instagram
+
+# Generate for all platforms (default)
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform multi
+```
+
+**Best Practices by Platform:**
+
+**YouTube Shorts:**
+- **Title**: 50-60 characters, front-load keywords, use numbers and power words
+- **Description**: First 150 characters are CRITICAL for SEO - optimize heavily
+- **Hashtags**: Always include #Shorts first, then #ad, then 1-3 niche tags
+- **Keywords**: 5-10 search terms users actually type
+
+**TikTok:**
+- **Caption**: 100-300 characters (optimal), use exact search phrases users type
+- **Hashtags**: 3-5 NICHE-SPECIFIC tags only - avoid #fyp, #foryoupage, #viral (provide NO discovery value as of 2024-2025)
+- **SEO Focus**: TikTok is now a search engine - use searchable language, not creative hooks
+
+**Instagram Reels:**
+- **Caption Style**: Choose between ultra-short (3-5 words, punchy hooks) OR SEO-descriptive (100-200 chars, searchable)
+- **Hashtags**: 15-30 hashtags IN THE CAPTION (not comments) - algorithm prioritizes caption hashtags
+- **Mix**: Use 5-10 popular tags (100k-1M posts) + 10-15 niche (10k-100k) + 5-10 specific (<10k)
+
+**Understanding Keywords vs Hashtags:**
+
+Platform metadata includes both **hashtags** and **keywords** - they serve different purposes:
+
+| Type | Purpose | Visibility | Where to Use |
+|------|---------|------------|--------------|
+| **Hashtags** | Content discovery & categorization | Visible in video (clickable) | Add to description or dedicated hashtag field |
+| **Keywords** | SEO & search ranking (backend tags) | Hidden from viewers | YouTube Studio "Tags" field (backend only) |
+
+**How to Use Keywords:**
+
+**YouTube Shorts:**
+- Keywords are **critical for SEO** - they help YouTube understand and rank your video in search results
+- During upload in YouTube Studio, find the "Tags" or "Keywords" section (below description field)
+- Copy keywords from `metadata_youtube.json` → Paste as comma-separated tags in YouTube Studio
+- Example keywords: `4K mini projector, portable projector, home theater projector, wifi projector, bluetooth projector`
+- Use 5-10 keywords that match actual search terms users type
+- **Location**: Backend only - viewers never see these tags
+
+**TikTok:**
+- Keywords have **limited SEO value** on TikTok (platform primarily uses hashtags and caption text)
+- Generated keywords are for reference/analytics only
+- TikTok's algorithm analyzes caption text directly for search ranking
+- **Don't manually enter** - no keyword field exists in TikTok upload interface
+
+**Instagram:**
+- Instagram has **no keyword field**
+- Generated keywords are for reference/analytics tracking only
+- Instagram's algorithm relies on hashtags and caption text for discovery
+- **Don't manually enter** - no backend tags system exists
+
+**Current Limitation:** Keywords are generated and saved in `metadata_{platform}.json` files but are **not included in `UPLOAD_INSTRUCTIONS.txt`**. You must manually open the JSON files to copy keywords for YouTube uploads.
+
+**Output Files:**
+
+When platform metadata generation is enabled, the following files are created in `outputs/{product_id}/text/`:
+
+```
+outputs/B0ASIN123/text/
+├── description.txt              # Legacy unified description (backward compatible)
+├── metadata_youtube.json       # YouTube Shorts metadata
+├── metadata_tiktok.json        # TikTok metadata
+├── metadata_instagram.json     # Instagram Reels metadata
+└── UPLOAD_INSTRUCTIONS.txt     # Human-readable upload guide (all platforms)
+```
+
+**Human-Readable Upload Instructions (`UPLOAD_INSTRUCTIONS.txt`):**
+
+The pipeline automatically generates a ready-to-copy text file with formatted posting instructions for all platforms:
+
+```
+================================================================================
+                    READY-TO-POST SOCIAL MEDIA CONTENT
+                        Product: B0ASIN123
+                    Video: video_B0ASIN123_slideshow_images1.mp4
+                    URL: https://amazon.com/dp/B0ASIN123
+================================================================================
+
+📱 ALL PLATFORMS: Upload the same video file to each platform
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📺 YOUTUBE SHORTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TITLE (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Best Wireless Earbuds Under $50 - Amazing Sound Quality
+──────────────────────────────────────────────────────────────────────────────
+
+DESCRIPTION (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+Looking for affordable wireless earbuds with premium sound?...
+──────────────────────────────────────────────────────────────────────────────
+
+HASHTAGS (Copy below):
+──────────────────────────────────────────────────────────────────────────────
+#Shorts #WirelessEarbuds #TechReview #ad
+──────────────────────────────────────────────────────────────────────────────
+```
+
+This file contains copy-paste-ready content for all three platforms (YouTube, TikTok, Instagram) with clear section separators and formatting guidance.
+
+**Metadata JSON Structure:**
+
+Each platform metadata file follows this structure:
+
+```json
+{
+  "platform": "youtube",
+  "title": "Best Wireless Earbuds Under $50 - Amazing Sound Quality",
+  "description": "Looking for affordable wireless earbuds with premium sound?...",
+  "hashtags": ["#Shorts", "#WirelessEarbuds", "#TechReview", "#ad"],
+  "keywords": ["wireless earbuds under 50", "budget wireless earbuds", ...],
+  "character_counts": {
+    "title": 58,
+    "description": 487
+  },
+  "generated_at": "2025-01-15T12:00:00Z",
+  "product_id": "B0ASIN123",
+  "validation_status": "valid",
+  "validation_messages": []
+}
+```
+
+**Validation:**
+
+Platform metadata is automatically validated against platform-specific requirements:
+- **YouTube**: Title length (50-60 chars), #Shorts tag presence, hashtag count (3-5)
+- **TikTok**: Caption length (optimal 100-300, max 2200), no generic hashtags, hashtag count (3-5)
+- **Instagram**: Caption style compliance, hashtag count (15-30), hashtags in caption
+
+Validation failures are logged but don't block generation - invalid metadata is saved with `validation_status: "invalid"` and detailed `validation_messages`.
+
+</details>
+
+<details>
+<summary><strong>8. Stock Media Settings</strong></summary>
+
+### 8. Stock Media Settings
+
+```yaml
+stock_media_settings:
+  pexels:
+    enabled: true
+    api_key_env_var: "PEXELS_API_KEY"
+    source_name: "Pexels"
+    
+    # Media preferences
+    orientation: "portrait"          # portrait, landscape, square
+    size: "large"                    # small, medium, large
+    
+    # Download settings
+    concurrent_downloads: 3          # Parallel downloads
+    timeout_sec: 30
+    
+    # Quality filters
+    min_width: 1080                  # Minimum image width
+    min_height: 1920                 # Minimum image height
+```
+
+</details>
+
+<details>
+<summary><strong>9. Freesound Audio Settings</strong></summary>
+
+### 9. Freesound Audio Settings
+
+ContentEngineAI uses Freesound.org to automatically download Creative Commons licensed background music that matches your video duration. The system supports both preview downloads (with API key only) and full-quality downloads (with OAuth2 authentication).
+
+#### Quick Start (API Key Only)
+
+For basic usage with preview-quality music:
+
+```yaml
+audio_settings:
+  # Freesound API key (required)
+  freesound_api_key_env_var: "FREESOUND_API_KEY"
+
+  # Search configuration
+  freesound_search_query: "upbeat instrumental corporate"
+  freesound_filters: "duration:[60 TO 180]"
+  freesound_sort: "rating_desc"
+  freesound_max_results: 15
+
+  # Timeouts
+  freesound_api_timeout_sec: 30
+  freesound_download_timeout_sec: 300
+```
+
+**Setup:**
+1. Get free API key: https://freesound.org/apiv2/apply/
+2. Add to `.env`: `FREESOUND_API_KEY=your_api_key_here`
+3. System automatically downloads preview-quality MP3s matching video duration
+
+#### OAuth2 Setup (Full-Quality Downloads)
+
+For original quality audio downloads, configure OAuth2 authentication:
+
+**Step 1: Register Your Application**
+
+1. Visit Freesound API registration: https://freesound.org/apiv2/apply/
+2. Fill in application details:
+   - **Name**: "ContentEngineAI" (or your project name)
+   - **Description**: "Automated video production pipeline"
+   - **Redirect URI**: `http://localhost:8000/callback` (for local testing)
+   - **Accepted Terms**: Check the box to accept Freesound API terms
+3. Click "Apply" and wait for approval (usually instant)
+4. Note down your **Client ID** and **Client Secret**
+
+**Step 2: Get Refresh Token**
+
+Use the Freesound OAuth2 helper script to obtain a refresh token:
+
+```bash
+# Install required dependencies (already in pyproject.toml)
+poetry install
+
+# Run OAuth2 authorization flow
+poetry run python tools/freesound_oauth2_setup.py \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+**Script will:**
+1. Print authorization URL for Freesound
+2. You open URL in browser, log in, and approve access
+3. Copy authorization code from redirect URL
+4. Paste code into script when prompted
+5. Script exchanges code for access + refresh tokens
+6. Refresh token printed to console
+
+**Step 3: Configure Environment Variables**
+
+Add OAuth2 credentials to `.env`:
+
+```bash
+# Required for all Freesound operations
+FREESOUND_API_KEY=your_api_key_here
+
+# Optional - for full-quality downloads
+FREESOUND_CLIENT_ID=your_client_id_here
+FREESOUND_CLIENT_SECRET=your_client_secret_here
+FREESOUND_REFRESH_TOKEN=your_refresh_token_here
+```
+
+**Step 4: Verify Configuration**
+
+Test OAuth2 authentication:
+
+```bash
+# Test token refresh and download
+poetry run python -c "
+from src.audio.freesound_client import FreesoundClient
+import asyncio
+import os
+
+async def test():
+    client = FreesoundClient(
+        FREESOUND_API_KEY=os.getenv('FREESOUND_API_KEY'),
+        FREESOUND_CLIENT_ID=os.getenv('FREESOUND_CLIENT_ID'),
+        FREESOUND_CLIENT_SECRET=os.getenv('FREESOUND_CLIENT_SECRET'),
+        FREESOUND_REFRESH_TOKEN=os.getenv('FREESOUND_REFRESH_TOKEN')
+    )
+    success = await client.refresh_oauth_token()
+    print('✓ OAuth2 configured correctly' if success else '✗ OAuth2 failed')
+
+asyncio.run(test())
+"
+```
+
+#### Token Refresh and Persistence
+
+**Automatic Token Management:**
+- Access tokens expire after 1 hour (3600 seconds)
+- System automatically refreshes tokens 60 seconds before expiration
+- New refresh tokens are saved to `.env` file using `dotenv.set_key()`
+- No manual intervention required after initial setup
+
+**Token Refresh Configuration:**
+
+```yaml
+audio_settings:
+  # Token expiration time (Freesound default: 3600s)
+  freesound_token_expiry_sec: 3600
+
+  # Refresh buffer - triggers refresh this many seconds before expiry
+  # Recommendation: 60s provides safety margin
+  freesound_token_refresh_buffer_sec: 60
+```
+
+**Manual Token Refresh:**
+
+If refresh token becomes invalid or expires, regenerate using OAuth2 setup script:
+
+```bash
+poetry run python tools/freesound_oauth2_setup.py \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+**Troubleshooting Token Refresh:**
+
+If token refresh fails with timeout errors:
+
+1. **Check network connectivity**: Ensure you can reach `https://freesound.org`
+2. **Verify credentials**: Confirm `FREESOUND_CLIENT_ID`, `FREESOUND_CLIENT_SECRET`, and `FREESOUND_REFRESH_TOKEN` are correct in `.env`
+3. **Regenerate token**: If refresh token is expired or invalid, run OAuth2 setup script again
+4. **Check timeout settings**: Default is 5s - increase if needed in `config/video_production.yaml`:
+   ```yaml
+   audio_settings:
+     freesound_token_refresh:
+       timeout_sec: 10  # Increase if network is slow
+   ```
+5. **Fallback behavior**: System automatically falls back to HQ preview downloads if OAuth2 fails
+
+**Token Storage Location:**
+- Primary: `.env` file in project root (automatically updated by system)
+- Format: `FREESOUND_REFRESH_TOKEN=your_token_here`
+- Auto-update: New refresh tokens are saved automatically using `dotenv.set_key()`
+
+#### Search Configuration
+
+**Basic Search:**
+
+```yaml
+audio_settings:
+  # Search query (use descriptive keywords)
+  freesound_search_query: "upbeat instrumental corporate"
+
+  # Filter by duration range (seconds)
+  freesound_filters: "duration:[60 TO 180]"
+
+  # Sort order (rating_desc recommended for quality)
+  freesound_sort: "rating_desc"
+
+  # Max results to fetch (10-20 recommended)
+  freesound_max_results: 15
+```
+
+**Advanced Filtering:**
+
+```yaml
+# Multiple filters example
+freesound_filters: "duration:[60 TO 180] license:\"Creative Commons 0\""
+
+# Short clips for quick videos
+freesound_filters: "duration:[10 TO 30]"
+
+# Public domain only
+freesound_filters: "license:\"Creative Commons 0\""
+
+# Multiple tags
+freesound_filters: "tag:music tag:background tag:corporate"
+```
+
+**Filter Syntax:**
+- Duration: `duration:[MIN TO MAX]` (seconds)
+- License: `license:"Creative Commons 0"` (exact match)
+- Tags: `tag:keyword` (multiple allowed)
+- Bitrate: `bitrate:[MIN TO MAX]` (kbps)
+- Sample rate: `samplerate:[MIN TO MAX]` (Hz)
+
+**Sort Options:**
+- `rating_desc` - Best rated tracks first (recommended)
+- `duration_asc` - Shortest tracks first
+- `duration_desc` - Longest tracks first
+- `created_desc` - Newest tracks first
+- `downloads_desc` - Most downloaded first
+
+#### Circuit Breaker Configuration
+
+ContentEngineAI uses a circuit breaker pattern to prevent wasting time on unavailable APIs during batch processing.
+
+**How It Works:**
+
+1. **Closed State (Normal)**: All API calls proceed normally
+2. **Open State (Failed)**: After repeated failures, circuit opens and API calls fast-fail
+3. **Half-Open State (Testing)**: After timeout, system tests if API recovered
+
+**Configuration:**
+
+Circuit breaker settings are in `src/utils/circuit_breaker.py`:
+
+```python
+freesound_circuit_breaker = CircuitBreaker(
+    failure_threshold=5,        # Open after 5 consecutive failures
+    timeout=60,                 # Stay open for 60 seconds
+    recovery_timeout=30,        # Test recovery after 30 seconds
+    expected_exception=Exception
+)
+```
+
+**Tuning Guidelines:**
+
+- **failure_threshold**: Lower = faster fallback, Higher = more API tolerance
+  - Recommended: 3-5 for production, 10+ for testing
+- **timeout**: How long to skip API after opening
+  - Recommended: 60-300 seconds for batch processing
+- **recovery_timeout**: How long before testing API recovery
+  - Recommended: 30-60 seconds
+
+**Monitoring Circuit State:**
+
+```python
+from src.utils.circuit_breaker import freesound_circuit_breaker
+
+# Check current state
+print(f"Circuit state: {freesound_circuit_breaker.state}")
+print(f"Failure count: {freesound_circuit_breaker.failure_count}")
+
+# Manually reset circuit
+freesound_circuit_breaker.reset()
+```
+
+#### Fallback Behavior
+
+ContentEngineAI implements a **three-tier fallback system** for music selection:
+
+**Tier 1: OAuth2 Full Downloads** (Best Quality)
+- Original format and quality from Freesound
+- Requires OAuth2 credentials
+- Fallback on failure: Tier 2
+
+**Tier 2: API Key Preview Downloads** (Good Quality)
+- MP3 preview quality from Freesound
+- Requires only API key
+- Fallback on failure: Tier 3
+
+**Tier 3: Local Files** (Guaranteed Availability)
+- Uses files from `background_music_paths` config
+- Random selection from available files
+- Memory-mapped I/O for files >1MB
+
+**Fallback Triggers:**
+- OAuth2 credentials missing or invalid → Tier 2
+- API timeouts or rate limits → Tier 2/3
+- Circuit breaker open → Tier 3 (fast-fail)
+- Network errors → Tier 2/3
+- No suitable tracks found → Tier 3
+
+**Local Fallback Configuration:**
+
+```yaml
+audio_settings:
+  background_music_paths:
+    - "static/background-music-calm-soft-334182.mp3"
+    - "static/background-music-happy-333014.mp3"
+    - "static/background-music-upbeat-energetic-333016.mp3"
+```
+
+**Add Your Own Music:**
+1. Place MP3/WAV files in `static/` directory
+2. Add file paths to `background_music_paths` list
+3. System randomly selects from available files
+
+</details>
+
+<details>
+<summary><strong>10. Speech-to-Text Settings</strong></summary>
+
+### 10. Speech-to-Text Settings
+
+```yaml
+# Whisper STT settings (primary)
+whisper_settings:
+  enabled: true
+  model_size: "small"                # tiny, base, small, medium, large
+  language: "en"                     # Language code
+  device: "cpu"                      # auto, cpu, cuda
+  model_device: "cpu"                # Device for model inference
+  model_in_memory: false             # Keep model in memory between uses
+  fp16: false                        # Use 16-bit floating point
+  beam_size: 5                       # Beam search size
+  temperature: 0.0                   # Sampling temperature
+  compression_ratio_threshold: 2.4   # Detect repetitive text
+  logprob_threshold: -1.0            # Filter low-confidence words
+  no_speech_threshold: 0.2           # Detect silence vs speech
+  condition_on_previous_text: true   # Use context for accuracy
+
+  # Timeout settings (configurable for system performance)
+  base_timeout_sec: 120              # Base timeout before audio duration added
+  duration_multiplier: 6.0           # Multiplier for audio duration (timeout = base + duration * multiplier)
+  max_timeout_sec: 900               # Maximum timeout (15 minutes)
+  progress_monitor_interval_sec: 30  # Progress monitoring interval
+  enable_resource_monitoring: true   # Monitor CPU/memory during transcription
+  enable_resource_cleanup: true      # Cleanup resources after processing
+
+# Google Cloud STT settings (fallback)
+google_cloud_stt_settings:
+  enabled: true
+  api_key_env_var: "GOOGLE_APPLICATION_CREDENTIALS"
+  language_code: "en-US"
+  enable_word_time_offsets: true     # Required for subtitle synchronization
+  use_enhanced: true                 # Use enhanced models
+  sample_rate_hertz: 16000
+  encoding: "LINEAR16"
+```
+
+</details>
+
+<details>
+<summary><strong>11. FFmpeg Settings</strong></summary>
+
+### 11. FFmpeg Settings
+
+```yaml
+ffmpeg_settings:
+  # Executable configuration
+  ffmpeg_path: "ffmpeg"              # Path to FFmpeg executable
+  ffprobe_path: "ffprobe"            # Path to FFprobe executable
+
+  # I/O timeout prevention
+  rw_timeout_microseconds: 30000000  # 30 seconds timeout for file operations
+
+  # Filter options
+  enable_zoompan: false              # Enable zoom/pan effect on images
+  zoompan_duration: 1.0              # Zoom effect duration
+
+  # Debug options
+  save_command: true                 # Save FFmpeg command to log file
+  show_debug_info: false             # Show debug overlay on video
+
+  # Verification settings
+  verify_streams: true               # Verify video/audio streams exist
+  verify_duration: true              # Check final video duration
+  verify_subtitles: true             # Verify subtitle content
+```
+
+</details>
+
+<details>
+<summary><strong>12. Video Profiles with Per-Profile Settings</strong></summary>
+
+### 12. Video Profiles with Per-Profile Settings
+
+Video profiles define different strategies for media selection and support per-profile overrides for all visual settings. Each profile can customize image positioning, subtitle styling, and other visual parameters independently.
+
+#### Video Assembly Modes
+
+ContentEngineAI supports multiple video assembly strategies that determine how product videos and images are combined:
+
+**Product Video Profiles** (prioritize product videos):
+
+1. **`product_video_sequential`** - Concatenates all videos sequentially with crossfades
+   - **Single video handling**: Loops video multiple times (3x, 4x, etc.) if too short, trims with fade-out if too long
+   - **Best for**: Showcasing multiple product angles/demos
+
+2. **`product_video_single`** - Uses longest video with seamless looping
+   - **Single video handling**: Loops seamlessly with crossfade transitions at loop points
+   - **Best for**: Single-angle product demos with smooth repetition
+
+3. **`product_video_mixed`** - Interleaves videos and images throughout
+   - **Single video handling**: Places video at full duration, distributes images around it (images → video → images)
+   - **Best for**: Dynamic visual variety with mixed content
+
+4. **`product_video_primary`** - All videos first, then images
+   - **Single video handling**: Uses video once (no looping), fills remainder with images, trims if too long
+   - **Best for**: Ensuring all video content is shown while meeting duration requirements
+
+**Slideshow Profiles** (image-focused, videos ignored):
+
+1. **`slideshow_images1-4`** - Image-only slideshows with different styling
+   - Uses assembly modes: `single_best`, `mixed_media`, or `video_first_fallback`
+   - **Video handling**: Ignores product videos entirely, uses only images
+
+```yaml
+video_profiles:
+  slideshow_images1:
+    description: "Image slideshow optimized for product focus"
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Profile-Specific Image Settings
+    image_width_percent: 0.85         # 85% frame width for product focus
+
+    # Profile-Specific Subtitle Settings
+    subtitle_randomize_effects: true  # Enable effect randomization
+
+  slideshow_images2:
+    description: "Alternative slideshow with different styling"
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning
+    image_width_percent: 0.80         # 80% frame width
+    image_top_position_percent: 0.15  # Position 15% from top
+
+    # Subtitle positioning
+    subtitle_anchor: "below_content"  # Position below images
+    subtitle_margin: 0.08             # 8% gap below content
+    subtitle_content_aware: true      # Dynamic positioning
+    subtitle_horizontal_alignment: "center"
+
+    # Subtitle styling
+    subtitle_style_preset: "minimal"  # Clean minimal style
+    subtitle_font_size_scale: 0.9     # 10% smaller font
+    subtitle_randomize_fonts: true
+    subtitle_randomize_colors: true
+    subtitle_randomize_effects: false
+
+    # Text formatting
+    subtitle_max_line_length: 28
+    subtitle_max_words_per_line: 3
+    subtitle_max_subtitle_width_fraction: 0.85
+    subtitle_max_duration: 4.0
+    subtitle_min_duration: 0.5
+```
+
+**Available Per-Profile Overrides:**
+
+```yaml
+# Image Settings (all optional)
+image_width_percent: 0.85            # Override global image width
+image_top_position_percent: 0.15     # Override global image position
+preserve_aspect_ratio: true          # Override aspect ratio setting
+
+# Subtitle Settings (all optional)
+subtitle_anchor: "below_content"     # Override positioning anchor
+subtitle_margin: 0.08                # Override margin from anchor
+subtitle_content_aware: true         # Override content-aware positioning
+subtitle_style_preset: "modern"     # Override style preset (minimal, modern, bold, animated, random)
+subtitle_font_size_scale: 1.1        # Override font size scaling
+subtitle_max_line_length: 35         # Override line length limit
+subtitle_max_words_per_line: 3       # Override max words per line
+subtitle_max_subtitle_width_fraction: 0.85  # Override max subtitle width
+subtitle_max_duration: 4.5           # Override max subtitle duration
+subtitle_min_duration: 0.4           # Override min subtitle duration
+subtitle_horizontal_alignment: "center"
+subtitle_randomize_fonts: false      # Override font randomization
+subtitle_randomize_colors: false     # Override color randomization
+subtitle_randomize_effects: false    # Override effect randomization
+```
+
+**Key Features:**
+- **Individual Customization**: Each profile can override any global setting
+- **Selective Overrides**: Only specify settings you want to change
+- **Fallback System**: Unspecified settings use global defaults
+- **Type Safety**: All overrides validated by Pydantic models
+- **CLI Override Support**: All profile settings can be overridden via command-line arguments
+
+</details>
+
+## Timeout Configuration
+
+Timeouts are configured in different files based on component:
+
+**Global Pipeline** (`config/core.yaml`):
+```yaml
+pipeline_timeout_sec: 900  # Total pipeline execution timeout
+```
+
+**FFmpeg Operations** (`config/performance.yaml`):
+```yaml
+ffmpeg_settings:
+  final_assembly_timeout_sec: 600  # Video assembly timeout
+  rw_timeout_microseconds: 30000000  # I/O timeout (30 seconds)
+```
+
+**API Timeouts** (`config/performance.yaml`):
+```yaml
+api_settings:
+  downloads:
+    timeout_sec: 30
+  tts:
+    request_timeout_sec: 60
+  stock_media:
+    request_timeout_sec: 30
+  general:
+    default_request_timeout_sec: 15
+```
+
+**Whisper STT** (`config/ai_services.yaml`):
+```yaml
+whisper_settings:
+  base_timeout_sec: 120
+  duration_multiplier: 6.0
+  max_timeout_sec: 900
+```
+
+## Environment Variables
+
+Sensitive information is stored in environment variables:
+
+```bash
+# Required API Keys
+OPENROUTER_API_KEY="your_openrouter_key"
+PEXELS_API_KEY="your_pexels_key"
+FREESOUND_API_KEY="your_freesound_key"
+
+# Optional Google Cloud
+GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+
+# Optional Freesound OAuth2
+FREESOUND_CLIENT_ID="your_client_id"
+FREESOUND_CLIENT_SECRET="your_client_secret"
+FREESOUND_REFRESH_TOKEN="your_refresh_token"
+
+# Optional URL Shortening
+PICSEE_API_KEY="your_picsee_api_key"        # For PicSee URL shortener
+# BITLY_API_KEY="your_bitly_key"            # Future: Bitly support
+# TINYURL_API_KEY="your_tinyurl_key"        # Future: TinyURL support
+```
+
+## Performance Tuning
+
+Performance settings are configured in `config/performance.yaml`:
+
+### Optimization Settings
+
+```yaml
+optimization_settings:
+  # Background processing
+  background_processing:
+    enabled: true
+    max_workers: 4
+    queue_size: 100
+
+  # Connection pooling
+  connection_pooling:
+    enabled: true
+    max_connections: 20
+    connection_timeout: 30
+
+  # Async I/O
+  async_io:
+    enabled: true
+    chunk_size: 8192
+    max_concurrent: 10
+
+  # Caching
+  caching:
+    enabled: true
+    ttl_seconds: 3600       # 1 hour
+    max_size_mb: 100
+
+  # Memory optimization
+  memory:
+    gc_threshold: 0.8
+    max_memory_mb: 2048
+    max_image_size_mb: 50
+    mmap_threshold_bytes: 1048576  # 1MB
+```
+
+### Download Settings
+
+```yaml
+api_settings:
+  downloads:
+    timeout_sec: 30
+    retry_attempts: 3
+    max_concurrent_downloads: 5
+    chunk_size_bytes: 1048576   # 1MB
+    max_file_size_mb: 50
+```
+
+## CLI Override Arguments
+
+Profile settings can be overridden at runtime using command-line arguments with highest precedence:
+
+```bash
+# Image positioning overrides
+--image-width-percent 0.75           # Override image width (0.0-1.0)
+--image-top-position-percent 0.20    # Override top position (0.0-1.0)
+
+# Subtitle positioning overrides
+--subtitle-anchor below_content      # Override anchor point
+--subtitle-margin 0.10               # Override margin (0.0-0.5)
+--content-aware                      # Enable content-aware mode
+--no-content-aware                   # Disable content-aware mode
+
+# Style and formatting overrides
+--preset minimal                     # Override style preset
+--font-size-scale 0.8                # Override font size scale
+--max-line-length 30                 # Override max line length
+
+# Example: Override slideshow_images2 settings
+poetry run python -m src.video.producer \
+  outputs/B0BTYCRJSS/data.json \
+  slideshow_images2 \
+  --image-top-position-percent 0.30 \
+  --preset bold \
+  --debug
+```
+
+**CLI Precedence**: CLI args > Profile settings > Global YAML configuration
+
+## Customization Examples
+
+### Creating Custom Profiles
+
+```yaml
+video_profiles:
+  my_custom_profile:
+    description: "Custom profile for my use case"
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: true
+    use_stock_videos: true
+    stock_image_count: 5
+    stock_video_count: 2
+```
+
+### Custom TTS Voice Selection
+
+**Current System (September 2025)**: Uses prioritized voice selection criteria for Chirp 3 HD voices:
+
+```yaml
+# In config/subtitles.yaml
+tts_config:
+  google_cloud:
+    # Priority-based voice selection (Chirp 3 HD → Chirp → Neural2 → Standard)
+    voice_selection_criteria:
+      # Primary: Chirp 3 HD voices (highest quality)
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+      # Secondary: Any Chirp voices if Chirp 3 not available
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Chirp", ssml_gender: "MALE" }
+      # Tertiary: High-quality Neural2 voices
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", name_contains: "Neural2", ssml_gender: "MALE" }
+      # Final fallback: Any US English voice
+      - { language_code: "en-US", ssml_gender: "FEMALE" }
+      - { language_code: "en-US", ssml_gender: "MALE" }
+```
+
+### Custom Subtitle Styling
+
+```yaml
+subtitle_settings:
+  # Brand colors
+  font_color: "#FF6B35"              # Brand orange
+  outline_color: "#FFFFFF"           # White outline
+  back_color: "#00000000"            # No background
+  
+  # Custom positioning
+  alignment: "center"                # Center alignment
+  margin_v_percent: 20               # Higher position
+  
+  # Custom segmentation
+  max_line_length: 30                # Shorter lines
+  split_on_punctuation: false        # Don't split on punctuation
+```
+
+## Configuration Validation
+
+The system uses Pydantic models for validation:
+
+```python
+# Check configuration validity
+poetry run python -c "
+from src.video.config_adapter import load_video_config_modular
+config = load_video_config_modular()
+print('✓ Configuration is valid')
+"
+```
+
+Common validation errors:
+- **Invalid timeout values**: Must be positive numbers
+- **Missing required fields**: Check for typos in field names
+- **Invalid enum values**: Check allowed values for gender, alignment, etc.
+- **Path validation**: Ensure paths exist and are accessible
+
+## Video Extraction Behavior
+
+ContentEngineAI intentionally extracts **only 1 product video per product** by default to avoid competitor content.
+
+**Why**: Amazon mixes official product videos with competitor videos, user reviews, and sponsored content throughout product pages. Reliably distinguishing between these types is difficult, so the scraper extracts only the first video from the main gallery (typically the official product video).
+
+**Additional videos** visible on Amazon pages are located in:
+- "Videos for this product" widget (requires tab interaction)
+- A+ Content sections
+- Customer review sections
+
+These load dynamically and aren't extracted to avoid bot detection and false positives.
+
+**Configuration** (`config/scraper.yaml`):
+```yaml
+scrapers:
+  amazon:
+    max_videos_per_product: 10       # Maximum to extract
+    enable_m3u8_monitoring: false    # Network monitoring
+```
+
+**To extract multiple videos**: Enable `enable_m3u8_monitoring`, modify the extraction logic in `media_extractor.py` to click additional thumbnails/tabs, and implement validation to filter competitor content.
+
+## Scraper Configuration
+
+ContentEngineAI includes an Amazon product scraper with advanced filtering capabilities. The scraper configuration is managed in `config/scraper.yaml`.
+
+### Basic Scraper Settings
+
+```yaml
+global_settings:
+  cleanup_on_start: true        # Clean output directory on start
+  retries: 3                   # Number of retry attempts
+  delay_range: [1, 3]          # Random delay between operations (seconds)
+  download_concurrency: 10     # Max simultaneous downloads
+  high_res_min_sl_size: 1500   # Minimum size for high-res images (pixels)
+  
+  timeouts:
+    navigation: 30000          # Page navigation timeout (ms)
+    selector: 15000           # Element selector timeout (ms)
+    page_load: 60000          # Full page load timeout (ms)
+    download: 60              # Media download timeout (seconds)
+
+scrapers:
+  amazon:
+    enabled: true
+    base_url: "https://www.amazon.com"
+    keywords: ["wireless earbuds"]
+    max_products: 3
+    associate_tag: "your-associate-tag-20"
+```
+
+### Advanced Search Parameters
+
+The scraper supports multiple search filtering options via CLI parameters:
+
+#### Price Filtering
+```bash
+# Filter products by price range
+--min-price 15.0 --max-price 100.0
+```
+
+#### Quality Filtering  
+```bash
+# Filter by minimum rating (1-5 stars)
+--min-rating 4
+```
+
+#### Shipping Filters
+```bash
+# Prime eligible items only
+--prime-only
+
+# Free shipping items only
+--free-shipping
+```
+
+#### Brand Filtering
+```bash
+# Filter by specific brands
+--brands Apple Samsung Sony
+```
+
+#### Sort Options
+```bash
+# Sort results by price, reviews, date, etc.
+--sort price-low             # Price: low to high
+--sort price-high            # Price: high to low
+--sort rating                # Best reviews first
+--sort newest                # Newest first
+--sort featured              # Featured items
+--sort relevance             # Default relevance (default)
+```
+
+### Complete Example
+
+```bash
+# Advanced search with multiple filters
+poetry run python -m src.scraper.amazon.scraper \
+  --keywords "wireless headphones" \
+  --min-price 25.0 --max-price 150.0 \
+  --min-rating 4 --prime-only \
+  --brands Sony Bose Apple \
+  --sort rating --debug --clean
+```
+
+### Scraper Selectors
+
+The scraper uses CSS selectors to extract product information. These are configured in `config/scraper.yaml`:
+
+```yaml
+css_selectors:
+  # Product title selectors (in priority order - first match wins)
+  product_title_selectors:
+    - "#productTitle"
+    - "h1.a-size-large"
+    - ".product-title"
+    - "h1[data-automation-id='product-title']"
+
+  # Search result card selector
+  search_result_card: "div[data-component-type='s-search-result']"
+
+# ASIN validation patterns
+asin_patterns:
+  modern_asin_pattern: "^B0[A-Z0-9]{8}$"   # B0 + 8 chars
+  legacy_asin_pattern: "^[A-Z0-9]{10}$"    # 10 chars
+  url_asin_pattern: "/dp/([A-Z0-9]{10})"   # URL extraction
+```
+
+## Configuration Best Practices
+
+1. **Environment Variables**: Always use environment variables for sensitive data
+2. **Timeouts**: Set realistic timeouts based on your system performance
+3. **Provider Order**: List providers in order of preference
+4. **Testing**: Test configuration changes in debug mode first
+5. **Documentation**: Comment complex or custom configurations
+6. **Backup**: Keep backup copies of working configurations
+
+## Recent Configuration Updates (v0.1.0+)
+
+### Per-Profile Settings Feature (Major Update)
+
+**Profile-Specific Overrides**: All image positioning, sizing, subtitle positioning, fonts, and colors can now be configured per video profile. This enables:
+- **Custom styling per use case**: Product-focused vs stock media profiles with different visual approaches
+- **Content-aware positioning**: Subtitles automatically avoid overlapping with visual content
+- **Selective customization**: Override only the settings you need, inheriting global defaults for others
+- **Type-safe configuration**: All overrides validated through Pydantic models
+
+**Implementation**: Uses configuration merging pattern where profile settings override global defaults selectively. See Video Profiles section above for complete examples.
+
+### Additional Configuration Settings
+
+The following settings were also added to eliminate magic numbers and improve configurability:
+
+#### Pipeline Settings
+```yaml
+# Duration padding added to prevent audio cutoff in seconds
+# Added to voiceover duration to ensure complete audio playback
+duration_padding_sec: 0.5
+```
+
+#### Video Settings
+```yaml
+video_settings:
+  # Font size limits for subtitle text rendering
+  subtitle_min_font_size: 16    # Minimum readable font size in pixels
+  subtitle_max_font_size: 100   # Maximum font size to prevent overflow
+```
+
+#### Audio Settings
+```yaml
+audio_settings:
+  # User agent string for HTTP requests
+  user_agent: "ContentEngineAI/1.0"
+```
+
+#### Subtitle Settings
+```yaml
+subtitle_settings:
+  # Fade in/out duration for subtitle transitions (milliseconds)
+  fade_duration_ms: 300
+
+  # Probability of applying random animation effects (0.0-1.0)
+  animation_probability: 0.3
+```
+
+#### CTA Detection Settings
+```yaml
+# In config/video_production.yaml
+cta_detection:
+  # Minimum total duration (seconds) for detected CTA windows
+  # If total CTA duration < this value, fall back to full video duration
+  min_cta_duration: 0.5
+
+  # Fallback duration (seconds) when voiceover duration unavailable
+  # Used as placeholder for static subtitles
+  fallback_duration: 9999.0
+```
+
+**Purpose**: Validates CTA timing windows for upper subtitle display to prevent blinking subtitles.
+
+**Key Settings**:
+- `min_cta_duration`: Minimum acceptable total duration for CTA windows (default: 0.5s)
+- `fallback_duration`: Large duration used when voiceover unavailable (default: 9999.0s)
+
+**Behavior**: When detected CTA windows are shorter than `min_cta_duration`, the system falls back to displaying the upper subtitle for the full video duration instead of just during brief CTA moments.
+
+#### LLM Settings
+```yaml
+llm_settings:
+  # Script validation thresholds
+  min_script_chars: 200    # Minimum character count for valid scripts
+  min_script_words: 50     # Minimum word count for valid scripts
+```
+
+#### Text Processing
+```yaml
+text_processing:
+  # Speaking rate for subtitle timing estimation (words per second)
+  speaking_rate_words_per_sec: 2.5
+```
+
+#### Optimization Settings
+```yaml
+optimization_settings:
+  # Background task cache TTL (10 minutes)
+  background_processing_cache_ttl_sec: 600
+  
+  # Memory usage threshold for subtitle generation (GB)
+  memory_threshold_gb: 8.0
+```
+
+#### Scraper Settings (New Section)
+```yaml
+scraper_settings:
+  # Default monitor resolution for browser windows
+  default_monitor_width: 1920
+  default_monitor_height: 1080
+  
+  # Browser window positioning timeout (seconds)
+  window_setup_timeout_sec: 10
+```
+
+### Configuration Usage in Code
+
+For developers working with configurations:
+
+```python
+# Access configuration values with fallbacks
+duration = ctx.config.duration_padding_sec
+fade_duration = getattr(config, 'fade_duration_ms', 300)
+speaking_rate = (
+    self.config.speaking_rate_words_per_sec
+    if hasattr(self.config, 'speaking_rate_words_per_sec')
+    else 2.5  # Fallback to default
+)
+```
+
+### Migration Notes
+
+- **No Action Required**: Existing configurations continue to work unchanged
+- **Backward Compatible**: All new settings have sensible defaults
+- **Optional Customization**: Review new settings for optimization opportunities
+
+## Troubleshooting Configuration
+
+Common issues and solutions:
+
+**Configuration Won't Load:**
+```bash
+# Check YAML syntax
+poetry run python -c "from src.video.config_adapter import load_video_config_modular; load_video_config_modular()"
+```
+
+**Environment Variables Not Found:**
+```bash
+# Check environment variables
+poetry run python -c "import os; print([k for k in os.environ if 'API_KEY' in k])"
+```
+
+**Invalid Paths:**
+- Ensure all file paths exist and are accessible
+- Use absolute paths when possible
+- Check permissions on directories
+
+For more troubleshooting help, see [Troubleshooting](troubleshooting.md).

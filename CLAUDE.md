@@ -47,7 +47,7 @@ poetry run python tools/performance_report.py --report-type summary
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
 - **Type Annotations**: Use modern Python typing (`dict[str, Any]`, `| None`)
 - **Error Handling**: Specific exceptions, structured logging
-- **Configuration**: Centralized in `src/video/video_config.py`
+- **Configuration**: Centralized in `src/video/config/` (Pydantic models)
 
 ## Development Guidelines
 
@@ -59,8 +59,8 @@ poetry run python tools/performance_report.py --report-type summary
 
 **Important Documentation**:
 - **CONTRIBUTING.md**: GitHub Flow workflow, branch naming, code style, testing requirements
-- **DEVELOPMENT.md**: Architecture, performance optimization, component development, debugging
-- **VERSIONING.md**: Semantic versioning rules, release process, version support policy
+- **docs/development.md**: Architecture, performance optimization, component development, debugging
+- **docs/versioning.md**: Semantic versioning rules, release process, version support policy
 
 *These files are automatically read by the github-workflow skill during iteration start and releases.*
 
@@ -159,9 +159,7 @@ make test-cov      # Run tests with coverage report
   - **Major** (e.g., 1.0.0 → 2.0.0): Breaking API changes
   - **Minor** (e.g., 0.17.0 → 0.18.0): New features (backward compatible)
   - **Patch** (e.g., 0.17.0 → 0.17.1): Bug fixes only
-- Update version in:
-  - `pyproject.toml`
-  - `src/__init__.py` (if `__version__` exists)
+- Update version in `pyproject.toml`
 
 **Releases are automated via CI/CD**:
 1. Review changes and determine version bump
@@ -184,7 +182,7 @@ The project has access to these MCP servers for enhanced development capabilitie
 ### Context7 Server
 - **Purpose**: Library documentation and code examples
 - **Usage**: Get up-to-date documentation for any library
-- **Tools**: `resolve-library-id`, `get-library-docs`
+- **Tools**: `resolve-library-id`, `query-docs`
 - **Example**: Get Next.js documentation, React hooks examples, Python library docs
 
 ### GitHub Server

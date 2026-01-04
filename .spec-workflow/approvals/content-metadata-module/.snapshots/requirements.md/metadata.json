@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/content-metadata-module/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-01-04T17:18:14.299Z",
+      "trigger": "initial",
+      "approvalId": "approval_1767547094292_07c1wkla5",
+      "approvalTitle": "Content Metadata Module - Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-01-04T17:18:17.570Z",
+      "trigger": "approved",
+      "approvalId": "approval_1767547094292_07c1wkla5",
+      "approvalTitle": "Content Metadata Module - Requirements"
+    }
+  ]
+}

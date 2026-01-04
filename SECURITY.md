@@ -6,8 +6,8 @@ ContentEngineAI is currently in pre-production (0.x versions). Security updates 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1.0 | :x:                |
+| Latest 0.x | :white_check_mark: |
+| Older 0.x  | :x:                |
 
 **Note**: During the 0.x development phase, we recommend always using the latest released version for the most recent security fixes.
 
@@ -97,7 +97,7 @@ ContentEngineAI includes automated security scanning:
 ### Automated Scans
 - **Bandit**: Scans for common security issues in Python code
 - **Safety**: Checks for known security vulnerabilities in dependencies
-- **GitHub Dependabot**: Monitors for vulnerable dependencies
+- **GitHub Dependabot**: Monitors for vulnerable dependencies (planned)
 - **CodeQL**: Advanced semantic code analysis (planned)
 
 ### Running Security Scans
