@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-01-04
+
+### Changed
+- **Documentation**: Reorganized extended docs from root to `docs/` directory
+  - Moved 11 documentation files (architecture, configuration, testing, etc.)
+  - Updated all internal links in README.md, CONTRIBUTING.md, CLAUDE.md
+  - Fixed inaccuracies to match actual codebase state
+
+- **Specs**: Consolidated granular specs into unified module specs
+  - 7 unified specs: batch-processing, content-metadata, global-requirements, publisher, scraper, video-producer
+  - Added retry logic (tenacity) to global-requirements spec
+  - Cleaned up old approval directories and implementation logs
+
+### Removed
+- Obsolete compliance tests (~3500 lines)
+- Old granular spec directories (freesound-client, late-publisher, etc.)
+- Implementation task logs from completed specs
+
 ## [0.19.0] - 2025-12-25
 
 ### Added
