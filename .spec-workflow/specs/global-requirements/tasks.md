@@ -79,6 +79,52 @@ Most Global Requirements infrastructure is already implemented. These tasks addr
   - _Requirements: 1, 2_
   - _Prompt: Role: QA Engineer | Task: Create integration test that: 1) Creates temp YAML with base values, 2) Sets env var overrides, 3) Passes CLI args, 4) Verifies final config has correct precedence (CLI > ENV > YAML) | Restrictions: Use temp files/dirs, clean up after test, test realistic config values | Success: Test proves three-tier precedence works correctly end-to-end_
 
+### Retry Logic Tasks
+
+- [ ] 14. Add tenacity dependency for retry logic
+  - File: pyproject.toml (modify)
+  - Add tenacity package to dependencies
+  - Purpose: Enable exponential backoff retries for transient failures
+  - _Requirements: 4 (Graceful Degradation)_
+  - _Prompt: Role: Python Developer | Task: Add tenacity to pyproject.toml dependencies and run poetry lock | Restrictions: Use latest stable version, no dev dependency | Success: tenacity importable, poetry lock succeeds_
+
+- [ ] 15. Create retry utilities module
+  - File: src/utils/retry.py (new)
+  - Create reusable retry decorators for sync and async operations
+  - Configure exponential backoff with jitter (min=1s, max=30s)
+  - Define retryable exceptions (network timeouts, connection errors, rate limits)
+  - Purpose: Centralized retry logic for all network operations
+  - _Leverage: tenacity library_
+  - _Requirements: 4 (Graceful Degradation)_
+  - _Prompt: Role: Python Developer with resilience patterns expertise | Task: Create retry.py with @retry_network decorator using tenacity, exponential backoff (multiplier=1, min=1, max=30), retry on requests.Timeout, requests.ConnectionError, httpx.TimeoutException, and 429/503 status codes, log retries with before_sleep callback | Restrictions: Support both sync and async, don't retry on 4xx client errors (except 429), max 3 attempts by default | Success: Decorator works for sync/async, logs retry attempts, respects exception types_
+
+- [ ] 16. Integrate retry logic into scraper network operations
+  - File: src/scraper/base/http_client.py (modify if exists) or relevant network module
+  - Apply retry decorator to HTTP request methods
+  - Ensure retries work with circuit breaker (retry inside, breaker outside)
+  - Purpose: Make scraper resilient to transient network failures
+  - _Leverage: src/utils/retry.py, src/utils/circuit_breaker.py_
+  - _Requirements: 4 (Graceful Degradation)_
+  - _Prompt: Role: Python Developer | Task: Apply @retry_network decorator to scraper HTTP methods, ensure circuit breaker wraps retry logic (breaker → retry → actual call), verify order prevents retry storms when circuit is open | Restrictions: Don't retry when circuit is open, maintain existing error handling | Success: Transient failures retry up to 3x, circuit breaker still trips after threshold_
+
+- [ ] 17. Integrate retry logic into external API calls
+  - Files: src/ai/script_generator.py, src/video/producer/tts.py, src/video/producer/stock_media.py
+  - Apply retry decorator to LLM, TTS, and stock media API calls
+  - Purpose: Make AI and media services resilient to transient failures
+  - _Leverage: src/utils/retry.py_
+  - _Requirements: 4 (Graceful Degradation)_
+  - _Prompt: Role: Python Developer | Task: Add @retry_network to OpenRouter API calls in script_generator.py, Google TTS calls in tts.py, Pexels/Freesound calls in stock_media.py | Restrictions: Respect existing circuit breakers, don't retry on authentication errors | Success: API calls retry on timeout, log shows retry attempts_
+
+- [ ] 18. Add unit tests for retry utilities
+  - File: tests/utils/test_retry.py (new)
+  - Test retry decorator with mock failures
+  - Test exponential backoff timing
+  - Test exception filtering (retry vs no-retry)
+  - Purpose: Ensure retry logic works correctly
+  - _Leverage: tests/conftest.py, unittest.mock, tenacity.wait.wait_none for fast tests_
+  - _Requirements: 4 (Graceful Degradation)_
+  - _Prompt: Role: QA Engineer | Task: Create tests for retry.py covering: successful call (no retry), transient failure then success (retry works), max attempts exceeded (raises), non-retryable exception (raises immediately), async variant | Restrictions: Use wait_none() in tests for speed, mock time/sleep, test both sync and async | Success: 100% coverage of retry.py, all edge cases tested_
+
 ### Documentation Tasks
 
 - [ ] 9. Verify required root documentation files exist

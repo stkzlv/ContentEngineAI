@@ -72,6 +72,20 @@ Global requirements directly support the product principles defined in product.m
 3. WHEN fail-fast is disabled (default) THEN the system SHALL continue processing remaining items after failures
 4. IF fail-fast mode stops execution THEN the system SHALL report which item failed and how many items were pending
 
+### Requirement 5.1: Retry Logic for Transient Failures
+
+**User Story:** As a user, I want the system to automatically retry transient network failures, so that temporary issues don't cause unnecessary failures.
+
+#### Acceptance Criteria
+
+1. WHEN a network timeout or connection error occurs THEN the system SHALL retry up to 3 times with exponential backoff
+2. WHEN retrying THEN the system SHALL use exponential backoff with jitter (initial=1s, max=30s)
+3. IF a retry attempt is made THEN the system SHALL log the attempt number and wait duration
+4. WHEN an HTTP 429 (Rate Limited) or 503 (Service Unavailable) response is received THEN the system SHALL retry
+5. WHEN an HTTP 4xx client error (except 429) is received THEN the system SHALL NOT retry
+6. IF all retry attempts fail THEN the system SHALL propagate the exception to the circuit breaker
+7. WHEN retry logic is combined with circuit breaker THEN circuit breaker SHALL wrap retry (breaker → retry → call)
+
 ### Requirement 6: Global Debug Mode
 
 **User Story:** As a developer, I want a global debug mode that enables verbose logging across all components, so that I can diagnose issues anywhere in the pipeline.

@@ -108,7 +108,58 @@ class UnifiedConfigManager:
 - Comma-separated → `list[str]`
 - All others → `str`
 
-### 2. CircuitBreaker
+### 2. Retry Logic
+
+**Location**: `src/utils/retry.py`
+
+**Purpose**: Retry transient failures with exponential backoff before circuit breaker trips.
+
+**Library**: `tenacity`
+
+**Decorator Signature**:
+```python
+from tenacity import (
+    retry, stop_after_attempt, wait_exponential_jitter,
+    retry_if_exception_type, before_sleep_log
+)
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=30),
+    retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
+    before_sleep=before_sleep_log(logger, logging.WARNING)
+)
+def retry_network(func):
+    """Decorator for network operations with retry logic."""
+    ...
+```
+
+**Retryable Exceptions**:
+- `requests.Timeout`, `requests.ConnectionError`
+- `httpx.TimeoutException`, `httpx.ConnectError`
+- HTTP 429 (Rate Limited), HTTP 503 (Service Unavailable)
+
+**Non-Retryable** (fail immediately):
+- HTTP 4xx (except 429) - client errors
+- `AuthenticationError` - invalid credentials
+- `ValidationError` - bad request data
+
+**Integration Order**:
+```
+Circuit Breaker → Retry → Actual Call
+
+@circuit_breaker
+@retry_network
+def call_external_api():
+    ...
+```
+
+This order ensures:
+1. Circuit breaker prevents retry storms when service is down
+2. Retries handle transient failures within healthy service
+3. Repeated failures trip the circuit breaker
+
+### 3. CircuitBreaker
 
 **Location**: `src/utils/circuit_breaker.py`
 
@@ -167,7 +218,7 @@ class CircuitBreaker:
 | pexels_circuit_breaker | 3 | 30s | Stock media |
 | openrouter_circuit_breaker | 5 | 60s | LLM API calls |
 
-### 3. Logging Setup
+### 4. Logging Setup
 
 **Location**: `src/utils/logging_setup.py`
 
@@ -194,7 +245,7 @@ def setup_debug_logging(
 **Third-Party Logger Suppression**:
 Loggers set to WARNING level: `numba`, `websocket`, `httpx`, `httpcore`, `google`, `asyncio`, `urllib3`, `selenium`
 
-### 4. Progress Tracking
+### 5. Progress Tracking
 
 **Pattern**: Integrated into batch controllers and orchestrators.
 
@@ -208,7 +259,7 @@ Loggers set to WARNING level: `numba`, `websocket`, `httpx`, `httpcore`, `google
 [4/10] FAILED: API error for B0ASINXYZ
 ```
 
-### 5. Summary Reports
+### 6. Summary Reports
 
 **Structure**:
 ```python
@@ -462,6 +513,7 @@ outputs/
 |------------|---------|---------|
 | pyyaml | YAML config loading | ^6.0 |
 | python-dotenv | .env file loading | ^1.0 |
+| tenacity | Retry with backoff | ^9.0 |
 | (stdlib) | logging, os, dataclasses | Python 3.11+ |
 
 ## Alternatives Considered
@@ -485,3 +537,13 @@ Rationale: Custom solution provides exactly the three-tier precedence needed wit
 | Custom CircuitBreaker | Tailored, async support | Manual maintenance | **Chosen** |
 
 Rationale: Custom solution provides both sync and async support with pre-configured instances for each service.
+
+### Retry Logic
+
+| Option | Pros | Cons | Decision |
+|--------|------|------|----------|
+| tenacity | Full-featured, maintained | External dependency | **Chosen** |
+| Custom retry | No dependencies | Manual backoff/jitter | Not chosen |
+| urllib3 Retry | Built into requests | Limited to HTTP only | Not chosen |
+
+Rationale: tenacity is the industry standard, supports async, and provides exponential backoff with jitter out of the box.

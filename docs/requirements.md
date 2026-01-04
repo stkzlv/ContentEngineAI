@@ -20,6 +20,8 @@ High-level requirements for ContentEngineAI. Implementation details are in specs
 
 ### Error Handling & Resilience
 - Continue processing on individual item failures (graceful degradation)
+- Retry transient network failures with exponential backoff (timeouts, rate limits)
+- Circuit breaker pattern to prevent cascading failures from unavailable services
 - Provide clear error messages for missing configuration
 - Support fail-fast mode via CLI flag when strict behavior needed
 
