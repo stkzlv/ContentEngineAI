@@ -12,6 +12,68 @@ ContentEngineAI implements a **triple-precedence configuration system**:
 2. **Environment Variables** (medium priority)
 3. **YAML Configuration** (default values)
 
+### Three-Tier Precedence in Detail
+
+The configuration system uses a layered approach where each tier can override values from the tier below it:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLI Arguments (Highest Priority)                           │
+│  --debug --subtitle-anchor top --font-size-scale 1.2       │
+├─────────────────────────────────────────────────────────────┤
+│  Environment Variables (Medium Priority)                     │
+│  CONTENT_ENGINE_DEBUG=true SUBTITLE_ANCHOR=bottom           │
+├─────────────────────────────────────────────────────────────┤
+│  YAML Configuration (Default Values)                         │
+│  config/core.yaml, config/subtitles.yaml, etc.              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Example: Subtitle Anchor Configuration**
+
+```yaml
+# config/subtitles.yaml (YAML default)
+subtitle_settings:
+  anchor: "below_content"
+```
+
+```bash
+# .env file (environment override)
+SUBTITLE_ANCHOR=bottom
+```
+
+```bash
+# CLI override (highest priority)
+poetry run python -m src.video.producer \
+  outputs/B0ASIN123/data.json slideshow_images1 \
+  --subtitle-anchor top
+```
+
+**Result**: Subtitle anchor will be `top` (CLI wins over all).
+
+**Complete CLI Override Example:**
+
+```bash
+# Override multiple configuration values at runtime
+poetry run python -m src.video.producer \
+  outputs/B0ASIN123/data.json slideshow_images1 \
+  --debug \
+  --subtitle-anchor below_content \
+  --subtitle-margin 0.08 \
+  --content-aware \
+  --preset modern \
+  --font-size-scale 1.1 \
+  --max-line-length 35 \
+  --target-platform multi
+```
+
+This command:
+- Enables debug mode (overrides `debug_mode: false` in YAML)
+- Sets subtitle positioning (overrides any env var or YAML value)
+- Uses content-aware positioning
+- Applies modern style preset with custom font scaling
+- Generates metadata for all platforms
+
 ### Modular Architecture
 
 The configuration system uses **9 specialized files** instead of a monolithic configuration:
@@ -1420,26 +1482,126 @@ whisper_settings:
 
 ## Environment Variables
 
-Sensitive information is stored in environment variables:
+ContentEngineAI uses environment variables for sensitive credentials and runtime configuration overrides. Copy `.env.example` to `.env` and configure your values.
+
+### Required API Keys
+
+These secrets are validated at startup. The system will exit with an error if any are missing.
+
+| Variable | Type | Description | Setup URL |
+|----------|------|-------------|-----------|
+| `OPENROUTER_API_KEY` | string | OpenRouter API key for LLM script generation | https://openrouter.ai/ |
+| `PEXELS_API_KEY` | string | Pexels API key for stock images/videos | https://www.pexels.com/api/ |
+| `FREESOUND_API_KEY` | string | Freesound API key for background music | https://freesound.org/apiv2/apply/ |
+
+### Optional API Keys
+
+These enhance functionality but are not required for basic operation.
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `GOOGLE_APPLICATION_CREDENTIALS` | path | None | Path to Google Cloud service account JSON for TTS |
+| `LATE_API_KEY` | string | None | Late.ai API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
+| `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
+
+### Freesound OAuth2 (Full-Quality Downloads)
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `FREESOUND_CLIENT_ID` | string | None | OAuth2 client ID for full-quality audio |
+| `FREESOUND_CLIENT_SECRET` | string | None | OAuth2 client secret |
+| `FREESOUND_REFRESH_TOKEN` | string | None | OAuth2 refresh token (auto-updated by system) |
+
+### Runtime Configuration
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `CONTENT_ENGINE_DEBUG` | bool | false | Enable debug mode (alt: `DEBUG_MODE`) |
+| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory (alt: `OUTPUTS_DIR`) |
+| `CONTENT_ENGINE_TIMEOUT` | int | 300 | Pipeline timeout in seconds |
+| `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
+
+### Subtitle Configuration
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SUBTITLE_ANCHOR` | string | bottom | Anchor: top, center, bottom, above_content, below_content |
+| `SUBTITLE_MARGIN` | float | 0.05 | Margin from anchor (0.0-0.5 fraction of frame height) |
+| `SUBTITLE_CONTENT_AWARE` | bool | true | Enable content-aware positioning |
+| `SUBTITLE_STYLE_PRESET` | string | modern | Style preset: minimal, modern, bold, animated, random |
+| `SUBTITLE_FONT_SIZE_SCALE` | float | 1.0 | Font size multiplier (0.5-2.0) |
+| `SUBTITLE_ALIGNMENT` | string | center | Text alignment: left, center, right |
+| `SUBTITLE_MAX_WIDTH_FRACTION` | float | 0.9 | Max subtitle width (0.0-1.0 fraction) |
+| `SUBTITLE_MAX_LINE_LENGTH` | int | 42 | Maximum characters per line |
+| `SUBTITLE_MAX_WORDS_PER_LINE` | int | 8 | Maximum words per line (0 to disable) |
+| `SUBTITLE_MAX_DURATION` | float | 5.0 | Maximum subtitle duration (seconds) |
+| `SUBTITLE_MIN_DURATION` | float | 1.0 | Minimum subtitle duration (seconds) |
+| `SUBTITLE_FONT` | string | Montserrat | Font family name |
+| `SUBTITLE_FONT_COLOR` | string | &H00FFFFFF | Font color in ASS format |
+| `SUBTITLE_OUTLINE_COLOR` | string | &H00000000 | Outline color in ASS format |
+| `SUBTITLE_BACKGROUND_COLOR` | string | &H00000000 | Background color in ASS format |
+| `SUBTITLE_RANDOMIZE_FONTS` | bool | false | Enable random font selection |
+| `SUBTITLE_RANDOMIZE_COLORS` | bool | false | Enable random color selection |
+| `SUBTITLE_RANDOMIZE_EFFECTS` | bool | false | Enable random effect selection |
+
+### Publishing Configuration
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `LATE_VERCEL_TOKEN` | string | None | Vercel Blob token for large uploads (alt: `BLOB_READ_WRITE_TOKEN`) |
+| `PUBLISHER_DEFAULT_PLATFORMS` | string | None | Comma-separated platforms: youtube,tiktok,instagram |
+| `PUBLISHER_IMMEDIATE` | bool | false | Publish immediately without scheduling |
+| `PUBLISHER_MAX_RETRIES` | int | 3 | Maximum retry attempts for failed publishes |
+| `PUBLISHER_TIMEOUT` | int | 300 | Request timeout in seconds |
+| `PUBLISHER_PROVIDER` | string | late | Publishing service provider |
+| `PUBLISHER_PRIVACY_YOUTUBE` | string | None | YouTube privacy: public, private, unlisted |
+| `PUBLISHER_PRIVACY_TIKTOK` | string | None | TikTok privacy setting |
+| `PUBLISHER_PRIVACY_INSTAGRAM` | string | None | Instagram privacy setting |
+
+### Advanced Configuration
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `OPENROUTER_BASE_URL` | string | https://openrouter.ai/api/v1 | Custom OpenRouter API URL |
+| `PEXELS_BASE_URL` | string | https://api.pexels.com/v1 | Custom Pexels API URL |
+| `SCRAPFLY_PROXY` | string | None | Proxy for scraping (format: http://USER:PASS@host:port) |
+| `COQUI_TTS_GPU` | bool | false | Enable GPU acceleration for Coqui TTS |
+
+### Environment Variable Validation
+
+At startup, `validate_required_secrets()` checks all required API keys:
+
+```python
+from src.config_manager import get_unified_config_manager
+
+manager = get_unified_config_manager()
+result = manager.validate_required_secrets(exit_on_missing=True)
+
+# Result contains:
+# - result.valid: True if all required secrets present
+# - result.missing_required: List of missing required secrets
+# - result.missing_optional: List of missing optional secrets
+# - result.present: List of configured secrets
+```
+
+**Example `.env` file:**
 
 ```bash
-# Required API Keys
-OPENROUTER_API_KEY="your_openrouter_key"
-PEXELS_API_KEY="your_pexels_key"
-FREESOUND_API_KEY="your_freesound_key"
+# Required
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+PEXELS_API_KEY=your-pexels-key
+FREESOUND_API_KEY=your-freesound-key
 
-# Optional Google Cloud
-GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+# Optional - TTS
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
-# Optional Freesound OAuth2
-FREESOUND_CLIENT_ID="your_client_id"
-FREESOUND_CLIENT_SECRET="your_client_secret"
-FREESOUND_REFRESH_TOKEN="your_refresh_token"
+# Optional - Publishing
+LATE_API_KEY=your-late-api-key
+PICSEE_API_KEY=your-picsee-key
 
-# Optional URL Shortening
-PICSEE_API_KEY="your_picsee_api_key"        # For PicSee URL shortener
-# BITLY_API_KEY="your_bitly_key"            # Future: Bitly support
-# TINYURL_API_KEY="your_tinyurl_key"        # Future: TinyURL support
+# Runtime overrides
+CONTENT_ENGINE_DEBUG=false
+SUBTITLE_STYLE_PRESET=modern
 ```
 
 ## Performance Tuning
@@ -1868,23 +2030,210 @@ speaking_rate = (
 
 ## Troubleshooting Configuration
 
-Common issues and solutions:
+### Missing Required API Keys
 
-**Configuration Won't Load:**
-```bash
-# Check YAML syntax
-poetry run python -c "from src.video.config_adapter import load_video_config_modular; load_video_config_modular()"
+**Symptom**: Application exits immediately with message about missing secrets.
+
+```
+ERROR: Missing required environment variable: OPENROUTER_API_KEY
+       Set this in your .env file or environment.
+       Get your API key at: https://openrouter.ai/
 ```
 
-**Environment Variables Not Found:**
+**Solution**:
+1. Copy `.env.example` to `.env`: `cp .env.example .env`
+2. Edit `.env` and add your API keys
+3. Required keys: `OPENROUTER_API_KEY`, `PEXELS_API_KEY`, `FREESOUND_API_KEY`
+
+**Verify secrets are loaded**:
 ```bash
-# Check environment variables
-poetry run python -c "import os; print([k for k in os.environ if 'API_KEY' in k])"
+# Check which secrets are configured
+poetry run python -c "
+from src.config_manager import UnifiedConfigManager
+mgr = UnifiedConfigManager()
+result = mgr.validate_required_secrets(exit_on_missing=False)
+print('Valid:', result.valid)
+print('Missing required:', [s.name for s in result.missing_required])
+print('Missing optional:', [s.name for s in result.missing_optional])
+"
 ```
 
-**Invalid Paths:**
-- Ensure all file paths exist and are accessible
-- Use absolute paths when possible
-- Check permissions on directories
+### Configuration Precedence Issues
+
+**Symptom**: Setting a value but it's being overridden by another source.
+
+**Solution**: Remember the precedence order (CLI > ENV > YAML):
+```bash
+# See what's actually being used
+poetry run python -m src.video.producer \
+  outputs/B0TEST123/data.json slideshow_images1 \
+  --debug 2>&1 | grep -i "config\|setting\|using"
+```
+
+**Common precedence mistakes**:
+- Setting `SUBTITLE_ANCHOR=top` in `.env` but passing `--subtitle-anchor bottom` on CLI (CLI wins)
+- Editing `config/subtitles.yaml` but forgetting environment variable is set (ENV wins)
+- Having value in both primary and alternative env var names (primary wins)
+
+### YAML Syntax Errors
+
+**Symptom**: `yaml.scanner.ScannerError` or configuration values are wrong.
+
+**Solution**:
+```bash
+# Validate YAML syntax
+poetry run python -c "
+import yaml
+from pathlib import Path
+for f in Path('config').glob('*.yaml'):
+    try:
+        yaml.safe_load(f.read_text())
+        print(f'✓ {f.name}')
+    except yaml.YAMLError as e:
+        print(f'✗ {f.name}: {e}')
+"
+```
+
+**Common YAML mistakes**:
+- Inconsistent indentation (use 2 spaces, not tabs)
+- Missing quotes around strings with special characters
+- Incorrect boolean format (`true`/`false`, not `True`/`False`)
+
+### Environment Variable Type Conversion
+
+**Symptom**: Value is wrong type (string instead of bool, etc).
+
+**Environment variables are always strings**. The system converts them:
+- Booleans: `true`, `false`, `1`, `0`, `yes`, `no` (case-insensitive)
+- Numbers: Parsed automatically (`"42"` → `42`, `"3.14"` → `3.14`)
+- Lists: Comma-separated (`"a,b,c"` → `["a", "b", "c"]`)
+
+**Verify type conversion**:
+```bash
+# Check how a value is being interpreted
+CONTENT_ENGINE_DEBUG=true poetry run python -c "
+from src.config_manager import UnifiedConfigManager
+mgr = UnifiedConfigManager()
+print('debug_mode:', mgr.debug_mode, type(mgr.debug_mode))
+"
+```
+
+### Subtitle Configuration Issues
+
+**Symptom**: Subtitles don't appear correctly or positioning is wrong.
+
+**Verify subtitle settings**:
+```bash
+poetry run python -c "
+from src.video.config_adapter import load_video_config_modular
+config = load_video_config_modular()
+print('Anchor:', config.subtitle_settings.anchor)
+print('Margin:', config.subtitle_settings.margin)
+print('Content-aware:', config.subtitle_settings.content_aware_positioning)
+print('Max width:', config.subtitle_settings.max_width_fraction)
+"
+```
+
+**Common subtitle issues**:
+- **Subtitles cut off**: Increase `SUBTITLE_MAX_WIDTH_FRACTION` (default 0.9)
+- **Text too small/large**: Adjust `SUBTITLE_FONT_SIZE_SCALE` (0.5-2.0)
+- **Wrong position**: Check `SUBTITLE_ANCHOR` value (top/center/bottom/above_content/below_content)
+- **Overlapping content**: Enable `SUBTITLE_CONTENT_AWARE=true`
+
+### Publishing Configuration Issues
+
+**Symptom**: Publishing fails or uploads timeout.
+
+**Check publishing configuration**:
+```bash
+poetry run python -c "
+import os
+keys = ['LATE_API_KEY', 'PUBLISHER_API_KEY', 'LATE_VERCEL_TOKEN', 'PUBLISHER_TIMEOUT']
+for k in keys:
+    v = os.environ.get(k)
+    print(f'{k}: {\"set\" if v else \"not set\"}')"
+```
+
+**Common publishing issues**:
+- **Timeout on large files**: Increase `PUBLISHER_TIMEOUT` (default 300 seconds)
+- **Upload fails**: Set `LATE_VERCEL_TOKEN` for Vercel Blob uploads
+- **Wrong platform**: Check `PUBLISHER_DEFAULT_PLATFORMS` value
+
+### Google TTS Not Working
+
+**Symptom**: Falls back to local TTS or TTS fails entirely.
+
+**Check Google credentials**:
+```bash
+# Verify credentials file exists and is valid JSON
+poetry run python -c "
+import os
+import json
+creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+if not creds_path:
+    print('GOOGLE_APPLICATION_CREDENTIALS not set (using local TTS)')
+elif not os.path.exists(creds_path):
+    print(f'File not found: {creds_path}')
+else:
+    with open(creds_path) as f:
+        data = json.load(f)
+        print(f'Project: {data.get(\"project_id\", \"unknown\")}')
+        print(f'Type: {data.get(\"type\", \"unknown\")}')
+"
+```
+
+### Debug Mode
+
+**Enable comprehensive debugging**:
+```bash
+# Via environment variable
+CONTENT_ENGINE_DEBUG=true poetry run python -m src.video.producer ...
+
+# Via CLI flag
+poetry run python -m src.video.producer outputs/B0TEST/data.json profile --debug
+
+# Check if debug is active
+poetry run python -c "
+from src.config_manager import UnifiedConfigManager
+print('Debug mode:', UnifiedConfigManager().debug_mode)
+"
+```
+
+### Configuration File Locations
+
+**Can't find configuration files?**
+```bash
+# List all configuration files
+find config -name "*.yaml" -o -name "*.yml" | sort
+
+# Show configuration loading order
+poetry run python -c "
+from pathlib import Path
+print('YAML configs:')
+for f in sorted(Path('config').glob('*.yaml')):
+    print(f'  {f}')
+"
+```
+
+**Default configuration file locations**:
+- `config/core.yaml` - Core pipeline settings
+- `config/subtitles.yaml` - Subtitle styling and positioning
+- `config/video_production.yaml` - Video production settings
+- `config/video_profiles/` - Video profile definitions
+- `config/scraper.yaml` - Scraper settings
+
+### Reset to Defaults
+
+**Start fresh with default configuration**:
+```bash
+# Backup current .env
+cp .env .env.backup
+
+# Create fresh .env from example
+cp .env.example .env
+
+# Edit with your API keys
+nano .env  # or your preferred editor
+```
 
 For more troubleshooting help, see [Troubleshooting](troubleshooting.md).

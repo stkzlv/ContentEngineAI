@@ -6,12 +6,111 @@ during the migration from monolithic to modular configuration structure.
 It handles backward compatibility and provides a unified precedence system.
 """
 
+import logging
 import os
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from src.scraper.config_adapter import ScraperConfigAdapter
+from src.utils.secrets import mask_secret
 from src.video.config_adapter import ModularConfigAdapter
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SecretDefinition:
+    """Definition of a secret/credential required by the system."""
+
+    name: str
+    description: str
+    required: bool
+    setup_url: str
+    alternative_names: tuple[str, ...] = ()
+
+    def get_value(self) -> str | None:
+        """Get the secret value from environment, checking alternative names."""
+        value = os.environ.get(self.name)
+        if value:
+            return value
+        for alt_name in self.alternative_names:
+            value = os.environ.get(alt_name)
+            if value:
+                return value
+        return None
+
+
+# Define all secrets used by the system
+SECRETS_REGISTRY: tuple[SecretDefinition, ...] = (
+    # Required secrets
+    SecretDefinition(
+        name="OPENROUTER_API_KEY",
+        description="OpenRouter API for LLM script generation",
+        required=True,
+        setup_url="https://openrouter.ai/",
+    ),
+    SecretDefinition(
+        name="PEXELS_API_KEY",
+        description="Pexels API for stock images/videos",
+        required=True,
+        setup_url="https://www.pexels.com/api/",
+    ),
+    SecretDefinition(
+        name="FREESOUND_API_KEY",
+        description="Freesound API for background music",
+        required=True,
+        setup_url="https://freesound.org/apiv2/apply/",
+    ),
+    # Optional secrets
+    SecretDefinition(
+        name="GOOGLE_APPLICATION_CREDENTIALS",
+        description="Google Cloud credentials for TTS services",
+        required=False,
+        setup_url="https://console.cloud.google.com/",
+    ),
+    SecretDefinition(
+        name="LATE_API_KEY",
+        description="Late.ai API for social media publishing",
+        required=False,
+        setup_url="https://late.ai/",
+        alternative_names=("PUBLISHER_API_KEY",),
+    ),
+    SecretDefinition(
+        name="PICSEE_API_KEY",
+        description="Picsee API for URL shortening",
+        required=False,
+        setup_url="https://picsee.io/",
+    ),
+)
+
+
+@dataclass
+class SecretsValidationResult:
+    """Result of secrets validation."""
+
+    valid: bool
+    missing_required: list[SecretDefinition]
+    missing_optional: list[SecretDefinition]
+    present: list[SecretDefinition]
+
+    def log_summary(self) -> None:
+        """Log a summary of the validation result."""
+        if self.present:
+            logger.debug(
+                f"Secrets configured: {', '.join(s.name for s in self.present)}"
+            )
+        if self.missing_optional:
+            logger.info(
+                f"Optional secrets not configured: "
+                f"{', '.join(s.name for s in self.missing_optional)}"
+            )
+        if self.missing_required:
+            for secret in self.missing_required:
+                logger.error(
+                    f"Missing required secret: {secret.name} - {secret.description}"
+                )
 
 
 class UnifiedConfigManager:
@@ -279,6 +378,66 @@ class UnifiedConfigManager:
             validation_results[file_path] = full_path.exists()
 
         return validation_results
+
+    def validate_required_secrets(
+        self, exit_on_missing: bool = True
+    ) -> SecretsValidationResult:
+        """Validate that required secrets are configured.
+
+        Args:
+        ----
+            exit_on_missing: If True, exit with error when required secrets are missing.
+                Defaults to True for production use.
+
+        Returns:
+        -------
+            SecretsValidationResult with validation details.
+
+        """
+        missing_required: list[SecretDefinition] = []
+        missing_optional: list[SecretDefinition] = []
+        present: list[SecretDefinition] = []
+
+        for secret in SECRETS_REGISTRY:
+            value = secret.get_value()
+            if value:
+                present.append(secret)
+                logger.debug(f"Secret {secret.name}: {mask_secret(value)}")
+            elif secret.required:
+                missing_required.append(secret)
+            else:
+                missing_optional.append(secret)
+
+        result = SecretsValidationResult(
+            valid=len(missing_required) == 0,
+            missing_required=missing_required,
+            missing_optional=missing_optional,
+            present=present,
+        )
+
+        # Log summary
+        result.log_summary()
+
+        # Exit if required secrets are missing
+        if not result.valid and exit_on_missing:
+            print("\n❌ Missing required environment variables:\n", file=sys.stderr)
+            for secret in missing_required:
+                alt_info = ""
+                if secret.alternative_names:
+                    alt_info = f" (or {', '.join(secret.alternative_names)})"
+                print(
+                    f"  • {secret.name}{alt_info}\n"
+                    f"    Purpose: {secret.description}\n"
+                    f"    Setup: {secret.setup_url}\n",
+                    file=sys.stderr,
+                )
+            print(
+                "See .env.example for configuration template.\n",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        return result
 
 
 # Global instance for easy access

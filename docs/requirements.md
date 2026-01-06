@@ -49,6 +49,26 @@ High-level requirements for ContentEngineAI. Implementation details are in specs
 - Customizable via `--outputs-dir` CLI flag
 - Automatic cleanup of published products (configurable)
 
+### Async Concurrency Control
+- Semaphore-based limits for resource-intensive operations (ffmpeg, I/O, network)
+- Configurable concurrency limits per operation type
+- Prevent system overload during batch processing
+
+### Resource Cleanup
+- Use context managers for connections, file handles, temporary resources
+- Automatic cleanup of partial files on failure
+- Proper connection pool management for HTTP sessions
+
+### Validation Framework
+- Pydantic models for configuration and data structures
+- Custom validators for domain-specific rules (product IDs, URLs, file formats)
+- Early validation with clear error messages
+
+### Performance Metrics
+- Time tracking for critical operations (scraping, video assembly, API calls)
+- Success/failure rate monitoring
+- Resource usage patterns for optimization
+
 ---
 
 ## Scraper Module

@@ -288,3 +288,14 @@ openrouter_circuit_breaker = CircuitBreaker(
     ),
     name="OpenRouter",
 )
+
+scraper_circuit_breaker = CircuitBreaker(
+    failure_threshold=5,
+    timeout=60,  # 1 minute recovery time
+    expected_exceptions=(
+        ConnectionError,
+        TimeoutError,
+        OSError,  # Network-related errors
+    ),
+    name="Scraper",
+)
