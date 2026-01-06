@@ -124,6 +124,41 @@ api_settings:
     max_file_size_mb: 50
 
 # ============================================================================
+# CIRCUIT BREAKER SETTINGS
+# ============================================================================
+# Circuit breakers prevent cascading failures when external services are down
+# After `failure_threshold` consecutive failures, the circuit "opens" and
+# fast-fails for `timeout_sec` seconds before attempting recovery
+#
+# Used by: src/utils/circuit_breaker.py
+# Impact: Controls fallback behavior for Freesound, Pexels, OpenRouter, etc.
+circuit_breaker:
+  # Google Speech-to-Text service
+  google_stt:
+    failure_threshold: 3
+    timeout_sec: 120  # 2 minutes recovery time
+
+  # Freesound audio API
+  freesound:
+    failure_threshold: 3
+    timeout_sec: 60  # 1 minute recovery time
+
+  # Pexels stock media API
+  pexels:
+    failure_threshold: 3
+    timeout_sec: 90  # 1.5 minutes recovery time
+
+  # OpenRouter LLM API (faster recovery for AI services)
+  openrouter:
+    failure_threshold: 2
+    timeout_sec: 30  # 30 seconds recovery time
+
+  # Web scraper circuit breaker
+  scraper:
+    failure_threshold: 5
+    timeout_sec: 60  # 1 minute recovery time
+
+# ============================================================================
 # DEBUG SETTINGS
 # ============================================================================
 debug_settings:

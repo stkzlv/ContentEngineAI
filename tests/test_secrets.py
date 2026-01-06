@@ -173,7 +173,9 @@ class TestMaskSecretsInDict:
             "MAX_RETRIES": "3",
         }
         result = mask_secrets_in_dict(data)
-        assert result["OPENROUTER_API_KEY"] == "sk-o...efgh"  # Long enough for partial mask
+        assert (
+            result["OPENROUTER_API_KEY"] == "sk-o...efgh"
+        )  # Long enough for partial mask
         assert result["PASSWORD"] == "supe...t123"  # noqa: S105
         assert result["OUTPUT_DIR"] == "outputs"
         assert result["MAX_RETRIES"] == "3"

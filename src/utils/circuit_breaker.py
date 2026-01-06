@@ -244,58 +244,69 @@ class CircuitBreaker:
         logger.info(f"Circuit breaker {self.name} manually reset to CLOSED")
 
 
+def _load_circuit_breaker_config() -> dict[str, Any]:
+    """Load circuit breaker settings from config/performance.yaml."""
+    try:
+        from pathlib import Path
+
+        import yaml
+
+        config_path = (
+            Path(__file__).parent.parent.parent / "config" / "performance.yaml"
+        )
+        if config_path.exists():
+            with open(config_path) as f:
+                config = yaml.safe_load(f)
+                result: dict[str, Any] = config.get("circuit_breaker", {})
+                return result
+    except Exception as e:
+        logger.debug(f"Could not load circuit breaker config, using defaults: {e}")
+    return {}
+
+
+# Load configuration (with fallbacks to hardcoded defaults)
+_cb_config = _load_circuit_breaker_config()
+
+# Common exceptions for network-related circuit breakers
+_NETWORK_EXCEPTIONS: tuple[type[Exception], ...] = (
+    ConnectionError,
+    TimeoutError,
+    OSError,  # Network-related errors
+)
+
 # Pre-configured circuit breakers for common external services
+# Settings loaded from config/performance.yaml with hardcoded fallbacks
 google_stt_circuit_breaker = CircuitBreaker(
-    failure_threshold=3,
-    timeout=120,  # 2 minutes recovery time
-    expected_exceptions=(
-        ConnectionError,
-        TimeoutError,
-        OSError,  # Network-related errors
-    ),
+    failure_threshold=_cb_config.get("google_stt", {}).get("failure_threshold", 3),
+    timeout=_cb_config.get("google_stt", {}).get("timeout_sec", 120),
+    expected_exceptions=_NETWORK_EXCEPTIONS,
     name="GoogleSTT",
 )
 
 freesound_circuit_breaker = CircuitBreaker(
-    failure_threshold=3,
-    timeout=60,  # 1 minute recovery time
-    expected_exceptions=(
-        ConnectionError,
-        TimeoutError,
-        OSError,  # Network-related errors
-    ),
+    failure_threshold=_cb_config.get("freesound", {}).get("failure_threshold", 3),
+    timeout=_cb_config.get("freesound", {}).get("timeout_sec", 60),
+    expected_exceptions=_NETWORK_EXCEPTIONS,
     name="Freesound",
 )
 
 pexels_circuit_breaker = CircuitBreaker(
-    failure_threshold=3,
-    timeout=90,  # 1.5 minutes recovery time
-    expected_exceptions=(
-        ConnectionError,
-        TimeoutError,
-        OSError,  # Network-related errors
-    ),
+    failure_threshold=_cb_config.get("pexels", {}).get("failure_threshold", 3),
+    timeout=_cb_config.get("pexels", {}).get("timeout_sec", 90),
+    expected_exceptions=_NETWORK_EXCEPTIONS,
     name="Pexels",
 )
 
 openrouter_circuit_breaker = CircuitBreaker(
-    failure_threshold=2,
-    timeout=30,  # 30 seconds recovery time (faster for AI services)
-    expected_exceptions=(
-        ConnectionError,
-        TimeoutError,
-        OSError,  # Network-related errors
-    ),
+    failure_threshold=_cb_config.get("openrouter", {}).get("failure_threshold", 2),
+    timeout=_cb_config.get("openrouter", {}).get("timeout_sec", 30),
+    expected_exceptions=_NETWORK_EXCEPTIONS,
     name="OpenRouter",
 )
 
 scraper_circuit_breaker = CircuitBreaker(
-    failure_threshold=5,
-    timeout=60,  # 1 minute recovery time
-    expected_exceptions=(
-        ConnectionError,
-        TimeoutError,
-        OSError,  # Network-related errors
-    ),
+    failure_threshold=_cb_config.get("scraper", {}).get("failure_threshold", 5),
+    timeout=_cb_config.get("scraper", {}).get("timeout_sec", 60),
+    expected_exceptions=_NETWORK_EXCEPTIONS,
     name="Scraper",
 )

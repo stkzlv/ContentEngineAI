@@ -263,15 +263,15 @@ class TestSecretsRegistry:
         """Test all secrets have setup URLs."""
         for secret in SECRETS_REGISTRY:
             assert secret.setup_url, f"{secret.name} missing setup_url"
-            assert secret.setup_url.startswith("https://"), (
-                f"{secret.name} has invalid URL"
-            )
+            assert secret.setup_url.startswith(
+                "https://"
+            ), f"{secret.name} has invalid URL"
 
     @pytest.mark.unit
     def test_all_secrets_have_descriptions(self):
         """Test all secrets have descriptions."""
         for secret in SECRETS_REGISTRY:
             assert secret.description, f"{secret.name} missing description"
-            assert len(secret.description) > 10, (
-                f"{secret.name} has too short description"
-            )
+            assert (
+                len(secret.description) > 10
+            ), f"{secret.name} has too short description"

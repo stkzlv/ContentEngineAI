@@ -9,6 +9,7 @@ Note: This test uses a standalone config manager to avoid circular imports
 from the main conftest.py.
 """
 
+import contextlib
 import os
 import tempfile
 from pathlib import Path
@@ -32,21 +33,25 @@ class _TestableConfigManager:
         self.config_root = Path(config_root)
 
     def apply_precedence_rules(
-        self, config: dict, cli_overrides: dict = None
+        self, config: dict, cli_overrides: dict | None = None
     ) -> dict:
         """Apply unified precedence rules: CLI > ENV > YAML."""
-        final_config = self._deep_copy(config)
+        final_config = dict(self._deep_copy_dict(config))
         self._apply_env_overrides(final_config)
         if cli_overrides:
             self._apply_cli_overrides(final_config, cli_overrides)
         return final_config
 
-    def _deep_copy(self, obj):
+    def _deep_copy_dict(self, obj: dict) -> dict:
         """Deep copy a nested dict."""
+        return {k: self._deep_copy_value(v) for k, v in obj.items()}
+
+    def _deep_copy_value(self, obj: object) -> object:
+        """Deep copy a value (dict, list, or primitive)."""
         if isinstance(obj, dict):
-            return {k: self._deep_copy(v) for k, v in obj.items()}
+            return {k: self._deep_copy_value(v) for k, v in obj.items()}
         if isinstance(obj, list):
-            return [self._deep_copy(i) for i in obj]
+            return [self._deep_copy_value(i) for i in obj]
         return obj
 
     def _apply_env_overrides(self, config: dict) -> None:
@@ -107,13 +112,8 @@ class _TestableConfigManager:
             elif value.lower() in ("false", "0", "no"):
                 value = False
             else:
-                try:
-                    if "." in value:
-                        value = float(value)
-                    else:
-                        value = int(value)
-                except ValueError:
-                    pass
+                with contextlib.suppress(ValueError):
+                    value = float(value) if "." in value else int(value)
         current[final_key] = value
 
 
@@ -306,7 +306,9 @@ class TestConfigPrecedence:
         env_overrides = {"SUBTITLE_ANCHOR": "top"}
 
         with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(base_config, cli_overrides={})
+            result = config_manager.apply_precedence_rules(
+                base_config, cli_overrides={}
+            )
             assert result["subtitle_settings"]["anchor"] == "top"
 
             result = config_manager.apply_precedence_rules(

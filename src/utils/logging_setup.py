@@ -138,8 +138,7 @@ class SecretMaskingFilter(logging.Filter):
             }
         # Default to tuple handling
         return tuple(
-            self._mask_string(str(arg)) if isinstance(arg, str) else arg
-            for arg in args
+            self._mask_string(str(arg)) if isinstance(arg, str) else arg for arg in args
         )
 
 
