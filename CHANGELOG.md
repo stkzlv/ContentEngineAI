@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-01-06
+
+### Added
+- **Network Resilience**: Retry utilities with exponential backoff for network operations
+  - `src/utils/retry.py` - `@retry_network` decorator for HTTP requests
+  - Automatic retry on 429, 503, 5xx errors and connection timeouts
+  - Configurable max attempts, wait times, and backoff multiplier
+
+- **Circuit Breaker Pattern**: Prevent cascade failures from external services
+  - `src/utils/circuit_breaker.py` - Pre-configured breakers for Freesound, Pexels, OpenRouter, Google STT, Scraper
+  - YAML-based configuration in `config/performance.yaml`
+  - States: CLOSED → OPEN → HALF_OPEN with automatic recovery
+
+- **Unified Config Manager**: Three-tier configuration precedence
+  - `src/config_manager.py` - CLI arguments > Environment variables > YAML files
+  - Type conversion for boolean, int, float from environment strings
+  - Dot notation support for nested configuration paths
+
+- **Secret Masking**: Automatic credential protection in logs
+  - `src/utils/secrets.py` - Pattern-based secret detection
+  - `src/utils/logging_setup.py` - `SecretMaskingFilter` for all log handlers
+  - Masks API keys, tokens, passwords before output
+
+- **Claude Code Slash Commands**: Workflow automation commands
+  - `.claude/commands/` - commit, bump-version, release, run-linters, update-pr, etc.
+
+### Changed
+- **Configuration**: Expanded `.env.example` with all configuration options
+- **Documentation**: Updated `docs/configuration.md` with precedence documentation
+
 ## [0.19.1] - 2026-01-04
 
 ### Changed

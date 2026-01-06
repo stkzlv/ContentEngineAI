@@ -22,17 +22,16 @@ poetry run pytest -k "test_name"         # Run by name pattern
 - Terminal: Shows missing lines with `--cov-report=term-missing`
 - Read `docs/testing.md` for current coverage targets
 
-## Test Structure
-```
-tests/
-├── conftest.py          # Shared fixtures
-├── integration/         # Integration tests
-├── e2e/                 # End-to-end tests
-├── ai/                  # AI module tests
-├── scraper/             # Scraper tests
-├── pipeline/            # Pipeline tests
-├── publisher/           # Publisher tests
-└── utils/               # Utility tests
+## Discover Test Structure
+```bash
+# View test directory layout
+tree tests/ -L 2 -d
+
+# List all test files
+find tests/ -name "test_*.py" | head -20
+
+# Count tests per directory
+find tests/ -name "test_*.py" -exec dirname {} \; | sort | uniq -c
 ```
 
 ## Best Practices
