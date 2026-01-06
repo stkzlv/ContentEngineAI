@@ -8,10 +8,12 @@ import pytest
 from src.utils.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerError,
+    _load_circuit_breaker_config,
     freesound_circuit_breaker,
     google_stt_circuit_breaker,
     openrouter_circuit_breaker,
     pexels_circuit_breaker,
+    scraper_circuit_breaker,
 )
 
 
@@ -257,6 +259,93 @@ class TestPreconfiguredCircuitBreakers:
         assert openrouter_circuit_breaker.failure_threshold == 2
         assert openrouter_circuit_breaker.timeout == 30
         assert ConnectionError in openrouter_circuit_breaker.expected_exceptions
+
+    def test_scraper_circuit_breaker_configuration(self):
+        """Test Scraper circuit breaker has appropriate configuration."""
+        assert scraper_circuit_breaker.name == "Scraper"
+        assert scraper_circuit_breaker.failure_threshold == 5
+        assert scraper_circuit_breaker.timeout == 60
+        assert ConnectionError in scraper_circuit_breaker.expected_exceptions
+
+
+class TestCircuitBreakerConfigLoading:
+    """Test configuration loading from performance.yaml."""
+
+    def test_load_config_returns_dict(self):
+        """Test that _load_circuit_breaker_config returns a dictionary."""
+        config = _load_circuit_breaker_config()
+        assert isinstance(config, dict)
+
+    def test_load_config_contains_expected_services(self):
+        """Test that loaded config contains expected service configurations."""
+        config = _load_circuit_breaker_config()
+        # Config should contain all services defined in performance.yaml
+        expected_services = [
+            "google_stt",
+            "freesound",
+            "pexels",
+            "openrouter",
+            "scraper",
+        ]
+        for service in expected_services:
+            assert service in config, f"Missing config for {service}"
+            assert "failure_threshold" in config[service]
+            assert "timeout_sec" in config[service]
+
+    def test_load_config_values_match_yaml(self):
+        """Test that loaded values match config/performance.yaml settings."""
+        config = _load_circuit_breaker_config()
+
+        # Values should match what's in config/performance.yaml
+        assert config["google_stt"]["failure_threshold"] == 3
+        assert config["google_stt"]["timeout_sec"] == 120
+
+        assert config["freesound"]["failure_threshold"] == 3
+        assert config["freesound"]["timeout_sec"] == 60
+
+        assert config["pexels"]["failure_threshold"] == 3
+        assert config["pexels"]["timeout_sec"] == 90
+
+        assert config["openrouter"]["failure_threshold"] == 2
+        assert config["openrouter"]["timeout_sec"] == 30
+
+        assert config["scraper"]["failure_threshold"] == 5
+        assert config["scraper"]["timeout_sec"] == 60
+
+    def test_preconfigured_breakers_use_config_values(self):
+        """Test that pre-configured circuit breakers use values from config."""
+        config = _load_circuit_breaker_config()
+
+        # Verify each pre-configured breaker uses config values
+        assert (
+            google_stt_circuit_breaker.failure_threshold
+            == config["google_stt"]["failure_threshold"]
+        )
+        assert google_stt_circuit_breaker.timeout == config["google_stt"]["timeout_sec"]
+
+        assert (
+            freesound_circuit_breaker.failure_threshold
+            == config["freesound"]["failure_threshold"]
+        )
+        assert freesound_circuit_breaker.timeout == config["freesound"]["timeout_sec"]
+
+        assert (
+            pexels_circuit_breaker.failure_threshold
+            == config["pexels"]["failure_threshold"]
+        )
+        assert pexels_circuit_breaker.timeout == config["pexels"]["timeout_sec"]
+
+        assert (
+            openrouter_circuit_breaker.failure_threshold
+            == config["openrouter"]["failure_threshold"]
+        )
+        assert openrouter_circuit_breaker.timeout == config["openrouter"]["timeout_sec"]
+
+        assert (
+            scraper_circuit_breaker.failure_threshold
+            == config["scraper"]["failure_threshold"]
+        )
+        assert scraper_circuit_breaker.timeout == config["scraper"]["timeout_sec"]
 
 
 @pytest.mark.asyncio

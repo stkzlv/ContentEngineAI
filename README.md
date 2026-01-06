@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](docs/versioning.md)
 
-**Version**: 0.19.1 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.20.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.19.1)**: Documentation reorganized to `docs/` directory. Specs consolidated into unified module specs with retry logic.
+> **🚀 Latest Update (v0.20.0)**: Network resilience with retry + circuit breaker patterns, unified config manager (CLI > ENV > YAML), secret masking in logs, and Claude Code slash commands.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 

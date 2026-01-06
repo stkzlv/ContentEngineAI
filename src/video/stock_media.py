@@ -27,6 +27,7 @@ from pexelsapi.pexels import Pexels
 
 from src.utils import download_file, ensure_dirs_exist, get_filename_from_url
 from src.utils.circuit_breaker import pexels_circuit_breaker
+from src.utils.retry import retry_network
 from src.video.config import MediaSettings, StockMediaSettings
 
 # Configure module logger
@@ -119,6 +120,7 @@ class StockMediaFetcher:
                 logger.error(f"Failed to initialize Pexels API client: {e}")
                 self.pexels_client = None
 
+    @retry_network()
     async def _search_and_select_pexels(
         self,
         search_query: str,

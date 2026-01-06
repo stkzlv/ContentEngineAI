@@ -14,9 +14,12 @@ from urllib.parse import urlparse
 import aiohttp
 import requests
 
+from src.utils.circuit_breaker import scraper_circuit_breaker
+from src.utils.retry import retry_network
+
 from .config import get_config_manager
 from .models import Platform
-from .utils import exponential_backoff_retry, sanitize_filename
+from .utils import sanitize_filename
 
 
 class BaseDownloader:
@@ -97,7 +100,8 @@ class BaseDownloader:
 
         return sanitize_filename(filename)
 
-    @exponential_backoff_retry
+    @scraper_circuit_breaker
+    @retry_network()
     def validate_url(self, url: str) -> bool:
         """Validate that a URL is accessible.
 
@@ -126,7 +130,8 @@ class BaseDownloader:
             self.logger.debug(f"URL validation failed for {url}: {e}")
             return False
 
-    @exponential_backoff_retry
+    @scraper_circuit_breaker
+    @retry_network()
     def download_file_sync(self, url: str, filepath: Path) -> bool:
         """Download a file synchronously.
 
@@ -189,6 +194,8 @@ class BaseDownloader:
                     filepath.unlink()
             return False
 
+    @scraper_circuit_breaker
+    @retry_network()
     async def download_file_async(
         self, session: aiohttp.ClientSession, url: str, filepath: Path
     ) -> bool:

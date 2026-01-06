@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import Any
 
 from src.utils import ensure_dirs_exist
+from src.utils.circuit_breaker import google_stt_circuit_breaker
+from src.utils.retry import retry_network
 from src.video.config import (
     CoquiTTSSettings,
     GoogleCloudTTSSettings,
@@ -309,6 +311,7 @@ def _filter_and_select_voice(
     return selected_voice
 
 
+@google_stt_circuit_breaker
 async def _generate_google_cloud_speech(
     text: str, output_path: Path, settings: GoogleCloudTTSSettings
 ) -> Path | None:

@@ -102,16 +102,16 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
 
     orchestrator = GlobalPipelineOrchestrator(config)
 
-    # Mock existing posts (next Monday and Tuesday occupied)
-    # Calculate next Monday from now
-    now = datetime.now(UTC)
-    days_until_monday = (7 - now.weekday()) % 7
-    if days_until_monday == 0:
-        days_until_monday = 7  # Skip to next week if today is Monday
-    next_monday = now.replace(hour=10, minute=0, second=0, microsecond=0) + timedelta(
-        days=days_until_monday
-    )
-    next_tuesday = next_monday + timedelta(days=1)
+    # Use a fixed reference time (Sunday) so we can predict the next slots
+    # Sunday Jan 5, 2026 at 08:00 UTC - before any slot times
+    fixed_now = datetime(2026, 1, 5, 8, 0, 0, tzinfo=UTC)
+
+    # From Sunday, the next slots are:
+    # Monday Jan 6 at 10:00 (slot 0) - will be occupied
+    # Tuesday Jan 7 at 10:00 (slot 1) - will be occupied
+    # Wednesday Jan 8 at 10:00 (slot 2) - should be selected
+    next_monday = datetime(2026, 1, 6, 10, 0, 0, tzinfo=UTC)
+    next_tuesday = datetime(2026, 1, 7, 10, 0, 0, tzinfo=UTC)
 
     occupied_posts = [
         {"scheduledFor": next_monday},
@@ -138,7 +138,11 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
         ),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
+        patch("src.publisher.schedule.datetime") as mock_datetime,
     ):
+        # Freeze time at Sunday Jan 5, 2026 08:00 UTC
+        mock_datetime.now.return_value = fixed_now
+        mock_datetime.side_effect = lambda *a, **kw: datetime(*a, **kw)
         # Mock publisher for slot checking
         temp_publisher = AsyncMock()
         temp_publisher.authenticate = AsyncMock()
