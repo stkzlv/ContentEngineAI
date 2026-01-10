@@ -793,3 +793,555 @@ class TestRunBatch:
 
         # Should deduplicate and only count once
         assert summary.successful == 1
+
+
+class TestGracefulDegradation:
+    """Test graceful degradation (continue on failure without fail-fast)."""
+
+    def test_continues_after_product_id_failure(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test processing continues after individual product ID failures."""
+        config = BatchConfig(
+            product_ids=["B0SUCCES01", "B0FAILPRD1", "B0SUCCES02"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        def side_effect(*args, **kwargs):
+            keyword = kwargs.get("keyword", "")
+            if "FAIL" in keyword:
+                raise Exception("Individual failure")
+            # Return product with unique ASIN to avoid deduplication
+            return [
+                ProductData(
+                    title=f"Product {keyword}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=keyword,  # Unique ASIN per product
+                    keyword="test",
+                )
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = side_effect
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        # All items should be attempted
+        assert summary.product_ids_attempted == 3
+        assert summary.successful == 2
+        assert summary.failed == 1
+        assert mock_scraper.scrape_products_unified.call_count == 3
+
+    def test_continues_after_keyword_failure(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test processing continues after keyword search failures."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["success1", "fail_keyword", "success2"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        call_index = [0]  # Use list for closure
+
+        def side_effect(*args, **kwargs):
+            keyword = kwargs.get("keyword", "")
+            if "fail" in keyword:
+                raise Exception("Keyword search failed")
+            # Return product with unique ASIN per call
+            call_index[0] += 1
+            return [
+                ProductData(
+                    title=f"Product {call_index[0]}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=f"B0KEYWRD{call_index[0]:02d}",  # Unique ASIN
+                    keyword=keyword,
+                )
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = side_effect
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        # All keywords should be attempted
+        assert summary.keywords_attempted == 3
+        assert mock_scraper.scrape_products_unified.call_count == 3
+
+    def test_multiple_failures_tracked_in_summary(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test all failures are tracked in summary."""
+        config = BatchConfig(
+            product_ids=["B0FAIL0001", "B0SUCCES01", "B0FAIL0002", "B0FAIL0003"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        def side_effect(*args, **kwargs):
+            keyword = kwargs.get("keyword", "")
+            if "FAIL" in keyword:
+                raise Exception(f"Failed: {keyword}")
+            # Return product with unique ASIN
+            return [
+                ProductData(
+                    title=f"Product {keyword}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=keyword,  # Unique ASIN
+                    keyword="test",
+                )
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = side_effect
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.successful == 1
+        assert summary.failed == 3
+        assert len(summary.failed_products) == 3
+
+    def test_successful_results_not_corrupted_by_failures(
+        self, mock_scraper, sample_search_params
+    ):
+        """Test that failures don't affect already successful results."""
+        config = BatchConfig(
+            product_ids=["B0FIRST001", "B0FAILMID1", "B0LAST0001"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        collected_asins = []
+
+        def side_effect(*args, **kwargs):
+            keyword = kwargs.get("keyword", "")
+            if "FAIL" in keyword:
+                raise Exception("Mid-batch failure")
+            product = ProductData(
+                title=f"Product {keyword}",
+                price="$10",
+                description="Test",
+                images=[],
+                videos=[],
+                affiliate_link="",
+                url="",
+                platform=Platform.AMAZON,
+                asin=keyword,
+                keyword="test",
+            )
+            collected_asins.append(keyword)
+            return [product]
+
+        mock_scraper.scrape_products_unified.side_effect = side_effect
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.successful == 2
+        assert len(collected_asins) == 2
+        assert "B0FIRST001" in collected_asins
+        assert "B0LAST0001" in collected_asins
+
+
+class TestParametrizedEdgeCases:
+    """Parametrized tests for edge cases and ASIN validation."""
+
+    @pytest.mark.parametrize(
+        "invalid_asin,expected_error",
+        [
+            ("TOOLONG12345", "Invalid ASIN format"),  # Too long (12 chars)
+            ("SHORT", "Invalid ASIN format"),  # Too short (5 chars)
+            ("12345-abcd", "Invalid ASIN format"),  # Has hyphen and lowercase
+            ("", "Invalid ASIN format"),  # Empty
+            ("   ", "Invalid ASIN format"),  # Whitespace only
+            ("B0invalid!", "Invalid ASIN format"),  # Has lowercase and special char
+        ],
+    )
+    def test_invalid_asin_formats(
+        self,
+        mock_scraper,
+        sample_search_params,
+        invalid_asin: str,
+        expected_error: str,
+    ):
+        """Test various invalid ASIN formats are rejected."""
+        config = BatchConfig(
+            product_ids=[invalid_asin],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        controller = BatchController(mock_scraper, config)
+        results = controller._process_product_ids()
+
+        assert len(results) == 1
+        assert not results[0].success
+        assert results[0].error is not None
+        assert expected_error in results[0].error
+
+    @pytest.mark.parametrize(
+        "valid_asin",
+        [
+            "B0VALIDASN",  # Standard format
+            "B012345678",  # Numeric suffix
+            "B0ABCDEFGH",  # Mixed alphanumeric
+            "B0XXXXXXXX",  # All same letter
+        ],
+    )
+    def test_valid_asin_formats(
+        self,
+        mock_scraper,
+        sample_search_params,
+        sample_product_data,
+        valid_asin: str,
+    ):
+        """Test valid ASIN formats are accepted."""
+        config = BatchConfig(
+            product_ids=[valid_asin],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        controller._process_product_ids()
+
+        # Should attempt to scrape (validation passed)
+        assert mock_scraper.scrape_products_unified.called
+
+    @pytest.mark.parametrize(
+        "products_per_keyword,available_products,expected_count",
+        [
+            # Per-keyword limit: scraper limited to 3, only get 3
+            (3, 10, 3),
+            # Available less than limit: get what's available
+            (10, 5, 5),
+            # Limit matches available: get all
+            (5, 5, 5),
+        ],
+    )
+    def test_products_per_keyword_limit(
+        self,
+        mock_scraper,
+        sample_search_params,
+        products_per_keyword: int,
+        available_products: int,
+        expected_count: int,
+    ):
+        """Test products_per_keyword limits what scraper returns."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["test"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=100,  # High global limit, not the limiting factor
+            products_per_keyword=products_per_keyword,
+        )
+
+        def mock_scrape(*args, **kwargs):
+            # Scraper respects max_products kwarg like real implementation
+            scraper_limit = kwargs.get("max_products", available_products)
+            count = min(scraper_limit, available_products)
+            return [
+                ProductData(
+                    title=f"Product {i}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=f"B0TEST{i:05d}",
+                    keyword="test",
+                )
+                for i in range(count)
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = mock_scrape
+
+        controller = BatchController(mock_scraper, config)
+        results = controller._process_keywords()
+
+        assert len(results) == expected_count
+
+    def test_max_products_stops_keyword_processing(
+        self,
+        mock_scraper,
+        sample_search_params,
+    ):
+        """Test max_products global limit stops processing more keywords."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["keyword1", "keyword2", "keyword3"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=5,  # Should stop after first keyword returns >= 5
+            products_per_keyword=10,
+        )
+
+        call_count = [0]
+
+        def mock_scrape(*args, **kwargs):
+            call_count[0] += 1
+            keyword = kwargs.get("keyword", "")
+            # Each keyword returns 6 products
+            return [
+                ProductData(
+                    title=f"Product {i} from {keyword}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=f"B0{keyword[:4].upper()}{i:04d}",
+                    keyword=keyword,
+                )
+                for i in range(6)
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = mock_scrape
+
+        controller = BatchController(mock_scraper, config)
+        results = controller._process_keywords()
+
+        # First keyword returns 6 products, exceeds max_products=5
+        # Implementation adds all 6, then stops processing more keywords
+        assert len(results) == 6
+        # Only 1 keyword processed (stopped after hitting limit)
+        assert call_count[0] == 1
+
+
+class TestMixedInputProcessing:
+    """Tests for combined product IDs and keywords processing."""
+
+    def test_product_ids_processed_before_keywords(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test that product IDs are processed before keywords."""
+        config = BatchConfig(
+            product_ids=["B0PRODUCT1"],
+            keywords=["search term"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        call_order = []
+        call_index = [0]
+
+        def track_calls(*args, **kwargs):
+            keyword = kwargs.get("keyword", "")
+            # Product IDs start with B0, keywords don't
+            if keyword.startswith("B0"):
+                call_order.append(("product_id", keyword))
+            else:
+                call_order.append(("keyword", keyword))
+            # Return unique products to avoid deduplication
+            call_index[0] += 1
+            return [
+                ProductData(
+                    title=f"Product {call_index[0]}",
+                    price="$10",
+                    description="Test",
+                    images=[],
+                    videos=[],
+                    affiliate_link="",
+                    url="",
+                    platform=Platform.AMAZON,
+                    asin=f"B0UNIQUE{call_index[0]:02d}",
+                    keyword="test",
+                )
+            ]
+
+        mock_scraper.scrape_products_unified.side_effect = track_calls
+
+        controller = BatchController(mock_scraper, config)
+        controller.run_batch()
+
+        # Product IDs should be called first
+        assert len(call_order) >= 1
+        assert call_order[0][0] == "product_id"
+
+    def test_keyword_duplicates_product_id_deduplicated(
+        self, mock_scraper, sample_search_params
+    ):
+        """Test that keyword results don't duplicate already-processed product IDs."""
+        config = BatchConfig(
+            product_ids=["B0ALREADY1"],
+            keywords=["find same"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        # Both return same ASIN
+        product = ProductData(
+            title="Same Product",
+            price="$10",
+            description="Test",
+            images=[],
+            videos=[],
+            affiliate_link="",
+            url="",
+            platform=Platform.AMAZON,
+            asin="B0ALREADY1",
+            keyword="test",
+        )
+        mock_scraper.scrape_products_unified.return_value = [product]
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        # Should deduplicate - only 1 successful
+        assert summary.successful == 1
+
+
+class TestEmptyInputHandling:
+    """Tests for empty input scenarios."""
+
+    def test_empty_product_ids_and_keywords(self, mock_scraper, sample_search_params):
+        """Test handling of completely empty config."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.total_attempted == 0
+        assert summary.successful == 0
+        assert summary.failed == 0
+        assert mock_scraper.scrape_products_unified.call_count == 0
+
+    def test_only_product_ids_no_keywords(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test batch with only product IDs."""
+        config = BatchConfig(
+            product_ids=["B0ONLYPRD1", "B0ONLYPRD2"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.product_ids_attempted == 2
+        assert summary.keywords_attempted == 0
+
+    def test_only_keywords_no_product_ids(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Test batch with only keywords."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["keyword1", "keyword2"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.product_ids_attempted == 0
+        assert summary.keywords_attempted == 2
+
+
+class TestSummaryLogging:
+    """Tests for summary logging output."""
+
+    def test_summary_logged(self, mock_scraper, sample_search_params, sample_product_data):
+        """Test that summary is logged at end of batch."""
+        config = BatchConfig(
+            product_ids=["B0LOGSUMRY"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        with patch.object(controller.logger, "info") as mock_log:
+            controller.run_batch()
+
+            # Summary should be logged (case-insensitive check)
+            log_calls = [str(call).lower() for call in mock_log.call_args_list]
+            assert any("summary" in call or "completed" in call for call in log_calls)
+
+    def test_duration_tracked(self, mock_scraper, sample_search_params, sample_product_data):
+        """Test that duration is tracked in summary."""
+        config = BatchConfig(
+            product_ids=["B0DURATN01"],
+            keywords=[],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        summary = controller.run_batch()
+
+        assert summary.duration_sec >= 0

@@ -55,7 +55,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
 
 ## Enhancement Tasks
 
-- [ ] 9. Add platform detection utility
+- [x] 9. Add platform detection utility
   - File: src/scraper/base/platform_detector.py (new)
   - Create function to detect platform from product ID format
   - Support Amazon ASIN (B0...), future platforms
@@ -64,7 +64,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 1_
   - _Prompt: Role: Python Developer | Task: Create a platform_detector module with detect_platform(product_id: str) function that identifies e-commerce platform from product ID patterns (Amazon ASIN starts with B0/B1, 10 chars alphanumeric) | Restrictions: Return None for unknown patterns, support future extensibility | Success: detect_platform("B0ASIN1234") returns "amazon", unknown patterns return None_
 
-- [ ] 10. Add unit tests for batch controller
+- [-] 10. Add unit tests for batch controller
   - File: tests/scraper/test_batch_controller.py (new)
   - Test product ID processing, keyword processing, deduplication
   - Test fail-fast behavior and graceful degradation
