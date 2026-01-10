@@ -64,7 +64,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 1_
   - _Prompt: Role: Python Developer | Task: Create a platform_detector module with detect_platform(product_id: str) function that identifies e-commerce platform from product ID patterns (Amazon ASIN starts with B0/B1, 10 chars alphanumeric) | Restrictions: Return None for unknown patterns, support future extensibility | Success: detect_platform("B0ASIN1234") returns "amazon", unknown patterns return None_
 
-- [-] 10. Add unit tests for batch controller
+- [x] 10. Add unit tests for batch controller
   - File: tests/scraper/test_batch_controller.py (new)
   - Test product ID processing, keyword processing, deduplication
   - Test fail-fast behavior and graceful degradation
@@ -73,7 +73,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 10, 11, 12, 14_
   - _Prompt: Role: QA Engineer | Task: Create comprehensive unit tests for BatchController covering: product ID list processing, keyword search processing, mixed mode, deduplication, fail-fast mode, graceful degradation | Restrictions: Mock network calls, use pytest parametrize, maintain test isolation | Success: 100% coverage of batch_controller.py_
 
-- [ ] 11. Add unit tests for media validator
+- [x] 11. Add unit tests for media validator
   - File: tests/scraper/test_media_validator.py (new)
   - Test image validation with valid/corrupt files
   - Test video validation and metadata extraction
@@ -82,7 +82,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 5, 6_
   - _Prompt: Role: QA Engineer | Task: Create unit tests for MediaValidator covering: valid images, corrupt images, valid videos, corrupt videos, metadata extraction, dimension checking | Restrictions: Use small test fixtures, mock FFprobe for unit tests | Success: All validation edge cases tested_
 
-- [ ] 12. Add integration test for full scrape workflow
+- [-] 12. Add integration test for full scrape workflow
   - File: tests/integration/test_scraper_integration.py (new)
   - Test complete scrape → download → validate pipeline
   - Test with mock HTTP responses
