@@ -82,7 +82,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 5, 6_
   - _Prompt: Role: QA Engineer | Task: Create unit tests for MediaValidator covering: valid images, corrupt images, valid videos, corrupt videos, metadata extraction, dimension checking | Restrictions: Use small test fixtures, mock FFprobe for unit tests | Success: All validation edge cases tested_
 
-- [-] 12. Add integration test for full scrape workflow
+- [x] 12. Add integration test for full scrape workflow
   - File: tests/integration/test_scraper_integration.py (new)
   - Test complete scrape → download → validate pipeline
   - Test with mock HTTP responses
@@ -91,7 +91,7 @@ The Scraper Module is **fully implemented** and production-ready. All core requi
   - _Requirements: 1, 2, 3, 4, 5, 7_
   - _Prompt: Role: QA Engineer | Task: Create integration test that mocks HTTP responses for Amazon product page, verifies data extraction, media download, validation, and data.json output | Restrictions: Use mocked network, create temp output directory, clean up after test | Success: Full pipeline tested without real network calls_
 
-- [ ] 13. Update docs/scraper.md with comprehensive guide
+- [-] 13. Update docs/scraper.md with comprehensive guide
   - File: docs/scraper.md (new or modify)
   - Document all CLI options with examples
   - Add troubleshooting section for common issues
