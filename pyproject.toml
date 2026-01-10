@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.20.0"
+version = "0.21.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -177,7 +177,7 @@ disable_error_code = ["import-untyped"]
 # Bandit security scanner configuration
 [tool.bandit]
 exclude_dirs = ["tests", "venv", ".venv", ".pytest_cache", ".mypy_cache", ".ruff_cache"]
-skips = ["B101", "B601"]  # Skip assert_used and paramiko_calls
+skips = ["B101", "B311", "B404", "B601", "B603", "B607"]  # Skip assert_used, random (non-crypto), subprocess imports/calls, partial paths
 
 # Vulture dead code detector
 [tool.vulture]

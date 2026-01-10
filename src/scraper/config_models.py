@@ -122,6 +122,22 @@ class BrowserConfig(BaseModel):
     search_result_wait_reduced: int = Field(default=5, gt=0)
 
 
+class BatchProcessingConfig(BaseModel):
+    """Batch processing loop configuration."""
+
+    max_scrape_attempts: int = Field(
+        default=50, gt=0, description="Safety limit to prevent infinite scraping loops"
+    )
+    prefetch_multiplier: int = Field(
+        default=3,
+        gt=0,
+        description="Multiplier for prefetching to handle validation failures",
+    )
+    max_batch_size: int = Field(
+        default=15, gt=0, description="Maximum products to fetch in a single batch"
+    )
+
+
 class CSSSelectors(BaseModel):
     """CSS selector configuration."""
 
@@ -180,6 +196,9 @@ class GlobalScraperSettings(BaseModel):
     )
     count_products_with_media: bool = Field(default=True)
     browser_config: BrowserConfig = Field(default_factory=lambda: BrowserConfig())
+    batch_processing: BatchProcessingConfig = Field(
+        default_factory=lambda: BatchProcessingConfig()
+    )
     css_selectors: CSSSelectors = Field(default_factory=lambda: CSSSelectors())
     asin_patterns: ASINPatterns = Field(default_factory=lambda: ASINPatterns())
 

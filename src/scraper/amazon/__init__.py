@@ -88,6 +88,6 @@ __all__ = [
 ]
 
 # Module metadata
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __author__ = "ContentEngineAI"
 __description__ = "Advanced Amazon scraper with anti-detection and media extraction"

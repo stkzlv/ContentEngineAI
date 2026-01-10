@@ -243,8 +243,18 @@ def detect_monitors() -> list[dict[str, Any]]:
         if platform.system() == "Linux":
             # Try xrandr first
             try:
+                # Get timeout from config
+                config_manager = get_config_manager()
+                system_timeouts = config_manager.get_global_settings().get(
+                    "system_timeouts", {}
+                )
+                cmd_timeout = system_timeouts.get("system_command_timeout", 5)
+
                 result = subprocess.run(
-                    ["xrandr", "--query"], capture_output=True, text=True, timeout=5
+                    ["xrandr", "--query"],
+                    capture_output=True,
+                    text=True,
+                    timeout=cmd_timeout,
                 )
 
                 if result.returncode == 0:
@@ -284,11 +294,18 @@ def detect_monitors() -> list[dict[str, Any]]:
 
         elif platform.system() == "Darwin":  # macOS
             try:
+                # Get timeout from config
+                config_manager = get_config_manager()
+                system_timeouts = config_manager.get_global_settings().get(
+                    "system_timeouts", {}
+                )
+                cmd_timeout = system_timeouts.get("system_profiler_timeout", 10)
+
                 result = subprocess.run(
                     ["system_profiler", "SPDisplaysDataType"],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=cmd_timeout,
                 )
 
                 if result.returncode == 0:
