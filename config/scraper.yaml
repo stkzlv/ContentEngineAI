@@ -203,6 +203,10 @@ global_settings:
     # Affects: System command reliability, prevents hanging on slow systems
     system_command_timeout: 5
 
+    # Timeout for system profiler commands on macOS (seconds)
+    # Affects: Display detection on macOS systems
+    system_profiler_timeout: 10
+
     # Default timeout for HTTP HEAD requests (seconds)
     # How long to wait for HEAD requests (media validation) to complete
     # Affects: Media validation speed, reliability of URL checks

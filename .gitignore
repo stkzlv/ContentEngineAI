@@ -65,3 +65,6 @@ temp_subtitles/
 
 output/
 cache/
+
+# Claude Code config (contains credentials)
+.claude.json

@@ -17,6 +17,7 @@ from typing import Any
 
 import psutil
 
+from src.config_manager import get_config_value
 from src.utils import ensure_dirs_exist, format_timestamp
 from src.utils.circuit_breaker import google_stt_circuit_breaker
 from src.video.config import (
@@ -378,7 +379,7 @@ def _get_audio_duration(audio_path: Path) -> float:
             capture_output=True,
             text=True,
             check=True,
-            timeout=10,
+            timeout=get_config_value("system_timeouts.ffprobe_timeout", 10),
         )
         return float(result.stdout.strip())
     except (subprocess.SubprocessError, ValueError) as e:

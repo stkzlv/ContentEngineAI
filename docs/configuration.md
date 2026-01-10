@@ -122,6 +122,13 @@ global_output_directory: "outputs"
 debug_mode: false
 pipeline_timeout_sec: 900
 
+# System-wide timeouts for command execution and media analysis
+system_timeouts:
+  ffprobe_timeout: 10
+  xrandr_timeout: 5
+  system_profiler_timeout: 10
+  head_request_timeout: 10
+
 output_structure:
   product_directory_pattern: "{product_id}"
   product_files:
@@ -1446,6 +1453,16 @@ subtitle_randomize_effects: false    # Override effect randomization
 ## Timeout Configuration
 
 Timeouts are configured in different files based on component:
+
+### 1. System Timeouts (`config/core.yaml`)
+Global timeouts for external command execution and basic connectivity checks.
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `system_timeouts.ffprobe_timeout` | int | 10 | Timeout for media analysis (seconds) |
+| `system_timeouts.xrandr_timeout` | int | 5 | Timeout for monitor detection on Linux (seconds) |
+| `system_timeouts.system_profiler_timeout` | int | 10 | Timeout for monitor detection on macOS (seconds) |
+| `system_timeouts.head_request_timeout` | int | 10 | Default timeout for HTTP HEAD requests (seconds) |
 
 **Global Pipeline** (`config/core.yaml`):
 ```yaml

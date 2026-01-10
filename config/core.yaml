@@ -18,6 +18,15 @@ pipeline_timeout_sec: 900
 duration_padding_sec: 0.5
 
 # ============================================================================
+# SYSTEM TIMEOUTS
+# ============================================================================
+system_timeouts:
+  ffprobe_timeout: 10
+  xrandr_timeout: 5
+  system_profiler_timeout: 10
+  head_request_timeout: 10
+
+# ============================================================================
 # OUTPUT STRUCTURE (Video Production)
 # ============================================================================
 output_structure:

@@ -6,18 +6,18 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PIL import Image
 
 from src.scraper.amazon.media_validator import (
+    MediaValidationResult,
     extract_video_metadata,
+    generate_validation_report,
+    validate_media_batch,
     verify_image_file,
     verify_video_file,
-    validate_media_batch,
-    generate_validation_report,
-    MediaValidationResult,
 )
 
 pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 def mock_image_path(tmp_path):
@@ -26,6 +26,7 @@ def mock_image_path(tmp_path):
     path.write_bytes(b"mock image content")
     return path
 
+
 @pytest.fixture
 def mock_video_path(tmp_path):
     """Create a mock video file."""
@@ -33,6 +34,7 @@ def mock_video_path(tmp_path):
     # Use valid MP4 signature
     path.write_bytes(b"\x00\x00\x00\x18ftypmp4")
     return path
+
 
 class TestImageValidation:
     """Tests for verify_image_file."""
@@ -45,9 +47,11 @@ class TestImageValidation:
         mock_img.format = "JPEG"
         mock_img.mode = "RGB"
         mock_open.return_value.__enter__.return_value = mock_img
-        
-        result = verify_image_file(mock_image_path, min_dimension=1000, min_file_size=10)
-        
+
+        result = verify_image_file(
+            mock_image_path, min_dimension=1000, min_file_size=10
+        )
+
         assert result.is_valid is True
         assert result.validation_data["width"] == 2000
         assert result.validation_data["format"] == "JPEG"
@@ -60,9 +64,9 @@ class TestImageValidation:
         mock_img.size = (500, 500)
         mock_img.format = "JPEG"
         mock_open.return_value.__enter__.return_value = mock_img
-        
+
         result = verify_image_file(mock_image_path, min_dimension=1000)
-        
+
         assert result.is_valid is False
         assert any("dimensions" in issue for issue in result.issues)
 
@@ -71,6 +75,7 @@ class TestImageValidation:
         result = verify_image_file(tmp_path / "nonexistent.jpg")
         assert result.is_valid is False
         assert "File does not exist" in result.issues[0]
+
 
 class TestVideoValidation:
     """Tests for verify_video_file and metadata extraction."""
@@ -86,23 +91,22 @@ class TestVideoValidation:
                     "width": 1920,
                     "height": 1080,
                     "duration": "10.5",
-                    "bit_rate": "5000000"
+                    "bit_rate": "5000000",
                 },
-                {
-                    "codec_type": "audio",
-                    "codec_name": "aac"
-                }
+                {"codec_type": "audio", "codec_name": "aac"},
             ],
             "format": {
                 "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
                 "duration": "10.5",
-                "size": "6562500"
-            }
+                "size": "6562500",
+            },
         }
-        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(ffprobe_output))
-        
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=json.dumps(ffprobe_output)
+        )
+
         metadata = extract_video_metadata(mock_video_path)
-        
+
         assert metadata is not None
         assert metadata["duration"] == 10.5
         assert metadata["width"] == 1920
@@ -113,13 +117,23 @@ class TestVideoValidation:
     def test_verify_video_success(self, mock_run, mock_video_path):
         """Test successful video validation."""
         ffprobe_output = {
-            "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "5.0", "codec_name": "h264"}],
-            "format": {"duration": "5.0", "format_name": "mp4"}
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "width": 1280,
+                    "height": 720,
+                    "duration": "5.0",
+                    "codec_name": "h264",
+                }
+            ],
+            "format": {"duration": "5.0", "format_name": "mp4"},
         }
-        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(ffprobe_output))
-        
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=json.dumps(ffprobe_output)
+        )
+
         result = verify_video_file(mock_video_path, min_duration=2.0, min_dimension=480)
-        
+
         assert result.is_valid is True
         assert result.metadata["width"] == 1280
         assert len(result.issues) == 0
@@ -129,17 +143,18 @@ class TestVideoValidation:
         """Test video failing format/signature check."""
         # Use a clearly HTML start to trigger the specific HTML warning
         mock_video_path.write_bytes(b"<html><head>")
-        
+
         # Simulate FFprobe raising an exception (e.g. timeout or subprocess error)
         # This causes the code to fall through to the signature check
         mock_run.side_effect = subprocess.SubprocessError("FFprobe failed")
-        
+
         result = verify_video_file(mock_video_path)
-        
+
         assert result.is_valid is False
         # Should contain the FFprobe error AND the HTML content warning
         assert any("FFprobe subprocess error" in issue for issue in result.issues)
         assert any("HTML content" in issue for issue in result.issues)
+
 
 class TestBatchAndReport:
     """Tests for batch validation and reporting."""
@@ -150,12 +165,16 @@ class TestBatchAndReport:
         """Test batch validation of mixed media."""
         img_path = tmp_path / "img.jpg"
         vid_path = tmp_path / "vid.mp4"
-        
-        mock_image.return_value = MediaValidationResult(img_path, True, {"file_type": "image"})
-        mock_video.return_value = MediaValidationResult(vid_path, True, {"file_type": "video"})
-        
+
+        mock_image.return_value = MediaValidationResult(
+            img_path, True, {"file_type": "image"}
+        )
+        mock_video.return_value = MediaValidationResult(
+            vid_path, True, {"file_type": "video"}
+        )
+
         results = validate_media_batch([img_path, vid_path])
-        
+
         assert len(results) == 2
         assert mock_image.called
         assert mock_video.called
@@ -164,20 +183,22 @@ class TestBatchAndReport:
         """Test report generation from results."""
         results = [
             MediaValidationResult(
-                Path("i1.jpg"), 
-                True, 
+                Path("i1.jpg"),
+                True,
                 {
-                    "file_type": "image", 
-                    "width": 2000, 
+                    "file_type": "image",
+                    "width": 2000,
                     "height": 2000,  # Added height
-                    "actual_file_size": 20000
-                }
+                    "actual_file_size": 20000,
+                },
             ),
-            MediaValidationResult(Path("v1.mp4"), False, {"file_type": "video"}, issues=["Corrupt"]),
+            MediaValidationResult(
+                Path("v1.mp4"), False, {"file_type": "video"}, issues=["Corrupt"]
+            ),
         ]
-        
+
         report = generate_validation_report(results)
-        
+
         assert report["summary"]["total_files"] == 2
         assert report["summary"]["valid_files"] == 1
         assert report["summary"]["invalid_files"] == 1

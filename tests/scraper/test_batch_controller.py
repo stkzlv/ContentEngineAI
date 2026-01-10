@@ -1307,7 +1307,9 @@ class TestEmptyInputHandling:
 class TestSummaryLogging:
     """Tests for summary logging output."""
 
-    def test_summary_logged(self, mock_scraper, sample_search_params, sample_product_data):
+    def test_summary_logged(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
         """Test that summary is logged at end of batch."""
         config = BatchConfig(
             product_ids=["B0LOGSUMRY"],
@@ -1328,7 +1330,9 @@ class TestSummaryLogging:
             log_calls = [str(call).lower() for call in mock_log.call_args_list]
             assert any("summary" in call or "completed" in call for call in log_calls)
 
-    def test_duration_tracked(self, mock_scraper, sample_search_params, sample_product_data):
+    def test_duration_tracked(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
         """Test that duration is tracked in summary."""
         config = BatchConfig(
             product_ids=["B0DURATN01"],
