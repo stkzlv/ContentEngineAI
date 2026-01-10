@@ -112,3 +112,17 @@ This `GEMINI.md` is a **living document**. The agent SHOULD update it when:
 *   **Deviations**: If the codebase consistently deviates from the "Coding Standards" section, update the standards to reflect actual project reality.
 
 **Process**: To update, read the full file, plan the delta, and rewrite the file with preserved hierarchy.
+
+## 8. Standard Operating Procedures (Playbooks)
+
+When requested to perform standard tasks, consult the detailed playbooks in `.gemini/commands/`:
+
+*   **Bump Version**: `.gemini/commands/bump-version.md`
+*   **Commit Changes**: `.gemini/commands/commit.md`
+*   **Release**: `.gemini/commands/release.md`
+*   **Run Iteration**: `.gemini/commands/run-iteration.md`
+*   **Run Linters**: `.gemini/commands/run-linters.md`
+*   **Update Config**: `.gemini/commands/update-config.md`
+*   **Update Docs**: `.gemini/commands/update-docs.md`
+*   **Update PR**: `.gemini/commands/update-pr.md`
+*   **Update Tests**: `.gemini/commands/update-tests.md`
