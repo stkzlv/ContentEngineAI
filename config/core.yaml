@@ -46,17 +46,11 @@ output_structure:
     performance: "performance.json"
 
 # ============================================================================
-# OUTPUT STRUCTURE (Scraper System)
+# SCRAPER CONFIGURATION
 # ============================================================================
-scraper_output_config:
-  # Base directory for scraper outputs
-  base_directory: "outputs"
-  
-  # File naming patterns
-  file_patterns:
-    product_file: "{keyword}_products.json"
-    image_file: "{asin}_image_{index}.{ext}"
-    video_file: "{asin}_video_{index}.{ext}"
+# NOTE: Scraper-specific settings are in config/scraper.yaml
+# This includes: output_config, retry_config, rate_limiting, image_config,
+# video_config, download_config, validation_config, browser_config, etc.
 
 # ============================================================================
 # GLOBAL CLEANUP AND DIRECTORIES

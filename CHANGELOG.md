@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-01-10
+
+### Added
+- **Platform Detection**: Extensible registry pattern for product ID platform detection
+  - `src/scraper/base/platform_detector.py` - Registry with `@register_platform` decorator
+  - Amazon ASIN validation (B0/B1 prefix, 10-char alphanumeric)
+  - 30 unit tests for platform detection edge cases
+
+- **Scraper Test Suite**: Comprehensive test coverage for scraper modules
+  - `tests/scraper/test_platform_detector.py` - Platform detection tests (162 lines)
+  - `tests/scraper/test_batch_controller.py` - Batch processing tests (550+ lines)
+  - `tests/scraper/test_media_validator.py` - Media validation with FFprobe mocking
+  - `tests/integration/test_scraper_integration.py` - End-to-end workflow tests
+
+- **Scraper User Guide**: Comprehensive documentation at `docs/scraper-user-guide.md`
+
+- **Configurable Timeouts**: System timeouts for external commands via `config/core.yaml`
+  - FFprobe, xrandr, system_profiler, head_request timeouts
+
+### Changed
+- Scraper module version bumped to 2.1.0
+
 ## [0.20.0] - 2026-01-06
 
 ### Added

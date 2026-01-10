@@ -312,6 +312,25 @@ global_settings:
   # When false: all products with basic data are counted
   count_products_with_media: true
 
+  # ---- Batch Processing Configuration ----
+  # Controls the product collection loop behavior
+  batch_processing:
+    # Safety limit to prevent infinite scraping loops
+    # Maximum number of scraping attempts before stopping
+    # Affects: Loop termination, prevents runaway scraping
+    max_scrape_attempts: 50
+
+    # Prefetch multiplier for validation filtering
+    # Fetches N times more products than needed to account for validation failures
+    # Example: target=5 with multiplier=3 → fetch up to 15 products initially
+    # Affects: Success rate, reduces re-scraping rounds
+    prefetch_multiplier: 3
+
+    # Maximum products to fetch in a single batch
+    # Caps the batch size regardless of prefetch multiplier calculation
+    # Affects: Memory usage, request size, pagination behavior
+    max_batch_size: 15
+
   # ---- Browser Configuration ----
   # Controls browser window behavior and scraping timeouts
   browser_config:

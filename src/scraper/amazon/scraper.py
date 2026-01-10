@@ -248,7 +248,12 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Loop scraping until target_count validated products are collected"""
         validated_products: list[ProductData] = []
         total_scraped = 0
-        max_attempts = 50  # Safety limit to prevent infinite loops
+
+        # Get batch processing config values
+        batch_cfg = CONFIG.get("global_settings", {}).get("batch_processing", {})
+        max_attempts = batch_cfg.get("max_scrape_attempts", 50)
+        prefetch_multiplier = batch_cfg.get("prefetch_multiplier", 3)
+        max_batch_size = batch_cfg.get("max_batch_size", 15)
 
         self.logger.info(
             f"🎯 Target: {target_count} products that pass validation requirements"
@@ -256,7 +261,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         while len(validated_products) < target_count and total_scraped < max_attempts:
             remaining = target_count - len(validated_products)
-            batch_size = min(remaining * 3, 15)  # Request 3x to account for filtering
+            batch_size = min(remaining * prefetch_multiplier, max_batch_size)
 
             if DEBUG_MODE:
                 self.logger.info(
@@ -264,8 +269,10 @@ class BotasaurusAmazonScraper(BaseScraper):
                     f"validated | Requesting {batch_size} more products..."
                 )
 
-            # Scrape a batch
-            batch = self._scrape_single_pass(keyword, search_params, batch_size)
+            # Scrape a batch (fetch 3x but only download media for remaining)
+            batch = self._scrape_single_pass(
+                keyword, search_params, batch_size, target_download_count=remaining
+            )
 
             if not batch:
                 self.logger.warning(
@@ -300,6 +307,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         search_params: SearchParameters | None,
         products_limit: int,
         filter_validated: bool = True,
+        target_download_count: int | None = None,
     ) -> list[ProductData]:
         """Single-pass scraping with download and validation
 
@@ -309,6 +317,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             search_params: Search parameters for filtering
             products_limit: Number of products to scrape
             filter_validated: If True, return only products that pass validation
+            target_download_count: Max products to download media for (None = all)
 
         Returns:
         -------
@@ -394,6 +403,19 @@ class BotasaurusAmazonScraper(BaseScraper):
                             self.logger.info(
                                 f"✅ Added {result['asin']} to media download queue"
                             )
+
+                # Limit downloads to target_download_count if specified
+                if (
+                    target_download_count is not None
+                    and len(media_download_tasks) > target_download_count
+                ):
+                    if DEBUG_MODE:
+                        task_count = len(media_download_tasks)
+                        self.logger.info(
+                            f"📉 Limiting downloads: {task_count} -> "
+                            f"{target_download_count} products"
+                        )
+                    media_download_tasks = media_download_tasks[:target_download_count]
 
                 if DEBUG_MODE:
                     self.logger.info(
