@@ -9,8 +9,10 @@ import os
 import random
 import shutil
 import sys
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from dotenv import load_dotenv
 
@@ -30,9 +32,42 @@ from src.video.producer.utils import (
     load_profile_pool,
     select_profile_for_product,
     setup_logging,
+    validate_profiles,
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ProductResult:
+    """Result of processing a single product."""
+
+    id: str
+    status: str  # SUCCESS, FAILED, SKIPPED
+    profile: str
+    duration_sec: float = 0.0
+    error: str | None = None
+    output_path: str | None = None
+
+
+@dataclass
+class BatchSummary:
+    """Summary of a batch processing run."""
+
+    total_attempted: int = 0
+    succeeded_count: int = 0
+    failed_count: int = 0
+    skipped_count: int = 0
+    total_duration_sec: float = 0.0
+    average_duration_sec: float = 0.0
+    start_time: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    end_time: str | None = None
+    profile_distribution: dict[str, int] = field(default_factory=dict)
+    results: list[ProductResult] = field(default_factory=list)
+
+    def to_json(self) -> str:
+        """Convert summary to JSON string."""
+        return json.dumps(asdict(self), indent=2)
 
 
 def discover_products_for_batch(outputs_dir: Path) -> list[tuple[Path, ProductData]]:
@@ -463,6 +498,12 @@ async def main():
             "optimized: Platform-specific SEO-tailored metadata."
         ),
     )
+    parser.add_argument(
+        "--output-format",
+        choices=["text", "json"],
+        default="text",
+        help="Format for batch summary output (default: text).",
+    )
 
     args = parser.parse_args()
 
@@ -632,9 +673,8 @@ async def main():
         )
         sys.exit(1)
 
-    succeeded, failed, skipped = 0, 0, 0
-    skipped_products = []
-    failed_products = []
+    batch_summary = BatchSummary(total_attempted=len(indices))
+    batch_start_time = datetime.now(UTC)
     session = await get_http_session()  # Use global connection pool
 
     # Initialize profile selection for batch mode
@@ -656,11 +696,21 @@ async def main():
                 f"({len(profile_pool)} profiles)"
             )
         except ValueError as e:
-            logger.error(f"Invalid profile pool configuration: {e}")
+            logger.critical(f"Invalid profile pool configuration: {e}")
             sys.exit(1)
 
         # Initialize usage tracker
         profile_tracker = ProfileUsageTracker()
+    else:
+        # Validate fixed profile before starting
+        if profile_name is None:
+            logger.critical("Profile name is required in fixed profile mode")
+            sys.exit(1)
+        try:
+            validate_profiles([profile_name], config)
+        except ValueError as e:
+            logger.critical(f"Invalid profile selection: {e}")
+            sys.exit(1)
 
     # Enhanced progress reporting for batch mode
     total_products = len(indices)
@@ -683,26 +733,27 @@ async def main():
         # Select profile for this product
         if args.batch and args.random_profile:
             # Random profile selection (deterministic by product ID)
-            assert profile_pool is not None  # type narrowing
-            assert profile_tracker is not None  # type narrowing
+            # profile_pool and profile_tracker are guaranteed set in this branch
             current_profile = select_profile_for_product(
                 product_id=product_id,
-                profile_pool=profile_pool,
+                profile_pool=cast(list[str], profile_pool),
                 config=config,
             )
-            profile_tracker.record_usage(current_profile)
+            cast(ProfileUsageTracker, profile_tracker).record_usage(current_profile)
             logger.info(
                 f"[{i+1}/{total_products}] Processing {product_id} "
                 f"with profile '{current_profile}'"
             )
         else:
-            # Fixed profile mode
-            current_profile = profile_name
+            # Fixed profile mode (profile_name validated at startup)
+            current_profile = cast(str, profile_name)
             if args.batch:
                 logger.info(
                     f"[{i+1}/{total_products}] Processing product: {product_id}"
                 )
 
+        product_start_time = datetime.now(UTC)
+        product_error = None
         try:
             result_path = await asyncio.wait_for(
                 create_video_for_product(
@@ -719,34 +770,59 @@ async def main():
                 timeout=config.pipeline_timeout_sec,
             )
         except TimeoutError:
-            logger.error(
-                f"Pipeline timed out after {config.pipeline_timeout_sec} seconds "
-                f"for product {product_id}"
-            )
+            product_error = f"Pipeline timed out after {config.pipeline_timeout_sec}s"
+            logger.error(f"{product_error} for product {product_id}")
             result_path = None
         except Exception as e:
+            product_error = str(e)
             logger.error(
                 f"Unexpected error processing product {product_id}: {e}", exc_info=True
             )
             result_path = None
 
+        duration = (datetime.now(UTC) - product_start_time).total_seconds()
+
         if result_path == "SKIPPED":
-            skipped += 1
-            skipped_products.append(product_id)
+            batch_summary.skipped_count += 1
+            batch_summary.results.append(
+                ProductResult(
+                    id=product_id,
+                    status="SKIPPED",
+                    profile=current_profile,
+                    duration_sec=duration,
+                )
+            )
             if args.batch:
                 logger.info(
                     f"[{i+1}/{total_products}] Skipped {product_id} "
                     f"(insufficient media)"
                 )
         elif result_path:
-            succeeded += 1
+            batch_summary.succeeded_count += 1
+            batch_summary.results.append(
+                ProductResult(
+                    id=product_id,
+                    status="SUCCESS",
+                    profile=current_profile,
+                    duration_sec=duration,
+                    output_path=str(result_path),
+                )
+            )
             if args.batch:
                 logger.info(
                     f"[{i+1}/{total_products}] Successfully completed {product_id}"
                 )
         elif not args.step:
-            failed += 1
-            failed_products.append(product_id)
+            batch_summary.failed_count += 1
+            batch_summary.results.append(
+                ProductResult(
+                    id=product_id,
+                    status="FAILED",
+                    profile=current_profile,
+                    duration_sec=duration,
+                    error=product_error,
+                )
+            )
             if args.batch:
                 logger.error(f"[{i+1}/{total_products}] Failed to process {product_id}")
                 if args.fail_fast:
@@ -763,30 +839,61 @@ async def main():
             )
             await asyncio.sleep(delay)
 
-    logger.info("\n--- Run Summary ---")
-    if args.batch:
-        if args.random_profile:
-            logger.info("Batch Processing Summary (Random Profile Selection)")
-        else:
-            logger.info(f"Batch Processing Summary (Profile: {profile_name})")
-    logger.info(f"Total Products Processed: {len(indices)}")
-    logger.info(f"Succeeded: {succeeded}")
-    logger.info(f"Failed: {failed}")
-    logger.info(f"Skipped: {skipped}")
-    if skipped_products:
-        logger.info(
-            f"Skipped products (insufficient media): {', '.join(skipped_products)}"
-        )
-    if failed_products:
-        logger.info(f"Failed products: {', '.join(failed_products)}")
+    # Calculate final summary metrics
+    batch_end_time = datetime.now(UTC)
+    batch_summary.end_time = batch_end_time.isoformat()
+    batch_summary.total_duration_sec = (
+        batch_end_time - batch_start_time
+    ).total_seconds()
 
-    # Profile usage statistics (only for random profile mode)
-    if args.batch and args.random_profile and profile_tracker:
-        logger.info("\n" + profile_tracker.format_summary())
+    if batch_summary.results:
+        batch_summary.average_duration_sec = sum(
+            r.duration_sec for r in batch_summary.results
+        ) / len(batch_summary.results)
+
+    if profile_tracker:
+        batch_summary.profile_distribution = profile_tracker.get_counts()
+
+    # Output summary based on requested format
+    if args.output_format == "json":
+        # Write pure JSON to stdout for machine parsing
+        print(batch_summary.to_json())
+    else:
+        # Standard text summary
+        logger.info("\n--- Run Summary ---")
+        if args.batch:
+            if args.random_profile:
+                logger.info("Batch Processing Summary (Random Profile Selection)")
+            else:
+                logger.info(f"Batch Processing Summary (Profile: {profile_name})")
+
+        logger.info(f"Total Products Attempted: {batch_summary.total_attempted}")
+        logger.info(f"Succeeded: {batch_summary.succeeded_count}")
+        logger.info(f"Failed: {batch_summary.failed_count}")
+        logger.info(f"Skipped: {batch_summary.skipped_count}")
+
+        skipped_ids = [r.id for r in batch_summary.results if r.status == "SKIPPED"]
+        if skipped_ids:
+            logger.info(
+                f"Skipped products (insufficient media): {', '.join(skipped_ids)}"
+            )
+
+        failed_results = [r for r in batch_summary.results if r.status == "FAILED"]
+        if failed_results:
+            logger.info("Failed products:")
+            for r in failed_results:
+                logger.info(f"  - {r.id}: {r.error}")
+
+        logger.info(f"Total Duration: {batch_summary.total_duration_sec:.2f}s")
+        logger.info(f"Average Duration: {batch_summary.average_duration_sec:.2f}s/item")
+
+        # Profile usage statistics (only for random profile mode)
+        if args.batch and args.random_profile and profile_tracker:
+            logger.info("\n" + profile_tracker.format_summary())
 
     if args.step:
         logger.info(f"NOTE: Run was limited to debug step '{args.step}'.")
-    if args.batch and args.fail_fast and failed > 0:
+    if args.batch and args.fail_fast and batch_summary.failed_count > 0:
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
     logger.info("Video producer completed successfully")

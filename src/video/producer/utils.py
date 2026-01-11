@@ -1,6 +1,7 @@
 # src/video/producer/utils.py
 """Producer utility functions for logging and validation."""
 
+import difflib
 import logging
 import random
 from pathlib import Path
@@ -234,6 +235,36 @@ class ProfileUsageTracker:
         return "\n".join(lines)
 
 
+def validate_profiles(profile_names: list[str], config: VideoConfig) -> None:
+    """Validate that all provided profiles exist in the configuration.
+
+    Args:
+    ----
+        profile_names: List of profile names to validate
+        config: VideoConfig instance
+
+    Raises:
+    ------
+        ValueError: If any profile does not exist, includes suggestions.
+
+    """
+    available = list(config.video_profiles.keys())
+    invalid_profiles = [p for p in profile_names if p not in config.video_profiles]
+
+    if invalid_profiles:
+        error_parts = []
+        for p in invalid_profiles:
+            suggestions = difflib.get_close_matches(p, available, n=3, cutoff=0.6)
+            part = f"'{p}'"
+            if suggestions:
+                part += f" (did you mean: {', '.join(suggestions)}?)"
+            error_parts.append(part)
+
+        msg = f"Invalid profile(s): {', '.join(error_parts)}."
+        msg += f"\nAvailable profiles: {', '.join(available)}"
+        raise ValueError(msg)
+
+
 def select_profile_for_product(
     product_id: str,
     profile_pool: list[str],
@@ -263,13 +294,7 @@ def select_profile_for_product(
         raise ValueError("Profile pool cannot be empty")
 
     # Validate all profiles exist in config
-    invalid_profiles = [p for p in profile_pool if p not in config.video_profiles]
-    if invalid_profiles:
-        available = list(config.video_profiles.keys())
-        raise ValueError(
-            f"Invalid profiles in pool: {invalid_profiles}. "
-            f"Available profiles: {available}"
-        )
+    validate_profiles(profile_pool, config)
 
     # Use hash of product ID for deterministic seeding
     seed = hash(product_id)
@@ -318,12 +343,6 @@ def load_profile_pool(
         pool = list(config.video_profiles.keys())
 
     # Validate all profiles exist
-    invalid_profiles = [p for p in pool if p not in config.video_profiles]
-    if invalid_profiles:
-        available = list(config.video_profiles.keys())
-        raise ValueError(
-            f"Invalid profiles in pool: {invalid_profiles}. "
-            f"Available profiles: {available}"
-        )
+    validate_profiles(pool, config)
 
     return pool
