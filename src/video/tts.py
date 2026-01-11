@@ -20,6 +20,7 @@ disables those that aren't available, with appropriate logging.
 """
 
 import asyncio
+import html
 import logging
 import os
 import random
@@ -331,7 +332,13 @@ async def _generate_google_cloud_speech(
         return None
 
     ensure_dirs_exist(output_path)
-    synthesis_input = texttospeech.SynthesisInput(text=text)
+    # Use SSML with break at the end to prevent last word truncation
+    # The break time uses last_word_buffer_sec from config (default 0.3s)
+    # Escape text for SSML to handle special characters like <, >, &
+    break_time_ms = int(settings.last_word_buffer_sec * 1000)
+    escaped_text = html.escape(text)
+    ssml_text = f"<speak>{escaped_text}<break time='{break_time_ms}ms'/></speak>"
+    synthesis_input = texttospeech.SynthesisInput(ssml=ssml_text)
     # Create voice selection parameters
     voice_params_kwargs = {
         "language_code": selected_voice.language_codes[0],

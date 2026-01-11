@@ -268,15 +268,24 @@ whisper_settings:
   language: "en"
 
   # Beam size for Whisper search algorithm
+  # Higher = better accuracy but slower processing
+  # Range: 1 (fastest, greedy) to 10 (most accurate), default 5
+  # Use 1-3 for fast drafts, 5 for balanced, 7-10 for final quality
   beam_size: 5
 
   # Whether to use 16-bit floating point precision
   fp16: false
 
   # Threshold for compression ratio to detect repetitive text
+  # Lower values = more aggressive filtering of repeated phrases
+  # Range: 1.5 (strict) to 3.5 (permissive), default 2.4
+  # Increase if valid repetitive content is being filtered out
   compression_ratio_threshold: 2.4
 
   # Threshold for log probability to filter low-confidence words
+  # More negative = more permissive (keeps lower confidence words)
+  # Range: -2.0 (very permissive) to 0.0 (strict), default -1.0
+  # Decrease if words are being dropped; increase if garbage text appears
   logprob_threshold: -1.0
 
   # Threshold for detecting silence vs speech
@@ -289,7 +298,10 @@ whisper_settings:
   # Whisper task type: "transcribe" or "translate"
   task: "transcribe"
 
-  # Patience parameter for beam search (null = auto)
+  # Patience parameter for beam search
+  # null = automatic (recommended), or 0.0-2.0 for manual control
+  # Higher values explore more hypotheses before settling on answer
+  # Only set if you understand beam search; null works well for most cases
   patience: null
 
   # Timeout settings for Whisper processing
