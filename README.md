@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](docs/versioning.md)
 
-**Version**: 0.20.0 | **License**: MIT | **Status**: Pre-Production
+**Version**: 0.22.0 | **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.20.0)**: Network resilience with retry + circuit breaker patterns, unified config manager (CLI > ENV > YAML), secret masking in logs, and Claude Code slash commands.
+> **🚀 Latest Update (v0.22.0)**: TTS audio truncation fix with SSML buffering, comprehensive video producer test suite (1400+ tests), and new CLI documentation.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
@@ -125,6 +125,7 @@ graph TD
 |-------|-------------|
 | **[🛠️ Installation](docs/installation.md)** | Complete installation and setup guide |
 | **[⚙️ Configuration](docs/configuration.md)** | Configuration reference and options |
+| **[🎬 Video Producer](docs/video-producer.md)** | Video production CLI reference and profiles |
 | **[🔄 Batch Processing](docs/batch-processing.md)** | Batch processing workflows and automation |
 | **[📤 Publisher](docs/publisher.md)** | Social media publishing via Late.dev |
 | **[🏗️ Architecture](docs/architecture.md)** | Technical architecture and system design |

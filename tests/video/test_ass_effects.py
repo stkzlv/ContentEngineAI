@@ -110,7 +110,9 @@ class TestASSEffectSelection:
         )
 
         effects = generator._selected_effects
-        assert all(not v for v in effects.values()), "Minimal preset should have no effects"
+        assert all(
+            not v for v in effects.values()
+        ), "Minimal preset should have no effects"
 
     def test_exactly_one_effect_per_video(self, modern_config, frame_size):
         """Each video should have exactly one effect (per REQUIREMENTS.md)."""
@@ -120,7 +122,9 @@ class TestASSEffectSelection:
 
         effects = generator._selected_effects
         enabled_effects = [k for k, v in effects.items() if v]
-        assert len(enabled_effects) <= 1, f"Expected at most 1 effect, got {enabled_effects}"
+        assert (
+            len(enabled_effects) <= 1
+        ), f"Expected at most 1 effect, got {enabled_effects}"
 
     def test_random_effect_deterministic(self, random_config, frame_size):
         """Random effect selection should be deterministic per product_id."""
@@ -131,11 +135,13 @@ class TestASSEffectSelection:
             config=random_config, frame_size=frame_size, product_id="PRODUCT123"
         )
 
-        assert gen1._selected_effects == gen2._selected_effects, (
-            "Same product_id should yield same effect selection"
-        )
+        assert (
+            gen1._selected_effects == gen2._selected_effects
+        ), "Same product_id should yield same effect selection"
 
-    def test_different_products_may_have_different_effects(self, random_config, frame_size):
+    def test_different_products_may_have_different_effects(
+        self, random_config, frame_size
+    ):
         """Different products may get different random effects."""
         effects_seen = set()
         for i in range(10):
@@ -172,9 +178,9 @@ class TestKaraokeEffects:
         # Each word should have a timing tag
         kf_matches = re.findall(r"\\kf\d+", result)
         words = text.split()
-        assert len(kf_matches) == len(words), (
-            f"Expected {len(words)} \\kf tags, got {len(kf_matches)}"
-        )
+        assert len(kf_matches) == len(
+            words
+        ), f"Expected {len(words)} \\kf tags, got {len(kf_matches)}"
 
     def test_karaoke_timing_calculation(self, modern_config, frame_size):
         """Karaoke timing should be evenly distributed across words."""
@@ -194,7 +200,9 @@ class TestKaraokeEffects:
         # Each timing should be roughly equal (100cs each, with min/max constraints)
         for t in timings:
             timing_value = int(t)
-            assert 20 <= timing_value <= 200, f"Timing {timing_value} outside valid range"
+            assert (
+                20 <= timing_value <= 200
+            ), f"Timing {timing_value} outside valid range"
 
     def test_karaoke_single_word_no_effect(self, modern_config, frame_size):
         """Single word should not have karaoke effects."""
@@ -254,9 +262,7 @@ class TestFadeEffects:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
 
@@ -273,7 +279,9 @@ class TestFadeEffects:
 class TestTypewriterEffect:
     """Tests for typewriter reveal effect."""
 
-    def test_typewriter_alpha_transition(self, animated_config, frame_size, sample_segments):
+    def test_typewriter_alpha_transition(
+        self, animated_config, frame_size, sample_segments
+    ):
         """Typewriter should use alpha transitions."""
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
@@ -283,16 +291,14 @@ class TestTypewriterEffect:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
 
         # Typewriter uses alpha transitions
-        assert "\\alpha" in dialogue or "\\t(" in dialogue, (
-            f"Expected alpha transition in: {dialogue}"
-        )
+        assert (
+            "\\alpha" in dialogue or "\\t(" in dialogue
+        ), f"Expected alpha transition in: {dialogue}"
 
 
 class TestASSSyntaxValidation:
@@ -358,9 +364,7 @@ class TestASSSyntaxValidation:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
 
@@ -369,7 +373,9 @@ class TestASSSyntaxValidation:
         assert ",Default,," in dialogue, "Missing style reference"
         assert "\\pos(" in dialogue, "Missing position tag"
 
-    def test_position_tag_coordinates(self, minimal_config, frame_size, sample_segments):
+    def test_position_tag_coordinates(
+        self, minimal_config, frame_size, sample_segments
+    ):
         """Position tag should have valid pixel coordinates."""
         generator = UnifiedSubtitleGenerator(
             config=minimal_config, frame_size=frame_size, product_id="TEST001"
@@ -378,9 +384,7 @@ class TestASSSyntaxValidation:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
 
@@ -409,9 +413,7 @@ class TestMovementEffect:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
         assert "\\move(" in dialogue, f"Expected \\move tag in: {dialogue}"
@@ -421,7 +423,9 @@ class TestMovementEffect:
 class TestScalePulseEffect:
     """Tests for scale pulse effect."""
 
-    def test_scale_pulse_uses_transforms(self, animated_config, frame_size, sample_segments):
+    def test_scale_pulse_uses_transforms(
+        self, animated_config, frame_size, sample_segments
+    ):
         """Scale pulse should use transform tags."""
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
@@ -431,9 +435,7 @@ class TestScalePulseEffect:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
         assert "\\t(" in dialogue, f"Expected transform tag in: {dialogue}"
@@ -444,7 +446,9 @@ class TestScalePulseEffect:
 class TestGlowEffect:
     """Tests for glow/color transition effect."""
 
-    def test_glow_uses_color_transition(self, animated_config, frame_size, sample_segments):
+    def test_glow_uses_color_transition(
+        self, animated_config, frame_size, sample_segments
+    ):
         """Glow effect should use color transitions."""
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
@@ -454,9 +458,7 @@ class TestGlowEffect:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
         assert "\\t(" in dialogue, f"Expected transform tag in: {dialogue}"
@@ -476,9 +478,7 @@ class TestRotationBounceEffect:
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
-        dialogue = generator._create_dialogue_line(
-            sample_segments[0], position, colors
-        )
+        dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
         assert dialogue is not None, "Dialogue should not be None"
         assert "\\t(" in dialogue, f"Expected transform tag in: {dialogue}"
@@ -488,7 +488,9 @@ class TestRotationBounceEffect:
 class TestStylePresetApplication:
     """Tests for style preset configuration."""
 
-    def test_minimal_vs_animated_presets_differ(self, minimal_config, animated_config, frame_size):
+    def test_minimal_vs_animated_presets_differ(
+        self, minimal_config, animated_config, frame_size
+    ):
         """Minimal and animated presets should have different effect configurations."""
         gen_minimal = UnifiedSubtitleGenerator(
             config=minimal_config, frame_size=frame_size, product_id="TEST001"

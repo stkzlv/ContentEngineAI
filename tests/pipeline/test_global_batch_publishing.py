@@ -30,6 +30,13 @@ pytestmark = pytest.mark.integration
 # ============================================================================
 
 
+@pytest.fixture(autouse=True)
+def mock_asyncio_sleep():
+    """Mock asyncio.sleep to prevent slow stagger delays in tests."""
+    with patch("asyncio.sleep", return_value=None):
+        yield
+
+
 @pytest.fixture
 def temp_outputs_dir():
     """Create temporary directory for test outputs."""
@@ -287,7 +294,7 @@ async def test_cleanup_removes_directory_after_successful_publish(
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
-    ):
+            ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         publisher.get_accounts = AsyncMock(
@@ -346,7 +353,7 @@ async def test_cleanup_preserves_directory_on_partial_failure(
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
-    ):
+            ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         publisher.get_accounts = AsyncMock(
@@ -416,7 +423,7 @@ async def test_vercel_token_loaded_from_environment(
             },
         ),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-    ):
+            ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         mock_create_publisher.return_value = publisher

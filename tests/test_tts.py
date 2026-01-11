@@ -127,7 +127,7 @@ class TestSSMLGeneration:
     def test_ssml_buffer_time_calculation(self):
         """Test buffer time calculation from seconds to milliseconds."""
         test_cases = [
-            (0.3, 300),   # Default
+            (0.3, 300),  # Default
             (0.5, 500),
             (1.0, 1000),
             (0.1, 100),

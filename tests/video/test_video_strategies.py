@@ -1,13 +1,16 @@
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.video.assembler.video_strategies import (
+    MixedMediaStrategy,
     SequentialStrategy,
     SingleBestStrategy,
-    MixedMediaStrategy,
     VideoFirstFallbackStrategy,
-    VideoStrategyFactory
+    VideoStrategyFactory,
 )
+
 
 @pytest.fixture
 def mock_inspector():
@@ -15,6 +18,7 @@ def mock_inspector():
     inspector.get_media_duration = AsyncMock()
     inspector.is_video.side_effect = lambda p: p.suffix == ".mp4"
     return inspector
+
 
 @pytest.fixture
 def mock_config():
@@ -26,6 +30,7 @@ def mock_config():
     config.video_settings.frame_rate = 30
     config.video_settings.min_visual_segment_duration_sec = 2.0
     return config
+
 
 @pytest.mark.asyncio
 class TestSequentialStrategy:
@@ -43,22 +48,33 @@ class TestSequentialStrategy:
         assert timed_visuals[0] == (images[0], 5.0, False)
         assert "no videos" in info
 
-    @pytest.mark.parametrize("target,duration,expected_count,expected_mode", [
-        (10.0, 10.0, 1, "perfect match"),
-        (10.0, 4.0, 3, "looped 3x"),
-        (10.0, 15.0, 1, "trimmed"),
-    ])
-    async def test_single_video(self, mock_inspector, mock_config, target, duration, expected_count, expected_mode):
+    @pytest.mark.parametrize(
+        "target,duration,expected_count,expected_mode",
+        [
+            (10.0, 10.0, 1, "perfect match"),
+            (10.0, 4.0, 3, "looped 3x"),
+            (10.0, 15.0, 1, "trimmed"),
+        ],
+    )
+    async def test_single_video(
+        self,
+        mock_inspector,
+        mock_config,
+        target,
+        duration,
+        expected_count,
+        expected_mode,
+    ):
         mock_inspector.get_media_duration.return_value = duration
         strategy = SequentialStrategy(mock_inspector, mock_config, "test_prod")
         videos = [Path("vid1.mp4")]
         timed_visuals, info = await strategy.assemble(videos, [], target)
-        
+
         if "trimmed" in expected_mode:
             assert timed_visuals[0][1] == target
         elif "perfect" in expected_mode:
             assert timed_visuals[0][1] == duration
-        
+
         assert expected_mode in info
 
     async def test_single_video_loop_and_images_v2(self, mock_inspector, mock_config):
@@ -124,6 +140,7 @@ class TestSequentialStrategy:
         assert timed_visuals[-1][1] == 5.0
         assert "last trimmed" in info
 
+
 @pytest.mark.asyncio
 class TestSingleBestStrategy:
     async def test_no_videos_fallback(self, mock_inspector, mock_config):
@@ -138,17 +155,22 @@ class TestSingleBestStrategy:
         timed_visuals, info = await strategy.assemble([], [], 5.0)
         assert "no media available" in info
 
-    @pytest.mark.parametrize("durations,target,expected_mode", [
-        ([5.0, 10.0], 10.0, "1 video, 10.0s"),
-        ([5.0, 20.0], 10.0, "trimmed"),
-        ([5.0, 3.0], 10.0, "looped"),
-    ])
-    async def test_selection(self, mock_inspector, mock_config, durations, target, expected_mode):
+    @pytest.mark.parametrize(
+        "durations,target,expected_mode",
+        [
+            ([5.0, 10.0], 10.0, "1 video, 10.0s"),
+            ([5.0, 20.0], 10.0, "trimmed"),
+            ([5.0, 3.0], 10.0, "looped"),
+        ],
+    )
+    async def test_selection(
+        self, mock_inspector, mock_config, durations, target, expected_mode
+    ):
         mock_inspector.get_media_duration.side_effect = durations
         strategy = SingleBestStrategy(mock_inspector, mock_config, "test_prod")
         videos = [Path(f"vid{i}.mp4") for i in range(len(durations))]
         timed_visuals, info = await strategy.assemble(videos, [], target)
-        
+
         best_idx = durations.index(max(durations))
         assert timed_visuals[0][0] == videos[best_idx]
         assert expected_mode in info
@@ -159,6 +181,7 @@ class TestSingleBestStrategy:
         timed_visuals, info = await strategy.assemble([Path("vid1.mp4")], [], 10.0)
         assert len(timed_visuals) == 3
         assert timed_visuals[2][1] == 2.0
+
 
 @pytest.mark.asyncio
 class TestMixedMediaStrategy:
@@ -173,7 +196,7 @@ class TestMixedMediaStrategy:
         strategy = MixedMediaStrategy(mock_inspector, mock_config, "test_prod")
         videos = [Path("vid1.mp4")]
         timed_visuals, info = await strategy.assemble(videos, [], 12.0)
-        assert len(timed_visuals) == 3 # 5, 5, 2
+        assert len(timed_visuals) == 3  # 5, 5, 2
         assert timed_visuals[2][1] == 2.0
         assert "no images" in info
 
@@ -188,7 +211,7 @@ class TestMixedMediaStrategy:
         videos = [Path("vid1.mp4"), Path("vid2.mp4")]
         images = [Path("img1.jpg")]
         timed_visuals, info = await strategy.assemble(videos, images, 15.0)
-        assert len(timed_visuals) == 2 # Only videos
+        assert len(timed_visuals) == 2  # Only videos
         assert "no space for images" in info
 
     async def test_interleaving_many_images(self, mock_inspector, mock_config):
@@ -201,6 +224,7 @@ class TestMixedMediaStrategy:
         assert timed_visuals[1][2] is True
         assert timed_visuals[2][2] is False
         assert timed_visuals[3][2] is False
+
 
 @pytest.mark.asyncio
 class TestVideoFirstFallbackStrategy:
@@ -223,7 +247,9 @@ class TestVideoFirstFallbackStrategy:
         assert timed_visuals[-1][1] == 5.0
         assert "trimmed" in info
 
-    async def test_videos_exceed_trimming_min_duration(self, mock_inspector, mock_config):
+    async def test_videos_exceed_trimming_min_duration(
+        self, mock_inspector, mock_config
+    ):
         mock_inspector.get_media_duration.side_effect = [10.0, 1.5]
         mock_config.video_settings.min_last_video_duration = 1.0
         strategy = VideoFirstFallbackStrategy(mock_inspector, mock_config, "test_prod")
@@ -258,13 +284,16 @@ class TestVideoFirstFallbackStrategy:
         assert len(timed_visuals) == 1
         assert "videos only" in info
 
+
 class TestVideoStrategyFactory:
     def test_factory_creation(self, mock_inspector, mock_config):
         factory = VideoStrategyFactory(mock_inspector, mock_config, "test_prod")
         assert isinstance(factory.get_strategy("sequential"), SequentialStrategy)
         assert isinstance(factory.get_strategy("single_best"), SingleBestStrategy)
         assert isinstance(factory.get_strategy("mixed"), MixedMediaStrategy)
-        assert isinstance(factory.get_strategy("video_first_fallback"), VideoFirstFallbackStrategy)
-        
+        assert isinstance(
+            factory.get_strategy("video_first_fallback"), VideoFirstFallbackStrategy
+        )
+
         with pytest.raises(KeyError):
             factory.get_strategy("invalid_mode")
