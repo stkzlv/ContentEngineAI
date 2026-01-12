@@ -294,7 +294,7 @@ async def test_cleanup_removes_directory_after_successful_publish(
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
-            ):
+    ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         publisher.get_accounts = AsyncMock(
@@ -353,7 +353,7 @@ async def test_cleanup_preserves_directory_on_partial_failure(
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
-            ):
+    ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         publisher.get_accounts = AsyncMock(
@@ -423,7 +423,7 @@ async def test_vercel_token_loaded_from_environment(
             },
         ),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-            ):
+    ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
         mock_create_publisher.return_value = publisher
