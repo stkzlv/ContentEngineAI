@@ -44,7 +44,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
 
 ## Enhancement Tasks
 
-- [ ] 7. Add unit tests for video assembly strategies
+- [x] 7. Add unit tests for video assembly strategies
   - File: tests/video/test_video_strategies.py (new)
   - Test all four assembly strategies with edge cases
   - Test duration matching, fallback behavior, transition handling
@@ -53,7 +53,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 1, 2, 3, 4, 5, 6_
   - _Prompt: Role: QA Engineer | Task: Create comprehensive unit tests for VideoAssemblyStrategy classes covering: SequentialStrategy with 0/1/many videos, SingleBestStrategy duration handling, MixedMediaStrategy interleaving, VideoFirstFallbackStrategy cascading | Restrictions: Mock FFmpeg calls, use pytest parametrize, test edge cases (empty inputs, single item) | Success: 100% coverage of video_strategies.py_
 
-- [ ] 8. Add unit tests for Freesound client
+- [x] 8. Add unit tests for Freesound client
   - File: tests/audio/test_freesound_client.py (new)
   - Test OAuth2 token refresh, circuit breaker behavior
   - Test search with duration filtering, download fallback chain
@@ -62,7 +62,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 11, 12, 13, 14, 15_
   - _Prompt: Role: QA Engineer | Task: Create unit tests for FreesoundClient covering: OAuth2 token refresh (success, expired, failure), circuit breaker state transitions, search with duration matching, download fallback chain (OAuth2 → API key → local) | Restrictions: Use aioresponses for HTTP mocking, test async methods properly, maintain isolation | Success: All OAuth2 and circuit breaker scenarios tested_
 
-- [ ] 9. Add unit tests for subtitle positioning
+- [x] 9. Add unit tests for subtitle positioning
   - File: tests/video/test_subtitle_positioning.py (new)
   - Test anchor positions, content-aware positioning
   - Test two-part subtitle configuration
@@ -71,7 +71,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 7, 8_
   - _Prompt: Role: QA Engineer | Task: Create unit tests for UnifiedSubtitleConfig and positioning logic covering: all anchor positions (top, center, bottom, above/below_content), margin calculations, content-aware positioning with visual bounds, two-part subtitle upper/lower line positioning | Restrictions: Test edge cases (zero margin, full-frame content), use pytest fixtures | Success: All positioning scenarios tested_
 
-- [ ] 10. Add unit tests for batch processing
+- [x] 10. Add unit tests for batch processing
   - File: tests/video/test_batch_producer.py (new)
   - Test product discovery, profile randomization
   - Test fail-fast behavior, progress tracking
@@ -80,7 +80,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 17, 18, 19, 20, 21_
   - _Prompt: Role: QA Engineer | Task: Create unit tests for batch processing covering: product discovery (valid/invalid data.json, skip directories), profile randomization determinism (same product → same profile), ProfileUsageTracker statistics, fail-fast vs graceful degradation | Restrictions: Use temp directories, mock process_product calls, test progress format | Success: All batch scenarios tested_
 
-- [ ] 11. Add integration test for full video production pipeline
+- [x] 11. Add integration test for full video production pipeline
   - File: tests/integration/test_producer_integration.py (new)
   - Test complete pipeline: data.json → final video
   - Use mock HTTP responses for external services
@@ -89,7 +89,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 1-26 (full pipeline)_
   - _Prompt: Role: QA Engineer | Task: Create integration test that mocks external services (LLM, TTS, Freesound) and verifies: media gathering, script generation, voiceover creation, subtitle generation, music download, video assembly, subtitle application | Restrictions: Use temp output directory, mock all network calls, verify output video exists | Success: Full pipeline tested without real API calls_
 
-- [ ] 12. Add ASS effect integration tests
+- [x] 12. Add ASS effect integration tests
   - File: tests/video/test_ass_effects.py (new)
   - Test karaoke timing, fade effects, style presets
   - Verify generated ASS syntax is valid
@@ -98,7 +98,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 9, 10_
   - _Prompt: Role: QA Engineer | Task: Create tests for ASS effect generation covering: karaoke word timing (\kf tags), fade in/out (\fad tags), style preset application (minimal vs animated), typewriter character reveal | Restrictions: Validate ASS syntax, test with real subtitle text, verify timing calculations | Success: ASS output validates against spec_
 
-- [ ] 13. Update docs/video-producer.md with comprehensive guide
+- [x] 13. Update docs/video-producer.md with comprehensive guide
   - File: docs/video-producer.md (new or modify)
   - Document all CLI options with examples
   - Add batch processing guide, profile configuration
@@ -108,7 +108,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 17-22, 23-24_
   - _Prompt: Role: Technical Writer | Task: Create comprehensive video producer documentation with: 1) Quick start examples, 2) CLI reference table (60+ options), 3) Batch processing guide, 4) Profile configuration examples, 5) Assembly mode selection guide, 6) Troubleshooting section (TTS failures, music download issues) | Restrictions: Use existing doc style, keep examples runnable | Success: Users can use all producer features from docs alone_
 
-- [ ] 14. Add profile validation at startup
+- [x] 14. Add profile validation at startup
   - File: src/video/producer/cli.py (modify)
   - Validate profile exists before batch processing starts
   - Validate profile-pool entries against available profiles
@@ -117,7 +117,7 @@ The Video Producer Module is **fully implemented** and production-ready. All cor
   - _Requirements: 24_
   - _Prompt: Role: Python Developer | Task: Add profile validation in batch mode startup: verify --batch-profile exists, verify all --profile-pool entries exist, fail with clear error listing available profiles | Restrictions: Validate before processing starts, provide helpful error message with profile suggestions | Success: Invalid profile causes immediate exit with clear message_
 
-- [ ] 15. Add batch summary JSON output
+- [x] 15. Add batch summary JSON output
   - File: src/video/producer/cli.py (modify)
   - Add --output-format=json option for machine-readable summary
   - Include profile distribution, timing, error details

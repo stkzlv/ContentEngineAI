@@ -110,13 +110,23 @@ class AudioFilterBuilder:
 
         final_audio_label = ""
         if len(audio_to_mix) > 1:
-            final_audio_label = "[a_mixed]"
+            mixed_label = "[a_mixed]"
             audio_filters.append(
                 f"{''.join(audio_to_mix)}amix=inputs={len(audio_to_mix)}:"
-                f"duration={audio_settings.audio_mix_duration}{final_audio_label}"
+                f"duration={audio_settings.audio_mix_duration}:normalize=0{mixed_label}"
+            )
+            # Add apad to extend audio to match video duration and prevent truncation
+            final_audio_label = "[a_final]"
+            audio_filters.append(
+                f"{mixed_label}apad=whole_dur={total_video_duration}{final_audio_label}"
             )
         elif len(audio_to_mix) == 1:
-            final_audio_label = audio_to_mix[0]
+            # Single audio stream - still need to pad to match video duration
+            padded_label = "[a_final]"
+            audio_filters.append(
+                f"{audio_to_mix[0]}apad=whole_dur={total_video_duration}{padded_label}"
+            )
+            final_audio_label = padded_label
 
         return audio_filters, final_audio_label
 
@@ -192,13 +202,23 @@ class AudioFilterBuilder:
         # Mix all audio streams
         final_audio_label = ""
         if len(audio_to_mix) > 1:
-            final_audio_label = "[a_mixed]"
+            mixed_label = "[a_mixed]"
             # Use amix with proper input count to handle 3+ streams without clipping
             audio_filters.append(
                 f"{''.join(audio_to_mix)}amix=inputs={len(audio_to_mix)}:"
-                f"duration={audio_settings.audio_mix_duration}:normalize=0{final_audio_label}"
+                f"duration={audio_settings.audio_mix_duration}:normalize=0{mixed_label}"
+            )
+            # Add apad to extend audio to match video duration and prevent truncation
+            final_audio_label = "[a_final]"
+            audio_filters.append(
+                f"{mixed_label}apad=whole_dur={total_video_duration}{final_audio_label}"
             )
         elif len(audio_to_mix) == 1:
-            final_audio_label = audio_to_mix[0]
+            # Single audio stream - still need to pad to match video duration
+            padded_label = "[a_final]"
+            audio_filters.append(
+                f"{audio_to_mix[0]}apad=whole_dur={total_video_duration}{padded_label}"
+            )
+            final_audio_label = padded_label
 
         return audio_filters, final_audio_label

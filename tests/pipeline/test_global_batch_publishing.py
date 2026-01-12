@@ -30,6 +30,13 @@ pytestmark = pytest.mark.integration
 # ============================================================================
 
 
+@pytest.fixture(autouse=True)
+def mock_asyncio_sleep():
+    """Mock asyncio.sleep to prevent slow stagger delays in tests."""
+    with patch("asyncio.sleep", return_value=None):
+        yield
+
+
 @pytest.fixture
 def temp_outputs_dir():
     """Create temporary directory for test outputs."""

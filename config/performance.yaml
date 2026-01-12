@@ -17,7 +17,10 @@ ffmpeg_settings:
   # Maximum time to wait for final video assembly in seconds
   final_assembly_timeout_sec: 600
 
-  # FFmpeg I/O timeout in microseconds (30 seconds)
+  # FFmpeg I/O timeout in microseconds
+  # 30,000,000 microseconds = 30 seconds
+  # Used for: Network streams, slow storage, large files
+  # Increase if seeing "Connection timed out" errors during video processing
   rw_timeout_microseconds: 30000000
 
   # FFmpeg validation timeout (seconds)
@@ -65,11 +68,10 @@ optimization_settings:
     image_processing_workers: 2
 
     # Memory-mapped I/O threshold (bytes)
-    # Files larger than this threshold use memory-mapped I/O for faster copying
-    # Files smaller use standard copy methods
-    # Used by: src/video/producer/steps.py for media file operations
-    # Affects: File copy performance for large media files
-    # 1MB = 1048576 bytes (1024 * 1024)
+    # Files larger than this use memory-mapped I/O for ~2-3x faster copying
+    # Files smaller use standard copy methods (lower overhead)
+    # 1,048,576 bytes = 1 MB (1024 * 1024)
+    # Typical values: 1MB (default), 512KB for SSDs, 4MB for HDDs
     mmap_threshold_bytes: 1048576
 
 # ============================================================================

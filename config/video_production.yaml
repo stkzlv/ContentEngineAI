@@ -986,34 +986,9 @@ timing:
 # ============================================================================
 # FFMPEG SETTINGS
 # ============================================================================
-# FFmpeg executable configuration and working directories
-# Used by: assembler.py, async_io.py for video encoding operations
-#
-# Pipeline Impact:
-# - executable_path: If empty, uses system PATH FFmpeg (recommended)
-# - temp_ffmpeg_dir: Temporary workspace for encoding (auto-cleaned)
-# - preset: Encoding speed for intermediate files (ultrafast saves time)
-# - timeout: Maximum time for final assembly (increase for long videos)
-ffmpeg_settings:
-  # Path to FFmpeg executable (leave empty to use system PATH)
-  # Only set if using custom FFmpeg build or non-standard installation
-  executable_path: ""
-
-  # Temporary directory for FFmpeg intermediate files
-  # Used for: Multi-pass encoding, filter complex operations
-  # Auto-cleaned after successful video generation
-  temp_ffmpeg_dir: "ffmpeg_work"
-
-  # Encoding preset for intermediate segments (speed vs quality)
-  # ultrafast = fastest encoding, acceptable quality for temp files
-  # Used during: Multi-stage video assembly before final encode
-  intermediate_segment_preset: "ultrafast"
-
-  # Maximum time to wait for final assembly (seconds)
-  # Increase for very long videos or slow hardware
-  # Used by: assembler.py final encoding timeout
-  # NOTE: Also defined in config/performance.yaml - keep values in sync
-  final_assembly_timeout_sec: 600
+# NOTE: FFmpeg configuration has been consolidated to config/performance.yaml
+# See performance.yaml for: executable_path, temp_ffmpeg_dir, timeouts, etc.
+# This prevents configuration drift between files.
 
 # ============================================================================
 # SUBTITLE SETTINGS
@@ -1026,11 +1001,7 @@ ffmpeg_settings:
 # WHISPER SETTINGS (Speech Recognition)
 # ============================================================================
 # NOTE: Whisper configuration has been moved to config/ai_services.yaml
-# See ai_services.yaml for speech-to-text model settings
-
-  # Directory for downloaded Whisper models
-  # Models are cached here after first download (~1-3GB per model)
-  model_download_root: "~/.cache/whisper_models"
+# See ai_services.yaml for model settings, timeouts, and transcription options.
 
 # ============================================================================
 # BATCH PROCESSING SETTINGS

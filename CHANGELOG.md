@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-01-12
+
+### Added
+- **Video Producer Tests**: Comprehensive test coverage for video production modules
+  - `tests/video/test_ass_effects.py` - ASS subtitle effects tests (522 lines)
+  - `tests/video/test_batch_producer.py` - Batch processing tests (144 lines)
+  - `tests/video/test_subtitle_positioning.py` - Subtitle positioning tests (114 lines)
+  - `tests/video/test_video_strategies.py` - Video assembly strategy tests (270 lines)
+  - `tests/integration/test_producer_integration.py` - Integration tests (163 lines)
+  - `tests/audio/test_freesound_client.py` - Freesound client tests (171 lines)
+  - `tests/test_tts.py` - SSML generation tests for TTS
+
+- **Video Producer Documentation**: `docs/video-producer.md` - Complete CLI reference guide (346 lines)
+
+### Fixed
+- **TTS Last Word Truncation**: Added SSML break tag to prevent voiceover audio cutoff
+  - `src/video/tts.py` - Uses SSML with configurable buffer time (default 300ms)
+  - `src/video/assembler/audio_builder.py` - Added `apad` filter to extend audio duration
+  - `src/video/unified_subtitle_generator.py` - Disabled fade-out on last subtitle segment
+
+### Changed
+- **Configuration Documentation**: Added inline documentation to config YAML files
+  - `config/ai_services.yaml` - Whisper settings tuning guidance
+  - `config/core.yaml` - System timeout documentation
+  - `config/performance.yaml` - FFmpeg settings documentation
+  - `config/video_production.yaml` - Removed duplicate FFmpeg settings (consolidated to performance.yaml)
+
 ## [0.21.0] - 2026-01-10
 
 ### Added

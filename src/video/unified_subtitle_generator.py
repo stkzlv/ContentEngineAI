@@ -462,8 +462,10 @@ class UnifiedSubtitleGenerator:
             ):
                 segment_end = current_start + self.config.min_duration
 
+            # For the final segment, use voiceover duration as the definitive end
+            # to prevent last word from being cut off or extended beyond audio
             if voiceover_duration:
-                segment_end = min(segment_end, voiceover_duration)
+                segment_end = voiceover_duration
 
             if segment_end > current_start:
                 segments.append(
@@ -710,9 +712,10 @@ class UnifiedSubtitleGenerator:
             ass_lines = self._create_ass_header(font_size, colors)
 
             # Add dialogue lines
-            for segment in segments:
+            for i, segment in enumerate(segments):
+                is_last_segment = i == len(segments) - 1
                 dialogue_line = self._create_dialogue_line(
-                    segment, position, colors, debug_mode
+                    segment, position, colors, debug_mode, is_last_segment
                 )
                 if dialogue_line:
                     ass_lines.append(dialogue_line)
@@ -921,6 +924,7 @@ class UnifiedSubtitleGenerator:
         position: Position,
         colors: dict[str, str],
         debug_mode: bool = False,
+        is_last_segment: bool = False,
     ) -> str | None:
         """Create ASS dialogue line with positioning and effects."""
         try:
@@ -946,7 +950,9 @@ class UnifiedSubtitleGenerator:
                 fade_duration = (
                     subtitle_effects.fade_duration_ms if subtitle_effects else 300
                 )
-                effects.append(f"\\fad({fade_duration},{fade_duration})")
+                # Disable fade-out for last segment to prevent truncation appearance
+                fade_out = 0 if is_last_segment else fade_duration
+                effects.append(f"\\fad({fade_duration},{fade_out})")
 
             # Other effects (scale_pulse, rotation_bounce, glow, typewriter,
             # karaoke, movement)

@@ -18,13 +18,15 @@ pipeline_timeout_sec: 900
 duration_padding_sec: 0.5
 
 # ============================================================================
-# SYSTEM TIMEOUTS
+# SYSTEM TIMEOUTS (seconds)
 # ============================================================================
+# Short timeouts for system commands and validation operations.
+# These are conservative defaults; increase if on slow hardware.
 system_timeouts:
-  ffprobe_timeout: 10
-  xrandr_timeout: 5
-  system_profiler_timeout: 10
-  head_request_timeout: 10
+  ffprobe_timeout: 10        # Video metadata extraction
+  xrandr_timeout: 5          # Display detection (Linux)
+  system_profiler_timeout: 10  # System info (macOS)
+  head_request_timeout: 10   # URL validation requests
 
 # ============================================================================
 # OUTPUT STRUCTURE (Video Production)

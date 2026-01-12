@@ -12,7 +12,10 @@ from dotenv import set_key
 
 from src.utils import download_file as util_download_file
 from src.utils import ensure_dirs_exist, sanitize_filename
-from src.utils.circuit_breaker import freesound_circuit_breaker
+from src.utils.circuit_breaker import (
+    _NETWORK_EXCEPTIONS,
+    freesound_circuit_breaker,
+)
 from src.video.config import (
     FREESOUND_DOWNLOAD_CHUNK_SIZE,
     FREESOUND_TOKEN_EXPIRY_SEC,
@@ -183,6 +186,9 @@ class FreesoundClient:
                 f"list (query='{query}', filters='{filters}')",
                 exc_info=True,
             )
+            # Reraise exceptions that should trigger the circuit breaker
+            if isinstance(e, _NETWORK_EXCEPTIONS):
+                raise
             return []
 
     def _search_sync(

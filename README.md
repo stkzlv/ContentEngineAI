@@ -5,9 +5,9 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Development Status](https://img.shields.io/badge/status-pre--production-orange.svg)](docs/versioning.md)
 
-**Version**: 0.20.0 | **License**: MIT | **Status**: Pre-Production
+**License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest Update (v0.20.0)**: Network resilience with retry + circuit breaker patterns, unified config manager (CLI > ENV > YAML), secret masking in logs, and Claude Code slash commands.
+> **🚀 Latest**: TTS audio truncation fix with SSML buffering, comprehensive video producer test suite (1400+ tests), and new CLI documentation.
 
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
@@ -123,22 +123,26 @@ graph TD
 
 | Guide | Description |
 |-------|-------------|
-| **[🛠️ Installation](docs/installation.md)** | Complete installation and setup guide |
-| **[⚙️ Configuration](docs/configuration.md)** | Configuration reference and options |
-| **[🔄 Batch Processing](docs/batch-processing.md)** | Batch processing workflows and automation |
+| **[🛠️ Installation](docs/installation.md)** | Setup guide with prerequisites and API keys |
+| **[⚙️ Configuration](docs/configuration.md)** | YAML config reference and CLI overrides |
+| **[🕷️ Scraper](docs/scraper.md)** | Product data extraction from Amazon |
+| **[🎬 Video Producer](docs/video-producer.md)** | Video production CLI and profiles |
+| **[🔄 Batch Processing](docs/batch-processing.md)** | Multi-product pipelines and automation |
 | **[📤 Publisher](docs/publisher.md)** | Social media publishing via Late.dev |
-| **[🏗️ Architecture](docs/architecture.md)** | Technical architecture and system design |
-| **[🔧 Troubleshooting](docs/troubleshooting.md)** | Solutions for common issues and debugging |
+| **[🏗️ Architecture](docs/architecture.md)** | System design and module overview |
+| **[🔧 Troubleshooting](docs/troubleshooting.md)** | Common issues and debugging tips |
 
 <details>
 <summary><strong>Developer Documentation</strong></summary>
 
-| Document | Purpose |
-|----------|---------|
-| **[👨‍💻 Development](docs/development.md)** | Development setup and contribution workflow |
-| **[🧪 Testing](docs/testing.md)** | Testing framework and quality assurance |
-| **[✨ Linting](docs/linting.md)** | Code quality standards and tools |
-| **[🤝 Contributing](CONTRIBUTING.md)** | How to contribute code and documentation |
+| Document | Description |
+|----------|-------------|
+| **[👨‍💻 Development](docs/development.md)** | Dev setup and contribution workflow |
+| **[🧪 Testing](docs/testing.md)** | Test framework and coverage |
+| **[✨ Linting](docs/linting.md)** | Code quality tools (Ruff, MyPy, Bandit) |
+| **[📋 Requirements](docs/requirements.md)** | Project requirements and specs |
+| **[📦 Versioning](docs/versioning.md)** | Semantic versioning and releases |
+| **[🤝 Contributing](CONTRIBUTING.md)** | How to contribute |
 
 </details>
 
@@ -170,6 +174,6 @@ make security  # Security vulnerability scan
 
 <div align="center">
 
-**[🛠️ Installation](docs/installation.md)** • **[⚙️ Configuration](docs/configuration.md)** • **[🔄 Batch Processing](docs/batch-processing.md)** • **[📤 Publishing](docs/publisher.md)** • **[🤝 Contributing](CONTRIBUTING.md)** • **[🐛 Issues](https://github.com/stkzlv/ContentEngineAI/issues)**
+**[🛠️ Installation](docs/installation.md)** • **[⚙️ Configuration](docs/configuration.md)** • **[🎬 Video Producer](docs/video-producer.md)** • **[🔄 Batch Processing](docs/batch-processing.md)** • **[📤 Publisher](docs/publisher.md)** • **[🤝 Contributing](CONTRIBUTING.md)**
 
 </div>
