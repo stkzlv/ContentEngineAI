@@ -30,6 +30,7 @@ class PlatformMetadata:
         product_id: Product identifier (ASIN or similar)
         validation_status: Validation result ("valid", "warning", "error")
         validation_messages: List of validation details/warnings
+        prompt_variant: A/B test variant name used for generation (for analytics)
 
     """
 
@@ -43,6 +44,7 @@ class PlatformMetadata:
     validation_status: str
     validation_messages: list[str]
     title: str | None = None
+    prompt_variant: str | None = None
 
     def to_dict(self) -> dict:
         """Convert metadata to dictionary for JSON serialization.
@@ -63,6 +65,7 @@ class PlatformMetadata:
             "product_id": self.product_id,
             "validation_status": self.validation_status,
             "validation_messages": self.validation_messages,
+            "prompt_variant": self.prompt_variant,
         }
 
     @classmethod
@@ -76,6 +79,7 @@ class PlatformMetadata:
         title: str | None = None,
         validation_status: str = "valid",
         validation_messages: list[str] | None = None,
+        prompt_variant: str | None = None,
     ) -> "PlatformMetadata":
         """Factory method to create PlatformMetadata with auto-generated fields.
 
@@ -89,6 +93,7 @@ class PlatformMetadata:
             title: Optional title (YouTube only)
             validation_status: Validation status (default: "valid")
             validation_messages: Optional validation messages
+            prompt_variant: A/B test variant name (for analytics)
 
         Returns:
         -------
@@ -111,6 +116,7 @@ class PlatformMetadata:
             product_id=product_id,
             validation_status=validation_status,
             validation_messages=validation_messages or [],
+            prompt_variant=prompt_variant,
         )
 
 
@@ -211,6 +217,36 @@ class InstagramPlatformSettings(BaseModel):
     )
 
 
+class MetadataCacheSettings(BaseModel):
+    """Configuration settings for metadata caching.
+
+    Attributes
+    ----------
+        enabled: Enable/disable caching globally
+        ttl_hours: Time-to-live for cache entries in hours
+        cache_dir: Directory for cache storage (relative to project root)
+        max_entries: Maximum number of cache entries (0 = unlimited)
+
+    """
+
+    enabled: bool = Field(True, description="Enable metadata caching")
+    ttl_hours: int = Field(
+        24,
+        ge=1,
+        le=720,  # Max 30 days
+        description="Cache entry TTL in hours (1-720)",
+    )
+    cache_dir: str = Field(
+        ".cache/platform_metadata",
+        description="Cache directory path (relative to project root)",
+    )
+    max_entries: int = Field(
+        1000,
+        ge=0,
+        description="Maximum cache entries (0 = unlimited)",
+    )
+
+
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
@@ -225,6 +261,7 @@ class PlatformMetadataSettings(BaseModel):
         youtube: YouTube-specific settings
         tiktok: TikTok-specific settings
         instagram: Instagram-specific settings
+        cache: Metadata caching settings
 
     """
 
@@ -249,4 +286,8 @@ class PlatformMetadataSettings(BaseModel):
     instagram: InstagramPlatformSettings = Field(
         default_factory=lambda: InstagramPlatformSettings(),  # type: ignore[call-arg]
         description="Instagram platform settings",
+    )
+    cache: MetadataCacheSettings = Field(
+        default_factory=lambda: MetadataCacheSettings(),  # type: ignore[call-arg]
+        description="Metadata caching settings",
     )

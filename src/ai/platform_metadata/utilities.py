@@ -276,6 +276,7 @@ def load_metadata_from_file(file_path: Path) -> PlatformMetadata | None:
             product_id=data["product_id"],
             validation_status=data["validation_status"],
             validation_messages=data["validation_messages"],
+            prompt_variant=data.get("prompt_variant"),
         )
 
         logger.info(f"Loaded {metadata.platform} metadata from {file_path}")

@@ -23,6 +23,7 @@ build/
 .coverage
 coverage.xml
 *.cache
+.cache/
 *.log
 *.tmp
 

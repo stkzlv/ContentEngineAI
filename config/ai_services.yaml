@@ -71,6 +71,12 @@ description_settings:
   platform_metadata:
     enabled: true
     target_platform: "multi"
+    # Metadata caching (see platform_metadata_config.cache for full settings)
+    cache:
+      enabled: true
+      ttl_hours: 24
+      cache_dir: ".cache/platform_metadata"
+      max_entries: 1000
     youtube:
       enabled: true
       title_length_max: 60
@@ -122,6 +128,72 @@ platform_metadata_config:
   # Options: "youtube", "tiktok", "instagram", "multi"
   # This can be overridden per video profile or via CLI arguments
   target_platform: "multi"
+
+  # ---- Caching Settings ----
+  # File-based cache for generated platform metadata
+  # Avoids regenerating metadata for unchanged products
+  # Cache is keyed by (product_id, platform) with TTL expiration
+  cache:
+    # Enable/disable metadata caching globally
+    # When enabled, repeated requests for same product use cached metadata
+    # Recommended: true for batch processing, false for debugging
+    enabled: true
+
+    # Time-to-live for cache entries in hours (1-720)
+    # After TTL expires, metadata will be regenerated on next request
+    # 24h is good for active development, 168h (7 days) for production
+    ttl_hours: 24
+
+    # Cache storage directory (relative to project root)
+    # JSON files stored as {product_id}_{platform}.json
+    # Directory is auto-created if it doesn't exist
+    cache_dir: ".cache/platform_metadata"
+
+    # Maximum number of cache entries (0 = unlimited)
+    # When exceeded, oldest entries are removed (LRU eviction)
+    # 1000 entries ≈ 3000 cached metadata files (3 platforms per product)
+    max_entries: 1000
+
+  # ---- A/B Testing Settings ----
+  # Enable A/B testing of prompt templates for metadata quality comparison
+  # Selection is deterministic based on product_id hash for reproducibility
+  # Track variants in metadata.prompt_variant field for analysis
+  ab_testing:
+    # Global enable/disable for A/B testing
+    # When disabled, uses default control templates
+    enabled: false
+
+    # YouTube prompt variants
+    youtube:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/youtube_metadata.md"
+          weight: 50
+          description: "Original YouTube metadata prompt"
+        # Add more variants for testing:
+        # - name: "variant_a"
+        #   template_path: "src/ai/prompts/youtube_metadata_v2.md"
+        #   weight: 50
+        #   description: "New YouTube prompt with shorter titles"
+
+    # TikTok prompt variants
+    tiktok:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/tiktok_caption.md"
+          weight: 50
+          description: "Original TikTok caption prompt"
+
+    # Instagram prompt variants
+    instagram:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/instagram_caption.md"
+          weight: 50
+          description: "Original Instagram caption prompt"
 
   # ---- YouTube Settings ----
   # Optimized for YouTube Shorts discovery and search ranking
