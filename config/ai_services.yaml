@@ -71,6 +71,22 @@ description_settings:
   platform_metadata:
     enabled: true
     target_platform: "multi"
+    # Metadata caching (see platform_metadata_config.cache for full settings)
+    cache:
+      enabled: true
+      ttl_hours: 24
+      cache_dir: ".cache/platform_metadata"
+      max_entries: 1000
+    # Trend-aware hashtags (see platform_metadata_config.trends for documentation)
+    trends:
+      enabled: false
+      provider: "static"
+      cache_ttl_hours: 4
+      max_trending_tags: 2
+      fallback_tags:
+        youtube: ["#Shorts", "#Trending", "#Tech", "#Gadgets", "#Review"]
+        tiktok: ["#ForYou", "#Viral", "#LifeHack", "#Shopping", "#TechTok"]
+        instagram: ["#Reels", "#InstaGood", "#Innovation", "#Gadget", "#TechLife"]
     youtube:
       enabled: true
       title_length_max: 60
@@ -98,8 +114,12 @@ description_settings:
       emoji_enabled: true
 
 # ============================================================================
-# PLATFORM METADATA SETTINGS (Advanced)
+# PLATFORM METADATA SETTINGS (Reference Documentation)
 # ============================================================================
+# IMPORTANT: This section provides DETAILED DOCUMENTATION and default values.
+# The ACTIVE configuration is in description_settings.platform_metadata above.
+# These two sections should be kept in sync when modifying platform settings.
+#
 # Platform-specific metadata optimization for YouTube, TikTok, and Instagram
 # Based on 2025 algorithm best practices and SEO research
 #
@@ -110,7 +130,7 @@ description_settings:
 # - Maintains backward compatibility when disabled (platform_metadata: null)
 #
 # Usage:
-# - Set description_settings.platform_metadata to {} to enable
+# - Set description_settings.platform_metadata.enabled to true to enable
 # - Configure target_platform to control which platforms to generate for
 # - Adjust per-platform settings to match your content strategy
 platform_metadata_config:
@@ -122,6 +142,170 @@ platform_metadata_config:
   # Options: "youtube", "tiktok", "instagram", "multi"
   # This can be overridden per video profile or via CLI arguments
   target_platform: "multi"
+
+  # ---- Caching Settings ----
+  # File-based cache for generated platform metadata
+  # Avoids regenerating metadata for unchanged products
+  # Cache is keyed by (product_id, platform) with TTL expiration
+  cache:
+    # Enable/disable metadata caching globally
+    # When enabled, repeated requests for same product use cached metadata
+    # Recommended: true for batch processing, false for debugging
+    enabled: true
+
+    # Time-to-live for cache entries in hours (1-720)
+    # After TTL expires, metadata will be regenerated on next request
+    # 24h is good for active development, 168h (7 days) for production
+    ttl_hours: 24
+
+    # Cache storage directory (relative to project root)
+    # JSON files stored as {product_id}_{platform}.json
+    # Directory is auto-created if it doesn't exist
+    cache_dir: ".cache/platform_metadata"
+
+    # Maximum number of cache entries (0 = unlimited)
+    # When exceeded, oldest entries are removed (LRU eviction)
+    # 1000 entries ≈ 3000 cached metadata files (3 platforms per product)
+    max_entries: 1000
+
+  # ---- A/B Testing Settings ----
+  # Enable A/B testing of prompt templates for metadata quality comparison
+  # Selection is deterministic based on product_id hash for reproducibility
+  # Track variants in metadata.prompt_variant field for analysis
+  ab_testing:
+    # Global enable/disable for A/B testing
+    # When disabled, uses default control templates
+    enabled: false
+
+    # YouTube prompt variants
+    youtube:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/youtube_metadata.md"
+          weight: 50
+          description: "Original YouTube metadata prompt"
+        # Add more variants for testing:
+        # - name: "variant_a"
+        #   template_path: "src/ai/prompts/youtube_metadata_v2.md"
+        #   weight: 50
+        #   description: "New YouTube prompt with shorter titles"
+
+    # TikTok prompt variants
+    tiktok:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/tiktok_caption.md"
+          weight: 50
+          description: "Original TikTok caption prompt"
+
+    # Instagram prompt variants
+    instagram:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/instagram_caption.md"
+          weight: 50
+          description: "Original Instagram caption prompt"
+
+  # ---- Batch Generation Settings ----
+  # Concurrent processing of multiple products for efficient batch workflows
+  # Respects rate limits via semaphore-based concurrency control
+  # Progress tracked with [N/total] format for monitoring
+  batch:
+    # Enable/disable batch metadata generation
+    # When enabled, allows processing multiple products concurrently
+    enabled: true
+
+    # Maximum concurrent product generations (1-20)
+    # Higher values = faster batch completion but more API load
+    # 3 is conservative for rate-limited APIs, 10 for high-throughput
+    # Recommendation: Start with 3, increase if no rate limit errors
+    max_concurrent: 3
+
+    # Enable progress logging with [N/total] format
+    # Logs: "[1/10] B0TESTASIN: starting" -> "[1/10] B0TESTASIN: success"
+    # Useful for monitoring batch progress in production
+    log_progress: true
+
+  # ---- Export Settings ----
+  # Control metadata export formats, encoding, and platform-specific options
+  # Supports JSON, CSV, YouTube CSV, TikTok, and Instagram formats
+  export:
+    # Enable/disable metadata export functionality
+    enabled: true
+
+    # Default export format when not specified
+    # Options: json, csv, youtube_csv, tiktok, instagram
+    default_format: "json"
+
+    # Default YouTube category ID for YouTube CSV exports
+    # Common IDs: 22=People & Blogs, 28=Science & Tech, 10=Music
+    # Full list: https://developers.google.com/youtube/v3/docs/videoCategories
+    youtube_category: "22"
+
+    # Default privacy setting for YouTube exports
+    # Options: private, public, unlisted
+    # Recommendation: "private" for review before publishing
+    youtube_privacy: "private"
+
+    # CSV file encoding for spreadsheet compatibility
+    # utf-8-sig = UTF-8 with BOM (recommended for Excel)
+    # utf-8 = standard UTF-8 (for other tools)
+    csv_encoding: "utf-8-sig"
+
+    # JSON indentation for pretty-printing (0-8 spaces)
+    # 2 = readable, 0 = compact (smaller file size)
+    json_indent: 2
+
+    # Max title length when using description as title fallback
+    # Used in YouTube CSV when title field is empty
+    youtube_title_fallback_length: 60
+
+  # ---- Trend Settings ----
+  # Integrate with trend providers to suggest current hashtags
+  # Improving discoverability with platform-specific trending tags
+  trends:
+    # Enable/disable trend-aware hashtags globally
+    # When enabled, merges trending tags with generated hashtags
+    enabled: false
+
+    # Trend provider to use
+    # Options: static (high-perf fallback), mock (testing)
+    # Future: tiktok_api, google_trends
+    provider: "static"
+
+    # Time-to-live for cached trends in hours (1-24)
+    # Trending tags don't change every minute, 4-12h is recommended
+    cache_ttl_hours: 4
+
+    # Maximum number of trending tags to add per platform (1-5)
+    # Respects platform hashtag limits during merging
+    max_trending_tags: 2
+
+    # Fallback trending tags per platform when external APIs unavailable
+    # Used by static provider or as baseline when API calls fail
+    # Customize per niche: tech, beauty, fitness, etc.
+    fallback_tags:
+      youtube:
+        - "#Shorts"
+        - "#Trending"
+        - "#Tech"
+        - "#Gadgets"
+        - "#Review"
+      tiktok:
+        - "#ForYou"
+        - "#Viral"
+        - "#LifeHack"
+        - "#Shopping"
+        - "#TechTok"
+      instagram:
+        - "#Reels"
+        - "#InstaGood"
+        - "#Innovation"
+        - "#Gadget"
+        - "#TechLife"
 
   # ---- YouTube Settings ----
   # Optimized for YouTube Shorts discovery and search ranking

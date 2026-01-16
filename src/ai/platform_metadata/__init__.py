@@ -7,20 +7,45 @@ descriptions, captions, and hashtags tailored to each platform's best practices.
 # Import for type hints and async
 import asyncio
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import aiohttp
 
+from src.ai.platform_metadata.ab_testing import (
+    ABTestingSettings,
+    PlatformABConfig,
+    PromptVariant,
+    PromptVariantSelector,
+    VariantSelection,
+)
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
+from src.ai.platform_metadata.batch import (
+    BatchGenerationResult,
+    BatchMetadataGenerator,
+    ProductGenerationResult,
+    ProgressCallback,
+)
+from src.ai.platform_metadata.cache import MetadataCache
+from src.ai.platform_metadata.export import (
+    ExportFormat,
+    ExportResult,
+    MetadataExporter,
+)
 from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
 from src.ai.platform_metadata.models import (
+    BatchGenerationSettings,
+    ExportSettings,
     InstagramPlatformSettings,
+    MetadataCacheSettings,
     PlatformMetadata,
     PlatformMetadataSettings,
     TikTokPlatformSettings,
+    TrendSettings,
     YouTubePlatformSettings,
 )
 from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
+from src.ai.platform_metadata.trends import TrendAwareHashtagGenerator
 from src.ai.platform_metadata.utilities import (
     call_llm_api_with_retry,
     fetch_and_select_model,
@@ -113,12 +138,21 @@ class PlatformMetadataFactory:
         intermediate_paths: dict[str, Path],
         debug_mode: bool = False,
         api_settings=None,
+        cache: MetadataCache | None = None,
+        trend_generator: TrendAwareHashtagGenerator | None = None,
     ) -> dict[str, PlatformMetadata | None]:
         """Generate metadata for all platforms in parallel using asyncio.gather().
 
         This method runs YouTube, TikTok, and Instagram generators concurrently,
         maximizing throughput. Errors in one platform don't block others due to
         return_exceptions=True.
+
+        Supports optional caching to avoid regenerating metadata for unchanged
+        products. When cache is provided, cached entries are returned immediately
+        and only missing/expired entries trigger LLM generation.
+
+        Supports optional trend-aware hashtags. When provided, trending hashtags
+        for each platform are merged with the generated tags.
 
         Args:
         ----
@@ -135,6 +169,8 @@ class PlatformMetadataFactory:
             intermediate_paths: Dictionary of file paths for outputs
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
+            cache: Optional MetadataCache for caching generated metadata
+            trend_generator: Optional TrendAwareHashtagGenerator for trending tags
 
         Returns:
         -------
@@ -148,15 +184,13 @@ class PlatformMetadataFactory:
 
         Example:
         -------
+            # With cache and trends
+            cache = MetadataCache(cache_settings)
+            trend_gen = TrendAwareHashtagGenerator(trend_settings)
             results = await PlatformMetadataFactory.generate_multi_platform(
-                product, llm_settings, secrets, session,
-                {
-                    "youtube": youtube_config,
-                    "tiktok": tiktok_config,
-                    "instagram": instagram_config
-                },
-                intermediate_paths,
-                debug_mode=True
+                product, settings, secrets, session,
+                platform_settings, intermediate_paths,
+                debug_mode=True, cache=cache, trend_generator=trend_gen
             )
 
             if results["youtube"]:
@@ -165,9 +199,31 @@ class PlatformMetadataFactory:
         """
         logger.info("Starting multi-platform metadata generation in parallel")
 
-        # Create generators for each platform
+        asin = getattr(product, "asin", None)
+        product_id: str = asin or getattr(product, "id", "unknown") or "unknown"
+
+        # Check cache for existing metadata
+        results: dict[str, PlatformMetadata | None] = {}
+        platforms_to_generate: list[str] = []
+
+        for platform in platform_settings:
+            if cache:
+                cached_metadata = cache.get(product_id, platform, product)
+                if cached_metadata:
+                    results[platform] = cached_metadata
+                    logger.info(f"Using cached {platform} metadata for {product_id}")
+                    continue
+            platforms_to_generate.append(platform)
+
+        # If all platforms were cached, return early
+        if not platforms_to_generate:
+            logger.info(f"All platforms served from cache for {product_id}")
+            return results
+
+        # Create generators for platforms that need generation
         generators = {}
-        for platform, p_settings in platform_settings.items():
+        for platform in platforms_to_generate:
+            p_settings = platform_settings[platform]
             try:
                 generators[platform] = PlatformMetadataFactory.create(
                     platform, p_settings
@@ -175,6 +231,7 @@ class PlatformMetadataFactory:
                 logger.debug(f"Created {platform} generator")
             except ValueError as e:
                 logger.warning(f"Skipping unknown platform '{platform}': {e}")
+                results[platform] = None
                 continue
 
         # Build async tasks for parallel execution
@@ -197,8 +254,7 @@ class PlatformMetadataFactory:
         # return_exceptions=True ensures one failure doesn't block others
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Map results back to platform names
-        results: dict[str, PlatformMetadata | None] = {}
+        # Map results back to platform names and cache successful results
         for platform, result in zip(task_platforms, results_list, strict=False):
             if isinstance(result, BaseException):
                 logger.error(
@@ -207,15 +263,39 @@ class PlatformMetadataFactory:
                 )
                 results[platform] = None
             else:
-                results[platform] = result
-                status = "success" if result else "failed"
+                final_result = result
+
+                # Apply trend-aware hashtags if generator provided
+                if final_result and trend_generator:
+                    try:
+                        enhanced_tags = await trend_generator.merge_trending_tags(
+                            platform, final_result.hashtags
+                        )
+                        if enhanced_tags != final_result.hashtags:
+                            final_result = replace(final_result, hashtags=enhanced_tags)
+                            logger.info(
+                                f"Enhanced {platform} metadata with trending tags"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to apply trends to {platform}: {e}")
+
+                results[platform] = final_result
+                status = "success" if final_result else "failed"
                 logger.info(f"{platform.capitalize()} metadata generation: {status}")
+
+                # Cache successful results
+                if final_result and cache:
+                    cache.set(final_result, product)
 
         success_count = sum(1 for v in results.values() if v is not None)
         total_count = len(results)
+        cached_count = len(platform_settings) - len(platforms_to_generate)
+        generated_count = success_count - cached_count
+
         logger.info(
             f"Multi-platform generation complete. "
-            f"Success: {success_count}/{total_count}"
+            f"Success: {success_count}/{total_count} "
+            f"(cached: {cached_count}, generated: {generated_count})"
         )
 
         return results
@@ -230,6 +310,29 @@ __all__ = [
     "YouTubePlatformSettings",
     "TikTokPlatformSettings",
     "InstagramPlatformSettings",
+    # Caching
+    "MetadataCache",
+    "MetadataCacheSettings",
+    # A/B Testing
+    "ABTestingSettings",
+    "PlatformABConfig",
+    "PromptVariant",
+    "PromptVariantSelector",
+    "VariantSelection",
+    # Batch Generation
+    "BatchMetadataGenerator",
+    "BatchGenerationSettings",
+    "BatchGenerationResult",
+    "ProductGenerationResult",
+    "ProgressCallback",
+    # Export
+    "MetadataExporter",
+    "ExportSettings",
+    "ExportFormat",
+    "ExportResult",
+    # Trends
+    "TrendAwareHashtagGenerator",
+    "TrendSettings",
     # Platform generators
     "YouTubeMetadataGenerator",
     "TikTokMetadataGenerator",

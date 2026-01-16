@@ -30,6 +30,7 @@ class PlatformMetadata:
         product_id: Product identifier (ASIN or similar)
         validation_status: Validation result ("valid", "warning", "error")
         validation_messages: List of validation details/warnings
+        prompt_variant: A/B test variant name used for generation (for analytics)
 
     """
 
@@ -43,6 +44,7 @@ class PlatformMetadata:
     validation_status: str
     validation_messages: list[str]
     title: str | None = None
+    prompt_variant: str | None = None
 
     def to_dict(self) -> dict:
         """Convert metadata to dictionary for JSON serialization.
@@ -63,6 +65,7 @@ class PlatformMetadata:
             "product_id": self.product_id,
             "validation_status": self.validation_status,
             "validation_messages": self.validation_messages,
+            "prompt_variant": self.prompt_variant,
         }
 
     @classmethod
@@ -76,6 +79,7 @@ class PlatformMetadata:
         title: str | None = None,
         validation_status: str = "valid",
         validation_messages: list[str] | None = None,
+        prompt_variant: str | None = None,
     ) -> "PlatformMetadata":
         """Factory method to create PlatformMetadata with auto-generated fields.
 
@@ -89,6 +93,7 @@ class PlatformMetadata:
             title: Optional title (YouTube only)
             validation_status: Validation status (default: "valid")
             validation_messages: Optional validation messages
+            prompt_variant: A/B test variant name (for analytics)
 
         Returns:
         -------
@@ -111,6 +116,7 @@ class PlatformMetadata:
             product_id=product_id,
             validation_status=validation_status,
             validation_messages=validation_messages or [],
+            prompt_variant=prompt_variant,
         )
 
 
@@ -173,7 +179,7 @@ class TikTokPlatformSettings(BaseModel):
         description="Use SEO-focused exact search phrases vs creative captions",
     )
     avoid_generic_tags: list[str] = Field(
-        default=["foryoupage", "fyp", "viral"],
+        default=["foryoupage", "fyp", "viral", "foryou"],
         description="Generic hashtags to avoid (prefer niche-specific tags)",
     )
 
@@ -211,6 +217,169 @@ class InstagramPlatformSettings(BaseModel):
     )
 
 
+class MetadataCacheSettings(BaseModel):
+    """Configuration settings for metadata caching.
+
+    Attributes
+    ----------
+        enabled: Enable/disable caching globally
+        ttl_hours: Time-to-live for cache entries in hours
+        cache_dir: Directory for cache storage (relative to project root)
+        max_entries: Maximum number of cache entries (0 = unlimited)
+
+    """
+
+    enabled: bool = Field(True, description="Enable metadata caching")
+    ttl_hours: int = Field(
+        24,
+        ge=1,
+        le=720,  # Max 30 days
+        description="Cache entry TTL in hours (1-720)",
+    )
+    cache_dir: str = Field(
+        ".cache/platform_metadata",
+        description="Cache directory path (relative to project root)",
+    )
+    max_entries: int = Field(
+        1000,
+        ge=0,
+        description="Maximum cache entries (0 = unlimited)",
+    )
+
+
+class BatchGenerationSettings(BaseModel):
+    """Configuration settings for batch metadata generation.
+
+    Controls concurrent processing of multiple products with rate limiting
+    and progress tracking.
+
+    Attributes
+    ----------
+        enabled: Enable/disable batch generation
+        max_concurrent: Maximum concurrent product generations (1-20)
+        log_progress: Enable progress logging with [N/total] format
+
+    """
+
+    enabled: bool = Field(True, description="Enable batch metadata generation")
+    max_concurrent: int = Field(
+        3,
+        ge=1,
+        le=20,
+        description="Maximum concurrent product generations (1-20)",
+    )
+    log_progress: bool = Field(
+        True,
+        description="Log progress with [N/total] format",
+    )
+
+
+class ExportSettings(BaseModel):
+    """Configuration settings for metadata export.
+
+    Controls export formats, encoding, and platform-specific options.
+
+    Attributes
+    ----------
+        enabled: Enable/disable export functionality
+        default_format: Default export format (json, csv, youtube_csv,
+            tiktok, instagram)
+        youtube_category: Default YouTube category ID (22 = People & Blogs)
+        youtube_privacy: Default privacy setting for YouTube exports
+        csv_encoding: CSV file encoding (utf-8-sig for Excel compatibility)
+        json_indent: JSON indentation spaces for pretty-printing
+        youtube_title_fallback_length: Max length when using description as title
+
+    """
+
+    enabled: bool = Field(True, description="Enable metadata export functionality")
+    default_format: str = Field(
+        "json",
+        pattern="^(json|csv|youtube_csv|tiktok|instagram)$",
+        description="Default export format",
+    )
+    youtube_category: str = Field(
+        "22",
+        description="Default YouTube category ID (22 = People & Blogs)",
+    )
+    youtube_privacy: str = Field(
+        "private",
+        pattern="^(private|public|unlisted)$",
+        description="Default privacy setting for YouTube exports",
+    )
+    csv_encoding: str = Field(
+        "utf-8-sig",
+        description="CSV encoding (utf-8-sig for Excel, utf-8 for others)",
+    )
+    json_indent: int = Field(
+        2,
+        ge=0,
+        le=8,
+        description="JSON indentation spaces (0 for compact)",
+    )
+    youtube_title_fallback_length: int = Field(
+        60,
+        ge=10,
+        le=100,
+        description="Max title length when using description as fallback",
+    )
+
+
+class PlatformFallbackTags(BaseModel):
+    """Fallback trending tags per platform when external APIs unavailable.
+
+    Used as baseline high-performance tags when trend providers fail.
+    """
+
+    youtube: list[str] = Field(
+        default=["#Shorts", "#Trending", "#Tech", "#Gadgets", "#Review"],
+        description="Fallback trending tags for YouTube",
+    )
+    tiktok: list[str] = Field(
+        default=["#ForYou", "#Viral", "#LifeHack", "#Shopping", "#TechTok"],
+        description="Fallback trending tags for TikTok",
+    )
+    instagram: list[str] = Field(
+        default=["#Reels", "#InstaGood", "#Innovation", "#Gadget", "#TechLife"],
+        description="Fallback trending tags for Instagram",
+    )
+
+
+class TrendSettings(BaseModel):
+    """Configuration for trend-aware hashtag generation.
+
+    Integrates with trend APIs to suggest current hashtags for better discovery.
+
+    Attributes
+    ----------
+        enabled: Enable trend-aware hashtags globally
+        provider: Trend provider identifier ("static", "mock", "external")
+        cache_ttl_hours: Time-to-live for cached trends in hours
+        max_trending_tags: Maximum number of trending tags to add per platform
+        fallback_tags: Per-platform fallback tags when APIs unavailable
+
+    """
+
+    enabled: bool = Field(False, description="Enable trend-aware hashtags")
+    provider: str = Field("static", description="Trend provider identifier")
+    cache_ttl_hours: int = Field(
+        4,
+        ge=1,
+        le=24,
+        description="Time-to-live for cached trends (1-24h)",
+    )
+    max_trending_tags: int = Field(
+        2,
+        ge=1,
+        le=5,
+        description="Max trending tags to add (respects platform limits)",
+    )
+    fallback_tags: PlatformFallbackTags = Field(
+        default_factory=PlatformFallbackTags,
+        description="Per-platform fallback trending tags",
+    )
+
+
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
@@ -225,6 +394,10 @@ class PlatformMetadataSettings(BaseModel):
         youtube: YouTube-specific settings
         tiktok: TikTok-specific settings
         instagram: Instagram-specific settings
+        cache: Metadata caching settings
+        batch: Batch generation settings
+        export: Export settings
+        trends: Trend-aware hashtag settings
 
     """
 
@@ -249,4 +422,20 @@ class PlatformMetadataSettings(BaseModel):
     instagram: InstagramPlatformSettings = Field(
         default_factory=lambda: InstagramPlatformSettings(),  # type: ignore[call-arg]
         description="Instagram platform settings",
+    )
+    cache: MetadataCacheSettings = Field(
+        default_factory=lambda: MetadataCacheSettings(),  # type: ignore[call-arg]
+        description="Metadata caching settings",
+    )
+    batch: BatchGenerationSettings = Field(
+        default_factory=lambda: BatchGenerationSettings(),  # type: ignore[call-arg]
+        description="Batch metadata generation settings",
+    )
+    export: ExportSettings = Field(
+        default_factory=lambda: ExportSettings(),  # type: ignore[call-arg]
+        description="Metadata export settings",
+    )
+    trends: TrendSettings = Field(
+        default_factory=lambda: TrendSettings(),  # type: ignore[call-arg]
+        description="Trend-aware hashtag settings",
     )

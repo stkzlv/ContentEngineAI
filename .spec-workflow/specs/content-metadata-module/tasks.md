@@ -151,7 +151,7 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
 
 ## Enhancement Tasks
 
-- [ ] 21. Add metadata caching
+- [x] 21. Add metadata caching
   - File: src/ai/platform_metadata/cache.py (new)
   - Cache generated metadata by product_id + platform
   - Configurable TTL for cache entries
@@ -159,8 +159,15 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: src/ai/platform_metadata/models.py_
   - _Requirements: 1_
   - _Prompt: Role: Python Developer | Task: Add metadata caching layer: cache PlatformMetadata by (product_id, platform) key, configurable TTL, invalidation on product change | Restrictions: Use file-based cache for persistence, handle cache corruption gracefully | Success: Repeated generation requests use cached metadata_
+  - **Implementation:**
+    - `MetadataCacheSettings` Pydantic model in `models.py` with `enabled`, `ttl_hours`, `cache_dir`, `max_entries`
+    - `MetadataCache` class in `cache.py` with file-based JSON storage
+    - `CacheEntry` dataclass with TTL expiration and product hash validation
+    - Integrated with `PlatformMetadataFactory.generate_multi_platform()` via optional `cache` parameter
+    - Graceful corruption handling (removes invalid cache files)
+    - 25 unit tests in `tests/ai/test_metadata_cache.py`
 
-- [ ] 22. Add A/B testing support for prompts
+- [x] 22. Add A/B testing support for prompts
   - File: src/ai/platform_metadata/ab_testing.py (new)
   - Support multiple prompt variants per platform
   - Track which variant produced metadata
@@ -168,17 +175,34 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: src/ai/prompts/_
   - _Requirements: 6_
   - _Prompt: Role: Python Developer | Task: Add A/B testing for prompt templates: load variant based on config, track variant in metadata, support multiple variants per platform | Restrictions: Deterministic variant selection for reproducibility, log variant used | Success: Can compare metadata quality across prompt variants_
+  - **Implementation:**
+    - `ABTestingSettings`, `PlatformABConfig`, `PromptVariant` Pydantic models
+    - `PromptVariantSelector` class with deterministic hash-based selection
+    - `VariantSelection` dataclass for tracking selected variant
+    - Added `prompt_variant` field to `PlatformMetadata` model
+    - Weighted variant selection for traffic splitting (e.g., 80/20)
+    - Configuration in `ai_services.yaml` under `platform_metadata_config.ab_testing`
+    - 25 unit tests in `tests/ai/test_ab_testing.py`
 
-- [ ] 23. Add batch metadata generation
-  - File: src/ai/platform_metadata/__init__.py (modify)
+- [x] 23. Add batch metadata generation
+  - File: src/ai/platform_metadata/batch.py (new)
   - Generate metadata for multiple products in parallel
   - Progress tracking with [N/total] format
   - Purpose: Efficient metadata generation for batch video production
   - _Leverage: asyncio.gather_
   - _Requirements: 1, 6_
   - _Prompt: Role: Python Developer | Task: Add batch metadata generation: generate for multiple products concurrently, track progress, aggregate results | Restrictions: Respect rate limits, maintain per-product error isolation | Success: Batch generation completes faster than sequential_
+  - **Implementation:**
+    - `BatchGenerationSettings` Pydantic model in `models.py` with `enabled`, `max_concurrent`, `log_progress`
+    - `BatchMetadataGenerator` class in `batch.py` with semaphore-based rate limiting
+    - `ProductGenerationResult` dataclass for per-product results with `from_cache` tracking
+    - `BatchGenerationResult` dataclass with aggregated stats and `success_rate` property
+    - `ProgressCallback` type alias for progress tracking with `[N/total]` format
+    - Configuration in `ai_services.yaml` under `platform_metadata_config.batch`
+    - Per-product error isolation via `asyncio.gather(return_exceptions=True)`
+    - 25 unit tests in `tests/ai/test_batch_generation.py`
 
-- [ ] 24. Add metadata export formats
+- [x] 24. Add metadata export formats
   - File: src/ai/platform_metadata/export.py (new)
   - Export metadata in CSV, JSON, and platform-specific formats
   - Support bulk export for analytics
@@ -186,8 +210,20 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: src/ai/platform_metadata/models.py_
   - _Requirements: 7_
   - _Prompt: Role: Python Developer | Task: Add metadata export: JSON (default), CSV for spreadsheet analysis, platform-specific formats (YouTube CSV, TikTok format) | Restrictions: Maintain data fidelity, handle encoding correctly | Success: Exported metadata importable by target platforms_
+  - **Implementation:**
+    - `MetadataExporter` class in `export.py` with format-specific export methods
+    - `ExportFormat` enum: JSON, CSV, YOUTUBE_CSV, TIKTOK, INSTAGRAM
+    - `ExportResult` dataclass for tracking export success/failure
+    - `ExportSettings` Pydantic model with format, category, privacy options
+    - JSON export with full metadata and unicode support
+    - CSV export with UTF-8-BOM encoding for Excel compatibility
+    - YouTube CSV format with tags (hashtags without #), category, privacy
+    - TikTok format with caption + hashtags for easy copy-paste
+    - Instagram format with dot separators per platform best practices
+    - `export_all_formats()` for bulk multi-format export
+    - 25 unit tests in `tests/ai/test_metadata_export.py`
 
-- [ ] 25. Add trend-aware hashtag generation
+- [x] 25. Add trend-aware hashtag generation
   - File: src/ai/platform_metadata/trends.py (new)
   - Integrate with trend APIs to suggest current hashtags
   - Platform-specific trending tag lookup
@@ -195,6 +231,13 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: External trend APIs_
   - _Requirements: 3, 4_
   - _Prompt: Role: Python Developer | Task: Add trend-aware hashtags: fetch trending tags from platform APIs or third-party services, merge with generated hashtags | Restrictions: Cache trend data, handle API failures gracefully, don't replace all hashtags | Success: Generated metadata includes relevant trending hashtags_
+  - **Implementation:**
+    *   `TrendSettings` Pydantic model in `models.py` with `enabled`, `provider`, `cache_ttl_hours`, `max_trending_tags`
+    *   `TrendAwareHashtagGenerator` in `trends.py` with `TrendCache` (TTL support) and `StaticTrendProvider` fallback
+    *   Integrated into `PlatformMetadataFactory.generate_multi_platform()` to merge trending tags after generation
+    *   Deduplication logic (case-insensitive) to prevent duplicate hashtags
+    *   Configuration in `ai_services.yaml` under `platform_metadata_config.trends`
+    *   13 unit tests in `tests/ai/test_trend_aware_hashtags.py`
 
 ## Testing Checklist
 
