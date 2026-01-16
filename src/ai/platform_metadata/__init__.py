@@ -26,9 +26,15 @@ from src.ai.platform_metadata.batch import (
     ProgressCallback,
 )
 from src.ai.platform_metadata.cache import MetadataCache
+from src.ai.platform_metadata.export import (
+    ExportFormat,
+    ExportResult,
+    MetadataExporter,
+)
 from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
 from src.ai.platform_metadata.models import (
     BatchGenerationSettings,
+    ExportSettings,
     InstagramPlatformSettings,
     MetadataCacheSettings,
     PlatformMetadata,
@@ -300,6 +306,11 @@ __all__ = [
     "BatchGenerationResult",
     "ProductGenerationResult",
     "ProgressCallback",
+    # Export
+    "MetadataExporter",
+    "ExportSettings",
+    "ExportFormat",
+    "ExportResult",
     # Platform generators
     "YouTubeMetadataGenerator",
     "TikTokMetadataGenerator",

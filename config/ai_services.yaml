@@ -219,6 +219,40 @@ platform_metadata_config:
     # Useful for monitoring batch progress in production
     log_progress: true
 
+  # ---- Export Settings ----
+  # Control metadata export formats, encoding, and platform-specific options
+  # Supports JSON, CSV, YouTube CSV, TikTok, and Instagram formats
+  export:
+    # Enable/disable metadata export functionality
+    enabled: true
+
+    # Default export format when not specified
+    # Options: json, csv, youtube_csv, tiktok, instagram
+    default_format: "json"
+
+    # Default YouTube category ID for YouTube CSV exports
+    # Common IDs: 22=People & Blogs, 28=Science & Tech, 10=Music
+    # Full list: https://developers.google.com/youtube/v3/docs/videoCategories
+    youtube_category: "22"
+
+    # Default privacy setting for YouTube exports
+    # Options: private, public, unlisted
+    # Recommendation: "private" for review before publishing
+    youtube_privacy: "private"
+
+    # CSV file encoding for spreadsheet compatibility
+    # utf-8-sig = UTF-8 with BOM (recommended for Excel)
+    # utf-8 = standard UTF-8 (for other tools)
+    csv_encoding: "utf-8-sig"
+
+    # JSON indentation for pretty-printing (0-8 spaces)
+    # 2 = readable, 0 = compact (smaller file size)
+    json_indent: 2
+
+    # Max title length when using description as title fallback
+    # Used in YouTube CSV when title field is empty
+    youtube_title_fallback_length: 60
+
   # ---- YouTube Settings ----
   # Optimized for YouTube Shorts discovery and search ranking
   # Key factors: Front-loaded keywords, #Shorts tag, 3-5 targeted hashtags

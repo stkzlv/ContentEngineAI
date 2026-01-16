@@ -274,6 +274,57 @@ class BatchGenerationSettings(BaseModel):
     )
 
 
+class ExportSettings(BaseModel):
+    """Configuration settings for metadata export.
+
+    Controls export formats, encoding, and platform-specific options.
+
+    Attributes
+    ----------
+        enabled: Enable/disable export functionality
+        default_format: Default export format (json, csv, youtube_csv,
+            tiktok, instagram)
+        youtube_category: Default YouTube category ID (22 = People & Blogs)
+        youtube_privacy: Default privacy setting for YouTube exports
+        csv_encoding: CSV file encoding (utf-8-sig for Excel compatibility)
+        json_indent: JSON indentation spaces for pretty-printing
+        youtube_title_fallback_length: Max length when using description as title
+
+    """
+
+    enabled: bool = Field(True, description="Enable metadata export functionality")
+    default_format: str = Field(
+        "json",
+        pattern="^(json|csv|youtube_csv|tiktok|instagram)$",
+        description="Default export format",
+    )
+    youtube_category: str = Field(
+        "22",
+        description="Default YouTube category ID (22 = People & Blogs)",
+    )
+    youtube_privacy: str = Field(
+        "private",
+        pattern="^(private|public|unlisted)$",
+        description="Default privacy setting for YouTube exports",
+    )
+    csv_encoding: str = Field(
+        "utf-8-sig",
+        description="CSV encoding (utf-8-sig for Excel, utf-8 for others)",
+    )
+    json_indent: int = Field(
+        2,
+        ge=0,
+        le=8,
+        description="JSON indentation spaces (0 for compact)",
+    )
+    youtube_title_fallback_length: int = Field(
+        60,
+        ge=10,
+        le=100,
+        description="Max title length when using description as fallback",
+    )
+
+
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
@@ -321,4 +372,8 @@ class PlatformMetadataSettings(BaseModel):
     batch: BatchGenerationSettings = Field(
         default_factory=lambda: BatchGenerationSettings(),  # type: ignore[call-arg]
         description="Batch metadata generation settings",
+    )
+    export: ExportSettings = Field(
+        default_factory=lambda: ExportSettings(),  # type: ignore[call-arg]
+        description="Metadata export settings",
     )

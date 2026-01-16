@@ -202,7 +202,7 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
     - Per-product error isolation via `asyncio.gather(return_exceptions=True)`
     - 25 unit tests in `tests/ai/test_batch_generation.py`
 
-- [ ] 24. Add metadata export formats
+- [x] 24. Add metadata export formats
   - File: src/ai/platform_metadata/export.py (new)
   - Export metadata in CSV, JSON, and platform-specific formats
   - Support bulk export for analytics
@@ -210,6 +210,18 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: src/ai/platform_metadata/models.py_
   - _Requirements: 7_
   - _Prompt: Role: Python Developer | Task: Add metadata export: JSON (default), CSV for spreadsheet analysis, platform-specific formats (YouTube CSV, TikTok format) | Restrictions: Maintain data fidelity, handle encoding correctly | Success: Exported metadata importable by target platforms_
+  - **Implementation:**
+    - `MetadataExporter` class in `export.py` with format-specific export methods
+    - `ExportFormat` enum: JSON, CSV, YOUTUBE_CSV, TIKTOK, INSTAGRAM
+    - `ExportResult` dataclass for tracking export success/failure
+    - `ExportSettings` Pydantic model with format, category, privacy options
+    - JSON export with full metadata and unicode support
+    - CSV export with UTF-8-BOM encoding for Excel compatibility
+    - YouTube CSV format with tags (hashtags without #), category, privacy
+    - TikTok format with caption + hashtags for easy copy-paste
+    - Instagram format with dot separators per platform best practices
+    - `export_all_formats()` for bulk multi-format export
+    - 25 unit tests in `tests/ai/test_metadata_export.py`
 
 - [ ] 25. Add trend-aware hashtag generation
   - File: src/ai/platform_metadata/trends.py (new)
