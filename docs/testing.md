@@ -74,7 +74,12 @@ tests/
 │   ├── test_tiktok_generator.py     # TikTok metadata generation
 │   ├── test_youtube_generator.py    # YouTube metadata generation
 │   ├── test_text_formatter.py       # Text formatting utilities
-│   └── test_platform_metadata_models.py  # Pydantic models
+│   ├── test_platform_metadata_models.py  # Pydantic models
+│   ├── test_metadata_cache.py       # Metadata caching (25 tests)
+│   ├── test_ab_testing.py           # A/B testing for prompts (25 tests)
+│   ├── test_batch_generation.py     # Batch metadata generation (25 tests)
+│   ├── test_metadata_export.py      # Multi-format export (31 tests)
+│   └── test_trend_aware_hashtags.py # Trend-aware hashtags (13 tests)
 │
 ├── # End-to-End Tests
 ├── e2e/

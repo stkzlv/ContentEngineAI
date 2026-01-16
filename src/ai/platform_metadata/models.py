@@ -375,7 +375,7 @@ class TrendSettings(BaseModel):
         description="Max trending tags to add (respects platform limits)",
     )
     fallback_tags: PlatformFallbackTags = Field(
-        default_factory=lambda: PlatformFallbackTags(),  # type: ignore[call-arg]
+        default_factory=PlatformFallbackTags,
         description="Per-platform fallback trending tags",
     )
 

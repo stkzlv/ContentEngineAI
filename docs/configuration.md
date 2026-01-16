@@ -935,6 +935,91 @@ Platform metadata is automatically validated against platform-specific requireme
 
 Validation failures are logged but don't block generation - invalid metadata is saved with `validation_status: "invalid"` and detailed `validation_messages`.
 
+#### Platform Metadata Enhancement Modules (v0.23.0+)
+
+The platform metadata system includes five enhancement modules for production workflows:
+
+**1. Metadata Caching** (`cache`):
+```yaml
+platform_metadata:
+  cache:
+    enabled: true
+    ttl_hours: 24              # Cache expiration (1-720 hours)
+    cache_dir: ".cache/platform_metadata"
+    max_entries: 1000          # LRU eviction when exceeded
+```
+
+**2. A/B Testing** (`ab_testing`):
+```yaml
+platform_metadata_config:
+  ab_testing:
+    enabled: false
+    youtube:
+      enabled: true
+      variants:
+        - name: "control"
+          template_path: "src/ai/prompts/youtube_metadata.md"
+          weight: 50
+```
+
+**3. Batch Generation** (`batch`):
+```yaml
+platform_metadata_config:
+  batch:
+    enabled: true
+    max_concurrent: 3          # Parallel product processing (1-20)
+    log_progress: true         # [N/total] format logging
+```
+
+**4. Multi-Format Export** (`export`):
+```yaml
+platform_metadata_config:
+  export:
+    enabled: true
+    default_format: "json"     # json, csv, youtube_csv, tiktok, instagram
+    youtube_category: "22"     # People & Blogs
+    youtube_privacy: "private"
+    csv_encoding: "utf-8-sig"  # Excel compatibility
+```
+
+**5. Trend-Aware Hashtags** (`trends`):
+```yaml
+platform_metadata_config:
+  trends:
+    enabled: false
+    provider: "static"         # static, mock (future: external APIs)
+    cache_ttl_hours: 4
+    max_trending_tags: 2
+    fallback_tags:
+      youtube: ["#Shorts", "#Trending", "#Tech"]
+      tiktok: ["#ForYou", "#Viral", "#TechTok"]
+      instagram: ["#Reels", "#InstaGood", "#Innovation"]
+```
+
+**Programmatic Usage**:
+```python
+from src.ai.platform_metadata import (
+    MetadataCache, BatchMetadataGenerator, MetadataExporter,
+    TrendAwareHashtagGenerator, PromptVariantSelector
+)
+
+# Caching
+cache = MetadataCache(cache_settings)
+cached = cache.get(product_id, "youtube", product)
+
+# Batch generation
+batch_gen = BatchMetadataGenerator(max_concurrent=5)
+results = await batch_gen.generate_batch(products, settings, ...)
+
+# Export
+exporter = MetadataExporter()
+exporter.export_all_formats(metadata_list, output_dir)
+
+# Trends
+trend_gen = TrendAwareHashtagGenerator(trend_settings)
+tags = await trend_gen.merge_trending_tags("tiktok", existing_tags)
+```
+
 </details>
 
 <details>

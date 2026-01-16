@@ -264,7 +264,7 @@ class PlatformMetadataFactory:
                 results[platform] = None
             else:
                 final_result = result
-                
+
                 # Apply trend-aware hashtags if generator provided
                 if final_result and trend_generator:
                     try:
@@ -273,7 +273,9 @@ class PlatformMetadataFactory:
                         )
                         if enhanced_tags != final_result.hashtags:
                             final_result = replace(final_result, hashtags=enhanced_tags)
-                            logger.info(f"Enhanced {platform} metadata with trending tags")
+                            logger.info(
+                                f"Enhanced {platform} metadata with trending tags"
+                            )
                     except Exception as e:
                         logger.warning(f"Failed to apply trends to {platform}: {e}")
 

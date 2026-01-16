@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-01-16
+
+### Added
+- **Platform Metadata Enhancements**: Five new modules for the platform metadata system
+  - `src/ai/platform_metadata/cache.py` - File-based metadata caching with TTL expiration and LRU eviction
+  - `src/ai/platform_metadata/ab_testing.py` - Prompt variant selection with deterministic hash-based assignment
+  - `src/ai/platform_metadata/batch.py` - Concurrent multi-product processing with semaphore rate limiting
+  - `src/ai/platform_metadata/export.py` - Multi-format export (JSON, CSV, YouTube CSV, TikTok, Instagram)
+  - `src/ai/platform_metadata/trends.py` - Trend-aware hashtag merging with configurable fallback tags
+
+- **Platform Metadata Tests**: Comprehensive test coverage for enhancement modules
+  - `tests/ai/test_metadata_cache.py` - Cache tests (25 tests)
+  - `tests/ai/test_ab_testing.py` - A/B testing tests (25 tests)
+  - `tests/ai/test_batch_generation.py` - Batch generation tests (25 tests)
+  - `tests/ai/test_metadata_export.py` - Export tests (31 tests)
+  - `tests/ai/test_trend_aware_hashtags.py` - Trend tests (13 tests)
+
+### Changed
+- **Configuration**: Added settings for new metadata modules in `config/ai_services.yaml`
+  - Cache settings: TTL, directory, max entries
+  - A/B testing: Prompt variants with weights
+  - Batch settings: Max concurrent, progress logging
+  - Export settings: Formats, encoding, YouTube category/privacy
+  - Trend settings: Provider, cache TTL, fallback tags
+
 ## [0.22.0] - 2026-01-12
 
 ### Added

@@ -10,7 +10,6 @@ import abc
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Dict, List, Optional
 
 from src.ai.platform_metadata.models import PlatformFallbackTags, TrendSettings
 
@@ -30,7 +29,7 @@ class TrendingTags:
     """
 
     platform: str
-    tags: List[str]
+    tags: list[str]
     fetched_at: datetime
 
 
@@ -38,7 +37,7 @@ class TrendProvider(abc.ABC):
     """Abstract base class for trend data providers."""
 
     @abc.abstractmethod
-    async def get_trending_tags(self, platform: str) -> List[str]:
+    async def get_trending_tags(self, platform: str) -> list[str]:
         """Fetch trending hashtags for a specific platform.
 
         Args:
@@ -71,7 +70,7 @@ class StaticTrendProvider(TrendProvider):
         """
         self.fallback_tags = fallback_tags or PlatformFallbackTags()
 
-    async def get_trending_tags(self, platform: str) -> List[str]:
+    async def get_trending_tags(self, platform: str) -> list[str]:
         """Return configurable fallback trends for the platform."""
         return getattr(self.fallback_tags, platform, [])
 
@@ -90,10 +89,10 @@ class TrendCache:
             ttl_hours: Time-to-live for cache entries in hours
 
         """
-        self._cache: Dict[str, TrendingTags] = {}
+        self._cache: dict[str, TrendingTags] = {}
         self.ttl = timedelta(hours=ttl_hours)
 
-    def get(self, platform: str) -> Optional[List[str]]:
+    def get(self, platform: str) -> list[str] | None:
         """Retrieve cached trends if valid and not expired.
 
         Args:
@@ -117,7 +116,7 @@ class TrendCache:
 
         return entry.tags
 
-    def set(self, platform: str, tags: List[str]):
+    def set(self, platform: str, tags: list[str]):
         """Store trends in cache with current timestamp.
 
         Args:
@@ -171,8 +170,8 @@ class TrendAwareHashtagGenerator:
         return StaticTrendProvider(self.settings.fallback_tags)
 
     async def merge_trending_tags(
-        self, platform: str, existing_tags: List[str]
-    ) -> List[str]:
+        self, platform: str, existing_tags: list[str]
+    ) -> list[str]:
         """Fetch and merge trending tags with existing ones.
 
         Respects max_trending_tags limit and prevents duplicates.
@@ -207,7 +206,7 @@ class TrendAwareHashtagGenerator:
 
         # Case-insensitive comparison for duplicates
         existing_lower = {t.lower() for t in existing_tags}
-        
+
         # Filter out tags already present and pick up to limit
         tags_to_add = []
         for tag in trending:
