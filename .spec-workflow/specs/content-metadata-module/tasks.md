@@ -184,14 +184,23 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
     - Configuration in `ai_services.yaml` under `platform_metadata_config.ab_testing`
     - 25 unit tests in `tests/ai/test_ab_testing.py`
 
-- [ ] 23. Add batch metadata generation
-  - File: src/ai/platform_metadata/__init__.py (modify)
+- [x] 23. Add batch metadata generation
+  - File: src/ai/platform_metadata/batch.py (new)
   - Generate metadata for multiple products in parallel
   - Progress tracking with [N/total] format
   - Purpose: Efficient metadata generation for batch video production
   - _Leverage: asyncio.gather_
   - _Requirements: 1, 6_
   - _Prompt: Role: Python Developer | Task: Add batch metadata generation: generate for multiple products concurrently, track progress, aggregate results | Restrictions: Respect rate limits, maintain per-product error isolation | Success: Batch generation completes faster than sequential_
+  - **Implementation:**
+    - `BatchGenerationSettings` Pydantic model in `models.py` with `enabled`, `max_concurrent`, `log_progress`
+    - `BatchMetadataGenerator` class in `batch.py` with semaphore-based rate limiting
+    - `ProductGenerationResult` dataclass for per-product results with `from_cache` tracking
+    - `BatchGenerationResult` dataclass with aggregated stats and `success_rate` property
+    - `ProgressCallback` type alias for progress tracking with `[N/total]` format
+    - Configuration in `ai_services.yaml` under `platform_metadata_config.batch`
+    - Per-product error isolation via `asyncio.gather(return_exceptions=True)`
+    - 25 unit tests in `tests/ai/test_batch_generation.py`
 
 - [ ] 24. Add metadata export formats
   - File: src/ai/platform_metadata/export.py (new)

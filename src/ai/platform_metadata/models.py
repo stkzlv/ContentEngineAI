@@ -179,7 +179,7 @@ class TikTokPlatformSettings(BaseModel):
         description="Use SEO-focused exact search phrases vs creative captions",
     )
     avoid_generic_tags: list[str] = Field(
-        default=["foryoupage", "fyp", "viral"],
+        default=["foryoupage", "fyp", "viral", "foryou"],
         description="Generic hashtags to avoid (prefer niche-specific tags)",
     )
 
@@ -247,6 +247,33 @@ class MetadataCacheSettings(BaseModel):
     )
 
 
+class BatchGenerationSettings(BaseModel):
+    """Configuration settings for batch metadata generation.
+
+    Controls concurrent processing of multiple products with rate limiting
+    and progress tracking.
+
+    Attributes
+    ----------
+        enabled: Enable/disable batch generation
+        max_concurrent: Maximum concurrent product generations (1-20)
+        log_progress: Enable progress logging with [N/total] format
+
+    """
+
+    enabled: bool = Field(True, description="Enable batch metadata generation")
+    max_concurrent: int = Field(
+        3,
+        ge=1,
+        le=20,
+        description="Maximum concurrent product generations (1-20)",
+    )
+    log_progress: bool = Field(
+        True,
+        description="Log progress with [N/total] format",
+    )
+
+
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
@@ -290,4 +317,8 @@ class PlatformMetadataSettings(BaseModel):
     cache: MetadataCacheSettings = Field(
         default_factory=lambda: MetadataCacheSettings(),  # type: ignore[call-arg]
         description="Metadata caching settings",
+    )
+    batch: BatchGenerationSettings = Field(
+        default_factory=lambda: BatchGenerationSettings(),  # type: ignore[call-arg]
+        description="Batch metadata generation settings",
     )

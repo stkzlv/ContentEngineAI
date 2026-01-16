@@ -19,9 +19,16 @@ from src.ai.platform_metadata.ab_testing import (
     VariantSelection,
 )
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
+from src.ai.platform_metadata.batch import (
+    BatchGenerationResult,
+    BatchMetadataGenerator,
+    ProductGenerationResult,
+    ProgressCallback,
+)
 from src.ai.platform_metadata.cache import MetadataCache
 from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
 from src.ai.platform_metadata.models import (
+    BatchGenerationSettings,
     InstagramPlatformSettings,
     MetadataCacheSettings,
     PlatformMetadata,
@@ -287,6 +294,12 @@ __all__ = [
     "PromptVariant",
     "PromptVariantSelector",
     "VariantSelection",
+    # Batch Generation
+    "BatchMetadataGenerator",
+    "BatchGenerationSettings",
+    "BatchGenerationResult",
+    "ProductGenerationResult",
+    "ProgressCallback",
     # Platform generators
     "YouTubeMetadataGenerator",
     "TikTokMetadataGenerator",

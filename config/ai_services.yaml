@@ -104,8 +104,12 @@ description_settings:
       emoji_enabled: true
 
 # ============================================================================
-# PLATFORM METADATA SETTINGS (Advanced)
+# PLATFORM METADATA SETTINGS (Reference Documentation)
 # ============================================================================
+# IMPORTANT: This section provides DETAILED DOCUMENTATION and default values.
+# The ACTIVE configuration is in description_settings.platform_metadata above.
+# These two sections should be kept in sync when modifying platform settings.
+#
 # Platform-specific metadata optimization for YouTube, TikTok, and Instagram
 # Based on 2025 algorithm best practices and SEO research
 #
@@ -116,7 +120,7 @@ description_settings:
 # - Maintains backward compatibility when disabled (platform_metadata: null)
 #
 # Usage:
-# - Set description_settings.platform_metadata to {} to enable
+# - Set description_settings.platform_metadata.enabled to true to enable
 # - Configure target_platform to control which platforms to generate for
 # - Adjust per-platform settings to match your content strategy
 platform_metadata_config:
@@ -194,6 +198,26 @@ platform_metadata_config:
           template_path: "src/ai/prompts/instagram_caption.md"
           weight: 50
           description: "Original Instagram caption prompt"
+
+  # ---- Batch Generation Settings ----
+  # Concurrent processing of multiple products for efficient batch workflows
+  # Respects rate limits via semaphore-based concurrency control
+  # Progress tracked with [N/total] format for monitoring
+  batch:
+    # Enable/disable batch metadata generation
+    # When enabled, allows processing multiple products concurrently
+    enabled: true
+
+    # Maximum concurrent product generations (1-20)
+    # Higher values = faster batch completion but more API load
+    # 3 is conservative for rate-limited APIs, 10 for high-throughput
+    # Recommendation: Start with 3, increase if no rate limit errors
+    max_concurrent: 3
+
+    # Enable progress logging with [N/total] format
+    # Logs: "[1/10] B0TESTASIN: starting" -> "[1/10] B0TESTASIN: success"
+    # Useful for monitoring batch progress in production
+    log_progress: true
 
   # ---- YouTube Settings ----
   # Optimized for YouTube Shorts discovery and search ranking
