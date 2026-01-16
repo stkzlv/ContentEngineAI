@@ -7,6 +7,7 @@ descriptions, captions, and hashtags tailored to each platform's best practices.
 # Import for type hints and async
 import asyncio
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import aiohttp
@@ -40,9 +41,11 @@ from src.ai.platform_metadata.models import (
     PlatformMetadata,
     PlatformMetadataSettings,
     TikTokPlatformSettings,
+    TrendSettings,
     YouTubePlatformSettings,
 )
 from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
+from src.ai.platform_metadata.trends import TrendAwareHashtagGenerator
 from src.ai.platform_metadata.utilities import (
     call_llm_api_with_retry,
     fetch_and_select_model,
@@ -136,6 +139,7 @@ class PlatformMetadataFactory:
         debug_mode: bool = False,
         api_settings=None,
         cache: MetadataCache | None = None,
+        trend_generator: TrendAwareHashtagGenerator | None = None,
     ) -> dict[str, PlatformMetadata | None]:
         """Generate metadata for all platforms in parallel using asyncio.gather().
 
@@ -146,6 +150,9 @@ class PlatformMetadataFactory:
         Supports optional caching to avoid regenerating metadata for unchanged
         products. When cache is provided, cached entries are returned immediately
         and only missing/expired entries trigger LLM generation.
+
+        Supports optional trend-aware hashtags. When provided, trending hashtags
+        for each platform are merged with the generated tags.
 
         Args:
         ----
@@ -163,6 +170,7 @@ class PlatformMetadataFactory:
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
             cache: Optional MetadataCache for caching generated metadata
+            trend_generator: Optional TrendAwareHashtagGenerator for trending tags
 
         Returns:
         -------
@@ -176,18 +184,13 @@ class PlatformMetadataFactory:
 
         Example:
         -------
-            # Without cache
-            results = await PlatformMetadataFactory.generate_multi_platform(
-                product, llm_settings, secrets, session,
-                platform_settings, intermediate_paths, debug_mode=True
-            )
-
-            # With cache (recommended)
+            # With cache and trends
             cache = MetadataCache(cache_settings)
+            trend_gen = TrendAwareHashtagGenerator(trend_settings)
             results = await PlatformMetadataFactory.generate_multi_platform(
-                product, llm_settings, secrets, session,
+                product, settings, secrets, session,
                 platform_settings, intermediate_paths,
-                debug_mode=True, cache=cache
+                debug_mode=True, cache=cache, trend_generator=trend_gen
             )
 
             if results["youtube"]:
@@ -260,13 +263,27 @@ class PlatformMetadataFactory:
                 )
                 results[platform] = None
             else:
-                results[platform] = result
-                status = "success" if result else "failed"
+                final_result = result
+                
+                # Apply trend-aware hashtags if generator provided
+                if final_result and trend_generator:
+                    try:
+                        enhanced_tags = await trend_generator.merge_trending_tags(
+                            platform, final_result.hashtags
+                        )
+                        if enhanced_tags != final_result.hashtags:
+                            final_result = replace(final_result, hashtags=enhanced_tags)
+                            logger.info(f"Enhanced {platform} metadata with trending tags")
+                    except Exception as e:
+                        logger.warning(f"Failed to apply trends to {platform}: {e}")
+
+                results[platform] = final_result
+                status = "success" if final_result else "failed"
                 logger.info(f"{platform.capitalize()} metadata generation: {status}")
 
                 # Cache successful results
-                if result and cache:
-                    cache.set(result, product)
+                if final_result and cache:
+                    cache.set(final_result, product)
 
         success_count = sum(1 for v in results.values() if v is not None)
         total_count = len(results)
@@ -311,6 +328,9 @@ __all__ = [
     "ExportSettings",
     "ExportFormat",
     "ExportResult",
+    # Trends
+    "TrendAwareHashtagGenerator",
+    "TrendSettings",
     # Platform generators
     "YouTubeMetadataGenerator",
     "TikTokMetadataGenerator",

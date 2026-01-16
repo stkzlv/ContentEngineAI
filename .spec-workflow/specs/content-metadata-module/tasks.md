@@ -223,7 +223,7 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
     - `export_all_formats()` for bulk multi-format export
     - 25 unit tests in `tests/ai/test_metadata_export.py`
 
-- [ ] 25. Add trend-aware hashtag generation
+- [x] 25. Add trend-aware hashtag generation
   - File: src/ai/platform_metadata/trends.py (new)
   - Integrate with trend APIs to suggest current hashtags
   - Platform-specific trending tag lookup
@@ -231,6 +231,13 @@ The Content Metadata Module is **fully implemented** and production-ready. All c
   - _Leverage: External trend APIs_
   - _Requirements: 3, 4_
   - _Prompt: Role: Python Developer | Task: Add trend-aware hashtags: fetch trending tags from platform APIs or third-party services, merge with generated hashtags | Restrictions: Cache trend data, handle API failures gracefully, don't replace all hashtags | Success: Generated metadata includes relevant trending hashtags_
+  - **Implementation:**
+    *   `TrendSettings` Pydantic model in `models.py` with `enabled`, `provider`, `cache_ttl_hours`, `max_trending_tags`
+    *   `TrendAwareHashtagGenerator` in `trends.py` with `TrendCache` (TTL support) and `StaticTrendProvider` fallback
+    *   Integrated into `PlatformMetadataFactory.generate_multi_platform()` to merge trending tags after generation
+    *   Deduplication logic (case-insensitive) to prevent duplicate hashtags
+    *   Configuration in `ai_services.yaml` under `platform_metadata_config.trends`
+    *   13 unit tests in `tests/ai/test_trend_aware_hashtags.py`
 
 ## Testing Checklist
 

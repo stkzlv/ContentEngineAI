@@ -325,6 +325,61 @@ class ExportSettings(BaseModel):
     )
 
 
+class PlatformFallbackTags(BaseModel):
+    """Fallback trending tags per platform when external APIs unavailable.
+
+    Used as baseline high-performance tags when trend providers fail.
+    """
+
+    youtube: list[str] = Field(
+        default=["#Shorts", "#Trending", "#Tech", "#Gadgets", "#Review"],
+        description="Fallback trending tags for YouTube",
+    )
+    tiktok: list[str] = Field(
+        default=["#ForYou", "#Viral", "#LifeHack", "#Shopping", "#TechTok"],
+        description="Fallback trending tags for TikTok",
+    )
+    instagram: list[str] = Field(
+        default=["#Reels", "#InstaGood", "#Innovation", "#Gadget", "#TechLife"],
+        description="Fallback trending tags for Instagram",
+    )
+
+
+class TrendSettings(BaseModel):
+    """Configuration for trend-aware hashtag generation.
+
+    Integrates with trend APIs to suggest current hashtags for better discovery.
+
+    Attributes
+    ----------
+        enabled: Enable trend-aware hashtags globally
+        provider: Trend provider identifier ("static", "mock", "external")
+        cache_ttl_hours: Time-to-live for cached trends in hours
+        max_trending_tags: Maximum number of trending tags to add per platform
+        fallback_tags: Per-platform fallback tags when APIs unavailable
+
+    """
+
+    enabled: bool = Field(False, description="Enable trend-aware hashtags")
+    provider: str = Field("static", description="Trend provider identifier")
+    cache_ttl_hours: int = Field(
+        4,
+        ge=1,
+        le=24,
+        description="Time-to-live for cached trends (1-24h)",
+    )
+    max_trending_tags: int = Field(
+        2,
+        ge=1,
+        le=5,
+        description="Max trending tags to add (respects platform limits)",
+    )
+    fallback_tags: PlatformFallbackTags = Field(
+        default_factory=lambda: PlatformFallbackTags(),  # type: ignore[call-arg]
+        description="Per-platform fallback trending tags",
+    )
+
+
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
@@ -340,6 +395,9 @@ class PlatformMetadataSettings(BaseModel):
         tiktok: TikTok-specific settings
         instagram: Instagram-specific settings
         cache: Metadata caching settings
+        batch: Batch generation settings
+        export: Export settings
+        trends: Trend-aware hashtag settings
 
     """
 
@@ -376,4 +434,8 @@ class PlatformMetadataSettings(BaseModel):
     export: ExportSettings = Field(
         default_factory=lambda: ExportSettings(),  # type: ignore[call-arg]
         description="Metadata export settings",
+    )
+    trends: TrendSettings = Field(
+        default_factory=lambda: TrendSettings(),  # type: ignore[call-arg]
+        description="Trend-aware hashtag settings",
     )

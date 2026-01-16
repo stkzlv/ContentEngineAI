@@ -77,6 +77,16 @@ description_settings:
       ttl_hours: 24
       cache_dir: ".cache/platform_metadata"
       max_entries: 1000
+    # Trend-aware hashtags (see platform_metadata_config.trends for documentation)
+    trends:
+      enabled: false
+      provider: "static"
+      cache_ttl_hours: 4
+      max_trending_tags: 2
+      fallback_tags:
+        youtube: ["#Shorts", "#Trending", "#Tech", "#Gadgets", "#Review"]
+        tiktok: ["#ForYou", "#Viral", "#LifeHack", "#Shopping", "#TechTok"]
+        instagram: ["#Reels", "#InstaGood", "#Innovation", "#Gadget", "#TechLife"]
     youtube:
       enabled: true
       title_length_max: 60
@@ -252,6 +262,50 @@ platform_metadata_config:
     # Max title length when using description as title fallback
     # Used in YouTube CSV when title field is empty
     youtube_title_fallback_length: 60
+
+  # ---- Trend Settings ----
+  # Integrate with trend providers to suggest current hashtags
+  # Improving discoverability with platform-specific trending tags
+  trends:
+    # Enable/disable trend-aware hashtags globally
+    # When enabled, merges trending tags with generated hashtags
+    enabled: false
+
+    # Trend provider to use
+    # Options: static (high-perf fallback), mock (testing)
+    # Future: tiktok_api, google_trends
+    provider: "static"
+
+    # Time-to-live for cached trends in hours (1-24)
+    # Trending tags don't change every minute, 4-12h is recommended
+    cache_ttl_hours: 4
+
+    # Maximum number of trending tags to add per platform (1-5)
+    # Respects platform hashtag limits during merging
+    max_trending_tags: 2
+
+    # Fallback trending tags per platform when external APIs unavailable
+    # Used by static provider or as baseline when API calls fail
+    # Customize per niche: tech, beauty, fitness, etc.
+    fallback_tags:
+      youtube:
+        - "#Shorts"
+        - "#Trending"
+        - "#Tech"
+        - "#Gadgets"
+        - "#Review"
+      tiktok:
+        - "#ForYou"
+        - "#Viral"
+        - "#LifeHack"
+        - "#Shopping"
+        - "#TechTok"
+      instagram:
+        - "#Reels"
+        - "#InstaGood"
+        - "#Innovation"
+        - "#Gadget"
+        - "#TechLife"
 
   # ---- YouTube Settings ----
   # Optimized for YouTube Shorts discovery and search ranking
