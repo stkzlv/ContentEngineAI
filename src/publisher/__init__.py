@@ -34,7 +34,9 @@ from .base import (
     ValidationError,
 )
 from .models import (
+    AccountConfig,
     BatchPublishSummary,
+    ConflictResolution,
     Platform,
     PublisherConfig,
     PublishMetadata,
@@ -67,7 +69,9 @@ __all__ = [
     "PublishResult",
     "PublishMetadata",
     "PublisherConfig",
+    "AccountConfig",
     "BatchPublishSummary",
+    "ConflictResolution",
     "PublishStatus",
     "Platform",
     # Registry and factory

@@ -105,3 +105,13 @@ LATE_MAX_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
 LATE_DEFAULT_RETRY_AFTER_SEC = 60
 # Maximum webhook events to retain for idempotency tracking
 WEBHOOK_EVENT_HISTORY_LIMIT = 1000
+# Minimum API key length for validation (security best practice)
+LATE_API_KEY_MIN_LENGTH = 10
+
+# =============================================================================
+# SCHEDULE CONFLICT RESOLUTION (safety limits)
+# =============================================================================
+# Maximum attempts to find available slot before giving up
+SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS = 100
+# Multiplier for max attempts when finding alternatives (count * multiplier)
+SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER = 10

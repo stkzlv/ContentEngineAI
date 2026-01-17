@@ -130,6 +130,27 @@ cleanup:
   enabled: true             # Auto-cleanup after successful publish
 ```
 
+**Multi-Account Configuration** (optional):
+
+```yaml
+# Define multiple Late.dev accounts
+accounts:
+  production:
+    api_key: sk_live_prod_key_12345
+    vercel_token: vercel_prod_token
+    description: Production account
+  staging:
+    api_key: sk_live_staging_key_123
+    description: Staging/test account
+    default_platforms: [youtube]
+default_account: production  # Account to use by default
+```
+
+Use `--account NAME` CLI flag to switch accounts at runtime:
+```bash
+poetry run python -m src.publisher.late single B0ABC123 --account staging
+```
+
 See [Configuration](#-configuration) for full options.
 
 ### 4. Verify Setup
@@ -949,6 +970,47 @@ schedule_validation:
   allow_past_schedules: false     # Block scheduling in the past
   max_posts_per_day: 10          # Platform rate limit (per platform)
 ```
+
+</details>
+
+<details>
+<summary><strong>Conflict Resolution</strong></summary>
+
+When scheduling conflicts occur, the publisher suggests alternative time slots:
+
+**Automatic Conflict Resolution:**
+
+```bash
+# Auto-resolve conflicts by using first available alternative
+poetry run python -m src.publisher.late.cli schedule auto \
+  --platform youtube --auto-resolve
+
+# Without --auto-resolve, alternatives are suggested in logs
+poetry run python -m src.publisher.late.cli schedule auto --platform youtube
+# Output: "Suggested alternatives: 2026-01-20T14:00:00, 2026-01-22T10:00:00..."
+```
+
+**How It Works:**
+1. When a slot is occupied or validation fails, `find_alternatives()` is called
+2. Searches for next N available slots starting from preferred time
+3. Alternatives are sorted by proximity to user's preferred time
+4. With `--auto-resolve`, automatically uses first available alternative
+5. Resolution decisions are logged for traceability
+
+**Configuration** (`config/publisher.yaml`):
+
+```yaml
+# === Conflict Resolution ===
+recurring_schedule:
+  conflict_alternatives_count: 5  # Number of alternatives to suggest
+```
+
+**ConflictResolution Response:**
+- `original_time`: User's originally requested time
+- `conflict_reason`: Why the original time failed
+- `alternatives`: List of available slots sorted by proximity
+- `auto_resolved`: Whether conflict was auto-resolved
+- `resolved_time`: The time actually used (if auto-resolved)
 
 </details>
 

@@ -461,7 +461,10 @@ class TestPlatformPublishing:
             {"platform": "tiktok", "account_id": "acc_tt_001"},
         ]
         platform_contents = {
-            "youtube": {"content": "YouTube optimized! #ad #Shorts", "title": "Amazing!"},
+            "youtube": {
+                "content": "YouTube optimized! #ad #Shorts",
+                "title": "Amazing!",
+            },
             "tiktok": {"content": "TikTok vibes! #ad #fyp"},
         }
 
@@ -883,9 +886,7 @@ class TestErrorHandling:
         """Test cleanup handles missing product directory."""
         cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
 
-        result = await cleanup_manager.cleanup(
-            "B0NONEXISTENT", [Platform.YOUTUBE]
-        )
+        result = await cleanup_manager.cleanup("B0NONEXISTENT", [Platform.YOUTUBE])
 
         assert result["success"] is False
         assert "not found" in result["message"].lower()
@@ -1029,7 +1030,9 @@ class TestRetryQueue:
         # Add items
         add_to_retry_queue("B0TEST001", ["youtube"], "Error 1", outputs_dir=outputs_dir)
         add_to_retry_queue("B0TEST002", ["tiktok"], "Error 2", outputs_dir=outputs_dir)
-        add_to_retry_queue("B0TEST003", ["instagram"], "Error 3", outputs_dir=outputs_dir)
+        add_to_retry_queue(
+            "B0TEST003", ["instagram"], "Error 3", outputs_dir=outputs_dir
+        )
 
         assert get_retry_queue_count(outputs_dir) == 3
 

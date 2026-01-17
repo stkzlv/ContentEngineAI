@@ -163,23 +163,27 @@ The Publisher Module is **fully implemented** and production-ready. All core req
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 8_
 
-- [ ] 23. Add multi-account support
-  - File: src/publisher/config.py, src/publisher/late/client.py (modify)
-  - Support multiple Late.dev accounts in config
-  - Route products to specific accounts
+- [x] 23. Add multi-account support
+  - Files: src/publisher/models.py, src/publisher/config.py, src/publisher/late/cli.py (modified)
+  - Added AccountConfig dataclass with validation (name, api_key, vercel_token, default_platforms)
+  - YAML accounts section with named accounts and default_account selector
+  - --account CLI flag to switch active account at runtime
+  - Backward compatible: single api_key at root creates "default" account
+  - Tests: tests/publisher/test_accounts.py (25 tests)
   - Purpose: Enable publishing to multiple brand accounts
   - _Leverage: config/publisher.yaml_
   - _Requirements: 2, 7_
-  - _Prompt: Role: Python Developer | Task: Add multi-account support: define accounts in YAML with unique names, add --account CLI flag, support account-specific platform connections | Restrictions: Maintain backward compatibility with single account, validate account exists before use | Success: Products can be routed to different Late.dev accounts_
 
-- [ ] 24. Add scheduling conflict resolution
-  - File: src/publisher/schedule.py (modify)
-  - Detect and resolve overlapping schedule requests
-  - Offer alternative slots when conflicts occur
+- [x] 24. Add scheduling conflict resolution
+  - Files: src/publisher/models.py, src/publisher/schedule.py, src/publisher/late/cli.py (modified)
+  - Added ConflictResolution dataclass with alternatives sorted by time proximity
+  - Added find_alternatives() and resolve_conflict() methods to ScheduleManager
+  - Added --auto-resolve CLI flag to automatically use first available alternative
+  - Integrated with auto_schedule to suggest alternatives on validation failure
+  - Tests: tests/publisher/test_conflict_resolution.py (20 tests)
   - Purpose: Better UX when slots are contested
   - _Leverage: src/publisher/schedule_validator.py_
   - _Requirements: 13, 14_
-  - _Prompt: Role: Python Developer | Task: Add conflict resolution: when auto-schedule finds conflict, suggest next N available alternatives, add --auto-resolve flag to pick first available | Restrictions: Preserve user's preferred time proximity, log resolution decisions | Success: Schedule conflicts resolved without manual intervention_
 
 - [ ] 25. Update docs/publisher.md with comprehensive guide
   - File: docs/publisher.md (new or modify)

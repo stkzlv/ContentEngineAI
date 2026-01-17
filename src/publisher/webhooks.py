@@ -209,9 +209,7 @@ class WebhookHandler:
         try:
             event_type = WebhookEventType(event_type_str)
         except ValueError as e:
-            raise WebhookProcessingError(
-                f"Unknown event type: {event_type_str}"
-            ) from e
+            raise WebhookProcessingError(f"Unknown event type: {event_type_str}") from e
 
         # Generate event ID for idempotency (use provided or generate from payload)
         event_id = payload.get("eventId") or payload.get("id")
@@ -265,9 +263,7 @@ class WebhookHandler:
         timestamp_str = payload.get("timestamp") or payload.get("createdAt")
         if timestamp_str:
             try:
-                timestamp = datetime.fromisoformat(
-                    timestamp_str.replace("Z", "+00:00")
-                )
+                timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
                 timestamp = datetime.now(UTC)
         else:

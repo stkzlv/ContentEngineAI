@@ -100,7 +100,9 @@ class TestSignatureVerification:
         assert handler.verify_signature(payload, valid_signature) is True
 
         # Similar but wrong signature should fail
-        wrong_signature = valid_signature[:-1] + ("0" if valid_signature[-1] != "0" else "1")
+        wrong_signature = valid_signature[:-1] + (
+            "0" if valid_signature[-1] != "0" else "1"
+        )
         with pytest.raises(WebhookVerificationError):
             handler.verify_signature(payload, wrong_signature)
 
@@ -116,8 +118,16 @@ class TestEventParsing:
             "postId": "post_456",
             "status": "published",
             "platforms": [
-                {"platform": "youtube", "status": "published", "url": "https://youtube.com/watch?v=abc"},
-                {"platform": "tiktok", "status": "published", "url": "https://tiktok.com/@user/video/123"},
+                {
+                    "platform": "youtube",
+                    "status": "published",
+                    "url": "https://youtube.com/watch?v=abc",
+                },
+                {
+                    "platform": "tiktok",
+                    "status": "published",
+                    "url": "https://tiktok.com/@user/video/123",
+                },
             ],
             "timestamp": "2024-01-15T10:30:00Z",
         }
@@ -155,7 +165,11 @@ class TestEventParsing:
             "status": "failed",
             "error": "Rate limit exceeded",
             "platforms": [
-                {"platform": "youtube", "status": "failed", "error": "API quota exceeded"},
+                {
+                    "platform": "youtube",
+                    "status": "failed",
+                    "error": "API quota exceeded",
+                },
             ],
         }
 
@@ -246,9 +260,7 @@ class TestEventParsing:
 class TestIdempotency:
     """Tests for idempotent event processing."""
 
-    def test_event_not_processed_initially(
-        self, handler: WebhookHandler
-    ):
+    def test_event_not_processed_initially(self, handler: WebhookHandler):
         """Test event is not marked as processed initially."""
         assert handler.is_event_processed("evt_new") is False
 
@@ -402,15 +414,15 @@ class TestFullWebhookProcessing:
 
     def test_process_webhook_string_payload(self, handler_no_secret: WebhookHandler):
         """Test processing with JSON string payload."""
-        payload = '{"event": "post.published", "eventId": "evt_str", "postId": "post_str"}'
+        payload = (
+            '{"event": "post.published", "eventId": "evt_str", "postId": "post_str"}'
+        )
 
         event = handler_no_secret.process_webhook(payload)
 
         assert event.event_type == WebhookEventType.POST_PUBLISHED
 
-    def test_process_webhook_invalid_signature(
-        self, handler: WebhookHandler
-    ):
+    def test_process_webhook_invalid_signature(self, handler: WebhookHandler):
         """Test webhook rejected with invalid signature."""
         payload = b'{"event": "post.published", "postId": "123"}'
 

@@ -336,13 +336,15 @@ class BatchPublisher:
 
             # Use first video file found
             video_path = video_files[0]
-            videos.append({
-                "path": video_path,
-                "product_id": product_id,
-                "scheduled_time": item.get("scheduled_time"),
-                "retry_count": item.get("retry_count", 1),
-                "original_error": item.get("error"),
-            })
+            videos.append(
+                {
+                    "path": video_path,
+                    "product_id": product_id,
+                    "scheduled_time": item.get("scheduled_time"),
+                    "retry_count": item.get("retry_count", 1),
+                    "original_error": item.get("error"),
+                }
+            )
 
         logger.info(f"Found {len(videos)} video(s) in retry queue")
         return videos

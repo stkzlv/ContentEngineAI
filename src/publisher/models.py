@@ -11,6 +11,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
+
 
 class PublishStatus(Enum):
     """Status of a publishing operation."""
@@ -247,17 +249,83 @@ class PublishMetadata:
 
 
 @dataclass
+class AccountConfig:
+    """Configuration for a single Late.dev account.
+
+    Stores credentials and metadata for a named account, enabling
+    multi-account support where products can be routed to different
+    Late.dev accounts.
+
+    Attributes
+    ----------
+        name: Unique account identifier (e.g., "main", "overflow")
+        api_key: API key for this account
+        vercel_token: Vercel token for large file uploads (optional)
+        description: Human-readable description of the account
+        default_platforms: Platform-specific defaults for this account
+
+    """
+
+    name: str
+    api_key: str
+    vercel_token: str | None = None
+    description: str = ""
+    default_platforms: list[Platform] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Post-initialization validation."""
+        # Validate name
+        if not self.name or not self.name.strip():
+            raise ValueError("Account name cannot be empty")
+
+        # Validate API key
+        if not self.api_key or not self.api_key.strip():
+            raise ValueError(f"api_key cannot be empty for account '{self.name}'")
+
+        # Validate API key format (basic check)
+        if len(self.api_key) < LATE_API_KEY_MIN_LENGTH:
+            raise ValueError(
+                f"Invalid API key format for account '{self.name}': "
+                f"must be at least {LATE_API_KEY_MIN_LENGTH} characters"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns
+        -------
+            Dictionary representation (excludes sensitive credentials)
+
+        """
+        return {
+            "name": self.name,
+            "api_key": f"{self.api_key[:4]}..." if self.api_key else None,
+            "vercel_token": (
+                f"{self.vercel_token[:4]}..." if self.vercel_token else None
+            ),
+            "description": self.description,
+            "default_platforms": [p.value for p in self.default_platforms],
+        }
+
+
+@dataclass
 class PublisherConfig:
     """Configuration for publisher behavior and credentials.
 
     This configuration is loaded using three-tier precedence:
     CLI arguments > environment variables > YAML config file
 
+    Supports both single-account (legacy) and multi-account modes:
+    - Single-account: api_key at root level (backward compatible)
+    - Multi-account: accounts dict with named accounts
+
     Attributes
     ----------
         provider: Publishing service to use (late, buffer, etc.)
-        api_key: API key for the publishing service
-        vercel_token: Vercel token for large file uploads (Late.dev specific)
+        api_key: API key for the publishing service (active account)
+        vercel_token: Vercel token for large file uploads (active account)
+        accounts: Named accounts for multi-account support
+        active_account: Name of the currently active account
         default_platforms: Default platforms to publish to if not specified
         immediate_publish: Publish immediately vs scheduled
         privacy_settings: Platform-specific privacy levels
@@ -274,6 +342,8 @@ class PublisherConfig:
     provider: str
     api_key: str
     vercel_token: str | None = None
+    accounts: dict[str, AccountConfig] = field(default_factory=dict)
+    active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
     immediate_publish: bool = True
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
@@ -315,6 +385,33 @@ class PublisherConfig:
                 Platform.INSTAGRAM,
             ]
 
+    def get_account(self, name: str | None = None) -> AccountConfig | None:
+        """Get account configuration by name.
+
+        Args:
+        ----
+            name: Account name to retrieve (uses active_account if None)
+
+        Returns:
+        -------
+            AccountConfig if found, None otherwise
+
+        """
+        account_name = name or self.active_account
+        if not account_name:
+            return None
+        return self.accounts.get(account_name)
+
+    def list_accounts(self) -> list[str]:
+        """List all configured account names.
+
+        Returns
+        -------
+            List of account names
+
+        """
+        return list(self.accounts.keys())
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
 
@@ -329,6 +426,8 @@ class PublisherConfig:
             "vercel_token": (
                 f"{self.vercel_token[:4]}..." if self.vercel_token else None
             ),
+            "accounts": {name: acc.to_dict() for name, acc in self.accounts.items()},
+            "active_account": self.active_account,
             "default_platforms": [p.value for p in self.default_platforms],
             "immediate_publish": self.immediate_publish,
             "privacy_settings": {p.value: v for p, v in self.privacy_settings.items()},
@@ -676,6 +775,42 @@ class ScheduleEntry:
 
 
 @dataclass
+class ConflictResolution:
+    """Result of conflict resolution when scheduling fails.
+
+    Contains the original conflict details and suggested alternative slots
+    sorted by time proximity to the user's preferred time.
+
+    Attributes
+    ----------
+        original_time: The originally requested schedule time
+        conflict_reason: Description of why the original time failed
+        alternatives: List of alternative slots sorted by proximity
+        auto_resolved: Whether conflict was auto-resolved (first alternative used)
+        resolved_time: The time that was actually used (if auto-resolved)
+
+    """
+
+    original_time: datetime
+    conflict_reason: str
+    alternatives: list[datetime] = field(default_factory=list)
+    auto_resolved: bool = False
+    resolved_time: datetime | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "original_time": self.original_time.isoformat(),
+            "conflict_reason": self.conflict_reason,
+            "alternatives": [t.isoformat() for t in self.alternatives],
+            "auto_resolved": self.auto_resolved,
+            "resolved_time": self.resolved_time.isoformat()
+            if self.resolved_time
+            else None,
+        }
+
+
+@dataclass
 class ScheduleConfig:
     """Configuration for schedule validation and behavior.
 
@@ -693,6 +828,7 @@ class ScheduleConfig:
         timezone: Default timezone for schedule operations
         use_platform_specific_content: Create separate posts per platform
             with optimized metadata
+        conflict_alternatives_count: Number of alternatives to suggest on conflict
 
     """
 
@@ -704,6 +840,7 @@ class ScheduleConfig:
     max_posts_per_day: int = 10
     timezone: str = "UTC"
     use_platform_specific_content: bool = False
+    conflict_alternatives_count: int = 5
 
     def __post_init__(self):
         """Post-initialization validation."""
@@ -718,6 +855,10 @@ class ScheduleConfig:
         # Validate timezone
         if not self.timezone or not self.timezone.strip():
             raise ValueError("timezone cannot be empty")
+
+        # Validate conflict_alternatives_count
+        if self.conflict_alternatives_count < 1:
+            raise ValueError("conflict_alternatives_count must be at least 1")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
@@ -742,6 +883,7 @@ class ScheduleConfig:
             "allow_past_schedules": self.allow_past_schedules,
             "max_posts_per_day": self.max_posts_per_day,
             "timezone": self.timezone,
+            "conflict_alternatives_count": self.conflict_alternatives_count,
         }
 
 
