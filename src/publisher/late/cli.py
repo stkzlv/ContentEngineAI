@@ -426,6 +426,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
             stagger_delay_min=config.stagger_delay_min,
             stagger_delay_max=config.stagger_delay_max,
             fail_fast=args.fail_fast,
+            retry_failed=getattr(args, "retry_failed", False),
         )
 
         # Execute batch
@@ -1071,6 +1072,11 @@ Examples:
         "--fail-fast",
         action="store_true",
         help="Stop batch processing on first failure",
+    )
+    batch_parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Only retry previously failed items from the retry queue",
     )
     batch_parser.add_argument(
         "--no-cleanup",

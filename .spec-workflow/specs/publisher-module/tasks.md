@@ -144,14 +144,14 @@ The Publisher Module is **fully implemented** and production-ready. All core req
   - _Requirements: 1-18 (full pipeline)_
   - _Prompt: Role: QA Engineer | Task: Create integration test that mocks Late API and verifies: media upload, platform publishing, schedule creation, status tracking, publication verification, cleanup execution | Restrictions: Use temp output directory, mock all network calls, verify audit log | Success: Full pipeline tested without real API calls_
 
-- [ ] 21. Add retry mechanism for partial batch failures
-  - File: src/publisher/batch.py (modify)
-  - Store failed products in retry queue
-  - Add --retry-failed CLI flag
+- [x] 21. Add retry mechanism for partial batch failures
+  - File: src/publisher/batch.py, src/publisher/tracking.py (modified)
+  - Added retry queue functions: add_to_retry_queue(), get_retry_queue(), remove_from_retry_queue()
+  - Added --retry-failed CLI flag to resume failed items
+  - Tests: TestRetryQueue, TestBatchPublisherRetryMode (11 tests)
   - Purpose: Allow resuming failed batch operations
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 6, 9_
-  - _Prompt: Role: Python Developer | Task: Add retry queue for failed batch items: store failed product_ids in tracking.json, add --retry-failed flag to resume, clear queue on success | Restrictions: Maintain idempotency, preserve original scheduling | Success: Failed batch items can be retried without reprocessing succeeded items_
 
 - [ ] 22. Add webhook support for status updates
   - File: src/publisher/webhooks.py (new)

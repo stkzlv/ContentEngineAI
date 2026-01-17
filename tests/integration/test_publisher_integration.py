@@ -935,3 +935,297 @@ class TestGetStatus:
 
         assert status["status"] == "unknown"
         assert status["error_message"] is not None
+
+
+class TestRetryQueue:
+    """Test retry queue functionality."""
+
+    def test_add_and_get_retry_queue(self, outputs_dir: Path):
+        """Test adding items to retry queue and retrieving them."""
+        from src.publisher.tracking import (
+            add_to_retry_queue,
+            get_retry_queue,
+            get_retry_queue_count,
+        )
+
+        # Add item to retry queue
+        add_to_retry_queue(
+            product_id="B0TEST001",
+            platforms=["youtube", "tiktok"],
+            error="Upload failed: timeout",
+            scheduled_time="2026-01-20T10:00:00Z",
+            outputs_dir=outputs_dir,
+        )
+
+        # Verify it's in the queue
+        queue = get_retry_queue(outputs_dir)
+        assert len(queue) == 1
+        assert queue[0]["product_id"] == "B0TEST001"
+        assert queue[0]["platforms"] == ["youtube", "tiktok"]
+        assert queue[0]["error"] == "Upload failed: timeout"
+        assert queue[0]["scheduled_time"] == "2026-01-20T10:00:00Z"
+        assert queue[0]["retry_count"] == 1
+
+        # Verify count
+        assert get_retry_queue_count(outputs_dir) == 1
+
+    def test_retry_count_increments(self, outputs_dir: Path):
+        """Test retry count increments on subsequent failures."""
+        from src.publisher.tracking import add_to_retry_queue, get_retry_queue
+
+        # Add same item twice
+        add_to_retry_queue(
+            product_id="B0TEST001",
+            platforms=["youtube"],
+            error="First failure",
+            outputs_dir=outputs_dir,
+        )
+        add_to_retry_queue(
+            product_id="B0TEST001",
+            platforms=["youtube"],
+            error="Second failure",
+            outputs_dir=outputs_dir,
+        )
+
+        queue = get_retry_queue(outputs_dir)
+        assert len(queue) == 1  # Still one entry (updated)
+        assert queue[0]["retry_count"] == 2
+        assert queue[0]["error"] == "Second failure"  # Latest error
+
+    def test_remove_from_retry_queue(self, outputs_dir: Path):
+        """Test removing items from retry queue on success."""
+        from src.publisher.tracking import (
+            add_to_retry_queue,
+            get_retry_queue,
+            remove_from_retry_queue,
+        )
+
+        # Add items
+        add_to_retry_queue("B0TEST001", ["youtube"], "Error 1", outputs_dir=outputs_dir)
+        add_to_retry_queue("B0TEST002", ["tiktok"], "Error 2", outputs_dir=outputs_dir)
+
+        assert len(get_retry_queue(outputs_dir)) == 2
+
+        # Remove one
+        removed = remove_from_retry_queue("B0TEST001", outputs_dir)
+        assert removed is True
+
+        queue = get_retry_queue(outputs_dir)
+        assert len(queue) == 1
+        assert queue[0]["product_id"] == "B0TEST002"
+
+        # Try to remove non-existent
+        removed = remove_from_retry_queue("B0NONEXISTENT", outputs_dir)
+        assert removed is False
+
+    def test_clear_retry_queue(self, outputs_dir: Path):
+        """Test clearing entire retry queue."""
+        from src.publisher.tracking import (
+            add_to_retry_queue,
+            clear_retry_queue,
+            get_retry_queue_count,
+        )
+
+        # Add items
+        add_to_retry_queue("B0TEST001", ["youtube"], "Error 1", outputs_dir=outputs_dir)
+        add_to_retry_queue("B0TEST002", ["tiktok"], "Error 2", outputs_dir=outputs_dir)
+        add_to_retry_queue("B0TEST003", ["instagram"], "Error 3", outputs_dir=outputs_dir)
+
+        assert get_retry_queue_count(outputs_dir) == 3
+
+        # Clear all
+        cleared = clear_retry_queue(outputs_dir)
+        assert cleared == 3
+        assert get_retry_queue_count(outputs_dir) == 0
+
+    def test_get_retry_queue_item(self, outputs_dir: Path):
+        """Test getting specific item from retry queue."""
+        from src.publisher.tracking import add_to_retry_queue, get_retry_queue_item
+
+        add_to_retry_queue(
+            "B0TEST001",
+            ["youtube"],
+            "Test error",
+            scheduled_time="2026-01-20T10:00:00Z",
+            outputs_dir=outputs_dir,
+        )
+
+        # Get existing item
+        item = get_retry_queue_item("B0TEST001", outputs_dir)
+        assert item is not None
+        assert item["product_id"] == "B0TEST001"
+
+        # Get non-existent item
+        item = get_retry_queue_item("B0NONEXISTENT", outputs_dir)
+        assert item is None
+
+
+class TestBatchPublisherRetryMode:
+    """Test BatchPublisher retry mode functionality."""
+
+    @pytest.mark.asyncio
+    async def test_batch_publisher_stores_failed_items(
+        self, mock_publisher, outputs_dir: Path, product_dir: Path
+    ):
+        """Test that failed items are added to retry queue."""
+        from src.publisher.batch import BatchPublisher
+        from src.publisher.tracking import get_retry_queue
+
+        # Make publish fail
+        mock_publisher.client.posts.create = MagicMock(
+            side_effect=Exception("API Error")
+        )
+
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        summary = await batch.publish_batch()
+
+        # Should have 1 failed
+        assert summary.failed == 1
+
+        # Should be in retry queue
+        queue = get_retry_queue(outputs_dir)
+        assert len(queue) == 1
+        assert queue[0]["product_id"] == product_dir.name
+        assert "API Error" in queue[0]["error"]
+
+    @pytest.mark.asyncio
+    async def test_batch_publisher_removes_on_success(
+        self, mock_publisher, outputs_dir: Path, product_dir: Path
+    ):
+        """Test that successful items are removed from retry queue."""
+        from src.publisher.batch import BatchPublisher
+        from src.publisher.tracking import add_to_retry_queue, get_retry_queue
+
+        product_id = product_dir.name
+
+        # Pre-populate retry queue
+        add_to_retry_queue(
+            product_id,
+            ["youtube"],
+            "Previous failure",
+            outputs_dir=outputs_dir,
+        )
+        assert len(get_retry_queue(outputs_dir)) == 1
+
+        # Run successful batch
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        summary = await batch.publish_batch()
+
+        # Should have succeeded
+        assert summary.successful == 1
+
+        # Should be removed from retry queue
+        queue = get_retry_queue(outputs_dir)
+        assert len(queue) == 0
+
+    @pytest.mark.asyncio
+    async def test_batch_publisher_retry_mode_processes_queue(
+        self, mock_publisher, outputs_dir: Path, product_dir: Path
+    ):
+        """Test retry mode only processes items from retry queue."""
+        from src.publisher.batch import BatchPublisher
+        from src.publisher.tracking import add_to_retry_queue, get_retry_queue
+
+        product_id = product_dir.name
+
+        # Add item to retry queue
+        add_to_retry_queue(
+            product_id,
+            ["youtube"],
+            "Previous failure",
+            scheduled_time="2026-01-20T10:00:00Z",
+            outputs_dir=outputs_dir,
+        )
+
+        # Run in retry mode
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+            retry_failed=True,
+        )
+
+        summary = await batch.publish_batch()
+
+        # Should process the item from retry queue
+        assert summary.total_videos == 1
+        assert summary.successful == 1
+
+        # Queue should be empty after success
+        assert len(get_retry_queue(outputs_dir)) == 0
+
+    @pytest.mark.asyncio
+    async def test_batch_publisher_retry_mode_empty_queue(
+        self, mock_publisher, outputs_dir: Path
+    ):
+        """Test retry mode with empty queue returns immediately."""
+        from src.publisher.batch import BatchPublisher
+        from src.publisher.tracking import get_retry_queue
+
+        # Ensure queue is empty
+        assert len(get_retry_queue(outputs_dir)) == 0
+
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            retry_failed=True,
+        )
+
+        summary = await batch.publish_batch()
+
+        assert summary.total_videos == 0
+        assert summary.successful == 0
+        assert summary.failed == 0
+
+    @pytest.mark.asyncio
+    async def test_retry_preserves_scheduled_time(
+        self, mock_publisher, outputs_dir: Path, product_dir: Path
+    ):
+        """Test that retry preserves original scheduled time."""
+        from src.publisher.batch import BatchPublisher
+        from src.publisher.tracking import add_to_retry_queue
+
+        product_id = product_dir.name
+        original_scheduled_time = "2026-01-20T10:00:00Z"
+
+        # Add item with scheduled time
+        add_to_retry_queue(
+            product_id,
+            ["youtube"],
+            "Previous failure",
+            scheduled_time=original_scheduled_time,
+            outputs_dir=outputs_dir,
+        )
+
+        # Run in retry mode
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+            retry_failed=True,
+        )
+
+        # Get videos from retry queue
+        videos = batch._get_retry_queue_videos()
+
+        assert len(videos) == 1
+        assert videos[0]["scheduled_time"] == original_scheduled_time
