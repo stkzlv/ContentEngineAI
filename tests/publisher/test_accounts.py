@@ -1,5 +1,7 @@
 """Tests for multi-account support in publisher configuration."""
 
+from unittest.mock import patch
+
 import pytest
 
 from src.publisher.config import (
@@ -340,6 +342,7 @@ class TestPublisherConfigAccounts:
 class TestBackwardCompatibility:
     """Tests for backward compatibility with single-account mode."""
 
+    @patch.dict("os.environ", {}, clear=True)
     def test_single_api_key_creates_default_account(self, tmp_path):
         """Test that single api_key creates 'default' account."""
         config_file = tmp_path / "publisher.yaml"
@@ -358,6 +361,7 @@ vercel_token: vercel_single_token
         assert "default" in config.accounts
         assert config.accounts["default"].api_key == "sk_live_single_key_123"
 
+    @patch.dict("os.environ", {}, clear=True)
     def test_multi_account_mode_takes_precedence(self, tmp_path):
         """Test that accounts section takes precedence over api_key."""
         config_file = tmp_path / "publisher.yaml"
@@ -382,6 +386,7 @@ default_account: main
 class TestLoadPublisherConfigWithAccounts:
     """Integration tests for load_publisher_config with accounts."""
 
+    @patch.dict("os.environ", {}, clear=True)
     def test_load_multi_account_yaml(self, tmp_path):
         """Test loading full multi-account configuration."""
         config_file = tmp_path / "publisher.yaml"
@@ -420,6 +425,7 @@ max_retries: 5
         assert staging.api_key == "sk_live_staging_key_12"
         assert Platform.YOUTUBE in staging.default_platforms
 
+    @patch.dict("os.environ", {}, clear=True)
     def test_load_with_cli_account_override(self, tmp_path):
         """Test loading config with CLI account override."""
         config_file = tmp_path / "publisher.yaml"

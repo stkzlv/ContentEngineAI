@@ -277,7 +277,7 @@ class TestFullPublishWorkflow:
 
         # Verify cleanup succeeded
         assert cleanup_result["success"] is True
-        assert cleanup_result["disk_freed"] > 0
+        assert int(cleanup_result["disk_freed"]) > 0
         assert not product_dir.exists()  # Directory should be removed
 
         # Step 7: Verify audit log
@@ -725,7 +725,7 @@ class TestCleanupExecution:
         result = await cleanup_manager.cleanup(product_id, platforms)
 
         assert result["success"] is True
-        assert result["disk_freed"] > 0
+        assert int(result["disk_freed"]) > 0
         assert not product_dir.exists()
 
     @pytest.mark.asyncio
@@ -783,8 +783,8 @@ class TestCleanupExecution:
         result = await cleanup_manager.cleanup(product_id, platforms, dry_run=True)
 
         assert result["success"] is True
-        assert "[DRY RUN]" in result["message"]
-        assert result["disk_freed"] == 0
+        assert "[DRY RUN]" in str(result["message"])
+        assert int(result["disk_freed"]) == 0
         assert product_dir.exists()  # Directory should NOT be removed
 
     @pytest.mark.asyncio
@@ -837,7 +837,7 @@ class TestCleanupExecution:
         result = await cleanup_manager.cleanup(product_id, platforms)
 
         assert result["success"] is False
-        assert "not published" in result["message"].lower()
+        assert "not published" in str(result["message"]).lower()
         assert product_dir.exists()  # Directory should NOT be removed
 
     @pytest.mark.asyncio
@@ -855,7 +855,7 @@ class TestCleanupExecution:
         result = await cleanup_manager.cleanup(product_id, platforms)
 
         assert result["success"] is False
-        assert "disabled" in result["message"].lower()
+        assert "disabled" in str(result["message"]).lower()
         assert product_dir.exists()
 
 
@@ -889,7 +889,7 @@ class TestErrorHandling:
         result = await cleanup_manager.cleanup("B0NONEXISTENT", [Platform.YOUTUBE])
 
         assert result["success"] is False
-        assert "not found" in result["message"].lower()
+        assert "not found" in str(result["message"]).lower()
 
 
 class TestAccountDiscovery:

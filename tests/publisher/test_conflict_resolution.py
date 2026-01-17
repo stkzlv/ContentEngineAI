@@ -190,7 +190,7 @@ class TestFindAlternatives:
     def test_find_alternatives_sorted_by_proximity(self, schedule_manager):
         """Test that alternatives are sorted by time proximity."""
         preferred_time = get_future_wednesday()
-        occupied = set()  # No occupied slots
+        occupied: set[datetime] = set()  # No occupied slots
 
         resolution = schedule_manager.find_alternatives(
             preferred_time=preferred_time,
@@ -213,7 +213,7 @@ class TestFindAlternatives:
     def test_find_alternatives_respects_count(self, schedule_manager):
         """Test that find_alternatives respects the count parameter."""
         preferred_time = get_future_monday()
-        occupied = set()
+        occupied: set[datetime] = set()
 
         resolution = schedule_manager.find_alternatives(
             preferred_time=preferred_time,
@@ -227,7 +227,7 @@ class TestFindAlternatives:
     def test_find_alternatives_uses_config_count(self, schedule_manager):
         """Test that find_alternatives uses config count when not specified."""
         preferred_time = get_future_monday()
-        occupied = set()
+        occupied: set[datetime] = set()
 
         resolution = schedule_manager.find_alternatives(
             preferred_time=preferred_time,

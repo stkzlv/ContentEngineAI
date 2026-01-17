@@ -7,40 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-01-17
+
 ### Added
 - **Publisher Multi-Account Support**: Route products to different Late.dev accounts
   - `AccountConfig` dataclass with validation (name, api_key, vercel_token, default_platforms)
   - YAML `accounts` section with named accounts and `default_account` selector
   - `--account NAME` CLI flag to switch active account at runtime
   - Backward compatible: single `api_key` at root creates "default" account
-  - `PublisherConfig.get_account()` and `list_accounts()` methods
   - 25 tests for multi-account functionality
 
 - **Publisher Conflict Resolution**: Automatic scheduling conflict handling
   - `ConflictResolution` dataclass with alternatives sorted by time proximity
   - `find_alternatives()` and `resolve_conflict()` methods in ScheduleManager
   - `--auto-resolve` CLI flag to automatically use first available alternative
-  - Suggests alternatives when validation fails (even without auto-resolve)
   - Configurable via `conflict_alternatives_count` (default: 5)
   - 20 tests for conflict resolution functionality
 
 - **Publisher Retry Queue**: Automatic retry mechanism for failed batch items
   - `--retry-failed` CLI flag to resume failed items
   - Preserves original scheduling for retry attempts
-  - Idempotent: removes from queue on success
 
 - **Publisher Webhooks**: Real-time status updates without polling
-  - `src/publisher/webhooks.py` - WebhookHandler with HMAC-SHA256 signature verification
+  - WebhookHandler with HMAC-SHA256 signature verification
   - Supports events: `post.scheduled`, `post.published`, `post.failed`, `post.partial`, `account.disconnected`
   - Idempotent event processing with automatic history pruning
+  - 28 tests for webhook handling
 
-- **Publisher Integration Tests**: Comprehensive test coverage
-  - `tests/integration/test_publisher_integration.py` - 42 tests for full workflow
-  - `tests/publisher/test_webhooks.py` - 28 tests for webhook handling
+- **Publisher Documentation**: Comprehensive CLI reference and workflows
+  - CLI reference tables for all commands
+  - Common workflows section with 5 end-to-end examples
+  - Safety guidelines for cleanup operations
+
+- **Publisher Integration Tests**: 42 tests for full publish-schedule-cleanup workflow
 
 ### Changed
-- **Publisher Configuration**: Fixed timeout default mismatch (30s → 120s)
-- **Publisher Constants**: Added `WEBHOOK_EVENT_HISTORY_LIMIT`, `LATE_DEFAULT_RETRY_AFTER_SEC`, `LATE_API_KEY_MIN_LENGTH`, `SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS`, and `SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER`
+- **Publisher Configuration**: Fixed timeout default mismatch (30s to 120s)
+- **README**: Simplified to reference full documentation
 
 ## [0.23.0] - 2026-01-16
 
