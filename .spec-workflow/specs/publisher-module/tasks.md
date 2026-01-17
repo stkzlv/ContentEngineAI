@@ -185,12 +185,14 @@ The Publisher Module is **fully implemented** and production-ready. All core req
   - _Leverage: src/publisher/schedule_validator.py_
   - _Requirements: 13, 14_
 
-- [ ] 25. Update docs/publisher.md with comprehensive guide
-  - File: docs/publisher.md (new or modify)
-  - Document all CLI commands with examples
-  - Add scheduling workflow guide
-  - Include cleanup safety guidelines
+- [x] 25. Update docs/publisher.md with comprehensive guide
+  - File: docs/publisher.md (modified)
+  - Added CLI Reference section with command tables
+  - Added Common Workflows section with 5 end-to-end examples
+  - Added Safety Guidelines section with checklist and recovery options
+  - Enhanced scheduling documentation with conflict resolution
+  - Added multi-account examples in setup and workflows
+  - All examples runnable with correct CLI syntax
   - Purpose: Provide complete publisher usage reference
   - _Leverage: src/publisher/late/cli.py for CLI options_
   - _Requirements: 10, 11-14, 15-18_
-  - _Prompt: Role: Technical Writer | Task: Create comprehensive publisher documentation with: 1) Quick start examples, 2) CLI reference table, 3) Scheduling workflow guide, 4) Cleanup safety guidelines, 5) Multi-platform metadata examples, 6) Troubleshooting section | Restrictions: Use existing doc style, keep examples runnable | Success: Users can use all publisher features from docs alone_

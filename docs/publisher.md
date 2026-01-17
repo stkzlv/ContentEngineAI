@@ -13,6 +13,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Setup](#-setup)
+- [CLI Reference](#-cli-reference)
 - [CLI Usage](#-cli-usage)
 - [Configuration](#-configuration)
 - [Platform Metadata](#-platform-metadata)
@@ -24,6 +25,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
 - [API Reference](#-api-reference)
+- [Common Workflows](#-common-workflows)
 
 ---
 
@@ -156,6 +158,117 @@ See [Configuration](#-configuration) for full options.
 ### 4. Verify Setup
 
 Test your configuration by listing connected accounts (see [CLI Usage](#-cli-usage) for details).
+
+---
+
+## 📖 CLI Reference
+
+Quick reference for all publisher commands and options.
+
+### Commands Overview
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `list-accounts` | List connected social accounts | `python -m src.publisher.late list-accounts` |
+| `single` | Publish single video by product ID | `python -m src.publisher.late single B0ABC123 --immediate` |
+| `batch` | Batch publish all videos | `python -m src.publisher.late batch --platform youtube --immediate` |
+| `schedule` | Auto-schedule to calendar slots | `python -m src.publisher.late schedule auto` |
+| `calendar` | View scheduled posts | `python -m src.publisher.late calendar list` |
+| `cleanup` | Remove published products | `python -m src.publisher.late cleanup --all --confirm` |
+| `delete` | Delete a post from Late.dev | `python -m src.publisher.late delete POST_ID` |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--account NAME` | Use specific account (multi-account mode) |
+| `--debug` | Enable verbose debug logging |
+
+### Command: `single`
+
+```
+python -m src.publisher.late single <product_id> [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `product_id` | Yes | Product ID (e.g., B00TF9E6XE) |
+| `--platform PLATFORM` | No | Target platform (youtube, tiktok, instagram, facebook, twitter, linkedin) |
+| `--immediate` | No* | Publish immediately |
+| `--schedule DATETIME` | No* | Schedule for later (format: `2025-01-20 14:00:00`) |
+| `--force` | No | Force republish even if already published |
+| `--no-cleanup` | No | Disable automatic cleanup after success |
+
+*One of `--immediate` or `--schedule` is required.
+
+### Command: `batch`
+
+```
+python -m src.publisher.late batch [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | Yes | Target platform (can repeat for multiple) |
+| `--immediate` | Yes | Publish immediately (only mode for batch) |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--fail-fast` | No | Stop on first failure |
+| `--retry-failed` | No | Only retry failed items from queue |
+| `--no-cleanup` | No | Disable automatic cleanup after success |
+
+### Command: `schedule`
+
+```
+python -m src.publisher.late schedule auto [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | No | Target platform (can repeat for multiple) |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--dry-run` | No | Preview without making changes |
+| `--auto-resolve` | No | Auto-resolve conflicts with first alternative |
+| `--no-cleanup` | No | Disable cleanup after scheduling |
+
+### Command: `calendar`
+
+```
+python -m src.publisher.late calendar list [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | No | Filter by platform |
+| `--status STATUS` | No | Filter by status (pending, scheduled, published, failed, partial) |
+| `--date-from DATE` | No | Start date filter (YYYY-MM-DD) |
+| `--date-to DATE` | No | End date filter (YYYY-MM-DD) |
+
+### Command: `cleanup`
+
+```
+python -m src.publisher.late cleanup [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--product-id ID` | Yes* | Clean specific product |
+| `--all` | Yes* | Clean all published products |
+| `--platform PLATFORM` | No | Filter by platform |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--dry-run` | No | Preview without deleting |
+| `--confirm` | No | Required for `--all` mode |
+
+*One of `--product-id` or `--all` is required.
+
+### Command: `delete`
+
+```
+python -m src.publisher.late delete <post_id>
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `post_id` | Yes | Late.dev post ID to delete |
 
 ---
 
@@ -1141,6 +1254,57 @@ Total products evaluated: 10
 
 </details>
 
+<details>
+<summary><strong>Safety Guidelines</strong></summary>
+
+Follow these best practices to prevent accidental data loss:
+
+**Before Cleanup:**
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| 1. Preview | `cleanup --all --dry-run` | See what will be deleted |
+| 2. Verify | `calendar list --status published` | Confirm posts are live |
+| 3. Check logs | View `outputs/logs/publisher.log` | Review audit trail |
+| 4. Execute | `cleanup --all --confirm` | Run with confirmation |
+
+**Recommended Configuration:**
+
+```yaml
+cleanup:
+  enabled: true
+  verify_before_delete: true      # ALWAYS keep enabled
+  require_all_platforms: true     # Only cleanup if ALL platforms succeeded
+  archive_before_delete: true     # Backup before deletion
+  archive_dir: "outputs/archives"
+  keep_published_days: 7          # Keep 7 days before cleanup
+```
+
+**Safety Checklist:**
+
+- [ ] Always use `--dry-run` first on production data
+- [ ] Verify `require_all_platforms: true` is set if publishing to multiple platforms
+- [ ] Enable `archive_before_delete` for valuable content
+- [ ] Check Late.dev dashboard to confirm posts are live before cleanup
+- [ ] Review `outputs/logs/cleanup_audit.log` after cleanup
+- [ ] Keep backups for at least 7 days (`keep_published_days: 7`)
+
+**Recovery Options:**
+
+If cleanup runs accidentally:
+1. Check archive directory: `outputs/archives/`
+2. Review audit log for deleted products: `outputs/logs/cleanup_audit.log`
+3. Re-scrape and reproduce videos if no archive exists
+
+**Never Do:**
+
+- ❌ Run `cleanup --all --confirm` without `--dry-run` preview first
+- ❌ Disable `verify_before_delete` in production
+- ❌ Set `keep_published_days: 0` without archiving enabled
+- ❌ Clean up before verifying posts are actually published (not just scheduled)
+
+</details>
+
 ---
 
 ## ⚠️ Error Handling
@@ -1502,6 +1666,104 @@ class BasePublisher(ABC):
 ```
 
 </details>
+
+---
+
+## 🔄 Common Workflows
+
+### Workflow 1: First-Time Setup to First Publish
+
+```bash
+# Step 1: Configure credentials
+echo "LATE_API_KEY=sk_live_your_key_here" >> .env
+echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env
+
+# Step 2: Verify connection
+poetry run python -m src.publisher.late list-accounts --debug
+
+# Step 3: Generate a video with metadata
+poetry run python -m src.scraper.amazon.scraper --keywords B0BTYCRJSS --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 \
+  --target-platform multi --debug
+
+# Step 4: Publish immediately (for testing)
+poetry run python -m src.publisher.late single B0BTYCRJSS \
+  --platform youtube --immediate --debug
+
+# Step 5: Verify in Late.dev dashboard
+# Visit https://late.dev/dashboard/posts
+```
+
+### Workflow 2: Weekly Content Pipeline
+
+```bash
+# Monday: Scrape and produce videos
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" --max-products 7 \
+  --profile slideshow_images1 --debug
+
+# Monday: Schedule all videos for the week (one per day)
+poetry run python -m src.publisher.late schedule auto \
+  --platform youtube --platform tiktok --platform instagram \
+  --debug
+
+# View the schedule
+poetry run python -m src.publisher.late calendar list --debug
+
+# If conflicts occur, use auto-resolve
+poetry run python -m src.publisher.late schedule auto \
+  --platform youtube --auto-resolve --debug
+```
+
+### Workflow 3: Multi-Account Brand Management
+
+```yaml
+# config/publisher.yaml
+accounts:
+  brand_a:
+    api_key: sk_live_brand_a_key
+    default_platforms: [youtube, tiktok]
+  brand_b:
+    api_key: sk_live_brand_b_key
+    default_platforms: [instagram]
+default_account: brand_a
+```
+
+```bash
+# Publish to Brand A (default)
+poetry run python -m src.publisher.late single B0ABC123 --immediate
+
+# Publish to Brand B
+poetry run python -m src.publisher.late single B0ABC123 --account brand_b --immediate
+```
+
+### Workflow 4: Recover from Batch Failures
+
+```bash
+# Run batch publish (some may fail)
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok --immediate --debug
+
+# Check what failed
+poetry run python -m src.publisher.late calendar list --status failed
+
+# Retry only failed items
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok --immediate --retry-failed --debug
+```
+
+### Workflow 5: Safe Cleanup After Publishing
+
+```bash
+# Preview what would be cleaned (dry run)
+poetry run python -m src.publisher.late cleanup --all --dry-run --debug
+
+# Verify posts are published
+poetry run python -m src.publisher.late calendar list --status published
+
+# Execute cleanup with confirmation
+poetry run python -m src.publisher.late cleanup --all --confirm --debug
+```
 
 ---
 
