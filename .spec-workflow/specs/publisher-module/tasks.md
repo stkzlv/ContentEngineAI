@@ -135,8 +135,8 @@ The Publisher Module is **fully implemented** and production-ready. All core req
 
 ## Enhancement Tasks
 
-- [ ] 20. Add integration test for full publish-schedule-cleanup workflow
-  - File: tests/integration/test_publisher_integration.py (new)
+- [x] 20. Add integration test for full publish-schedule-cleanup workflow
+  - File: tests/integration/test_publisher_integration.py
   - Test complete pipeline: publish → schedule → verify → cleanup
   - Use mock HTTP responses for Late API
   - Purpose: Verify end-to-end workflow works correctly

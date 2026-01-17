@@ -418,8 +418,7 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
     - provider: "late"
     - immediate_publish: True
     - max_retries: 3
-    - timeout: 30.0
-    - backoff_multiplier: 2.0
+    - timeout: 120.0 (matches YAML default, allows for slow video processing)
     - stagger_delay_min: 30
     - stagger_delay_max: 60
     - default_platforms: [youtube, tiktok, instagram]
@@ -440,8 +439,7 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "provider": "late",
         "immediate_publish": True,
         "max_retries": 3,
-        "timeout": 30.0,
-        "backoff_multiplier": 2.0,
+        "timeout": 120.0,  # TikTok video processing can take 60-120 seconds
         "stagger_delay_min": 30,
         "stagger_delay_max": 60,
         "default_platforms": [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],

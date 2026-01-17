@@ -1,0 +1,937 @@
+"""Integration tests for the full publisher workflow.
+
+Tests the complete pipeline: media upload → platform publishing → schedule creation
+→ status tracking → publication verification → cleanup execution.
+
+All network calls are mocked to ensure tests run without real API access.
+"""
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.publisher.cleanup import CleanupManager
+from src.publisher.models import (
+    CleanupConfig,
+    Platform,
+    RecurringSlot,
+    ScheduleConfig,
+    ScheduleEntry,
+)
+from src.publisher.schedule import ScheduleManager
+from src.publisher.tracking import (
+    get_publish_record,
+    is_already_published,
+    record_publish,
+)
+
+# =============================================================================
+# Test Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def outputs_dir(tmp_path: Path) -> Path:
+    """Create a temporary outputs directory structure."""
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+    return outputs
+
+
+@pytest.fixture
+def product_dir(outputs_dir: Path) -> Path:
+    """Create a test product directory with video and metadata files."""
+    product_id = "B0TEST001"
+    product = outputs_dir / product_id
+    product.mkdir()
+
+    # Create a minimal video file (just needs to exist and have content)
+    video_file = product / f"video_{product_id}.mp4"
+    # Write some bytes to simulate a video file (needs to be non-empty)
+    video_file.write_bytes(b"\x00\x00\x00\x1c\x66\x74\x79\x70" * 1000)  # ~8KB fake MP4
+
+    # Create metadata files
+    metadata = {
+        "title": "Test Product Video",
+        "description": "Amazing product for testing #ad",
+        "hashtags": ["ad", "test", "product"],
+    }
+    (product / "metadata.json").write_text(json.dumps(metadata))
+    (product / "metadata_youtube.json").write_text(json.dumps(metadata))
+    (product / "metadata_tiktok.json").write_text(json.dumps(metadata))
+
+    # Create data.json (product info)
+    data = {
+        "title": "Test Product - Amazing Widget",
+        "description": "This is a great product for testing purposes.",
+        "price": "$99.99",
+        "asin": product_id,
+    }
+    (product / "data.json").write_text(json.dumps([data]))
+
+    return product
+
+
+@pytest.fixture
+def mock_late_sdk():
+    """Create a mock Late SDK client with all required methods."""
+    mock_client = MagicMock()
+
+    # Mock accounts.list - returns account data
+    mock_accounts_response = MagicMock()
+    mock_accounts_response.accounts = [
+        MagicMock(
+            platform="youtube",
+            username="TestChannel",
+            field_id="acc_yt_001",
+            isActive=True,
+            displayName="Test Channel",
+        ),
+        MagicMock(
+            platform="tiktok",
+            username="testuser",
+            field_id="acc_tt_001",
+            isActive=True,
+            displayName="Test TikTok",
+        ),
+    ]
+    mock_client.accounts.list = MagicMock(return_value=mock_accounts_response)
+
+    # Mock media.upload - returns media URL
+    # Need to set url as a property, not a MagicMock
+    mock_file = MagicMock()
+    mock_file.url = "https://storage.late.dev/media_123.mp4"
+    mock_upload_response = MagicMock()
+    mock_upload_response.files = [mock_file]
+    mock_upload_response.url = None  # Direct URL not set for small files
+    mock_client.media.upload = MagicMock(return_value=mock_upload_response)
+
+    # Mock media.upload_large - returns media URL for large files
+    mock_large_response = MagicMock()
+    mock_large_response.url = "https://storage.late.dev/large_media_456.mp4"
+    mock_client.media.upload_large = MagicMock(return_value=mock_large_response)
+
+    # Mock posts.create - returns post data
+    mock_post_response = MagicMock()
+    mock_post_response.post = MagicMock(
+        field_id="post_abc123",
+        status=MagicMock(value="scheduled"),
+        platforms=[
+            MagicMock(platform="youtube", platformPostUrl=None),
+            MagicMock(platform="tiktok", platformPostUrl=None),
+        ],
+    )
+    mock_client.posts.create = MagicMock(return_value=mock_post_response)
+
+    # Mock posts.get - returns post status
+    mock_status_response = MagicMock()
+    mock_status_response.post = MagicMock(
+        field_id="post_abc123",
+        status=MagicMock(value="published"),
+        scheduledFor=None,
+        publishedAt=datetime.now(UTC).isoformat(),
+        platforms=[
+            MagicMock(
+                platform="youtube",
+                platformPostUrl="https://youtube.com/shorts/xyz123",
+            ),
+            MagicMock(
+                platform="tiktok",
+                platformPostUrl="https://tiktok.com/@user/video/789",
+            ),
+        ],
+    )
+    mock_client.posts.get = MagicMock(return_value=mock_status_response)
+
+    # Mock posts.list - returns list of posts
+    mock_list_response = MagicMock()
+    mock_list_response.posts = []
+    mock_client.posts.list = MagicMock(return_value=mock_list_response)
+
+    # Mock posts.delete - returns success
+    mock_client.posts.delete = MagicMock(return_value=None)
+
+    return mock_client
+
+
+@pytest.fixture
+def mock_publisher(mock_late_sdk):
+    """Create a mock LatePublisher with the mocked SDK."""
+    with patch("src.publisher.late.client.Late", return_value=mock_late_sdk):
+        from src.publisher.late.client import LatePublisher
+
+        publisher = LatePublisher(
+            api_key="sk_test_mock_key_12345",
+            vercel_token="vercel_test_token_67890",  # noqa: S106
+            timeout=30.0,
+            max_retries=2,
+        )
+        # Replace client with our mock
+        publisher.client = mock_late_sdk
+        return publisher
+
+
+@pytest.fixture
+def schedule_config() -> ScheduleConfig:
+    """Create a schedule configuration with recurring slots."""
+    return ScheduleConfig(
+        enabled=True,
+        slots=[
+            RecurringSlot(day_of_week="monday", time="10:00:00", timezone="UTC"),
+            RecurringSlot(day_of_week="wednesday", time="14:00:00", timezone="UTC"),
+            RecurringSlot(day_of_week="friday", time="18:00:00", timezone="UTC"),
+        ],
+        min_post_spacing_hours=2,
+        prevent_duplicates=True,
+        allow_past_schedules=False,
+        max_posts_per_day=10,
+        timezone="UTC",
+    )
+
+
+@pytest.fixture
+def cleanup_config(outputs_dir: Path) -> CleanupConfig:
+    """Create a cleanup configuration."""
+    archive_dir = outputs_dir / "archive"
+    archive_dir.mkdir(exist_ok=True)
+    return CleanupConfig(
+        enabled=True,
+        verify_before_delete=True,
+        require_all_platforms=False,  # Allow cleanup if ANY platform published
+        archive_before_delete=False,
+        archive_dir=archive_dir,
+        keep_published_days=0,  # Immediate cleanup for testing
+    )
+
+
+# =============================================================================
+# Integration Tests: Full Workflow
+# =============================================================================
+
+
+class TestFullPublishWorkflow:
+    """Test complete publish-schedule-verify-cleanup workflow."""
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_immediate_publish(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test complete workflow: upload → publish → track → verify → cleanup."""
+        product_id = product_dir.name
+        video_path = product_dir / f"video_{product_id}.mp4"
+        platforms = [Platform.YOUTUBE, Platform.TIKTOK]
+
+        # Step 1: Upload media
+        media_url = await mock_publisher.upload_media(video_path)
+        assert media_url == "https://storage.late.dev/media_123.mp4"
+        mock_publisher.client.media.upload.assert_called_once()
+
+        # Step 2: Publish to platforms
+        platform_dicts = [
+            {"platform": "youtube", "account_id": "acc_yt_001"},
+            {"platform": "tiktok", "account_id": "acc_tt_001"},
+        ]
+        result = await mock_publisher.publish(
+            media_id=media_url,
+            platforms=platform_dicts,
+            content="Amazing product! #ad #test",
+        )
+        assert result["post_id"] == "post_abc123"
+        assert result["status"] == "scheduled"
+
+        # Step 3: Record publish for tracking
+        for platform in platforms:
+            record_publish(
+                product_id=product_id,
+                platform=platform.value,
+                post_id=result["post_id"],
+                outputs_dir=outputs_dir,
+            )
+
+        # Step 4: Verify tracking records exist
+        for platform in platforms:
+            assert is_already_published(product_id, platform.value, outputs_dir)
+            record = get_publish_record(product_id, platform.value, outputs_dir)
+            assert record is not None
+            assert record["post_id"] == "post_abc123"
+
+        # Step 5: Verify publication via CleanupManager
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        all_published, statuses = await cleanup_manager.verify_publication(
+            product_id, platforms
+        )
+        # Should be published/scheduled based on our tracking records
+        assert all_published or any(
+            s in ("published", "scheduled") for s in statuses.values()
+        )
+
+        # Step 6: Execute cleanup
+        cleanup_result = await cleanup_manager.cleanup(product_id, platforms)
+
+        # Verify cleanup succeeded
+        assert cleanup_result["success"] is True
+        assert cleanup_result["disk_freed"] > 0
+        assert not product_dir.exists()  # Directory should be removed
+
+        # Step 7: Verify audit log
+        audit_log_path = outputs_dir / "cleanup_audit.json"
+        assert audit_log_path.exists()
+
+        audit_data = json.loads(audit_log_path.read_text())
+        assert "cleanups" in audit_data
+        assert len(audit_data["cleanups"]) == 1
+
+        cleanup_record = audit_data["cleanups"][0]
+        assert cleanup_record["product_id"] == product_id
+        assert cleanup_record["disk_freed_bytes"] > 0
+        assert "youtube" in cleanup_record["platforms"]
+        assert "tiktok" in cleanup_record["platforms"]
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_scheduled_publish(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        schedule_config: ScheduleConfig,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test workflow with scheduled publishing using ScheduleManager."""
+        product_id = product_dir.name
+        video_path = product_dir / f"video_{product_id}.mp4"
+        platforms = [Platform.YOUTUBE]
+
+        # Step 1: Upload media
+        media_url = await mock_publisher.upload_media(video_path)
+        assert media_url is not None
+
+        # Step 2: Create schedule manager and calculate next slot
+        schedule_path = outputs_dir / "schedule.json"
+        schedule_manager = ScheduleManager(schedule_path, schedule_config)
+
+        # Get next available slot
+        next_time, slot_idx = schedule_manager.get_next_slot(
+            slots=schedule_config.slots,
+            after=datetime.now(UTC),
+            slot_index=0,
+        )
+        assert next_time > datetime.now(UTC)
+
+        # Step 3: Publish with scheduled time
+        platform_dicts = [{"platform": "youtube", "account_id": "acc_yt_001"}]
+        result = await mock_publisher.publish(
+            media_id=media_url,
+            platforms=platform_dicts,
+            content="Scheduled post! #ad",
+            scheduled_time=next_time,
+        )
+
+        # Step 4: Add schedule entry
+        entry = ScheduleEntry(
+            product_id=product_id,
+            scheduled_time=next_time,
+            platforms=platforms,
+            post_id=result["post_id"],
+            status="scheduled",
+            created_at=datetime.now(UTC),
+            slot_index=slot_idx,
+        )
+        schedule_manager.add_entry(entry)
+
+        # Step 5: Verify schedule was saved
+        assert schedule_path.exists()
+        schedule_data = json.loads(schedule_path.read_text())
+        assert len(schedule_data["entries"]) == 1
+        assert schedule_data["entries"][0]["product_id"] == product_id
+        assert schedule_data["entries"][0]["status"] == "scheduled"
+
+        # Step 6: Record publish for tracking
+        record_publish(
+            product_id=product_id,
+            platform="youtube",
+            post_id=result["post_id"],
+            outputs_dir=outputs_dir,
+        )
+
+        # Step 7: Cleanup with verification
+        # Update cleanup config to not verify (since post is scheduled, not published)
+        cleanup_config.verify_before_delete = False
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+
+        cleanup_result = await cleanup_manager.cleanup(product_id, platforms)
+        assert cleanup_result["success"] is True
+
+
+class TestMediaUploadWorkflow:
+    """Test media upload scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_upload_small_file(self, mock_publisher, product_dir: Path):
+        """Test uploading a small file (≤4MB) uses direct upload."""
+        product_id = product_dir.name
+        video_path = product_dir / f"video_{product_id}.mp4"
+
+        # Small file should use direct upload
+        media_url = await mock_publisher.upload_media(video_path)
+
+        assert media_url == "https://storage.late.dev/media_123.mp4"
+        mock_publisher.client.media.upload.assert_called_once()
+        mock_publisher.client.media.upload_large.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_upload_validates_file_exists(self, mock_publisher, tmp_path: Path):
+        """Test upload validates file existence."""
+        from src.publisher.base import ValidationError
+
+        nonexistent = tmp_path / "nonexistent.mp4"
+
+        with pytest.raises(ValidationError, match="not found"):
+            await mock_publisher.upload_media(nonexistent)
+
+    @pytest.mark.asyncio
+    async def test_upload_validates_empty_file(self, mock_publisher, tmp_path: Path):
+        """Test upload rejects empty files."""
+        from src.publisher.base import ValidationError
+
+        empty_file = tmp_path / "empty.mp4"
+        empty_file.write_bytes(b"")
+
+        with pytest.raises(ValidationError, match="empty"):
+            await mock_publisher.upload_media(empty_file)
+
+
+class TestPlatformPublishing:
+    """Test platform publishing scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_publish_immediate(self, mock_publisher):
+        """Test immediate publishing without scheduled time."""
+        result = await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
+            content="Test post #ad",
+        )
+
+        assert result["post_id"] == "post_abc123"
+        mock_publisher.client.posts.create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_publish_scheduled(self, mock_publisher):
+        """Test scheduled publishing with future time."""
+        scheduled_time = datetime.now(UTC) + timedelta(days=1)
+
+        result = await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
+            content="Scheduled post #ad",
+            scheduled_time=scheduled_time,
+        )
+
+        assert result["post_id"] == "post_abc123"
+        assert result["scheduled_time"] == scheduled_time
+
+    @pytest.mark.asyncio
+    async def test_publish_multi_platform(self, mock_publisher):
+        """Test publishing to multiple platforms."""
+        platforms = [
+            {"platform": "youtube", "account_id": "acc_yt_001"},
+            {"platform": "tiktok", "account_id": "acc_tt_001"},
+        ]
+
+        result = await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            content="Multi-platform post #ad",
+        )
+
+        assert result["post_id"] == "post_abc123"
+
+    @pytest.mark.asyncio
+    async def test_publish_with_platform_specific_content(self, mock_publisher):
+        """Test publishing with different content per platform."""
+        platforms = [
+            {"platform": "youtube", "account_id": "acc_yt_001"},
+            {"platform": "tiktok", "account_id": "acc_tt_001"},
+        ]
+        platform_contents = {
+            "youtube": {"content": "YouTube optimized! #ad #Shorts", "title": "Amazing!"},
+            "tiktok": {"content": "TikTok vibes! #ad #fyp"},
+        }
+
+        result = await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            content="Fallback content",
+            platform_contents=platform_contents,
+        )
+
+        assert result["post_id"] == "post_abc123"
+
+    @pytest.mark.asyncio
+    async def test_publish_validates_empty_platforms(self, mock_publisher):
+        """Test publish rejects empty platforms list."""
+        from src.publisher.base import ValidationError
+
+        with pytest.raises(ValidationError, match="cannot be empty"):
+            await mock_publisher.publish(
+                media_id="https://storage.late.dev/media_123.mp4",
+                platforms=[],
+                content="Test #ad",
+            )
+
+    @pytest.mark.asyncio
+    async def test_publish_validates_past_scheduled_time(self, mock_publisher):
+        """Test publish rejects past scheduled time."""
+        from src.publisher.base import ValidationError
+
+        past_time = datetime.now(UTC) - timedelta(hours=1)
+
+        with pytest.raises(ValidationError, match="cannot be in past"):
+            await mock_publisher.publish(
+                media_id="https://storage.late.dev/media_123.mp4",
+                platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
+                content="Test #ad",
+                scheduled_time=past_time,
+            )
+
+
+class TestScheduleCreation:
+    """Test schedule creation scenarios."""
+
+    def test_schedule_manager_add_entry(
+        self, outputs_dir: Path, schedule_config: ScheduleConfig
+    ):
+        """Test adding a schedule entry."""
+        schedule_path = outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path, schedule_config)
+
+        entry = ScheduleEntry(
+            product_id="B0TEST001",
+            scheduled_time=datetime.now(UTC) + timedelta(days=1),
+            platforms=[Platform.YOUTUBE],
+            post_id="post_123",
+            status="scheduled",
+            created_at=datetime.now(UTC),
+            slot_index=0,
+        )
+
+        manager.add_entry(entry)
+
+        # Verify saved to disk
+        assert schedule_path.exists()
+        data = json.loads(schedule_path.read_text())
+        assert len(data["entries"]) == 1
+        assert data["entries"][0]["product_id"] == "B0TEST001"
+
+    def test_schedule_manager_prevents_duplicates(
+        self, outputs_dir: Path, schedule_config: ScheduleConfig
+    ):
+        """Test that duplicate entries are rejected."""
+        schedule_path = outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path, schedule_config)
+
+        scheduled_time = datetime.now(UTC) + timedelta(days=1)
+
+        entry1 = ScheduleEntry(
+            product_id="B0TEST001",
+            scheduled_time=scheduled_time,
+            platforms=[Platform.YOUTUBE],
+            post_id="post_123",
+            status="scheduled",
+            created_at=datetime.now(UTC),
+        )
+        manager.add_entry(entry1)
+
+        # Try adding duplicate
+        entry2 = ScheduleEntry(
+            product_id="B0TEST001",
+            scheduled_time=scheduled_time,
+            platforms=[Platform.YOUTUBE],
+            post_id="post_456",
+            status="scheduled",
+            created_at=datetime.now(UTC),
+        )
+
+        with pytest.raises(ValueError, match="validation failed"):
+            manager.add_entry(entry2)
+
+    def test_schedule_manager_get_next_slot(
+        self, outputs_dir: Path, schedule_config: ScheduleConfig
+    ):
+        """Test calculating next available slot."""
+        schedule_path = outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path, schedule_config)
+
+        next_time, slot_idx = manager.get_next_slot(
+            slots=schedule_config.slots,
+            after=datetime.now(UTC),
+            slot_index=0,
+        )
+
+        assert next_time > datetime.now(UTC)
+        assert 0 <= slot_idx < len(schedule_config.slots)
+
+    def test_schedule_manager_list_scheduled(
+        self, outputs_dir: Path, schedule_config: ScheduleConfig
+    ):
+        """Test listing scheduled entries with filters."""
+        schedule_path = outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path, schedule_config)
+
+        # Add entries
+        for i in range(3):
+            entry = ScheduleEntry(
+                product_id=f"B0TEST00{i}",
+                scheduled_time=datetime.now(UTC) + timedelta(days=i + 1),
+                platforms=[Platform.YOUTUBE if i % 2 == 0 else Platform.TIKTOK],
+                status="scheduled",
+                created_at=datetime.now(UTC),
+            )
+            manager.add_entry(entry)
+
+        # List all
+        all_entries = manager.list_scheduled()
+        assert len(all_entries) == 3
+
+        # Filter by platform
+        youtube_entries = manager.list_scheduled(platform="youtube")
+        assert len(youtube_entries) == 2  # B0TEST000, B0TEST002
+
+        # Filter by status
+        scheduled_entries = manager.list_scheduled(status="scheduled")
+        assert len(scheduled_entries) == 3
+
+
+class TestStatusTracking:
+    """Test status tracking scenarios."""
+
+    def test_record_and_retrieve_publish(self, outputs_dir: Path):
+        """Test recording and retrieving publish records."""
+        product_id = "B0TEST001"
+        platform = "youtube"
+        post_id = "post_abc123"
+
+        # Record publish
+        record_publish(product_id, platform, post_id, outputs_dir)
+
+        # Verify is_already_published
+        assert is_already_published(product_id, platform, outputs_dir)
+        assert not is_already_published(product_id, "tiktok", outputs_dir)
+
+        # Verify get_publish_record
+        record = get_publish_record(product_id, platform, outputs_dir)
+        assert record is not None
+        assert record["product_id"] == product_id
+        assert record["platform"] == platform
+        assert record["post_id"] == post_id
+        assert "published_at" in record
+
+    def test_tracking_persists_to_file(self, outputs_dir: Path):
+        """Test that tracking data persists to publish_history.json."""
+        product_id = "B0TEST001"
+        record_publish(product_id, "youtube", "post_123", outputs_dir)
+
+        tracking_path = outputs_dir / "publish_history.json"
+        assert tracking_path.exists()
+
+        data = json.loads(tracking_path.read_text())
+        assert "posts" in data
+        assert f"{product_id}:youtube" in data["posts"]
+
+    def test_multiple_platform_tracking(self, outputs_dir: Path):
+        """Test tracking publishes to multiple platforms."""
+        product_id = "B0TEST001"
+
+        record_publish(product_id, "youtube", "post_yt", outputs_dir)
+        record_publish(product_id, "tiktok", "post_tt", outputs_dir)
+
+        assert is_already_published(product_id, "youtube", outputs_dir)
+        assert is_already_published(product_id, "tiktok", outputs_dir)
+        assert not is_already_published(product_id, "instagram", outputs_dir)
+
+
+class TestPublicationVerification:
+    """Test publication verification scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_verify_published_product(
+        self, mock_publisher, outputs_dir: Path, cleanup_config: CleanupConfig
+    ):
+        """Test verifying a published product."""
+        product_id = "B0TEST001"
+        platforms = [Platform.YOUTUBE]
+
+        # Record publish
+        record_publish(product_id, "youtube", "post_abc123", outputs_dir)
+
+        # Verify publication
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        all_published, statuses = await cleanup_manager.verify_publication(
+            product_id, platforms
+        )
+
+        # Should query API for status
+        assert "youtube" in statuses
+
+    @pytest.mark.asyncio
+    async def test_verify_unpublished_product(
+        self, mock_publisher, outputs_dir: Path, cleanup_config: CleanupConfig
+    ):
+        """Test verifying an unpublished product."""
+        product_id = "B0UNPUBLISHED"
+        platforms = [Platform.YOUTUBE]
+
+        # Don't record any publish
+
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        all_published, statuses = await cleanup_manager.verify_publication(
+            product_id, platforms
+        )
+
+        assert all_published is False
+        assert statuses.get("youtube") == "not_published"
+
+
+class TestCleanupExecution:
+    """Test cleanup execution scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_verified_product(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test cleanup of a verified published product."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE]
+
+        # Record publish
+        record_publish(product_id, "youtube", "post_abc123", outputs_dir)
+
+        # Execute cleanup
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        result = await cleanup_manager.cleanup(product_id, platforms)
+
+        assert result["success"] is True
+        assert result["disk_freed"] > 0
+        assert not product_dir.exists()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_creates_audit_log(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test that cleanup creates audit log entries."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE, Platform.TIKTOK]
+
+        # Record publish
+        for p in platforms:
+            record_publish(product_id, p.value, "post_abc123", outputs_dir)
+
+        # Execute cleanup
+        cleanup_config.verify_before_delete = False  # Skip verification for test
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        await cleanup_manager.cleanup(product_id, platforms)
+
+        # Verify audit log
+        audit_path = outputs_dir / "cleanup_audit.json"
+        assert audit_path.exists()
+
+        audit_data = json.loads(audit_path.read_text())
+        assert len(audit_data["cleanups"]) == 1
+
+        record = audit_data["cleanups"][0]
+        assert record["product_id"] == product_id
+        assert record["disk_freed_bytes"] > 0
+        assert "cleaned_at" in record
+        assert set(record["platforms"]) == {"youtube", "tiktok"}
+
+    @pytest.mark.asyncio
+    async def test_cleanup_dry_run(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test cleanup dry run doesn't delete files."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE]
+
+        # Record publish
+        record_publish(product_id, "youtube", "post_abc123", outputs_dir)
+
+        # Execute dry run
+        cleanup_config.verify_before_delete = False
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        result = await cleanup_manager.cleanup(product_id, platforms, dry_run=True)
+
+        assert result["success"] is True
+        assert "[DRY RUN]" in result["message"]
+        assert result["disk_freed"] == 0
+        assert product_dir.exists()  # Directory should NOT be removed
+
+    @pytest.mark.asyncio
+    async def test_cleanup_with_archive(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test cleanup with archive creation."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE]
+
+        # Enable archiving
+        cleanup_config.archive_before_delete = True
+        cleanup_config.verify_before_delete = False
+
+        # Record publish
+        record_publish(product_id, "youtube", "post_abc123", outputs_dir)
+
+        # Execute cleanup
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        result = await cleanup_manager.cleanup(product_id, platforms)
+
+        assert result["success"] is True
+        assert not product_dir.exists()
+
+        # Verify archive was created
+        archive_dir = cleanup_config.archive_dir
+        archives = list(archive_dir.glob(f"{product_id}_*.zip"))
+        assert len(archives) == 1
+
+    @pytest.mark.asyncio
+    async def test_cleanup_blocked_for_unpublished(
+        self,
+        mock_publisher,
+        outputs_dir: Path,
+        product_dir: Path,
+        cleanup_config: CleanupConfig,
+    ):
+        """Test cleanup is blocked for unpublished products when verification enabled."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE]
+
+        # Don't record any publish - product is unpublished
+
+        # Execute cleanup with verification
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+        result = await cleanup_manager.cleanup(product_id, platforms)
+
+        assert result["success"] is False
+        assert "not published" in result["message"].lower()
+        assert product_dir.exists()  # Directory should NOT be removed
+
+    @pytest.mark.asyncio
+    async def test_cleanup_disabled_config(
+        self, mock_publisher, outputs_dir: Path, product_dir: Path
+    ):
+        """Test cleanup does nothing when disabled in config."""
+        product_id = product_dir.name
+        platforms = [Platform.YOUTUBE]
+
+        # Disable cleanup
+        config = CleanupConfig(enabled=False)
+        cleanup_manager = CleanupManager(outputs_dir, config, mock_publisher)
+
+        result = await cleanup_manager.cleanup(product_id, platforms)
+
+        assert result["success"] is False
+        assert "disabled" in result["message"].lower()
+        assert product_dir.exists()
+
+
+class TestErrorHandling:
+    """Test error handling scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_publish_handles_api_error(self, mock_publisher):
+        """Test publish handles API errors gracefully."""
+        from src.publisher.base import PublishError
+
+        # Make posts.create raise an error
+        mock_publisher.client.posts.create = MagicMock(
+            side_effect=Exception("API Error: Rate limited")
+        )
+
+        with pytest.raises(PublishError, match="(?i)failed"):
+            await mock_publisher.publish(
+                media_id="https://storage.late.dev/media_123.mp4",
+                platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
+                content="Test #ad",
+            )
+
+    @pytest.mark.asyncio
+    async def test_cleanup_handles_missing_directory(
+        self, mock_publisher, outputs_dir: Path, cleanup_config: CleanupConfig
+    ):
+        """Test cleanup handles missing product directory."""
+        cleanup_manager = CleanupManager(outputs_dir, cleanup_config, mock_publisher)
+
+        result = await cleanup_manager.cleanup(
+            "B0NONEXISTENT", [Platform.YOUTUBE]
+        )
+
+        assert result["success"] is False
+        assert "not found" in result["message"].lower()
+
+
+class TestAccountDiscovery:
+    """Test account discovery scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_get_accounts(self, mock_publisher):
+        """Test fetching connected accounts."""
+        accounts = await mock_publisher.get_accounts()
+
+        assert len(accounts) == 2
+        assert any(a["platform"] == "youtube" for a in accounts)
+        assert any(a["platform"] == "tiktok" for a in accounts)
+
+    @pytest.mark.asyncio
+    async def test_authenticate(self, mock_publisher):
+        """Test authentication validation."""
+        result = await mock_publisher.authenticate()
+        assert result is True
+
+
+class TestGetStatus:
+    """Test status retrieval scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_get_status_published(self, mock_publisher):
+        """Test getting status of a published post."""
+        status = await mock_publisher.get_status("post_abc123")
+
+        assert status["post_id"] == "post_abc123"
+        assert status["status"] == "published"
+        assert len(status["published_urls"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_status_handles_not_found(self, mock_publisher):
+        """Test get_status handles missing post gracefully."""
+        # Make posts.get raise a 404-like error
+        mock_publisher.client.posts.get = MagicMock(
+            side_effect=Exception("Post not found")
+        )
+
+        # get_status should not raise, returns error in dict
+        status = await mock_publisher.get_status("post_nonexistent")
+
+        assert status["status"] == "unknown"
+        assert status["error_message"] is not None

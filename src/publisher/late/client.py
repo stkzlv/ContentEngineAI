@@ -26,6 +26,9 @@ from src.publisher.base import (
 from src.publisher.registry import register_publisher
 from src.video.config.constants import (
     DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+    LATE_DEFAULT_RETRY_AFTER_SEC,
+    LATE_DIRECT_UPLOAD_MAX_BYTES,
+    LATE_MAX_UPLOAD_SIZE_BYTES,
 )
 
 logger = logging.getLogger(__name__)
@@ -353,7 +356,7 @@ class LatePublisher(BasePublisher):
         # Try to extract Retry-After header from response
         # Note: Late SDK may not expose response headers directly
         # Default to configured value if not available
-        retry_after = 60  # Default retry delay in seconds
+        retry_after = LATE_DEFAULT_RETRY_AFTER_SEC
 
         # Check if error has headers attribute
         if hasattr(error, "headers") and error.headers:
@@ -754,9 +757,10 @@ class LatePublisher(BasePublisher):
         logger.info(f"File size: {file_size_mb:.2f} MB")
 
         # Check size limits
-        if file_size > 500 * 1024 * 1024:  # 500 MB
+        if file_size > LATE_MAX_UPLOAD_SIZE_BYTES:
+            max_mb = LATE_MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)
             raise ValidationError(
-                f"File exceeds Late.dev 500 MB limit: {file_size_mb:.2f} MB"
+                f"File exceeds Late.dev {max_mb:.0f} MB limit: {file_size_mb:.2f} MB"
             )
 
         # Validate video file extension
@@ -787,8 +791,8 @@ class LatePublisher(BasePublisher):
                 progress_callback(bytes_uploaded, total_bytes)
 
         try:
-            # Small file upload (≤4 MB)
-            if file_size <= 4 * 1024 * 1024:
+            # Small file upload (≤4 MB) - uses direct Late API
+            if file_size <= LATE_DIRECT_UPLOAD_MAX_BYTES:
                 logger.info("Using direct upload for small file")
 
                 async def _upload_small():
