@@ -1,7 +1,6 @@
 # Publisher Module - Social Media Publishing
 
 [![Late.dev Integration](https://img.shields.io/badge/Late.dev-Integrated-brightgreen)](https://late.dev)
-[![Version](https://img.shields.io/badge/version-0.19.1-blue)](../CHANGELOG.md)
 
 **Automatically publish your generated videos to social media platforms via Late.dev**
 
@@ -18,7 +17,9 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Configuration](#-configuration)
 - [Platform Metadata](#-platform-metadata)
 - [Batch Publishing](#-batch-publishing)
+- [Retry Queue](#-retry-queue)
 - [Publishing Schedule & Calendar](#-publishing-schedule--calendar)
+- [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
@@ -32,6 +33,8 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **📅 Auto-Scheduling**: Automatically finds first available unoccupied slot in recurring schedule
 - **📆 Calendar Management**: View and filter all scheduled posts by platform, date, and status
 - **🔄 Batch Publishing**: Upload multiple videos with automatic rate limiting
+- **🔁 Retry Queue**: Resume failed batch items without reprocessing successes
+- **📡 Webhooks**: Real-time status updates without polling
 - **🗑️ Auto-Cleanup**: Automatically remove published products from outputs directory
 - **📝 Platform-Specific Metadata**: Auto-loads AI-generated titles, descriptions, hashtags
 - **⚡ Smart Uploads**: Large files (>4MB) automatically routed through Vercel CDN
@@ -582,6 +585,241 @@ poetry run python -m src.publisher.late batch \
 - Reduce `stagger_delay_min` for faster processing (risk of rate limits)
 - Use `--fail-fast` to catch issues early
 - Filter products before batch publishing
+
+</details>
+
+---
+
+## 🔁 Retry Queue
+
+Failed batch items are automatically added to a retry queue, allowing you to resume publishing without reprocessing successful items.
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+When a batch publish fails for some products:
+1. Failed product IDs are stored in `outputs/publish_history.json`
+2. Original scheduled times are preserved
+3. Retry count is tracked per product
+4. Successful items are removed from the queue
+
+**Retry Queue Entry:**
+```json
+{
+  "retry_queue": {
+    "B0ABC123": {
+      "product_id": "B0ABC123",
+      "platforms": ["youtube", "tiktok"],
+      "error": "Rate limit exceeded",
+      "scheduled_time": "2025-01-20T10:00:00Z",
+      "failed_at": "2025-01-17T14:30:00Z",
+      "retry_count": 1
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>CLI Usage</strong></summary>
+
+```bash
+# Normal batch publish (failures automatically queued)
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok \
+  --immediate --debug
+
+# Retry only failed items
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok \
+  --immediate \
+  --retry-failed \
+  --debug
+```
+
+**Retry Mode Behavior:**
+- Only processes items in the retry queue
+- Preserves original scheduled times
+- Removes items on success (idempotent)
+- Increments retry count on repeated failures
+- Reports "Retry queue is empty" if nothing to retry
+
+</details>
+
+<details>
+<summary><strong>Python API</strong></summary>
+
+```python
+from src.publisher.tracking import (
+    get_retry_queue,
+    get_retry_queue_count,
+    clear_retry_queue,
+)
+
+# Check retry queue
+items = get_retry_queue(outputs_dir)
+print(f"Failed items: {len(items)}")
+
+# Clear retry queue
+cleared = clear_retry_queue(outputs_dir)
+print(f"Cleared {cleared} items")
+```
+
+</details>
+
+---
+
+## 📡 Webhooks
+
+Receive real-time status updates from Late.dev without polling.
+
+<details>
+<summary><strong>Webhook Events</strong></summary>
+
+Late.dev sends webhooks for these events:
+
+| Event | Description |
+|-------|-------------|
+| `post.scheduled` | Post successfully scheduled |
+| `post.published` | Post successfully published |
+| `post.failed` | Post failed on all platforms |
+| `post.partial` | Post succeeded on some platforms |
+| `account.disconnected` | Social account token expired |
+
+</details>
+
+<details>
+<summary><strong>Setting Up Webhooks</strong></summary>
+
+1. **Create webhook endpoint** in your application
+2. **Configure webhook** in Late.dev dashboard:
+   - URL: `https://your-app.com/webhooks/late`
+   - Secret: Generate a secure random string
+   - Events: Select events to receive
+
+3. **Set up handler:**
+
+```python
+from src.publisher import WebhookHandler
+
+handler = WebhookHandler(
+    secret="your-webhook-secret",
+    outputs_dir=Path("outputs")
+)
+```
+
+</details>
+
+<details>
+<summary><strong>Flask Example</strong></summary>
+
+```python
+from flask import Flask, request, jsonify
+from src.publisher import WebhookHandler, WebhookVerificationError
+
+app = Flask(__name__)
+handler = WebhookHandler(secret="your-webhook-secret")
+
+@app.route("/webhooks/late", methods=["POST"])
+def handle_late_webhook():
+    try:
+        event = handler.process_webhook(
+            payload=request.data,
+            signature=request.headers.get("X-Late-Signature")
+        )
+        return jsonify({
+            "status": "ok",
+            "event_id": event.event_id,
+            "event_type": event.event_type.value
+        })
+    except WebhookVerificationError as e:
+        return jsonify({"error": str(e)}), 401
+```
+
+</details>
+
+<details>
+<summary><strong>FastAPI Example</strong></summary>
+
+```python
+from fastapi import FastAPI, Request, HTTPException
+from src.publisher import WebhookHandler, WebhookVerificationError
+
+app = FastAPI()
+handler = WebhookHandler(secret="your-webhook-secret")
+
+@app.post("/webhooks/late")
+async def handle_late_webhook(request: Request):
+    try:
+        body = await request.body()
+        event = handler.process_webhook(
+            payload=body,
+            signature=request.headers.get("X-Late-Signature")
+        )
+        return {
+            "status": "ok",
+            "event_id": event.event_id,
+            "event_type": event.event_type.value
+        }
+    except WebhookVerificationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+```
+
+</details>
+
+<details>
+<summary><strong>Security</strong></summary>
+
+**Signature Verification:**
+
+Webhooks are signed with HMAC-SHA256. The signature is sent in the `X-Late-Signature` header.
+
+```python
+# Signature is computed as:
+import hmac, hashlib
+signature = hmac.new(
+    key=secret.encode("utf-8"),
+    msg=payload_bytes,
+    digestmod=hashlib.sha256
+).hexdigest()
+```
+
+**Idempotency:**
+
+The handler automatically tracks processed events to prevent duplicate processing:
+- Events are tracked by `event_id`
+- Duplicate events are skipped
+- History is pruned to last 1000 events
+
+**Best Practices:**
+- Always verify signatures in production
+- Return 200 quickly, process asynchronously if needed
+- Handle duplicate events gracefully
+- Log webhook errors for debugging
+
+</details>
+
+<details>
+<summary><strong>Querying Webhook Status</strong></summary>
+
+```python
+from src.publisher.webhooks import (
+    get_post_status,
+    get_disconnected_accounts,
+)
+
+# Get post status from webhook updates
+status = get_post_status("post_123", outputs_dir)
+if status:
+    print(f"Status: {status['status']}")
+    print(f"URLs: {status['published_urls']}")
+
+# Check for disconnected accounts
+disconnected = get_disconnected_accounts(outputs_dir)
+for acc in disconnected:
+    print(f"Account {acc['account_id']} disconnected")
+```
 
 </details>
 
@@ -1212,18 +1450,6 @@ class BasePublisher(ABC):
 - **Late.dev Dashboard**: https://late.dev/dashboard
 - **Late.dev Pricing**: https://late.dev/pricing
 - **Late.dev Status**: https://late.dev/status
-
----
-
-## 📝 Version History
-
-**v0.17.0** (2025-01-15)
-- Initial publisher module release
-- Late.dev integration
-- Multi-platform publishing support
-- Batch publishing with rate limiting
-- Platform-specific metadata integration
-- CLI interface for all operations
 
 ---
 

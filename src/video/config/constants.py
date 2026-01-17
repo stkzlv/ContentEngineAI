@@ -103,3 +103,5 @@ LATE_DIRECT_UPLOAD_MAX_BYTES = 4 * 1024 * 1024  # 4 MB
 LATE_MAX_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
 # Default retry-after delay when rate limit header is missing
 LATE_DEFAULT_RETRY_AFTER_SEC = 60
+# Maximum webhook events to retain for idempotency tracking
+WEBHOOK_EVENT_HISTORY_LIMIT = 1000

@@ -153,14 +153,15 @@ The Publisher Module is **fully implemented** and production-ready. All core req
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 6, 9_
 
-- [ ] 22. Add webhook support for status updates
+- [x] 22. Add webhook support for status updates
   - File: src/publisher/webhooks.py (new)
-  - Support Late.dev webhooks for async status updates
-  - Update local tracking when webhook received
+  - WebhookHandler class with HMAC-SHA256 signature verification
+  - Idempotent event processing with event ID tracking
+  - Supports: post.scheduled, post.published, post.failed, post.partial, account.disconnected
+  - Tests: 28 tests covering signature, parsing, idempotency, tracking
   - Purpose: Real-time status without polling
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 8_
-  - _Prompt: Role: Python Developer | Task: Create webhook handler for Late.dev status updates: POST endpoint for webhook events, signature verification, update StatusTracker on status change | Restrictions: Validate webhook signature, handle duplicate events idempotently | Success: Status updates received without polling_
 
 - [ ] 23. Add multi-account support
   - File: src/publisher/config.py, src/publisher/late/client.py (modify)

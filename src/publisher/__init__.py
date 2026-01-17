@@ -46,6 +46,13 @@ from .registry import (
     create_publisher,
     register_publisher,
 )
+from .webhooks import (
+    WebhookEvent,
+    WebhookEventType,
+    WebhookHandler,
+    WebhookProcessingError,
+    WebhookVerificationError,
+)
 
 __all__ = [
     # Base classes and exceptions
@@ -67,4 +74,10 @@ __all__ = [
     "PublisherRegistry",
     "create_publisher",
     "register_publisher",
+    # Webhooks
+    "WebhookHandler",
+    "WebhookEvent",
+    "WebhookEventType",
+    "WebhookVerificationError",
+    "WebhookProcessingError",
 ]
