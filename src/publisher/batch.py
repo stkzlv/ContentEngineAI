@@ -14,6 +14,12 @@ from pathlib import Path
 from src.publisher.base import BasePublisher, PublishError
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import BatchPublishSummary, Platform, PublishStatus
+from src.publisher.tracking import (
+    add_to_retry_queue,
+    get_retry_queue,
+    remove_from_retry_queue,
+)
+from src.video.config.constants import LATE_DEFAULT_RETRY_AFTER_SEC
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,7 @@ class BatchPublisher:
         stagger_delay_min: int = 30,
         stagger_delay_max: int = 60,
         fail_fast: bool = False,
+        retry_failed: bool = False,
     ):
         """Initialize batch publisher.
 
@@ -55,6 +62,7 @@ class BatchPublisher:
             stagger_delay_min: Minimum delay between posts in seconds (default: 30)
             stagger_delay_max: Maximum delay between posts in seconds (default: 60)
             fail_fast: Stop processing on first failure (default: False)
+            retry_failed: Only process items from retry queue (default: False)
 
         Example:
         -------
@@ -71,6 +79,11 @@ class BatchPublisher:
             ... )
             >>> summary = await batch.publish_batch()
 
+        Example (retry failed items):
+        -------
+            >>> batch = BatchPublisher(publisher=publisher, retry_failed=True)
+            >>> summary = await batch.publish_batch()  # Only processes failed items
+
         """
         self.publisher = publisher
         self.outputs_dir = (
@@ -84,23 +97,28 @@ class BatchPublisher:
         self.stagger_delay_min = stagger_delay_min
         self.stagger_delay_max = stagger_delay_max
         self.fail_fast = fail_fast
+        self.retry_failed = retry_failed
 
         platforms_str = [p.value for p in self.platforms]
+        mode = "RETRY MODE" if retry_failed else "normal"
         logger.info(
             f"Initialized BatchPublisher: platforms={platforms_str}, "
-            f"stagger={stagger_delay_min}-{stagger_delay_max}s, fail_fast={fail_fast}"
+            f"stagger={stagger_delay_min}-{stagger_delay_max}s, fail_fast={fail_fast}, "
+            f"mode={mode}"
         )
 
     async def publish_batch(self) -> BatchPublishSummary:
         """Execute batch publishing for all discovered videos.
 
         Workflow:
-        1. Discover videos in outputs directory
+        1. Discover videos in outputs directory (or get from retry queue)
         2. For each video:
            a. Load platform-specific metadata
            b. Upload video
            c. Create posts for target platforms
            d. Apply staggered delay
+           e. On failure, add to retry queue
+           f. On success, remove from retry queue (if was retry)
         3. Generate summary report
 
         Returns:
@@ -119,23 +137,38 @@ class BatchPublisher:
         batch_start = time.time()
 
         logger.info("=" * 80)
-        logger.info("BATCH PUBLISHING STARTED")
+        if self.retry_failed:
+            logger.info("BATCH PUBLISHING STARTED (RETRY MODE)")
+        else:
+            logger.info("BATCH PUBLISHING STARTED")
         logger.info("=" * 80)
 
-        # Discover videos
-        videos = self._discover_videos()
+        # Get videos to process
+        if self.retry_failed:
+            videos = self._get_retry_queue_videos()
+            if not videos:
+                logger.info("Retry queue is empty - no failed items to retry")
+                return BatchPublishSummary(
+                    total_videos=0,
+                    successful=0,
+                    failed=0,
+                    skipped=0,
+                    duration_seconds=time.time() - batch_start,
+                )
+            logger.info(f"Found {len(videos)} failed video(s) to retry")
+        else:
+            videos = self._discover_videos()
+            if not videos:
+                logger.warning("No videos found for publishing")
+                return BatchPublishSummary(
+                    total_videos=0,
+                    successful=0,
+                    failed=0,
+                    skipped=0,
+                    duration_seconds=time.time() - batch_start,
+                )
+            logger.info(f"Found {len(videos)} video(s) to publish")
 
-        if not videos:
-            logger.warning("No videos found for publishing")
-            return BatchPublishSummary(
-                total_videos=0,
-                successful=0,
-                failed=0,
-                skipped=0,
-                duration_seconds=time.time() - batch_start,
-            )
-
-        logger.info(f"Found {len(videos)} video(s) to publish")
         logger.info(f"Target platforms: {[p.value for p in self.platforms]}")
 
         # Track statistics - initialize with zeros, set total_videos at end
@@ -154,10 +187,15 @@ class BatchPublisher:
         for idx, video_info in enumerate(videos, 1):
             video_path = video_info["path"]
             product_id = video_info["product_id"]
+            # Get scheduled_time from retry queue item (if any) to preserve scheduling
+            scheduled_time = video_info.get("scheduled_time")
 
             logger.info("-" * 80)
             logger.info(f"[{idx}/{len(videos)}] Processing: {video_path.name}")
             logger.info(f"Product ID: {product_id}")
+            if self.retry_failed:
+                retry_count = video_info.get("retry_count", 1)
+                logger.info(f"Retry attempt: {retry_count}")
 
             try:
                 # Publish video to all target platforms
@@ -171,21 +209,31 @@ class BatchPublisher:
                     # Track platform-specific results
                     for platform in self.platforms:
                         summary.add_platform_result(platform, success=True)
+                    # Remove from retry queue on success (idempotent)
+                    remove_from_retry_queue(product_id, self.outputs_dir)
+
                 elif publish_result["status"] == "skipped":
                     skipped += 1
                     summary.skipped += 1
-                    summary.add_error(
-                        product_id, publish_result.get("error", "Unknown skip reason")
+                    error_msg = publish_result.get("error", "Unknown skip reason")
+                    summary.add_error(product_id, error_msg)
+                    # Add to retry queue for skipped items (missing metadata, etc.)
+                    self._add_failed_to_retry_queue(
+                        product_id, error_msg, scheduled_time
                     )
+
                 else:
                     failed += 1
                     summary.failed += 1
-                    summary.add_error(
-                        product_id, publish_result.get("error", "Unknown error")
-                    )
+                    error_msg = publish_result.get("error", "Unknown error")
+                    summary.add_error(product_id, error_msg)
                     # Track platform-specific failures
                     for platform in self.platforms:
                         summary.add_platform_result(platform, success=False)
+                    # Add to retry queue for later retry
+                    self._add_failed_to_retry_queue(
+                        product_id, error_msg, scheduled_time
+                    )
 
                     if self.fail_fast:
                         logger.error("Fail-fast enabled, stopping batch processing")
@@ -197,6 +245,8 @@ class BatchPublisher:
                 error_msg = f"Unexpected error: {e}"
                 logger.error(f"[{idx}/{len(videos)}] {error_msg}")
                 summary.add_error(product_id, error_msg)
+                # Add to retry queue for later retry
+                self._add_failed_to_retry_queue(product_id, error_msg, scheduled_time)
 
                 if self.fail_fast:
                     logger.error("Fail-fast enabled, stopping batch processing")
@@ -249,6 +299,79 @@ class BatchPublisher:
 
         logger.info(f"Discovered {len(videos)} video(s)")
         return videos
+
+    def _get_retry_queue_videos(self) -> list[dict]:
+        """Get videos from the retry queue.
+
+        Retrieves failed items from the retry queue and resolves their video paths.
+        Only includes items where the video file still exists.
+
+        Returns
+        -------
+            List of video info dicts with path, product_id, scheduled_time, retry_count
+
+        """
+        logger.info(f"Checking retry queue in: {self.outputs_dir}")
+
+        retry_items = get_retry_queue(self.outputs_dir)
+        if not retry_items:
+            return []
+
+        videos = []
+        for item in retry_items:
+            product_id = item["product_id"]
+            product_dir = self.outputs_dir / product_id
+
+            if not product_dir.exists():
+                logger.warning(
+                    f"Product directory not found for retry item: {product_id}"
+                )
+                continue
+
+            # Find video file
+            video_files = list(product_dir.glob("video_*.mp4"))
+            if not video_files:
+                logger.warning(f"No video file found for retry item: {product_id}")
+                continue
+
+            # Use first video file found
+            video_path = video_files[0]
+            videos.append(
+                {
+                    "path": video_path,
+                    "product_id": product_id,
+                    "scheduled_time": item.get("scheduled_time"),
+                    "retry_count": item.get("retry_count", 1),
+                    "original_error": item.get("error"),
+                }
+            )
+
+        logger.info(f"Found {len(videos)} video(s) in retry queue")
+        return videos
+
+    def _add_failed_to_retry_queue(
+        self,
+        product_id: str,
+        error: str,
+        scheduled_time: str | None = None,
+    ) -> None:
+        """Add a failed product to the retry queue.
+
+        Args:
+        ----
+            product_id: Product identifier
+            error: Error message
+            scheduled_time: Original scheduled time to preserve
+
+        """
+        platforms = [p.value for p in self.platforms]
+        add_to_retry_queue(
+            product_id=product_id,
+            platforms=platforms,
+            error=error,
+            scheduled_time=scheduled_time,
+            outputs_dir=self.outputs_dir,
+        )
 
     async def _publish_single_video(
         self,
@@ -384,12 +507,13 @@ class BatchPublisher:
                 except PublishError as e:
                     # Check for rate limit (429)
                     if "429" in str(e) or "rate limit" in str(e).lower():
+                        wait_time = LATE_DEFAULT_RETRY_AFTER_SEC
                         logger.warning(
                             f"[{current_idx}/{total_count}] Rate limit hit for "
-                            f"{platform.value}, waiting before retry..."
+                            f"{platform.value}, waiting {wait_time}s before retry..."
                         )
-                        # Wait for retry-after period (default: 60s)
-                        await asyncio.sleep(60)
+                        # Wait for retry-after period
+                        await asyncio.sleep(LATE_DEFAULT_RETRY_AFTER_SEC)
                         # Retry once
                         result = await self.publisher.publish(
                             media_id=media_id,

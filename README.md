@@ -7,24 +7,18 @@
 
 **License**: MIT | **Status**: Pre-Production
 
-> **🚀 Latest**: TTS audio truncation fix with SSML buffering, comprehensive video producer test suite (1400+ tests), and new CLI documentation.
-
 **ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
-## ✨ Key Features
+## Key Features
 
-- **🤖 End-to-End Automation**: Complete video production from scraping to publishing
-- **📤 Social Media Publishing**: Auto-scheduling with slot detection + cleanup after publish
-- **📦 Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
-- **🎲 Smart Randomization**: Deterministic profile selection with configurable pools
-- **📱 Social Media Ready**: Vertical 9:16 format optimized for TikTok, Instagram, YouTube Shorts
-- **🎯 Platform-Specific Metadata**: AI-generated titles, captions, hashtags + ready-to-post instructions
-- **🎥 Product Video Assembly**: 4 modes with aspect ratio handling and audio control
-- **🎯 Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
-- **🎤 Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
-- **⚙️ Production-Ready Config**: Modular YAML + CLI overrides + environment variables
+- **End-to-End Automation**: Complete video production from scraping to publishing
+- **Social Media Publishing**: Auto-scheduling with slot detection + cleanup after publish
+- **Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
+- **Platform-Specific Metadata**: AI-generated titles, captions, hashtags for YouTube, TikTok, Instagram
+- **Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
+- **Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Setup (requires Python 3.12+, FFmpeg, Poetry)
@@ -32,14 +26,11 @@ git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
 poetry install && poetry run playwright install
 cp .env.example .env  # Configure API keys
 
-# 2. Generate a video (30 seconds to first result)
+# 2. Generate a video
 poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --preset random --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --debug
 
-# 3. Generate with platform-specific metadata (YouTube, TikTok, Instagram)
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --target-platform multi --debug
-
-# 4. Unified batch pipeline (scrape + produce + publish in one command)
+# 3. Batch pipeline (scrape + produce + publish)
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" \
   --profile slideshow_images1 \
@@ -47,133 +38,35 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-**📖 Complete Guide**: [Installation](docs/installation.md) • **⚙️ Configuration**: [Configuration](docs/configuration.md)
+See [Installation](docs/installation.md) for complete setup instructions.
 
-## 🔄 Batch Processing
-
-Process multiple products with unified scrape + produce + publish pipeline:
-
-```bash
-# End-to-end batch automation with auto-scheduling
-poetry run python -m src.pipeline.global_batch \
-  --keywords "wireless earbuds" \
-  --profile slideshow_images1 \
-  --platforms youtube tiktok \
-  --debug
-```
-
-**Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API. Falls back to immediate publish if all slots occupied within 8-week lookahead.
-
-**📖 Complete Guide**: [Batch Processing](docs/batch-processing.md) - Multi-mode batch workflows, filters, randomization, publishing
-
-## 📤 Social Media Publishing
-
-Automatically publish generated videos to social media platforms:
-
-```bash
-# 1. Setup Late.dev credentials in .env
-echo "LATE_API_KEY=sk_live_your_key" >> .env
-
-# 2. List connected accounts
-poetry run python -m src.publisher.late list-accounts
-
-# 3. Publish a video immediately
-poetry run python -m src.publisher.late single \
-  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
-  --platform youtube --platform tiktok \
-  --immediate --debug
-
-# 4. Batch publish all videos
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok --platform instagram \
-  --immediate --debug
-```
-
-**Platform-Specific Content**: When metadata files (`metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`) exist, the publisher creates separate posts for each platform with optimized content.
-
-**Auto-Cleanup**: Product directories are automatically removed after successful multi-platform publish (configurable in `config/publisher.yaml`).
-
-**📖 Complete Guide**: [Publisher](docs/publisher.md) - Setup, auto-scheduling, cleanup, CLI commands, configuration
-
-## 🏗️ Architecture
-
-<details>
-<summary><strong>Pipeline Overview</strong></summary>
-
-ContentEngineAI follows a **7-step modular pipeline** with parallel execution:
-
-```mermaid
-graph TD
-    A[Gather Visuals] --> B[Generate Script]
-    B --> C[Generate Description]
-    C --> D[Create Voiceover]
-    D --> E[Generate Subtitles]
-    D --> F[Download Music]
-    E --> G[Assemble Video]
-    F --> G
-```
-
-**📖 Detailed architecture**: [Architecture](docs/architecture.md)
-
-</details>
-
-## 📚 Documentation
-
-### Core Documentation
+## Documentation
 
 | Guide | Description |
 |-------|-------------|
-| **[🛠️ Installation](docs/installation.md)** | Setup guide with prerequisites and API keys |
-| **[⚙️ Configuration](docs/configuration.md)** | YAML config reference and CLI overrides |
-| **[🕷️ Scraper](docs/scraper.md)** | Product data extraction from Amazon |
-| **[🎬 Video Producer](docs/video-producer.md)** | Video production CLI and profiles |
-| **[🔄 Batch Processing](docs/batch-processing.md)** | Multi-product pipelines and automation |
-| **[📤 Publisher](docs/publisher.md)** | Social media publishing via Late.dev |
-| **[🏗️ Architecture](docs/architecture.md)** | System design and module overview |
-| **[🔧 Troubleshooting](docs/troubleshooting.md)** | Common issues and debugging tips |
+| [Installation](docs/installation.md) | Setup guide with prerequisites and API keys |
+| [Configuration](docs/configuration.md) | YAML config reference and CLI overrides |
+| [Scraper](docs/scraper.md) | Product data extraction from Amazon |
+| [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
+| [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
+| [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
+| [Architecture](docs/architecture.md) | System design and module overview |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging tips |
 
 <details>
 <summary><strong>Developer Documentation</strong></summary>
 
 | Document | Description |
 |----------|-------------|
-| **[👨‍💻 Development](docs/development.md)** | Dev setup and contribution workflow |
-| **[🧪 Testing](docs/testing.md)** | Test framework and coverage |
-| **[✨ Linting](docs/linting.md)** | Code quality tools (Ruff, MyPy, Bandit) |
-| **[📋 Requirements](docs/requirements.md)** | Project requirements and specs |
-| **[📦 Versioning](docs/versioning.md)** | Semantic versioning and releases |
-| **[🤝 Contributing](CONTRIBUTING.md)** | How to contribute |
+| [Development](docs/development.md) | Dev setup and contribution workflow |
+| [Testing](docs/testing.md) | Test framework and coverage |
+| [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
+| [Requirements](docs/requirements.md) | Project requirements and specs |
+| [Versioning](docs/versioning.md) | Semantic versioning and releases |
+| [Contributing](CONTRIBUTING.md) | How to contribute |
 
 </details>
 
-## 🛠️ Development & Contributing
-
-<details>
-<summary><strong>Developer Quick Start</strong></summary>
-
-```bash
-# Setup development environment
-git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
-poetry install --with dev && make install-dev
-
-# Quality assurance commands
-make lint      # Complete quality check (7 tools)
-make test      # Full test suite with coverage
-make security  # Security vulnerability scan
-```
-
-**📖 Complete guide**: [Development](docs/development.md) • [Contributing](CONTRIBUTING.md)
-
-</details>
-
----
-
-## 📄 License
+## License
 
 **MIT License** - see [LICENSE](LICENSE) for details
-
-<div align="center">
-
-**[🛠️ Installation](docs/installation.md)** • **[⚙️ Configuration](docs/configuration.md)** • **[🎬 Video Producer](docs/video-producer.md)** • **[🔄 Batch Processing](docs/batch-processing.md)** • **[📤 Publisher](docs/publisher.md)** • **[🤝 Contributing](CONTRIBUTING.md)**
-
-</div>

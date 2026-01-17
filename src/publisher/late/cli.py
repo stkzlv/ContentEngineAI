@@ -426,6 +426,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
             stagger_delay_min=config.stagger_delay_min,
             stagger_delay_max=config.stagger_delay_max,
             fail_fast=args.fail_fast,
+            retry_failed=getattr(args, "retry_failed", False),
         )
 
         # Execute batch
@@ -651,6 +652,7 @@ async def cmd_schedule_auto(
             dry_run=args.dry_run,
             cleanup_config=cleanup_config,
             outputs_dir=args.outputs_dir,
+            auto_resolve=getattr(args, "auto_resolve", False),
         )
 
         # Display summary
@@ -661,6 +663,8 @@ async def cmd_schedule_auto(
         logger.info(f"Successfully scheduled: {summary['scheduled']}")
         logger.info(f"Skipped (already scheduled): {summary['skipped']}")
         logger.info(f"Failed: {summary['failed']}")
+        if summary.get("conflicts_resolved", 0) > 0:
+            logger.info(f"Conflicts auto-resolved: {summary['conflicts_resolved']}")
         logger.info("=" * 80)
 
         if args.dry_run:
@@ -866,7 +870,18 @@ Examples:
   # Batch publish all videos
   python -m src.publisher.late batch --platform youtube --platform tiktok \\
       --immediate --debug
+
+  # Use specific account (multi-account mode)
+  python -m src.publisher.late single B0ABC123 --account secondary
         """,
+    )
+
+    # Global argument for multi-account support
+    parser.add_argument(
+        "--account",
+        type=str,
+        metavar="NAME",
+        help="Account name to use (from config/publisher.yaml accounts section)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -994,6 +1009,11 @@ Examples:
         help="Disable automatic cleanup after successful scheduling",
     )
     schedule_parser.add_argument(
+        "--auto-resolve",
+        action="store_true",
+        help="Automatically resolve conflicts by using first available alternative",
+    )
+    schedule_parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging",
@@ -1071,6 +1091,11 @@ Examples:
         "--fail-fast",
         action="store_true",
         help="Stop batch processing on first failure",
+    )
+    batch_parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Only retry previously failed items from the retry queue",
     )
     batch_parser.add_argument(
         "--no-cleanup",
@@ -1168,13 +1193,18 @@ Examples:
             cli_overrides["immediate_publish"] = True
         if hasattr(args, "fail_fast") and args.fail_fast:
             cli_overrides["fail_fast"] = args.fail_fast
+        if hasattr(args, "account") and args.account:
+            cli_overrides["account"] = args.account
 
         config = load_publisher_config(
             config_path=project_root / "config" / "publisher.yaml",
             cli_overrides=cli_overrides,
         )
 
-        logger.info(f"Configuration loaded: provider={config.provider}")
+        account_info = (
+            f", account={config.active_account}" if config.active_account else ""
+        )
+        logger.info(f"Configuration loaded: provider={config.provider}{account_info}")
 
     except Exception as e:
         logger.error(f"Configuration loading failed: {e}", exc_info=args.debug)

@@ -14,12 +14,14 @@ from typing import Any
 import yaml
 
 from src.publisher.models import (
+    AccountConfig,
     CleanupConfig,
     Platform,
     PublisherConfig,
     RecurringSlot,
     ScheduleConfig,
 )
+from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,9 @@ def load_publisher_config(
 
     # Parse schedule and cleanup configurations from YAML
     yaml_config = _parse_schedule_and_cleanup_config(yaml_config)
+
+    # Parse accounts (multi-account support)
+    yaml_config = _parse_accounts(yaml_config)
 
     # Apply environment variable overrides (medium precedence)
     config_dict = _apply_env_overrides(yaml_config)
@@ -266,6 +271,135 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     return result
 
 
+def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
+    """Parse accounts section from YAML configuration.
+
+    Supports both multi-account mode (accounts section) and single-account mode
+    (api_key at root level) for backward compatibility.
+
+    Multi-account YAML format:
+        accounts:
+          main:
+            api_key: sk_live_...
+            vercel_token: vercel_...
+            description: "Main production account"
+          secondary:
+            api_key: sk_live_...
+            description: "Overflow account"
+        default_account: main
+
+    Single-account (legacy) YAML format:
+        api_key: sk_live_...
+        vercel_token: vercel_...
+
+    Args:
+    ----
+        config: Raw YAML configuration dictionary
+
+    Returns:
+    -------
+        Configuration with parsed accounts dict
+
+    """
+    result = config.copy()
+    accounts_dict: dict[str, AccountConfig] = {}
+
+    # Check for multi-account configuration
+    accounts_section = config.get("accounts", {})
+
+    if accounts_section and isinstance(accounts_section, dict):
+        # Multi-account mode
+        for name, account_data in accounts_section.items():
+            if not isinstance(account_data, dict):
+                logger.warning(f"Invalid account config for '{name}', skipping")
+                continue
+
+            # Get API key (supports env var reference)
+            api_key = account_data.get("api_key")
+            if not api_key:
+                logger.warning(f"Account '{name}' missing api_key, skipping")
+                continue
+
+            # Get vercel token
+            vercel_token = account_data.get("vercel_token")
+
+            # Get description
+            description = account_data.get("description", "")
+
+            # Parse default platforms for this account
+            platforms_data = account_data.get("default_platforms", [])
+            default_platforms = []
+            if platforms_data:
+                try:
+                    default_platforms = [
+                        Platform(p.lower()) if isinstance(p, str) else p
+                        for p in platforms_data
+                    ]
+                except ValueError as e:
+                    logger.warning(
+                        f"Invalid platform in account '{name}': {e}, using empty list"
+                    )
+
+            try:
+                accounts_dict[name] = AccountConfig(
+                    name=name,
+                    api_key=api_key,
+                    vercel_token=vercel_token,
+                    description=description,
+                    default_platforms=default_platforms,
+                )
+                logger.debug(f"Parsed account: {name}")
+            except ValueError as e:
+                logger.warning(f"Failed to create account '{name}': {e}")
+
+        if accounts_dict:
+            result["accounts"] = accounts_dict
+            logger.info(f"Loaded {len(accounts_dict)} account(s) from config")
+
+            # Set default account if specified
+            default_account = config.get("default_account")
+            if default_account and default_account in accounts_dict:
+                result["active_account"] = default_account
+                # Set api_key and vercel_token from default account
+                default_acc = accounts_dict[default_account]
+                result["api_key"] = default_acc.api_key
+                result["vercel_token"] = default_acc.vercel_token
+                logger.info(f"Using default account: {default_account}")
+            elif accounts_dict:
+                # Use first account if no default specified
+                first_account = next(iter(accounts_dict.values()))
+                result["active_account"] = first_account.name
+                result["api_key"] = first_account.api_key
+                result["vercel_token"] = first_account.vercel_token
+                logger.info(
+                    f"No default_account specified, using first: {first_account.name}"
+                )
+    else:
+        # Single-account mode (legacy) - create "default" account if api_key exists
+        api_key = config.get("api_key")
+        if api_key:
+            vercel_token = config.get("vercel_token")
+            try:
+                accounts_dict["default"] = AccountConfig(
+                    name="default",
+                    api_key=api_key,
+                    vercel_token=vercel_token,
+                    description="Default account (legacy single-account mode)",
+                )
+                result["accounts"] = accounts_dict
+                result["active_account"] = "default"
+                logger.debug("Created default account from legacy config")
+            except ValueError as e:
+                logger.debug(f"Could not create default account: {e}")
+
+    # Remove raw accounts section (already parsed)
+    result.pop("default_account", None)
+    if "accounts" in result and not isinstance(result["accounts"], dict):
+        result.pop("accounts", None)
+
+    return result
+
+
 def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     """Apply environment variable overrides to configuration.
 
@@ -371,6 +505,7 @@ def _apply_cli_overrides(
     - immediate: Boolean for immediate publishing
     - max_retries: Integer for retry attempts
     - timeout: Float for request timeout
+    - account: Name of account to use (multi-account support)
 
     Args:
     ----
@@ -404,6 +539,23 @@ def _apply_cli_overrides(
             result["immediate_publish"] = value
             continue
 
+        if key == "account":
+            # Switch to specified account
+            accounts = result.get("accounts", {})
+            if value in accounts:
+                account = accounts[value]
+                result["active_account"] = value
+                result["api_key"] = account.api_key
+                result["vercel_token"] = account.vercel_token
+                logger.info(f"Switched to account: {value}")
+            else:
+                available = list(accounts.keys()) if accounts else []
+                raise ValueError(
+                    f"Account '{value}' not found. "
+                    f"Available accounts: {available or 'none configured'}"
+                )
+            continue
+
         # Direct mapping for other keys
         result[key] = value
 
@@ -418,12 +570,13 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
     - provider: "late"
     - immediate_publish: True
     - max_retries: 3
-    - timeout: 30.0
-    - backoff_multiplier: 2.0
+    - timeout: 120.0 (matches YAML default, allows for slow video processing)
     - stagger_delay_min: 30
     - stagger_delay_max: 60
     - default_platforms: [youtube, tiktok, instagram]
     - privacy_settings: {}
+    - accounts: {} (empty dict if no accounts configured)
+    - active_account: None
     - schedule_config: ScheduleConfig() with defaults
     - cleanup_config: CleanupConfig() with defaults
 
@@ -440,12 +593,13 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "provider": "late",
         "immediate_publish": True,
         "max_retries": 3,
-        "timeout": 30.0,
-        "backoff_multiplier": 2.0,
+        "timeout": 120.0,  # TikTok video processing can take 60-120 seconds
         "stagger_delay_min": 30,
         "stagger_delay_max": 60,
         "default_platforms": [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
         "privacy_settings": {},
+        "accounts": {},
+        "active_account": None,
         "schedule_config": ScheduleConfig(),
         "cleanup_config": CleanupConfig(),
     }
@@ -492,9 +646,10 @@ def _validate_required_fields(config: dict[str, Any]) -> None:
 
     # Validate API key format (basic check)
     api_key = config["api_key"]
-    if not isinstance(api_key, str) or len(api_key) < 10:
+    if not isinstance(api_key, str) or len(api_key) < LATE_API_KEY_MIN_LENGTH:
         raise ValueError(
-            f"Invalid API key format: must be string with at least 10 characters "
+            f"Invalid API key format: must be string with at least "
+            f"{LATE_API_KEY_MIN_LENGTH} characters "
             f"(got {len(api_key) if isinstance(api_key, str) else 'non-string'})"
         )
 
@@ -524,24 +679,50 @@ def create_default_config_file(
 
     with open(output_path, "w", encoding="utf-8") as f:
         # Write with comments manually for better formatting
-        f.write("# Publisher Configuration\n")
-        f.write("# API credentials (use environment variables for security)\n")
+        sep = "# " + "=" * 77 + "\n"
+        f.write("# Publisher Configuration\n\n")
+
+        f.write(sep)
+        f.write("# SINGLE ACCOUNT MODE (Legacy - use env vars for credentials)\n")
+        f.write(sep)
         f.write("provider: late\n")
         f.write('api_key_env_var: "LATE_API_KEY"\n')
         f.write('vercel_token_env_var: "LATE_VERCEL_TOKEN"\n\n')
-        f.write("# Publishing behavior\n")
+
+        f.write(sep)
+        f.write("# MULTI-ACCOUNT MODE (uncomment to enable)\n")
+        f.write(sep)
+        f.write("# accounts:\n")
+        f.write("#   main:\n")
+        f.write("#     api_key: ${LATE_API_KEY}  # Use env var reference\n")
+        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN}\n")
+        f.write('#     description: "Main production account"\n')
+        f.write("#   secondary:\n")
+        f.write("#     api_key: ${LATE_API_KEY_2}\n")
+        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN_2}\n")
+        f.write('#     description: "Overflow account for high volume"\n')
+        f.write("#     default_platforms:\n")
+        f.write("#       - youtube\n")
+        f.write("#       - tiktok\n")
+        f.write("# default_account: main  # Which account to use by default\n\n")
+
+        f.write(sep)
+        f.write("# PUBLISHING BEHAVIOR\n")
+        f.write(sep)
         f.write("immediate_publish: true\n")
         f.write("default_platforms:\n")
         f.write("  - youtube\n")
         f.write("  - tiktok\n")
         f.write("  - instagram\n\n")
+
         f.write("# Retry and timeout settings\n")
         f.write("max_retries: 3\n")
-        f.write("timeout: 30.0\n")
-        f.write("backoff_multiplier: 2.0\n\n")
+        f.write("timeout: 120.0\n\n")
+
         f.write("# Batch publishing delays (seconds)\n")
         f.write("stagger_delay_min: 30\n")
         f.write("stagger_delay_max: 60\n\n")
+
         f.write("# Privacy settings per platform\n")
         f.write("privacy_settings:\n")
         f.write("  youtube: public\n")

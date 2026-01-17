@@ -135,8 +135,8 @@ The Publisher Module is **fully implemented** and production-ready. All core req
 
 ## Enhancement Tasks
 
-- [ ] 20. Add integration test for full publish-schedule-cleanup workflow
-  - File: tests/integration/test_publisher_integration.py (new)
+- [x] 20. Add integration test for full publish-schedule-cleanup workflow
+  - File: tests/integration/test_publisher_integration.py
   - Test complete pipeline: publish → schedule → verify → cleanup
   - Use mock HTTP responses for Late API
   - Purpose: Verify end-to-end workflow works correctly
@@ -144,48 +144,55 @@ The Publisher Module is **fully implemented** and production-ready. All core req
   - _Requirements: 1-18 (full pipeline)_
   - _Prompt: Role: QA Engineer | Task: Create integration test that mocks Late API and verifies: media upload, platform publishing, schedule creation, status tracking, publication verification, cleanup execution | Restrictions: Use temp output directory, mock all network calls, verify audit log | Success: Full pipeline tested without real API calls_
 
-- [ ] 21. Add retry mechanism for partial batch failures
-  - File: src/publisher/batch.py (modify)
-  - Store failed products in retry queue
-  - Add --retry-failed CLI flag
+- [x] 21. Add retry mechanism for partial batch failures
+  - File: src/publisher/batch.py, src/publisher/tracking.py (modified)
+  - Added retry queue functions: add_to_retry_queue(), get_retry_queue(), remove_from_retry_queue()
+  - Added --retry-failed CLI flag to resume failed items
+  - Tests: TestRetryQueue, TestBatchPublisherRetryMode (11 tests)
   - Purpose: Allow resuming failed batch operations
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 6, 9_
-  - _Prompt: Role: Python Developer | Task: Add retry queue for failed batch items: store failed product_ids in tracking.json, add --retry-failed flag to resume, clear queue on success | Restrictions: Maintain idempotency, preserve original scheduling | Success: Failed batch items can be retried without reprocessing succeeded items_
 
-- [ ] 22. Add webhook support for status updates
+- [x] 22. Add webhook support for status updates
   - File: src/publisher/webhooks.py (new)
-  - Support Late.dev webhooks for async status updates
-  - Update local tracking when webhook received
+  - WebhookHandler class with HMAC-SHA256 signature verification
+  - Idempotent event processing with event ID tracking
+  - Supports: post.scheduled, post.published, post.failed, post.partial, account.disconnected
+  - Tests: 28 tests covering signature, parsing, idempotency, tracking
   - Purpose: Real-time status without polling
   - _Leverage: src/publisher/tracking.py_
   - _Requirements: 8_
-  - _Prompt: Role: Python Developer | Task: Create webhook handler for Late.dev status updates: POST endpoint for webhook events, signature verification, update StatusTracker on status change | Restrictions: Validate webhook signature, handle duplicate events idempotently | Success: Status updates received without polling_
 
-- [ ] 23. Add multi-account support
-  - File: src/publisher/config.py, src/publisher/late/client.py (modify)
-  - Support multiple Late.dev accounts in config
-  - Route products to specific accounts
+- [x] 23. Add multi-account support
+  - Files: src/publisher/models.py, src/publisher/config.py, src/publisher/late/cli.py (modified)
+  - Added AccountConfig dataclass with validation (name, api_key, vercel_token, default_platforms)
+  - YAML accounts section with named accounts and default_account selector
+  - --account CLI flag to switch active account at runtime
+  - Backward compatible: single api_key at root creates "default" account
+  - Tests: tests/publisher/test_accounts.py (25 tests)
   - Purpose: Enable publishing to multiple brand accounts
   - _Leverage: config/publisher.yaml_
   - _Requirements: 2, 7_
-  - _Prompt: Role: Python Developer | Task: Add multi-account support: define accounts in YAML with unique names, add --account CLI flag, support account-specific platform connections | Restrictions: Maintain backward compatibility with single account, validate account exists before use | Success: Products can be routed to different Late.dev accounts_
 
-- [ ] 24. Add scheduling conflict resolution
-  - File: src/publisher/schedule.py (modify)
-  - Detect and resolve overlapping schedule requests
-  - Offer alternative slots when conflicts occur
+- [x] 24. Add scheduling conflict resolution
+  - Files: src/publisher/models.py, src/publisher/schedule.py, src/publisher/late/cli.py (modified)
+  - Added ConflictResolution dataclass with alternatives sorted by time proximity
+  - Added find_alternatives() and resolve_conflict() methods to ScheduleManager
+  - Added --auto-resolve CLI flag to automatically use first available alternative
+  - Integrated with auto_schedule to suggest alternatives on validation failure
+  - Tests: tests/publisher/test_conflict_resolution.py (20 tests)
   - Purpose: Better UX when slots are contested
   - _Leverage: src/publisher/schedule_validator.py_
   - _Requirements: 13, 14_
-  - _Prompt: Role: Python Developer | Task: Add conflict resolution: when auto-schedule finds conflict, suggest next N available alternatives, add --auto-resolve flag to pick first available | Restrictions: Preserve user's preferred time proximity, log resolution decisions | Success: Schedule conflicts resolved without manual intervention_
 
-- [ ] 25. Update docs/publisher.md with comprehensive guide
-  - File: docs/publisher.md (new or modify)
-  - Document all CLI commands with examples
-  - Add scheduling workflow guide
-  - Include cleanup safety guidelines
+- [x] 25. Update docs/publisher.md with comprehensive guide
+  - File: docs/publisher.md (modified)
+  - Added CLI Reference section with command tables
+  - Added Common Workflows section with 5 end-to-end examples
+  - Added Safety Guidelines section with checklist and recovery options
+  - Enhanced scheduling documentation with conflict resolution
+  - Added multi-account examples in setup and workflows
+  - All examples runnable with correct CLI syntax
   - Purpose: Provide complete publisher usage reference
   - _Leverage: src/publisher/late/cli.py for CLI options_
   - _Requirements: 10, 11-14, 15-18_
-  - _Prompt: Role: Technical Writer | Task: Create comprehensive publisher documentation with: 1) Quick start examples, 2) CLI reference table, 3) Scheduling workflow guide, 4) Cleanup safety guidelines, 5) Multi-platform metadata examples, 6) Troubleshooting section | Restrictions: Use existing doc style, keep examples runnable | Success: Users can use all publisher features from docs alone_

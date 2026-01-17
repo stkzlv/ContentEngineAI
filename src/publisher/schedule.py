@@ -13,12 +13,17 @@ from typing import TYPE_CHECKING
 
 from src.publisher.models import (
     CleanupConfig,
+    ConflictResolution,
     Platform,
     RecurringSlot,
     ScheduleConfig,
     ScheduleEntry,
 )
 from src.publisher.schedule_validator import ScheduleValidator
+from src.video.config.constants import (
+    SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
+    SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
+)
 
 if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
@@ -242,6 +247,186 @@ class ScheduleManager:
 
         return min_time, min_index
 
+    def find_alternatives(
+        self,
+        preferred_time: datetime,
+        platforms: list[Platform],
+        occupied_slots: set[datetime],
+        count: int | None = None,
+    ) -> ConflictResolution:
+        """Find alternative slots when preferred time has a conflict.
+
+        Searches for the next N available slots starting from the preferred time,
+        sorted by proximity to preserve user's time preference.
+
+        Args:
+        ----
+            preferred_time: User's originally preferred schedule time
+            platforms: Platforms to check for conflicts
+            occupied_slots: Set of already-occupied slot times
+            count: Number of alternatives to find (defaults to config value)
+
+        Returns:
+        -------
+            ConflictResolution with alternatives sorted by time proximity
+
+        Example:
+        -------
+            >>> resolution = manager.find_alternatives(
+            ...     preferred_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
+            ...     platforms=[Platform.YOUTUBE],
+            ...     occupied_slots={datetime(2025, 1, 20, 10, 0, tzinfo=UTC)},
+            ... )
+            >>> for alt in resolution.alternatives:
+            ...     print(f"Alternative: {alt}")
+
+        """
+        if count is None:
+            count = self.config.conflict_alternatives_count
+
+        if not self.config.slots:
+            return ConflictResolution(
+                original_time=preferred_time,
+                conflict_reason="No recurring slots configured",
+                alternatives=[],
+            )
+
+        # Normalize preferred time for comparison
+        normalized_preferred = preferred_time.replace(second=0, microsecond=0)
+
+        # Determine conflict reason
+        conflict_reason = "Slot occupied"
+        if normalized_preferred in occupied_slots:
+            conflict_reason = f"Slot at {preferred_time.isoformat()} already occupied"
+        else:
+            # Check validation issues
+            temp_entry = ScheduleEntry(
+                product_id="__temp__",
+                scheduled_time=preferred_time,
+                platforms=platforms,
+                status="pending",
+                created_at=datetime.now(UTC),
+            )
+            validator = ScheduleValidator(self.config, self.entries)
+            is_valid, error_msg = validator.validate(temp_entry)
+            if not is_valid:
+                conflict_reason = error_msg
+
+        # Find alternatives
+        alternatives: list[datetime] = []
+        search_time = preferred_time
+        max_attempts = count * SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER
+        attempts = 0
+        current_slot = 0
+
+        while len(alternatives) < count and attempts < max_attempts:
+            try:
+                next_time, next_idx = self.get_next_slot(
+                    slots=self.config.slots,
+                    after=search_time,
+                    slot_index=current_slot,
+                )
+
+                # Normalize for comparison
+                normalized = next_time.replace(second=0, microsecond=0)
+
+                # Skip if occupied
+                if normalized in occupied_slots:
+                    search_time = next_time
+                    current_slot = (next_idx + 1) % len(self.config.slots)
+                    attempts += 1
+                    continue
+
+                # Validate the slot
+                temp_entry = ScheduleEntry(
+                    product_id="__temp__",
+                    scheduled_time=next_time,
+                    platforms=platforms,
+                    status="pending",
+                    created_at=datetime.now(UTC),
+                )
+                validator = ScheduleValidator(self.config, self.entries)
+                is_valid, _ = validator.validate(temp_entry)
+
+                if is_valid and next_time not in alternatives:
+                    alternatives.append(next_time)
+                    logger.debug(f"Found alternative slot: {next_time}")
+
+                # Move to next slot
+                search_time = next_time
+                current_slot = (next_idx + 1) % len(self.config.slots)
+                attempts += 1
+
+            except Exception as e:
+                logger.warning(f"Error finding alternative: {e}")
+                attempts += 1
+                break
+
+        # Sort by proximity to preferred time
+        alternatives.sort(key=lambda t: abs((t - preferred_time).total_seconds()))
+
+        logger.info(
+            f"Found {len(alternatives)} alternatives for conflict at {preferred_time}"
+        )
+
+        return ConflictResolution(
+            original_time=preferred_time,
+            conflict_reason=conflict_reason,
+            alternatives=alternatives,
+        )
+
+    def resolve_conflict(
+        self,
+        preferred_time: datetime,
+        platforms: list[Platform],
+        occupied_slots: set[datetime],
+        auto_resolve: bool = False,
+    ) -> ConflictResolution:
+        """Resolve a scheduling conflict with optional auto-resolution.
+
+        Finds alternative slots and optionally auto-selects the first available one.
+
+        Args:
+        ----
+            preferred_time: User's originally preferred schedule time
+            platforms: Platforms to check for conflicts
+            occupied_slots: Set of already-occupied slot times
+            auto_resolve: If True, automatically use first available alternative
+
+        Returns:
+        -------
+            ConflictResolution with auto_resolved=True and resolved_time set
+            if auto_resolve was enabled and an alternative was found
+
+        Example:
+        -------
+            >>> resolution = manager.resolve_conflict(
+            ...     preferred_time=datetime(2025, 1, 20, 10, 0, tzinfo=UTC),
+            ...     platforms=[Platform.YOUTUBE],
+            ...     occupied_slots={datetime(2025, 1, 20, 10, 0, tzinfo=UTC)},
+            ...     auto_resolve=True,
+            ... )
+            >>> if resolution.auto_resolved:
+            ...     print(f"Auto-resolved to: {resolution.resolved_time}")
+
+        """
+        resolution = self.find_alternatives(
+            preferred_time=preferred_time,
+            platforms=platforms,
+            occupied_slots=occupied_slots,
+        )
+
+        if auto_resolve and resolution.alternatives:
+            resolved_time = resolution.alternatives[0]
+            resolution.auto_resolved = True
+            resolution.resolved_time = resolved_time
+            logger.info(
+                f"Auto-resolved conflict: {preferred_time} -> {resolved_time} "
+                f"(reason: {resolution.conflict_reason})"
+            )
+
+        return resolution
+
     def list_scheduled(
         self,
         platform: str | None = None,
@@ -336,6 +521,7 @@ class ScheduleManager:
         dry_run: bool = False,
         cleanup_config: CleanupConfig | None = None,
         outputs_dir: Path | None = None,
+        auto_resolve: bool = False,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -353,10 +539,12 @@ class ScheduleManager:
                 enabled=True). Runs cleanup after successful scheduling.
             outputs_dir: Base outputs directory for cleanup (required if cleanup
                 is enabled)
+            auto_resolve: Automatically resolve conflicts using first alternative
 
         Returns:
         -------
-            Summary dictionary with keys: scheduled, skipped, failed, cleaned
+            Summary dictionary with keys: scheduled, skipped, failed, cleaned,
+            conflicts_resolved
 
         Raises:
         ------
@@ -372,7 +560,8 @@ class ScheduleManager:
             ...     platforms=[Platform.YOUTUBE, Platform.TIKTOK],
             ...     publisher=publisher_instance,
             ...     start_slot=0,
-            ...     dry_run=False
+            ...     dry_run=False,
+            ...     auto_resolve=True
             ... )
             >>> print(f"Scheduled: {summary['scheduled']}")
 
@@ -468,6 +657,7 @@ class ScheduleManager:
         skipped_count = 0
         failed_count = 0
         cleaned_count = 0
+        conflicts_resolved_count = 0
 
         # Initialize cleanup manager if cleanup enabled
         cleanup_manager = None
@@ -506,7 +696,7 @@ class ScheduleManager:
                 # Find next available slot (skip occupied slots from API)
                 try:
                     search_time = current_time
-                    max_attempts = 100  # Safety limit to prevent infinite loop
+                    max_attempts = SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS
                     attempts = 0
 
                     while attempts < max_attempts:
@@ -561,11 +751,58 @@ class ScheduleManager:
                 validator = ScheduleValidator(self.config, self.entries)
                 is_valid, error_message = validator.validate(temp_entry)
                 if not is_valid:
-                    logger.warning(
-                        f"Validation failed for {product_id}: {error_message}"
-                    )
-                    failed_count += 1
-                    continue
+                    if auto_resolve:
+                        # Try to resolve conflict by finding alternative
+                        resolution = self.resolve_conflict(
+                            preferred_time=next_time,
+                            platforms=platforms,
+                            occupied_slots=occupied_slot_times,
+                            auto_resolve=True,
+                        )
+                        if resolution.auto_resolved and resolution.resolved_time:
+                            logger.info(
+                                f"Conflict resolved for {product_id}: "
+                                f"{next_time} -> {resolution.resolved_time} "
+                                f"(reason: {resolution.conflict_reason})"
+                            )
+                            next_time = resolution.resolved_time
+                            conflicts_resolved_count += 1
+                            # Mark the resolved time as occupied
+                            occupied_slot_times.add(
+                                next_time.replace(second=0, microsecond=0)
+                            )
+                        else:
+                            logger.warning(
+                                f"Could not resolve conflict for {product_id}: "
+                                f"{error_message}"
+                            )
+                            if resolution.alternatives:
+                                alt_str = ", ".join(
+                                    t.isoformat() for t in resolution.alternatives[:3]
+                                )
+                                logger.info(f"Available alternatives: {alt_str}")
+                            failed_count += 1
+                            continue
+                    else:
+                        logger.warning(
+                            f"Validation failed for {product_id}: {error_message}"
+                        )
+                        # Suggest alternatives even without auto-resolve
+                        resolution = self.find_alternatives(
+                            preferred_time=next_time,
+                            platforms=platforms,
+                            occupied_slots=occupied_slot_times,
+                        )
+                        if resolution.alternatives:
+                            alt_str = ", ".join(
+                                t.isoformat() for t in resolution.alternatives[:3]
+                            )
+                            logger.info(
+                                f"Suggested alternatives for {product_id}: {alt_str}"
+                            )
+                            logger.info("Use --auto-resolve to automatically use first")
+                        failed_count += 1
+                        continue
 
                 if dry_run:
                     # Dry run mode: just log without publishing
@@ -821,19 +1058,22 @@ class ScheduleManager:
                 continue
 
         # Log summary
-        logger.info(
-            f"Auto-schedule complete: "
-            f"scheduled={scheduled_count}, "
-            f"skipped={skipped_count}, "
-            f"failed={failed_count}, "
-            f"cleaned={cleaned_count}"
-        )
+        summary_parts = [
+            f"scheduled={scheduled_count}",
+            f"skipped={skipped_count}",
+            f"failed={failed_count}",
+            f"cleaned={cleaned_count}",
+        ]
+        if conflicts_resolved_count > 0:
+            summary_parts.append(f"conflicts_resolved={conflicts_resolved_count}")
+        logger.info(f"Auto-schedule complete: {', '.join(summary_parts)}")
 
         return {
             "scheduled": scheduled_count,
             "skipped": skipped_count,
             "failed": failed_count,
             "cleaned": cleaned_count,
+            "conflicts_resolved": conflicts_resolved_count,
         }
 
     def add_entry(self, entry: ScheduleEntry) -> None:

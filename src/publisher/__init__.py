@@ -34,7 +34,9 @@ from .base import (
     ValidationError,
 )
 from .models import (
+    AccountConfig,
     BatchPublishSummary,
+    ConflictResolution,
     Platform,
     PublisherConfig,
     PublishMetadata,
@@ -45,6 +47,13 @@ from .registry import (
     PublisherRegistry,
     create_publisher,
     register_publisher,
+)
+from .webhooks import (
+    WebhookEvent,
+    WebhookEventType,
+    WebhookHandler,
+    WebhookProcessingError,
+    WebhookVerificationError,
 )
 
 __all__ = [
@@ -60,11 +69,19 @@ __all__ = [
     "PublishResult",
     "PublishMetadata",
     "PublisherConfig",
+    "AccountConfig",
     "BatchPublishSummary",
+    "ConflictResolution",
     "PublishStatus",
     "Platform",
     # Registry and factory
     "PublisherRegistry",
     "create_publisher",
     "register_publisher",
+    # Webhooks
+    "WebhookHandler",
+    "WebhookEvent",
+    "WebhookEventType",
+    "WebhookVerificationError",
+    "WebhookProcessingError",
 ]

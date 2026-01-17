@@ -80,3 +80,139 @@ def get_publish_record(
     if isinstance(record, dict):
         return record
     return None
+
+
+# =============================================================================
+# RETRY QUEUE FUNCTIONS
+# =============================================================================
+
+
+def add_to_retry_queue(
+    product_id: str,
+    platforms: list[str],
+    error: str,
+    scheduled_time: str | None = None,
+    outputs_dir: Path = Path("outputs"),
+) -> None:
+    """Add a failed product to the retry queue.
+
+    Args:
+    ----
+        product_id: Product identifier
+        platforms: List of platform names that failed
+        error: Error message describing the failure
+        scheduled_time: Original scheduled time (ISO format) to preserve
+        outputs_dir: Outputs directory path
+
+    """
+    tracking = load_tracking(outputs_dir)
+    if "retry_queue" not in tracking:
+        tracking["retry_queue"] = {}
+
+    # Use product_id as key (one entry per product, may have multiple platforms)
+    tracking["retry_queue"][product_id] = {
+        "product_id": product_id,
+        "platforms": platforms,
+        "error": error,
+        "scheduled_time": scheduled_time,
+        "failed_at": datetime.now(UTC).isoformat(),
+        "retry_count": tracking["retry_queue"].get(product_id, {}).get("retry_count", 0)
+        + 1,
+    }
+    save_tracking(tracking, outputs_dir)
+    logger.info(f"Added to retry queue: {product_id} (platforms: {platforms})")
+
+
+def get_retry_queue(outputs_dir: Path = Path("outputs")) -> list[dict]:
+    """Get all items in the retry queue.
+
+    Returns
+    -------
+        List of retry queue entries with product_id, platforms, error, etc.
+
+    """
+    tracking = load_tracking(outputs_dir)
+    queue = tracking.get("retry_queue", {})
+    return list(queue.values())
+
+
+def get_retry_queue_item(
+    product_id: str,
+    outputs_dir: Path = Path("outputs"),
+) -> dict | None:
+    """Get a specific item from the retry queue.
+
+    Args:
+    ----
+        product_id: Product identifier
+        outputs_dir: Outputs directory path
+
+    Returns:
+    -------
+        Retry queue entry or None if not found
+
+    """
+    tracking = load_tracking(outputs_dir)
+    queue = tracking.get("retry_queue", {})
+    return queue.get(product_id)
+
+
+def remove_from_retry_queue(
+    product_id: str,
+    outputs_dir: Path = Path("outputs"),
+) -> bool:
+    """Remove a product from the retry queue after successful publish.
+
+    Args:
+    ----
+        product_id: Product identifier
+        outputs_dir: Outputs directory path
+
+    Returns:
+    -------
+        True if item was removed, False if not found
+
+    """
+    tracking = load_tracking(outputs_dir)
+    queue = tracking.get("retry_queue", {})
+
+    if product_id in queue:
+        del queue[product_id]
+        tracking["retry_queue"] = queue
+        save_tracking(tracking, outputs_dir)
+        logger.info(f"Removed from retry queue: {product_id}")
+        return True
+
+    return False
+
+
+def clear_retry_queue(outputs_dir: Path = Path("outputs")) -> int:
+    """Clear all items from the retry queue.
+
+    Returns
+    -------
+        Number of items cleared
+
+    """
+    tracking = load_tracking(outputs_dir)
+    queue = tracking.get("retry_queue", {})
+    count = len(queue)
+
+    if count > 0:
+        tracking["retry_queue"] = {}
+        save_tracking(tracking, outputs_dir)
+        logger.info(f"Cleared retry queue: {count} item(s)")
+
+    return count
+
+
+def get_retry_queue_count(outputs_dir: Path = Path("outputs")) -> int:
+    """Get number of items in retry queue.
+
+    Returns
+    -------
+        Number of items in the retry queue
+
+    """
+    tracking = load_tracking(outputs_dir)
+    return len(tracking.get("retry_queue", {}))

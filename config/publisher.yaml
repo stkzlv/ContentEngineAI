@@ -78,13 +78,14 @@ max_retries: 3
 # How long to wait for a single API call before considering it failed
 # TikTok video processing can take 60-120 seconds for encoding
 # Affects: Upload reliability, time spent waiting on slow connections
-# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_DEFAULT_TIMEOUT_SEC
 timeout: 120.0
 
-# Exponential backoff multiplier for retries
+# DEPRECATED: Exponential backoff multiplier for retries
+# NOTE: This setting is currently NOT USED - the Late publisher uses a hardcoded
+# value of 2.0 from src/video/config/constants.py (DEFAULT_EXPONENTIAL_BACKOFF_BASE)
+# Kept for backward compatibility; may be wired up in a future release.
 # Delay between retries = backoff_multiplier ^ attempt_number
 # Example: multiplier=2.0 → delays of 2s, 4s, 8s for attempts 1, 2, 3
-# Affects: Time between retry attempts, server load distribution
 backoff_multiplier: 2.0
 
 # ============================================================================
@@ -95,13 +96,11 @@ backoff_multiplier: 2.0
 
 # Minimum delay between batch video uploads (seconds)
 # Prevents rapid-fire publishing that could trigger rate limits
-# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_STAGGER_DELAY_MIN_SEC
 stagger_delay_min: 30
 
 # Maximum delay between batch video uploads (seconds)
 # Upper bound for random stagger delay
 # Affects: Total batch processing time, rate limit avoidance
-# NOTE: Also defined in src/video/config/constants.py as PUBLISHER_STAGGER_DELAY_MAX_SEC
 stagger_delay_max: 60
 
 # ============================================================================

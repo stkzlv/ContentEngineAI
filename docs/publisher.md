@@ -1,7 +1,6 @@
 # Publisher Module - Social Media Publishing
 
 [![Late.dev Integration](https://img.shields.io/badge/Late.dev-Integrated-brightgreen)](https://late.dev)
-[![Version](https://img.shields.io/badge/version-0.19.1-blue)](../CHANGELOG.md)
 
 **Automatically publish your generated videos to social media platforms via Late.dev**
 
@@ -14,15 +13,19 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Setup](#-setup)
+- [CLI Reference](#-cli-reference)
 - [CLI Usage](#-cli-usage)
 - [Configuration](#-configuration)
 - [Platform Metadata](#-platform-metadata)
 - [Batch Publishing](#-batch-publishing)
+- [Retry Queue](#-retry-queue)
 - [Publishing Schedule & Calendar](#-publishing-schedule--calendar)
+- [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
 - [API Reference](#-api-reference)
+- [Common Workflows](#-common-workflows)
 
 ---
 
@@ -32,6 +35,8 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **📅 Auto-Scheduling**: Automatically finds first available unoccupied slot in recurring schedule
 - **📆 Calendar Management**: View and filter all scheduled posts by platform, date, and status
 - **🔄 Batch Publishing**: Upload multiple videos with automatic rate limiting
+- **🔁 Retry Queue**: Resume failed batch items without reprocessing successes
+- **📡 Webhooks**: Real-time status updates without polling
 - **🗑️ Auto-Cleanup**: Automatically remove published products from outputs directory
 - **📝 Platform-Specific Metadata**: Auto-loads AI-generated titles, descriptions, hashtags
 - **⚡ Smart Uploads**: Large files (>4MB) automatically routed through Vercel CDN
@@ -127,11 +132,143 @@ cleanup:
   enabled: true             # Auto-cleanup after successful publish
 ```
 
+**Multi-Account Configuration** (optional):
+
+```yaml
+# Define multiple Late.dev accounts
+accounts:
+  production:
+    api_key: sk_live_prod_key_12345
+    vercel_token: vercel_prod_token
+    description: Production account
+  staging:
+    api_key: sk_live_staging_key_123
+    description: Staging/test account
+    default_platforms: [youtube]
+default_account: production  # Account to use by default
+```
+
+Use `--account NAME` CLI flag to switch accounts at runtime:
+```bash
+poetry run python -m src.publisher.late single B0ABC123 --account staging
+```
+
 See [Configuration](#-configuration) for full options.
 
 ### 4. Verify Setup
 
 Test your configuration by listing connected accounts (see [CLI Usage](#-cli-usage) for details).
+
+---
+
+## 📖 CLI Reference
+
+Quick reference for all publisher commands and options.
+
+### Commands Overview
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `list-accounts` | List connected social accounts | `python -m src.publisher.late list-accounts` |
+| `single` | Publish single video by product ID | `python -m src.publisher.late single B0ABC123 --immediate` |
+| `batch` | Batch publish all videos | `python -m src.publisher.late batch --platform youtube --immediate` |
+| `schedule` | Auto-schedule to calendar slots | `python -m src.publisher.late schedule auto` |
+| `calendar` | View scheduled posts | `python -m src.publisher.late calendar list` |
+| `cleanup` | Remove published products | `python -m src.publisher.late cleanup --all --confirm` |
+| `delete` | Delete a post from Late.dev | `python -m src.publisher.late delete POST_ID` |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--account NAME` | Use specific account (multi-account mode) |
+| `--debug` | Enable verbose debug logging |
+
+### Command: `single`
+
+```
+python -m src.publisher.late single <product_id> [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `product_id` | Yes | Product ID (e.g., B00TF9E6XE) |
+| `--platform PLATFORM` | No | Target platform (youtube, tiktok, instagram, facebook, twitter, linkedin) |
+| `--immediate` | No* | Publish immediately |
+| `--schedule DATETIME` | No* | Schedule for later (format: `2025-01-20 14:00:00`) |
+| `--force` | No | Force republish even if already published |
+| `--no-cleanup` | No | Disable automatic cleanup after success |
+
+*One of `--immediate` or `--schedule` is required.
+
+### Command: `batch`
+
+```
+python -m src.publisher.late batch [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | Yes | Target platform (can repeat for multiple) |
+| `--immediate` | Yes | Publish immediately (only mode for batch) |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--fail-fast` | No | Stop on first failure |
+| `--retry-failed` | No | Only retry failed items from queue |
+| `--no-cleanup` | No | Disable automatic cleanup after success |
+
+### Command: `schedule`
+
+```
+python -m src.publisher.late schedule auto [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | No | Target platform (can repeat for multiple) |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--dry-run` | No | Preview without making changes |
+| `--auto-resolve` | No | Auto-resolve conflicts with first alternative |
+| `--no-cleanup` | No | Disable cleanup after scheduling |
+
+### Command: `calendar`
+
+```
+python -m src.publisher.late calendar list [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--platform PLATFORM` | No | Filter by platform |
+| `--status STATUS` | No | Filter by status (pending, scheduled, published, failed, partial) |
+| `--date-from DATE` | No | Start date filter (YYYY-MM-DD) |
+| `--date-to DATE` | No | End date filter (YYYY-MM-DD) |
+
+### Command: `cleanup`
+
+```
+python -m src.publisher.late cleanup [options]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--product-id ID` | Yes* | Clean specific product |
+| `--all` | Yes* | Clean all published products |
+| `--platform PLATFORM` | No | Filter by platform |
+| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
+| `--dry-run` | No | Preview without deleting |
+| `--confirm` | No | Required for `--all` mode |
+
+*One of `--product-id` or `--all` is required.
+
+### Command: `delete`
+
+```
+python -m src.publisher.late delete <post_id>
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `post_id` | Yes | Late.dev post ID to delete |
 
 ---
 
@@ -587,6 +724,241 @@ poetry run python -m src.publisher.late batch \
 
 ---
 
+## 🔁 Retry Queue
+
+Failed batch items are automatically added to a retry queue, allowing you to resume publishing without reprocessing successful items.
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+When a batch publish fails for some products:
+1. Failed product IDs are stored in `outputs/publish_history.json`
+2. Original scheduled times are preserved
+3. Retry count is tracked per product
+4. Successful items are removed from the queue
+
+**Retry Queue Entry:**
+```json
+{
+  "retry_queue": {
+    "B0ABC123": {
+      "product_id": "B0ABC123",
+      "platforms": ["youtube", "tiktok"],
+      "error": "Rate limit exceeded",
+      "scheduled_time": "2025-01-20T10:00:00Z",
+      "failed_at": "2025-01-17T14:30:00Z",
+      "retry_count": 1
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>CLI Usage</strong></summary>
+
+```bash
+# Normal batch publish (failures automatically queued)
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok \
+  --immediate --debug
+
+# Retry only failed items
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok \
+  --immediate \
+  --retry-failed \
+  --debug
+```
+
+**Retry Mode Behavior:**
+- Only processes items in the retry queue
+- Preserves original scheduled times
+- Removes items on success (idempotent)
+- Increments retry count on repeated failures
+- Reports "Retry queue is empty" if nothing to retry
+
+</details>
+
+<details>
+<summary><strong>Python API</strong></summary>
+
+```python
+from src.publisher.tracking import (
+    get_retry_queue,
+    get_retry_queue_count,
+    clear_retry_queue,
+)
+
+# Check retry queue
+items = get_retry_queue(outputs_dir)
+print(f"Failed items: {len(items)}")
+
+# Clear retry queue
+cleared = clear_retry_queue(outputs_dir)
+print(f"Cleared {cleared} items")
+```
+
+</details>
+
+---
+
+## 📡 Webhooks
+
+Receive real-time status updates from Late.dev without polling.
+
+<details>
+<summary><strong>Webhook Events</strong></summary>
+
+Late.dev sends webhooks for these events:
+
+| Event | Description |
+|-------|-------------|
+| `post.scheduled` | Post successfully scheduled |
+| `post.published` | Post successfully published |
+| `post.failed` | Post failed on all platforms |
+| `post.partial` | Post succeeded on some platforms |
+| `account.disconnected` | Social account token expired |
+
+</details>
+
+<details>
+<summary><strong>Setting Up Webhooks</strong></summary>
+
+1. **Create webhook endpoint** in your application
+2. **Configure webhook** in Late.dev dashboard:
+   - URL: `https://your-app.com/webhooks/late`
+   - Secret: Generate a secure random string
+   - Events: Select events to receive
+
+3. **Set up handler:**
+
+```python
+from src.publisher import WebhookHandler
+
+handler = WebhookHandler(
+    secret="your-webhook-secret",
+    outputs_dir=Path("outputs")
+)
+```
+
+</details>
+
+<details>
+<summary><strong>Flask Example</strong></summary>
+
+```python
+from flask import Flask, request, jsonify
+from src.publisher import WebhookHandler, WebhookVerificationError
+
+app = Flask(__name__)
+handler = WebhookHandler(secret="your-webhook-secret")
+
+@app.route("/webhooks/late", methods=["POST"])
+def handle_late_webhook():
+    try:
+        event = handler.process_webhook(
+            payload=request.data,
+            signature=request.headers.get("X-Late-Signature")
+        )
+        return jsonify({
+            "status": "ok",
+            "event_id": event.event_id,
+            "event_type": event.event_type.value
+        })
+    except WebhookVerificationError as e:
+        return jsonify({"error": str(e)}), 401
+```
+
+</details>
+
+<details>
+<summary><strong>FastAPI Example</strong></summary>
+
+```python
+from fastapi import FastAPI, Request, HTTPException
+from src.publisher import WebhookHandler, WebhookVerificationError
+
+app = FastAPI()
+handler = WebhookHandler(secret="your-webhook-secret")
+
+@app.post("/webhooks/late")
+async def handle_late_webhook(request: Request):
+    try:
+        body = await request.body()
+        event = handler.process_webhook(
+            payload=body,
+            signature=request.headers.get("X-Late-Signature")
+        )
+        return {
+            "status": "ok",
+            "event_id": event.event_id,
+            "event_type": event.event_type.value
+        }
+    except WebhookVerificationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+```
+
+</details>
+
+<details>
+<summary><strong>Security</strong></summary>
+
+**Signature Verification:**
+
+Webhooks are signed with HMAC-SHA256. The signature is sent in the `X-Late-Signature` header.
+
+```python
+# Signature is computed as:
+import hmac, hashlib
+signature = hmac.new(
+    key=secret.encode("utf-8"),
+    msg=payload_bytes,
+    digestmod=hashlib.sha256
+).hexdigest()
+```
+
+**Idempotency:**
+
+The handler automatically tracks processed events to prevent duplicate processing:
+- Events are tracked by `event_id`
+- Duplicate events are skipped
+- History is pruned to last 1000 events
+
+**Best Practices:**
+- Always verify signatures in production
+- Return 200 quickly, process asynchronously if needed
+- Handle duplicate events gracefully
+- Log webhook errors for debugging
+
+</details>
+
+<details>
+<summary><strong>Querying Webhook Status</strong></summary>
+
+```python
+from src.publisher.webhooks import (
+    get_post_status,
+    get_disconnected_accounts,
+)
+
+# Get post status from webhook updates
+status = get_post_status("post_123", outputs_dir)
+if status:
+    print(f"Status: {status['status']}")
+    print(f"URLs: {status['published_urls']}")
+
+# Check for disconnected accounts
+disconnected = get_disconnected_accounts(outputs_dir)
+for acc in disconnected:
+    print(f"Account {acc['account_id']} disconnected")
+```
+
+</details>
+
+---
+
 ## 📅 Publishing Schedule & Calendar
 
 <details>
@@ -714,6 +1086,47 @@ schedule_validation:
 
 </details>
 
+<details>
+<summary><strong>Conflict Resolution</strong></summary>
+
+When scheduling conflicts occur, the publisher suggests alternative time slots:
+
+**Automatic Conflict Resolution:**
+
+```bash
+# Auto-resolve conflicts by using first available alternative
+poetry run python -m src.publisher.late.cli schedule auto \
+  --platform youtube --auto-resolve
+
+# Without --auto-resolve, alternatives are suggested in logs
+poetry run python -m src.publisher.late.cli schedule auto --platform youtube
+# Output: "Suggested alternatives: 2026-01-20T14:00:00, 2026-01-22T10:00:00..."
+```
+
+**How It Works:**
+1. When a slot is occupied or validation fails, `find_alternatives()` is called
+2. Searches for next N available slots starting from preferred time
+3. Alternatives are sorted by proximity to user's preferred time
+4. With `--auto-resolve`, automatically uses first available alternative
+5. Resolution decisions are logged for traceability
+
+**Configuration** (`config/publisher.yaml`):
+
+```yaml
+# === Conflict Resolution ===
+recurring_schedule:
+  conflict_alternatives_count: 5  # Number of alternatives to suggest
+```
+
+**ConflictResolution Response:**
+- `original_time`: User's originally requested time
+- `conflict_reason`: Why the original time failed
+- `alternatives`: List of available slots sorted by proximity
+- `auto_resolved`: Whether conflict was auto-resolved
+- `resolved_time`: The time actually used (if auto-resolved)
+
+</details>
+
 ---
 
 ## 🗑️ Post-Publication Cleanup
@@ -838,6 +1251,57 @@ Total products evaluated: 10
 💾 Disk space freed: 1.2 GB
 ================================================================================
 ```
+
+</details>
+
+<details>
+<summary><strong>Safety Guidelines</strong></summary>
+
+Follow these best practices to prevent accidental data loss:
+
+**Before Cleanup:**
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| 1. Preview | `cleanup --all --dry-run` | See what will be deleted |
+| 2. Verify | `calendar list --status published` | Confirm posts are live |
+| 3. Check logs | View `outputs/logs/publisher.log` | Review audit trail |
+| 4. Execute | `cleanup --all --confirm` | Run with confirmation |
+
+**Recommended Configuration:**
+
+```yaml
+cleanup:
+  enabled: true
+  verify_before_delete: true      # ALWAYS keep enabled
+  require_all_platforms: true     # Only cleanup if ALL platforms succeeded
+  archive_before_delete: true     # Backup before deletion
+  archive_dir: "outputs/archives"
+  keep_published_days: 7          # Keep 7 days before cleanup
+```
+
+**Safety Checklist:**
+
+- [ ] Always use `--dry-run` first on production data
+- [ ] Verify `require_all_platforms: true` is set if publishing to multiple platforms
+- [ ] Enable `archive_before_delete` for valuable content
+- [ ] Check Late.dev dashboard to confirm posts are live before cleanup
+- [ ] Review `outputs/logs/cleanup_audit.log` after cleanup
+- [ ] Keep backups for at least 7 days (`keep_published_days: 7`)
+
+**Recovery Options:**
+
+If cleanup runs accidentally:
+1. Check archive directory: `outputs/archives/`
+2. Review audit log for deleted products: `outputs/logs/cleanup_audit.log`
+3. Re-scrape and reproduce videos if no archive exists
+
+**Never Do:**
+
+- ❌ Run `cleanup --all --confirm` without `--dry-run` preview first
+- ❌ Disable `verify_before_delete` in production
+- ❌ Set `keep_published_days: 0` without archiving enabled
+- ❌ Clean up before verifying posts are actually published (not just scheduled)
 
 </details>
 
@@ -1205,6 +1669,104 @@ class BasePublisher(ABC):
 
 ---
 
+## 🔄 Common Workflows
+
+### Workflow 1: First-Time Setup to First Publish
+
+```bash
+# Step 1: Configure credentials
+echo "LATE_API_KEY=sk_live_your_key_here" >> .env
+echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env
+
+# Step 2: Verify connection
+poetry run python -m src.publisher.late list-accounts --debug
+
+# Step 3: Generate a video with metadata
+poetry run python -m src.scraper.amazon.scraper --keywords B0BTYCRJSS --debug
+poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 \
+  --target-platform multi --debug
+
+# Step 4: Publish immediately (for testing)
+poetry run python -m src.publisher.late single B0BTYCRJSS \
+  --platform youtube --immediate --debug
+
+# Step 5: Verify in Late.dev dashboard
+# Visit https://late.dev/dashboard/posts
+```
+
+### Workflow 2: Weekly Content Pipeline
+
+```bash
+# Monday: Scrape and produce videos
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" --max-products 7 \
+  --profile slideshow_images1 --debug
+
+# Monday: Schedule all videos for the week (one per day)
+poetry run python -m src.publisher.late schedule auto \
+  --platform youtube --platform tiktok --platform instagram \
+  --debug
+
+# View the schedule
+poetry run python -m src.publisher.late calendar list --debug
+
+# If conflicts occur, use auto-resolve
+poetry run python -m src.publisher.late schedule auto \
+  --platform youtube --auto-resolve --debug
+```
+
+### Workflow 3: Multi-Account Brand Management
+
+```yaml
+# config/publisher.yaml
+accounts:
+  brand_a:
+    api_key: sk_live_brand_a_key
+    default_platforms: [youtube, tiktok]
+  brand_b:
+    api_key: sk_live_brand_b_key
+    default_platforms: [instagram]
+default_account: brand_a
+```
+
+```bash
+# Publish to Brand A (default)
+poetry run python -m src.publisher.late single B0ABC123 --immediate
+
+# Publish to Brand B
+poetry run python -m src.publisher.late single B0ABC123 --account brand_b --immediate
+```
+
+### Workflow 4: Recover from Batch Failures
+
+```bash
+# Run batch publish (some may fail)
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok --immediate --debug
+
+# Check what failed
+poetry run python -m src.publisher.late calendar list --status failed
+
+# Retry only failed items
+poetry run python -m src.publisher.late batch \
+  --platform youtube --platform tiktok --immediate --retry-failed --debug
+```
+
+### Workflow 5: Safe Cleanup After Publishing
+
+```bash
+# Preview what would be cleaned (dry run)
+poetry run python -m src.publisher.late cleanup --all --dry-run --debug
+
+# Verify posts are published
+poetry run python -m src.publisher.late calendar list --status published
+
+# Execute cleanup with confirmation
+poetry run python -m src.publisher.late cleanup --all --confirm --debug
+```
+
+---
+
 ## 🔗 External Resources
 
 - **Late.dev Documentation**: https://docs.late.dev
@@ -1212,18 +1774,6 @@ class BasePublisher(ABC):
 - **Late.dev Dashboard**: https://late.dev/dashboard
 - **Late.dev Pricing**: https://late.dev/pricing
 - **Late.dev Status**: https://late.dev/status
-
----
-
-## 📝 Version History
-
-**v0.17.0** (2025-01-15)
-- Initial publisher module release
-- Late.dev integration
-- Multi-platform publishing support
-- Batch publishing with rate limiting
-- Platform-specific metadata integration
-- CLI interface for all operations
 
 ---
 
