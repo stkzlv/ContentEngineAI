@@ -89,6 +89,16 @@ global_batch:
   # On successful completion, the state file is automatically cleared.
   # Corrupted state files are handled gracefully (pipeline starts fresh).
 
+  # ---- Dry-Run Mode ----
+  # Preview pipeline plan without executing any phases.
+  # Validates configuration and shows planned actions.
+  #
+  # To preview execution plan:
+  #   python -m src.pipeline.global_batch --dry-run [other options]
+  #
+  # Shows: products to scrape, profiles to use, platforms to publish,
+  # API key status, and scheduling mode.
+
 # ============================================================================
 # EXAMPLE CONFIGURATIONS
 # ============================================================================

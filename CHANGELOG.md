@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fail-fast check after all platforms processed (not mid-execution)
   - Reduces publishing phase duration when targeting multiple platforms
 
+- **Dry-Run Mode**: Preview pipeline plan without executing
+  - `--dry-run` CLI flag validates configuration and shows planned actions
+  - Displays products to scrape, profiles to use, platforms to publish
+  - Shows API key status and scheduling mode
+  - Exits cleanly without executing any pipeline phases
+
 ## [0.24.0] - 2026-01-17
 
 ### Added

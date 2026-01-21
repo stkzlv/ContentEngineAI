@@ -436,6 +436,7 @@ Total Pipeline Duration: 158.2s
 - **Profile Management**: Fixed profile or deterministic random selection per product
 - **Resume Capability**: Continue interrupted pipelines from last checkpoint with `--resume` flag
 - **Parallel Publishing**: Concurrent uploads to multiple platforms per video for faster publishing
+- **Dry-Run Mode**: Preview pipeline plan without executing with `--dry-run` flag
 - **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
@@ -447,7 +448,17 @@ Total Pipeline Duration: 158.2s
 
 ### Production Workflows
 
-1. **Test with Small Batches**
+1. **Preview with Dry-Run**
+   ```bash
+   # Validate configuration and see planned actions
+   poetry run python -m src.pipeline.global_batch \
+     --keywords "wireless earbuds" \
+     --profile slideshow_images1 \
+     --platforms youtube tiktok \
+     --dry-run
+   ```
+
+2. **Test with Small Batches**
    ```bash
    # Test with 2-3 products first
    poetry run python -m src.pipeline.global_batch \
@@ -457,17 +468,17 @@ Total Pipeline Duration: 158.2s
      --debug
    ```
 
-2. **Use YAML for Reproducible Runs**
+3. **Use YAML for Reproducible Runs**
    - Store configuration in `config/pipeline.yaml`
    - Version control your configuration files
    - Override specific settings with CLI arguments
 
-3. **Monitor Resource Usage**
+4. **Monitor Resource Usage**
    - Video production is CPU/memory intensive
    - Consider processing large batches in stages
    - Use `--debug` flag for detailed logging
 
-4. **Profile Selection Strategy**
+5. **Profile Selection Strategy**
    - **Fixed profile**: Consistent branding across all products
    - **Random profiles**: Content variety for social media feeds
    - **Profile pool**: Balance between variety and brand consistency

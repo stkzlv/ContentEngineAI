@@ -349,6 +349,9 @@ class GlobalBatchConfig:
     # Resume configuration
     resume: bool = False
 
+    # Dry-run configuration
+    dry_run: bool = False
+
 
 @dataclass
 class ScrapingPhaseSummary:
@@ -699,6 +702,9 @@ def load_global_batch_config(
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
+    # Dry-run configuration
+    dry_run = getattr(cli_args, "dry_run", False)
+
     return GlobalBatchConfig(
         product_ids=product_ids,
         keywords=keywords,
@@ -716,6 +722,7 @@ def load_global_batch_config(
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
         resume=resume,
+        dry_run=dry_run,
     )
 
 

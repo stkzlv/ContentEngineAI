@@ -160,14 +160,14 @@ The Batch Processing Module (Global Pipeline) is **fully implemented** and produ
   - Implemented: Fail-fast check after all platforms processed (not mid-execution)
   - _Requirements: 6, 11_
 
-- [ ] 20. Add dry-run mode for full pipeline
-  - File: src/pipeline/global_batch.py (modify)
-  - Add --dry-run flag that validates configuration and shows planned actions
-  - Don't execute actual scraping, production, or publishing
-  - Purpose: Preview pipeline execution before running
-  - _Leverage: Existing validation logic_
+- [x] 20. Add dry-run mode for full pipeline
+  - File: src/pipeline/global_batch.py (modify), src/pipeline/config.py (modify)
+  - Implemented: `--dry-run` CLI flag
+  - Implemented: `display_execution_plan()` method showing all four phases
+  - Implemented: Product IDs, keywords, filters, profiles, platforms displayed
+  - Implemented: API key and scheduling mode validation
+  - Implemented: Exit without executing any pipeline phases
   - _Requirements: 9_
-  - _Prompt: Role: Python Developer | Task: Add --dry-run flag to global batch pipeline: validate all configuration, show planned actions (products to scrape, profiles to use, platforms to publish), exit without executing | Restrictions: Validate as much as possible without side effects, format output clearly | Success: Users can preview pipeline plan before execution_
 
 - [ ] 21. Add JSON output format for summaries
   - File: src/pipeline/config.py (modify)
