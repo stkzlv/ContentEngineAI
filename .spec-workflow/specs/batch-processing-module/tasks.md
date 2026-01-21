@@ -169,14 +169,13 @@ The Batch Processing Module (Global Pipeline) is **fully implemented** and produ
   - Implemented: Exit without executing any pipeline phases
   - _Requirements: 9_
 
-- [ ] 21. Add JSON output format for summaries
-  - File: src/pipeline/config.py (modify)
-  - Add --output-format argument (text/json)
-  - Generate machine-readable JSON summary
-  - Purpose: Enable programmatic pipeline result processing
-  - _Leverage: PipelineSummary dataclass_
+- [x] 21. Add JSON output format for summaries
+  - File: src/pipeline/config.py (modify), src/pipeline/global_batch.py (modify)
+  - Implemented: `--output-format` CLI argument (text/json, default: text)
+  - Implemented: `PipelineSummary.to_dict()` and `to_json()` methods
+  - Implemented: ISO timestamps for started_at and completed_at
+  - Implemented: All statistics, product IDs, and errors in JSON output
   - _Requirements: 10_
-  - _Prompt: Role: Python Developer | Task: Add --output-format argument (text/json) to global batch pipeline: generate machine-readable JSON summary with all statistics, timestamps, product IDs | Restrictions: Maintain backward compatibility (text default), use ISO timestamps, include all summary fields | Success: JSON output parseable by downstream tools_
 
 - [ ] 22. Add webhook notifications
   - File: src/pipeline/webhooks.py (new)

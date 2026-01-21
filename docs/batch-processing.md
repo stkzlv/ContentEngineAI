@@ -437,6 +437,7 @@ Total Pipeline Duration: 158.2s
 - **Resume Capability**: Continue interrupted pipelines from last checkpoint with `--resume` flag
 - **Parallel Publishing**: Concurrent uploads to multiple platforms per video for faster publishing
 - **Dry-Run Mode**: Preview pipeline plan without executing with `--dry-run` flag
+- **JSON Output**: Machine-readable summaries with `--output-format json` for automation
 - **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics

@@ -200,6 +200,16 @@ Examples:
             "Displays products to scrape, profiles to use, and platforms to publish."
         ),
     )
+    common_group.add_argument(
+        "--output-format",
+        choices=["text", "json"],
+        default="text",
+        metavar="FORMAT",
+        help=(
+            "Output format for pipeline summary: 'text' (default) for human-readable, "
+            "'json' for machine-readable with all statistics and timestamps."
+        ),
+    )
 
     # Publishing arguments
     publisher_group = parser.add_argument_group("Publishing Configuration")
@@ -305,7 +315,7 @@ class GlobalPipelineOrchestrator:
         if self.config.keywords:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
-                print(f"    - \"{kw}\" (max {self.config.max_products} products)")
+                print(f'    - "{kw}" (max {self.config.max_products} products)')
             if len(self.config.keywords) > 5:
                 print(f"    ... and {len(self.config.keywords) - 5} more")
 
@@ -1595,15 +1605,25 @@ async def main():
             else:
                 logger.warning("No state file found - starting fresh pipeline")
 
+        # Track start time for JSON output
+        from datetime import UTC, datetime
+
+        pipeline_started_at = datetime.now(UTC).isoformat()
+
         # Execute pipeline
         orchestrator = GlobalPipelineOrchestrator(config, state=state)
-        await orchestrator.run_pipeline()
+        summary = await orchestrator.run_pipeline()
 
-        # Success
-        logger.info("=" * 80)
-        logger.info("PIPELINE COMPLETED SUCCESSFULLY")
-        logger.info("=" * 80)
-        logger.info(f"Complete log saved to: {log_file}")
+        # Output summary in requested format
+        if config.output_format == "json":
+            # JSON output to stdout for machine parsing
+            print(summary.to_json(started_at=pipeline_started_at))
+        else:
+            # Text output (already logged by _generate_final_summary)
+            logger.info("=" * 80)
+            logger.info("PIPELINE COMPLETED SUCCESSFULLY")
+            logger.info("=" * 80)
+            logger.info(f"Complete log saved to: {log_file}")
 
         # Exit with success code
         sys.exit(0)

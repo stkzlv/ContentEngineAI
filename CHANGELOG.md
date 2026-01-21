@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Shows API key status and scheduling mode
   - Exits cleanly without executing any pipeline phases
 
+- **JSON Output Format**: Machine-readable pipeline summaries
+  - `--output-format json` outputs parseable JSON to stdout
+  - Includes ISO timestamps (started_at, completed_at)
+  - Contains all statistics, product IDs, and error details
+  - Backward compatible (text format remains default)
+
 ## [0.24.0] - 2026-01-17
 
 ### Added

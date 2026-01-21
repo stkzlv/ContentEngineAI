@@ -352,6 +352,9 @@ class GlobalBatchConfig:
     # Dry-run configuration
     dry_run: bool = False
 
+    # Output format configuration
+    output_format: str = "text"  # "text" or "json"
+
 
 @dataclass
 class ScrapingPhaseSummary:
@@ -593,6 +596,84 @@ class PipelineSummary:
 
         return "\n".join(lines)
 
+    def to_dict(self, started_at: str | None = None) -> dict[str, Any]:
+        """Convert pipeline summary to JSON-serializable dictionary.
+
+        Args:
+        ----
+            started_at: ISO timestamp when pipeline started (optional)
+
+        Returns:
+        -------
+            Dictionary with all summary fields for JSON serialization
+
+        """
+        completed_at = datetime.now(UTC).isoformat()
+
+        result: dict[str, Any] = {
+            "pipeline": {
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "total_duration_sec": round(self.total_duration_sec, 2),
+            },
+            "scraping": {
+                "total_attempted": self.scraping.total_attempted,
+                "successful": self.scraping.successful,
+                "failed": self.scraping.failed,
+                "successful_products": self.scraping.successful_products,
+                "failed_products": self.scraping.failed_products,
+                "media_stats": self.scraping.media_stats,
+                "duration_sec": round(self.scraping.duration_sec, 2),
+            },
+            "production": {
+                "total_attempted": self.production.total_attempted,
+                "successful": self.production.successful,
+                "failed": self.production.failed,
+                "skipped": self.production.skipped,
+                "failed_products": self.production.failed_products,
+                "skipped_products": self.production.skipped_products,
+                "profile_distribution": self.production.profile_distribution,
+                "duration_sec": round(self.production.duration_sec, 2),
+            },
+            "publishing": None,
+            "end_to_end": {
+                "complete_success": self.end_to_end_success,
+                "partial_success": self.partial_success,
+                "total_failures": self.total_failures,
+            },
+        }
+
+        # Add publishing summary if available
+        if self.publishing:
+            result["publishing"] = {
+                "total_attempted": self.publishing.total_attempted,
+                "successful": self.publishing.successful,
+                "failed": self.publishing.failed,
+                "skipped": self.publishing.skipped,
+                "failed_videos": self.publishing.failed_videos,
+                "skipped_videos": self.publishing.skipped_videos,
+                "platform_results": self.publishing.platform_results,
+                "errors": self.publishing.errors,
+                "duration_sec": round(self.publishing.duration_sec, 2),
+            }
+
+        return result
+
+    def to_json(self, started_at: str | None = None, indent: int = 2) -> str:
+        """Convert pipeline summary to JSON string.
+
+        Args:
+        ----
+            started_at: ISO timestamp when pipeline started (optional)
+            indent: JSON indentation level (default: 2)
+
+        Returns:
+        -------
+            JSON string representation of summary
+
+        """
+        return json.dumps(self.to_dict(started_at), indent=indent)
+
 
 def load_global_batch_config(
     cli_args: argparse.Namespace, config_path: str = "config/pipeline.yaml"
@@ -705,6 +786,9 @@ def load_global_batch_config(
     # Dry-run configuration
     dry_run = getattr(cli_args, "dry_run", False)
 
+    # Output format configuration
+    output_format = getattr(cli_args, "output_format", None) or "text"
+
     return GlobalBatchConfig(
         product_ids=product_ids,
         keywords=keywords,
@@ -723,6 +807,7 @@ def load_global_batch_config(
         fail_fast_publish=fail_fast_publish,
         resume=resume,
         dry_run=dry_run,
+        output_format=output_format,
     )
 
 
