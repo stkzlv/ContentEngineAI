@@ -79,6 +79,16 @@ global_batch:
   # Default: false
   debug: false
 
+  # ---- State Persistence (Resume Capability) ----
+  # Pipeline state is automatically saved to outputs/.pipeline_state.json
+  # after each phase completes. This enables resuming interrupted pipelines.
+  #
+  # To resume an interrupted pipeline, run with --resume flag:
+  #   python -m src.pipeline.global_batch --resume
+  #
+  # On successful completion, the state file is automatically cleared.
+  # Corrupted state files are handled gracefully (pipeline starts fresh).
+
 # ============================================================================
 # EXAMPLE CONFIGURATIONS
 # ============================================================================

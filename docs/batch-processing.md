@@ -434,6 +434,8 @@ Total Pipeline Duration: 158.2s
 - **Flexible Input Sources**: Support for product IDs, keywords, or both simultaneously
 - **Smart Filtering**: Handoff phase validates products have sufficient media before production
 - **Profile Management**: Fixed profile or deterministic random selection per product
+- **Resume Capability**: Continue interrupted pipelines from last checkpoint with `--resume` flag
+- **Parallel Publishing**: Concurrent uploads to multiple platforms per video for faster publishing
 - **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
@@ -474,10 +476,15 @@ Total Pipeline Duration: 158.2s
 
 If a batch fails midway:
 
-1. **Check outputs directory** - Successfully processed products are saved
-2. **Review error logs** - Identify specific failures
-3. **Rerun with remaining products** - Use product IDs to continue
+1. **Use `--resume` flag** - Continue from the last successful phase:
+   ```bash
+   poetry run python -m src.pipeline.global_batch --resume
+   ```
+2. **Check outputs directory** - Successfully processed products are saved
+3. **Review error logs** - Identify specific failures in `outputs/logs/global_pipeline.log`
 4. **Use fail-fast for debugging** - Isolate issues quickly
+
+The pipeline automatically saves state to `outputs/.pipeline_state.json` after each phase. On successful completion, the state file is cleared.
 
 ### Performance Optimization
 

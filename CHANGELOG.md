@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Pipeline Resume Capability**: Continue interrupted pipelines from last checkpoint
+  - `PipelineState` dataclass for tracking phase completion and product progress
+  - `--resume` CLI flag to continue from last successful phase
+  - State persistence to `outputs/.pipeline_state.json` after each phase
+  - Graceful handling of corrupted state files (starts fresh)
+  - Automatic state file cleanup on successful completion
+
+- **Parallel Platform Publishing**: Concurrent uploads to multiple platforms per video
+  - `asyncio.gather()` with `return_exceptions=True` for error isolation
+  - Per-platform success/failure tracking with accurate summary statistics
+  - Fail-fast check after all platforms processed (not mid-execution)
+  - Reduces publishing phase duration when targeting multiple platforms
+
 ## [0.24.0] - 2026-01-17
 
 ### Added

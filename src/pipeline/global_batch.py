@@ -1070,12 +1070,80 @@ class GlobalPipelineOrchestrator:
                 duration_sec=time.time() - phase_start,
             )
 
+        # Helper function to publish to a single platform (for parallel execution)
+        async def publish_to_platform(
+            platform: Platform,
+            media_id: str,
+            product_id: str,
+            idx: int,
+        ) -> tuple[Platform, bool, str | None]:
+            """Publish to a single platform with error isolation.
+
+            Returns
+            -------
+                Tuple of (platform, success, error_message)
+
+            """
+            try:
+                # Load platform-specific metadata
+                metadata = load_platform_metadata(
+                    product_id, platform, self.config.outputs_dir
+                )
+
+                if not metadata:
+                    return (platform, False, f"Missing metadata for {platform.value}")
+
+                # Get account ID for this platform
+                platform_account = next(
+                    (
+                        acc
+                        for acc in accounts
+                        if acc["platform"].lower() == platform.value
+                    ),
+                    None,
+                )
+
+                if not platform_account:
+                    return (
+                        platform,
+                        False,
+                        f"No connected account for {platform.value}",
+                    )
+
+                # Format content
+                content = metadata.format_content()
+
+                # Publish
+                await publisher.publish(
+                    media_id=media_id,
+                    platforms=[
+                        {
+                            "platform": platform.value,
+                            "account_id": platform_account["account_id"],
+                        }
+                    ],
+                    content=content,
+                    scheduled_time=schedule_time,
+                )
+
+                logger.info(
+                    f"✓ [{idx}/{total_attempted}] Published to {platform.value}"
+                )
+                return (platform, True, None)
+
+            except Exception as e:
+                logger.error(
+                    f"✗ [{idx}/{total_attempted}] Failed to publish to "
+                    f"{platform.value}: {e}"
+                )
+                return (platform, False, f"{platform.value}: {e}")
+
         # Publish each video
         for idx, (video_path, product_id) in enumerate(produced_videos, 1):
             logger.info(f"[{idx}/{total_attempted}] Publishing video for {product_id}")
 
             video_successful = True
-            video_errors = []
+            video_errors: list[str] = []
 
             try:
                 # Upload video once (reuse media_id for all platforms)
@@ -1083,87 +1151,52 @@ class GlobalPipelineOrchestrator:
                 media_id = await publisher.upload_media(video_path)
                 logger.info(f"[{idx}/{total_attempted}] Upload complete: {media_id}")
 
-                # Publish to each platform
-                for platform in platforms:
-                    try:
-                        logger.info(
-                            f"[{idx}/{total_attempted}] "
-                            f"Publishing to {platform.value}..."
-                        )
+                # Publish to all platforms concurrently
+                logger.info(
+                    f"[{idx}/{total_attempted}] Publishing to "
+                    f"{len(platforms)} platform(s) in parallel..."
+                )
 
-                        # Load platform-specific metadata
-                        metadata = load_platform_metadata(
-                            product_id, platform, self.config.outputs_dir
-                        )
+                # Create tasks for parallel platform publishing
+                publish_tasks = [
+                    publish_to_platform(platform, media_id, product_id, idx)
+                    for platform in platforms
+                ]
 
-                        if not metadata:
-                            logger.warning(
-                                f"[{idx}/{total_attempted}] Skipping {platform.value}: "
-                                f"metadata not found"
-                            )
-                            video_errors.append(
-                                f"Missing metadata for {platform.value}"
-                            )
-                            platform_results[platform.value]["failed"] += 1
-                            video_successful = False
-                            continue
+                # Execute all platform publishes concurrently with error isolation
+                results = await asyncio.gather(*publish_tasks, return_exceptions=True)
 
-                        # Get account ID for this platform
-                        platform_account = next(
-                            (
-                                acc
-                                for acc in accounts
-                                if acc["platform"].lower() == platform.value
-                            ),
-                            None,
-                        )
-
-                        if not platform_account:
-                            logger.warning(
-                                f"[{idx}/{total_attempted}] Skipping {platform.value}: "
-                                f"no connected account"
-                            )
-                            video_errors.append(
-                                f"No connected account for {platform.value}"
-                            )
-                            platform_results[platform.value]["failed"] += 1
-                            video_successful = False
-                            continue
-
-                        # Format content
-                        content = metadata.format_content()
-
-                        # Publish
-                        await publisher.publish(
-                            media_id=media_id,
-                            platforms=[
-                                {
-                                    "platform": platform.value,
-                                    "account_id": platform_account["account_id"],
-                                }
-                            ],
-                            content=content,
-                            scheduled_time=schedule_time,
-                        )
-
-                        platform_results[platform.value]["successful"] += 1
-                        logger.info(
-                            f"✓ [{idx}/{total_attempted}] Published to {platform.value}"
-                        )
-
-                    except Exception as e:
-                        platform_results[platform.value]["failed"] += 1
+                # Process results and update statistics
+                for result in results:
+                    if isinstance(result, Exception):
+                        # Unexpected exception during task execution
                         video_successful = False
-                        error_msg = f"{platform.value}: {e}"
+                        error_msg = f"Unexpected error: {result}"
                         video_errors.append(error_msg)
-                        logger.error(
-                            f"✗ [{idx}/{total_attempted}] Failed to publish to "
-                            f"{platform.value}: {e}"
-                        )
+                        logger.error(f"[{idx}/{total_attempted}] {error_msg}")
+                    else:
+                        platform, success, error = result  # type: ignore[misc]
+                        if success:
+                            platform_results[platform.value]["successful"] += 1
+                        else:
+                            platform_results[platform.value]["failed"] += 1
+                            video_successful = False
+                            if error:
+                                video_errors.append(error)
+                                logger.warning(
+                                    f"[{idx}/{total_attempted}] {platform.value}: "
+                                    f"{error}"
+                                )
 
-                        if self.config.fail_fast_publish:
-                            logger.error("Fail-fast enabled, stopping publishing phase")
-                            raise
+                # Check fail-fast after all platforms processed
+                if not video_successful and self.config.fail_fast_publish:
+                    logger.error("Fail-fast enabled, stopping publishing phase")
+                    failed += 1
+                    failed_videos.append(product_id)
+                    errors.append(
+                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                    )
+                    break
 
                 # Track video-level success/failure
                 if video_successful:
