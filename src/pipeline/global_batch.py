@@ -37,6 +37,7 @@ from src.pipeline.config import (
     load_pipeline_state,
     save_pipeline_state,
 )
+from src.pipeline.webhooks import WebhookConfig, WebhookNotifier
 from src.scraper.amazon.models import ProductData
 from src.video.config_adapter import load_video_config_modular
 
@@ -260,24 +261,52 @@ class GlobalPipelineOrchestrator:
     ----------
         config: Unified pipeline configuration
         state: Pipeline state for tracking progress and enabling resume
+        webhook_notifier: Optional webhook notifier for event notifications
 
     """
 
-    def __init__(self, config: GlobalBatchConfig, state: PipelineState | None = None):
+    def __init__(
+        self,
+        config: GlobalBatchConfig,
+        state: PipelineState | None = None,
+        webhook_notifier: WebhookNotifier | None = None,
+    ):
         """Initialize orchestrator with unified configuration.
 
         Args:
         ----
             config: Global batch configuration with scraper and producer settings
             state: Optional pipeline state for resume capability
+            webhook_notifier: Optional webhook notifier for pipeline events
 
         """
         self.config = config
         self.state = state or PipelineState.create_new(config)
+        self.webhook_notifier = webhook_notifier
 
     def _save_state(self) -> None:
         """Save current pipeline state to disk."""
         save_pipeline_state(self.state, self.config.outputs_dir)
+
+    async def _notify_webhook(
+        self,
+        event: str,
+        data: dict[str, Any],
+    ) -> None:
+        """Send webhook notification (non-blocking).
+
+        Args:
+        ----
+            event: Event type (e.g., "phase.complete")
+            data: Event data payload
+
+        """
+        if self.webhook_notifier and self.webhook_notifier.is_ready():
+            try:
+                await self.webhook_notifier.notify(event, data)
+            except Exception as e:
+                # Never let webhook failures affect the pipeline
+                logger.warning(f"Webhook notification failed: {e}")
 
     def display_execution_plan(self, video_config: Any) -> None:
         """Display planned execution without running the pipeline.
@@ -491,6 +520,12 @@ class GlobalPipelineOrchestrator:
             self.state.mark_phase_complete(PipelinePhase.SCRAPING)
             self._save_state()
 
+            # Notify webhook of scraping phase completion
+            await self._notify_webhook(
+                "phase.complete",
+                {"phase": "scraping", "summary": asdict(scraping_summary)},
+            )
+
         # Phase 2: Handoff
         self.state.advance_phase(PipelinePhase.HANDOFF)
         self._save_state()
@@ -564,6 +599,12 @@ class GlobalPipelineOrchestrator:
                 self.state.mark_phase_complete(PipelinePhase.PRODUCTION)
                 self._save_state()
 
+                # Notify webhook of production phase completion
+                await self._notify_webhook(
+                    "phase.complete",
+                    {"phase": "production", "summary": asdict(production_summary)},
+                )
+
         # Phase 4: Publishing (conditional)
         publishing_summary = None
         if not self.config.skip_publish and produced_videos:
@@ -602,6 +643,12 @@ class GlobalPipelineOrchestrator:
                 self.state.publishing_summary = asdict(publishing_summary)
                 self.state.mark_phase_complete(PipelinePhase.PUBLISHING)
                 self._save_state()
+
+                # Notify webhook of publishing phase completion
+                await self._notify_webhook(
+                    "phase.complete",
+                    {"phase": "publishing", "summary": asdict(publishing_summary)},
+                )
         elif self.config.skip_publish:
             logger.info("→ Skipping publishing phase (--skip-publish)")
         else:
@@ -615,6 +662,12 @@ class GlobalPipelineOrchestrator:
         pipeline_duration = time.time() - pipeline_start
         final_summary = self._generate_final_summary(
             scraping_summary, production_summary, publishing_summary, pipeline_duration
+        )
+
+        # Notify webhook of pipeline completion
+        await self._notify_webhook(
+            "pipeline.complete",
+            {"summary": final_summary.to_dict()},
         )
 
         # Clear state file on successful completion
@@ -1610,8 +1663,32 @@ async def main():
 
         pipeline_started_at = datetime.now(UTC).isoformat()
 
+        # Load webhook configuration
+        import yaml
+
+        from src.pipeline.webhooks import load_webhook_config
+
+        webhook_notifier = None
+        try:
+            with open("config/pipeline.yaml") as f:
+                yaml_config = yaml.safe_load(f) or {}
+            global_batch_yaml = yaml_config.get("global_batch", {})
+            webhook_config = load_webhook_config(global_batch_yaml)
+            if webhook_config.is_configured():
+                webhook_notifier = WebhookNotifier(webhook_config)
+                if webhook_notifier.is_ready():
+                    logger.info(f"Webhook notifications enabled: {webhook_config.url}")
+                else:
+                    logger.warning("Webhook URL configured but invalid")
+        except FileNotFoundError:
+            logger.debug("No pipeline.yaml found - webhooks disabled")
+        except Exception as e:
+            logger.warning(f"Failed to load webhook config: {e}")
+
         # Execute pipeline
-        orchestrator = GlobalPipelineOrchestrator(config, state=state)
+        orchestrator = GlobalPipelineOrchestrator(
+            config, state=state, webhook_notifier=webhook_notifier
+        )
         summary = await orchestrator.run_pipeline()
 
         # Output summary in requested format

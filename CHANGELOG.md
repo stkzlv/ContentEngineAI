@@ -33,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Contains all statistics, product IDs, and error details
   - Backward compatible (text format remains default)
 
+- **Webhook Notifications**: External monitoring and alerting support
+  - Non-blocking POST requests on phase completion and pipeline events
+  - Configurable via `webhook` section in `config/pipeline.yaml`
+  - Event types: `phase.complete`, `phase.failed`, `pipeline.complete`, `pipeline.failed`
+  - Automatic retry with exponential backoff (default: 3 retries)
+  - 5-second timeout to prevent pipeline delays
+  - URL validation before sending requests
+
 ## [0.24.0] - 2026-01-17
 
 ### Added

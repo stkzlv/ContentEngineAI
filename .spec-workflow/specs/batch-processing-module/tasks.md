@@ -177,14 +177,17 @@ The Batch Processing Module (Global Pipeline) is **fully implemented** and produ
   - Implemented: All statistics, product IDs, and errors in JSON output
   - _Requirements: 10_
 
-- [ ] 22. Add webhook notifications
-  - File: src/pipeline/webhooks.py (new)
-  - Send webhook notifications on phase completion and failures
-  - Configure webhook URL in YAML
-  - Purpose: Enable external monitoring and alerting
-  - _Leverage: aiohttp for async HTTP_
+- [x] 22. Add webhook notifications
+  - File: src/pipeline/webhooks.py (new), config/pipeline.yaml (modify), src/pipeline/global_batch.py (modify)
+  - Implemented: `WebhookConfig` dataclass with URL, timeout, retries, events configuration
+  - Implemented: `WebhookNotifier` class with async POST requests and exponential backoff retry
+  - Implemented: `validate_webhook_url()` for URL scheme and format validation
+  - Implemented: `load_webhook_config()` for YAML configuration loading
+  - Implemented: Non-blocking notifications (failures never stop pipeline)
+  - Implemented: Event types: phase.complete, phase.failed, pipeline.complete, pipeline.failed
+  - Implemented: YAML `webhook` section in `global_batch` config with all settings
+  - Implemented: 5-second timeout default, 3 retries with exponential backoff
   - _Requirements: 10_
-  - _Prompt: Role: Python Developer | Task: Add webhook notification support: send POST to configured URL on phase completion/failure, include summary data in payload, retry failed webhooks | Restrictions: Don't block pipeline on webhook failures, validate webhook URL, timeout after 5s | Success: External systems notified of pipeline events_
 
 ## Testing Checklist
 
