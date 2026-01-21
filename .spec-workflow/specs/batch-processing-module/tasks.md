@@ -143,14 +143,14 @@ The Batch Processing Module (Global Pipeline) is **fully implemented** and produ
 
 ## Enhancement Tasks
 
-- [ ] 18. Add pipeline resume capability
-  - File: src/pipeline/global_batch.py (modify)
-  - Store pipeline state after each phase completion
-  - Add --resume flag to continue from last successful phase
-  - Purpose: Resume interrupted pipelines without reprocessing
-  - _Leverage: src/pipeline/config.py for state persistence_
+- [x] 18. Add pipeline resume capability
+  - File: src/pipeline/global_batch.py (modify), src/pipeline/config.py (modify)
+  - Implemented: PipelineState dataclass with phase tracking and product completion lists
+  - Implemented: save_pipeline_state(), load_pipeline_state(), clear_pipeline_state() functions
+  - Implemented: --resume CLI flag to continue from last successful phase
+  - Implemented: State saved to outputs/.pipeline_state.json after each phase
+  - Implemented: Graceful handling of corrupted state files
   - _Requirements: 8_
-  - _Prompt: Role: Python Developer | Task: Add pipeline state persistence and resume capability: save phase completion state to JSON file, add --resume flag to continue from last checkpoint, skip already-completed products | Restrictions: Maintain idempotency, preserve original configuration, handle state file corruption gracefully | Success: Interrupted pipelines can resume from last successful phase_
 
 - [ ] 19. Add parallel platform publishing
   - File: src/pipeline/global_batch.py (modify)

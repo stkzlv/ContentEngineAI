@@ -7,20 +7,29 @@ Data Models:
     - GlobalBatchConfig: Unified pipeline configuration
     - ScrapingPhaseSummary: Scraping phase statistics
     - ProductionPhaseSummary: Video production phase statistics
+    - PublishingPhaseSummary: Publishing phase statistics
     - PipelineSummary: End-to-end pipeline summary
+    - PipelineState: Pipeline state for resume capability
 
 Configuration Functions:
     - load_global_batch_config: Load configuration with CLI > YAML > defaults precedence
     - validate_global_batch_config: Validate configuration before pipeline execution
+
+State Persistence Functions:
+    - save_pipeline_state: Save pipeline state to JSON file
+    - load_pipeline_state: Load pipeline state from JSON file
 
 Configuration Precedence:
     CLI arguments > YAML configuration > Default values
 """
 
 import argparse
+import json
+import logging
 import os
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +37,267 @@ import yaml
 
 from src.scraper.amazon.models import SearchParameters
 from src.video.config import VideoConfig
+
+logger = logging.getLogger(__name__)
+
+
+class PipelinePhase(str, Enum):
+    """Pipeline execution phases for state tracking.
+
+    Phases execute in order: SCRAPING → HANDOFF → PRODUCTION → PUBLISHING → COMPLETED
+    """
+
+    SCRAPING = "scraping"
+    HANDOFF = "handoff"
+    PRODUCTION = "production"
+    PUBLISHING = "publishing"
+    COMPLETED = "completed"
+
+
+@dataclass
+class PipelineState:
+    """Pipeline state for resume capability.
+
+    Tracks pipeline progress to enable resuming interrupted pipelines
+    without reprocessing already-completed products.
+
+    Attributes
+    ----------
+        run_id: Unique identifier for this pipeline run
+        started_at: ISO timestamp when pipeline started
+        updated_at: ISO timestamp when state was last updated
+        current_phase: Current phase being executed
+        config_snapshot: Original configuration (preserved for resume)
+        completed_phases: List of phases that completed successfully
+        scraping_completed_products: ASINs successfully scraped
+        scraping_failed_products: ASINs that failed scraping
+        production_completed_products: ASINs with videos successfully produced
+        production_failed_products: ASINs that failed video production
+        production_skipped_products: ASINs skipped (insufficient media)
+        publishing_completed_products: ASINs successfully published
+        publishing_failed_products: ASINs that failed publishing
+        scraping_summary: Serialized ScrapingPhaseSummary (if phase completed)
+        production_summary: Serialized ProductionPhaseSummary (if phase completed)
+        publishing_summary: Serialized PublishingPhaseSummary (if phase completed)
+
+    """
+
+    run_id: str
+    started_at: str
+    updated_at: str
+    current_phase: PipelinePhase
+    config_snapshot: dict[str, Any]
+    completed_phases: list[str] = field(default_factory=list)
+    scraping_completed_products: list[str] = field(default_factory=list)
+    scraping_failed_products: list[str] = field(default_factory=list)
+    production_completed_products: list[str] = field(default_factory=list)
+    production_failed_products: list[str] = field(default_factory=list)
+    production_skipped_products: list[str] = field(default_factory=list)
+    publishing_completed_products: list[str] = field(default_factory=list)
+    publishing_failed_products: list[str] = field(default_factory=list)
+    scraping_summary: dict[str, Any] | None = None
+    production_summary: dict[str, Any] | None = None
+    publishing_summary: dict[str, Any] | None = None
+
+    @classmethod
+    def create_new(cls, config: "GlobalBatchConfig") -> "PipelineState":
+        """Create new pipeline state from configuration.
+
+        Args:
+        ----
+            config: Global batch configuration
+
+        Returns:
+        -------
+            New PipelineState initialized for fresh pipeline run
+
+        """
+        import uuid
+
+        now = datetime.now(UTC).isoformat()
+        run_id = (
+            f"run_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        )
+
+        # Serialize config to dict (excluding non-serializable fields)
+        config_dict = {
+            "product_ids": config.product_ids,
+            "keywords": config.keywords,
+            "max_products": config.max_products,
+            "scraper_filters": {
+                "min_price": config.scraper_filters.min_price,
+                "max_price": config.scraper_filters.max_price,
+                "min_rating": config.scraper_filters.min_rating,
+                "prime_only": config.scraper_filters.prime_only,
+            },
+            "profile": config.profile,
+            "random_profile": config.random_profile,
+            "profile_pool": config.profile_pool,
+            "fail_fast": config.fail_fast,
+            "process_all_products": config.process_all_products,
+            "outputs_dir": str(config.outputs_dir),
+            "debug": config.debug,
+            "skip_publish": config.skip_publish,
+            "platforms": config.platforms,
+            "schedule_time": config.schedule_time,
+            "fail_fast_publish": config.fail_fast_publish,
+        }
+
+        return cls(
+            run_id=run_id,
+            started_at=now,
+            updated_at=now,
+            current_phase=PipelinePhase.SCRAPING,
+            config_snapshot=config_dict,
+        )
+
+    def mark_phase_complete(self, phase: PipelinePhase) -> None:
+        """Mark a phase as completed.
+
+        Args:
+        ----
+            phase: Phase that completed
+
+        """
+        if phase.value not in self.completed_phases:
+            self.completed_phases.append(phase.value)
+        self.updated_at = datetime.now(UTC).isoformat()
+
+    def advance_phase(self, next_phase: PipelinePhase) -> None:
+        """Advance to the next phase.
+
+        Args:
+        ----
+            next_phase: Phase to advance to
+
+        """
+        self.current_phase = next_phase
+        self.updated_at = datetime.now(UTC).isoformat()
+
+    def is_phase_completed(self, phase: PipelinePhase) -> bool:
+        """Check if a phase has been completed.
+
+        Args:
+        ----
+            phase: Phase to check
+
+        Returns:
+        -------
+            True if phase is in completed_phases
+
+        """
+        return phase.value in self.completed_phases
+
+
+def get_state_file_path(outputs_dir: Path) -> Path:
+    """Get the path to the pipeline state file.
+
+    Args:
+    ----
+        outputs_dir: Base outputs directory
+
+    Returns:
+    -------
+        Path to .pipeline_state.json file
+
+    """
+    return outputs_dir / ".pipeline_state.json"
+
+
+def save_pipeline_state(state: PipelineState, outputs_dir: Path) -> None:
+    """Save pipeline state to JSON file.
+
+    Writes state atomically by writing to temp file first, then renaming.
+
+    Args:
+    ----
+        state: Pipeline state to save
+        outputs_dir: Directory to save state file
+
+    """
+    state_path = get_state_file_path(outputs_dir)
+    temp_path = state_path.with_suffix(".tmp")
+
+    # Ensure outputs directory exists
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Update timestamp
+    state.updated_at = datetime.now(UTC).isoformat()
+
+    # Convert to dict for serialization
+    state_dict = asdict(state)
+    # Convert PipelinePhase enum to string
+    state_dict["current_phase"] = state.current_phase.value
+
+    # Write atomically
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(state_dict, f, indent=2)
+
+    # Atomic rename
+    temp_path.rename(state_path)
+    logger.debug(f"Saved pipeline state to {state_path}")
+
+
+def load_pipeline_state(outputs_dir: Path) -> PipelineState | None:
+    """Load pipeline state from JSON file.
+
+    Handles corrupted state files gracefully by returning None.
+
+    Args:
+    ----
+        outputs_dir: Directory containing state file
+
+    Returns:
+    -------
+        PipelineState if valid state file exists, None otherwise
+
+    """
+    state_path = get_state_file_path(outputs_dir)
+
+    if not state_path.exists():
+        logger.debug(f"No pipeline state file found at {state_path}")
+        return None
+
+    try:
+        with open(state_path, encoding="utf-8") as f:
+            state_dict = json.load(f)
+
+        # Convert current_phase string back to enum
+        state_dict["current_phase"] = PipelinePhase(state_dict["current_phase"])
+
+        state = PipelineState(**state_dict)
+        logger.info(f"Loaded pipeline state from {state_path}")
+        logger.info(f"  Run ID: {state.run_id}")
+        logger.info(f"  Current phase: {state.current_phase.value}")
+        logger.info(
+            f"  Completed phases: {', '.join(state.completed_phases) or 'none'}"
+        )
+
+        return state
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Corrupted state file at {state_path}: {e}")
+        logger.warning("State file will be ignored. Starting fresh pipeline.")
+        return None
+
+    except (KeyError, TypeError, ValueError) as e:
+        logger.warning(f"Invalid state file format at {state_path}: {e}")
+        logger.warning("State file will be ignored. Starting fresh pipeline.")
+        return None
+
+
+def clear_pipeline_state(outputs_dir: Path) -> None:
+    """Remove pipeline state file.
+
+    Args:
+    ----
+        outputs_dir: Directory containing state file
+
+    """
+    state_path = get_state_file_path(outputs_dir)
+    if state_path.exists():
+        state_path.unlink()
+        logger.debug(f"Cleared pipeline state at {state_path}")
 
 
 @dataclass
@@ -75,6 +345,9 @@ class GlobalBatchConfig:
     platforms: list[str] | None = None
     schedule_time: str | None = None
     fail_fast_publish: bool = False
+
+    # Resume configuration
+    resume: bool = False
 
 
 @dataclass
@@ -423,6 +696,9 @@ def load_global_batch_config(
         cli_args, "fail_fast_publish", False
     ) or yaml_config.get("fail_fast_publish", False)
 
+    # Resume configuration
+    resume = getattr(cli_args, "resume", False)
+
     return GlobalBatchConfig(
         product_ids=product_ids,
         keywords=keywords,
@@ -439,6 +715,7 @@ def load_global_batch_config(
         platforms=platforms,
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
+        resume=resume,
     )
 
 

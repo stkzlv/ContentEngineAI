@@ -27,10 +27,15 @@ from typing import Any
 
 from src.pipeline.config import (
     GlobalBatchConfig,
+    PipelinePhase,
+    PipelineState,
     PipelineSummary,
     ProductionPhaseSummary,
     PublishingPhaseSummary,
     ScrapingPhaseSummary,
+    clear_pipeline_state,
+    load_pipeline_state,
+    save_pipeline_state,
 )
 from src.scraper.amazon.models import ProductData
 from src.video.config_adapter import load_video_config_modular
@@ -179,6 +184,14 @@ Examples:
         action="store_true",
         help="Enable debug mode with detailed logging",
     )
+    common_group.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Resume interrupted pipeline from last checkpoint. "
+            "Skips already-completed products and phases."
+        ),
+    )
 
     # Publishing arguments
     publisher_group = parser.add_argument_group("Publishing Configuration")
@@ -222,21 +235,31 @@ class GlobalPipelineOrchestrator:
     treating scraper, producer, and publisher as black boxes and managing
     the handoff between phases.
 
+    Supports resume capability through state persistence, allowing interrupted
+    pipelines to continue from the last successful checkpoint.
+
     Attributes
     ----------
         config: Unified pipeline configuration
+        state: Pipeline state for tracking progress and enabling resume
 
     """
 
-    def __init__(self, config: GlobalBatchConfig):
+    def __init__(self, config: GlobalBatchConfig, state: PipelineState | None = None):
         """Initialize orchestrator with unified configuration.
 
         Args:
         ----
             config: Global batch configuration with scraper and producer settings
+            state: Optional pipeline state for resume capability
 
         """
         self.config = config
+        self.state = state or PipelineState.create_new(config)
+
+    def _save_state(self) -> None:
+        """Save current pipeline state to disk."""
+        save_pipeline_state(self.state, self.config.outputs_dir)
 
     async def run_pipeline(self) -> PipelineSummary:
         """Execute complete pipeline: scrape → handoff → produce → publish.
@@ -247,23 +270,69 @@ class GlobalPipelineOrchestrator:
         3. Video Production Phase: Generate videos for ready products
         4. Publishing Phase: Publish produced videos to social media platforms
 
+        Supports resume capability: if --resume flag is set and state file exists,
+        skips already-completed phases and products.
+
         Returns
         -------
             PipelineSummary with aggregated statistics from all phases
 
         """
+        from dataclasses import asdict
+
         pipeline_start = time.time()
 
+        # Log resume status
+        if self.config.resume:
+            logger.info(f"Resuming pipeline run: {self.state.run_id}")
+            logger.info(f"  Started: {self.state.started_at}")
+            completed = ", ".join(self.state.completed_phases) or "none"
+            logger.info(f"  Completed phases: {completed}")
+
+        # Save initial state
+        self._save_state()
+
         # Phase 1: Scraping
-        logger.info("=" * 80)
-        logger.info("SCRAPING PHASE")
-        logger.info("=" * 80)
-        scraping_summary = await self._execute_scraping_phase()
+        if self.state.is_phase_completed(PipelinePhase.SCRAPING):
+            logger.info("=" * 80)
+            logger.info("SCRAPING PHASE (SKIPPED - Already completed)")
+            logger.info("=" * 80)
+            # Reconstruct summary from state
+            scraping_summary = ScrapingPhaseSummary(
+                **self.state.scraping_summary  # type: ignore[arg-type]
+            )
+            logger.info(
+                f"→ Using cached results: {scraping_summary.successful} successful, "
+                f"{scraping_summary.failed} failed"
+            )
+        else:
+            logger.info("=" * 80)
+            logger.info("SCRAPING PHASE")
+            logger.info("=" * 80)
+            self.state.advance_phase(PipelinePhase.SCRAPING)
+            self._save_state()
+
+            scraping_summary = await self._execute_scraping_phase()
+
+            # Update state with scraping results
+            self.state.scraping_completed_products = (
+                scraping_summary.successful_products
+            )
+            self.state.scraping_failed_products = scraping_summary.failed_products
+            self.state.scraping_summary = asdict(scraping_summary)
+            self.state.mark_phase_complete(PipelinePhase.SCRAPING)
+            self._save_state()
 
         # Phase 2: Handoff
+        self.state.advance_phase(PipelinePhase.HANDOFF)
+        self._save_state()
+
         ready_products = self._execute_handoff_phase(
             scraping_summary.successful_products
         )
+
+        self.state.mark_phase_complete(PipelinePhase.HANDOFF)
+        self._save_state()
 
         # Check if any products are ready
         if not ready_products:
@@ -282,30 +351,107 @@ class GlobalPipelineOrchestrator:
             produced_videos: list[tuple[Path, str]] = []
         else:
             # Phase 3: Video Production
-            logger.info("=" * 80)
-            logger.info("VIDEO PRODUCTION PHASE")
-            logger.info("=" * 80)
-            production_summary, produced_videos = await self._execute_production_phase(
-                ready_products
-            )
+            if self.state.is_phase_completed(PipelinePhase.PRODUCTION):
+                logger.info("=" * 80)
+                logger.info("VIDEO PRODUCTION PHASE (SKIPPED - Already completed)")
+                logger.info("=" * 80)
+                # Reconstruct summary from state
+                production_summary = ProductionPhaseSummary(
+                    **self.state.production_summary  # type: ignore[arg-type]
+                )
+                msg = (
+                    f"→ Using cached results: "
+                    f"{production_summary.successful} successful, "
+                    f"{production_summary.failed} failed"
+                )
+                logger.info(msg)
+                # Reconstruct produced_videos from state
+                produced_videos = [
+                    (self.config.outputs_dir / pid / "video.mp4", pid)
+                    for pid in self.state.production_completed_products
+                ]
+            else:
+                logger.info("=" * 80)
+                logger.info("VIDEO PRODUCTION PHASE")
+                logger.info("=" * 80)
+                self.state.advance_phase(PipelinePhase.PRODUCTION)
+                self._save_state()
+
+                (
+                    production_summary,
+                    produced_videos,
+                ) = await self._execute_production_phase(ready_products)
+
+                # Update state with production results
+                self.state.production_completed_products = [
+                    pid for _, pid in produced_videos
+                ]
+                self.state.production_failed_products = (
+                    production_summary.failed_products
+                )
+                self.state.production_skipped_products = (
+                    production_summary.skipped_products
+                )
+                self.state.production_summary = asdict(production_summary)
+                self.state.mark_phase_complete(PipelinePhase.PRODUCTION)
+                self._save_state()
 
         # Phase 4: Publishing (conditional)
         publishing_summary = None
         if not self.config.skip_publish and produced_videos:
-            logger.info("=" * 80)
-            logger.info("PUBLISHING PHASE")
-            logger.info("=" * 80)
-            publishing_summary = await self._execute_publishing_phase(produced_videos)
+            if self.state.is_phase_completed(PipelinePhase.PUBLISHING):
+                logger.info("=" * 80)
+                logger.info("PUBLISHING PHASE (SKIPPED - Already completed)")
+                logger.info("=" * 80)
+                # Reconstruct summary from state
+                publishing_summary = PublishingPhaseSummary(
+                    **self.state.publishing_summary  # type: ignore[arg-type]
+                )
+                msg = (
+                    f"→ Using cached results: "
+                    f"{publishing_summary.successful} successful, "
+                    f"{publishing_summary.failed} failed"
+                )
+                logger.info(msg)
+            else:
+                logger.info("=" * 80)
+                logger.info("PUBLISHING PHASE")
+                logger.info("=" * 80)
+                self.state.advance_phase(PipelinePhase.PUBLISHING)
+                self._save_state()
+
+                publishing_summary = await self._execute_publishing_phase(
+                    produced_videos
+                )
+
+                # Update state with publishing results
+                self.state.publishing_completed_products = [
+                    pid
+                    for pid in self.state.production_completed_products
+                    if pid not in publishing_summary.failed_videos
+                ]
+                self.state.publishing_failed_products = publishing_summary.failed_videos
+                self.state.publishing_summary = asdict(publishing_summary)
+                self.state.mark_phase_complete(PipelinePhase.PUBLISHING)
+                self._save_state()
         elif self.config.skip_publish:
             logger.info("→ Skipping publishing phase (--skip-publish)")
         else:
             logger.info("→ No videos to publish")
+
+        # Mark pipeline as completed
+        self.state.advance_phase(PipelinePhase.COMPLETED)
+        self._save_state()
 
         # Generate final summary
         pipeline_duration = time.time() - pipeline_start
         final_summary = self._generate_final_summary(
             scraping_summary, production_summary, publishing_summary, pipeline_duration
         )
+
+        # Clear state file on successful completion
+        clear_pipeline_state(self.config.outputs_dir)
+        logger.info("Pipeline completed successfully - state file cleared")
 
         return final_summary
 
@@ -1234,9 +1380,24 @@ async def main():
 
         logger.info(f"Outputs directory: {config.outputs_dir}")
         logger.info(f"Fail-fast: {config.fail_fast}")
+        logger.info(f"Resume mode: {config.resume}")
+
+        # Handle resume mode
+        state = None
+        if config.resume:
+            state = load_pipeline_state(config.outputs_dir)
+            if state:
+                logger.info(f"Resuming pipeline run: {state.run_id}")
+                logger.info(f"  Current phase: {state.current_phase.value}")
+                logger.info(
+                    f"  Completed phases: "
+                    f"{', '.join(state.completed_phases) or 'none'}"
+                )
+            else:
+                logger.warning("No state file found - starting fresh pipeline")
 
         # Execute pipeline
-        orchestrator = GlobalPipelineOrchestrator(config)
+        orchestrator = GlobalPipelineOrchestrator(config, state=state)
         await orchestrator.run_pipeline()
 
         # Success
@@ -1253,6 +1414,7 @@ async def main():
         logger.warning("PIPELINE INTERRUPTED BY USER")
         logger.warning("=" * 80)
         logger.warning(f"Partial log saved to: {log_file}")
+        logger.warning("To resume from last checkpoint, run with --resume flag")
         sys.exit(130)  # Standard exit code for SIGINT
 
     except ValueError as e:
@@ -1271,6 +1433,7 @@ async def main():
         logger.critical("=" * 80)
         logger.critical(f"Error: {e}", exc_info=True)
         logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("To resume from last checkpoint, run with --resume flag")
         sys.exit(1)
 
 
