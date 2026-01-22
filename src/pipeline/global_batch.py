@@ -27,11 +27,17 @@ from typing import Any
 
 from src.pipeline.config import (
     GlobalBatchConfig,
+    PipelinePhase,
+    PipelineState,
     PipelineSummary,
     ProductionPhaseSummary,
     PublishingPhaseSummary,
     ScrapingPhaseSummary,
+    clear_pipeline_state,
+    load_pipeline_state,
+    save_pipeline_state,
 )
+from src.pipeline.webhooks import WebhookConfig, WebhookNotifier
 from src.scraper.amazon.models import ProductData
 from src.video.config_adapter import load_video_config_modular
 
@@ -179,6 +185,32 @@ Examples:
         action="store_true",
         help="Enable debug mode with detailed logging",
     )
+    common_group.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Resume interrupted pipeline from last checkpoint. "
+            "Skips already-completed products and phases."
+        ),
+    )
+    common_group.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Validate configuration and show planned actions without executing. "
+            "Displays products to scrape, profiles to use, and platforms to publish."
+        ),
+    )
+    common_group.add_argument(
+        "--output-format",
+        choices=["text", "json"],
+        default="text",
+        metavar="FORMAT",
+        help=(
+            "Output format for pipeline summary: 'text' (default) for human-readable, "
+            "'json' for machine-readable with all statistics and timestamps."
+        ),
+    )
 
     # Publishing arguments
     publisher_group = parser.add_argument_group("Publishing Configuration")
@@ -222,21 +254,209 @@ class GlobalPipelineOrchestrator:
     treating scraper, producer, and publisher as black boxes and managing
     the handoff between phases.
 
+    Supports resume capability through state persistence, allowing interrupted
+    pipelines to continue from the last successful checkpoint.
+
     Attributes
     ----------
         config: Unified pipeline configuration
+        state: Pipeline state for tracking progress and enabling resume
+        webhook_notifier: Optional webhook notifier for event notifications
 
     """
 
-    def __init__(self, config: GlobalBatchConfig):
+    def __init__(
+        self,
+        config: GlobalBatchConfig,
+        state: PipelineState | None = None,
+        webhook_notifier: WebhookNotifier | None = None,
+    ):
         """Initialize orchestrator with unified configuration.
 
         Args:
         ----
             config: Global batch configuration with scraper and producer settings
+            state: Optional pipeline state for resume capability
+            webhook_notifier: Optional webhook notifier for pipeline events
 
         """
         self.config = config
+        self.state = state or PipelineState.create_new(config)
+        self.webhook_notifier = webhook_notifier
+
+    def _save_state(self) -> None:
+        """Save current pipeline state to disk."""
+        save_pipeline_state(self.state, self.config.outputs_dir)
+
+    async def _notify_webhook(
+        self,
+        event: str,
+        data: dict[str, Any],
+    ) -> None:
+        """Send webhook notification (non-blocking).
+
+        Args:
+        ----
+            event: Event type (e.g., "phase.complete")
+            data: Event data payload
+
+        """
+        if self.webhook_notifier and self.webhook_notifier.is_ready():
+            try:
+                await self.webhook_notifier.notify(event, data)
+            except Exception as e:
+                # Never let webhook failures affect the pipeline
+                logger.warning(f"Webhook notification failed: {e}")
+
+    def display_execution_plan(self, video_config: Any) -> None:
+        """Display planned execution without running the pipeline.
+
+        Shows configuration validation results and planned actions for each phase.
+
+        Args:
+        ----
+            video_config: Video configuration for profile information
+
+        """
+        import os
+
+        import yaml
+
+        separator = "=" * 80
+        section = "-" * 40
+
+        print(f"\n{separator}")
+        print("DRY RUN - EXECUTION PLAN")
+        print(f"{separator}\n")
+
+        # Phase 1: Scraping Plan
+        print(f"{section}")
+        print("PHASE 1: SCRAPING")
+        print(f"{section}")
+
+        if self.config.product_ids:
+            print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
+            for pid in self.config.product_ids[:10]:  # Show first 10
+                print(f"    - {pid}")
+            if len(self.config.product_ids) > 10:
+                print(f"    ... and {len(self.config.product_ids) - 10} more")
+
+        if self.config.keywords:
+            print(f"  Keywords to search: {len(self.config.keywords)}")
+            for kw in self.config.keywords[:5]:  # Show first 5
+                print(f'    - "{kw}" (max {self.config.max_products} products)')
+            if len(self.config.keywords) > 5:
+                print(f"    ... and {len(self.config.keywords) - 5} more")
+
+        # Show filters
+        filters = self.config.scraper_filters
+        active_filters = []
+        if filters.min_price is not None:
+            active_filters.append(f"min_price=${filters.min_price}")
+        if filters.max_price is not None:
+            active_filters.append(f"max_price=${filters.max_price}")
+        if filters.min_rating is not None:
+            active_filters.append(f"min_rating={filters.min_rating}★")
+        if filters.prime_only:
+            active_filters.append("prime_only=true")
+
+        if active_filters:
+            print(f"  Filters: {', '.join(active_filters)}")
+        else:
+            print("  Filters: none")
+
+        print()
+
+        # Phase 2: Handoff (informational)
+        print(f"{section}")
+        print("PHASE 2: HANDOFF")
+        print(f"{section}")
+        print("  Action: Discover scraped products with sufficient media")
+        print("  Validation: Check data.json exists and has images/videos")
+        print()
+
+        # Phase 3: Video Production Plan
+        print(f"{section}")
+        print("PHASE 3: VIDEO PRODUCTION")
+        print(f"{section}")
+
+        if self.config.profile:
+            print("  Profile mode: Fixed")
+            print(f"  Profile: {self.config.profile}")
+
+            # Show profile details if available
+            if self.config.profile in video_config.video_profiles:
+                profile = video_config.video_profiles[self.config.profile]
+                print(f"    - Strategy: {profile.strategy}")
+                print(f"    - Resolution: {profile.resolution}")
+        elif self.config.random_profile:
+            print("  Profile mode: Random selection")
+            pool = self.config.profile_pool or list(video_config.video_profiles.keys())
+            print(f"  Profile pool ({len(pool)} profiles):")
+            for p in pool[:5]:
+                print(f"    - {p}")
+            if len(pool) > 5:
+                print(f"    ... and {len(pool) - 5} more")
+        else:
+            print("  Profile mode: Not configured")
+            print("  WARNING: No profile specified - will fail at runtime")
+
+        print()
+
+        # Phase 4: Publishing Plan
+        print(f"{section}")
+        print("PHASE 4: PUBLISHING")
+        print(f"{section}")
+
+        if self.config.skip_publish:
+            print("  Status: SKIPPED (--skip-publish)")
+        else:
+            # Load publisher config to show platforms
+            config_path = Path("config/publisher.yaml")
+            publisher_config: dict[str, Any] = {}
+            if config_path.exists():
+                with open(config_path, encoding="utf-8") as f:
+                    publisher_config = yaml.safe_load(f) or {}
+
+            platforms = self.config.platforms or publisher_config.get(
+                "default_platforms", ["youtube", "tiktok", "instagram"]
+            )
+            print(f"  Platforms: {', '.join(platforms)}")
+
+            # Check API key
+            api_key = os.getenv("LATE_API_KEY")
+            if api_key:
+                print("  API Key: ✓ LATE_API_KEY is set")
+            else:
+                print("  API Key: ✗ LATE_API_KEY NOT SET (will fail at runtime)")
+
+            # Show scheduling mode
+            if self.config.schedule_time:
+                print(f"  Scheduling: Explicit time ({self.config.schedule_time})")
+            else:
+                immediate = publisher_config.get("immediate_publish", True)
+                recurring = publisher_config.get("recurring_schedule", {}).get(
+                    "enabled", False
+                )
+                if not immediate and recurring:
+                    print("  Scheduling: Auto-schedule (find next available slot)")
+                else:
+                    print("  Scheduling: Immediate publish")
+
+        print()
+
+        # Common Options
+        print(f"{section}")
+        print("COMMON OPTIONS")
+        print(f"{section}")
+        print(f"  Outputs directory: {self.config.outputs_dir}")
+        print(f"  Fail-fast: {self.config.fail_fast}")
+        print(f"  Debug mode: {self.config.debug}")
+
+        print()
+        print(f"{separator}")
+        print("DRY RUN COMPLETE - No actions were executed")
+        print(f"{separator}\n")
 
     async def run_pipeline(self) -> PipelineSummary:
         """Execute complete pipeline: scrape → handoff → produce → publish.
@@ -247,23 +467,75 @@ class GlobalPipelineOrchestrator:
         3. Video Production Phase: Generate videos for ready products
         4. Publishing Phase: Publish produced videos to social media platforms
 
+        Supports resume capability: if --resume flag is set and state file exists,
+        skips already-completed phases and products.
+
         Returns
         -------
             PipelineSummary with aggregated statistics from all phases
 
         """
+        from dataclasses import asdict
+
         pipeline_start = time.time()
 
+        # Log resume status
+        if self.config.resume:
+            logger.info(f"Resuming pipeline run: {self.state.run_id}")
+            logger.info(f"  Started: {self.state.started_at}")
+            completed = ", ".join(self.state.completed_phases) or "none"
+            logger.info(f"  Completed phases: {completed}")
+
+        # Save initial state
+        self._save_state()
+
         # Phase 1: Scraping
-        logger.info("=" * 80)
-        logger.info("SCRAPING PHASE")
-        logger.info("=" * 80)
-        scraping_summary = await self._execute_scraping_phase()
+        if self.state.is_phase_completed(PipelinePhase.SCRAPING):
+            logger.info("=" * 80)
+            logger.info("SCRAPING PHASE (SKIPPED - Already completed)")
+            logger.info("=" * 80)
+            # Reconstruct summary from state
+            scraping_summary = ScrapingPhaseSummary(
+                **self.state.scraping_summary  # type: ignore[arg-type]
+            )
+            logger.info(
+                f"→ Using cached results: {scraping_summary.successful} successful, "
+                f"{scraping_summary.failed} failed"
+            )
+        else:
+            logger.info("=" * 80)
+            logger.info("SCRAPING PHASE")
+            logger.info("=" * 80)
+            self.state.advance_phase(PipelinePhase.SCRAPING)
+            self._save_state()
+
+            scraping_summary = await self._execute_scraping_phase()
+
+            # Update state with scraping results
+            self.state.scraping_completed_products = (
+                scraping_summary.successful_products
+            )
+            self.state.scraping_failed_products = scraping_summary.failed_products
+            self.state.scraping_summary = asdict(scraping_summary)
+            self.state.mark_phase_complete(PipelinePhase.SCRAPING)
+            self._save_state()
+
+            # Notify webhook of scraping phase completion
+            await self._notify_webhook(
+                "phase.complete",
+                {"phase": "scraping", "summary": asdict(scraping_summary)},
+            )
 
         # Phase 2: Handoff
+        self.state.advance_phase(PipelinePhase.HANDOFF)
+        self._save_state()
+
         ready_products = self._execute_handoff_phase(
             scraping_summary.successful_products
         )
+
+        self.state.mark_phase_complete(PipelinePhase.HANDOFF)
+        self._save_state()
 
         # Check if any products are ready
         if not ready_products:
@@ -282,30 +554,125 @@ class GlobalPipelineOrchestrator:
             produced_videos: list[tuple[Path, str]] = []
         else:
             # Phase 3: Video Production
-            logger.info("=" * 80)
-            logger.info("VIDEO PRODUCTION PHASE")
-            logger.info("=" * 80)
-            production_summary, produced_videos = await self._execute_production_phase(
-                ready_products
-            )
+            if self.state.is_phase_completed(PipelinePhase.PRODUCTION):
+                logger.info("=" * 80)
+                logger.info("VIDEO PRODUCTION PHASE (SKIPPED - Already completed)")
+                logger.info("=" * 80)
+                # Reconstruct summary from state
+                production_summary = ProductionPhaseSummary(
+                    **self.state.production_summary  # type: ignore[arg-type]
+                )
+                msg = (
+                    f"→ Using cached results: "
+                    f"{production_summary.successful} successful, "
+                    f"{production_summary.failed} failed"
+                )
+                logger.info(msg)
+                # Reconstruct produced_videos from state
+                produced_videos = [
+                    (self.config.outputs_dir / pid / "video.mp4", pid)
+                    for pid in self.state.production_completed_products
+                ]
+            else:
+                logger.info("=" * 80)
+                logger.info("VIDEO PRODUCTION PHASE")
+                logger.info("=" * 80)
+                self.state.advance_phase(PipelinePhase.PRODUCTION)
+                self._save_state()
+
+                (
+                    production_summary,
+                    produced_videos,
+                ) = await self._execute_production_phase(ready_products)
+
+                # Update state with production results
+                self.state.production_completed_products = [
+                    pid for _, pid in produced_videos
+                ]
+                self.state.production_failed_products = (
+                    production_summary.failed_products
+                )
+                self.state.production_skipped_products = (
+                    production_summary.skipped_products
+                )
+                self.state.production_summary = asdict(production_summary)
+                self.state.mark_phase_complete(PipelinePhase.PRODUCTION)
+                self._save_state()
+
+                # Notify webhook of production phase completion
+                await self._notify_webhook(
+                    "phase.complete",
+                    {"phase": "production", "summary": asdict(production_summary)},
+                )
 
         # Phase 4: Publishing (conditional)
         publishing_summary = None
         if not self.config.skip_publish and produced_videos:
-            logger.info("=" * 80)
-            logger.info("PUBLISHING PHASE")
-            logger.info("=" * 80)
-            publishing_summary = await self._execute_publishing_phase(produced_videos)
+            if self.state.is_phase_completed(PipelinePhase.PUBLISHING):
+                logger.info("=" * 80)
+                logger.info("PUBLISHING PHASE (SKIPPED - Already completed)")
+                logger.info("=" * 80)
+                # Reconstruct summary from state
+                publishing_summary = PublishingPhaseSummary(
+                    **self.state.publishing_summary  # type: ignore[arg-type]
+                )
+                msg = (
+                    f"→ Using cached results: "
+                    f"{publishing_summary.successful} successful, "
+                    f"{publishing_summary.failed} failed"
+                )
+                logger.info(msg)
+            else:
+                logger.info("=" * 80)
+                logger.info("PUBLISHING PHASE")
+                logger.info("=" * 80)
+                self.state.advance_phase(PipelinePhase.PUBLISHING)
+                self._save_state()
+
+                publishing_summary = await self._execute_publishing_phase(
+                    produced_videos
+                )
+
+                # Update state with publishing results
+                self.state.publishing_completed_products = [
+                    pid
+                    for pid in self.state.production_completed_products
+                    if pid not in publishing_summary.failed_videos
+                ]
+                self.state.publishing_failed_products = publishing_summary.failed_videos
+                self.state.publishing_summary = asdict(publishing_summary)
+                self.state.mark_phase_complete(PipelinePhase.PUBLISHING)
+                self._save_state()
+
+                # Notify webhook of publishing phase completion
+                await self._notify_webhook(
+                    "phase.complete",
+                    {"phase": "publishing", "summary": asdict(publishing_summary)},
+                )
         elif self.config.skip_publish:
             logger.info("→ Skipping publishing phase (--skip-publish)")
         else:
             logger.info("→ No videos to publish")
+
+        # Mark pipeline as completed
+        self.state.advance_phase(PipelinePhase.COMPLETED)
+        self._save_state()
 
         # Generate final summary
         pipeline_duration = time.time() - pipeline_start
         final_summary = self._generate_final_summary(
             scraping_summary, production_summary, publishing_summary, pipeline_duration
         )
+
+        # Notify webhook of pipeline completion
+        await self._notify_webhook(
+            "pipeline.complete",
+            {"summary": final_summary.to_dict()},
+        )
+
+        # Clear state file on successful completion
+        clear_pipeline_state(self.config.outputs_dir)
+        logger.info("Pipeline completed successfully - state file cleared")
 
         return final_summary
 
@@ -924,12 +1291,80 @@ class GlobalPipelineOrchestrator:
                 duration_sec=time.time() - phase_start,
             )
 
+        # Helper function to publish to a single platform (for parallel execution)
+        async def publish_to_platform(
+            platform: Platform,
+            media_id: str,
+            product_id: str,
+            idx: int,
+        ) -> tuple[Platform, bool, str | None]:
+            """Publish to a single platform with error isolation.
+
+            Returns
+            -------
+                Tuple of (platform, success, error_message)
+
+            """
+            try:
+                # Load platform-specific metadata
+                metadata = load_platform_metadata(
+                    product_id, platform, self.config.outputs_dir
+                )
+
+                if not metadata:
+                    return (platform, False, f"Missing metadata for {platform.value}")
+
+                # Get account ID for this platform
+                platform_account = next(
+                    (
+                        acc
+                        for acc in accounts
+                        if acc["platform"].lower() == platform.value
+                    ),
+                    None,
+                )
+
+                if not platform_account:
+                    return (
+                        platform,
+                        False,
+                        f"No connected account for {platform.value}",
+                    )
+
+                # Format content
+                content = metadata.format_content()
+
+                # Publish
+                await publisher.publish(
+                    media_id=media_id,
+                    platforms=[
+                        {
+                            "platform": platform.value,
+                            "account_id": platform_account["account_id"],
+                        }
+                    ],
+                    content=content,
+                    scheduled_time=schedule_time,
+                )
+
+                logger.info(
+                    f"✓ [{idx}/{total_attempted}] Published to {platform.value}"
+                )
+                return (platform, True, None)
+
+            except Exception as e:
+                logger.error(
+                    f"✗ [{idx}/{total_attempted}] Failed to publish to "
+                    f"{platform.value}: {e}"
+                )
+                return (platform, False, f"{platform.value}: {e}")
+
         # Publish each video
         for idx, (video_path, product_id) in enumerate(produced_videos, 1):
             logger.info(f"[{idx}/{total_attempted}] Publishing video for {product_id}")
 
             video_successful = True
-            video_errors = []
+            video_errors: list[str] = []
 
             try:
                 # Upload video once (reuse media_id for all platforms)
@@ -937,87 +1372,52 @@ class GlobalPipelineOrchestrator:
                 media_id = await publisher.upload_media(video_path)
                 logger.info(f"[{idx}/{total_attempted}] Upload complete: {media_id}")
 
-                # Publish to each platform
-                for platform in platforms:
-                    try:
-                        logger.info(
-                            f"[{idx}/{total_attempted}] "
-                            f"Publishing to {platform.value}..."
-                        )
+                # Publish to all platforms concurrently
+                logger.info(
+                    f"[{idx}/{total_attempted}] Publishing to "
+                    f"{len(platforms)} platform(s) in parallel..."
+                )
 
-                        # Load platform-specific metadata
-                        metadata = load_platform_metadata(
-                            product_id, platform, self.config.outputs_dir
-                        )
+                # Create tasks for parallel platform publishing
+                publish_tasks = [
+                    publish_to_platform(platform, media_id, product_id, idx)
+                    for platform in platforms
+                ]
 
-                        if not metadata:
-                            logger.warning(
-                                f"[{idx}/{total_attempted}] Skipping {platform.value}: "
-                                f"metadata not found"
-                            )
-                            video_errors.append(
-                                f"Missing metadata for {platform.value}"
-                            )
-                            platform_results[platform.value]["failed"] += 1
-                            video_successful = False
-                            continue
+                # Execute all platform publishes concurrently with error isolation
+                results = await asyncio.gather(*publish_tasks, return_exceptions=True)
 
-                        # Get account ID for this platform
-                        platform_account = next(
-                            (
-                                acc
-                                for acc in accounts
-                                if acc["platform"].lower() == platform.value
-                            ),
-                            None,
-                        )
-
-                        if not platform_account:
-                            logger.warning(
-                                f"[{idx}/{total_attempted}] Skipping {platform.value}: "
-                                f"no connected account"
-                            )
-                            video_errors.append(
-                                f"No connected account for {platform.value}"
-                            )
-                            platform_results[platform.value]["failed"] += 1
-                            video_successful = False
-                            continue
-
-                        # Format content
-                        content = metadata.format_content()
-
-                        # Publish
-                        await publisher.publish(
-                            media_id=media_id,
-                            platforms=[
-                                {
-                                    "platform": platform.value,
-                                    "account_id": platform_account["account_id"],
-                                }
-                            ],
-                            content=content,
-                            scheduled_time=schedule_time,
-                        )
-
-                        platform_results[platform.value]["successful"] += 1
-                        logger.info(
-                            f"✓ [{idx}/{total_attempted}] Published to {platform.value}"
-                        )
-
-                    except Exception as e:
-                        platform_results[platform.value]["failed"] += 1
+                # Process results and update statistics
+                for result in results:
+                    if isinstance(result, Exception):
+                        # Unexpected exception during task execution
                         video_successful = False
-                        error_msg = f"{platform.value}: {e}"
+                        error_msg = f"Unexpected error: {result}"
                         video_errors.append(error_msg)
-                        logger.error(
-                            f"✗ [{idx}/{total_attempted}] Failed to publish to "
-                            f"{platform.value}: {e}"
-                        )
+                        logger.error(f"[{idx}/{total_attempted}] {error_msg}")
+                    else:
+                        platform, success, error = result  # type: ignore[misc]
+                        if success:
+                            platform_results[platform.value]["successful"] += 1
+                        else:
+                            platform_results[platform.value]["failed"] += 1
+                            video_successful = False
+                            if error:
+                                video_errors.append(error)
+                                logger.warning(
+                                    f"[{idx}/{total_attempted}] {platform.value}: "
+                                    f"{error}"
+                                )
 
-                        if self.config.fail_fast_publish:
-                            logger.error("Fail-fast enabled, stopping publishing phase")
-                            raise
+                # Check fail-fast after all platforms processed
+                if not video_successful and self.config.fail_fast_publish:
+                    logger.error("Fail-fast enabled, stopping publishing phase")
+                    failed += 1
+                    failed_videos.append(product_id)
+                    errors.append(
+                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                    )
+                    break
 
                 # Track video-level success/failure
                 if video_successful:
@@ -1234,16 +1634,73 @@ async def main():
 
         logger.info(f"Outputs directory: {config.outputs_dir}")
         logger.info(f"Fail-fast: {config.fail_fast}")
+        logger.info(f"Resume mode: {config.resume}")
+        logger.info(f"Dry-run mode: {config.dry_run}")
+
+        # Handle dry-run mode
+        if config.dry_run:
+            orchestrator = GlobalPipelineOrchestrator(config)
+            orchestrator.display_execution_plan(video_config)
+            logger.info("Dry-run completed - exiting without execution")
+            sys.exit(0)
+
+        # Handle resume mode
+        state = None
+        if config.resume:
+            state = load_pipeline_state(config.outputs_dir)
+            if state:
+                logger.info(f"Resuming pipeline run: {state.run_id}")
+                logger.info(f"  Current phase: {state.current_phase.value}")
+                logger.info(
+                    f"  Completed phases: "
+                    f"{', '.join(state.completed_phases) or 'none'}"
+                )
+            else:
+                logger.warning("No state file found - starting fresh pipeline")
+
+        # Track start time for JSON output
+        from datetime import UTC, datetime
+
+        pipeline_started_at = datetime.now(UTC).isoformat()
+
+        # Load webhook configuration
+        import yaml
+
+        from src.pipeline.webhooks import load_webhook_config
+
+        webhook_notifier = None
+        try:
+            with open("config/pipeline.yaml") as f:
+                yaml_config = yaml.safe_load(f) or {}
+            global_batch_yaml = yaml_config.get("global_batch", {})
+            webhook_config = load_webhook_config(global_batch_yaml)
+            if webhook_config.is_configured():
+                webhook_notifier = WebhookNotifier(webhook_config)
+                if webhook_notifier.is_ready():
+                    logger.info(f"Webhook notifications enabled: {webhook_config.url}")
+                else:
+                    logger.warning("Webhook URL configured but invalid")
+        except FileNotFoundError:
+            logger.debug("No pipeline.yaml found - webhooks disabled")
+        except Exception as e:
+            logger.warning(f"Failed to load webhook config: {e}")
 
         # Execute pipeline
-        orchestrator = GlobalPipelineOrchestrator(config)
-        await orchestrator.run_pipeline()
+        orchestrator = GlobalPipelineOrchestrator(
+            config, state=state, webhook_notifier=webhook_notifier
+        )
+        summary = await orchestrator.run_pipeline()
 
-        # Success
-        logger.info("=" * 80)
-        logger.info("PIPELINE COMPLETED SUCCESSFULLY")
-        logger.info("=" * 80)
-        logger.info(f"Complete log saved to: {log_file}")
+        # Output summary in requested format
+        if config.output_format == "json":
+            # JSON output to stdout for machine parsing
+            print(summary.to_json(started_at=pipeline_started_at))
+        else:
+            # Text output (already logged by _generate_final_summary)
+            logger.info("=" * 80)
+            logger.info("PIPELINE COMPLETED SUCCESSFULLY")
+            logger.info("=" * 80)
+            logger.info(f"Complete log saved to: {log_file}")
 
         # Exit with success code
         sys.exit(0)
@@ -1253,6 +1710,7 @@ async def main():
         logger.warning("PIPELINE INTERRUPTED BY USER")
         logger.warning("=" * 80)
         logger.warning(f"Partial log saved to: {log_file}")
+        logger.warning("To resume from last checkpoint, run with --resume flag")
         sys.exit(130)  # Standard exit code for SIGINT
 
     except ValueError as e:
@@ -1271,6 +1729,7 @@ async def main():
         logger.critical("=" * 80)
         logger.critical(f"Error: {e}", exc_info=True)
         logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("To resume from last checkpoint, run with --resume flag")
         sys.exit(1)
 
 

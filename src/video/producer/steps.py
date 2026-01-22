@@ -555,27 +555,59 @@ async def step_generate_description(ctx: PipelineContext):
         if not description_text:
             raise PipelineError("Description generation failed to produce text.")
 
-        ctx.description = description_text.strip()
+        # Strip any hashtags from description (LLM may still include them)
+        import re
+
+        description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
+        ctx.description = description_clean
 
         # Generate unified metadata.json for publisher (single file for all platforms)
-        import re
         from datetime import UTC, datetime
 
-        # Extract hashtags from description
-        hashtag_pattern = r"#(\w+)"
-        hashtag_matches = re.findall(hashtag_pattern, ctx.description)
-        # Deduplicate while preserving order
-        seen = set()
+        # Generate hashtags from product title keywords
+        title_words = (ctx.product.title or "").split()
+        # Skip common words, numbers, short words, and brand-like words
+        skip_words = {
+            "the",
+            "and",
+            "for",
+            "with",
+            "from",
+            "that",
+            "this",
+            "are",
+            "you",
+            "your",
+            "our",
+            "can",
+            "will",
+            "has",
+            "have",
+            "been",
+            "only",
+            "also",
+        }
         hashtags = []
-        for tag in hashtag_matches:
-            if tag.lower() not in seen:
-                seen.add(tag.lower())
-                hashtags.append(tag)
+        for word in title_words:
+            clean = "".join(c for c in word if c.isalnum())
+            # Skip if: too short, all digits, common word, or looks like a year
+            if (
+                len(clean) < 4
+                or clean.isdigit()
+                or clean.lower() in skip_words
+                or (len(clean) == 4 and clean.isdigit())  # Years like 2026
+            ):
+                continue
+            hashtags.append(clean.capitalize())
+            if len(hashtags) >= 3:
+                break
+        # Always include #ad for advertising disclosure
+        hashtags.append("ad")
 
         # Generate single unified metadata file (in product root)
         product_root = ctx.run_paths["run_root"]
         metadata_dict = {
-            "title": ctx.product.title,
+            "title": ctx.product.title,  # Kept for reference, not used in post
             "description": ctx.description,
             "hashtags": hashtags,
             "keywords": [],
@@ -1206,7 +1238,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 output_path=ctx.run_paths["final_video_output"],
                 subtitle_path=subtitle_path,
                 total_video_duration=ctx.voiceover_duration
-                + ctx.config.duration_padding_sec,  # Add padding to prevent cutoff
+                + ctx.config.outro_duration_sec,  # Extra time for music fade-out
                 temp_dir=ctx.run_paths["intermediate_base"],
                 debug_mode=ctx.debug_mode,
                 subtitle_upper_path=ctx.run_paths.get("subtitle_upper_file"),

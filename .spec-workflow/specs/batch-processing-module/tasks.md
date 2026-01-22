@@ -143,50 +143,51 @@ The Batch Processing Module (Global Pipeline) is **fully implemented** and produ
 
 ## Enhancement Tasks
 
-- [ ] 18. Add pipeline resume capability
-  - File: src/pipeline/global_batch.py (modify)
-  - Store pipeline state after each phase completion
-  - Add --resume flag to continue from last successful phase
-  - Purpose: Resume interrupted pipelines without reprocessing
-  - _Leverage: src/pipeline/config.py for state persistence_
+- [x] 18. Add pipeline resume capability
+  - File: src/pipeline/global_batch.py (modify), src/pipeline/config.py (modify)
+  - Implemented: PipelineState dataclass with phase tracking and product completion lists
+  - Implemented: save_pipeline_state(), load_pipeline_state(), clear_pipeline_state() functions
+  - Implemented: --resume CLI flag to continue from last successful phase
+  - Implemented: State saved to outputs/.pipeline_state.json after each phase
+  - Implemented: Graceful handling of corrupted state files
   - _Requirements: 8_
-  - _Prompt: Role: Python Developer | Task: Add pipeline state persistence and resume capability: save phase completion state to JSON file, add --resume flag to continue from last checkpoint, skip already-completed products | Restrictions: Maintain idempotency, preserve original configuration, handle state file corruption gracefully | Success: Interrupted pipelines can resume from last successful phase_
 
-- [ ] 19. Add parallel platform publishing
+- [x] 19. Add parallel platform publishing
   - File: src/pipeline/global_batch.py (modify)
-  - Publish to multiple platforms concurrently per video
-  - Maintain per-platform error isolation
-  - Purpose: Reduce publishing phase duration
-  - _Leverage: asyncio.gather for concurrent execution_
+  - Implemented: `publish_to_platform()` helper function for parallel execution
+  - Implemented: `asyncio.gather()` with `return_exceptions=True` for error isolation
+  - Implemented: Per-platform success/failure tracking with accurate summary statistics
+  - Implemented: Fail-fast check after all platforms processed (not mid-execution)
   - _Requirements: 6, 11_
-  - _Prompt: Role: Python Developer | Task: Add concurrent platform publishing within _execute_publishing_phase(): publish to all platforms simultaneously per video using asyncio.gather, maintain error isolation per platform | Restrictions: Respect rate limits, handle partial platform failures, maintain summary accuracy | Success: Publishing phase completes faster with parallel platform uploads_
 
-- [ ] 20. Add dry-run mode for full pipeline
-  - File: src/pipeline/global_batch.py (modify)
-  - Add --dry-run flag that validates configuration and shows planned actions
-  - Don't execute actual scraping, production, or publishing
-  - Purpose: Preview pipeline execution before running
-  - _Leverage: Existing validation logic_
+- [x] 20. Add dry-run mode for full pipeline
+  - File: src/pipeline/global_batch.py (modify), src/pipeline/config.py (modify)
+  - Implemented: `--dry-run` CLI flag
+  - Implemented: `display_execution_plan()` method showing all four phases
+  - Implemented: Product IDs, keywords, filters, profiles, platforms displayed
+  - Implemented: API key and scheduling mode validation
+  - Implemented: Exit without executing any pipeline phases
   - _Requirements: 9_
-  - _Prompt: Role: Python Developer | Task: Add --dry-run flag to global batch pipeline: validate all configuration, show planned actions (products to scrape, profiles to use, platforms to publish), exit without executing | Restrictions: Validate as much as possible without side effects, format output clearly | Success: Users can preview pipeline plan before execution_
 
-- [ ] 21. Add JSON output format for summaries
-  - File: src/pipeline/config.py (modify)
-  - Add --output-format argument (text/json)
-  - Generate machine-readable JSON summary
-  - Purpose: Enable programmatic pipeline result processing
-  - _Leverage: PipelineSummary dataclass_
+- [x] 21. Add JSON output format for summaries
+  - File: src/pipeline/config.py (modify), src/pipeline/global_batch.py (modify)
+  - Implemented: `--output-format` CLI argument (text/json, default: text)
+  - Implemented: `PipelineSummary.to_dict()` and `to_json()` methods
+  - Implemented: ISO timestamps for started_at and completed_at
+  - Implemented: All statistics, product IDs, and errors in JSON output
   - _Requirements: 10_
-  - _Prompt: Role: Python Developer | Task: Add --output-format argument (text/json) to global batch pipeline: generate machine-readable JSON summary with all statistics, timestamps, product IDs | Restrictions: Maintain backward compatibility (text default), use ISO timestamps, include all summary fields | Success: JSON output parseable by downstream tools_
 
-- [ ] 22. Add webhook notifications
-  - File: src/pipeline/webhooks.py (new)
-  - Send webhook notifications on phase completion and failures
-  - Configure webhook URL in YAML
-  - Purpose: Enable external monitoring and alerting
-  - _Leverage: aiohttp for async HTTP_
+- [x] 22. Add webhook notifications
+  - File: src/pipeline/webhooks.py (new), config/pipeline.yaml (modify), src/pipeline/global_batch.py (modify)
+  - Implemented: `WebhookConfig` dataclass with URL, timeout, retries, events configuration
+  - Implemented: `WebhookNotifier` class with async POST requests and exponential backoff retry
+  - Implemented: `validate_webhook_url()` for URL scheme and format validation
+  - Implemented: `load_webhook_config()` for YAML configuration loading
+  - Implemented: Non-blocking notifications (failures never stop pipeline)
+  - Implemented: Event types: phase.complete, phase.failed, pipeline.complete, pipeline.failed
+  - Implemented: YAML `webhook` section in `global_batch` config with all settings
+  - Implemented: 5-second timeout default, 3 retries with exponential backoff
   - _Requirements: 10_
-  - _Prompt: Role: Python Developer | Task: Add webhook notification support: send POST to configured URL on phase completion/failure, include summary data in payload, retry failed webhooks | Restrictions: Don't block pipeline on webhook failures, validate webhook URL, timeout after 5s | Success: External systems notified of pipeline events_
 
 ## Testing Checklist
 

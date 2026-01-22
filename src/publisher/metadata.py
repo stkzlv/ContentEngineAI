@@ -121,8 +121,11 @@ def _load_from_json(
 
         # Extract fields
         title = data.get("title")
-        description = data.get("description", "")
+        description_raw = data.get("description", "")
         hashtags_raw = data.get("hashtags", [])
+
+        # Strip trailing hashtags from description (legacy metadata compatibility)
+        description = re.sub(r"(\s*#\w+)+\s*$", "", description_raw).strip()
         keywords = data.get("keywords", [])
 
         # Normalize hashtags (remove # prefix if present)
@@ -142,6 +145,7 @@ def _load_from_json(
             description=description,
             hashtags=hashtags,
             keywords=keywords,
+            product_id=product_id,
         )
 
         # Validate character limits
@@ -225,6 +229,7 @@ def _load_from_instructions(
             description=description,
             hashtags=hashtags,
             keywords=[],  # Not available in UPLOAD_INSTRUCTIONS.txt
+            product_id=product_id,
         )
 
         # Validate character limits

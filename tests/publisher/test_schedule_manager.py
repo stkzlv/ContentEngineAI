@@ -497,12 +497,15 @@ class TestAddEntry:
 
     def test_add_entry_multiple(self, tmp_schedule_path):
         """Test adding multiple entries."""
+        from datetime import timedelta
+
         manager = ScheduleManager(schedule_path=tmp_schedule_path)
+        base_time = datetime.now(UTC) + timedelta(days=7)  # Start 7 days in future
 
         for i in range(3):
             entry = ScheduleEntry(
                 product_id=f"B0TEST{i}",
-                scheduled_time=datetime(2026, 1, 20 + i, 10, 0, tzinfo=UTC),
+                scheduled_time=base_time + timedelta(days=i),
                 platforms=[Platform.YOUTUBE],
             )
             manager.add_entry(entry)
@@ -515,12 +518,15 @@ class TestAddEntry:
 
     def test_add_entry_with_validation(self, tmp_schedule_path, sample_config):
         """Test add_entry respects validation rules."""
+        from datetime import timedelta
+
         manager = ScheduleManager(schedule_path=tmp_schedule_path, config=sample_config)
+        future_time = datetime.now(UTC) + timedelta(days=7)
 
         # Add first entry
         entry1 = ScheduleEntry(
             product_id="B0TEST1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            scheduled_time=future_time,
             platforms=[Platform.YOUTUBE],
         )
         manager.add_entry(entry1)
@@ -528,7 +534,7 @@ class TestAddEntry:
         # Try to add duplicate (same product, platform, time)
         entry2 = ScheduleEntry(
             product_id="B0TEST1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, tzinfo=UTC),
+            scheduled_time=future_time,
             platforms=[Platform.YOUTUBE],
         )
 

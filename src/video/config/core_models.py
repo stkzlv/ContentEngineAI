@@ -562,8 +562,10 @@ class VideoConfig(BaseModel):
     pipeline_timeout_sec: int = Field(
         900, description="Total pipeline timeout in seconds (15 minutes default)"
     )
-    duration_padding_sec: float = Field(
-        0.5, description="Duration padding added to prevent audio cutoff in seconds"
+    outro_duration_sec: float = Field(
+        1.0,
+        description="Duration in seconds after voiceover ends for music fade-out. "
+        "This creates a smooth ending where background music fades out gracefully.",
     )
     video_settings: VideoSettings
     media_settings: MediaSettings

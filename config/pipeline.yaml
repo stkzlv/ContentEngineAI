@@ -79,6 +79,62 @@ global_batch:
   # Default: false
   debug: false
 
+  # ---- State Persistence (Resume Capability) ----
+  # Pipeline state is automatically saved to outputs/.pipeline_state.json
+  # after each phase completes. This enables resuming interrupted pipelines.
+  #
+  # To resume an interrupted pipeline, run with --resume flag:
+  #   python -m src.pipeline.global_batch --resume
+  #
+  # On successful completion, the state file is automatically cleared.
+  # Corrupted state files are handled gracefully (pipeline starts fresh).
+
+  # ---- Dry-Run Mode ----
+  # Preview pipeline plan without executing any phases.
+  # Validates configuration and shows planned actions.
+  #
+  # To preview execution plan:
+  #   python -m src.pipeline.global_batch --dry-run [other options]
+  #
+  # Shows: products to scrape, profiles to use, platforms to publish,
+  # API key status, and scheduling mode.
+
+  # ---- Webhook Notifications ----
+  # Send HTTP POST notifications on pipeline events for external monitoring.
+  # Webhooks are non-blocking: failures never stop the pipeline.
+  webhook:
+    # Webhook endpoint URL (must be http:// or https://)
+    # Set to null to disable webhooks
+    # Example: "https://example.com/pipeline-events"
+    url: null
+
+    # Enable/disable webhook notifications
+    # Default: true (sends notifications if URL is configured)
+    enabled: true
+
+    # Request timeout in seconds
+    # Webhook calls that exceed this timeout are considered failed
+    # Default: 5.0
+    timeout_sec: 5.0
+
+    # Maximum retry attempts for failed webhook calls
+    # Uses exponential backoff: 1s, 2s, 4s between retries
+    # Default: 3
+    max_retries: 3
+
+    # Initial delay between retries in seconds (doubles each attempt)
+    # Default: 1.0
+    retry_delay_sec: 1.0
+
+    # Event types to send notifications for
+    # Options: phase.complete, phase.failed, pipeline.complete, pipeline.failed
+    # Default: all events
+    events:
+      - phase.complete
+      - phase.failed
+      - pipeline.complete
+      - pipeline.failed
+
 # ============================================================================
 # EXAMPLE CONFIGURATIONS
 # ============================================================================

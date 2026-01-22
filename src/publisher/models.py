@@ -128,6 +128,7 @@ class PublishMetadata:
     hashtags: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     character_counts: dict[str, int] = field(default_factory=dict)
+    product_id: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and normalization."""
@@ -210,7 +211,7 @@ class PublishMetadata:
         return True, "Content within limits"
 
     def format_content(self) -> str:
-        """Format content for posting (title + description + hashtags).
+        """Format content for posting (description + hashtags + product_id).
 
         Returns
         -------
@@ -219,13 +220,16 @@ class PublishMetadata:
         """
         parts = []
 
-        if self.title and self.platform == Platform.YOUTUBE:
-            parts.append(self.title)
-
+        # Description only - title is handled separately by platform APIs
         parts.append(self.description)
 
-        if self.hashtags:
-            hashtag_str = " ".join(f"#{tag}" for tag in self.hashtags)
+        # Collect all hashtags including product_id
+        all_hashtags = list(self.hashtags) if self.hashtags else []
+        if self.product_id and self.product_id not in all_hashtags:
+            all_hashtags.append(self.product_id)
+
+        if all_hashtags:
+            hashtag_str = " ".join(f"#{tag}" for tag in all_hashtags)
             parts.append(hashtag_str)
 
         return "\n\n".join(parts)
@@ -245,6 +249,7 @@ class PublishMetadata:
             "hashtags": self.hashtags,
             "keywords": self.keywords,
             "character_counts": self.character_counts,
+            "product_id": self.product_id,
         }
 
 

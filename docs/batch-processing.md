@@ -434,6 +434,11 @@ Total Pipeline Duration: 158.2s
 - **Flexible Input Sources**: Support for product IDs, keywords, or both simultaneously
 - **Smart Filtering**: Handoff phase validates products have sufficient media before production
 - **Profile Management**: Fixed profile or deterministic random selection per product
+- **Resume Capability**: Continue interrupted pipelines from last checkpoint with `--resume` flag
+- **Parallel Publishing**: Concurrent uploads to multiple platforms per video for faster publishing
+- **Dry-Run Mode**: Preview pipeline plan without executing with `--dry-run` flag
+- **JSON Output**: Machine-readable summaries with `--output-format json` for automation
+- **Webhook Notifications**: Non-blocking POST to configured URL on phase/pipeline events
 - **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
@@ -445,7 +450,17 @@ Total Pipeline Duration: 158.2s
 
 ### Production Workflows
 
-1. **Test with Small Batches**
+1. **Preview with Dry-Run**
+   ```bash
+   # Validate configuration and see planned actions
+   poetry run python -m src.pipeline.global_batch \
+     --keywords "wireless earbuds" \
+     --profile slideshow_images1 \
+     --platforms youtube tiktok \
+     --dry-run
+   ```
+
+2. **Test with Small Batches**
    ```bash
    # Test with 2-3 products first
    poetry run python -m src.pipeline.global_batch \
@@ -455,17 +470,17 @@ Total Pipeline Duration: 158.2s
      --debug
    ```
 
-2. **Use YAML for Reproducible Runs**
+3. **Use YAML for Reproducible Runs**
    - Store configuration in `config/pipeline.yaml`
    - Version control your configuration files
    - Override specific settings with CLI arguments
 
-3. **Monitor Resource Usage**
+4. **Monitor Resource Usage**
    - Video production is CPU/memory intensive
    - Consider processing large batches in stages
    - Use `--debug` flag for detailed logging
 
-4. **Profile Selection Strategy**
+5. **Profile Selection Strategy**
    - **Fixed profile**: Consistent branding across all products
    - **Random profiles**: Content variety for social media feeds
    - **Profile pool**: Balance between variety and brand consistency
@@ -474,10 +489,15 @@ Total Pipeline Duration: 158.2s
 
 If a batch fails midway:
 
-1. **Check outputs directory** - Successfully processed products are saved
-2. **Review error logs** - Identify specific failures
-3. **Rerun with remaining products** - Use product IDs to continue
+1. **Use `--resume` flag** - Continue from the last successful phase:
+   ```bash
+   poetry run python -m src.pipeline.global_batch --resume
+   ```
+2. **Check outputs directory** - Successfully processed products are saved
+3. **Review error logs** - Identify specific failures in `outputs/logs/global_pipeline.log`
 4. **Use fail-fast for debugging** - Isolate issues quickly
+
+The pipeline automatically saves state to `outputs/.pipeline_state.json` after each phase. On successful completion, the state file is cleared.
 
 ### Performance Optimization
 
