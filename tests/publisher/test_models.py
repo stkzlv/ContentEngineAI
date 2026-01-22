@@ -257,16 +257,17 @@ class TestPublishMetadata:
         assert is_valid is True
 
     def test_format_content_youtube(self):
-        """Test format_content for YouTube."""
+        """Test format_content for YouTube (description + hashtags, no title)."""
         metadata = PublishMetadata(
             platform=Platform.YOUTUBE,
             title="My Video Title",
             description="This is the description.",
-            hashtags=["#tag1", "#tag2", "#tag3"],
+            hashtags=["tag1", "tag2", "tag3"],
         )
 
         content = metadata.format_content()
-        assert "My Video Title" in content
+        # Title is NOT included in format_content - it's passed separately to platform APIs
+        assert "My Video Title" not in content
         assert "This is the description." in content
         assert "#tag1 #tag2 #tag3" in content
 
@@ -284,7 +285,7 @@ class TestPublishMetadata:
         assert "#viral #fyp" in content
 
     def test_format_content_no_hashtags(self):
-        """Test format_content without hashtags."""
+        """Test format_content without hashtags (description only)."""
         metadata = PublishMetadata(
             platform=Platform.YOUTUBE,
             title="Title",
@@ -292,8 +293,9 @@ class TestPublishMetadata:
         )
 
         content = metadata.format_content()
-        assert "Title" in content
-        assert "Description only" in content
+        # Title is NOT included - it's passed separately to platform APIs
+        assert "Title" not in content
+        assert content == "Description only"
 
 
 class TestPublisherConfig:
