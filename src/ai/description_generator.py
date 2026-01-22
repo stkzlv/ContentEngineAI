@@ -332,14 +332,6 @@ def validate_description_completeness(description: str) -> tuple[bool, str]:
     if len(description) < 50:
         return False, f"Description too short ({len(description)} chars, minimum 50)"
 
-    # Check for hashtags (should include #ad at minimum)
-    if "#" not in description:
-        return False, "Description missing hashtags"
-
-    # Check for #ad hashtag specifically
-    if "#ad" not in description.lower():
-        return False, "Description missing required #ad hashtag"
-
     # Check for reasonable word count
     words = description.split()
     if len(words) < 10:

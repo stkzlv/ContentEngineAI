@@ -5,7 +5,6 @@ implementations, providing type-safe representations of publish results,
 metadata, configuration, and batch summaries.
 """
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -224,10 +223,7 @@ class PublishMetadata:
         if self.title and self.platform == Platform.YOUTUBE:
             parts.append(self.title)
 
-        # Strip trailing hashtags from description to avoid duplication
-        # Pattern matches hashtags at the end of description (with optional whitespace)
-        description = re.sub(r"(\s*#\w+)+\s*$", "", self.description).strip()
-        parts.append(description)
+        parts.append(self.description)
 
         # Collect all hashtags including product_id
         all_hashtags = list(self.hashtags) if self.hashtags else []

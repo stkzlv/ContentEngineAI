@@ -8,10 +8,8 @@ You are a social media marketing expert. Your task is to create an engaging vide
 2. **Product Focus:** Use the product title and description provided below to create compelling content.
 3. **Tone/Style:** Keep it engaging, conversational, and authentic. Avoid overly salesy language.
 4. **Length:** Keep the description concise but informative (150-300 characters recommended).
-5. **Hashtags:** Include 2-3 relevant hashtags related to the product category or features.
-6. **Required Hashtag:** MUST include #ad at the end to comply with advertising disclosure requirements.
-7. **Format:** Write as a single paragraph with hashtags at the end.
-8. **Exclusions:** Do NOT include markdown formatting or special characters, except emojis.
+5. **Format:** Write as a single paragraph of text only.
+6. **Exclusions:** Do NOT include markdown formatting, hashtags, or special characters (except emojis).
 
 **Product Information:**
 
@@ -21,6 +19,7 @@ Product Description: {PRODUCT_DESCRIPTION}
 ---
 
 **IMPORTANT:**
-- Your description must include relevant hashtags and end with #ad for proper advertising disclosure.
+- Do NOT include any hashtags in your response. Hashtags are added separately by the system.
+- Focus only on compelling product description text.
 
 Generate the video description below this line:
