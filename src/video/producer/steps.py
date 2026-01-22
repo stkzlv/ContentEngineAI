@@ -557,6 +557,7 @@ async def step_generate_description(ctx: PipelineContext):
 
         # Strip any hashtags from description (LLM may still include them)
         import re
+
         description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
         ctx.description = description_clean
 
@@ -567,8 +568,24 @@ async def step_generate_description(ctx: PipelineContext):
         title_words = (ctx.product.title or "").split()
         # Skip common words, numbers, short words, and brand-like words
         skip_words = {
-            "the", "and", "for", "with", "from", "that", "this", "are", "you",
-            "your", "our", "can", "will", "has", "have", "been", "only", "also",
+            "the",
+            "and",
+            "for",
+            "with",
+            "from",
+            "that",
+            "this",
+            "are",
+            "you",
+            "your",
+            "our",
+            "can",
+            "will",
+            "has",
+            "have",
+            "been",
+            "only",
+            "also",
         }
         hashtags = []
         for word in title_words:
