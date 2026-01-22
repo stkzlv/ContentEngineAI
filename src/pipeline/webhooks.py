@@ -87,7 +87,10 @@ def validate_webhook_url(url: str) -> tuple[bool, str | None]:
 
         # Check scheme
         if parsed.scheme not in ("http", "https"):
-            return False, f"Invalid URL scheme: {parsed.scheme}. Use http:// or https://"
+            return (
+                False,
+                f"Invalid URL scheme: {parsed.scheme}. Use http:// or https://",
+            )
 
         # Check netloc (hostname)
         if not parsed.netloc:

@@ -85,7 +85,10 @@ class TestPublishResult:
 
     def test_publish_result_with_scheduled_time(self):
         """Test PublishResult with scheduled_time."""
-        scheduled_time = datetime(2026, 1, 20, 14, 0, 0, tzinfo=UTC)
+        from datetime import timedelta
+
+        # Use future date (7 days from now) to avoid validation error
+        scheduled_time = datetime.now(UTC) + timedelta(days=7)
         result = PublishResult(
             post_id="post_123",
             status=PublishStatus.SCHEDULED,

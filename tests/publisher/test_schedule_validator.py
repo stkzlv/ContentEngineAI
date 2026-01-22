@@ -39,8 +39,10 @@ def permissive_config():
 @pytest.fixture
 def existing_entries():
     """Create sample existing schedule entries with known deterministic timestamps."""
-    # Use fixed deterministic timestamps for predictable tests
-    base_time = datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC)
+    # Use future timestamps (7 days from now) to avoid past-schedule validation errors
+    base_time = datetime.now(UTC).replace(
+        hour=10, minute=0, second=0, microsecond=0
+    ) + timedelta(days=7)
 
     return [
         ScheduleEntry(
@@ -72,10 +74,13 @@ class TestValidate:
         """Test validation passes for valid entry."""
         validator = ScheduleValidator(base_config, existing_entries)
 
-        # Create entry that passes all rules
+        # Create entry that passes all rules (8 days in future, different time than existing)
+        future_time = datetime.now(UTC).replace(
+            hour=20, minute=0, second=0, microsecond=0
+        ) + timedelta(days=8)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 21, 14, 0, 0, tzinfo=UTC),
+            scheduled_time=future_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -144,10 +149,13 @@ class TestValidate:
         """Test validation fails for duplicate entry."""
         validator = ScheduleValidator(base_config, existing_entries)
 
-        # Create duplicate of first existing entry
+        # Create duplicate of first existing entry (same time as existing_entries[0])
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],  # Overlaps with existing
         )
 
@@ -162,10 +170,13 @@ class TestValidate:
         """Test validation passes for duplicate when allowed."""
         validator = ScheduleValidator(permissive_config, existing_entries)
 
-        # Create duplicate entry
+        # Create duplicate entry (same time as existing_entries[0])
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -180,9 +191,12 @@ class TestValidate:
 
         # Create entry too close to existing YOUTUBE post (B0EXISTING1 at 10:00)
         # New entry at 10:30 (0.5h < 2h minimum)
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=30, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 10, 30, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -197,7 +211,9 @@ class TestValidate:
         """Test validation fails when daily limit exceeded."""
         # Create existing entries at daily limit (10 posts on same date)
         # Use 1-hour spacing to keep all 10 on same day (8:00-17:00)
-        base_time = datetime(2026, 1, 20, 8, 0, 0, tzinfo=UTC)
+        base_time = datetime.now(UTC).replace(
+            hour=8, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         existing = [
             ScheduleEntry(
                 product_id=f"B0EXIST{i}",
@@ -209,10 +225,10 @@ class TestValidate:
 
         validator = ScheduleValidator(base_config, existing)
 
-        # Try to add 11th entry on same date
+        # Try to add 11th entry on same date (at 23:00, same day)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 23, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time.replace(hour=23),
             platforms=[Platform.INSTAGRAM],  # Different platform
         )
 
@@ -232,10 +248,13 @@ class TestIsDuplicate:
         """Test exact duplicate detection (same product_id, time, platforms)."""
         validator = ScheduleValidator(base_config, existing_entries)
 
-        # Exact duplicate of first entry
+        # Exact duplicate of first entry (matches existing_entries fixture)
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE, Platform.TIKTOK],
         )
 
@@ -246,9 +265,12 @@ class TestIsDuplicate:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Same product_id and time, but only one overlapping platform
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE, Platform.INSTAGRAM],  # YOUTUBE overlaps
         )
 
@@ -258,10 +280,13 @@ class TestIsDuplicate:
         """Test no duplicate when same product but different time."""
         validator = ScheduleValidator(base_config, existing_entries)
 
-        # Same product_id and platforms, but different time
+        # Same product_id and platforms, but different time (+1 hour)
+        base_time = datetime.now(UTC).replace(
+            hour=11, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 11, 0, 0, tzinfo=UTC),  # +1 hour
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -272,9 +297,12 @@ class TestIsDuplicate:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Same time and platforms, but different product_id
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0DIFFERENT",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -285,9 +313,12 @@ class TestIsDuplicate:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Same product_id and time, but completely different platforms
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0EXISTING1",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.INSTAGRAM],  # No overlap with YOUTUBE/TIKTOK
         )
 
@@ -297,9 +328,10 @@ class TestIsDuplicate:
         """Test no duplicate when existing entries list is empty."""
         validator = ScheduleValidator(base_config, [])
 
+        future_time = datetime.now(UTC) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=future_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -307,11 +339,14 @@ class TestIsDuplicate:
 
     def test_timezone_aware_comparison(self, base_config):
         """Test timezone-aware duplicate detection."""
-        # Create existing entry in UTC
+        # Create existing entry in UTC (7 days in future at 15:00 UTC)
+        future_time = datetime.now(UTC).replace(
+            hour=15, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         existing = [
             ScheduleEntry(
                 product_id="B0TEST",
-                scheduled_time=datetime(2026, 1, 20, 15, 0, 0, tzinfo=UTC),
+                scheduled_time=future_time,
                 platforms=[Platform.YOUTUBE],
             )
         ]
@@ -322,7 +357,7 @@ class TestIsDuplicate:
         est = ZoneInfo("America/New_York")
         entry = ScheduleEntry(
             product_id="B0TEST",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=est),
+            scheduled_time=future_time.astimezone(est),
             platforms=[Platform.YOUTUBE],
         )
 
@@ -339,9 +374,13 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry 8 hours after first existing (> 2h minimum, after last entry at 15:00)
+        # existing_entries[0] is at 10:00, so 18:00 is 8h later
+        base_time = datetime.now(UTC).replace(
+            hour=18, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 18, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -355,9 +394,13 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry 1 hour after first existing (< 2h minimum) on YOUTUBE
+        # existing_entries[0] is at 10:00, so 11:00 is 1h later
+        base_time = datetime.now(UTC).replace(
+            hour=11, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 11, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -374,9 +417,12 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry 30 minutes after YOUTUBE post, but on INSTAGRAM (different platform)
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=30, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 10, 30, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.INSTAGRAM],  # Different from YOUTUBE
         )
 
@@ -390,9 +436,12 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry exactly 2 hours after first existing (= 2h minimum, should pass)
+        base_time = datetime.now(UTC).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 12, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -406,9 +455,12 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry 2 hours minus 1 second after first existing (< 2h, should fail)
+        base_time = datetime.now(UTC).replace(
+            hour=11, minute=59, second=59, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 11, 59, 59, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -422,9 +474,12 @@ class TestCheckSpacing:
         validator = ScheduleValidator(permissive_config, existing_entries)
 
         # Entry at exact same time as existing (0h spacing, should pass)
+        base_time = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 
@@ -438,9 +493,12 @@ class TestCheckSpacing:
         validator = ScheduleValidator(base_config, existing_entries)
 
         # Entry 1 hour BEFORE first existing (< 2h minimum)
+        base_time = datetime.now(UTC).replace(
+            hour=9, minute=0, second=0, microsecond=0
+        ) + timedelta(days=7)
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 20, 9, 0, 0, tzinfo=UTC),
+            scheduled_time=base_time,
             platforms=[Platform.YOUTUBE],
         )
 

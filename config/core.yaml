@@ -15,7 +15,9 @@ debug_mode: false
 pipeline_timeout_sec: 900
 
 # Duration padding added to prevent audio cutoff in seconds
-duration_padding_sec: 0.5
+# Increased from 0.5s to account for TTS audio with minimal trailing silence
+# and AAC encoding frame alignment (~21ms per frame at 48kHz)
+duration_padding_sec: 1.0
 
 # ============================================================================
 # SYSTEM TIMEOUTS (seconds)
