@@ -142,6 +142,7 @@ def _load_from_json(
             description=description,
             hashtags=hashtags,
             keywords=keywords,
+            product_id=product_id,
         )
 
         # Validate character limits
@@ -225,6 +226,7 @@ def _load_from_instructions(
             description=description,
             hashtags=hashtags,
             keywords=[],  # Not available in UPLOAD_INSTRUCTIONS.txt
+            product_id=product_id,
         )
 
         # Validate character limits
