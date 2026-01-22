@@ -558,24 +558,27 @@ async def step_generate_description(ctx: PipelineContext):
         ctx.description = description_text.strip()
 
         # Generate unified metadata.json for publisher (single file for all platforms)
-        import re
         from datetime import UTC, datetime
 
-        # Extract hashtags from description
-        hashtag_pattern = r"#(\w+)"
-        hashtag_matches = re.findall(hashtag_pattern, ctx.description)
-        # Deduplicate while preserving order
-        seen = set()
+        # Generate default hashtags from product title keywords
+        title_words = (ctx.product.title or "").split()
+        # Extract meaningful words (3+ chars, alphanumeric, not common words)
+        common_words = {"the", "and", "for", "with", "from", "that", "this", "are"}
         hashtags = []
-        for tag in hashtag_matches:
-            if tag.lower() not in seen:
-                seen.add(tag.lower())
-                hashtags.append(tag)
+        for word in title_words:
+            clean = "".join(c for c in word if c.isalnum())
+            if len(clean) >= 3 and clean.lower() not in common_words:
+                # CamelCase the hashtag
+                hashtags.append(clean.capitalize())
+                if len(hashtags) >= 3:
+                    break
+        # Always include #ad for advertising disclosure
+        hashtags.append("ad")
 
         # Generate single unified metadata file (in product root)
         product_root = ctx.run_paths["run_root"]
         metadata_dict = {
-            "title": ctx.product.title,
+            "title": ctx.product.title,  # Kept for reference, not used in post
             "description": ctx.description,
             "hashtags": hashtags,
             "keywords": [],

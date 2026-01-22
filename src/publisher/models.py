@@ -211,7 +211,7 @@ class PublishMetadata:
         return True, "Content within limits"
 
     def format_content(self) -> str:
-        """Format content for posting (title + description + hashtags + product_id).
+        """Format content for posting (description + hashtags + product_id).
 
         Returns
         -------
@@ -220,9 +220,7 @@ class PublishMetadata:
         """
         parts = []
 
-        if self.title and self.platform == Platform.YOUTUBE:
-            parts.append(self.title)
-
+        # Description only - title is handled separately by platform APIs
         parts.append(self.description)
 
         # Collect all hashtags including product_id

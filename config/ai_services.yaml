@@ -58,9 +58,10 @@ description_settings:
   target_platforms: ["tiktok", "youtube", "instagram"]
   max_tokens: 200
 
-  # Metadata mode: "unified" (single file, basic) or "optimized" (platform-specific)
-  # "optimized" generates AI titles, descriptions, and hashtags per platform
-  metadata_mode: "optimized"
+  # Metadata mode: "unified" (single file) or "optimized" (platform-specific files)
+  # "unified" - single metadata.json with AI description + auto-generated hashtags
+  # "optimized" - separate metadata_youtube.json, etc. with platform-specific AI content
+  metadata_mode: "unified"
 
   # Target platform for metadata generation
   # Options: "youtube", "tiktok", "instagram", "multi" (all platforms)
