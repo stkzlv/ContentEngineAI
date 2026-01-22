@@ -555,23 +555,35 @@ async def step_generate_description(ctx: PipelineContext):
         if not description_text:
             raise PipelineError("Description generation failed to produce text.")
 
-        ctx.description = description_text.strip()
+        # Strip any hashtags from description (LLM may still include them)
+        import re
+        description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
+        ctx.description = description_clean
 
         # Generate unified metadata.json for publisher (single file for all platforms)
         from datetime import UTC, datetime
 
-        # Generate default hashtags from product title keywords
+        # Generate hashtags from product title keywords
         title_words = (ctx.product.title or "").split()
-        # Extract meaningful words (3+ chars, alphanumeric, not common words)
-        common_words = {"the", "and", "for", "with", "from", "that", "this", "are"}
+        # Skip common words, numbers, short words, and brand-like words
+        skip_words = {
+            "the", "and", "for", "with", "from", "that", "this", "are", "you",
+            "your", "our", "can", "will", "has", "have", "been", "only", "also",
+        }
         hashtags = []
         for word in title_words:
             clean = "".join(c for c in word if c.isalnum())
-            if len(clean) >= 3 and clean.lower() not in common_words:
-                # CamelCase the hashtag
-                hashtags.append(clean.capitalize())
-                if len(hashtags) >= 3:
-                    break
+            # Skip if: too short, all digits, common word, or looks like a year
+            if (
+                len(clean) < 4
+                or clean.isdigit()
+                or clean.lower() in skip_words
+                or (len(clean) == 4 and clean.isdigit())  # Years like 2026
+            ):
+                continue
+            hashtags.append(clean.capitalize())
+            if len(hashtags) >= 3:
+                break
         # Always include #ad for advertising disclosure
         hashtags.append("ad")
 
