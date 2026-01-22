@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-01-22
+
 ### Added
 - **Pipeline Resume Capability**: Continue interrupted pipelines from last checkpoint
   - `PipelineState` dataclass for tracking phase completion and product progress
@@ -40,6 +42,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic retry with exponential backoff (default: 3 retries)
   - 5-second timeout to prevent pipeline delays
   - URL validation before sending requests
+
+- **Product ID Hashtag**: ASIN/product ID appended as hashtag in post descriptions
+  - Enables tracking and discoverability across platforms
+  - Added to `PublishMetadata` model with `product_id` field
+
+### Changed
+- **Outro Duration**: Renamed `duration_padding_sec` to `outro_duration_sec` for clarity
+  - Now clearly indicates purpose: music fade-out time after voiceover ends
+  - Default 1.0s provides smooth ending and prevents audio truncation
+
+- **Metadata Generation**: Hashtags now generated in one place only
+  - Description field contains text only (no embedded hashtags)
+  - Hashtags stored separately in `hashtags` field
+  - `format_content()` combines description + hashtags cleanly
+
+### Fixed
+- **Duplicate Hashtags**: Fixed hashtags appearing twice in published posts
+  - Legacy metadata with embedded hashtags now stripped on load
+  - New metadata generation excludes hashtags from description text
+
+- **Voiceover Truncation**: Fixed last word being cut off in videos
+  - Increased outro duration from 0.5s to 1.0s
+  - Provides buffer for AAC encoding frame alignment
+
+### Documentation
+- Updated publisher CLI examples to match current implementation
+- Replaced deprecated `--video` flag with positional `product_id` argument
 
 ## [0.24.0] - 2026-01-17
 
