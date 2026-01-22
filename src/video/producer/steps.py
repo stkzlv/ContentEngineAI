@@ -1206,7 +1206,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 output_path=ctx.run_paths["final_video_output"],
                 subtitle_path=subtitle_path,
                 total_video_duration=ctx.voiceover_duration
-                + ctx.config.duration_padding_sec,  # Add padding to prevent cutoff
+                + ctx.config.outro_duration_sec,  # Extra time for music fade-out
                 temp_dir=ctx.run_paths["intermediate_base"],
                 debug_mode=ctx.debug_mode,
                 subtitle_upper_path=ctx.run_paths.get("subtitle_upper_file"),

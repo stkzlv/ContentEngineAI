@@ -14,10 +14,10 @@ debug_mode: false
 # Total pipeline execution timeout in seconds (applies to both video and scraper)
 pipeline_timeout_sec: 900
 
-# Duration padding added to prevent audio cutoff in seconds
-# Increased from 0.5s to account for TTS audio with minimal trailing silence
-# and AAC encoding frame alignment (~21ms per frame at 48kHz)
-duration_padding_sec: 1.0
+# Duration after voiceover ends for music fade-out (seconds)
+# Creates a smooth ending where background music fades out gracefully
+# Also prevents last word truncation from AAC encoding frame alignment
+outro_duration_sec: 1.0
 
 # ============================================================================
 # SYSTEM TIMEOUTS (seconds)
