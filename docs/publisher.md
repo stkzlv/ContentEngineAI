@@ -62,11 +62,12 @@ echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files
 # 4. Verify setup - list connected accounts
 poetry run python -m src.publisher.late list-accounts --debug
 
-# 5. Publish a video immediately
-poetry run python -m src.publisher.late single \
-  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
-  --platform youtube --platform tiktok \
-  --immediate --debug
+# 5. Publish a video (auto-discovers video and next available slot)
+poetry run python -m src.publisher.late single B0BTYCRJSS --debug
+
+# Or publish immediately to specific platforms
+poetry run python -m src.publisher.late single B0BTYCRJSS \
+  --platform youtube --platform tiktok --immediate --debug
 
 # 6. Batch publish all videos in outputs directory
 poetry run python -m src.publisher.late batch \
@@ -192,14 +193,14 @@ python -m src.publisher.late single <product_id> [options]
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `product_id` | Yes | Product ID (e.g., B00TF9E6XE) |
-| `--platform PLATFORM` | No | Target platform (youtube, tiktok, instagram, facebook, twitter, linkedin) |
-| `--immediate` | No* | Publish immediately |
-| `--schedule DATETIME` | No* | Schedule for later (format: `2025-01-20 14:00:00`) |
+| `product_id` | Yes | Product ID (e.g., B00TF9E6XE) - video auto-discovered from outputs/ |
+| `--platform PLATFORM` | No | Target platform (youtube, tiktok, instagram, facebook, twitter, linkedin). Defaults to all 3 if not specified |
+| `--immediate` | No | Publish immediately |
+| `--schedule DATETIME` | No | Schedule for later (format: `2025-01-20 14:00:00`) |
 | `--force` | No | Force republish even if already published |
 | `--no-cleanup` | No | Disable automatic cleanup after success |
 
-*One of `--immediate` or `--schedule` is required.
+*If neither `--immediate` nor `--schedule` is provided, auto-discovers next available slot from recurring schedule.
 
 ### Command: `batch`
 
@@ -224,7 +225,7 @@ python -m src.publisher.late schedule auto [options]
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--platform PLATFORM` | No | Target platform (can repeat for multiple) |
+| `--platform PLATFORM` | Yes | Target platform (can repeat for multiple) |
 | `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
 | `--dry-run` | No | Preview without making changes |
 | `--auto-resolve` | No | Auto-resolve conflicts with first alternative |
@@ -297,52 +298,59 @@ poetry run python -m src.publisher.late list-accounts --debug
 
 ### Command: `single`
 
-Publish a single video to one or more platforms.
+Publish a single video to one or more platforms. Video is auto-discovered from the product directory.
 
 ```bash
-poetry run python -m src.publisher.late single \
-  --video <path> \
-  --platform <platform> \
-  [--platform <platform2> ...] \
+poetry run python -m src.publisher.late single <product_id> \
+  [--platform <platform> ...] \
   [--immediate | --schedule <datetime>] \
-  [--debug]
+  [--force] [--no-cleanup] [--debug]
 ```
 
 **Required Arguments:**
-- `--video <path>`: Path to video file (must exist)
+- `<product_id>`: Product ID (e.g., B0BTYCRJSS) - video is auto-discovered from `outputs/<product_id>/`
+
+**Optional Arguments:**
 - `--platform <name>`: Target platform (can be specified multiple times)
   - Valid platforms: `youtube`, `tiktok`, `instagram`, `facebook`, `twitter`, `linkedin`
+  - Defaults to all 3 (youtube, tiktok, instagram) if not specified
 
 **Publishing Options:**
-- `--immediate`: Publish immediately (default if neither flag specified)
+- `--immediate`: Publish immediately
 - `--schedule <datetime>`: Schedule for future publishing
   - Format: `YYYY-MM-DD HH:MM:SS` or `YYYY-MM-DDTHH:MM:SS`
   - Example: `2025-01-20 14:00:00` or `2025-01-20T14:00:00`
+- If neither is specified, auto-discovers next available slot from recurring schedule
 
 **Other Options:**
+- `--force`: Force republish even if already published to platform
+- `--no-cleanup`: Disable automatic cleanup after successful publish
 - `--debug`: Enable verbose debug logging
 
 **Examples:**
 
 ```bash
-# Publish immediately to YouTube
-poetry run python -m src.publisher.late single \
-  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
-  --platform youtube \
-  --immediate
+# Auto-schedule to next available slot (recommended)
+poetry run python -m src.publisher.late single B0BTYCRJSS --debug
 
-# Publish to multiple platforms
-poetry run python -m src.publisher.late single \
-  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
+# Publish immediately to YouTube
+poetry run python -m src.publisher.late single B0BTYCRJSS \
+  --platform youtube --immediate
+
+# Publish to multiple platforms immediately
+poetry run python -m src.publisher.late single B0BTYCRJSS \
   --platform youtube --platform tiktok --platform instagram \
   --immediate --debug
 
-# Schedule for future publishing
-poetry run python -m src.publisher.late single \
-  --video outputs/B0BTYCRJSS/video_B0BTYCRJSS_sequential.mp4 \
+# Schedule for specific time
+poetry run python -m src.publisher.late single B0BTYCRJSS \
   --platform youtube \
   --schedule "2025-01-20 14:00:00" \
   --debug
+
+# Force republish (even if already published)
+poetry run python -m src.publisher.late single B0BTYCRJSS \
+  --platform youtube --immediate --force
 ```
 
 **Metadata Loading:**
@@ -441,8 +449,7 @@ CLI Arguments (highest) → Environment Variables → Configuration File (lowest
 
 ```bash
 # CLI argument overrides config file
-poetry run python -m src.publisher.late single \
-  --video video.mp4 \
+poetry run python -m src.publisher.late single B0ABC123 \
   --platform youtube \
   --immediate
 # → Uses YouTube (CLI) even if publisher.yaml specifies TikTok
@@ -553,8 +560,7 @@ The publisher automatically loads platform-specific metadata generated by the vi
 ```bash
 # Without platform-specific metadata (default)
 # → 1 post published to all 3 platforms (same content)
-poetry run python -m src.publisher.late single \
-  --video outputs/B0ABC/video.mp4 \
+poetry run python -m src.publisher.late single B0ABC \
   --platform youtube --platform tiktok --platform instagram \
   --immediate
 
@@ -676,9 +682,7 @@ Batch publishing processes multiple videos from the `outputs` directory sequenti
 **How Batch Publishing Works:**
 
 1. **Discovery**: Scans `outputs` directory for product folders
-2. **Video Detection**: Finds videos matching patterns:
-   - `video_<PRODUCT_ID>_sequential.mp4`
-   - `video_<PRODUCT_ID>_slideshow.mp4`
+2. **Video Detection**: Finds videos matching pattern `video_*.mp4`
 3. **Metadata Loading**: Loads platform-specific metadata for each product
 4. **Sequential Upload**: Uploads videos one at a time with stagger delays
 5. **Error Handling**: Continues on failure (unless `--fail-fast` specified)
@@ -1035,19 +1039,19 @@ recurring_schedule:
 ```bash
 # Schedule videos to next available recurring slots
 poetry run python -m src.publisher.late schedule auto \
-  --outputs-dir outputs \
+  --platform youtube --platform tiktok --platform instagram \
   --debug
 
 # Preview schedule without publishing
 poetry run python -m src.publisher.late schedule auto \
-  --outputs-dir outputs \
+  --platform youtube --platform tiktok --platform instagram \
   --dry-run \
   --debug
 
-# Skip to specific slot number
+# Auto-resolve conflicts by using first available alternative
 poetry run python -m src.publisher.late schedule auto \
-  --outputs-dir outputs \
-  --start-slot 3 \
+  --platform youtube \
+  --auto-resolve \
   --debug
 ```
 
@@ -1167,8 +1171,7 @@ cleanup:
 
 ```bash
 # Disable cleanup for single publish
-poetry run python -m src.publisher.late single \
-  --video outputs/B0ABC/video.mp4 \
+poetry run python -m src.publisher.late single B0ABC \
   --platform youtube \
   --immediate \
   --no-cleanup
@@ -1544,8 +1547,7 @@ WARNING: No metadata found for youtube, using basic content
 Enable verbose debug logging for troubleshooting:
 
 ```bash
-poetry run python -m src.publisher.late single \
-  --video outputs/B0ABC/video.mp4 \
+poetry run python -m src.publisher.late single B0ABC \
   --platform youtube \
   --immediate \
   --debug
