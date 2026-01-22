@@ -113,25 +113,15 @@ class TestValidateDescriptionCompleteness:
         assert not is_complete
         assert "too short" in reason
 
-    def test_validate_description_missing_hashtags(self):
-        """Test validation of description without hashtags."""
+    def test_validate_description_without_hashtags_valid(self):
+        """Test validation passes for description without hashtags (hashtags added separately)."""
         description = (
             "This is a great product with amazing features and excellent quality. "
             "Perfect for anyone looking for a reliable solution."
         )
         is_complete, reason = validate_description_completeness(description)
-        assert not is_complete
-        assert "missing hashtags" in reason
-
-    def test_validate_description_missing_ad_hashtag(self):
-        """Test validation of description without #ad hashtag."""
-        description = (
-            "This is a great product with amazing features and excellent quality. "
-            "Perfect for anyone looking for a reliable solution. #great #product"
-        )
-        is_complete, reason = validate_description_completeness(description)
-        assert not is_complete
-        assert "missing required #ad hashtag" in reason
+        assert is_complete
+        assert "validation passed" in reason
 
     def test_validate_description_too_few_words(self):
         """Test validation of description with too few words."""
