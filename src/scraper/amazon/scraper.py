@@ -90,6 +90,9 @@ DEBUG_MODE = False
 # Media extraction and download functions are now imported from separate modules
 
 
+# Module-level logger
+logger = logging.getLogger(__name__)
+
 # Global variables for YAML-driven configuration
 _BROWSER_CONFIG = {}
 
@@ -163,7 +166,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if original_debug_mode != DEBUG_MODE:
-                print(
+                logger.debug(
                     f"🔧 [CLI OVERRIDE] Debug mode set to {DEBUG_MODE} "
                     f"(overriding config value: {original_debug_mode})"
                 )
@@ -352,7 +355,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             # Use the dynamic Botasaurus browser function with current debug settings
             if self.debug_mode:
-                print(
+                self.logger.debug(
                     f"🔧 [DEBUG] Creating dynamic browser function with "
                     f"DEBUG_MODE={self.debug_mode}"
                 )
@@ -360,20 +363,28 @@ class BotasaurusAmazonScraper(BaseScraper):
             try:
                 browser_func = create_dynamic_browser_function(self.debug_mode)
                 if self.debug_mode:
-                    print(f"🔧 [DEBUG] browser_func type: {type(browser_func)}")
-                    print(f"🔧 [DEBUG] browser_func: {browser_func}")
-                    print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
+                    self.logger.debug(
+                        f"🔧 [DEBUG] browser_func type: "
+                        f"{type(browser_func)}"
+                    )
+                    self.logger.debug(
+                        f"🔧 [DEBUG] browser_func: {browser_func}"
+                    )
+                    self.logger.debug(
+                        f"🔧 [DEBUG] Calling browser_func "
+                        f"with data: {data}"
+                    )
                 results = self._scrape_with_retry(browser_func, data)
-                print(
+                self.logger.debug(
                     f"🔧 [DEBUG] browser_func returned "
                     f"{len(results) if results else 0} products"
                 )
             except Exception as e:
                 if self.debug_mode:
-                    print(f"❌ [DEBUG] Error in browser function: {e}")
+                    self.logger.error(f"❌ [DEBUG] Error in browser function: {e}")
                     import traceback
 
-                    print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
+                    self.logger.error(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
                 raise
 
             # Download media for scraped products
@@ -497,16 +508,16 @@ class BotasaurusAmazonScraper(BaseScraper):
                     download_results.append(dl_result)
 
             if self.debug_mode:
-                print("\n=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")
-                print(f"Type: {type(download_results)}")
+                self.logger.debug("=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")
+                self.logger.debug(f"Type: {type(download_results)}")
                 length_str = (
                     len(download_results)
                     if isinstance(download_results, list)
                     else "N/A"
                 )
-                print(f"Length: {length_str}")
-                print(f"Content: {download_results}")
-                print("=" * 50)
+                self.logger.debug(f"Length: {length_str}")
+                self.logger.debug(f"Content: {download_results}")
+                self.logger.debug("=" * 50)
 
             if not download_results:
                 self.logger.warning(
@@ -865,12 +876,15 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Scrape with retry logic for Amazon error pages"""
         try:
             if self.debug_mode:
-                print("🔄 [DEBUG] Attempting scrape with retry logic")
+                self.logger.debug("🔄 [DEBUG] Attempting scrape with retry logic")
             return browser_func(data)
         except RuntimeError as e:
             if "Amazon error page detected" in str(e):
                 if self.debug_mode:
-                    print(f"🔄 [DEBUG] Caught Amazon error page, will retry: {e}")
+                    self.logger.warning(
+                        f"🔄 [DEBUG] Caught Amazon error "
+                        f"page, will retry: {e}"
+                    )
                 raise  # Will trigger retry
             else:
                 # Other RuntimeErrors should not retry
@@ -1244,18 +1258,18 @@ def main():
                     args.keywords = batch_keywords or None
 
                     if batch_product_ids and batch_keywords:
-                        print(
+                        logger.debug(
                             f"📝 Using batch mode from config: "
                             f"{len(batch_product_ids)} product IDs, "
                             f"{len(batch_keywords)} keywords"
                         )
                     elif batch_product_ids:
-                        print(
+                        logger.debug(
                             f"📝 Using batch product IDs from config: "
                             f"{', '.join(batch_product_ids)}"
                         )
                     else:
-                        print(
+                        logger.debug(
                             f"📝 Using batch keywords from config: "
                             f"{', '.join(batch_keywords)}"
                         )
@@ -1266,27 +1280,36 @@ def main():
 
                     if config_keywords:
                         args.keywords = config_keywords
-                        print(
+                        logger.debug(
                             f"📝 Using keywords from config file: "
                             f"{', '.join(config_keywords)}"
                         )
                     else:
-                        print(
+                        logger.error(
                             "❌ No keywords/product_ids provided via CLI and none "
                             "found in config file"
                         )
-                        print(
+                        logger.debug(
                             "💡 Either use --keywords/--product-ids or add to "
                             "batch section in config/scraper.yaml"
                         )
                         return
             else:
-                print("❌ No keywords provided via CLI and config file not found")
-                print("💡 Use --keywords 'your keyword' to specify what to scrape")
+                logger.error(
+                    "❌ No keywords provided via CLI and "
+                    "config file not found"
+                )
+                logger.debug(
+                    "💡 Use --keywords 'your keyword' to "
+                    "specify what to scrape"
+                )
                 return
         except Exception as e:
-            print(f"❌ Error loading config file: {e}")
-            print("💡 Use --keywords 'your keyword' to specify what to scrape")
+            logger.error(f"❌ Error loading config file: {e}")
+            logger.debug(
+                "💡 Use --keywords 'your keyword' to "
+                "specify what to scrape"
+            )
             return
 
     # Setup debug mode early - before scraper instantiation
@@ -1325,33 +1348,48 @@ def main():
     logging.getLogger().addFilter(websocket_filter)
     logging.getLogger("websocket").addFilter(websocket_filter)
 
-    # Print debug mode status messages only when debug is enabled
+    # Log debug mode status messages only when debug is enabled
     if debug_enabled:
         if args.verbose:
-            print("🔍 Verbose mode enabled - detailed logging active")
+            logger.debug("🔍 Verbose mode enabled - detailed logging active")
         elif config_debug_mode and not args.debug:
-            print(
+            logger.debug(
                 "🔧 Debug mode enabled from config - browser visibility and "
                 "detailed logging active"
             )
         else:
-            print(
+            logger.debug(
                 "🔧 Debug mode enabled - browser visibility and detailed "
                 "logging active"
             )
 
-        print("🔧 Debug mode set globally for browser visibility")
+        logger.debug("🔧 Debug mode set globally for browser visibility")
 
         if args.pause_on_error:
-            print("⏸️ Pause-on-error enabled - execution will pause when errors occur")
+            logger.debug(
+                "⏸️ Pause-on-error enabled - execution "
+                "will pause when errors occur"
+            )
         if args.save_screenshots:
-            print("📸 Screenshot saving enabled - key steps will be captured")
+            logger.debug(
+                "📸 Screenshot saving enabled - "
+                "key steps will be captured"
+            )
         if args.save_page_source:
-            print("📄 Page source saving enabled - HTML will be saved for analysis")
+            logger.debug(
+                "📄 Page source saving enabled - "
+                "HTML will be saved for analysis"
+            )
         if args.analyze_images:
-            print("🔍 Deep image analysis enabled - all images will be analyzed")
+            logger.debug(
+                "🔍 Deep image analysis enabled - "
+                "all images will be analyzed"
+            )
         if args.dump_image_urls:
-            print("📝 Image URL dumping enabled - all URLs will be saved to file")
+            logger.debug(
+                "📝 Image URL dumping enabled - "
+                "all URLs will be saved to file"
+            )
 
     if args.clean:
         import re
@@ -1362,7 +1400,7 @@ def main():
         project_root = Path(__file__).parent.parent.parent.parent
         base_output_path = project_root / get_output_path("base")
         if base_output_path.exists():
-            print(f"🧹 Cleaning all scraper outputs in: {base_output_path}")
+            logger.info(f"🧹 Cleaning all scraper outputs in: {base_output_path}")
 
             # Remove all product directories (ASIN patterns and test IDs)
             # Amazon ASINs: typically 10 chars like B0XXXXXXXX, but also catch test IDs
@@ -1375,11 +1413,11 @@ def main():
                     # Remove ASIN directories
                     if asin_pattern.match(item.name):
                         shutil.rmtree(item)
-                        print(f"🧹 Cleaned product directory: {item}")
+                        logger.debug(f"🧹 Cleaned product directory: {item}")
                     # Remove other scraper directories (but preserve logs, reports)
                     elif item.name in ["cache", "temp", "screenshots"]:
                         shutil.rmtree(item)
-                        print(f"🧹 Cleaned scraper directory: {item}")
+                        logger.debug(f"🧹 Cleaned scraper directory: {item}")
                 elif (
                     item.is_file()
                     and item.suffix
@@ -1392,16 +1430,16 @@ def main():
                     and not item.name.startswith("report")
                 ):
                     item.unlink()
-                    print(f"🧹 Cleaned scraper file: {item}")
+                    logger.debug(f"🧹 Cleaned scraper file: {item}")
 
-            print("✅ Cleanup completed - all scraper outputs removed")
+            logger.info("✅ Cleanup completed - all scraper outputs removed")
 
     if args.debug:
-        print("🐛 Debug mode enabled")
+        logger.debug("🐛 Debug mode enabled")
         from ...utils.outputs_paths import get_temp_directory
 
         temp_dir = get_temp_directory()
-        print(f"📂 Debug files will be saved to: {temp_dir}")
+        logger.debug(f"📂 Debug files will be saved to: {temp_dir}")
 
     # Create SearchParameters from CLI arguments with config defaults
     # Start with default parameters from config
@@ -1454,39 +1492,39 @@ def main():
     # Validate search parameters
     validation_errors = search_params.validate()
     if validation_errors:
-        print("❌ Invalid search parameters:")
+        logger.error("❌ Invalid search parameters:")
         for error in validation_errors:
-            print(f"   • {error}")
+            logger.error(f"   • {error}")
         return
 
     # Show search parameters in debug mode
     if args.debug:
-        print("🔍 Search parameters configured:")
+        logger.debug("🔍 Search parameters configured:")
         if search_params.min_price or search_params.max_price:
             price_range = (
                 f"${search_params.min_price or 0:.2f}-${search_params.max_price or '∞'}"
             )
-            print(f"   • Price range: {price_range}")
+            logger.debug(f"   • Price range: {price_range}")
         if search_params.min_rating:
-            print(f"   • Minimum rating: {search_params.min_rating}+ stars")
+            logger.debug(f"   • Minimum rating: {search_params.min_rating}+ stars")
         if search_params.prime_only:
-            print("   • Prime only: Yes")
+            logger.debug("   • Prime only: Yes")
         if search_params.free_shipping:
-            print("   • Free shipping: Yes")
+            logger.debug("   • Free shipping: Yes")
         if search_params.brands:
-            print(f"   • Brands: {', '.join(search_params.brands)}")
+            logger.debug(f"   • Brands: {', '.join(search_params.brands)}")
         if search_params.sort_order != "relevanceblender":
-            print(f"   • Sort: {search_params.sort_order}")
+            logger.debug(f"   • Sort: {search_params.sort_order}")
 
         # Show config vs CLI override status
         config_defaults = get_default_search_parameters()
         if cli_overrides:
-            print(f"   • CLI overrides applied: {list(cli_overrides.keys())}")
+            logger.debug(f"   • CLI overrides applied: {list(cli_overrides.keys())}")
         if (
             search_params.min_price != config_defaults.min_price
             or search_params.max_price != config_defaults.max_price
         ):
-            print(
+            logger.debug(
                 f"   • Config defaults: ${config_defaults.min_price or 0:.2f}-"
                 f"${config_defaults.max_price or '∞'}"
             )
@@ -1531,39 +1569,42 @@ def main():
             summary = controller.run_batch()
 
             # Display final summary
-            print("\n" + "=" * 60)
-            print("✅ BATCH SCRAPING COMPLETED")
-            print("=" * 60)
-            print(f"📊 Total Attempted: {summary.total_attempted}")
-            print(f"   • Product IDs: {summary.product_ids_attempted}")
-            print(f"   • Keywords: {summary.keywords_attempted}")
-            print(f"✅ Successful: {summary.successful}")
-            print(f"❌ Failed: {summary.failed}")
+            logger.info("=" * 60)
+            logger.info("✅ BATCH SCRAPING COMPLETED")
+            logger.info("=" * 60)
+            logger.info(f"📊 Total Attempted: {summary.total_attempted}")
+            logger.info(f"   • Product IDs: {summary.product_ids_attempted}")
+            logger.info(f"   • Keywords: {summary.keywords_attempted}")
+            logger.info(f"✅ Successful: {summary.successful}")
+            logger.error(f"❌ Failed: {summary.failed}")
             if summary.failed_products:
-                print(f"   Failed Products: {', '.join(summary.failed_products)}")
-            print("\n📷 Media Statistics:")
+                logger.error(
+                    f"   Failed Products: "
+                    f"{', '.join(summary.failed_products)}"
+                )
+            logger.info("📷 Media Statistics:")
             for key, value in summary.media_stats.items():
-                print(f"   • {key}: {value}")
-            print(f"\n⏱️  Duration: {summary.duration_sec:.2f} seconds")
-            print("=" * 60)
+                logger.info(f"   • {key}: {value}")
+            logger.debug(f"⏱️  Duration: {summary.duration_sec:.2f} seconds")
+            logger.info("=" * 60)
 
         # Single-product mode: use existing scraper.scrape_products()
         else:
             products = scraper.scrape_products(args.keywords, search_params)
 
             if products:
-                print("\n✅ Scraping successful!")
-                print(f"📊 Products scraped: {len(products)}")
-                print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+                logger.info("✅ Scraping successful!")
+                logger.info(f"📊 Products scraped: {len(products)}")
+                logger.info(f"🏷️  Keywords: {', '.join(args.keywords)}")
             else:
-                print("\n❌ No products scraped")
+                logger.error("❌ No products scraped")
 
     except Exception as e:
-        print(f"\n💥 Scraper failed: {e}")
+        logger.error(f"💥 Scraper failed: {e}")
         if args.debug:
             import traceback
 
-            traceback.print_exc()
+            logger.debug(traceback.format_exc())
         raise
 
 
