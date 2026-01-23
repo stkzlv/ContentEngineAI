@@ -13,6 +13,12 @@ from pathlib import Path
 from botasaurus.browser import Driver
 
 from .config import CONFIG
+from .constants import (
+    DEFAULT_MAX_IMAGES_PER_PRODUCT,
+    HIGH_RES_DIMENSION,
+    HIGH_RES_UPGRADE_DIMENSION,
+    VERY_HIGH_RES_DIMENSION,
+)
 
 
 def extract_high_res_images_botasaurus(
@@ -48,20 +54,20 @@ def extract_high_res_images_botasaurus(
             max_images = (
                 CONFIG.get("global_settings", {})
                 .get("image_config", {})
-                .get("max_images_per_product", 10)
+                .get("max_images_per_product", DEFAULT_MAX_IMAGES_PER_PRODUCT)
             )
         except Exception:
-            max_images = 10
+            max_images = DEFAULT_MAX_IMAGES_PER_PRODUCT
 
     # Get high-res threshold from config
     try:
         high_res_threshold = (
             CONFIG.get("global_settings", {})
             .get("image_config", {})
-            .get("min_high_res_dimension", 1500)
+            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
         )
     except Exception:
-        high_res_threshold = 1500
+        high_res_threshold = HIGH_RES_DIMENSION
 
     # Import DEBUG_MODE from main module
     try:
@@ -1170,10 +1176,10 @@ def modify_amazon_image_for_high_res(url: str) -> str:
             high_res_dimension = (
                 CONFIG.get("global_settings", {})
                 .get("media_config", {})
-                .get("high_res_upgrade_dimension", 2000)
+                .get("high_res_upgrade_dimension", HIGH_RES_UPGRADE_DIMENSION)
             )
         except Exception:
-            high_res_dimension = 2000
+            high_res_dimension = HIGH_RES_UPGRADE_DIMENSION
 
         new_url = re.sub(
             size_pattern, f"._AC_{match.group(1)}{high_res_dimension}_.", url
@@ -1230,10 +1236,10 @@ def is_valid_high_res_image(url: str) -> bool:
         high_res_threshold = int(
             CONFIG.get("global_settings", {})
             .get("image_config", {})
-            .get("min_high_res_dimension", 1500)
+            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
         )
     except Exception:
-        high_res_threshold = 1500
+        high_res_threshold = HIGH_RES_DIMENSION
 
     # Check for Amazon high-res patterns
     # Look for size indicators
@@ -1415,10 +1421,10 @@ def check_amazon_high_res_pattern(url: str, min_sl_size: int = None) -> bool:
             min_sl_size = (
                 CONFIG.get("global_settings", {})
                 .get("image_config", {})
-                .get("min_high_res_dimension", 1500)
+                .get("min_high_res_dimension", HIGH_RES_DIMENSION)
             )
         except Exception:
-            min_sl_size = 1500
+            min_sl_size = HIGH_RES_DIMENSION
 
     # Check for Amazon high-res pattern ._SL{size}_
     match = re.search(r"\._(?:AC_)?(SL|SX|SY)([1-9]\d{2,})_", url)
@@ -1465,10 +1471,10 @@ def filter_amazon_fallback_image(url: str, min_sl_size: int = None) -> bool:
             min_sl_size = (
                 CONFIG.get("global_settings", {})
                 .get("image_config", {})
-                .get("min_high_res_dimension", 1500)
+                .get("min_high_res_dimension", HIGH_RES_DIMENSION)
             )
         except Exception:
-            min_sl_size = 1500
+            min_sl_size = HIGH_RES_DIMENSION
 
     if is_placeholder_image(url):
         return False
@@ -1597,10 +1603,10 @@ def _validate_image_dimensions(
                 very_high_res_threshold = (
                     CONFIG.get("global_settings", {})
                     .get("image_config", {})
-                    .get("very_high_res_dimension", 2000)
+                    .get("very_high_res_dimension", VERY_HIGH_RES_DIMENSION)
                 )
             except Exception:
-                very_high_res_threshold = 2000
+                very_high_res_threshold = VERY_HIGH_RES_DIMENSION
 
             if size >= very_high_res_threshold:
                 if debug_mode and logger:

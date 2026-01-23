@@ -15,6 +15,7 @@ import requests
 from PIL import Image
 
 from .config import CONFIG
+from .constants import HIGH_RES_DIMENSION
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ def verify_image_file(
         min_dimension = (
             CONFIG.get("global_settings", {})
             .get("image_config", {})
-            .get("min_high_res_dimension", 1500)
+            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
         )
 
     if min_file_size is None:

@@ -25,6 +25,15 @@ from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
 from .browser_functions import create_dynamic_browser_function
 from .config import CONFIG, get_default_search_parameters, get_output_path
+from .constants import (
+    DEFAULT_MAX_BATCH_SIZE,
+    DEFAULT_MAX_SCRAPE_ATTEMPTS,
+    DEFAULT_MIN_IMAGES_IF_NO_VIDEO,
+    DEFAULT_MIN_IMAGES_WITH_VIDEO,
+    DEFAULT_MIN_TOTAL_MEDIA,
+    DEFAULT_PREFETCH_MULTIPLIER,
+    HIGH_RES_DIMENSION,
+)
 from .downloader import download_media_files
 from .models import ProductData, SearchParameters
 from .utils import validate_asin_format
@@ -180,7 +189,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 f"📊 Config loaded: {len(self.amazon_config)} Amazon settings"
             )
             min_high_res = self.global_settings.get("image_config", {}).get(
-                "min_high_res_dimension", 1500
+                "min_high_res_dimension", HIGH_RES_DIMENSION
             )
             self.logger.info(f"🎯 Min High-Res Dimension: {min_high_res}")
             self.logger.info(f"⚙️ Browser config: {_BROWSER_CONFIG}")
@@ -251,9 +260,11 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         # Get batch processing config values
         batch_cfg = CONFIG.get("global_settings", {}).get("batch_processing", {})
-        max_attempts = batch_cfg.get("max_scrape_attempts", 50)
-        prefetch_multiplier = batch_cfg.get("prefetch_multiplier", 3)
-        max_batch_size = batch_cfg.get("max_batch_size", 15)
+        max_attempts = batch_cfg.get("max_scrape_attempts", DEFAULT_MAX_SCRAPE_ATTEMPTS)
+        prefetch_multiplier = batch_cfg.get(
+            "prefetch_multiplier", DEFAULT_PREFETCH_MULTIPLIER
+        )
+        max_batch_size = batch_cfg.get("max_batch_size", DEFAULT_MAX_BATCH_SIZE)
 
         self.logger.info(
             f"🎯 Target: {target_count} products that pass validation requirements"
@@ -680,12 +691,14 @@ class BotasaurusAmazonScraper(BaseScraper):
                 validation_config = CONFIG.get("global_settings", {}).get(
                     "validation_config", {}
                 )
-                MIN_TOTAL_MEDIA = validation_config.get("min_total_media", 3)
+                MIN_TOTAL_MEDIA = validation_config.get(
+                    "min_total_media", DEFAULT_MIN_TOTAL_MEDIA
+                )
                 MIN_IMAGES_IF_NO_VIDEO = validation_config.get(
-                    "min_images_if_no_video", 5
+                    "min_images_if_no_video", DEFAULT_MIN_IMAGES_IF_NO_VIDEO
                 )
                 MIN_IMAGES_WITH_VIDEO = validation_config.get(
-                    "min_images_with_video", 2
+                    "min_images_with_video", DEFAULT_MIN_IMAGES_WITH_VIDEO
                 )
 
                 total_media = img_count + vid_count

@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..base import BaseProductData, BaseSearchParameters, Platform
+from .constants import (
+    FREE_SHIPPING_FILTER_CODE,
+    PRIME_FILTER_CODE,
+    RATING_FILTER_CODES,
+)
 
 
 @dataclass
@@ -132,13 +137,7 @@ class SearchParameters(BaseSearchParameters):
                 .get("rating_codes", {})
             )
         except Exception:
-            # Fallback rating codes
-            rating_codes = {
-                4.0: "2661618011",  # 4 stars & up
-                3.0: "2661617011",  # 3 stars & up
-                2.0: "2661616011",  # 2 stars & up
-                1.0: "2661615011",  # 1 star & up
-            }
+            rating_codes = RATING_FILTER_CODES
 
         # Find the appropriate rating code
         for rating, code in rating_codes.items():
@@ -158,10 +157,10 @@ class SearchParameters(BaseSearchParameters):
                 CONFIG.get("scrapers", {})
                 .get("amazon", {})
                 .get("filter_parameters", {})
-                .get("prime_filter_code", "p_85:2470955011")
+                .get("prime_filter_code", PRIME_FILTER_CODE)
             )
         except Exception:
-            prime_code = "p_85:2470955011"
+            prime_code = PRIME_FILTER_CODE
         return str(prime_code)
 
     def encode_free_shipping_filter(self) -> str | None:
@@ -175,10 +174,10 @@ class SearchParameters(BaseSearchParameters):
                 CONFIG.get("scrapers", {})
                 .get("amazon", {})
                 .get("filter_parameters", {})
-                .get("free_shipping_filter_code", "p_76:419122011")
+                .get("free_shipping_filter_code", FREE_SHIPPING_FILTER_CODE)
             )
         except Exception:
-            shipping_code = "p_76:419122011"
+            shipping_code = FREE_SHIPPING_FILTER_CODE
         return str(shipping_code) if shipping_code is not None else None
 
     def encode_brand_filter(self) -> list[str]:

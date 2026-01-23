@@ -7,7 +7,7 @@ with proper error handling and file management.
 import asyncio
 import contextlib
 import logging
-from pathlib import Path as PathLib
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -52,7 +52,7 @@ _enhanced_task_config = {
 
 
 async def convert_m3u8_to_mp4(
-    m3u8_url: str, output_path: PathLib, timeout: int = 120
+    m3u8_url: str, output_path: Path, timeout: int = 120
 ) -> bool:
     """Convert M3U8 HLS stream to MP4 file using ffmpeg asynchronously.
 
@@ -501,7 +501,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def download_file_sync(
-    url: str, file_path: PathLib, timeout: int | None = None, max_retries: int = 2
+    url: str, file_path: Path, timeout: int | None = None, max_retries: int = 2
 ) -> bool:
     """Synchronous file download utility using requests with retry logic.
 
@@ -661,7 +661,7 @@ def download_file_sync(
 async def download_file_async(
     session: aiohttp.ClientSession,
     url: str,
-    file_path: PathLib,
+    file_path: Path,
     timeout: int | None = None,
     max_retries: int = 2,
 ) -> bool:
