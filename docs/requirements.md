@@ -1,6 +1,6 @@
 # Project Requirements
 
-High-level requirements for ContentEngineAI. Implementation details are in specs (`.spec-workflow/specs/`).
+High-level requirements for ContentEngineAI.
 
 ---
 
