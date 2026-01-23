@@ -55,7 +55,7 @@ async def convert_m3u8_to_mp4(
         ]
 
         logger.info("🎬 Converting m3u8 to mp4: %s", output_path.name)
-        logger.debug("   Command: %s", ' '.join(cmd))
+        logger.debug("   Command: %s", " ".join(cmd))
 
         # Run ffmpeg with timeout using async subprocess
         process = await asyncio.create_subprocess_exec(
@@ -70,31 +70,24 @@ async def convert_m3u8_to_mp4(
             )
 
             if process.returncode == 0:
-                logger.info(
-                    "✅ Successfully converted to MP4: %s", output_path.name
-                )
+                logger.info("✅ Successfully converted to MP4: %s", output_path.name)
                 return True
             else:
                 logger.error(
-                    "❌ FFmpeg conversion failed with code %s",
-                    process.returncode
+                    "❌ FFmpeg conversion failed with code %s", process.returncode
                 )
                 stderr_text = stderr.decode("utf-8", errors="ignore")[:500]
                 logger.error("   stderr: %s", stderr_text)
                 return False
 
         except TimeoutError:
-            logger.error(
-                "❌ FFmpeg conversion timed out after %ds", timeout
-            )
+            logger.error("❌ FFmpeg conversion timed out after %ds", timeout)
             process.kill()
             await process.wait()
             return False
 
     except FileNotFoundError:
-        logger.error(
-            "❌ FFmpeg not found. Please install: sudo apt install ffmpeg"
-        )
+        logger.error("❌ FFmpeg not found. Please install: sudo apt install ffmpeg")
         return False
     except Exception as e:
         logger.error("❌ Unexpected error during m3u8 conversion: %s", e)
@@ -125,9 +118,7 @@ async def download_file_async(
     """
     # Get config values for download
     try:
-        download_config = CONFIG.get("global_settings", {}).get(
-            "download_config", {}
-        )
+        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
         amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
         download_headers = amazon_config.get("http_headers", {}).get(
             "media_download", {}
@@ -173,9 +164,7 @@ async def download_file_async(
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                logger.debug(
-                    "Retry attempt %d/%d for: %s", attempt, max_retries, url
-                )
+                logger.debug("Retry attempt %d/%d for: %s", attempt, max_retries, url)
             else:
                 logger.debug("Downloading: %s", url)
 
@@ -190,18 +179,14 @@ async def download_file_async(
                 file_path.parent.mkdir(parents=True, exist_ok=True)
 
                 with open(file_path, "wb") as f:
-                    async for chunk in response.content.iter_chunked(
-                        chunk_size
-                    ):
+                    async for chunk in response.content.iter_chunked(chunk_size):
                         if chunk:
                             f.write(chunk)
 
             # Verify file was created and has content
             if file_path.exists() and file_path.stat().st_size > 0:
                 file_size = file_path.stat().st_size
-                logger.debug(
-                    "Downloaded %d bytes to %s", file_size, file_path.name
-                )
+                logger.debug("Downloaded %d bytes to %s", file_size, file_path.name)
                 return True
             else:
                 logger.debug("File not created or empty: %s", file_path)
@@ -210,8 +195,7 @@ async def download_file_async(
         except (TimeoutError, aiohttp.ClientError) as e:
             # These are transient errors worth retrying
             logger.debug(
-                "Transient error on attempt %d/%d: %s",
-                attempt + 1, max_retries + 1, e
+                "Transient error on attempt %d/%d: %s", attempt + 1, max_retries + 1, e
             )
 
             # Clean up partial file
@@ -222,8 +206,7 @@ async def download_file_async(
             # If this was the last attempt, fail
             if attempt >= max_retries:
                 logger.debug(
-                    "Download failed after %d attempts: %s",
-                    max_retries + 1, url
+                    "Download failed after %d attempts: %s", max_retries + 1, url
                 )
                 return False
 
@@ -274,9 +257,7 @@ async def _download_media_async(
         # Get download configuration
         global_settings = CONFIG.get("global_settings", {})
         download_config = global_settings.get("download_config", {})
-        min_image_file_size = download_config.get(
-            "min_image_file_size", 10000
-        )
+        min_image_file_size = download_config.get("min_image_file_size", 10000)
 
         # Setup output directories
         from .botasaurus_output import get_outputs_root
@@ -291,14 +272,9 @@ async def _download_media_async(
         # Download images concurrently
         if image_urls:
             if debug_mode:
-                logger.info(
-                    "🖼️ [IMAGE DOWNLOAD] Processing %d images",
-                    len(image_urls)
-                )
+                logger.info("🖼️ [IMAGE DOWNLOAD] Processing %d images", len(image_urls))
 
-            async def download_single_image(
-                i: int, url: str
-            ) -> str | None:
+            async def download_single_image(i: int, url: str) -> str | None:
                 try:
                     if not url or not url.startswith("http"):
                         return None
@@ -310,9 +286,7 @@ async def _download_media_async(
                         return None
 
                     # Generate filename
-                    supported_exts = [
-                        ".jpg", ".jpeg", ".png", ".webp", ".gif"
-                    ]
+                    supported_exts = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
                     default_ext = "jpg"
                     ext = default_ext
                     for extension in supported_exts:
@@ -326,36 +300,26 @@ async def _download_media_async(
                     file_path = images_dir / filename
 
                     # Download file async
-                    success = await download_file_async(
-                        session, url, file_path
-                    )
+                    success = await download_file_async(session, url, file_path)
                     if success:
                         # Validate downloaded file
                         validation_result = verify_image_file(file_path)
                         if validation_result.is_valid:
-                            relative_path = str(
-                                file_path.relative_to(outputs_root)
-                            )
+                            relative_path = str(file_path.relative_to(outputs_root))
                             if debug_mode:
-                                file_size = (
-                                    validation_result.validation_data.get(
-                                        "actual_file_size", 0
-                                    )
+                                file_size = validation_result.validation_data.get(
+                                    "actual_file_size", 0
                                 )
                                 dimensions = (
-                                    validation_result.validation_data.get(
-                                        "width", 0
-                                    ),
-                                    validation_result.validation_data.get(
-                                        "height", 0
-                                    ),
+                                    validation_result.validation_data.get("width", 0),
+                                    validation_result.validation_data.get("height", 0),
                                 )
-                                dim_str = (
-                                    f"{dimensions[0]}x{dimensions[1]}"
-                                )
+                                dim_str = f"{dimensions[0]}x{dimensions[1]}"
                                 logger.info(
                                     "✅ [IMAGE] %s (%s bytes, %s)",
-                                    filename, file_size, dim_str
+                                    filename,
+                                    file_size,
+                                    dim_str,
                                 )
                             return relative_path
                         else:
@@ -367,20 +331,15 @@ async def _download_media_async(
 
             # Download images concurrently with semaphore
             download_config = global_settings.get("download_config", {})
-            max_concurrent = download_config.get(
-                "concurrent_image_downloads", 5
-            )
+            max_concurrent = download_config.get("concurrent_image_downloads", 5)
             semaphore = asyncio.Semaphore(max_concurrent)
 
-            async def download_with_semaphore(
-                i: int, url: str
-            ) -> str | None:
+            async def download_with_semaphore(i: int, url: str) -> str | None:
                 async with semaphore:
                     return await download_single_image(i, url)
 
             tasks = [
-                download_with_semaphore(i, url)
-                for i, url in enumerate(image_urls)
+                download_with_semaphore(i, url) for i, url in enumerate(image_urls)
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -391,18 +350,16 @@ async def _download_media_async(
         # Download videos concurrently
         if video_urls:
             if debug_mode:
-                m3u8_count = sum(
-                    1 for url in video_urls if url and ".m3u8" in url
-                )
+                m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
                 mp4_count = len(video_urls) - m3u8_count
                 logger.info(
                     "🎥 [VIDEO] Processing %d videos (M3U8: %d, MP4: %d)",
-                    len(video_urls), m3u8_count, mp4_count
+                    len(video_urls),
+                    m3u8_count,
+                    mp4_count,
                 )
 
-            async def download_single_video(
-                i: int, url: str
-            ) -> str | None:
+            async def download_single_video(i: int, url: str) -> str | None:
                 try:
                     if not url or not url.startswith("http"):
                         return None
@@ -415,19 +372,13 @@ async def _download_media_async(
                     # Handle M3U8 streams or direct MP4
                     is_m3u8 = ".m3u8" in url
                     if is_m3u8:
-                        video_config = global_settings.get(
-                            "video_config", {}
-                        )
-                        m3u8_timeout = video_config.get(
-                            "m3u8_download_timeout", 120
-                        )
+                        video_config = global_settings.get("video_config", {})
+                        m3u8_timeout = video_config.get("m3u8_download_timeout", 120)
                         success = await convert_m3u8_to_mp4(
                             url, file_path, timeout=m3u8_timeout
                         )
                     else:
-                        download_config = global_settings.get(
-                            "download_config", {}
-                        )
+                        download_config = global_settings.get("download_config", {})
                         video_timeout = download_config.get(
                             "video_download_timeout", 300
                         )
@@ -439,23 +390,19 @@ async def _download_media_async(
                         # Validate downloaded file
                         validation_result = verify_video_file(file_path)
                         if validation_result.is_valid:
-                            relative_path = str(
-                                file_path.relative_to(outputs_root)
-                            )
+                            relative_path = str(file_path.relative_to(outputs_root))
                             if debug_mode:
-                                file_size = (
-                                    validation_result.validation_data.get(
-                                        "actual_file_size", 0
-                                    )
+                                file_size = validation_result.validation_data.get(
+                                    "actual_file_size", 0
                                 )
-                                duration = (
-                                    validation_result.validation_data.get(
-                                        "duration", 0
-                                    )
+                                duration = validation_result.validation_data.get(
+                                    "duration", 0
                                 )
                                 logger.info(
                                     "✅ [VIDEO] %s (%s bytes, %ss)",
-                                    filename, file_size, duration
+                                    filename,
+                                    file_size,
+                                    duration,
                                 )
                             return relative_path
                         else:
@@ -467,14 +414,10 @@ async def _download_media_async(
 
             # Download videos concurrently with semaphore
             download_config = global_settings.get("download_config", {})
-            max_concurrent_videos = download_config.get(
-                "concurrent_video_downloads", 3
-            )
+            max_concurrent_videos = download_config.get("concurrent_video_downloads", 3)
             semaphore_video = asyncio.Semaphore(max_concurrent_videos)
 
-            async def download_video_with_semaphore(
-                i: int, url: str
-            ) -> str | None:
+            async def download_video_with_semaphore(i: int, url: str) -> str | None:
                 async with semaphore_video:
                     return await download_single_video(i, url)
 
@@ -482,9 +425,7 @@ async def _download_media_async(
                 download_video_with_semaphore(i, url)
                 for i, url in enumerate(video_urls)
             ]
-            video_results = await asyncio.gather(
-                *video_tasks, return_exceptions=True
-            )
+            video_results = await asyncio.gather(*video_tasks, return_exceptions=True)
 
             for result in video_results:
                 if isinstance(result, str):

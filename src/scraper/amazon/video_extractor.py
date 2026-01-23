@@ -125,7 +125,8 @@ def extract_functional_videos_with_validation(
     # Always log to verify function is called
     logger.info(
         "extract_functional_videos_with_validation called (max: %d, DEBUG=%s)",
-        max_videos, DEBUG_MODE,
+        max_videos,
+        DEBUG_MODE,
     )
 
     if DEBUG_MODE:
@@ -464,7 +465,9 @@ def extract_functional_videos_with_validation(
                 if DEBUG_MODE:
                     logger.info(
                         "Method 1 found: %d direct videos, %d VDP links, %d thumbnails",
-                        len(direct_videos), len(vdp_links), len(video_thumbnails),
+                        len(direct_videos),
+                        len(vdp_links),
+                        len(video_thumbnails),
                     )
 
                 # Method 1 direct video extraction with isValidProductVideo() filtering
@@ -475,7 +478,8 @@ def extract_functional_videos_with_validation(
                             logger.info(
                                 "Method 1: Reached video limit (%d/%d),"
                                 " stopping extraction",
-                                len(video_urls), max_videos,
+                                len(video_urls),
+                                max_videos,
                             )
                         break
                     if (
@@ -485,9 +489,7 @@ def extract_functional_videos_with_validation(
                     ):
                         video_urls.append(url)
                         if DEBUG_MODE:
-                            logger.info(
-                                "Method 1 found direct video: %s...", url[:80]
-                            )
+                            logger.info("Method 1 found direct video: %s...", url[:80])
 
                 # DISABLED: VDP links also pick up comparison videos
                 # for url in vdp_links:
@@ -593,7 +595,8 @@ def extract_functional_videos_with_validation(
                                         logger.info(
                                             "Method 2: Reached video limit (%d/%d), "
                                             "stopping network capture",
-                                            len(video_urls), max_videos,
+                                            len(video_urls),
+                                            max_videos,
                                         )
                                     break
 
@@ -730,7 +733,8 @@ def extract_functional_videos_with_validation(
                             logger.info(
                                 "Method 3a: Reached video limit (%d/%d), stopping "
                                 "video element extraction",
-                                len(video_urls), max_videos,
+                                len(video_urls),
+                                max_videos,
                             )
                         break
 
@@ -766,7 +770,8 @@ def extract_functional_videos_with_validation(
                             logger.info(
                                 "Method 3b: Reached video limit (%d/%d), stopping "
                                 "container extraction",
-                                len(video_urls), max_videos,
+                                len(video_urls),
+                                max_videos,
                             )
                         break
 
@@ -811,7 +816,8 @@ def extract_functional_videos_with_validation(
                 if DEBUG_MODE:
                     logger.info(
                         "Deduplication: Reached video limit (%d/%d)",
-                        len(unique_urls), max_videos,
+                        len(unique_urls),
+                        max_videos,
                     )
                 break
 
@@ -820,12 +826,14 @@ def extract_functional_videos_with_validation(
         if len(unique_urls) >= max_videos:
             logger.info(
                 "Extracted %d videos (hit configured limit) for %s",
-                len(unique_urls), current_asin,
+                len(unique_urls),
+                current_asin,
             )
         elif len(unique_urls) > 0:
             logger.info(
                 "Extracted %d videos (found all available) for %s",
-                len(unique_urls), current_asin,
+                len(unique_urls),
+                current_asin,
             )
         else:
             logger.warning(

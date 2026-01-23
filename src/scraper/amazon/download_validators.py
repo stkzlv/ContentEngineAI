@@ -108,8 +108,7 @@ def _validate_image_size_before_download(
         if is_obvious_thumbnail:
             if debug_mode and logger:
                 logger.debug(
-                    "❌ [SMART-VALIDATION] Obvious thumbnail pattern "
-                    "detected in URL"
+                    "❌ [SMART-VALIDATION] Obvious thumbnail pattern " "detected in URL"
                 )
             return False
 
@@ -129,8 +128,7 @@ def _validate_image_size_before_download(
         ]
 
         is_high_quality = any(
-            indicator.lower() in url_lower
-            for indicator in high_quality_indicators
+            indicator.lower() in url_lower for indicator in high_quality_indicators
         )
 
         # If it's obviously high quality, skip size check
@@ -157,9 +155,7 @@ def _validate_image_size_before_download(
             # Verify it's actually an image
             if content_type and not content_type.startswith("image/"):
                 if debug_mode and logger:
-                    logger.debug(
-                        f"❌ [SMART-VALIDATION] Not an image: {content_type}"
-                    )
+                    logger.debug(f"❌ [SMART-VALIDATION] Not an image: {content_type}")
                 return False
 
             if content_length:
@@ -169,9 +165,7 @@ def _validate_image_size_before_download(
                 # Use different thresholds based on image format
                 if "webp" in content_type.lower():
                     # WebP is more compressed, use lower threshold
-                    effective_min_size = max(
-                        min_file_size // 2, 1000
-                    )  # At least 1KB
+                    effective_min_size = max(min_file_size // 2, 1000)  # At least 1KB
                 elif "png" in content_type.lower():
                     # PNG can be larger, be more lenient
                     effective_min_size = min_file_size
@@ -242,14 +236,12 @@ def _validate_image_size_before_download(
     except requests.exceptions.Timeout:
         if debug_mode and logger:
             logger.debug(
-                "⏰ [SMART-VALIDATION] Timeout during validation, "
-                "assuming valid"
+                "⏰ [SMART-VALIDATION] Timeout during validation, " "assuming valid"
             )
         return True  # Assume valid on timeout to avoid missing images
     except Exception as e:
         if debug_mode and logger:
             logger.debug(
-                f"❌ [SMART-VALIDATION] Validation error: {e}, "
-                f"assuming valid"
+                f"❌ [SMART-VALIDATION] Validation error: {e}, " f"assuming valid"
             )
         return True  # Assume valid on error to avoid missing images

@@ -44,12 +44,9 @@ def extract_product_data_from_page(
         for indicator in unavailable_indicators:
             if indicator.lower() in driver.get_text("body").lower():
                 if DEBUG_MODE:
+                    logger.info(f"⚠️ Shipping restriction detected: {indicator}")
                     logger.info(
-                        f"⚠️ Shipping restriction detected: {indicator}"
-                    )
-                    logger.info(
-                        "⚠️ Continuing to extract media "
-                        "despite shipping restriction"
+                        "⚠️ Continuing to extract media " "despite shipping restriction"
                     )
                 break
 
@@ -59,9 +56,7 @@ def extract_product_data_from_page(
         description = ""
 
         # Get title selectors from config
-        css_selectors = CONFIG.get("global_settings", {}).get(
-            "css_selectors", {}
-        )
+        css_selectors = CONFIG.get("global_settings", {}).get("css_selectors", {})
         title_selectors = css_selectors.get(
             "product_title_selectors",
             [
@@ -134,12 +129,8 @@ def extract_product_data_from_page(
             title, price, description, asin, rating, essential_fields
         ):
             if DEBUG_MODE:
-                debug_config = CONFIG.get("global_settings", {}).get(
-                    "debug_config", {}
-                )
-                title_preview_length = debug_config.get(
-                    "title_preview_length", 50
-                )
+                debug_config = CONFIG.get("global_settings", {}).get("debug_config", {})
+                title_preview_length = debug_config.get("title_preview_length", 50)
                 logger.warning(
                     f"❌ Invalid product data for {asin}: "
                     f"title='{title[:title_preview_length]}...', "
@@ -152,9 +143,7 @@ def extract_product_data_from_page(
 
         # ONLY extract media for valid products
         logger.info("Extracting images for %s", asin)
-        images = extract_high_res_images_botasaurus(
-            driver, debug_options=debug_options
-        )
+        images = extract_high_res_images_botasaurus(driver, debug_options=debug_options)
 
         logger.info("Extracting videos for %s", asin)
         videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
@@ -171,9 +160,7 @@ def extract_product_data_from_page(
             "asin": asin,
             "keyword": keyword,
             "serp_rating": serp_info.rating if serp_info else None,
-            "serp_reviews_count": (
-                serp_info.reviews_count if serp_info else None
-            ),
+            "serp_reviews_count": (serp_info.reviews_count if serp_info else None),
             "downloaded_images": [],
             "downloaded_videos": [],
         }
@@ -188,9 +175,7 @@ def extract_product_data_from_page(
 
     except Exception as e:
         if DEBUG_MODE:
-            logger.error(
-                f"❌ Error extracting product data for {asin}: {e}"
-            )
+            logger.error(f"❌ Error extracting product data for {asin}: {e}")
         return None
 
 
@@ -200,11 +185,7 @@ def extract_serp_product_info(card_element, keyword: str):
 
     try:
         # Quick check: skip non-product cards
-        card_text = (
-            card_element.text.lower()
-            if hasattr(card_element, "text")
-            else ""
-        )
+        card_text = card_element.text.lower() if hasattr(card_element, "text") else ""
         skip_indicators = [
             "people also search for",
             "related searches",
@@ -238,9 +219,7 @@ def extract_serp_product_info(card_element, keyword: str):
                     all_links = card_element.select_all(selector)
                     for link in all_links:
                         href = link.get_attribute("href")
-                        if href and (
-                            "/dp/" in href or "/gp/product/" in href
-                        ):
+                        if href and ("/dp/" in href or "/gp/product/" in href):
                             link_element = link
                             break
                     if link_element:
@@ -249,9 +228,7 @@ def extract_serp_product_info(card_element, keyword: str):
                     link_element = card_element.select(selector)
                     if link_element:
                         href = link_element.get_attribute("href")
-                        if href and (
-                            "/dp/" in href or "/gp/product/" in href
-                        ):
+                        if href and ("/dp/" in href or "/gp/product/" in href):
                             break
                         else:
                             link_element = None
@@ -275,9 +252,7 @@ def extract_serp_product_info(card_element, keyword: str):
         if "/dp/" in url:
             asin = url.split("/dp/")[1].split("/")[0].split("?")[0]
         elif "/gp/product/" in url:
-            asin = (
-                url.split("/gp/product/")[1].split("/")[0].split("?")[0]
-            )
+            asin = url.split("/gp/product/")[1].split("/")[0].split("?")[0]
         else:
             asin_match = re.search(r"/([A-Z0-9]{10})(?:/|$|\?)", url)
             if asin_match:
@@ -306,9 +281,7 @@ def extract_serp_product_info(card_element, keyword: str):
                 if "out of" in rating_text:
                     rating = rating_text.split(" out of")[0].strip()
                 elif "stars" in rating_text.lower():
-                    match = re.search(
-                        r"([\d.]+)\s*stars?", rating_text.lower()
-                    )
+                    match = re.search(r"([\d.]+)\s*stars?", rating_text.lower())
                     if match:
                         rating = match.group(1)
                 if rating:
@@ -328,9 +301,7 @@ def extract_serp_product_info(card_element, keyword: str):
             if reviews_element:
                 reviews_text = reviews_element.text or ""
                 clean_text = (
-                    reviews_text.replace(",", "")
-                    .replace("(", "")
-                    .replace(")", "")
+                    reviews_text.replace(",", "").replace("(", "").replace(")", "")
                 )
                 if clean_text.isdigit():
                     reviews_count = reviews_text.strip()

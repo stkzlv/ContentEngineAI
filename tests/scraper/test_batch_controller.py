@@ -236,9 +236,9 @@ class TestProductIDProcessing:
             # Verify progress logging uses [N/total] format via lazy formatting
             # Logger receives format string + args, not pre-formatted string
             progress_calls = [
-                c for c in mock_log.call_args_list
-                if c.args and isinstance(c.args[0], str)
-                and "[%d/%d]" in c.args[0]
+                c
+                for c in mock_log.call_args_list
+                if c.args and isinstance(c.args[0], str) and "[%d/%d]" in c.args[0]
             ]
             assert len(progress_calls) >= 2
             # Verify correct counter values in args

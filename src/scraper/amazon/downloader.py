@@ -84,12 +84,11 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     debug_mode = data.get("debug_mode", False)
 
     if debug_mode:
-        logger.info(
-            "📥 [MEDIA DOWNLOAD] Starting async download for ASIN: %s", asin
-        )
+        logger.info("📥 [MEDIA DOWNLOAD] Starting async download for ASIN: %s", asin)
         logger.info(
             "📥 [MEDIA DOWNLOAD] Images: %d, Videos: %d",
-            len(image_urls), len(video_urls)
+            len(image_urls),
+            len(video_urls),
         )
 
     # Run async download helper
@@ -104,8 +103,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 future = executor.submit(
                     lambda: asyncio.run(
                         _download_media_async(
-                            asin, image_urls, video_urls,
-                            platform, debug_mode
+                            asin, image_urls, video_urls, platform, debug_mode
                         )
                     )
                 )
@@ -159,35 +157,29 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
 
                 validation_results = validate_media_batch(all_files)
 
-                report_path = (
-                    product_dir / f"{asin}_media_validation_report.json"
-                )
+                report_path = product_dir / f"{asin}_media_validation_report.json"
                 validation_report = generate_validation_report(
                     validation_results, report_path
                 )
 
                 logger.info(
-                    "📋 [VALIDATION REPORT] Generated for %d files:",
-                    len(all_files)
+                    "📋 [VALIDATION REPORT] Generated for %d files:", len(all_files)
                 )
                 logger.info(
-                    "   • Valid files: %s",
-                    validation_report['summary']['valid_files']
+                    "   • Valid files: %s", validation_report["summary"]["valid_files"]
                 )
                 logger.info(
                     "   • Invalid files: %s",
-                    validation_report['summary']['invalid_files']
+                    validation_report["summary"]["invalid_files"],
                 )
                 logger.info(
                     "   • Success rate: %.1f%%",
-                    validation_report['summary']['success_rate']
+                    validation_report["summary"]["success_rate"],
                 )
                 logger.info("   • Report saved: %s", report_path)
 
         except Exception as e:
-            logger.warning(
-                "⚠️ [VALIDATION REPORT] Failed to generate report: %s", e
-            )
+            logger.warning("⚠️ [VALIDATION REPORT] Failed to generate report: %s", e)
 
     # Final results summary
     result = {
@@ -202,26 +194,26 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     }
 
     if debug_mode:
-        logger.info(
-            "📊 [MEDIA DOWNLOAD] Download summary for ASIN %s:", asin
-        )
+        logger.info("📊 [MEDIA DOWNLOAD] Download summary for ASIN %s:", asin)
         logger.info(
             "   • Images: %d/%d downloaded and validated successfully",
-            len(downloaded_images), len(image_urls)
+            len(downloaded_images),
+            len(image_urls),
         )
         logger.info(
             "   • Videos: %d/%d downloaded and validated successfully",
-            len(downloaded_videos), len(video_urls)
+            len(downloaded_videos),
+            len(video_urls),
         )
         if downloaded_images:
             logger.info(
                 "   • Image files: %s",
-                [img.split('/')[-1] for img in downloaded_images[:3]]
+                [img.split("/")[-1] for img in downloaded_images[:3]],
             )
         if downloaded_videos:
             logger.info(
                 "   • Video files: %s",
-                [vid.split('/')[-1] for vid in downloaded_videos[:3]]
+                [vid.split("/")[-1] for vid in downloaded_videos[:3]],
             )
 
     return result
@@ -248,9 +240,7 @@ def download_file_sync(
 
     # Get config values for download
     try:
-        download_config = CONFIG.get("global_settings", {}).get(
-            "download_config", {}
-        )
+        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
         amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
         download_headers = amazon_config.get("http_headers", {}).get(
             "media_download", {}
@@ -296,9 +286,7 @@ def download_file_sync(
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                logger.debug(
-                    "Retry attempt %d/%d for: %s", attempt, max_retries, url
-                )
+                logger.debug("Retry attempt %d/%d for: %s", attempt, max_retries, url)
             else:
                 logger.debug("Downloading: %s", url)
 
@@ -321,9 +309,7 @@ def download_file_sync(
             # Verify file was created and has content
             if file_path.exists() and file_path.stat().st_size > 0:
                 file_size = file_path.stat().st_size
-                logger.debug(
-                    "Downloaded %d bytes to %s", file_size, file_path.name
-                )
+                logger.debug("Downloaded %d bytes to %s", file_size, file_path.name)
                 return True
             else:
                 logger.debug("File not created or empty: %s", file_path)
@@ -337,8 +323,7 @@ def download_file_sync(
         ) as e:
             # These are transient errors worth retrying
             logger.debug(
-                "Transient error on attempt %d/%d: %s",
-                attempt + 1, max_retries + 1, e
+                "Transient error on attempt %d/%d: %s", attempt + 1, max_retries + 1, e
             )
 
             # Clean up partial file
@@ -349,8 +334,7 @@ def download_file_sync(
             # If this was the last attempt, fail
             if attempt >= max_retries:
                 logger.debug(
-                    "Download failed after %d attempts: %s",
-                    max_retries + 1, url
+                    "Download failed after %d attempts: %s", max_retries + 1, url
                 )
                 return False
 

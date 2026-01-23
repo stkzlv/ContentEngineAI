@@ -132,9 +132,7 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
         ]
 
         logger.info("[DEEP ANALYSIS] Found %d total images", len(all_imgs))
-        logger.info(
-            "[DEEP ANALYSIS] Found %d Amazon media images", len(amazon_images)
-        )
+        logger.info("[DEEP ANALYSIS] Found %d Amazon media images", len(amazon_images))
         logger.info(
             "[DEEP ANALYSIS] Found %d potential high-res images", len(high_res_images)
         )
@@ -148,7 +146,8 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
             ]
             logger.info(
                 "[HIGH-RES CANDIDATE] %s... (indicators: %s)",
-                src[:80], ", ".join(indicators),
+                src[:80],
+                ", ".join(indicators),
             )
 
     except Exception as e:

@@ -105,7 +105,7 @@ class SearchParameterBuilder:
 
         if filters:
             logger.info(
-                "Search URL for '%s' with filters: %s", keyword, '; '.join(filters)
+                "Search URL for '%s' with filters: %s", keyword, "; ".join(filters)
             )
         else:
             logger.info("Search URL for '%s': basic search (no filters)", keyword)

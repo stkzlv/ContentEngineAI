@@ -224,7 +224,9 @@ def validate_video_url_accessibility(url: str) -> bool:
         if is_accessible:
             logger.debug(
                 "Video URL accessible (%s, %s): %s...",
-                status_msg, content_type, url[:60],
+                status_msg,
+                content_type,
+                url[:60],
             )
         else:
             logger.debug("Video URL failed (%s): %s...", status_msg, url[:60])
@@ -397,7 +399,8 @@ def _validate_image_dimensions(
                 if debug_mode and logger:
                     logger.debug(
                         "URL pattern indicates very high-res (%dpx), trusting: %s...",
-                        size, url[:80],
+                        size,
+                        url[:80],
                     )
                 return True
 
@@ -458,7 +461,8 @@ def _validate_image_dimensions(
                     if debug_mode and logger:
                         logger.debug(
                             "Fallback to URL pattern %dpx: %s",
-                            size, "PASS" if result else "FAIL",
+                            size,
+                            "PASS" if result else "FAIL",
                         )
                     return result
                 else:

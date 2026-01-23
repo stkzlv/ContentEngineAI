@@ -103,7 +103,9 @@ class BatchController:
 
         self.logger.info(
             "\n%s\nPROCESSING PRODUCT IDS (%d total)\n%s",
-            self.separator, len(self.config.product_ids), self.separator
+            self.separator,
+            len(self.config.product_ids),
+            self.separator,
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
@@ -111,7 +113,9 @@ class BatchController:
             if not validate_asin_format(product_id):
                 self.logger.warning(
                     "[%d/%d] ⚠️  Invalid ASIN format: %s - Skipping",
-                    i, len(self.config.product_ids), product_id
+                    i,
+                    len(self.config.product_ids),
+                    product_id,
                 )
                 results.append(
                     ProductResult(
@@ -126,7 +130,9 @@ class BatchController:
 
             self.logger.info(
                 "[%d/%d] Scraping product: %s",
-                i, len(self.config.product_ids), product_id
+                i,
+                len(self.config.product_ids),
+                product_id,
             )
 
             try:
@@ -142,7 +148,9 @@ class BatchController:
                     product_data = products[0]
                     self.logger.info(
                         "[%d/%d] ✅ Successfully scraped: %s",
-                        i, len(self.config.product_ids), product_id
+                        i,
+                        len(self.config.product_ids),
+                        product_id,
                     )
                     results.append(
                         ProductResult(
@@ -156,7 +164,9 @@ class BatchController:
                 else:
                     self.logger.warning(
                         "[%d/%d] ⚠️  No data found for: %s",
-                        i, len(self.config.product_ids), product_id
+                        i,
+                        len(self.config.product_ids),
+                        product_id,
                     )
                     results.append(
                         ProductResult(
@@ -172,7 +182,10 @@ class BatchController:
                 error_msg = str(e)
                 self.logger.error(
                     "[%d/%d] ❌ Failed to scrape %s: %s",
-                    i, len(self.config.product_ids), product_id, error_msg
+                    i,
+                    len(self.config.product_ids),
+                    product_id,
+                    error_msg,
                 )
                 results.append(
                     ProductResult(
@@ -208,13 +221,14 @@ class BatchController:
 
         self.logger.info(
             "\n%s\nPROCESSING KEYWORDS (%d total)\n%s",
-            self.separator, len(self.config.keywords), self.separator
+            self.separator,
+            len(self.config.keywords),
+            self.separator,
         )
 
         for i, keyword in enumerate(self.config.keywords, 1):
             self.logger.info(
-                "[%d/%d] Searching keyword: %s",
-                i, len(self.config.keywords), keyword
+                "[%d/%d] Searching keyword: %s", i, len(self.config.keywords), keyword
             )
 
             try:
@@ -228,7 +242,10 @@ class BatchController:
                 if products:
                     self.logger.info(
                         "[%d/%d] ✅ Found %d products for: %s",
-                        i, len(self.config.keywords), len(products), keyword
+                        i,
+                        len(self.config.keywords),
+                        len(products),
+                        keyword,
                     )
 
                     # Add each product as a result
@@ -249,21 +266,26 @@ class BatchController:
                         self.logger.info(
                             "✅ Reached max_products limit (%d). "
                             "Stopping keyword processing.",
-                            self.config.max_products
+                            self.config.max_products,
                         )
                         break
 
                 else:
                     self.logger.warning(
                         "[%d/%d] ⚠️  No products found for: %s",
-                        i, len(self.config.keywords), keyword
+                        i,
+                        len(self.config.keywords),
+                        keyword,
                     )
 
             except Exception as e:
                 error_msg = str(e)
                 self.logger.error(
                     "[%d/%d] ❌ Failed to search %s: %s",
-                    i, len(self.config.keywords), keyword, error_msg
+                    i,
+                    len(self.config.keywords),
+                    keyword,
+                    error_msg,
                 )
 
                 # Fail-fast: stop on first error
@@ -315,8 +337,7 @@ class BatchController:
         duplicates_removed = len(results) - len(deduplicated)
         if duplicates_removed > 0:
             self.logger.info(
-                "Deduplication: Removed %d duplicate product(s)",
-                duplicates_removed
+                "Deduplication: Removed %d duplicate product(s)", duplicates_removed
             )
 
         return deduplicated
@@ -404,7 +425,7 @@ class BatchController:
         self.logger.info("Failed: %d", summary.failed)
 
         if summary.failed_products:
-            self.logger.info("Failed Products: %s", ', '.join(summary.failed_products))
+            self.logger.info("Failed Products: %s", ", ".join(summary.failed_products))
 
         self.logger.info("\nMedia Collection Statistics:")
         for key, value in summary.media_stats.items():
