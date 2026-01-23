@@ -1,10 +1,12 @@
 Review all changes in the current branch compared to main.
 
 ## Process
-1. Run `git diff main...HEAD` to analyze ALL branch changes (not just recent commits)
-2. Run `git log main..HEAD --oneline` to see commit history
-3. Check for existing PR using `mcp__github__list_pull_requests`
-4. Create PR with `mcp__github__create_pull_request` or update with `mcp__github__update_pull_request`
+1. Run formatting: `poetry run ruff format . && poetry run ruff check --fix .`
+2. Commit any formatting changes if present
+3. Run `git diff main...HEAD` to analyze ALL branch changes (not just recent commits)
+4. Run `git log main..HEAD --oneline` to see commit history
+5. Check for existing PR using `mcp__github__list_pull_requests`
+6. Create PR with `mcp__github__create_pull_request` or update with `mcp__github__update_pull_request`
 
 ## PR Description Format
 ```markdown
