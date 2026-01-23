@@ -12,7 +12,7 @@ from pathlib import Path
 
 from botasaurus.browser import Driver
 
-from .config import CONFIG
+from .config import CONFIG, get_config_value
 from .constants import (
     DEFAULT_MAX_IMAGES_PER_PRODUCT,
     HIGH_RES_DIMENSION,
@@ -62,14 +62,12 @@ def extract_high_res_images_botasaurus(
             max_images = DEFAULT_MAX_IMAGES_PER_PRODUCT
 
     # Get high-res threshold from config
-    try:
-        high_res_threshold = (
-            CONFIG.get("global_settings", {})
-            .get("image_config", {})
-            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
-        )
-    except Exception:
-        high_res_threshold = HIGH_RES_DIMENSION
+    high_res_threshold = get_config_value(
+        "global_settings",
+        "image_config",
+        "min_high_res_dimension",
+        default=HIGH_RES_DIMENSION,
+    )
 
     DEBUG_MODE = debug_options.get("debug_mode", False)
 
@@ -1228,14 +1226,14 @@ def is_valid_high_res_image(url: str) -> bool:
         return False
 
     # Get high-res threshold from config
-    try:
-        high_res_threshold = int(
-            CONFIG.get("global_settings", {})
-            .get("image_config", {})
-            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
+    high_res_threshold = int(
+        get_config_value(
+            "global_settings",
+            "image_config",
+            "min_high_res_dimension",
+            default=HIGH_RES_DIMENSION,
         )
-    except Exception:
-        high_res_threshold = HIGH_RES_DIMENSION
+    )
 
     # Check for Amazon high-res patterns
     # Look for size indicators
@@ -1392,14 +1390,12 @@ def check_amazon_high_res_pattern(url: str, min_sl_size: int = None) -> bool:
 
     # Get min_sl_size from config if not provided
     if min_sl_size is None:
-        try:
-            min_sl_size = (
-                CONFIG.get("global_settings", {})
-                .get("image_config", {})
-                .get("min_high_res_dimension", HIGH_RES_DIMENSION)
-            )
-        except Exception:
-            min_sl_size = HIGH_RES_DIMENSION
+        min_sl_size = get_config_value(
+            "global_settings",
+            "image_config",
+            "min_high_res_dimension",
+            default=HIGH_RES_DIMENSION,
+        )
 
     # Check for Amazon high-res pattern ._SL{size}_
     match = re.search(r"\._(?:AC_)?(SL|SX|SY)([1-9]\d{2,})_", url)
@@ -1430,14 +1426,12 @@ def filter_amazon_fallback_image(url: str, min_sl_size: int = None) -> bool:
 
     # Get min_sl_size from config if not provided
     if min_sl_size is None:
-        try:
-            min_sl_size = (
-                CONFIG.get("global_settings", {})
-                .get("image_config", {})
-                .get("min_high_res_dimension", HIGH_RES_DIMENSION)
-            )
-        except Exception:
-            min_sl_size = HIGH_RES_DIMENSION
+        min_sl_size = get_config_value(
+            "global_settings",
+            "image_config",
+            "min_high_res_dimension",
+            default=HIGH_RES_DIMENSION,
+        )
 
     if is_placeholder_image(url):
         return False

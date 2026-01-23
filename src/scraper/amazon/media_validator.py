@@ -14,7 +14,7 @@ from typing import Any
 import requests
 from PIL import Image
 
-from .config import CONFIG
+from .config import CONFIG, get_config_value
 from .constants import HIGH_RES_DIMENSION
 
 logger = logging.getLogger(__name__)
@@ -185,17 +185,19 @@ def verify_image_file(
     """
     # Get config values if not provided
     if min_dimension is None:
-        min_dimension = (
-            CONFIG.get("global_settings", {})
-            .get("image_config", {})
-            .get("min_high_res_dimension", HIGH_RES_DIMENSION)
+        min_dimension = get_config_value(
+            "global_settings",
+            "image_config",
+            "min_high_res_dimension",
+            default=HIGH_RES_DIMENSION,
         )
 
     if min_file_size is None:
-        min_file_size = (
-            CONFIG.get("global_settings", {})
-            .get("image_config", {})
-            .get("min_high_res_file_size", 10000)
+        min_file_size = get_config_value(
+            "global_settings",
+            "image_config",
+            "min_high_res_file_size",
+            default=10000,
         )
 
     validation_data = {
