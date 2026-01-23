@@ -20,6 +20,8 @@ from .constants import (
     VERY_HIGH_RES_DIMENSION,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def extract_high_res_images_botasaurus(
     driver: Driver, max_images: int = None, debug_options: dict = None
@@ -69,13 +71,7 @@ def extract_high_res_images_botasaurus(
     except Exception:
         high_res_threshold = HIGH_RES_DIMENSION
 
-    # Import DEBUG_MODE from main module
-    try:
-        from . import scraper
-
-        DEBUG_MODE = scraper.DEBUG_MODE
-    except Exception:
-        DEBUG_MODE = False
+    DEBUG_MODE = debug_options.get("debug_mode", False)
 
     if DEBUG_MODE:
         logger.info(
@@ -1287,20 +1283,9 @@ def validate_video_url_accessibility(url: str) -> bool:
     if not url or not isinstance(url, str):
         return False
 
-    # Import DEBUG_MODE from main module
-    try:
-        from . import scraper
-
-        DEBUG_MODE = scraper.DEBUG_MODE
-    except Exception:
-        DEBUG_MODE = False
-
     # Skip problematic URL types early
     if url.startswith(("blob:", "data:")) or not url.startswith("http"):
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(
-                f"❌ Skipping invalid URL type: {url[:50]}..."
-            )
+        logger.debug(f"Skipping invalid URL type: {url[:50]}...")
         return False
 
     try:
@@ -1377,36 +1362,26 @@ def validate_video_url_accessibility(url: str) -> bool:
         )
         is_accessible = response.status_code < 400
 
-        if DEBUG_MODE:
-            status_msg = f"HTTP {response.status_code}"
-            content_type = response.headers.get("content-type", "unknown")
-            if is_accessible:
-                logging.getLogger(__name__).debug(
-                    f"✅ Video URL accessible ({status_msg}, {content_type}): "
-                    f"{url[:60]}..."
-                )
-            else:
-                logging.getLogger(__name__).debug(
-                    f"❌ Video URL failed ({status_msg}): {url[:60]}..."
-                )
+        status_msg = f"HTTP {response.status_code}"
+        content_type = response.headers.get("content-type", "unknown")
+        if is_accessible:
+            logger.debug(
+                f"Video URL accessible ({status_msg}, {content_type}): "
+                f"{url[:60]}..."
+            )
+        else:
+            logger.debug(f"Video URL failed ({status_msg}): {url[:60]}...")
 
         return is_accessible
 
     except requests.exceptions.Timeout:
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(f"⏰ Video URL timeout: {url[:60]}...")
+        logger.debug(f"Video URL timeout: {url[:60]}...")
         return False
     except requests.exceptions.RequestException as e:
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(
-                f"❌ Video URL request failed ({type(e).__name__}): {url[:60]}..."
-            )
+        logger.debug(f"Video URL request failed ({type(e).__name__}): {url[:60]}...")
         return False
     except Exception as e:
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(
-                f"❌ Video URL validation error ({e}): {url[:60]}..."
-            )
+        logger.debug(f"Video URL validation error ({e}): {url[:60]}...")
         return False
 
 
@@ -1433,19 +1408,7 @@ def check_amazon_high_res_pattern(url: str, min_sl_size: int = None) -> bool:
             size = int(match.group(2))
             return size >= min_sl_size
         except (ValueError, IndexError):
-            # Import DEBUG_MODE from main module
-            try:
-                from . import scraper
-
-                DEBUG_MODE = scraper.DEBUG_MODE
-            except Exception:
-                DEBUG_MODE = False
-
-            if DEBUG_MODE:
-                logging.getLogger(__name__).debug(
-                    f"Regex matched but size extraction failed for URL: {url}"
-                )
-            pass
+            logger.debug(f"Regex matched but size extraction failed for URL: {url}")
     return False
 
 
@@ -1484,44 +1447,15 @@ def filter_amazon_fallback_image(url: str, min_sl_size: int = None) -> bool:
 
     # Exclude low-res patterns
     if re.search(r"\._(?:S[XYR]|UX|US|AC)\d{1,3}[_,.]", url):
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
-
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
-
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(f"Excluding low-res pattern image: {url}")
+        logger.debug(f"Excluding low-res pattern image: {url}")
         return False
 
     # Must be a valid image extension
     if not re.search(r"\.(jpg|jpeg|png|webp)$", url, re.IGNORECASE):
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
-
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
-
-        if DEBUG_MODE:
-            logging.getLogger(__name__).debug(
-                f"Excluding non-image file extension: {url}"
-            )
+        logger.debug(f"Excluding non-image file extension: {url}")
         return False
 
-    # Import DEBUG_MODE from main module
-    try:
-        from . import scraper
-
-        DEBUG_MODE = scraper.DEBUG_MODE
-    except Exception:
-        DEBUG_MODE = False
-
-    if DEBUG_MODE:
-        logging.getLogger(__name__).debug(f"Keeping filtered fallback image: {url}")
+    logger.debug(f"Keeping filtered fallback image: {url}")
     return True
 
 

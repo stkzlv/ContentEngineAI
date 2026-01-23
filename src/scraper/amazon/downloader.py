@@ -23,6 +23,8 @@ from .media_validator import (
     verify_video_file,
 )
 
+logger = logging.getLogger(__name__)
+
 # Get task configuration with custom output function
 _task_config = {
     "parallel": max(
@@ -519,14 +521,6 @@ def download_file_sync(
     """
     import time
 
-    # Import DEBUG_MODE from main module
-    try:
-        from . import scraper
-
-        DEBUG_MODE = scraper.DEBUG_MODE
-    except Exception:
-        DEBUG_MODE = False
-
     # Get config values for download
     try:
         download_config = CONFIG.get("global_settings", {}).get("download_config", {})
@@ -574,12 +568,10 @@ def download_file_sync(
     # Retry loop with exponential backoff
     for attempt in range(max_retries + 1):
         try:
-            if DEBUG_MODE and attempt > 0:
-                logging.getLogger(__name__).debug(
-                    f"🔄 Retry attempt {attempt}/{max_retries} for: {url}"
-                )
-            elif DEBUG_MODE:
-                logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
+            if attempt > 0:
+                logger.debug(f"Retry attempt {attempt}/{max_retries} for: {url}")
+            else:
+                logger.debug(f"Downloading: {url}")
 
             response = requests.get(
                 url,
@@ -599,17 +591,11 @@ def download_file_sync(
 
             # Verify file was created and has content
             if file_path.exists() and file_path.stat().st_size > 0:
-                if DEBUG_MODE:
-                    file_size = file_path.stat().st_size
-                    logging.getLogger(__name__).debug(
-                        f"✅ Downloaded {file_size} bytes to {file_path.name}"
-                    )
+                file_size = file_path.stat().st_size
+                logger.debug(f"Downloaded {file_size} bytes to {file_path.name}")
                 return True
             else:
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).warning(
-                        f"❌ File not created or empty: {file_path}"
-                    )
+                logger.debug(f"File not created or empty: {file_path}")
                 # Don't retry if file is empty
                 return False
 
@@ -619,10 +605,9 @@ def download_file_sync(
             requests.exceptions.ChunkedEncodingError,
         ) as e:
             # These are transient errors worth retrying
-            if DEBUG_MODE:
-                logging.getLogger(__name__).warning(
-                    f"⚠️ Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
-                )
+            logger.debug(
+                f"Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
+            )
 
             # Clean up partial file
             if file_path.exists():
@@ -631,24 +616,17 @@ def download_file_sync(
 
             # If this was the last attempt, fail
             if attempt >= max_retries:
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).error(
-                        f"❌ Download failed after {max_retries + 1} attempts: {url}"
-                    )
+                logger.debug(f"Download failed after {max_retries + 1} attempts: {url}")
                 return False
 
             # Exponential backoff: 1s, 2s, 4s...
             backoff_time = 2**attempt
-            if DEBUG_MODE:
-                logging.getLogger(__name__).debug(
-                    f"⏳ Waiting {backoff_time}s before retry..."
-                )
+            logger.debug(f"Waiting {backoff_time}s before retry...")
             time.sleep(backoff_time)
 
         except Exception as e:
             # Non-transient errors - don't retry
-            if DEBUG_MODE:
-                logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
+            logger.debug(f"Download failed for {url}: {e}")
             # Clean up partial file
             if file_path.exists():
                 with contextlib.suppress(Exception):
@@ -680,14 +658,6 @@ async def download_file_async(
         True if successful, False otherwise
 
     """
-    # Import DEBUG_MODE from main module
-    try:
-        from . import scraper
-
-        DEBUG_MODE = scraper.DEBUG_MODE
-    except Exception:
-        DEBUG_MODE = False
-
     # Get config values for download
     try:
         download_config = CONFIG.get("global_settings", {}).get("download_config", {})
@@ -735,12 +705,10 @@ async def download_file_async(
     # Retry loop with exponential backoff
     for attempt in range(max_retries + 1):
         try:
-            if DEBUG_MODE and attempt > 0:
-                logging.getLogger(__name__).debug(
-                    f"🔄 Retry attempt {attempt}/{max_retries} for: {url}"
-                )
-            elif DEBUG_MODE:
-                logging.getLogger(__name__).debug(f"📥 Downloading: {url}")
+            if attempt > 0:
+                logger.debug(f"Retry attempt {attempt}/{max_retries} for: {url}")
+            else:
+                logger.debug(f"Downloading: {url}")
 
             async with session.get(  # type: ignore[attr-defined]
                 url,
@@ -759,25 +727,18 @@ async def download_file_async(
 
             # Verify file was created and has content
             if file_path.exists() and file_path.stat().st_size > 0:
-                if DEBUG_MODE:
-                    file_size = file_path.stat().st_size
-                    logging.getLogger(__name__).debug(
-                        f"✅ Downloaded {file_size} bytes to {file_path.name}"
-                    )
+                file_size = file_path.stat().st_size
+                logger.debug(f"Downloaded {file_size} bytes to {file_path.name}")
                 return True
             else:
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).warning(
-                        f"❌ File not created or empty: {file_path}"
-                    )
+                logger.debug(f"File not created or empty: {file_path}")
                 return False
 
         except (TimeoutError, aiohttp.ClientError) as e:
             # These are transient errors worth retrying
-            if DEBUG_MODE:
-                logging.getLogger(__name__).warning(
-                    f"⚠️ Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
-                )
+            logger.debug(
+                f"Transient error on attempt {attempt + 1}/{max_retries + 1}: {e}"
+            )
 
             # Clean up partial file
             if file_path.exists():
@@ -786,24 +747,17 @@ async def download_file_async(
 
             # If this was the last attempt, fail
             if attempt >= max_retries:
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).error(
-                        f"❌ Download failed after {max_retries + 1} attempts: {url}"
-                    )
+                logger.debug(f"Download failed after {max_retries + 1} attempts: {url}")
                 return False
 
             # Exponential backoff: 1s, 2s, 4s...
             backoff_time = 2**attempt
-            if DEBUG_MODE:
-                logging.getLogger(__name__).debug(
-                    f"⏳ Waiting {backoff_time}s before retry..."
-                )
+            logger.debug(f"Waiting {backoff_time}s before retry...")
             await asyncio.sleep(backoff_time)
 
         except Exception as e:
             # Non-transient errors - don't retry
-            if DEBUG_MODE:
-                logging.getLogger(__name__).error(f"❌ Download failed for {url}: {e}")
+            logger.debug(f"Download failed for {url}: {e}")
             # Clean up partial file
             if file_path.exists():
                 with contextlib.suppress(Exception):

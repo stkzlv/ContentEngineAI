@@ -16,6 +16,8 @@ from typing import Any
 
 from botasaurus.browser import Driver
 
+logger = logging.getLogger(__name__)
+
 
 def exponential_backoff_retry(
     func: Callable,
@@ -71,14 +73,6 @@ def exponential_backoff_retry(
         )
         jitter_factor = global_config.get("jitter_factor", 0.5)
 
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
-
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
-
         last_exception: Exception | None = None
 
         for attempt in range(actual_max_retries + 1):
@@ -88,10 +82,7 @@ def exponential_backoff_retry(
                 last_exception = e
 
                 if attempt == actual_max_retries:
-                    if DEBUG_MODE:
-                        logging.getLogger(__name__).warning(
-                            f"❌ Final retry failed for {func.__name__}: {e}"
-                        )
+                    logger.debug(f"Final retry failed for {func.__name__}: {e}")
                     raise last_exception from None
 
                 # Calculate delay with exponential backoff
@@ -104,11 +95,10 @@ def exponential_backoff_retry(
                 if actual_jitter:
                     delay *= jitter_factor + random.random() * (1.0 - jitter_factor)  # noqa: S311
 
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).debug(
-                        f"🔄 Retry {attempt + 1}/{actual_max_retries} for "
-                        f"{func.__name__} in {delay:.2f}s: {e}"
-                    )
+                logger.debug(
+                    f"Retry {attempt + 1}/{actual_max_retries} for "
+                    f"{func.__name__} in {delay:.2f}s: {e}"
+                )
 
                 time.sleep(delay)
 

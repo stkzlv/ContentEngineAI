@@ -168,6 +168,10 @@ class BotasaurusAmazonScraper(BaseScraper):
                     f"(overriding config value: {original_debug_mode})"
                 )
 
+        # Store as instance variables to avoid global reads throughout methods
+        self.debug_mode = DEBUG_MODE
+        self.browser_config = _BROWSER_CONFIG
+
         self.logger = logging.getLogger(__name__)
 
         # Apply WebSocket filter to suppress harmless connection messages
@@ -180,7 +184,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         websocket_logger.setLevel(logging.WARNING)
 
         # Enhanced debug setup
-        if DEBUG_MODE:
+        if self.debug_mode:
             self.logger.setLevel(logging.DEBUG)
             self.logger.info(
                 "🐛 DEBUG MODE ENABLED - Enhanced logging and diagnostics active"
@@ -192,7 +196,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "min_high_res_dimension", HIGH_RES_DIMENSION
             )
             self.logger.info(f"🎯 Min High-Res Dimension: {min_high_res}")
-            self.logger.info(f"⚙️ Browser config: {_BROWSER_CONFIG}")
+            self.logger.info(f"⚙️ Browser config: {self.browser_config}")
         else:
             self.logger.setLevel(logging.INFO)
 
@@ -274,7 +278,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             remaining = target_count - len(validated_products)
             batch_size = min(remaining * prefetch_multiplier, max_batch_size)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
                     f"📊 Progress: {len(validated_products)}/{target_count} "
                     f"validated | Requesting {batch_size} more products..."
@@ -295,7 +299,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             total_scraped += len(batch)
             validated_products.extend(batch)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
                     f"✅ Batch complete: +{len(batch)} validated products "
                     f"(total: {len(validated_products)}/{target_count})"
@@ -341,21 +345,21 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "keyword": keyword,
                 "is_asin": self._is_asin(keyword),
                 "search_params": search_params,
-                "debug_mode": DEBUG_MODE,
+                "debug_mode": self.debug_mode,
                 "debug_options": self.debug_options,
                 "max_products": products_limit,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
-            if DEBUG_MODE:
+            if self.debug_mode:
                 print(
                     f"🔧 [DEBUG] Creating dynamic browser function with "
-                    f"DEBUG_MODE={DEBUG_MODE}"
+                    f"DEBUG_MODE={self.debug_mode}"
                 )
 
             try:
-                browser_func = create_dynamic_browser_function(DEBUG_MODE)
-                if DEBUG_MODE:
+                browser_func = create_dynamic_browser_function(self.debug_mode)
+                if self.debug_mode:
                     print(f"🔧 [DEBUG] browser_func type: {type(browser_func)}")
                     print(f"🔧 [DEBUG] browser_func: {browser_func}")
                     print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
@@ -365,7 +369,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     f"{len(results) if results else 0} products"
                 )
             except Exception as e:
-                if DEBUG_MODE:
+                if self.debug_mode:
                     print(f"❌ [DEBUG] Error in browser function: {e}")
                     import traceback
 
@@ -374,7 +378,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             # Start media downloads for scraped products
             if results:
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.info(
                         f"🚀 Starting media downloads for {len(results)} products"
                     )
@@ -384,14 +388,14 @@ class BotasaurusAmazonScraper(BaseScraper):
                 for result in results:
                     # Ensure result is a dictionary (graceful error handling)
                     if not isinstance(result, dict):
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.warning(
                                 f"⚠️ Skipping non-dict result in media orchestration: "
                                 f"{type(result)}"
                             )
                         continue
 
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.debug(
                             f"📋 Checking product: ASIN={result.get('asin')}, "
                             f"images={len(result.get('images', []))}, "
@@ -407,10 +411,10 @@ class BotasaurusAmazonScraper(BaseScraper):
                                 "images": result.get("images", []),
                                 "videos": result.get("videos", []),
                                 "platform": "amazon",
-                                "debug_mode": DEBUG_MODE,
+                                "debug_mode": self.debug_mode,
                             }
                         )
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.info(
                                 f"✅ Added {result['asin']} to media download queue"
                             )
@@ -420,7 +424,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     target_download_count is not None
                     and len(media_download_tasks) > target_download_count
                 ):
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         task_count = len(media_download_tasks)
                         self.logger.info(
                             f"📉 Limiting downloads: {task_count} -> "
@@ -428,7 +432,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         )
                     media_download_tasks = media_download_tasks[:target_download_count]
 
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.info(
                         f"📦 Total media download tasks prepared: "
                         f"{len(media_download_tasks)}"
@@ -440,7 +444,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     media_download_success = 0
                     media_download_partial = 0
 
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.info(
                             f"🚀 [MEDIA ORCHESTRATION] Starting media downloads for "
                             f"{len(media_download_tasks)} products"
@@ -454,7 +458,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
                     try:
                         # Execute media downloads and get results
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.info(
                                 f"🔄 [MEDIA ORCHESTRATION] Calling "
                                 f"download_media_files with "
@@ -466,7 +470,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         # batching issues
                         download_results = []
                         for task in media_download_tasks:
-                            if DEBUG_MODE:
+                            if self.debug_mode:
                                 self.logger.info(
                                     f"🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: "
                                     f"{task['asin']}"
@@ -480,7 +484,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                                 download_results.append(result)
 
                         # Debug: show raw results structure with verbose logging
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             print("\n=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")
                             print(f"Type: {type(download_results)}")
                             length_str = (
@@ -504,7 +508,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
                         # Create mapping for easy lookup with error handling
                         download_map = {}
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             length_str = (
                                 len(download_results)
                                 if isinstance(download_results, list)
@@ -518,7 +522,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         # Process Botasaurus @task results - when input is a list,
                         # output is a list of results (one per input item)
                         for i, result in enumerate(download_results):
-                            if DEBUG_MODE:
+                            if self.debug_mode:
                                 self.logger.debug(
                                     f"🐛 [DEBUG] Processing result {i}: "
                                     f"type={type(result)}"
@@ -527,7 +531,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                             if isinstance(result, dict) and result.get("asin"):
                                 asin = result.get("asin")
                                 download_map[asin] = result
-                                if DEBUG_MODE:
+                                if self.debug_mode:
                                     img_count = len(result.get("downloaded_images", []))
                                     vid_count = len(result.get("downloaded_videos", []))
                                     self.logger.debug(
@@ -535,7 +539,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                                         f"{asin} "
                                         f"(images: {img_count}, videos: {vid_count})"
                                     )
-                            elif DEBUG_MODE:
+                            elif self.debug_mode:
                                 # Get result preview length from config
                                 debug_config = CONFIG.get("global_settings", {}).get(
                                     "debug_config", {}
@@ -568,14 +572,14 @@ class BotasaurusAmazonScraper(BaseScraper):
 
                                 if total_images > 0 or total_videos > 0:
                                     media_download_success += 1
-                                    if DEBUG_MODE:
+                                    if self.debug_mode:
                                         self.logger.info(
                                             f"📁 ASIN {asin}: {total_images} images, "
                                             f"{total_videos} videos downloaded"
                                         )
                                 else:
                                     media_download_partial += 1
-                                    if DEBUG_MODE:
+                                    if self.debug_mode:
                                         self.logger.debug(
                                             f"📁 ASIN {asin}: Media extraction "
                                             f"attempted but no files downloaded"
@@ -587,7 +591,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                                 result["downloaded_videos"] = []
                                 media_download_partial += 1
 
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.info(
                                 f"📊 Media download summary: {media_download_success} "
                                 f"successful, {media_download_partial} partial/failed"
@@ -643,7 +647,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             products_with_media = []
             products_without_media = []
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
                     "🔍 [FINAL VERIFICATION] Checking scraped products and "
                     "media files..."
@@ -681,7 +685,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 img_count = len(actual_images)
                 vid_count = len(actual_videos)
 
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.info(
                         f"🔍 [FINAL VERIFICATION] Product {i+1}: ASIN={product.asin}, "
                         f"Actual files on disk: {img_count} images, {vid_count} videos"
@@ -726,7 +730,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
                 if meets_requirements:
                     products_with_media.append(product)
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.info(
                             f"✅ [FINAL VERIFICATION] Product {product.asin} meets "
                             f"producer requirements: {img_count} images, "
@@ -743,19 +747,19 @@ class BotasaurusAmazonScraper(BaseScraper):
                         product_dir = get_product_directory(product.asin or "unknown")
                         if product_dir.exists():
                             shutil.rmtree(product_dir)
-                            if DEBUG_MODE:
+                            if self.debug_mode:
                                 self.logger.info(
                                     f"🧹 Cleaned up product directory for filtered "
                                     f"product: {product.asin}"
                                 )
                     except Exception as cleanup_error:
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.warning(
                                 f"Could not clean up directory for {product.asin}: "
                                 f"{cleanup_error}"
                             )
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 if count_products_with_media:
                     if len(products_with_media) == max_products:
                         self.logger.info(
@@ -779,7 +783,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             # Return filtered or all products based on filter_validated parameter
             final_products = products_with_media if filter_validated else products
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
                     f"Completed single pass: {len(final_products)} products "
                     f"({len(products_without_media)} filtered out)"
@@ -852,12 +856,12 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _scrape_with_retry(self, browser_func, data):
         """Scrape with retry logic for Amazon error pages"""
         try:
-            if DEBUG_MODE:
+            if self.debug_mode:
                 print("🔄 [DEBUG] Attempting scrape with retry logic")
             return browser_func(data)
         except RuntimeError as e:
             if "Amazon error page detected" in str(e):
-                if DEBUG_MODE:
+                if self.debug_mode:
                     print(f"🔄 [DEBUG] Caught Amazon error page, will retry: {e}")
                 raise  # Will trigger retry
             else:
@@ -872,7 +876,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             config_path = project_root / "config/url_shortener.yaml"
 
             if not config_path.exists():
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.debug("URL shortener config not found, skipping")
                 return
 
@@ -886,7 +890,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             if not url_config.get("enabled", False) or not integration_config.get(
                 "shorten_on_scrape", False
             ):
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.debug("URL shortening disabled, skipping")
                 return
 
@@ -906,7 +910,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             api_key_env_var = provider_config.get("api_key_env_var", "PICSEE_API_KEY")
             api_key = os.getenv(api_key_env_var)
             if not api_key:
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.warning(
                         f"{api_key_env_var} not found, skipping URL shortening"
                     )
@@ -929,7 +933,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             retry_delay = api_config.get("retry_delay_sec", 2.0)
             retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
                     f"🔗 Shortening {len(products)} affiliate links using {provider}"
                 )
@@ -964,7 +968,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     try:
                         result = await shortener.shorten(product.affiliate_link)
                         product.shortened_affiliate_link = result.short_url
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.info(
                                 f"✅ Shortened: {product.asin} -> {result.short_url}"
                             )
@@ -989,7 +993,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # No event loop running, safe to use asyncio.run()
                 asyncio.run(shorten_all())
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
                 self.logger.info(
                     f"✅ Shortened {shortened_count}/{len(products)} affiliate links"
@@ -1005,7 +1009,7 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _save_products(self, products: list[ProductData]) -> None:
         """Save scraped products to product-centric JSON structure"""
         if not products:
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info("⚠️ No products to save")
             return
 
@@ -1022,7 +1026,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             product_dict = self._product_to_dict(product)
             product_dicts.append(product_dict)
 
-        if DEBUG_MODE:
+        if self.debug_mode:
             self.logger.info(f"📄 Saving {len(product_dicts)} products manually")
 
         # Call the output function directly
@@ -1059,19 +1063,19 @@ class BotasaurusAmazonScraper(BaseScraper):
             if hasattr(self, "_browser_func"):
                 try:
                     self._browser_func.close()
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.info("🧹 Browser instances cleaned up")
                 except Exception as e:
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.debug(f"Browser cleanup warning: {e}")
 
             # Clean up media download tasks
             try:
                 download_media_files.close()
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.info("🧹 Media download tasks cleaned up")
             except Exception as e:
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.debug(f"Media download cleanup warning: {e}")
 
         except Exception as e:
