@@ -54,8 +54,8 @@ async def convert_m3u8_to_mp4(
             str(output_path),
         ]
 
-        logger.info(f"🎬 Converting m3u8 to mp4: {output_path.name}")
-        logger.debug(f"   Command: {' '.join(cmd)}")
+        logger.info("🎬 Converting m3u8 to mp4: %s", output_path.name)
+        logger.debug("   Command: %s", ' '.join(cmd))
 
         # Run ffmpeg with timeout using async subprocess
         process = await asyncio.create_subprocess_exec(
@@ -71,21 +71,21 @@ async def convert_m3u8_to_mp4(
 
             if process.returncode == 0:
                 logger.info(
-                    f"✅ Successfully converted to MP4: {output_path.name}"
+                    "✅ Successfully converted to MP4: %s", output_path.name
                 )
                 return True
             else:
                 logger.error(
-                    f"❌ FFmpeg conversion failed with code "
-                    f"{process.returncode}"
+                    "❌ FFmpeg conversion failed with code %s",
+                    process.returncode
                 )
                 stderr_text = stderr.decode("utf-8", errors="ignore")[:500]
-                logger.error(f"   stderr: {stderr_text}")
+                logger.error("   stderr: %s", stderr_text)
                 return False
 
         except TimeoutError:
             logger.error(
-                f"❌ FFmpeg conversion timed out after {timeout}s"
+                "❌ FFmpeg conversion timed out after %ds", timeout
             )
             process.kill()
             await process.wait()
@@ -97,7 +97,7 @@ async def convert_m3u8_to_mp4(
         )
         return False
     except Exception as e:
-        logger.error(f"❌ Unexpected error during m3u8 conversion: {e}")
+        logger.error("❌ Unexpected error during m3u8 conversion: %s", e)
         return False
 
 
@@ -174,10 +174,10 @@ async def download_file_async(
         try:
             if attempt > 0:
                 logger.debug(
-                    f"Retry attempt {attempt}/{max_retries} for: {url}"
+                    "Retry attempt %d/%d for: %s", attempt, max_retries, url
                 )
             else:
-                logger.debug(f"Downloading: {url}")
+                logger.debug("Downloading: %s", url)
 
             async with session.get(  # type: ignore[attr-defined]
                 url,
@@ -200,18 +200,18 @@ async def download_file_async(
             if file_path.exists() and file_path.stat().st_size > 0:
                 file_size = file_path.stat().st_size
                 logger.debug(
-                    f"Downloaded {file_size} bytes to {file_path.name}"
+                    "Downloaded %d bytes to %s", file_size, file_path.name
                 )
                 return True
             else:
-                logger.debug(f"File not created or empty: {file_path}")
+                logger.debug("File not created or empty: %s", file_path)
                 return False
 
         except (TimeoutError, aiohttp.ClientError) as e:
             # These are transient errors worth retrying
             logger.debug(
-                f"Transient error on attempt "
-                f"{attempt + 1}/{max_retries + 1}: {e}"
+                "Transient error on attempt %d/%d: %s",
+                attempt + 1, max_retries + 1, e
             )
 
             # Clean up partial file
@@ -222,19 +222,19 @@ async def download_file_async(
             # If this was the last attempt, fail
             if attempt >= max_retries:
                 logger.debug(
-                    f"Download failed after {max_retries + 1} "
-                    f"attempts: {url}"
+                    "Download failed after %d attempts: %s",
+                    max_retries + 1, url
                 )
                 return False
 
             # Exponential backoff: 1s, 2s, 4s...
             backoff_time = 2**attempt
-            logger.debug(f"Waiting {backoff_time}s before retry...")
+            logger.debug("Waiting %ds before retry...", backoff_time)
             await asyncio.sleep(backoff_time)
 
         except Exception as e:
             # Non-transient errors - don't retry
-            logger.debug(f"Download failed for {url}: {e}")
+            logger.debug("Download failed for %s: %s", url, e)
             # Clean up partial file
             if file_path.exists():
                 with contextlib.suppress(Exception):
@@ -292,8 +292,8 @@ async def _download_media_async(
         if image_urls:
             if debug_mode:
                 logger.info(
-                    f"🖼️ [IMAGE DOWNLOAD] Processing "
-                    f"{len(image_urls)} images"
+                    "🖼️ [IMAGE DOWNLOAD] Processing %d images",
+                    len(image_urls)
                 )
 
             async def download_single_image(
@@ -354,15 +354,15 @@ async def _download_media_async(
                                     f"{dimensions[0]}x{dimensions[1]}"
                                 )
                                 logger.info(
-                                    f"✅ [IMAGE] {filename} "
-                                    f"({file_size} bytes, {dim_str})"
+                                    "✅ [IMAGE] %s (%s bytes, %s)",
+                                    filename, file_size, dim_str
                                 )
                             return relative_path
                         else:
                             with contextlib.suppress(Exception):
                                 file_path.unlink()
                 except Exception as e:
-                    logger.warning(f"❌ [IMAGE] Failed {i+1}: {e}")
+                    logger.warning("❌ [IMAGE] Failed %d: %s", i + 1, e)
                 return None
 
             # Download images concurrently with semaphore
@@ -396,8 +396,8 @@ async def _download_media_async(
                 )
                 mp4_count = len(video_urls) - m3u8_count
                 logger.info(
-                    f"🎥 [VIDEO] Processing {len(video_urls)} videos "
-                    f"(M3U8: {m3u8_count}, MP4: {mp4_count})"
+                    "🎥 [VIDEO] Processing %d videos (M3U8: %d, MP4: %d)",
+                    len(video_urls), m3u8_count, mp4_count
                 )
 
             async def download_single_video(
@@ -454,15 +454,15 @@ async def _download_media_async(
                                     )
                                 )
                                 logger.info(
-                                    f"✅ [VIDEO] {filename} "
-                                    f"({file_size} bytes, {duration}s)"
+                                    "✅ [VIDEO] %s (%s bytes, %ss)",
+                                    filename, file_size, duration
                                 )
                             return relative_path
                         else:
                             with contextlib.suppress(Exception):
                                 file_path.unlink()
                 except Exception as e:
-                    logger.warning(f"❌ [VIDEO] Failed {i+1}: {e}")
+                    logger.warning("❌ [VIDEO] Failed %d: %s", i + 1, e)
                 return None
 
             # Download videos concurrently with semaphore

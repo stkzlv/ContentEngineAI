@@ -53,7 +53,7 @@ poetry run python tools/performance_report.py --report-type summary
 
 - Use Poetry for dependency management
 - Use imperative commit messages (e.g., "Add subtitle generation")
-- **Never mention Claude Code or AI tools in git commit messages**
+- **NEVER mention Claude Code, AI tools, or assistants in commits/PRs — no `Co-Authored-By`, no AI references anywhere**
 - Document project status in relevant documentation files
 - Create implementation plans for features/fixes before coding
 
@@ -69,14 +69,12 @@ poetry run python tools/performance_report.py --report-type summary
 **Commit Messages**:
 - Use imperative mood (e.g., "Add feature", not "Added feature" or "Adds feature")
 - Keep first line under 50 characters
-- **Never mention authors** in commit messages
-- **Never mention Claude Code, AI tools, or assistants** in commit messages
+- **CRITICAL: NEVER include `Co-Authored-By` trailers, author attributions, or any mention of Claude Code / AI tools / assistants**
 - Keep messages short and simple
 - Explain what and why, not how
 
 **Pull Request Descriptions**:
-- **Never mention authors** in PR descriptions
-- **Never mention Claude Code, AI tools, or assistants** in PR descriptions
+- **CRITICAL: NEVER mention authors, Claude Code, AI tools, or assistants in PR titles or descriptions**
 - Keep descriptions short and simple
 - Use PR template if available in `.github/`
 - Focus on what changed, why it changed, and how to test

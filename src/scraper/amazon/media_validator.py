@@ -42,7 +42,7 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
     """
     try:
         if not file_path.exists():
-            logger.warning(f"Video file does not exist: {file_path}")
+            logger.warning("Video file does not exist: %s", file_path)
             return None
 
         cmd = [
@@ -69,13 +69,13 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         if result.returncode != 0:
-            logger.warning(f"FFprobe failed for {file_path}: {result.stderr}")
+            logger.warning("FFprobe failed for %s: %s", file_path, result.stderr)
             return None
 
         try:
             probe_data = json.loads(result.stdout)
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse FFprobe output for {file_path}: {e}")
+            logger.warning("Failed to parse FFprobe output for %s: %s", file_path, e)
             return None
 
         streams = probe_data.get("streams", [])
@@ -85,7 +85,7 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
         audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
 
         if not video_streams:
-            logger.warning(f"No video streams found in {file_path}")
+            logger.warning("No video streams found in %s", file_path)
             return None
 
         video_stream = video_streams[0]
@@ -113,7 +113,7 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
         format_name = format_info.get("format_name", "unknown")
 
         if duration is None or width is None or height is None or codec is None:
-            logger.warning(f"Incomplete metadata for {file_path}")
+            logger.warning("Incomplete metadata for %s", file_path)
             return None
 
         metadata = {
@@ -129,13 +129,13 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
         return metadata
 
     except subprocess.TimeoutExpired:
-        logger.warning(f"FFprobe timeout for {file_path}")
+        logger.warning("FFprobe timeout for %s", file_path)
         return None
     except subprocess.SubprocessError as e:
-        logger.warning(f"FFprobe subprocess error for {file_path}: {e}")
+        logger.warning("FFprobe subprocess error for %s: %s", file_path, e)
         return None
     except Exception as e:
-        logger.warning(f"Unexpected error extracting metadata from {file_path}: {e}")
+        logger.warning("Unexpected error extracting metadata from %s: %s", file_path, e)
         return None
 
 
@@ -537,7 +537,7 @@ def verify_video_file(
         elif is_valid:
             # Log warning only if validation passed but metadata extraction failed
             logger.debug(
-                f"Validation passed but metadata extraction failed for {file_path}"
+                "Validation passed but metadata extraction failed for %s", file_path
             )
 
     return MediaValidationResult(file_path, is_valid, validation_data, issues, metadata)
@@ -711,9 +711,9 @@ def generate_validation_report(
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, "w") as f:
                 json.dump(report, f, indent=2, default=str)
-            logger.info(f"Validation report saved to {output_path}")
+            logger.info("Validation report saved to %s", output_path)
         except Exception as e:
-            logger.error(f"Failed to save validation report: {e}")
+            logger.error("Failed to save validation report: %s", e)
 
     return report
 

@@ -20,7 +20,7 @@ How to verify these changes work
 ```
 
 ## Rules
-- Never mention authors or AI tools
+- **CRITICAL: NEVER mention authors, Claude Code, AI tools, assistants, or include `Co-Authored-By` in any form**
 - Keep description short and simple
 - Explain what and why, not how
 - Reference issues if applicable (e.g., "Fixes #123")

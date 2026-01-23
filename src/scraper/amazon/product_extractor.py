@@ -151,12 +151,12 @@ def extract_product_data_from_page(
             return None
 
         # ONLY extract media for valid products
-        logger.info(f"Extracting images for {asin}")
+        logger.info("Extracting images for %s", asin)
         images = extract_high_res_images_botasaurus(
             driver, debug_options=debug_options
         )
 
-        logger.info(f"Extracting videos for {asin}")
+        logger.info("Extracting videos for %s", asin)
         videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
 
         # Build product data

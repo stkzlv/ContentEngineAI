@@ -31,7 +31,7 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
             else "unknown"
         )
 
-        logger.info(f"🔬 [ADVANCED DEBUG] Starting advanced analysis for ASIN: {asin}")
+        logger.info("[ADVANCED DEBUG] Starting advanced analysis for ASIN: %s", asin)
 
         # 1. Save page source if requested
         if debug_options.get("save_page_source"):
@@ -40,9 +40,9 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
                 source_file = debug_dir / f"{asin}_page_source.html"
                 with open(source_file, "w", encoding="utf-8") as f:
                     f.write(page_source)
-                logger.info(f"📄 Saved page source to: {source_file}")
+                logger.info("Saved page source to: %s", source_file)
             except Exception as e:
-                logger.warning(f"⚠️ Failed to save page source: {e}")
+                logger.warning("Failed to save page source: %s", e)
 
         # 2. Take screenshots if requested (controlled by config)
         try:
@@ -58,9 +58,9 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
             try:
                 screenshot_file = debug_dir / f"{asin}_screenshot.png"
                 driver.save_screenshot(str(screenshot_file))
-                logger.info(f"📸 Saved screenshot to: {screenshot_file}")
+                logger.info("Saved screenshot to: %s", screenshot_file)
             except Exception as e:
-                logger.warning(f"⚠️ Failed to save screenshot: {e}")
+                logger.warning("Failed to save screenshot: %s", e)
 
         # 3. Deep image analysis if requested
         if debug_options.get("analyze_images"):
@@ -71,7 +71,7 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
             _dump_all_image_urls(driver, asin, debug_dir, logger)
 
     except Exception as e:
-        logger.error(f"❌ Advanced debug analysis failed: {e}")
+        logger.error("Advanced debug analysis failed: %s", e)
 
 
 def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, logger):
@@ -116,7 +116,7 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
                 analysis_results.append(img_data)
 
             except Exception as e:
-                logger.warning(f"⚠️ Error analyzing image {i}: {e}")
+                logger.warning("Error analyzing image %d: %s", i, e)
 
         # Save analysis results
         analysis_file = debug_dir / f"{asin}_image_analysis.json"
@@ -131,14 +131,14 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
             if any(img.get("resolution_indicators", {}).values())
         ]
 
-        logger.info(f"📊 [DEEP ANALYSIS] Found {len(all_imgs)} total images")
+        logger.info("[DEEP ANALYSIS] Found %d total images", len(all_imgs))
         logger.info(
-            f"📊 [DEEP ANALYSIS] Found {len(amazon_images)} Amazon media images"
+            "[DEEP ANALYSIS] Found %d Amazon media images", len(amazon_images)
         )
         logger.info(
-            f"📊 [DEEP ANALYSIS] Found {len(high_res_images)} potential high-res images"
+            "[DEEP ANALYSIS] Found %d potential high-res images", len(high_res_images)
         )
-        logger.info(f"📄 [DEEP ANALYSIS] Detailed analysis saved to: {analysis_file}")
+        logger.info("[DEEP ANALYSIS] Detailed analysis saved to: %s", analysis_file)
 
         # Log high-res image candidates
         for img in high_res_images:
@@ -147,12 +147,12 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
                 k for k, v in img.get("resolution_indicators", {}).items() if v
             ]
             logger.info(
-                f"🎯 [HIGH-RES CANDIDATE] {src[:80]}... "
-                f"(indicators: {', '.join(indicators)})"
+                "[HIGH-RES CANDIDATE] %s... (indicators: %s)",
+                src[:80], ", ".join(indicators),
             )
 
     except Exception as e:
-        logger.error(f"❌ Deep image analysis failed: {e}")
+        logger.error("Deep image analysis failed: %s", e)
 
 
 def _dump_all_image_urls(driver: Driver, asin: str, debug_dir: Path, logger):
@@ -200,7 +200,7 @@ def _dump_all_image_urls(driver: Driver, asin: str, debug_dir: Path, logger):
                     all_urls.add((f"js_{source_type}", data_str))
 
         except Exception as e:
-            logger.debug(f"JS image data extraction failed: {e}")
+            logger.debug("JS image data extraction failed: %s", e)
 
         # Save all URLs
         urls_file = debug_dir / f"{asin}_all_image_urls.txt"
@@ -211,7 +211,7 @@ def _dump_all_image_urls(driver: Driver, asin: str, debug_dir: Path, logger):
             for source_type, url in sorted(all_urls):
                 f.write(f"[{source_type}] {url}\n")
 
-        logger.info(f"📝 [URL DUMP] Saved {len(all_urls)} URLs to: {urls_file}")
+        logger.info("[URL DUMP] Saved %d URLs to: %s", len(all_urls), urls_file)
 
         # Filter and log Amazon high-res URLs
         amazon_urls = [
@@ -224,10 +224,10 @@ def _dump_all_image_urls(driver: Driver, asin: str, debug_dir: Path, logger):
         ]
 
         logger.info(
-            f"🎯 [URL DUMP] Found {len(amazon_urls)} potential high-res Amazon URLs:"
+            "[URL DUMP] Found %d potential high-res Amazon URLs:", len(amazon_urls)
         )
         for url in amazon_urls:
-            logger.info(f"   • {url}")
+            logger.info("   - %s", url)
 
     except Exception as e:
-        logger.error(f"❌ URL dump failed: {e}")
+        logger.error("URL dump failed: %s", e)

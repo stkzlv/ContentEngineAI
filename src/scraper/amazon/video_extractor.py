@@ -58,32 +58,32 @@ def capture_m3u8_urls_from_network(
                     seen_urls.add(url)
 
                     if debug:
-                        logger.info(f"✅ Found m3u8 URL: {url[:100]}...")
+                        logger.info("Found m3u8 URL: %s...", url[:100])
             except Exception as e:
                 if debug:
-                    logger.debug(f"Error in response handler: {e}")
+                    logger.debug("Error in response handler: %s", e)
 
         # Register response handler
         driver.after_response_received(capture_m3u8_handler)
 
         if debug:
-            logger.info(f"🔍 Monitoring network traffic for {timeout} seconds...")
+            logger.info("Monitoring network traffic for %d seconds...", timeout)
 
         # Wait for video to load and network requests to fire
         time.sleep(timeout)
 
         if debug:
-            logger.info(f"🎯 Captured {len(m3u8_urls)} m3u8 URLs from network traffic")
+            logger.info("Captured %d m3u8 URLs from network traffic", len(m3u8_urls))
 
         return m3u8_urls
 
     except AttributeError as e:
         # Botasaurus might not have after_response_received method
         if debug:
-            logger.warning(f"Network monitoring not available: {e}")
+            logger.warning("Network monitoring not available: %s", e)
         return []
     except Exception as e:
-        logger.error(f"Failed to capture network traffic: {e}")
+        logger.error("Failed to capture network traffic: %s", e)
         return []
 
 
@@ -124,12 +124,12 @@ def extract_functional_videos_with_validation(
 
     # Always log to verify function is called
     logger.info(
-        f"🎥 extract_functional_videos_with_validation called "
-        f"(max: {max_videos}, DEBUG={DEBUG_MODE})"
+        "extract_functional_videos_with_validation called (max: %d, DEBUG=%s)",
+        max_videos, DEBUG_MODE,
     )
 
     if DEBUG_MODE:
-        logger.info(f"🎥 Using systematic video extraction (max: {max_videos} videos)")
+        logger.info("Using systematic video extraction (max: %d videos)", max_videos)
 
     video_urls: list[str] = []
 
@@ -193,10 +193,10 @@ def extract_functional_videos_with_validation(
             return []
 
         if DEBUG_MODE:
-            logger.info(f"🔍 Current product ASIN: {current_asin}")
-            logger.info(f"🏷️ Product brand: {product_brand}")
-            logger.info(f"🔤 Product model: {product_model}")
-            logger.info(f"🔑 Product keywords: {product_keywords}")
+            logger.info("Current product ASIN: %s", current_asin)
+            logger.info("Product brand: %s", product_brand)
+            logger.info("Product model: %s", product_model)
+            logger.info("Product keywords: %s", product_keywords)
 
         # Method 1: JavaScript extraction from page data (same as images)
         if DEBUG_MODE:
@@ -463,9 +463,8 @@ def extract_functional_videos_with_validation(
 
                 if DEBUG_MODE:
                     logger.info(
-                        f"📊 Method 1 found: {len(direct_videos)} direct videos, "
-                        f"{len(vdp_links)} VDP links, "
-                        f"{len(video_thumbnails)} thumbnails"
+                        "Method 1 found: %d direct videos, %d VDP links, %d thumbnails",
+                        len(direct_videos), len(vdp_links), len(video_thumbnails),
                     )
 
                 # Method 1 direct video extraction with isValidProductVideo() filtering
@@ -474,8 +473,9 @@ def extract_functional_videos_with_validation(
                     if len(video_urls) >= max_videos:
                         if DEBUG_MODE:
                             logger.info(
-                                f"🛑 Method 1: Reached video limit "
-                                f"({len(video_urls)}/{max_videos}), stopping extraction"
+                                "Method 1: Reached video limit (%d/%d),"
+                                " stopping extraction",
+                                len(video_urls), max_videos,
                             )
                         break
                     if (
@@ -486,7 +486,7 @@ def extract_functional_videos_with_validation(
                         video_urls.append(url)
                         if DEBUG_MODE:
                             logger.info(
-                                f"✅ Method 1 found direct video: {url[:80]}..."
+                                "Method 1 found direct video: %s...", url[:80]
                             )
 
                 # DISABLED: VDP links also pick up comparison videos
@@ -500,11 +500,11 @@ def extract_functional_videos_with_validation(
 
         except Exception as e:
             if DEBUG_MODE:
-                logger.warning(f"⚠️ Method 1 failed: {e}")
+                logger.warning("Method 1 failed: %s", e)
 
         # Method 2: Strategic thumbnail clicking (same approach as images)
         logger.info(
-            f"🖱️ Method 2 check: {len(video_urls)} videos so far, " f"max={max_videos}"
+            "Method 2 check: %d videos so far, max=%d", len(video_urls), max_videos
         )
         if len(video_urls) < max_videos:
             logger.info(
@@ -572,7 +572,7 @@ def extract_functional_videos_with_validation(
                         else:
                             logger.warning("⚠️ No video thumbnail found")
                     except Exception as e:
-                        logger.warning(f"Failed to trigger video player: {e}")
+                        logger.warning("Failed to trigger video player: %s", e)
 
                     # Capture m3u8 URLs from network traffic
                     try:
@@ -591,9 +591,9 @@ def extract_functional_videos_with_validation(
                                 if len(video_urls) >= max_videos:
                                     if DEBUG_MODE:
                                         logger.info(
-                                            f"🛑 Method 2: Reached video limit "
-                                            f"({len(video_urls)}/{max_videos}), "
-                                            f"stopping network capture"
+                                            "Method 2: Reached video limit (%d/%d), "
+                                            "stopping network capture",
+                                            len(video_urls), max_videos,
                                         )
                                     break
 
@@ -601,8 +601,8 @@ def extract_functional_videos_with_validation(
                                     video_urls.append(m3u8_url)
                                     if DEBUG_MODE:
                                         logger.info(
-                                            f"✅ Captured m3u8 URL from network: "
-                                            f"{m3u8_url[:80]}..."
+                                            "Captured m3u8 URL from network: %s...",
+                                            m3u8_url[:80],
                                         )
                         else:
                             logger.warning(
@@ -611,11 +611,11 @@ def extract_functional_videos_with_validation(
 
                     except Exception as e:
                         if DEBUG_MODE:
-                            logger.warning(f"⚠️ Method 2 network capture failed: {e}")
+                            logger.warning("Method 2 network capture failed: %s", e)
 
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.warning(f"⚠️ Method 2 failed: {e}")
+                    logger.warning("Method 2 failed: %s", e)
 
         # Method 3: Direct element extraction with DOM context filtering
         if len(video_urls) < max_videos:
@@ -712,14 +712,14 @@ def extract_functional_videos_with_validation(
 
                         if not result and DEBUG_MODE:
                             logger.debug(
-                                f"❌ Video rejected (not in product gallery): "
-                                f"{video_src[:80]}..."
+                                "Video rejected (not in product gallery): %s...",
+                                video_src[:80],
                             )
 
                         return bool(result)
                     except Exception as e:
                         if DEBUG_MODE:
-                            logger.debug(f"Context check failed: {e}")
+                            logger.debug("Context check failed: %s", e)
                         return False
 
                 # Find video elements directly
@@ -728,9 +728,9 @@ def extract_functional_videos_with_validation(
                     if len(video_urls) >= max_videos:
                         if DEBUG_MODE:
                             logger.info(
-                                f"🛑 Method 3a: Reached video limit "
-                                f"({len(video_urls)}/{max_videos}), stopping "
-                                f"video element extraction"
+                                "Method 3a: Reached video limit (%d/%d), stopping "
+                                "video element extraction",
+                                len(video_urls), max_videos,
                             )
                         break
 
@@ -747,13 +747,13 @@ def extract_functional_videos_with_validation(
                             video_urls.append(src)
                             if DEBUG_MODE:
                                 logger.info(
-                                    f"✅ Method 3 found product gallery video: "
-                                    f"{src[:80]}..."
+                                    "Method 3 found product gallery video: %s...",
+                                    src[:80],
                                 )
                         elif DEBUG_MODE:
                             logger.debug(
-                                f"❌ Video rejected (not in product gallery): "
-                                f"{src[:80]}..."
+                                "Video rejected (not in product gallery): %s...",
+                                src[:80],
                             )
 
                 # Check for embedded video URLs in visible elements
@@ -764,9 +764,9 @@ def extract_functional_videos_with_validation(
                     if len(video_urls) >= max_videos:
                         if DEBUG_MODE:
                             logger.info(
-                                f"🛑 Method 3b: Reached video limit "
-                                f"({len(video_urls)}/{max_videos}), stopping "
-                                f"container extraction"
+                                "Method 3b: Reached video limit (%d/%d), stopping "
+                                "container extraction",
+                                len(video_urls), max_videos,
                             )
                         break
 
@@ -784,22 +784,23 @@ def extract_functional_videos_with_validation(
                             video_urls.append(video_url)
                             if DEBUG_MODE:
                                 logger.info(
-                                    f"✅ Method 3 found product gallery "
-                                    f"container video: {video_url[:80]}..."
+                                    "Method 3 found product gallery"
+                                    " container video: %s...",
+                                    video_url[:80],
                                 )
                         elif DEBUG_MODE:
                             logger.debug(
-                                f"❌ Video rejected (container not in gallery): "
-                                f"{video_url[:80]}..."
+                                "Video rejected (container not in gallery): %s...",
+                                video_url[:80],
                             )
 
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.warning(f"⚠️ Method 3 failed: {e}")
+                    logger.warning("Method 3 failed: %s", e)
 
     except Exception as e:
         if DEBUG_MODE:
-            logger.error(f"❌ Error in systematic video extraction: {e}")
+            logger.error("Error in systematic video extraction: %s", e)
 
     # Remove duplicates while preserving order and limit results
     unique_urls = []
@@ -809,8 +810,8 @@ def extract_functional_videos_with_validation(
             if len(unique_urls) >= max_videos:
                 if DEBUG_MODE:
                     logger.info(
-                        f"🛑 Deduplication: Reached video limit "
-                        f"({len(unique_urls)}/{max_videos})"
+                        "Deduplication: Reached video limit (%d/%d)",
+                        len(unique_urls), max_videos,
                     )
                 break
 
@@ -818,17 +819,17 @@ def extract_functional_videos_with_validation(
     if DEBUG_MODE:
         if len(unique_urls) >= max_videos:
             logger.info(
-                f"🎯 Extracted {len(unique_urls)} videos (hit configured limit) "
-                f"for {current_asin}"
+                "Extracted %d videos (hit configured limit) for %s",
+                len(unique_urls), current_asin,
             )
         elif len(unique_urls) > 0:
             logger.info(
-                f"🎯 Extracted {len(unique_urls)} videos (found all available) "
-                f"for {current_asin}"
+                "Extracted %d videos (found all available) for %s",
+                len(unique_urls), current_asin,
             )
         else:
             logger.warning(
-                f"⚠️ No videos found for {current_asin} (limit was {max_videos})"
+                "No videos found for %s (limit was %d)", current_asin, max_videos
             )
 
     return unique_urls

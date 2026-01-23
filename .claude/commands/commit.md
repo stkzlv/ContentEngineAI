@@ -15,7 +15,7 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`
 - Use imperative mood ("Add feature" not "Added feature")
 - Subject line under 50 characters
 - No period at end of subject
-- Never mention authors or AI tools
+- **CRITICAL: NEVER include `Co-Authored-By` trailers, author attributions, or any mention of Claude Code / AI tools / assistants**
 - Keep it short and simple
 - Describe what and why, not how
 

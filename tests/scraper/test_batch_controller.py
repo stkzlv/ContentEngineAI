@@ -233,10 +233,18 @@ class TestProductIDProcessing:
         with patch.object(controller.logger, "info") as mock_log:
             controller._process_product_ids()
 
-            # Verify progress logging format
-            calls = [str(call) for call in mock_log.call_args_list]
-            assert any("[1/2]" in str(call) for call in calls)
-            assert any("[2/2]" in str(call) for call in calls)
+            # Verify progress logging uses [N/total] format via lazy formatting
+            # Logger receives format string + args, not pre-formatted string
+            progress_calls = [
+                c for c in mock_log.call_args_list
+                if c.args and isinstance(c.args[0], str)
+                and "[%d/%d]" in c.args[0]
+            ]
+            assert len(progress_calls) >= 2
+            # Verify correct counter values in args
+            counters = [(c.args[1], c.args[2]) for c in progress_calls]
+            assert (1, 2) in counters
+            assert (2, 2) in counters
 
 
 class TestKeywordProcessing:

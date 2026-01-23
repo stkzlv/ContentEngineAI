@@ -144,7 +144,7 @@ def validate_video_url_accessibility(url: str) -> bool:
 
     # Skip problematic URL types early
     if url.startswith(("blob:", "data:")) or not url.startswith("http"):
-        logger.debug(f"Skipping invalid URL type: {url[:50]}...")
+        logger.debug("Skipping invalid URL type: %s...", url[:50])
         return False
 
     try:
@@ -223,22 +223,22 @@ def validate_video_url_accessibility(url: str) -> bool:
         content_type = response.headers.get("content-type", "unknown")
         if is_accessible:
             logger.debug(
-                f"Video URL accessible ({status_msg}, {content_type}): "
-                f"{url[:60]}..."
+                "Video URL accessible (%s, %s): %s...",
+                status_msg, content_type, url[:60],
             )
         else:
-            logger.debug(f"Video URL failed ({status_msg}): {url[:60]}...")
+            logger.debug("Video URL failed (%s): %s...", status_msg, url[:60])
 
         return is_accessible
 
     except requests.exceptions.Timeout:
-        logger.debug(f"Video URL timeout: {url[:60]}...")
+        logger.debug("Video URL timeout: %s...", url[:60])
         return False
     except requests.exceptions.RequestException as e:
-        logger.debug(f"Video URL request failed ({type(e).__name__}): {url[:60]}...")
+        logger.debug("Video URL request failed (%s): %s...", type(e).__name__, url[:60])
         return False
     except Exception as e:
-        logger.debug(f"Video URL validation error ({e}): {url[:60]}...")
+        logger.debug("Video URL validation error (%s): %s...", e, url[:60])
         return False
 
 
@@ -263,7 +263,7 @@ def check_amazon_high_res_pattern(url: str, min_sl_size: int = None) -> bool:
             size = int(match.group(2))
             return size >= min_sl_size
         except (ValueError, IndexError):
-            logger.debug(f"Regex matched but size extraction failed for URL: {url}")
+            logger.debug("Regex matched but size extraction failed for URL: %s", url)
     return False
 
 
@@ -300,15 +300,15 @@ def filter_amazon_fallback_image(url: str, min_sl_size: int = None) -> bool:
 
     # Exclude low-res patterns
     if re.search(r"\._(?:S[XYR]|UX|US|AC)\d{1,3}[_,.]", url):
-        logger.debug(f"Excluding low-res pattern image: {url}")
+        logger.debug("Excluding low-res pattern image: %s", url)
         return False
 
     # Must be a valid image extension
     if not re.search(r"\.(jpg|jpeg|png|webp)$", url, re.IGNORECASE):
-        logger.debug(f"Excluding non-image file extension: {url}")
+        logger.debug("Excluding non-image file extension: %s", url)
         return False
 
-    logger.debug(f"Keeping filtered fallback image: {url}")
+    logger.debug("Keeping filtered fallback image: %s", url)
     return True
 
 
@@ -396,14 +396,14 @@ def _validate_image_dimensions(
             if size >= very_high_res_threshold:
                 if debug_mode and logger:
                     logger.debug(
-                        f"URL pattern indicates very high-res ({size}px), trusting: "
-                        f"{url[:80]}..."
+                        "URL pattern indicates very high-res (%dpx), trusting: %s...",
+                        size, url[:80],
                     )
                 return True
 
         # For other cases, check actual dimensions by downloading image headers
         if debug_mode and logger:
-            logger.debug(f"Checking actual dimensions for: {url[:80]}...")
+            logger.debug("Checking actual dimensions for: %s...", url[:80])
 
         # Get headers from config for realistic requests
         headers = (
@@ -457,22 +457,22 @@ def _validate_image_dimensions(
                     result = size >= min_dimension
                     if debug_mode and logger:
                         logger.debug(
-                            f"Fallback to URL pattern {size}px: "
-                            f"{'PASS' if result else 'FAIL'}"
+                            "Fallback to URL pattern %dpx: %s",
+                            size, "PASS" if result else "FAIL",
                         )
                     return result
                 else:
                     if debug_mode and logger:
-                        logger.debug(f"Cannot determine dimensions, rejecting: {e}")
+                        logger.debug("Cannot determine dimensions, rejecting: %s", e)
                     return False
         else:
             if debug_mode and logger:
-                logger.debug(f"HTTP error {response.status_code}, rejecting")
+                logger.debug("HTTP error %d, rejecting", response.status_code)
             return False
 
     except Exception as e:
         if debug_mode and logger:
-            logger.warning(f"Error validating image dimensions: {e}")
+            logger.warning("Error validating image dimensions: %s", e)
         return False
 
 
