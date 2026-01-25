@@ -56,7 +56,8 @@ batch:
   keywords:
     - "wireless earbuds"
     - "bluetooth headphones"
-  max_products: 10
+  max_products: 10          # Global cap across all keywords
+  products_per_keyword: 2   # Limit per individual keyword
 
 scrapers:
   amazon:
@@ -81,9 +82,11 @@ poetry run python -m src.scraper.amazon.scraper \
 ### Configuration Precedence
 
 Settings are applied in this order (highest to lowest priority):
-1. **CLI arguments** (command-line flags)
+1. **CLI arguments** - only when **explicitly provided**
 2. **YAML configuration** (config files)
 3. **Default values** (built-in defaults)
+
+**Note**: CLI arguments only override YAML values when explicitly provided. Omitting a flag uses the YAML value.
 
 ### Error Handling
 
@@ -320,7 +323,10 @@ global_batch:
     - B0D6GZF3T4
   keywords:
     - "wireless earbuds"
-  max_products: 10
+
+  # Product Limits (Two-Tier System)
+  max_products: 10        # Global cap across all keywords
+  products_per_keyword: 2 # Limit per individual keyword
 
   # Scraper Filters
   scraper_filters:
@@ -355,9 +361,27 @@ global_batch:
 ### Configuration Precedence
 
 Settings are merged with this priority order:
-1. **CLI arguments** (highest priority)
+1. **CLI arguments** (highest priority) - only when **explicitly provided**
 2. **YAML configuration** (`config/pipeline.yaml`)
 3. **Default values** (lowest priority)
+
+**Important**: CLI arguments only override YAML values when explicitly provided by the user. Omitting a CLI flag uses the YAML value, not a hardcoded default.
+
+### Product Limits
+
+The pipeline uses a **two-tier limit system** for keyword searches:
+
+- **`max_products`** (default: 10): Global cap on total products collected
+- **`products_per_keyword`** (default: 2): Maximum products per individual keyword
+
+**Behavior**:
+- Processing iterates through keywords, collecting up to `products_per_keyword` from each
+- Stops immediately when `max_products` is reached, even if keywords remain
+- Product IDs count toward `max_products` but are not limited by `products_per_keyword`
+
+**Example**: With `max_products: 10` and `products_per_keyword: 2` across 6 keywords:
+- Keywords 1-5: 2 products each = 10 total (global cap reached)
+- Keyword 6: Skipped (global cap already reached)
 
 ### Error Handling
 
