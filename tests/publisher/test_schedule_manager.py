@@ -476,11 +476,13 @@ class TestAddEntry:
 
     def test_add_entry_valid(self, tmp_schedule_path):
         """Test adding valid entry."""
+        from datetime import timedelta
+
         manager = ScheduleManager(schedule_path=tmp_schedule_path)
 
         entry = ScheduleEntry(
             product_id="B0NEW",
-            scheduled_time=datetime(2026, 1, 25, 10, 0, tzinfo=UTC),
+            scheduled_time=datetime.now(UTC) + timedelta(days=1),
             platforms=[Platform.YOUTUBE],
         )
 
