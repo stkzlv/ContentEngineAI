@@ -101,6 +101,13 @@ High-level requirements for ContentEngineAI.
 - Deduplication across multiple sources
 - Summary reporting of success/failure counts
 
+### Product Limits
+- **`max_products`**: Total products to collect across all keywords (global cap)
+- **`products_per_keyword`**: Maximum products to scrape per individual keyword
+- Both limits must be consistent across all configurations (pipeline, scraper, CLI)
+- Processing continues through keyword list until `max_products` is reached
+- Early termination when global limit is hit, even if keywords remain
+
 ---
 
 ## Video Producer Module
