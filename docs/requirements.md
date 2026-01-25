@@ -8,7 +8,7 @@ High-level requirements for ContentEngineAI.
 
 ### Configuration System
 - **Three-tier precedence**: CLI arguments > Environment variables > YAML files
-- CLI arguments enable runtime customization without file changes
+- CLI arguments override only when **explicitly provided** by the user (use `default=None` in argparse, not hardcoded defaults)
 - Environment variables (`.env`) store secrets only—never committed
 - YAML files (`config/`) store application settings—safe to commit
 - Validate all configuration at startup with clear error messages

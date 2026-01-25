@@ -95,9 +95,9 @@ Examples:
     input_group.add_argument(
         "--max-products",
         type=int,
-        default=10,
+        default=None,
         metavar="N",
-        help="Maximum number of products to scrape per keyword (default: 10)",
+        help="Maximum number of products to scrape per keyword (default: from config)",
     )
 
     # Scraper filter arguments

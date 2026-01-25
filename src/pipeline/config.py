@@ -326,7 +326,7 @@ class GlobalBatchConfig:
     # Scraper configuration
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
-    max_products: int = 10
+    max_products: int = 2
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
 
     # Producer configuration
@@ -722,7 +722,7 @@ def load_global_batch_config(
 
     # Max products
     max_products = (
-        getattr(cli_args, "max_products", None) or yaml_config.get("max_products") or 10
+        getattr(cli_args, "max_products", None) or yaml_config.get("max_products") or 2
     )
 
     # Scraper filters (SearchParameters)
