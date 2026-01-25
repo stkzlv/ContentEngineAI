@@ -124,6 +124,7 @@ class PipelineState:
             "product_ids": config.product_ids,
             "keywords": config.keywords,
             "max_products": config.max_products,
+            "products_per_keyword": config.products_per_keyword,
             "scraper_filters": {
                 "min_price": config.scraper_filters.min_price,
                 "max_price": config.scraper_filters.max_price,
@@ -310,7 +311,8 @@ class GlobalBatchConfig:
     ----------
         product_ids: List of ASINs to scrape directly
         keywords: List of keywords to search for products
-        max_products: Maximum number of products to scrape per keyword
+        max_products: Maximum total products to collect across all keywords (global cap)
+        products_per_keyword: Maximum products to scrape per individual keyword
         scraper_filters: SearchParameters for filtering products
         profile: Fixed video profile name (mutually exclusive with random_profile)
         random_profile: Enable random profile selection per product
@@ -327,6 +329,7 @@ class GlobalBatchConfig:
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     max_products: int = 10
+    products_per_keyword: int = 2
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
 
     # Producer configuration
@@ -720,9 +723,16 @@ def load_global_batch_config(
         getattr(cli_args, "keywords", None) or yaml_config.get("keywords", []) or []
     )
 
-    # Max products
+    # Max products (global cap across all keywords)
     max_products = (
         getattr(cli_args, "max_products", None) or yaml_config.get("max_products") or 10
+    )
+
+    # Products per keyword
+    products_per_keyword = (
+        getattr(cli_args, "products_per_keyword", None)
+        or yaml_config.get("products_per_keyword")
+        or 2
     )
 
     # Scraper filters (SearchParameters)
@@ -793,6 +803,7 @@ def load_global_batch_config(
         product_ids=product_ids,
         keywords=keywords,
         max_products=max_products,
+        products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,
         profile=profile,
         random_profile=random_profile,

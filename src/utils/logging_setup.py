@@ -72,13 +72,20 @@ class SecretMaskingFilter(logging.Filter):
             Always True (record is never filtered out, only modified)
 
         """
-        # Mask the main message
-        if record.msg and isinstance(record.msg, str):
-            record.msg = self._mask_string(record.msg)
-
-        # Mask args if present (used in % formatting)
-        if record.args:
-            record.args = self._mask_args(record.args)
+        # Format the message first (msg % args), then mask the result.
+        # This avoids destroying %-format specifiers like %s/%d in the
+        # format string (e.g., "keyword: %s" contains "KEY" which would
+        # be falsely matched as a secret key pattern).
+        try:
+            formatted_msg = record.getMessage()
+            record.msg = self._mask_string(formatted_msg)
+            record.args = None
+        except (TypeError, ValueError):
+            # If formatting fails, fall back to masking raw parts
+            if record.msg and isinstance(record.msg, str):
+                record.msg = self._mask_string(record.msg)
+            if record.args:
+                record.args = self._mask_args(record.args)
 
         return True
 

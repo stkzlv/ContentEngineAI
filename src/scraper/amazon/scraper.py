@@ -25,6 +25,15 @@ from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
 from .browser_functions import create_dynamic_browser_function
 from .config import CONFIG, get_default_search_parameters, get_output_path
+from .constants import (
+    DEFAULT_MAX_BATCH_SIZE,
+    DEFAULT_MAX_SCRAPE_ATTEMPTS,
+    DEFAULT_MIN_IMAGES_IF_NO_VIDEO,
+    DEFAULT_MIN_IMAGES_WITH_VIDEO,
+    DEFAULT_MIN_TOTAL_MEDIA,
+    DEFAULT_PREFETCH_MULTIPLIER,
+    HIGH_RES_DIMENSION,
+)
 from .downloader import download_media_files
 from .models import ProductData, SearchParameters
 from .utils import validate_asin_format
@@ -80,6 +89,9 @@ DEBUG_MODE = False
 
 # Media extraction and download functions are now imported from separate modules
 
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 # Global variables for YAML-driven configuration
 _BROWSER_CONFIG = {}
@@ -154,10 +166,16 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if original_debug_mode != DEBUG_MODE:
-                print(
-                    f"🔧 [CLI OVERRIDE] Debug mode set to {DEBUG_MODE} "
-                    f"(overriding config value: {original_debug_mode})"
+                logger.debug(
+                    "🔧 [CLI OVERRIDE] Debug mode set to %s "
+                    "(overriding config value: %s)",
+                    DEBUG_MODE,
+                    original_debug_mode,
                 )
+
+        # Store as instance variables to avoid global reads throughout methods
+        self.debug_mode = DEBUG_MODE
+        self.browser_config = _BROWSER_CONFIG
 
         self.logger = logging.getLogger(__name__)
 
@@ -171,19 +189,20 @@ class BotasaurusAmazonScraper(BaseScraper):
         websocket_logger.setLevel(logging.WARNING)
 
         # Enhanced debug setup
-        if DEBUG_MODE:
+        if self.debug_mode:
             self.logger.setLevel(logging.DEBUG)
             self.logger.info(
                 "🐛 DEBUG MODE ENABLED - Enhanced logging and diagnostics active"
             )
             self.logger.info(
-                f"📊 Config loaded: {len(self.amazon_config)} Amazon settings"
+                "📊 Config loaded: %d Amazon settings",
+                len(self.amazon_config),
             )
             min_high_res = self.global_settings.get("image_config", {}).get(
-                "min_high_res_dimension", 1500
+                "min_high_res_dimension", HIGH_RES_DIMENSION
             )
-            self.logger.info(f"🎯 Min High-Res Dimension: {min_high_res}")
-            self.logger.info(f"⚙️ Browser config: {_BROWSER_CONFIG}")
+            self.logger.info("🎯 Min High-Res Dimension: %s", min_high_res)
+            self.logger.info("⚙️ Browser config: %s", self.browser_config)
         else:
             self.logger.setLevel(logging.INFO)
 
@@ -209,7 +228,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         Continues scraping until max_products that pass validation are collected.
         """
         try:
-            self.logger.info(f"Starting unified scrape for keyword: {keyword}")
+            self.logger.info("Starting unified scrape for keyword: %s", keyword)
 
             # Use provided max_products or fall back to config
             products_limit = (
@@ -236,7 +255,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
         except Exception as e:
-            self.logger.error(f"Error in unified scrape for {keyword}: {e}")
+            self.logger.error("Error in unified scrape for %s: %s", keyword, e)
             return []
 
     def _scrape_until_validated_count_reached(
@@ -251,22 +270,27 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         # Get batch processing config values
         batch_cfg = CONFIG.get("global_settings", {}).get("batch_processing", {})
-        max_attempts = batch_cfg.get("max_scrape_attempts", 50)
-        prefetch_multiplier = batch_cfg.get("prefetch_multiplier", 3)
-        max_batch_size = batch_cfg.get("max_batch_size", 15)
+        max_attempts = batch_cfg.get("max_scrape_attempts", DEFAULT_MAX_SCRAPE_ATTEMPTS)
+        prefetch_multiplier = batch_cfg.get(
+            "prefetch_multiplier", DEFAULT_PREFETCH_MULTIPLIER
+        )
+        max_batch_size = batch_cfg.get("max_batch_size", DEFAULT_MAX_BATCH_SIZE)
 
         self.logger.info(
-            f"🎯 Target: {target_count} products that pass validation requirements"
+            "🎯 Target: %d products that pass validation requirements",
+            target_count,
         )
 
         while len(validated_products) < target_count and total_scraped < max_attempts:
             remaining = target_count - len(validated_products)
             batch_size = min(remaining * prefetch_multiplier, max_batch_size)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
-                    f"📊 Progress: {len(validated_products)}/{target_count} "
-                    f"validated | Requesting {batch_size} more products..."
+                    "📊 Progress: %d/%d validated | Requesting %d more products...",
+                    len(validated_products),
+                    target_count,
+                    batch_size,
                 )
 
             # Scrape a batch (fetch 3x but only download media for remaining)
@@ -276,18 +300,22 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if not batch:
                 self.logger.warning(
-                    f"⚠️ No more products available. Stopping with "
-                    f"{len(validated_products)}/{target_count} validated products."
+                    "⚠️ No more products available. Stopping with "
+                    "%d/%d validated products.",
+                    len(validated_products),
+                    target_count,
                 )
                 break
 
             total_scraped += len(batch)
             validated_products.extend(batch)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
-                    f"✅ Batch complete: +{len(batch)} validated products "
-                    f"(total: {len(validated_products)}/{target_count})"
+                    "✅ Batch complete: +%d validated products " "(total: %d/%d)",
+                    len(batch),
+                    len(validated_products),
+                    target_count,
                 )
 
         # Trim to exact count if we over-collected
@@ -295,8 +323,8 @@ class BotasaurusAmazonScraper(BaseScraper):
             validated_products = validated_products[:target_count]
 
         self.logger.info(
-            f"🎉 Scraping complete: {len(validated_products)} "
-            f"validated products collected"
+            "🎉 Scraping complete: %d validated products collected",
+            len(validated_products),
         )
 
         return validated_products
@@ -330,453 +358,488 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "keyword": keyword,
                 "is_asin": self._is_asin(keyword),
                 "search_params": search_params,
-                "debug_mode": DEBUG_MODE,
+                "debug_mode": self.debug_mode,
                 "debug_options": self.debug_options,
                 "max_products": products_limit,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
-            if DEBUG_MODE:
-                print(
-                    f"🔧 [DEBUG] Creating dynamic browser function with "
-                    f"DEBUG_MODE={DEBUG_MODE}"
+            if self.debug_mode:
+                self.logger.debug(
+                    "🔧 [DEBUG] Creating dynamic browser function with "
+                    "DEBUG_MODE=%s",
+                    self.debug_mode,
                 )
 
             try:
-                browser_func = create_dynamic_browser_function(DEBUG_MODE)
-                if DEBUG_MODE:
-                    print(f"🔧 [DEBUG] browser_func type: {type(browser_func)}")
-                    print(f"🔧 [DEBUG] browser_func: {browser_func}")
-                    print(f"🔧 [DEBUG] Calling browser_func with data: {data}")
+                browser_func = create_dynamic_browser_function(self.debug_mode)
+                if self.debug_mode:
+                    self.logger.debug(
+                        "🔧 [DEBUG] browser_func type: %s",
+                        type(browser_func),
+                    )
+                    self.logger.debug("🔧 [DEBUG] browser_func: %s", browser_func)
+                    self.logger.debug(
+                        "🔧 [DEBUG] Calling browser_func with data: %s",
+                        data,
+                    )
                 results = self._scrape_with_retry(browser_func, data)
-                print(
-                    f"🔧 [DEBUG] browser_func returned "
-                    f"{len(results) if results else 0} products"
+                self.logger.debug(
+                    "🔧 [DEBUG] browser_func returned %d products",
+                    len(results) if results else 0,
                 )
             except Exception as e:
-                if DEBUG_MODE:
-                    print(f"❌ [DEBUG] Error in browser function: {e}")
+                if self.debug_mode:
+                    self.logger.error("❌ [DEBUG] Error in browser function: %s", e)
                     import traceback
 
-                    print(f"❌ [DEBUG] Traceback: {traceback.format_exc()}")
+                    self.logger.error(
+                        "❌ [DEBUG] Traceback: %s", traceback.format_exc()
+                    )
                 raise
 
-            # Start media downloads for scraped products
+            # Download media for scraped products
             if results:
-                if DEBUG_MODE:
-                    self.logger.info(
-                        f"🚀 Starting media downloads for {len(results)} products"
-                    )
+                self._orchestrate_media_downloads(results, target_download_count)
 
-                # Prepare media download data for all products
-                media_download_tasks = []
-                for result in results:
-                    # Ensure result is a dictionary (graceful error handling)
-                    if not isinstance(result, dict):
-                        if DEBUG_MODE:
-                            self.logger.warning(
-                                f"⚠️ Skipping non-dict result in media orchestration: "
-                                f"{type(result)}"
-                            )
-                        continue
-
-                    if DEBUG_MODE:
-                        self.logger.debug(
-                            f"📋 Checking product: ASIN={result.get('asin')}, "
-                            f"images={len(result.get('images', []))}, "
-                            f"videos={len(result.get('videos', []))}"
-                        )
-
-                    if result.get("asin") and (
-                        result.get("images") or result.get("videos")
-                    ):
-                        media_download_tasks.append(
-                            {
-                                "asin": result["asin"],
-                                "images": result.get("images", []),
-                                "videos": result.get("videos", []),
-                                "platform": "amazon",
-                                "debug_mode": DEBUG_MODE,
-                            }
-                        )
-                        if DEBUG_MODE:
-                            self.logger.info(
-                                f"✅ Added {result['asin']} to media download queue"
-                            )
-
-                # Limit downloads to target_download_count if specified
-                if (
-                    target_download_count is not None
-                    and len(media_download_tasks) > target_download_count
-                ):
-                    if DEBUG_MODE:
-                        task_count = len(media_download_tasks)
-                        self.logger.info(
-                            f"📉 Limiting downloads: {task_count} -> "
-                            f"{target_download_count} products"
-                        )
-                    media_download_tasks = media_download_tasks[:target_download_count]
-
-                if DEBUG_MODE:
-                    self.logger.info(
-                        f"📦 Total media download tasks prepared: "
-                        f"{len(media_download_tasks)}"
-                    )
-
-                # Download media for all products if any have media
-                # (with graceful degradation)
-                if media_download_tasks:
-                    media_download_success = 0
-                    media_download_partial = 0
-
-                    if DEBUG_MODE:
-                        self.logger.info(
-                            f"🚀 [MEDIA ORCHESTRATION] Starting media downloads for "
-                            f"{len(media_download_tasks)} products"
-                        )
-                        for i, task in enumerate(media_download_tasks):
-                            self.logger.info(
-                                f"   • Task {i+1}: ASIN={task['asin']}, "
-                                f"Images={len(task['images'])}, "
-                                f"Videos={len(task['videos'])}"
-                            )
-
-                    try:
-                        # Execute media downloads and get results
-                        if DEBUG_MODE:
-                            self.logger.info(
-                                f"🔄 [MEDIA ORCHESTRATION] Calling "
-                                f"download_media_files with "
-                                f"{len(media_download_tasks)} tasks"
-                            )
-
-                        # Call download_media_files for each product individually to
-                        # avoid
-                        # batching issues
-                        download_results = []
-                        for task in media_download_tasks:
-                            if DEBUG_MODE:
-                                self.logger.info(
-                                    f"🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: "
-                                    f"{task['asin']}"
-                                )
-                            result = download_media_files(
-                                [task]
-                            )  # Pass single item in list
-                            if isinstance(result, list):
-                                download_results.extend(result)
-                            else:
-                                download_results.append(result)
-
-                        # Debug: show raw results structure with verbose logging
-                        if DEBUG_MODE:
-                            print("\n=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")
-                            print(f"Type: {type(download_results)}")
-                            length_str = (
-                                len(download_results)
-                                if isinstance(download_results, list)
-                                else "N/A"
-                            )
-                            print(f"Length: {length_str}")
-                            print(f"Content: {download_results}")
-                            print("=" * 50)
-
-                        # Handle Botasaurus task results gracefully
-                        # download_results is already a list since it's
-                        # initialized as [] above
-
-                        if not download_results:
-                            self.logger.warning(
-                                "⚠️ No media download results returned, "
-                                "continuing without media"
-                            )
-
-                        # Create mapping for easy lookup with error handling
-                        download_map = {}
-                        if DEBUG_MODE:
-                            length_str = (
-                                len(download_results)
-                                if isinstance(download_results, list)
-                                else "N/A"
-                            )
-                            self.logger.debug(
-                                f"🐛 [DEBUG] Processing download_results: "
-                                f"type={type(download_results)}, length={length_str}"
-                            )
-
-                        # Process Botasaurus @task results - when input is a list,
-                        # output is a list of results (one per input item)
-                        for i, result in enumerate(download_results):
-                            if DEBUG_MODE:
-                                self.logger.debug(
-                                    f"🐛 [DEBUG] Processing result {i}: "
-                                    f"type={type(result)}"
-                                )
-
-                            if isinstance(result, dict) and result.get("asin"):
-                                asin = result.get("asin")
-                                download_map[asin] = result
-                                if DEBUG_MODE:
-                                    img_count = len(result.get("downloaded_images", []))
-                                    vid_count = len(result.get("downloaded_videos", []))
-                                    self.logger.debug(
-                                        f"✅ [DEBUG] Mapped download result for ASIN: "
-                                        f"{asin} "
-                                        f"(images: {img_count}, videos: {vid_count})"
-                                    )
-                            elif DEBUG_MODE:
-                                # Get result preview length from config
-                                debug_config = CONFIG.get("global_settings", {}).get(
-                                    "debug_config", {}
-                                )
-                                result_preview_length = debug_config.get(
-                                    "result_preview_length", 100
-                                )
-                                result_preview = str(result)[:result_preview_length]
-                                self.logger.debug(
-                                    f"⚠️ [DEBUG] Skipping invalid result {i}: "
-                                    f"{type(result)}, preview: {result_preview}..."
-                                )
-
-                        # Update results with download information
-                        # (graceful degradation)
-                        for result in results:
-                            asin = result.get("asin")
-                            if asin in download_map:
-                                download_info = download_map[asin]
-                                # Safely extract download info with defaults
-                                result["downloaded_images"] = download_info.get(
-                                    "downloaded_images", []
-                                )
-                                result["downloaded_videos"] = download_info.get(
-                                    "downloaded_videos", []
-                                )
-
-                                total_images = download_info.get("total_images", 0)
-                                total_videos = download_info.get("total_videos", 0)
-
-                                if total_images > 0 or total_videos > 0:
-                                    media_download_success += 1
-                                    if DEBUG_MODE:
-                                        self.logger.info(
-                                            f"📁 ASIN {asin}: {total_images} images, "
-                                            f"{total_videos} videos downloaded"
-                                        )
-                                else:
-                                    media_download_partial += 1
-                                    if DEBUG_MODE:
-                                        self.logger.debug(
-                                            f"📁 ASIN {asin}: Media extraction "
-                                            f"attempted but no files downloaded"
-                                        )
-                            else:
-                                # Initialize empty media lists for products
-                                # without downloads
-                                result["downloaded_images"] = []
-                                result["downloaded_videos"] = []
-                                media_download_partial += 1
-
-                        if DEBUG_MODE:
-                            self.logger.info(
-                                f"📊 Media download summary: {media_download_success} "
-                                f"successful, {media_download_partial} partial/failed"
-                            )
-
-                    except Exception as e:
-                        self.logger.warning(
-                            f"⚠️ Media download failed ({e}), continuing with "
-                            f"product data only"
-                        )
-                        # Graceful degradation: ensure all products have empty
-                        # media lists
-                        for result in results:
-                            result.setdefault("downloaded_images", [])
-                            result.setdefault("downloaded_videos", [])
-
-            # Convert to ProductData objects
-            products = []
-            for result in results:
-                product = ProductData(
-                    title=result["title"],
-                    price=result["price"],
-                    description=result["description"],
-                    images=result["images"],
-                    videos=result["videos"],
-                    affiliate_link=result["affiliate_link"],
-                    url=result["url"],
-                    platform=Platform.AMAZON,  # Required by BaseProductData
-                    asin=result["asin"],
-                    keyword=result["keyword"],
-                    serp_rating=result["serp_rating"],
-                    serp_reviews_count=result["serp_reviews_count"],
-                    downloaded_images=result["downloaded_images"],
-                    downloaded_videos=result["downloaded_videos"],
-                )
-                products.append(product)
-                # Log full product information
-                self.logger.info(
-                    f"Successfully scraped: {product.asin} - {product.title}"
-                )
-
-            # Final verification for media files
-            global_settings = CONFIG.get("global_settings", {})
-            count_products_with_media = global_settings.get(
-                "count_products_with_media", False
-            )
-            max_products = (
-                CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 5)
-            )
-
-            # Filter products to only include those with actual downloaded
-            # media files
-            products_with_media = []
-            products_without_media = []
-
-            if DEBUG_MODE:
-                self.logger.info(
-                    "🔍 [FINAL VERIFICATION] Checking scraped products and "
-                    "media files..."
-                )
-
-            for i, product in enumerate(products):
-                # Check for actual file existence on disk instead of trusting
-                # download results
-                from pathlib import Path
-
-                from ...utils.outputs_paths import (
-                    get_product_directory,
-                    get_product_images_directory,
-                    get_product_videos_directory,
-                )
-
-                product_dir = get_product_directory(product.asin or "unknown")
-                images_dir = get_product_images_directory(product.asin or "unknown")
-                videos_dir = get_product_videos_directory(product.asin or "unknown")
-
-                # Count actual files that exist on disk
-                actual_images = []
-                actual_videos = []
-
-                if images_dir.exists():
-                    actual_images = list(images_dir.glob("*.jpg")) + list(
-                        images_dir.glob("*.png")
-                    )
-
-                if videos_dir.exists():
-                    actual_videos = list(videos_dir.glob("*.mp4")) + list(
-                        videos_dir.glob("*.mov")
-                    )
-
-                img_count = len(actual_images)
-                vid_count = len(actual_videos)
-
-                if DEBUG_MODE:
-                    self.logger.info(
-                        f"🔍 [FINAL VERIFICATION] Product {i+1}: ASIN={product.asin}, "
-                        f"Actual files on disk: {img_count} images, {vid_count} videos"
-                    )
-
-                # Get producer-aligned media requirements from config
-                validation_config = CONFIG.get("global_settings", {}).get(
-                    "validation_config", {}
-                )
-                MIN_TOTAL_MEDIA = validation_config.get("min_total_media", 3)
-                MIN_IMAGES_IF_NO_VIDEO = validation_config.get(
-                    "min_images_if_no_video", 5
-                )
-                MIN_IMAGES_WITH_VIDEO = validation_config.get(
-                    "min_images_with_video", 2
-                )
-
-                total_media = img_count + vid_count
-
-                # Apply same logic as producer for consistency
-                meets_requirements = True
-                rejection_reason = ""
-
-                # Basic minimum check
-                if total_media < MIN_TOTAL_MEDIA:
-                    meets_requirements = False
-                    rejection_reason = f"total media {total_media} < {MIN_TOTAL_MEDIA}"
-                # If no videos, need at least 5 images
-                elif vid_count == 0 and img_count < MIN_IMAGES_IF_NO_VIDEO:
-                    meets_requirements = False
-                    rejection_reason = (
-                        f"no videos and images {img_count} < {MIN_IMAGES_IF_NO_VIDEO}"
-                    )
-                # If has videos, need at least 2 images
-                elif vid_count > 0 and img_count < MIN_IMAGES_WITH_VIDEO:
-                    meets_requirements = False
-                    rejection_reason = (
-                        f"has videos but images {img_count} < {MIN_IMAGES_WITH_VIDEO}"
-                    )
-
-                if meets_requirements:
-                    products_with_media.append(product)
-                    if DEBUG_MODE:
-                        self.logger.info(
-                            f"✅ [FINAL VERIFICATION] Product {product.asin} meets "
-                            f"producer requirements: {img_count} images, "
-                            f"{vid_count} videos, {total_media} total media"
-                        )
-                else:
-                    products_without_media.append(product)
-                    self.logger.warning(
-                        f"Product {product.asin} rejected: {rejection_reason} "
-                        f"({img_count} images, {vid_count} videos)"
-                    )
-                    # Clean up entire product directory for filtered products
-                    try:
-                        product_dir = get_product_directory(product.asin or "unknown")
-                        if product_dir.exists():
-                            shutil.rmtree(product_dir)
-                            if DEBUG_MODE:
-                                self.logger.info(
-                                    f"🧹 Cleaned up product directory for filtered "
-                                    f"product: {product.asin}"
-                                )
-                    except Exception as cleanup_error:
-                        if DEBUG_MODE:
-                            self.logger.warning(
-                                f"Could not clean up directory for {product.asin}: "
-                                f"{cleanup_error}"
-                            )
-
-            if DEBUG_MODE:
-                if count_products_with_media:
-                    if len(products_with_media) == max_products:
-                        self.logger.info(
-                            f"✅ [FINAL VERIFICATION] SUCCESS: Got exactly "
-                            f"{max_products} products with downloaded media files!"
-                        )
-                    else:
-                        self.logger.warning(
-                            f"⚠️ [FINAL VERIFICATION] WARNING: Expected "
-                            f"{max_products} products with media, but only "
-                            f"{len(products_with_media)} have downloaded media files. "
-                            f"Filtered out "
-                            f"{len(products_without_media)} products without media."
-                        )
-                else:
-                    self.logger.info(
-                        f"🔍 [FINAL VERIFICATION] Traditional mode: {len(products)} "
-                        f"products scraped, {len(products_with_media)} with media files"
-                    )
-
-            # Return filtered or all products based on filter_validated parameter
-            final_products = products_with_media if filter_validated else products
-
-            if DEBUG_MODE:
-                self.logger.info(
-                    f"Completed single pass: {len(final_products)} products "
-                    f"({len(products_without_media)} filtered out)"
-                )
-
-            return final_products
+            # Convert to ProductData and validate media requirements
+            return self._validate_and_convert_products(results, filter_validated)
 
         except Exception as e:
-            self.logger.error(f"Error in single pass scrape for {keyword}: {e}")
+            self.logger.error("Error in single pass scrape for %s: %s", keyword, e)
             return []
+
+    def _orchestrate_media_downloads(
+        self, results: list[dict], target_download_count: int | None
+    ) -> None:
+        """Download media files for scraped products.
+
+        Mutates ``results`` in place, adding ``downloaded_images`` and
+        ``downloaded_videos`` keys to each result dict.
+
+        Args:
+        ----
+            results: List of raw product dicts from browser scraping
+            target_download_count: Max products to download media for (None = all)
+
+        """
+        if self.debug_mode:
+            self.logger.info(
+                "🚀 Starting media downloads for %d products",
+                len(results),
+            )
+
+        # Prepare media download data for all products
+        media_download_tasks = []
+        for result in results:
+            if self.debug_mode:
+                self.logger.debug(
+                    "📋 Checking product: ASIN=%s, images=%d, videos=%d",
+                    result.get("asin"),
+                    len(result.get("images", [])),
+                    len(result.get("videos", [])),
+                )
+
+            if result.get("asin") and (result.get("images") or result.get("videos")):
+                media_download_tasks.append(
+                    {
+                        "asin": result["asin"],
+                        "images": result.get("images", []),
+                        "videos": result.get("videos", []),
+                        "platform": "amazon",
+                        "debug_mode": self.debug_mode,
+                    }
+                )
+                if self.debug_mode:
+                    self.logger.info(
+                        "✅ Added %s to media download queue", result["asin"]
+                    )
+
+        # Limit downloads to target_download_count if specified
+        if (
+            target_download_count is not None
+            and len(media_download_tasks) > target_download_count
+        ):
+            if self.debug_mode:
+                task_count = len(media_download_tasks)
+                self.logger.info(
+                    "📉 Limiting downloads: %d -> %d products",
+                    task_count,
+                    target_download_count,
+                )
+            media_download_tasks = media_download_tasks[:target_download_count]
+
+        if self.debug_mode:
+            self.logger.info(
+                "📦 Total media download tasks prepared: %d",
+                len(media_download_tasks),
+            )
+
+        if not media_download_tasks:
+            # Ensure all products have empty media lists
+            for result in results:
+                result.setdefault("downloaded_images", [])
+                result.setdefault("downloaded_videos", [])
+            return
+
+        media_download_success = 0
+        media_download_partial = 0
+
+        if self.debug_mode:
+            self.logger.info(
+                "🚀 [MEDIA ORCHESTRATION] Starting media downloads for " "%d products",
+                len(media_download_tasks),
+            )
+            for i, task in enumerate(media_download_tasks):
+                self.logger.info(
+                    "   • Task %d: ASIN=%s, Images=%d, Videos=%d",
+                    i + 1,
+                    task["asin"],
+                    len(task["images"]),
+                    len(task["videos"]),
+                )
+
+        try:
+            if self.debug_mode:
+                self.logger.info(
+                    "🔄 [MEDIA ORCHESTRATION] Calling "
+                    "download_media_files with %d tasks",
+                    len(media_download_tasks),
+                )
+
+            # Download per product individually to avoid batching issues
+            download_results = []
+            for task in media_download_tasks:
+                if self.debug_mode:
+                    self.logger.info(
+                        "🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: %s",
+                        task["asin"],
+                    )
+                dl_result = download_media_files([task])
+                if isinstance(dl_result, list):
+                    download_results.extend(dl_result)
+                else:
+                    download_results.append(dl_result)
+
+            if self.debug_mode:
+                self.logger.debug("=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")
+                self.logger.debug("Type: %s", type(download_results))
+                length_str = (
+                    len(download_results)
+                    if isinstance(download_results, list)
+                    else "N/A"
+                )
+                self.logger.debug("Length: %s", length_str)
+                self.logger.debug("Content: %s", download_results)
+                self.logger.debug("=" * 50)
+
+            if not download_results:
+                self.logger.warning(
+                    "⚠️ No media download results returned, " "continuing without media"
+                )
+
+            # Create mapping for easy lookup
+            download_map = {}
+            if self.debug_mode:
+                length_str = (
+                    len(download_results)
+                    if isinstance(download_results, list)
+                    else "N/A"
+                )
+                self.logger.debug(
+                    "🐛 [DEBUG] Processing download_results: " "type=%s, length=%s",
+                    type(download_results),
+                    length_str,
+                )
+
+            for i, dl_result in enumerate(download_results):
+                if self.debug_mode:
+                    self.logger.debug(
+                        "🐛 [DEBUG] Processing result %d: type=%s",
+                        i,
+                        type(dl_result),
+                    )
+
+                if isinstance(dl_result, dict) and dl_result.get("asin"):
+                    asin = dl_result.get("asin")
+                    download_map[asin] = dl_result
+                    if self.debug_mode:
+                        img_count = len(dl_result.get("downloaded_images", []))
+                        vid_count = len(dl_result.get("downloaded_videos", []))
+                        self.logger.debug(
+                            "✅ [DEBUG] Mapped download result for ASIN: "
+                            "%s (images: %d, videos: %d)",
+                            asin,
+                            img_count,
+                            vid_count,
+                        )
+                elif self.debug_mode:
+                    debug_config = CONFIG.get("global_settings", {}).get(
+                        "debug_config", {}
+                    )
+                    result_preview_length = debug_config.get(
+                        "result_preview_length", 100
+                    )
+                    result_preview = str(dl_result)[:result_preview_length]
+                    self.logger.debug(
+                        "⚠️ [DEBUG] Skipping invalid result %d: " "%s, preview: %s...",
+                        i,
+                        type(dl_result),
+                        result_preview,
+                    )
+
+            # Update results with download information
+            for result in results:
+                asin = result.get("asin")
+                if asin in download_map:
+                    download_info = download_map[asin]
+                    result["downloaded_images"] = download_info.get(
+                        "downloaded_images", []
+                    )
+                    result["downloaded_videos"] = download_info.get(
+                        "downloaded_videos", []
+                    )
+
+                    total_images = download_info.get("total_images", 0)
+                    total_videos = download_info.get("total_videos", 0)
+
+                    if total_images > 0 or total_videos > 0:
+                        media_download_success += 1
+                        if self.debug_mode:
+                            self.logger.info(
+                                "📁 ASIN %s: %d images, %d videos downloaded",
+                                asin,
+                                total_images,
+                                total_videos,
+                            )
+                    else:
+                        media_download_partial += 1
+                        if self.debug_mode:
+                            self.logger.debug(
+                                "📁 ASIN %s: Media extraction "
+                                "attempted but no files downloaded",
+                                asin,
+                            )
+                else:
+                    result["downloaded_images"] = []
+                    result["downloaded_videos"] = []
+                    media_download_partial += 1
+
+            if self.debug_mode:
+                self.logger.info(
+                    "📊 Media download summary: %d successful, %d partial/failed",
+                    media_download_success,
+                    media_download_partial,
+                )
+
+        except Exception as e:
+            self.logger.warning(
+                "⚠️ Media download failed (%s), continuing with " "product data only",
+                e,
+            )
+            for result in results:
+                result.setdefault("downloaded_images", [])
+                result.setdefault("downloaded_videos", [])
+
+    def _validate_and_convert_products(
+        self, results: list[dict], filter_validated: bool
+    ) -> list[ProductData]:
+        """Convert raw result dicts to ProductData and validate media.
+
+        Args:
+        ----
+            results: List of product dicts with download info
+            filter_validated: If True, return only products meeting media requirements
+
+        Returns:
+        -------
+            List of ProductData objects (filtered if filter_validated=True)
+
+        """
+        from ...utils.outputs_paths import (
+            get_product_directory,
+            get_product_images_directory,
+            get_product_videos_directory,
+        )
+
+        products = []
+        for result in results:
+            product = ProductData(
+                title=result["title"],
+                price=result["price"],
+                description=result["description"],
+                images=result["images"],
+                videos=result["videos"],
+                affiliate_link=result["affiliate_link"],
+                url=result["url"],
+                platform=Platform.AMAZON,
+                asin=result["asin"],
+                keyword=result["keyword"],
+                serp_rating=result["serp_rating"],
+                serp_reviews_count=result["serp_reviews_count"],
+                downloaded_images=result["downloaded_images"],
+                downloaded_videos=result["downloaded_videos"],
+            )
+            products.append(product)
+            self.logger.info(
+                "Successfully scraped: %s - %s", product.asin, product.title
+            )
+
+        # Final verification for media files
+        global_settings = CONFIG.get("global_settings", {})
+        count_products_with_media = global_settings.get(
+            "count_products_with_media", False
+        )
+        max_products = (
+            CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 5)
+        )
+
+        products_with_media = []
+        products_without_media = []
+
+        if self.debug_mode:
+            self.logger.info(
+                "🔍 [FINAL VERIFICATION] Checking scraped products and "
+                "media files..."
+            )
+
+        for i, product in enumerate(products):
+            product_dir = get_product_directory(product.asin or "unknown")
+            images_dir = get_product_images_directory(product.asin or "unknown")
+            videos_dir = get_product_videos_directory(product.asin or "unknown")
+
+            actual_images = []
+            actual_videos = []
+
+            if images_dir.exists():
+                actual_images = list(images_dir.glob("*.jpg")) + list(
+                    images_dir.glob("*.png")
+                )
+
+            if videos_dir.exists():
+                actual_videos = list(videos_dir.glob("*.mp4")) + list(
+                    videos_dir.glob("*.mov")
+                )
+
+            img_count = len(actual_images)
+            vid_count = len(actual_videos)
+
+            if self.debug_mode:
+                self.logger.info(
+                    "🔍 [FINAL VERIFICATION] Product %d: "
+                    "ASIN=%s, Actual files: %d images, %d videos",
+                    i + 1,
+                    product.asin,
+                    img_count,
+                    vid_count,
+                )
+
+            # Get producer-aligned media requirements from config
+            validation_config = CONFIG.get("global_settings", {}).get(
+                "validation_config", {}
+            )
+            min_total = validation_config.get(
+                "min_total_media", DEFAULT_MIN_TOTAL_MEDIA
+            )
+            min_imgs_no_vid = validation_config.get(
+                "min_images_if_no_video", DEFAULT_MIN_IMAGES_IF_NO_VIDEO
+            )
+            min_imgs_with_vid = validation_config.get(
+                "min_images_with_video", DEFAULT_MIN_IMAGES_WITH_VIDEO
+            )
+
+            total_media = img_count + vid_count
+            meets_requirements = True
+            rejection_reason = ""
+
+            if total_media < min_total:
+                meets_requirements = False
+                rejection_reason = f"total media {total_media} < {min_total}"
+            elif vid_count == 0 and img_count < min_imgs_no_vid:
+                meets_requirements = False
+                rejection_reason = (
+                    f"no videos and images {img_count} < {min_imgs_no_vid}"
+                )
+            elif vid_count > 0 and img_count < min_imgs_with_vid:
+                meets_requirements = False
+                rejection_reason = (
+                    f"has videos but images " f"{img_count} < {min_imgs_with_vid}"
+                )
+
+            if meets_requirements:
+                products_with_media.append(product)
+                if self.debug_mode:
+                    self.logger.info(
+                        "✅ [FINAL VERIFICATION] Product %s "
+                        "meets producer requirements: %d images, "
+                        "%d videos, %d total media",
+                        product.asin,
+                        img_count,
+                        vid_count,
+                        total_media,
+                    )
+            else:
+                products_without_media.append(product)
+                self.logger.warning(
+                    "Product %s rejected: %s (%d images, %d videos)",
+                    product.asin,
+                    rejection_reason,
+                    img_count,
+                    vid_count,
+                )
+                try:
+                    if product_dir.exists():
+                        shutil.rmtree(product_dir)
+                        if self.debug_mode:
+                            self.logger.info(
+                                "🧹 Cleaned up product directory for "
+                                "filtered product: %s",
+                                product.asin,
+                            )
+                except Exception as cleanup_error:
+                    if self.debug_mode:
+                        self.logger.warning(
+                            "Could not clean up directory for %s: %s",
+                            product.asin,
+                            cleanup_error,
+                        )
+
+        if self.debug_mode:
+            if count_products_with_media:
+                if len(products_with_media) == max_products:
+                    self.logger.info(
+                        "✅ [FINAL VERIFICATION] SUCCESS: Got exactly "
+                        "%d products with downloaded media!",
+                        max_products,
+                    )
+                else:
+                    self.logger.warning(
+                        "⚠️ [FINAL VERIFICATION] Expected "
+                        "%d products with media, but only "
+                        "%d have media files. Filtered out "
+                        "%d without media.",
+                        max_products,
+                        len(products_with_media),
+                        len(products_without_media),
+                    )
+            else:
+                self.logger.info(
+                    "🔍 [FINAL VERIFICATION] Traditional mode: "
+                    "%d scraped, %d with media files",
+                    len(products),
+                    len(products_with_media),
+                )
+
+        final_products = products_with_media if filter_validated else products
+
+        if self.debug_mode:
+            self.logger.info(
+                "Completed single pass: %d products (%d filtered out)",
+                len(final_products),
+                len(products_without_media),
+            )
+
+        return final_products
 
     def scrape_products(
         self, keywords: list[str], search_params: BaseSearchParameters | None = None
@@ -796,7 +859,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         all_products: list[BaseProductData] = []
 
         for keyword in keywords:
-            self.logger.info(f"Starting scrape for keyword: {keyword}")
+            self.logger.info("Starting scrape for keyword: %s", keyword)
 
             # Use the unified scraping method
             # Cast search_params to SearchParameters if it's compatible
@@ -839,13 +902,16 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _scrape_with_retry(self, browser_func, data):
         """Scrape with retry logic for Amazon error pages"""
         try:
-            if DEBUG_MODE:
-                print("🔄 [DEBUG] Attempting scrape with retry logic")
+            if self.debug_mode:
+                self.logger.debug("🔄 [DEBUG] Attempting scrape with retry logic")
             return browser_func(data)
         except RuntimeError as e:
             if "Amazon error page detected" in str(e):
-                if DEBUG_MODE:
-                    print(f"🔄 [DEBUG] Caught Amazon error page, will retry: {e}")
+                if self.debug_mode:
+                    self.logger.warning(
+                        "🔄 [DEBUG] Caught Amazon error " "page, will retry: %s",
+                        e,
+                    )
                 raise  # Will trigger retry
             else:
                 # Other RuntimeErrors should not retry
@@ -859,7 +925,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             config_path = project_root / "config/url_shortener.yaml"
 
             if not config_path.exists():
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.debug("URL shortener config not found, skipping")
                 return
 
@@ -873,7 +939,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             if not url_config.get("enabled", False) or not integration_config.get(
                 "shorten_on_scrape", False
             ):
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.debug("URL shortening disabled, skipping")
                 return
 
@@ -893,9 +959,10 @@ class BotasaurusAmazonScraper(BaseScraper):
             api_key_env_var = provider_config.get("api_key_env_var", "PICSEE_API_KEY")
             api_key = os.getenv(api_key_env_var)
             if not api_key:
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.warning(
-                        f"{api_key_env_var} not found, skipping URL shortening"
+                        "%s not found, skipping URL shortening",
+                        api_key_env_var,
                     )
                 return
 
@@ -916,15 +983,19 @@ class BotasaurusAmazonScraper(BaseScraper):
             retry_delay = api_config.get("retry_delay_sec", 2.0)
             retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info(
-                    f"🔗 Shortening {len(products)} affiliate links using {provider}"
+                    "🔗 Shortening %d affiliate links using %s",
+                    len(products),
+                    provider,
                 )
                 if custom_domain:
-                    self.logger.info(f"   Using custom domain: {custom_domain}")
+                    self.logger.info("   Using custom domain: %s", custom_domain)
                 self.logger.info(
-                    f"   Retry config: {max_retries} attempts, "
-                    f"{retry_delay}s delay, {retry_backoff}x backoff"
+                    "   Retry config: %d attempts, %.1fs delay, %.1fx backoff",
+                    max_retries,
+                    retry_delay,
+                    retry_backoff,
                 )
 
             shortener = create_url_shortener(
@@ -951,13 +1022,15 @@ class BotasaurusAmazonScraper(BaseScraper):
                     try:
                         result = await shortener.shorten(product.affiliate_link)
                         product.shortened_affiliate_link = result.short_url
-                        if DEBUG_MODE:
+                        if self.debug_mode:
                             self.logger.info(
-                                f"✅ Shortened: {product.asin} -> {result.short_url}"
+                                "✅ Shortened: %s -> %s",
+                                product.asin,
+                                result.short_url,
                             )
                     except Exception as e:
                         self.logger.warning(
-                            f"Failed to shorten link for {product.asin}: {e}"
+                            "Failed to shorten link for %s: %s", product.asin, e
                         )
                         if integration_config.get("fallback_to_original", True):
                             product.shortened_affiliate_link = product.affiliate_link
@@ -976,14 +1049,16 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # No event loop running, safe to use asyncio.run()
                 asyncio.run(shorten_all())
 
-            if DEBUG_MODE:
+            if self.debug_mode:
                 shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
                 self.logger.info(
-                    f"✅ Shortened {shortened_count}/{len(products)} affiliate links"
+                    "✅ Shortened %d/%d affiliate links",
+                    shortened_count,
+                    len(products),
                 )
 
         except Exception as e:
-            self.logger.warning(f"URL shortening failed: {e}, using original links")
+            self.logger.warning("URL shortening failed: %s, using original links", e)
             # Fallback: use original affiliate links
             for product in products:
                 if product.affiliate_link and not product.shortened_affiliate_link:
@@ -992,7 +1067,7 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _save_products(self, products: list[ProductData]) -> None:
         """Save scraped products to product-centric JSON structure"""
         if not products:
-            if DEBUG_MODE:
+            if self.debug_mode:
                 self.logger.info("⚠️ No products to save")
             return
 
@@ -1009,8 +1084,8 @@ class BotasaurusAmazonScraper(BaseScraper):
             product_dict = self._product_to_dict(product)
             product_dicts.append(product_dict)
 
-        if DEBUG_MODE:
-            self.logger.info(f"📄 Saving {len(product_dicts)} products manually")
+        if self.debug_mode:
+            self.logger.info("📄 Saving %d products manually", len(product_dicts))
 
         # Call the output function directly
         write_scraped_data_output({"manual_save": True}, product_dicts)
@@ -1046,23 +1121,23 @@ class BotasaurusAmazonScraper(BaseScraper):
             if hasattr(self, "_browser_func"):
                 try:
                     self._browser_func.close()
-                    if DEBUG_MODE:
+                    if self.debug_mode:
                         self.logger.info("🧹 Browser instances cleaned up")
                 except Exception as e:
-                    if DEBUG_MODE:
-                        self.logger.debug(f"Browser cleanup warning: {e}")
+                    if self.debug_mode:
+                        self.logger.debug("Browser cleanup warning: %s", e)
 
             # Clean up media download tasks
             try:
                 download_media_files.close()
-                if DEBUG_MODE:
+                if self.debug_mode:
                     self.logger.info("🧹 Media download tasks cleaned up")
             except Exception as e:
-                if DEBUG_MODE:
-                    self.logger.debug(f"Media download cleanup warning: {e}")
+                if self.debug_mode:
+                    self.logger.debug("Media download cleanup warning: %s", e)
 
         except Exception as e:
-            self.logger.debug(f"General cleanup warning: {e}")
+            self.logger.debug("General cleanup warning: %s", e)
 
     def __enter__(self):
         """Context manager entry"""
@@ -1219,20 +1294,21 @@ def main():
                     args.keywords = batch_keywords or None
 
                     if batch_product_ids and batch_keywords:
-                        print(
-                            f"📝 Using batch mode from config: "
-                            f"{len(batch_product_ids)} product IDs, "
-                            f"{len(batch_keywords)} keywords"
+                        logger.debug(
+                            "📝 Using batch mode from config: "
+                            "%d product IDs, %d keywords",
+                            len(batch_product_ids),
+                            len(batch_keywords),
                         )
                     elif batch_product_ids:
-                        print(
-                            f"📝 Using batch product IDs from config: "
-                            f"{', '.join(batch_product_ids)}"
+                        logger.debug(
+                            "📝 Using batch product IDs from config: %s",
+                            ", ".join(batch_product_ids),
                         )
                     else:
-                        print(
-                            f"📝 Using batch keywords from config: "
-                            f"{', '.join(batch_keywords)}"
+                        logger.debug(
+                            "📝 Using batch keywords from config: %s",
+                            ", ".join(batch_keywords),
                         )
                 else:
                     # Fallback to single-product mode keywords
@@ -1241,27 +1317,33 @@ def main():
 
                     if config_keywords:
                         args.keywords = config_keywords
-                        print(
-                            f"📝 Using keywords from config file: "
-                            f"{', '.join(config_keywords)}"
+                        logger.debug(
+                            "📝 Using keywords from config file: %s",
+                            ", ".join(config_keywords),
                         )
                     else:
-                        print(
+                        logger.error(
                             "❌ No keywords/product_ids provided via CLI and none "
                             "found in config file"
                         )
-                        print(
+                        logger.debug(
                             "💡 Either use --keywords/--product-ids or add to "
                             "batch section in config/scraper.yaml"
                         )
                         return
             else:
-                print("❌ No keywords provided via CLI and config file not found")
-                print("💡 Use --keywords 'your keyword' to specify what to scrape")
+                logger.error(
+                    "❌ No keywords provided via CLI and " "config file not found"
+                )
+                logger.debug(
+                    "💡 Use --keywords 'your keyword' to " "specify what to scrape"
+                )
                 return
         except Exception as e:
-            print(f"❌ Error loading config file: {e}")
-            print("💡 Use --keywords 'your keyword' to specify what to scrape")
+            logger.error("❌ Error loading config file: %s", e)
+            logger.debug(
+                "💡 Use --keywords 'your keyword' to " "specify what to scrape"
+            )
             return
 
     # Setup debug mode early - before scraper instantiation
@@ -1300,33 +1382,41 @@ def main():
     logging.getLogger().addFilter(websocket_filter)
     logging.getLogger("websocket").addFilter(websocket_filter)
 
-    # Print debug mode status messages only when debug is enabled
+    # Log debug mode status messages only when debug is enabled
     if debug_enabled:
         if args.verbose:
-            print("🔍 Verbose mode enabled - detailed logging active")
+            logger.debug("🔍 Verbose mode enabled - detailed logging active")
         elif config_debug_mode and not args.debug:
-            print(
+            logger.debug(
                 "🔧 Debug mode enabled from config - browser visibility and "
                 "detailed logging active"
             )
         else:
-            print(
+            logger.debug(
                 "🔧 Debug mode enabled - browser visibility and detailed "
                 "logging active"
             )
 
-        print("🔧 Debug mode set globally for browser visibility")
+        logger.debug("🔧 Debug mode set globally for browser visibility")
 
         if args.pause_on_error:
-            print("⏸️ Pause-on-error enabled - execution will pause when errors occur")
+            logger.debug(
+                "⏸️ Pause-on-error enabled - execution " "will pause when errors occur"
+            )
         if args.save_screenshots:
-            print("📸 Screenshot saving enabled - key steps will be captured")
+            logger.debug("📸 Screenshot saving enabled - " "key steps will be captured")
         if args.save_page_source:
-            print("📄 Page source saving enabled - HTML will be saved for analysis")
+            logger.debug(
+                "📄 Page source saving enabled - " "HTML will be saved for analysis"
+            )
         if args.analyze_images:
-            print("🔍 Deep image analysis enabled - all images will be analyzed")
+            logger.debug(
+                "🔍 Deep image analysis enabled - " "all images will be analyzed"
+            )
         if args.dump_image_urls:
-            print("📝 Image URL dumping enabled - all URLs will be saved to file")
+            logger.debug(
+                "📝 Image URL dumping enabled - " "all URLs will be saved to file"
+            )
 
     if args.clean:
         import re
@@ -1337,7 +1427,7 @@ def main():
         project_root = Path(__file__).parent.parent.parent.parent
         base_output_path = project_root / get_output_path("base")
         if base_output_path.exists():
-            print(f"🧹 Cleaning all scraper outputs in: {base_output_path}")
+            logger.info("🧹 Cleaning all scraper outputs in: %s", base_output_path)
 
             # Remove all product directories (ASIN patterns and test IDs)
             # Amazon ASINs: typically 10 chars like B0XXXXXXXX, but also catch test IDs
@@ -1350,11 +1440,11 @@ def main():
                     # Remove ASIN directories
                     if asin_pattern.match(item.name):
                         shutil.rmtree(item)
-                        print(f"🧹 Cleaned product directory: {item}")
+                        logger.debug("🧹 Cleaned product directory: %s", item)
                     # Remove other scraper directories (but preserve logs, reports)
                     elif item.name in ["cache", "temp", "screenshots"]:
                         shutil.rmtree(item)
-                        print(f"🧹 Cleaned scraper directory: {item}")
+                        logger.debug("🧹 Cleaned scraper directory: %s", item)
                 elif (
                     item.is_file()
                     and item.suffix
@@ -1367,16 +1457,16 @@ def main():
                     and not item.name.startswith("report")
                 ):
                     item.unlink()
-                    print(f"🧹 Cleaned scraper file: {item}")
+                    logger.debug("🧹 Cleaned scraper file: %s", item)
 
-            print("✅ Cleanup completed - all scraper outputs removed")
+            logger.info("✅ Cleanup completed - all scraper outputs removed")
 
     if args.debug:
-        print("🐛 Debug mode enabled")
+        logger.debug("🐛 Debug mode enabled")
         from ...utils.outputs_paths import get_temp_directory
 
         temp_dir = get_temp_directory()
-        print(f"📂 Debug files will be saved to: {temp_dir}")
+        logger.debug("📂 Debug files will be saved to: %s", temp_dir)
 
     # Create SearchParameters from CLI arguments with config defaults
     # Start with default parameters from config
@@ -1429,42 +1519,43 @@ def main():
     # Validate search parameters
     validation_errors = search_params.validate()
     if validation_errors:
-        print("❌ Invalid search parameters:")
+        logger.error("❌ Invalid search parameters:")
         for error in validation_errors:
-            print(f"   • {error}")
+            logger.error("   • %s", error)
         return
 
     # Show search parameters in debug mode
     if args.debug:
-        print("🔍 Search parameters configured:")
+        logger.debug("🔍 Search parameters configured:")
         if search_params.min_price or search_params.max_price:
             price_range = (
                 f"${search_params.min_price or 0:.2f}-${search_params.max_price or '∞'}"
             )
-            print(f"   • Price range: {price_range}")
+            logger.debug("   • Price range: %s", price_range)
         if search_params.min_rating:
-            print(f"   • Minimum rating: {search_params.min_rating}+ stars")
+            logger.debug("   • Minimum rating: %s+ stars", search_params.min_rating)
         if search_params.prime_only:
-            print("   • Prime only: Yes")
+            logger.debug("   • Prime only: Yes")
         if search_params.free_shipping:
-            print("   • Free shipping: Yes")
+            logger.debug("   • Free shipping: Yes")
         if search_params.brands:
-            print(f"   • Brands: {', '.join(search_params.brands)}")
+            logger.debug("   • Brands: %s", ", ".join(search_params.brands))
         if search_params.sort_order != "relevanceblender":
-            print(f"   • Sort: {search_params.sort_order}")
+            logger.debug("   • Sort: %s", search_params.sort_order)
 
         # Show config vs CLI override status
         config_defaults = get_default_search_parameters()
         if cli_overrides:
-            print(f"   • CLI overrides applied: {list(cli_overrides.keys())}")
+            logger.debug("   • CLI overrides applied: %s", list(cli_overrides.keys()))
         if (
             search_params.min_price != config_defaults.min_price
             or search_params.max_price != config_defaults.max_price
         ):
-            print(
-                f"   • Config defaults: ${config_defaults.min_price or 0:.2f}-"
+            config_price_range = (
+                f"${config_defaults.min_price or 0:.2f}-"
                 f"${config_defaults.max_price or '∞'}"
             )
+            logger.debug("   • Config defaults: %s", config_price_range)
 
     # Detect batch mode: --product-ids provided OR multiple keywords
     is_batch_mode = bool(args.product_ids) or (args.keywords and len(args.keywords) > 1)
@@ -1506,39 +1597,42 @@ def main():
             summary = controller.run_batch()
 
             # Display final summary
-            print("\n" + "=" * 60)
-            print("✅ BATCH SCRAPING COMPLETED")
-            print("=" * 60)
-            print(f"📊 Total Attempted: {summary.total_attempted}")
-            print(f"   • Product IDs: {summary.product_ids_attempted}")
-            print(f"   • Keywords: {summary.keywords_attempted}")
-            print(f"✅ Successful: {summary.successful}")
-            print(f"❌ Failed: {summary.failed}")
+            logger.info("=" * 60)
+            logger.info("✅ BATCH SCRAPING COMPLETED")
+            logger.info("=" * 60)
+            logger.info("📊 Total Attempted: %d", summary.total_attempted)
+            logger.info("   • Product IDs: %d", summary.product_ids_attempted)
+            logger.info("   • Keywords: %d", summary.keywords_attempted)
+            logger.info("✅ Successful: %d", summary.successful)
+            logger.error("❌ Failed: %d", summary.failed)
             if summary.failed_products:
-                print(f"   Failed Products: {', '.join(summary.failed_products)}")
-            print("\n📷 Media Statistics:")
+                logger.error(
+                    "   Failed Products: %s",
+                    ", ".join(summary.failed_products),
+                )
+            logger.info("📷 Media Statistics:")
             for key, value in summary.media_stats.items():
-                print(f"   • {key}: {value}")
-            print(f"\n⏱️  Duration: {summary.duration_sec:.2f} seconds")
-            print("=" * 60)
+                logger.info("   • %s: %s", key, value)
+            logger.debug("⏱️  Duration: %.2f seconds", summary.duration_sec)
+            logger.info("=" * 60)
 
         # Single-product mode: use existing scraper.scrape_products()
         else:
             products = scraper.scrape_products(args.keywords, search_params)
 
             if products:
-                print("\n✅ Scraping successful!")
-                print(f"📊 Products scraped: {len(products)}")
-                print(f"🏷️  Keywords: {', '.join(args.keywords)}")
+                logger.info("✅ Scraping successful!")
+                logger.info("📊 Products scraped: %d", len(products))
+                logger.info("🏷️  Keywords: %s", ", ".join(args.keywords))
             else:
-                print("\n❌ No products scraped")
+                logger.error("❌ No products scraped")
 
     except Exception as e:
-        print(f"\n💥 Scraper failed: {e}")
+        logger.error("💥 Scraper failed: %s", e)
         if args.debug:
             import traceback
 
-            traceback.print_exc()
+            logger.debug(traceback.format_exc())
         raise
 
 

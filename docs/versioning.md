@@ -62,6 +62,23 @@ We will:
 6. **GitHub Release**: Automated release notes generation
 7. **Communication**: Community notification of new releases
 
+### Dependency Updates
+
+Automated dependency updates (Dependabot) follow the **batch into patch releases** approach:
+
+- Dependabot PRs target `main` but are **not merged immediately**
+- "Grouped security updates" enabled — all security fixes in one PR
+- Open PRs serve as visible queue of pending updates
+- Updates are batched and included in the next scheduled patch release
+- Security-critical updates may trigger an immediate patch release
+- CHANGELOG includes dependency updates under "Dependencies" or "Security" section
+
+**Workflow**:
+1. Dependabot creates grouped PR with `poetry.lock` updates targeting `main`
+2. PR remains open until next patch release cycle
+3. At release time: merge grouped PR, bump version, update CHANGELOG
+4. Tag release from `main`
+
 ## Path to 1.0.0
 
 ### Stability Criteria

@@ -13,6 +13,34 @@ import yaml
 CONFIG: dict[str, Any] = {}
 _BROWSER_CONFIG: dict[str, Any] = {}
 
+_MISSING = object()
+
+
+def get_config_value(*keys: str, default: Any = None) -> Any:
+    """Get a nested config value by key path.
+
+    Replaces verbose CONFIG.get("a", {}).get("b", {}).get("c", default)
+    with get_config_value("a", "b", "c", default=default).
+
+    Args:
+    ----
+        *keys: Sequence of dictionary keys to traverse
+        default: Value to return if any key is missing
+
+    Returns:
+    -------
+        The value at the nested key path, or default if not found
+
+    """
+    result: Any = CONFIG
+    for key in keys:
+        if not isinstance(result, dict):
+            return default
+        result = result.get(key, _MISSING)
+        if result is _MISSING:
+            return default
+    return result
+
 
 def get_output_path(path_type: str, **kwargs) -> str:
     """Get configurable output path from YAML config

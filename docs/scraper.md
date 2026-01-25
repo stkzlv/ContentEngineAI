@@ -31,6 +31,8 @@ The scraper is run via `src.scraper.amazon.scraper`.
 |----------|-------------|---------|
 | `--keywords` | List of keywords or ASINs to search/scrape | `--keywords "headphones" "B0..."` |
 | `--product-ids` | Explicit list of ASINs for direct scraping | `--product-ids B0123... B0456...` |
+| `--max-products` | Global cap on total products to collect | `--max-products 10` |
+| `--products-per-keyword` | Maximum products per individual keyword | `--products-per-keyword 2` |
 | `--fail-fast` | Stop batch processing on first error | `--fail-fast` |
 | `--clean` | Delete output directory before scraping | `--clean` |
 
@@ -57,7 +59,7 @@ The scraper is run via `src.scraper.amazon.scraper`.
 
 ## ⚙️ Configuration
 
-The scraper is configured via `config/scraper.yaml`. CLI arguments override these settings.
+The scraper is configured via `config/scraper.yaml`. CLI arguments override YAML settings **only when explicitly provided**.
 
 ```yaml
 scrapers:

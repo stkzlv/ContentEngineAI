@@ -1,6 +1,6 @@
 # Project Requirements
 
-High-level requirements for ContentEngineAI. Implementation details are in specs (`.spec-workflow/specs/`).
+High-level requirements for ContentEngineAI.
 
 ---
 
@@ -8,7 +8,7 @@ High-level requirements for ContentEngineAI. Implementation details are in specs
 
 ### Configuration System
 - **Three-tier precedence**: CLI arguments > Environment variables > YAML files
-- CLI arguments enable runtime customization without file changes
+- CLI arguments override only when **explicitly provided** by the user (use `default=None` in argparse, not hardcoded defaults)
 - Environment variables (`.env`) store secrets only—never committed
 - YAML files (`config/`) store application settings—safe to commit
 - Validate all configuration at startup with clear error messages
@@ -100,6 +100,13 @@ High-level requirements for ContentEngineAI. Implementation details are in specs
 - Sequential processing with rate limiting
 - Deduplication across multiple sources
 - Summary reporting of success/failure counts
+
+### Product Limits
+- **`max_products`**: Total products to collect across all keywords (global cap)
+- **`products_per_keyword`**: Maximum products to scrape per individual keyword
+- Both limits must be consistent across all configurations (pipeline, scraper, CLI)
+- Processing continues through keyword list until `max_products` is reached
+- Early termination when global limit is hit, even if keywords remain
 
 ---
 

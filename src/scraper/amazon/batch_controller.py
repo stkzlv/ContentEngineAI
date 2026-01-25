@@ -59,9 +59,9 @@ class BatchController:
 
         self.logger.info(self.separator)
         self.logger.info("STARTING BATCH SCRAPING")
-        self.logger.info(f"Product IDs: {len(self.config.product_ids)}")
-        self.logger.info(f"Keywords: {len(self.config.keywords)}")
-        self.logger.info(f"Fail-fast: {self.config.fail_fast}")
+        self.logger.info("Product IDs: %d", len(self.config.product_ids))
+        self.logger.info("Keywords: %d", len(self.config.keywords))
+        self.logger.info("Fail-fast: %s", self.config.fail_fast)
         self.logger.info(self.separator)
 
         # Process product IDs first
@@ -102,17 +102,20 @@ class BatchController:
             return results
 
         self.logger.info(
-            f"\n{self.separator}\n"
-            f"PROCESSING PRODUCT IDS ({len(self.config.product_ids)} total)\n"
-            f"{self.separator}"
+            "\n%s\nPROCESSING PRODUCT IDS (%d total)\n%s",
+            self.separator,
+            len(self.config.product_ids),
+            self.separator,
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
             # Validate ASIN format
             if not validate_asin_format(product_id):
                 self.logger.warning(
-                    f"[{i}/{len(self.config.product_ids)}] ⚠️  "
-                    f"Invalid ASIN format: {product_id} - Skipping"
+                    "[%d/%d] ⚠️  Invalid ASIN format: %s - Skipping",
+                    i,
+                    len(self.config.product_ids),
+                    product_id,
                 )
                 results.append(
                     ProductResult(
@@ -126,8 +129,10 @@ class BatchController:
                 continue
 
             self.logger.info(
-                f"[{i}/{len(self.config.product_ids)}] "
-                f"Scraping product: {product_id}"
+                "[%d/%d] Scraping product: %s",
+                i,
+                len(self.config.product_ids),
+                product_id,
             )
 
             try:
@@ -142,8 +147,10 @@ class BatchController:
                 if products and len(products) > 0:
                     product_data = products[0]
                     self.logger.info(
-                        f"[{i}/{len(self.config.product_ids)}] ✅ "
-                        f"Successfully scraped: {product_id}"
+                        "[%d/%d] ✅ Successfully scraped: %s",
+                        i,
+                        len(self.config.product_ids),
+                        product_id,
                     )
                     results.append(
                         ProductResult(
@@ -156,8 +163,10 @@ class BatchController:
                     )
                 else:
                     self.logger.warning(
-                        f"[{i}/{len(self.config.product_ids)}] ⚠️  "
-                        f"No data found for: {product_id}"
+                        "[%d/%d] ⚠️  No data found for: %s",
+                        i,
+                        len(self.config.product_ids),
+                        product_id,
                     )
                     results.append(
                         ProductResult(
@@ -172,8 +181,11 @@ class BatchController:
             except Exception as e:
                 error_msg = str(e)
                 self.logger.error(
-                    f"[{i}/{len(self.config.product_ids)}] ❌ "
-                    f"Failed to scrape {product_id}: {error_msg}"
+                    "[%d/%d] ❌ Failed to scrape %s: %s",
+                    i,
+                    len(self.config.product_ids),
+                    product_id,
+                    error_msg,
                 )
                 results.append(
                     ProductResult(
@@ -208,14 +220,15 @@ class BatchController:
             return results
 
         self.logger.info(
-            f"\n{self.separator}\n"
-            f"PROCESSING KEYWORDS ({len(self.config.keywords)} total)\n"
-            f"{self.separator}"
+            "\n%s\nPROCESSING KEYWORDS (%d total)\n%s",
+            self.separator,
+            len(self.config.keywords),
+            self.separator,
         )
 
         for i, keyword in enumerate(self.config.keywords, 1):
             self.logger.info(
-                f"[{i}/{len(self.config.keywords)}] " f"Searching keyword: {keyword}"
+                "[%d/%d] Searching keyword: %s", i, len(self.config.keywords), keyword
             )
 
             try:
@@ -228,8 +241,11 @@ class BatchController:
 
                 if products:
                     self.logger.info(
-                        f"[{i}/{len(self.config.keywords)}] ✅ "
-                        f"Found {len(products)} products for: {keyword}"
+                        "[%d/%d] ✅ Found %d products for: %s",
+                        i,
+                        len(self.config.keywords),
+                        len(products),
+                        keyword,
                     )
 
                     # Add each product as a result
@@ -248,23 +264,28 @@ class BatchController:
                     # Check if max_products limit reached
                     if len(results) >= self.config.max_products:
                         self.logger.info(
-                            f"✅ Reached max_products limit "
-                            f"({self.config.max_products}). "
-                            f"Stopping keyword processing."
+                            "✅ Reached max_products limit (%d). "
+                            "Stopping keyword processing.",
+                            self.config.max_products,
                         )
                         break
 
                 else:
                     self.logger.warning(
-                        f"[{i}/{len(self.config.keywords)}] ⚠️  "
-                        f"No products found for: {keyword}"
+                        "[%d/%d] ⚠️  No products found for: %s",
+                        i,
+                        len(self.config.keywords),
+                        keyword,
                     )
 
             except Exception as e:
                 error_msg = str(e)
                 self.logger.error(
-                    f"[{i}/{len(self.config.keywords)}] ❌ "
-                    f"Failed to search {keyword}: {error_msg}"
+                    "[%d/%d] ❌ Failed to search %s: %s",
+                    i,
+                    len(self.config.keywords),
+                    keyword,
+                    error_msg,
                 )
 
                 # Fail-fast: stop on first error
@@ -305,7 +326,7 @@ class BatchController:
 
             # Skip if already seen
             if asin and asin in seen_asins:
-                self.logger.debug(f"Skipping duplicate ASIN: {asin}")
+                self.logger.debug("Skipping duplicate ASIN: %s", asin)
                 continue
 
             # Add to results
@@ -316,7 +337,7 @@ class BatchController:
         duplicates_removed = len(results) - len(deduplicated)
         if duplicates_removed > 0:
             self.logger.info(
-                f"Deduplication: Removed {duplicates_removed} " "duplicate product(s)"
+                "Deduplication: Removed %d duplicate product(s)", duplicates_removed
             )
 
         return deduplicated
@@ -397,20 +418,20 @@ class BatchController:
         self.logger.info("\n" + self.separator)
         self.logger.info("BATCH SCRAPING SUMMARY")
         self.logger.info(self.separator)
-        self.logger.info(f"Total Attempted: {summary.total_attempted}")
-        self.logger.info(f"  - Product IDs: {summary.product_ids_attempted}")
-        self.logger.info(f"  - Keywords: {summary.keywords_attempted}")
-        self.logger.info(f"Successful: {summary.successful}")
-        self.logger.info(f"Failed: {summary.failed}")
+        self.logger.info("Total Attempted: %d", summary.total_attempted)
+        self.logger.info("  - Product IDs: %d", summary.product_ids_attempted)
+        self.logger.info("  - Keywords: %d", summary.keywords_attempted)
+        self.logger.info("Successful: %d", summary.successful)
+        self.logger.info("Failed: %d", summary.failed)
 
         if summary.failed_products:
-            self.logger.info(f"Failed Products: {', '.join(summary.failed_products)}")
+            self.logger.info("Failed Products: %s", ", ".join(summary.failed_products))
 
         self.logger.info("\nMedia Collection Statistics:")
         for key, value in summary.media_stats.items():
-            self.logger.info(f"  - {key}: {value}")
+            self.logger.info("  - %s: %s", key, value)
 
         self.logger.info(
-            f"\nDuration: {summary.duration_sec:.{duration_places}f} seconds"
+            "\nDuration: %.*f seconds", duration_places, summary.duration_sec
         )
         self.logger.info(self.separator)

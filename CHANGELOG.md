@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-01-25
+
+### Added
+- **Two-Tier Product Limits**: Granular control over product collection
+  - `max_products`: Global cap on total products to collect
+  - `products_per_keyword`: Maximum products per individual keyword
+  - Processing stops when global limit is reached, even if keywords remain
+
+### Changed
+- **CLI Config Precedence**: CLI arguments now only override YAML values when explicitly provided
+  - Omitting a CLI flag uses the YAML configuration value
+  - Prevents hardcoded defaults from unexpectedly overriding YAML settings
+
+### Refactored
+- **Scraper Module**: Split large files into focused modules for maintainability
+  - `constants.py`: Centralized magic numbers and filter codes
+  - `image_utils.py`: Image validation and URL processing
+  - `video_extractor.py`: Video extraction and M3U8 capture
+  - `debug_analysis.py`: Debug image analysis utilities
+  - `product_extractor.py`: Product data extraction from pages
+  - `download_async.py`: Async download operations
+  - `download_validators.py`: Download validation logic
+- **Structured Logging**: Replaced print statements with logger calls using lazy %-formatting
+- **Global State Elimination**: Removed `DEBUG_MODE` global in favor of parameter passing
+
 ## [0.25.0] - 2026-01-22
 
 ### Added

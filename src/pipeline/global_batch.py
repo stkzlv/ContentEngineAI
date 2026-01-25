@@ -95,9 +95,19 @@ Examples:
     input_group.add_argument(
         "--max-products",
         type=int,
-        default=10,
+        default=None,
         metavar="N",
-        help="Maximum number of products to scrape per keyword (default: 10)",
+        help=(
+            "Maximum total products to collect across all keywords "
+            "(default: from config)"
+        ),
+    )
+    input_group.add_argument(
+        "--products-per-keyword",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Maximum products to scrape per individual keyword (default: from config)",
     )
 
     # Scraper filter arguments
@@ -344,9 +354,11 @@ class GlobalPipelineOrchestrator:
         if self.config.keywords:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
-                print(f'    - "{kw}" (max {self.config.max_products} products)')
+                kw_limit = self.config.products_per_keyword
+                print(f'    - "{kw}" (max {kw_limit} per keyword)')
             if len(self.config.keywords) > 5:
                 print(f"    ... and {len(self.config.keywords) - 5} more")
+            print(f"  Global limit: {self.config.max_products} products total")
 
         # Show filters
         filters = self.config.scraper_filters
@@ -703,28 +715,48 @@ class GlobalPipelineOrchestrator:
             all_inputs.extend(self.config.keywords)
 
         total_inputs = len(all_inputs)
-        logger.info(f"Scraping {total_inputs} product(s): {', '.join(all_inputs)}")
+        logger.info(f"Scraping {total_inputs} input(s): {', '.join(all_inputs)}")
+        logger.info(
+            f"Limits: {self.config.products_per_keyword} per keyword, "
+            f"{self.config.max_products} total"
+        )
 
         # Initialize scraper
         scraper = BotasaurusAmazonScraper(
             debug_override=self.config.debug,
         )
 
-        # Override max_products in scraper config if specified
-        if self.config.max_products is not None:
-            scraper.amazon_config["max_products"] = self.config.max_products
+        # Set products_per_keyword as the per-input limit
+        scraper.amazon_config["max_products"] = self.config.products_per_keyword
 
         # Track statistics
-        successful = 0
-        failed = 0
+        inputs_processed = 0
+        inputs_failed = 0
         successful_products: list[str] = []
-        failed_products: list[str] = []
+        failed_inputs: list[str] = []
         total_images = 0
         total_videos = 0
 
-        # Process each input
+        # Process each input until max_products reached
         for idx, input_item in enumerate(all_inputs, 1):
-            logger.info(f"[{idx}/{total_inputs}] Scraping: {input_item}")
+            # Check if global limit reached
+            if len(successful_products) >= self.config.max_products:
+                logger.info(
+                    f"✅ Reached max_products limit ({self.config.max_products}). "
+                    f"Stopping with {len(all_inputs) - idx + 1} inputs remaining."
+                )
+                break
+
+            # Calculate remaining slots
+            remaining = self.config.max_products - len(successful_products)
+            per_input_limit = min(self.config.products_per_keyword, remaining)
+            scraper.amazon_config["max_products"] = per_input_limit
+
+            collected = f"{len(successful_products)}/{self.config.max_products}"
+            logger.info(
+                f"[{idx}/{total_inputs}] Scraping: {input_item} "
+                f"(limit: {per_input_limit}, collected: {collected})"
+            )
 
             try:
                 # Call scraper with single input
@@ -733,7 +765,7 @@ class GlobalPipelineOrchestrator:
                 )
 
                 if products:
-                    successful += 1
+                    inputs_processed += 1
                     # Track successful product IDs (ASINs)
                     for product in products:
                         if hasattr(product, "asin") and product.asin:
@@ -743,12 +775,14 @@ class GlobalPipelineOrchestrator:
                             total_images += len(product.images)
                         if hasattr(product, "videos") and product.videos:
                             total_videos += len(product.videos)
+                    product_count = len(products)
                     logger.info(
-                        f"✓ [{idx}/{total_inputs}] Successfully scraped {input_item}"
+                        f"✓ [{idx}/{total_inputs}] Found {product_count} "
+                        f"product(s) for {input_item}"
                     )
                 else:
-                    failed += 1
-                    failed_products.append(input_item)
+                    inputs_failed += 1
+                    failed_inputs.append(input_item)
                     logger.warning(f"✗ [{idx}/{total_inputs}] No data for {input_item}")
 
                     if self.config.fail_fast:
@@ -756,8 +790,8 @@ class GlobalPipelineOrchestrator:
                         break
 
             except Exception as e:
-                failed += 1
-                failed_products.append(input_item)
+                inputs_failed += 1
+                failed_inputs.append(input_item)
                 logger.error(
                     f"✗ [{idx}/{total_inputs}] Failed to scrape {input_item}: {e}"
                 )
@@ -771,16 +805,16 @@ class GlobalPipelineOrchestrator:
         media_stats = {"total_images": total_images, "total_videos": total_videos}
 
         logger.info(
-            f"Scraping phase complete: {successful} successful, "
-            f"{failed} failed in {duration:.1f}s"
+            f"Scraping phase complete: {len(successful_products)} products from "
+            f"{inputs_processed} inputs ({inputs_failed} failed) in {duration:.1f}s"
         )
 
         return ScrapingPhaseSummary(
             total_attempted=total_inputs,
-            successful=successful,
-            failed=failed,
+            successful=inputs_processed,
+            failed=inputs_failed,
             successful_products=successful_products,
-            failed_products=failed_products,
+            failed_products=failed_inputs,
             media_stats=media_stats,
             duration_sec=duration,
         )

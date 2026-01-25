@@ -5,120 +5,15 @@ utilities used throughout the scraper.
 """
 
 import logging
-import os
-import platform
-import random
 import re
 import subprocess
-import time
-from collections.abc import Callable
 from typing import Any
 
 from botasaurus.browser import Driver
 
+from ..base.utils import exponential_backoff_retry  # noqa: F401
 
-def exponential_backoff_retry(
-    func: Callable,
-    max_retries: int = None,
-    base_delay: float = None,
-    max_delay: float = None,
-    backoff_factor: float = None,
-    jitter: bool = None,
-) -> Callable:
-    """Decorator to add exponential backoff retry logic to functions
-
-    Args:
-    ----
-        func: Function to retry
-        max_retries: Maximum number of retry attempts (uses config if None)
-        base_delay: Initial delay in seconds (uses config if None)
-        max_delay: Maximum delay in seconds (uses config if None)
-        backoff_factor: Multiplier for each retry (uses config if None)
-        jitter: Add random jitter to prevent thundering herd (uses config if None)
-
-    """
-
-    def wrapper(*args, **kwargs):
-        # Import here to avoid circular imports
-        from .config import CONFIG
-
-        # Load config values if not provided
-        try:
-            global_config = CONFIG.get("global_settings", {}).get("retry_config", {})
-        except Exception:
-            global_config = {}
-
-        actual_max_retries = (
-            max_retries
-            if max_retries is not None
-            else global_config.get("default_max_retries", 3)
-        )
-        actual_base_delay = (
-            base_delay
-            if base_delay is not None
-            else global_config.get("base_delay", 1.0)
-        )
-        actual_max_delay = (
-            max_delay if max_delay is not None else global_config.get("max_delay", 60.0)
-        )
-        actual_backoff_factor = (
-            backoff_factor
-            if backoff_factor is not None
-            else global_config.get("backoff_factor", 2.0)
-        )
-        actual_jitter = (
-            jitter if jitter is not None else global_config.get("use_jitter", True)
-        )
-        jitter_factor = global_config.get("jitter_factor", 0.5)
-
-        # Import DEBUG_MODE from main module
-        try:
-            from . import scraper
-
-            DEBUG_MODE = scraper.DEBUG_MODE
-        except Exception:
-            DEBUG_MODE = False
-
-        last_exception: Exception | None = None
-
-        for attempt in range(actual_max_retries + 1):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                last_exception = e
-
-                if attempt == actual_max_retries:
-                    if DEBUG_MODE:
-                        logging.getLogger(__name__).warning(
-                            f"❌ Final retry failed for {func.__name__}: {e}"
-                        )
-                    raise last_exception from None
-
-                # Calculate delay with exponential backoff
-                delay = min(
-                    actual_base_delay * (actual_backoff_factor**attempt),
-                    actual_max_delay,
-                )
-
-                # Add jitter to prevent thundering herd
-                if actual_jitter:
-                    delay *= jitter_factor + random.random() * (1.0 - jitter_factor)  # noqa: S311
-
-                if DEBUG_MODE:
-                    logging.getLogger(__name__).debug(
-                        f"🔄 Retry {attempt + 1}/{actual_max_retries} for "
-                        f"{func.__name__} in {delay:.2f}s: {e}"
-                    )
-
-                time.sleep(delay)
-
-        # This should never be reached since we would have returned or raised in
-        # the loop
-        raise RuntimeError(
-            f"Retry logic failed for {func.__name__}"
-        ) from last_exception
-
-    return wrapper
+logger = logging.getLogger(__name__)
 
 
 def validate_asin_format(asin: str) -> bool:

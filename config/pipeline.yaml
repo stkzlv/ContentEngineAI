@@ -17,11 +17,22 @@ global_batch:
 
   # Keywords to search for products
   # Example: ["wireless earbuds", "smart watch", "bluetooth speaker"]
-  keywords: []
+  keywords:
+    - "smart ring"
+    - "mini projector"
+    - "portable charger"
+    - "wallet finder"
+    - "car charger"
+    - "LED Strip Lights"
 
-  # Maximum number of products to scrape per keyword
+  # Maximum total products to collect across all keywords (global cap)
+  # Processing stops when this limit is reached, even if keywords remain
   # Default: 10
   max_products: 10
+
+  # Maximum products to scrape per individual keyword
+  # Default: 2
+  products_per_keyword: 2
 
   # ---- Scraper Filter Configuration ----
   # Optional filters to apply when searching for products

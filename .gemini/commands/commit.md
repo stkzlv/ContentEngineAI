@@ -4,9 +4,10 @@ Review all uncommitted changes in the current branch.
 
 ## Process
 1. Run `git status` and `git diff --stat` to review changes.
-2. Stage appropriate files with `git add`.
-3. Create commit following conventions below.
-4. Push to remote with `git push`.
+2. Run formatting: `poetry run ruff format . && poetry run ruff check --fix .`
+3. Stage appropriate files with `git add`.
+4. Create commit following conventions below.
+5. Push to remote with `git push`.
 
 ## Commit Message Format
 Use conventional commits: `<type>: <description>`

@@ -27,7 +27,7 @@ class SearchParameterBuilder:
         validation_errors = parameters.validate()
         if validation_errors:
             logging.getLogger(__name__).warning(
-                f"Search parameter validation errors: {validation_errors}"
+                "Search parameter validation errors: %s", validation_errors
             )
 
         # Start with basic search parameters
@@ -78,7 +78,7 @@ class SearchParameterBuilder:
         """Log search parameters for debugging."""
         logger = logging.getLogger(__name__)
         if parameters is None:
-            logger.info(f"Search URL for '{keyword}': basic search (no filters)")
+            logger.info("Search URL for '%s': basic search (no filters)", keyword)
             return
 
         filters = []
@@ -105,7 +105,7 @@ class SearchParameterBuilder:
 
         if filters:
             logger.info(
-                f"Search URL for '{keyword}' with filters: {'; '.join(filters)}"
+                "Search URL for '%s' with filters: %s", keyword, "; ".join(filters)
             )
         else:
-            logger.info(f"Search URL for '{keyword}': basic search (no filters)")
+            logger.info("Search URL for '%s': basic search (no filters)", keyword)

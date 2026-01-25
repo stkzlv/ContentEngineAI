@@ -124,14 +124,14 @@ video_settings:
   # Profiles can override these values for custom layouts
   # Values are fractions of frame dimensions (0.0-1.0)
   # Used by: producer.py when generating visual content
-  image_width_percent: 0.9           # Image width as 90% of frame width
+  image_width_percent: 1             # Image width as 90% of frame width
   image_top_position_percent: 0.07   # Top edge at 7% from frame top
 
   # Fallback positioning for image-only videos (no product videos available)
   # Used by: visual_builder.py when profile expects videos but only images are available
   # Pipeline Impact: Ensures consistent positioning when video-centric profiles fall back to images
   fallback_image_top_percent: 0.15   # Top edge at 15% when falling back to image-only mode
-  fallback_image_width_percent: 0.85 # Width at 85% when falling back to image-only mode
+  fallback_image_width_percent: 1    # Width at 85% when falling back to image-only mode
 
   # Aspect ratio settings for video processing
   # Used by: visual_builder.py smart-scale mode decision making
@@ -420,7 +420,7 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.85
+    image_width_percent: 1
     image_top_position_percent: 0.15              # Position image lower (15% from top)
 
     # Subtitle format - SRT (simple format, no ASS effects like karaoke)
@@ -458,7 +458,7 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.9
+    image_width_percent: 1
     image_top_position_percent: 0.15
 
     # Subtitle positioning overrides
@@ -499,7 +499,7 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.9
+    image_width_percent: 1
     image_top_position_percent: 0.12
 
     # Two-part subtitle system configuration
@@ -548,7 +548,7 @@ video_profiles:
     use_dynamic_image_count: true
 
     # Image positioning overrides
-    image_width_percent: 0.75              # Medium size images
+    image_width_percent: 1                 # Medium size images
     image_top_position_percent: 0.20       # Position images in upper-middle area
 
     # Two-part subtitle system configuration
@@ -614,7 +614,7 @@ video_profiles:
     video_transition_duration: 0.5             # 0.5s crossfade between videos
 
     # Image positioning (for fallback images)
-    image_width_percent: 0.85
+    image_width_percent: 1
     image_top_position_percent: 0.45         # Position lower (45% from top = 864px)
 
     # Video positioning (for full-frame videos)
@@ -673,7 +673,7 @@ video_profiles:
     video_transition_duration: 0.5             # Smooth loop transition
 
     # Image positioning (for fallback images)
-    image_width_percent: 0.85
+    image_width_percent: 1
     image_top_position_percent: 0.15
 
     # Video positioning (for full-frame videos)
@@ -733,7 +733,7 @@ video_profiles:
     video_transition_duration: 0.5             # Crossfade between all media
 
     # Image positioning
-    image_width_percent: 0.85
+    image_width_percent: 1
     image_top_position_percent: 0.15
 
     # Video positioning (for full-frame videos)
@@ -793,7 +793,7 @@ video_profiles:
     video_transition_duration: 0.5             # Crossfade between all media
 
     # Image positioning (for remaining duration)
-    image_width_percent: 0.85
+    image_width_percent: 1
     image_top_position_percent: 0.15
 
     # Video positioning (for full-frame videos)
