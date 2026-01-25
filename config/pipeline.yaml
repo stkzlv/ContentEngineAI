@@ -17,7 +17,13 @@ global_batch:
 
   # Keywords to search for products
   # Example: ["wireless earbuds", "smart watch", "bluetooth speaker"]
-  keywords: []
+  keywords:
+    - "smart ring"
+    - "mini projector"
+    - "portable charger"
+    - "wallet finder"
+    - "car charger"
+    - "LED Strip Lights"
 
   # Maximum total products to collect across all keywords (global cap)
   # Processing stops when this limit is reached, even if keywords remain
