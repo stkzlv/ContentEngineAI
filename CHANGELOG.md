@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-01-25
+
 ### Added
 - **Two-Tier Product Limits**: Granular control over product collection
   - `max_products`: Global cap on total products to collect
@@ -29,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `download_validators.py`: Download validation logic
 - **Structured Logging**: Replaced print statements with logger calls using lazy %-formatting
 - **Global State Elimination**: Removed `DEBUG_MODE` global in favor of parameter passing
+
+### Dependencies
+- Bump fonttools from 4.58.0 to 4.60.2
+- Bump brotli from 1.1.0 to 1.2.0
+- Bump virtualenv from 20.31.2 to 20.36.1
+- Bump aiohttp from 3.11.18 to 3.13.3
 
 ## [0.25.0] - 2026-01-22
 
