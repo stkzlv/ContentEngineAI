@@ -146,6 +146,7 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
         "subtitle_background_color",
         "image_width_percent",
         "image_top_position_percent",
+        "image_vertical_align",
         "target_platform",
         "metadata_mode",
     ]:

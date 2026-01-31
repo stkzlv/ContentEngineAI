@@ -124,8 +124,9 @@ video_settings:
   # Profiles can override these values for custom layouts
   # Values are fractions of frame dimensions (0.0-1.0)
   # Used by: producer.py when generating visual content
-  image_width_percent: 1             # Image width as 90% of frame width
-  image_top_position_percent: 0.07   # Top edge at 7% from frame top
+  image_width_percent: 1             # Image width as 100% of frame width
+  image_top_position_percent: 0.0    # Top offset (only used when image_vertical_align is "top")
+  image_vertical_align: center       # Vertical alignment: "center" or "top"
 
   # Fallback positioning for image-only videos (no product videos available)
   # Used by: visual_builder.py when profile expects videos but only images are available

@@ -506,8 +506,8 @@ class VisualFilterBuilder:
                 # Image handling logic
                 scaled_w_base = int(width * video_settings_dict["image_width_percent"])
                 scaled_w, scaled_h = 0, 0
-                target_y_pos = (
-                    video_settings_dict["image_top_position_percent"] * height
+                vertical_align = video_settings_dict.get(
+                    "image_vertical_align", "center"
                 )
 
                 # Calculate subtitle space reservation
@@ -515,11 +515,14 @@ class VisualFilterBuilder:
                     height
                 )
 
-                max_available_height = height - target_y_pos - subtitle_reserved_space
+                # For centering, we calculate Y after knowing scaled_h
+                # For top alignment, use the configured top position
+                top_offset = video_settings_dict["image_top_position_percent"] * height
+                max_available_height = height - top_offset - subtitle_reserved_space
                 logger.debug(
                     f"Image {i}: Reserved {subtitle_reserved_space}px for "
                     f"subtitles, max available height: {max_available_height}px "
-                    f"(frame: {height}px, top pos: {int(target_y_pos)}px)"
+                    f"(frame: {height}px, align: {vertical_align})"
                 )
 
                 if not is_relative_mode and uniform_height > 0:
@@ -545,6 +548,14 @@ class VisualFilterBuilder:
 
                     vf_scale = f"scale={scaled_w}:{scaled_h}"
 
+                # Calculate Y position based on alignment
+                if vertical_align == "center":
+                    # Center image vertically in frame
+                    target_y_pos = (height - scaled_h) / 2
+                else:
+                    # Use configured top offset
+                    target_y_pos = top_offset
+
                 geometries.append(
                     VisualGeometry(
                         rendered_x=int((width - scaled_w) / 2),
@@ -556,7 +567,7 @@ class VisualFilterBuilder:
 
                 vf_string = (
                     f"[{i}:v]{vf_scale},setsar=1,"
-                    f"pad={width}:{height}:(ow-iw)/2:{target_y_pos}:"
+                    f"pad={width}:{height}:(ow-iw)/2:{int(target_y_pos)}:"
                     f"color={video_settings.pad_color},"
                     f"format={pix_fmt}[v_temp_{i}];"
                     f"[v_temp_{i}]trim=duration={duration},"
