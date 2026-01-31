@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -339,7 +340,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.debug_mode,
                 ctx.config.api_settings,
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e
 
         if not script_text:
@@ -502,7 +503,7 @@ async def step_generate_description(ctx: PipelineContext):
                     logger.info(
                         f"Generated upload instructions: {instructions_file.name}"
                     )
-                except Exception as e:
+                except (RuntimeError, ValueError, OSError) as e:
                     logger.warning("Failed to generate upload instructions: %s", e)
                     # Non-critical - continue with workflow
 
@@ -519,10 +520,11 @@ async def step_generate_description(ctx: PipelineContext):
 
                 return  # Success - exit early
 
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 logger.warning(
-                    f"Platform metadata generation failed: {e}, "
+                    "Platform metadata generation failed: %s, "
                     "falling back to unified description mode",
+                    e,
                     exc_info=ctx.debug_mode,
                 )
                 # Fall through to unified mode
@@ -539,7 +541,7 @@ async def step_generate_description(ctx: PipelineContext):
                 ctx.debug_mode,
                 ctx.config.api_settings,
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Description generation failed: {e}") from e
 
         if not description_text:
@@ -633,7 +635,7 @@ async def step_create_voiceover(ctx: PipelineContext):
             vo_path = await tts_manager.generate_speech(
                 ctx.script, ctx.run_paths["voiceover_file"]
             )
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             raise PipelineError(f"TTS generation failed: {e}") from e
 
         if not vo_path or not vo_path.exists():
@@ -675,9 +677,9 @@ async def step_create_voiceover(ctx: PipelineContext):
                     f"Trimmed silence from voiceover "
                     f"(threshold={threshold_db}dB, min_duration={min_duration}s)"
                 )
-            except Exception as e:
+            except (RuntimeError, OSError) as e:
                 logger.warning(
-                    f"Failed to trim silence from voiceover: {e}, using original"
+                    "Failed to trim silence from voiceover: %s, using original", e
                 )
         else:
             logger.debug("Silence removal disabled, skipping voiceover trimming")
@@ -1079,7 +1081,7 @@ async def step_download_music(ctx: PipelineContext):
                                 )
                             if music_info:
                                 break
-                        except Exception as e:
+                        except (RuntimeError, OSError, TimeoutError) as e:
                             logger.warning("Failed to download from Freesound: %s", e)
                             # Continue to try next track, will fall back to local if
                             # all fail
@@ -1221,9 +1223,9 @@ async def step_assemble_video(ctx: PipelineContext):
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
-        except Exception as e:
-            if isinstance(e, PipelineError):
-                raise
+        except PipelineError:
+            raise
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
             raise PipelineError(f"Video assembly process failed: {e}") from e
 
         if ctx.script is None and ctx.run_paths["script_file"].exists():
