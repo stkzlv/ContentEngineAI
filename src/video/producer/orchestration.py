@@ -24,6 +24,7 @@ from src.video.config import VideoConfig, VideoProfile
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.pipeline_graph import PipelineGraph, StepStatus
+from src.video.producer.artifact_registry import load_artifacts_for_step
 from src.video.producer.context import (
     InsufficientMediaError,
     PipelineContext,
@@ -46,12 +47,6 @@ from src.video.producer.state import (
     get_video_run_paths,
 )
 from src.video.producer.steps import (
-    _load_artifacts_create_voiceover,
-    _load_artifacts_download_music,
-    _load_artifacts_gather_visuals,
-    _load_artifacts_generate_description,
-    _load_artifacts_generate_script,
-    _load_artifacts_generate_subtitles,
     step_assemble_video,
     step_create_voiceover,
     step_download_music,
@@ -141,19 +136,8 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
                 pipeline.skip_step(step_name)
                 logger.info(f"Skipping already completed step: {step_name}")
 
-                # Load artifacts for skipped steps
-                if step_name == "gather_visuals":
-                    _load_artifacts_gather_visuals(ctx)
-                elif step_name == "generate_script":
-                    _load_artifacts_generate_script(ctx)
-                elif step_name == "generate_description":
-                    _load_artifacts_generate_description(ctx)
-                elif step_name == "create_voiceover":
-                    _load_artifacts_create_voiceover(ctx)
-                elif step_name == "generate_subtitles":
-                    _load_artifacts_generate_subtitles(ctx)
-                elif step_name == "download_music":
-                    _load_artifacts_download_music(ctx)
+                # Load artifacts for skipped steps via registry
+                load_artifacts_for_step(step_name, ctx)
 
     # Execute pipeline with parallel execution
     try:

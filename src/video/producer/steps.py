@@ -17,6 +17,14 @@ from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
+from src.video.producer.artifact_registry import register_artifact_loader
+from src.video.producer.constants import (
+    DEFAULT_VIDEO_HEIGHT,
+    DEFAULT_VIDEO_TOP_POSITION,
+    DEFAULT_VIDEO_WIDTH,
+    HASHTAG_SKIP_WORDS,
+    SUPPORTED_PLATFORMS,
+)
 from src.video.producer.context import (
     InsufficientMediaError,
     PipelineContext,
@@ -42,84 +50,66 @@ from src.video.tts import TTSManager
 logger = logging.getLogger(__name__)
 
 
-def _load_artifacts_gather_visuals(ctx: PipelineContext):
+@register_artifact_loader("gather_visuals")
+def _load_artifacts_gather_visuals(ctx: PipelineContext) -> None:
     """Load artifacts from completed gather_visuals step."""
-    try:
-        visuals_file = ctx.run_paths["gathered_visuals_file"]
-        if visuals_file.exists():
-            ctx.scraped_images, ctx.scraped_videos, ctx.stock_media = load_visuals_info(
-                visuals_file
-            )
-            logger.debug("Loaded artifacts for skipped step 'gather_visuals'")
-    except Exception as e:
-        logger.warning(f"Error loading gather_visuals artifacts: {e}")
+    visuals_file = ctx.run_paths["gathered_visuals_file"]
+    if visuals_file.exists():
+        ctx.scraped_images, ctx.scraped_videos, ctx.stock_media = load_visuals_info(
+            visuals_file
+        )
 
 
-def _load_artifacts_generate_script(ctx: PipelineContext):
+@register_artifact_loader("generate_script")
+def _load_artifacts_generate_script(ctx: PipelineContext) -> None:
     """Load artifacts from completed generate_script step."""
-    try:
-        script_file = ctx.run_paths["script_file"]
-        if script_file.exists():
-            ctx.script = script_file.read_text(encoding="utf-8")
-            logger.debug("Loaded artifacts for skipped step 'generate_script'")
-    except Exception as e:
-        logger.warning(f"Error loading generate_script artifacts: {e}")
+    script_file = ctx.run_paths["script_file"]
+    if script_file.exists():
+        ctx.script = script_file.read_text(encoding="utf-8")
 
 
-def _load_artifacts_generate_description(ctx: PipelineContext):
+@register_artifact_loader("generate_description")
+def _load_artifacts_generate_description(ctx: PipelineContext) -> None:
     """Load artifacts from completed generate_description step."""
-    try:
-        text_dir = ctx.run_paths["description_file"].parent
+    text_dir = ctx.run_paths["description_file"].parent
 
-        # Try loading unified metadata.json first (in product root)
-        unified_metadata = ctx.run_paths["run_root"] / "metadata.json"
-        if unified_metadata.exists():
-            meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
-            ctx.description = meta.get("description", "")
-            logger.debug(
-                "Loaded unified metadata artifact "
-                "for skipped step 'generate_description'"
-            )
+    # Try loading unified metadata.json first (in product root)
+    unified_metadata = ctx.run_paths["run_root"] / "metadata.json"
+    if unified_metadata.exists():
+        meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
+        ctx.description = meta.get("description", "")
+        return
+
+    # Fallback to platform-specific metadata files
+    for platform in SUPPORTED_PLATFORMS:
+        metadata_file = text_dir / f"metadata_{platform}.json"
+        if metadata_file.exists():
             return
 
-        # Fallback to platform-specific metadata files
-        for platform in ["youtube", "tiktok", "instagram"]:
-            metadata_file = text_dir / f"metadata_{platform}.json"
-            if metadata_file.exists():
-                logger.debug(f"Found platform metadata file: {metadata_file.name}")
-                return
-
-        # Legacy fallback to description.txt
-        description_file = ctx.run_paths["description_file"]
-        if description_file.exists():
-            ctx.description = description_file.read_text(encoding="utf-8")
-            logger.debug(
-                "Loaded legacy description.txt artifact "
-                "for skipped step 'generate_description'"
-            )
-    except Exception as e:
-        logger.warning(f"Error loading generate_description artifacts: {e}")
+    # Legacy fallback to description.txt
+    description_file = ctx.run_paths["description_file"]
+    if description_file.exists():
+        ctx.description = description_file.read_text(encoding="utf-8")
 
 
-def _load_artifacts_create_voiceover(ctx: PipelineContext):
+@register_artifact_loader("create_voiceover")
+def _load_artifacts_create_voiceover(ctx: PipelineContext) -> None:
     """Load artifacts from completed create_voiceover step."""
-    try:
-        duration_file = ctx.run_paths["voiceover_duration_file"]
-        if duration_file.exists():
-            ctx.voiceover_duration = float(duration_file.read_text())
-            logger.debug("Loaded artifacts for skipped step 'create_voiceover'")
-    except Exception as e:
-        logger.warning(f"Error loading create_voiceover artifacts: {e}")
+    duration_file = ctx.run_paths["voiceover_duration_file"]
+    if duration_file.exists():
+        ctx.voiceover_duration = float(duration_file.read_text())
 
 
-def _load_artifacts_generate_subtitles(ctx: PipelineContext):
-    """Load artifacts from completed generate_subtitles step."""
-    logger.debug("Loaded artifacts for skipped step 'generate_subtitles'")
+@register_artifact_loader("generate_subtitles")
+def _load_artifacts_generate_subtitles(ctx: PipelineContext) -> None:
+    """Load artifacts from completed generate_subtitles step (no-op)."""
+    pass
 
 
-def _load_artifacts_download_music(ctx: PipelineContext):
-    """Load artifacts from completed download_music step."""
-    logger.debug("Loaded artifacts for skipped step 'download_music'")
+@register_artifact_loader("download_music")
+def _load_artifacts_download_music(ctx: PipelineContext) -> None:
+    """Load artifacts from completed download_music step (no-op)."""
+    pass
 
 
 async def step_gather_visuals(ctx: PipelineContext):
@@ -289,7 +279,7 @@ async def step_gather_visuals(ctx: PipelineContext):
             ctx.profile,
             ctx.config,
         )
-        logger.info(f"Media validation: {reason}")
+        logger.info("Media validation: %s", reason)
         if not is_valid:
             raise InsufficientMediaError(
                 f"Product '{ctx.product.asin or 'unknown'}' skipped: {reason}"
@@ -300,7 +290,7 @@ async def step_gather_visuals(ctx: PipelineContext):
         if ctx.tts_warmer:
             tts_task_ids = await ctx.tts_warmer.warm_tts_models(ctx.config)
             ctx.preload_task_ids.extend(tts_task_ids)
-            logger.debug(f"Started {len(tts_task_ids)} TTS model warming tasks")
+            logger.debug("Started %d TTS model warming tasks", len(tts_task_ids))
 
         # Save info file for both debug and resumability
         save_visuals_info(
@@ -385,7 +375,7 @@ async def step_generate_description(ctx: PipelineContext):
         unified_metadata_path = product_root / "metadata.json"
         platform_metadata_exists = any(
             (product_root / f"metadata_{platform}.json").exists()
-            for platform in ["youtube", "tiktok", "instagram"]
+            for platform in SUPPORTED_PLATFORMS
         )
 
         # Load from unified metadata.json first
@@ -513,12 +503,12 @@ async def step_generate_description(ctx: PipelineContext):
                         f"Generated upload instructions: {instructions_file.name}"
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to generate upload instructions: {e}")
+                    logger.warning("Failed to generate upload instructions: %s", e)
                     # Non-critical - continue with workflow
 
                 # Set ctx.description to first available platform description
                 # for backward compatibility
-                for platform in ["youtube", "tiktok", "instagram"]:
+                for platform in SUPPORTED_PLATFORMS:
                     metadata = metadata_results.get(platform)
                     if metadata is not None:
                         ctx.description = metadata.description
@@ -567,26 +557,7 @@ async def step_generate_description(ctx: PipelineContext):
         # Generate hashtags from product title keywords
         title_words = (ctx.product.title or "").split()
         # Skip common words, numbers, short words, and brand-like words
-        skip_words = {
-            "the",
-            "and",
-            "for",
-            "with",
-            "from",
-            "that",
-            "this",
-            "are",
-            "you",
-            "your",
-            "our",
-            "can",
-            "will",
-            "has",
-            "have",
-            "been",
-            "only",
-            "also",
-        }
+        skip_words = HASHTAG_SKIP_WORDS
         hashtags = []
         for word in title_words:
             clean = "".join(c for c in word if c.isalnum())
@@ -621,7 +592,7 @@ async def step_generate_description(ctx: PipelineContext):
         with metadata_file.open("w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 
-        logger.info(f"Saved unified metadata to {metadata_file.name}")
+        logger.info("Saved unified metadata to %s", metadata_file.name)
 
 
 async def step_create_voiceover(ctx: PipelineContext):
@@ -770,16 +741,15 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # Check if two-part subtitle system is enabled
         # Handle both nested dict and flat key structures
         two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
-        logger.debug(f"DEBUG: two_part_config = {two_part_config}")
+        logger.debug("Two-part subtitle config: %s", two_part_config)
         logger.debug(
-            "DEBUG: profile_subtitle_settings keys = "
-            f"{list(profile_subtitle_settings.keys())}"
+            "Profile subtitle settings keys: %s", list(profile_subtitle_settings.keys())
         )
 
         if isinstance(two_part_config, dict) and "enabled" in two_part_config:
             two_part_enabled = two_part_config.get("enabled", False)
             logger.debug(
-                f"DEBUG: Using nested structure, two_part_enabled = {two_part_enabled}"
+                "Using nested config structure, two_part_enabled=%s", two_part_enabled
             )
         else:
             # Fallback to flat structure
@@ -787,10 +757,9 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 "two_part_subtitles_enabled", False
             )
             logger.debug(
-                "DEBUG: Using flat structure, two_part_subtitles_enabled key = "
-                f"{profile_subtitle_settings.get('two_part_subtitles_enabled')}"
+                "Using flat config structure, two_part_subtitles_enabled=%s",
+                profile_subtitle_settings.get("two_part_subtitles_enabled"),
             )
-            logger.debug(f"DEBUG: Final two_part_enabled = {two_part_enabled}")
 
         if two_part_enabled:
             logger.info("Two-part subtitle system enabled, generating dual subtitles")
@@ -866,23 +835,29 @@ async def step_generate_subtitles(ctx: PipelineContext):
             # Use appropriate position based on actual media type
             if has_videos:
                 # Videos are present - use video positioning
-                video_top = ctx.profile.video_top_position_percent or 0.07
-                video_height = ctx.profile.video_content_height_percent or 0.8
-                video_width = ctx.profile.image_width_percent or 0.9
+                video_top = (
+                    ctx.profile.video_top_position_percent or DEFAULT_VIDEO_TOP_POSITION
+                )
+                video_height = (
+                    ctx.profile.video_content_height_percent or DEFAULT_VIDEO_HEIGHT
+                )
+                video_width = ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
                 logger.debug(
                     "Using video positioning for visual bounds (videos present)"
                 )
             elif has_images:
                 # Only images - use image positioning
-                video_top = ctx.profile.image_top_position_percent or 0.07
-                video_height = 0.8  # Images use full available height
-                video_width = ctx.profile.image_width_percent or 0.9
+                video_top = (
+                    ctx.profile.image_top_position_percent or DEFAULT_VIDEO_TOP_POSITION
+                )
+                video_height = DEFAULT_VIDEO_HEIGHT  # Images use full available height
+                video_width = ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
                 logger.debug("Using image positioning for visual bounds (images only)")
             else:
                 # No media - use defaults
-                video_top = 0.07
-                video_height = 0.8
-                video_width = 0.9
+                video_top = DEFAULT_VIDEO_TOP_POSITION
+                video_height = DEFAULT_VIDEO_HEIGHT
+                video_width = DEFAULT_VIDEO_WIDTH
                 logger.debug("No media found, using default visual bounds")
 
             visual_bounds = VisualBounds(
@@ -893,8 +868,9 @@ async def step_generate_subtitles(ctx: PipelineContext):
             )
 
             logger.debug(
-                f"Visual bounds for subtitles: "
-                f"y={video_top:.2%}, height={video_height:.2%}"
+                "Visual bounds for subtitles: y=%.2f%%, height=%.2f%%",
+                video_top * 100,
+                video_height * 100,
             )
 
             if lower_enabled:
@@ -928,10 +904,10 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
                 if not lower_path or not lower_path.exists():
                     raise PipelineError("Lower subtitle generation failed.")
-                logger.info(f"Lower subtitle created: {lower_path.name}")
+                logger.info("Lower subtitle created: %s", lower_path.name)
 
             # Generate upper line (static URL) - after lower subtitle for CTA detection
-            logger.debug(f"DEBUG: upper_enabled={upper_enabled}")
+            logger.debug("Upper subtitle enabled: %s", upper_enabled)
             if upper_enabled:
                 # Check for custom URL first (overrides product URL)
                 custom_url = profile_subtitle_settings.get(
@@ -940,7 +916,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
                 if custom_url:
                     upper_text = custom_url
-                    logger.info(f"Using custom URL for upper subtitle: {custom_url}")
+                    logger.info("Using custom URL for upper subtitle: %s", custom_url)
                 else:
                     # Get product URL from data
                     source_field = upper_config.get(
@@ -1002,7 +978,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                     )
 
                     if upper_path and upper_path.exists():
-                        logger.info(f"Upper subtitle created: {upper_path.name}")
+                        logger.info("Upper subtitle created: %s", upper_path.name)
                         # Store upper subtitle path for assembler
                         ctx.run_paths["subtitle_upper_file"] = upper_path
                     else:
@@ -1034,7 +1010,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
             )
             if not srt_path or not srt_path.exists():
                 raise PipelineError("Subtitle generation process failed.")
-            logger.info(f"Subtitles file created: {srt_path.name}")
+            logger.info("Subtitles file created: %s", srt_path.name)
 
 
 async def step_download_music(ctx: PipelineContext):
@@ -1054,7 +1030,7 @@ async def step_download_music(ctx: PipelineContext):
             ctx.voiceover_duration = float(duration_file.read_text())
 
         vo_duration = ctx.voiceover_duration
-        logger.info(f"Required music duration is at least {vo_duration:.2f} seconds.")
+        logger.info("Required music duration is at least %.2f seconds.", vo_duration)
         music_info = None
 
         if ctx.secrets.get(ctx.config.audio_settings.freesound_api_key_env_var):
@@ -1104,7 +1080,7 @@ async def step_download_music(ctx: PipelineContext):
                             if music_info:
                                 break
                         except Exception as e:
-                            logger.warning(f"Failed to download from Freesound: {e}")
+                            logger.warning("Failed to download from Freesound: %s", e)
                             # Continue to try next track, will fall back to local if
                             # all fail
 
@@ -1202,7 +1178,7 @@ async def step_assemble_video(ctx: PipelineContext):
             )
 
         random.shuffle(ctx.visuals)
-        logger.info(f"Final timeline contains {len(ctx.visuals)} visual elements.")
+        logger.info("Final timeline contains %d visual elements.", len(ctx.visuals))
         music_path_str = None
         music_info_path = ctx.run_paths["music_info_file"]
         if music_info_path.exists():
@@ -1260,7 +1236,7 @@ async def step_assemble_video(ctx: PipelineContext):
             script=ctx.script,
             subtitle_path=subtitle_path,
         )
-    logger.info(f"Verification results: {results['message']}")
+    logger.info("Verification results: %s", results["message"])
     if not results["success"]:
-        logger.warning(f"Verification for {final_video_path.name} reported issues.")
-    logger.info(f"Video successfully created: {final_video_path}")
+        logger.warning("Verification for %s reported issues.", final_video_path.name)
+    logger.info("Video successfully created: %s", final_video_path)

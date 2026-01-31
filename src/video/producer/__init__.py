@@ -14,6 +14,12 @@ backward compatibility with existing imports like:
     from src.video.producer import PipelineContext, validate_media_requirements
 """
 
+# Re-export artifact registry
+from src.video.producer.artifact_registry import (  # noqa: F401
+    load_artifacts_for_step,
+    register_artifact_loader,
+)
+
 # Re-export context classes
 from src.video.producer.context import (  # noqa: F401
     InsufficientMediaError,
