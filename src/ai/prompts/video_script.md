@@ -1,6 +1,16 @@
 # Video Script Generation Instructions
 
-You are a marketing and video production expert. Your task is to create a short voiceover script for a promotional video, following the instructions below and using the provided product information as context.
+You are a marketing and video production expert. Your task is to write the exact words a narrator will speak in a promotional video. This text goes directly to text-to-speech, so write ONLY the spoken words.
+
+**CRITICAL: Write actual spoken words, NOT directions or instructions.**
+
+BAD (directions - DO NOT DO THIS):
+> "Start the video with a curious tone. Introduce the product and highlight its features. Conclude by encouraging viewers to take action."
+
+GOOD (actual script - DO THIS):
+> "Why does nobody talk about [product]? It [specific feature from description]. And [another benefit]. [Relevant closing statement about the product]. Check the link in my bio to grab yours."
+
+**DO NOT copy phrases from the example above. Generate original content based on the actual product.**
 
 **Instructions:**
 
@@ -23,6 +33,9 @@ Target Audience: {AUDIENCE}
 
 ---
 
-**IMPORTANT REMINDER:** Your script output must be clean text suitable for text-to-speech conversion. Do NOT include any emojis, hashtags, symbols, or special characters in your response.
+**IMPORTANT REMINDERS:**
+- Write the ACTUAL WORDS the narrator speaks, not directions like "Start with..." or "Introduce the product..."
+- Output must be clean text suitable for text-to-speech conversion
+- Do NOT include emojis, hashtags, symbols, or special characters
 
-Begin the generated script below this line. Do not include any of the information or labels from the section above in your script output.
+Begin the generated script below this line. Write only the spoken words.

@@ -15,8 +15,8 @@ The generated descriptions include relevant hashtags and are optimized for socia
 
 import asyncio
 import logging
+import random
 import re
-import secrets
 from pathlib import Path
 
 import aiohttp
@@ -123,9 +123,8 @@ def save_debug_prompt(prompt: str, path: Path):
 
 async def _fetch_and_select_model(
     settings: LLMSettings, api_key: str, session: aiohttp.ClientSession, api_settings
-) -> str | None:
-    """Fetches available models from OpenRouter and randomly selects a free,
-    suitable one.
+) -> list[str]:
+    """Fetches available models from OpenRouter and returns free models to try.
 
     Args:
     ----
@@ -136,19 +135,19 @@ async def _fetch_and_select_model(
 
     Returns:
     -------
-        Selected model name or None if no suitable model found
+        List of free model IDs to try (ordered or shuffled based on settings)
 
     """
     if not settings.auto_select_free_model:
         logger.info("Auto-selection of free model is disabled in settings.")
-        return None
+        return []
 
     api_url = (
         f"{(settings.base_url or 'https://openrouter.ai/api/v1').rstrip('/')}/models"
     )
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    logger.info("Attempting to fetch models from OpenRouter for auto-selection...")
+    logger.info("Fetching available models from OpenRouter...")
     try:
         # Check if session is None or closed and get a new one if needed
         if session is None or session.closed:  # type: ignore[attr-defined]
@@ -168,7 +167,17 @@ async def _fetch_and_select_model(
             response.raise_for_status()
             data = await response.json()
 
-            free_models = []
+            # Blocklist of models known to produce poor results
+            blocklist = {
+                "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
+                "liquid/lfm-2.5-1.2b-instruct",
+            }
+
+            # Build set of ALL free model IDs (for checking configured models)
+            all_free_ids: set[str] = set()
+            # Build set of discoverable free models (instruct/chat only)
+            discoverable_free: set[str] = set()
+
             if "data" in data and isinstance(data["data"], list):
                 for model in data["data"]:
                     pricing = model.get("pricing", {})
@@ -177,27 +186,148 @@ async def _fetch_and_select_model(
                         and pricing.get("completion") == "0"
                     ):
                         model_id = model.get("id")
-                        if model_id and ("instruct" in model_id or "chat" in model_id):
-                            free_models.append(model_id)
+                        if model_id and model_id not in blocklist:
+                            all_free_ids.add(model_id)
+                            # Only auto-discover instruct/chat models
+                            if "instruct" in model_id or "chat" in model_id:
+                                discoverable_free.add(model_id)
 
-            if free_models:
-                selected_model = secrets.choice(free_models)
-                logger.info(f"Auto-selected free model: {selected_model}")
-                return str(selected_model)
-            else:
-                logger.warning(
-                    "No suitable free models found from API. Using fallback list."
+            if not all_free_ids:
+                logger.warning("No free models found from API. Using fallback list.")
+                return []
+
+            # Configured models that are verified free (priority)
+            ordered_models = [m for m in settings.models if m in all_free_ids]
+
+            # Additional discoverable free models not in config
+            extra_free = [m for m in discoverable_free if m not in ordered_models]
+
+            if settings.random_model_selection:
+                # Shuffle for random selection
+                combined = ordered_models + extra_free
+                random.shuffle(combined)
+                logger.info(
+                    f"Found {len(combined)} free models (random order): "
+                    f"{combined[:3]}..."
                 )
-                return None
+                return combined
+            else:
+                # Keep configured order, append extras at end
+                result = ordered_models + extra_free
+                logger.info(
+                    f"Found {len(result)} free models (priority order): "
+                    f"{result[:3]}..."
+                )
+                return result
+
     except (TimeoutError, ClientError) as e:
         logger.error(f"Failed to fetch models: {e}. Using fallback list.")
-        return None
+        return []
     except Exception as e:
         logger.error(
             f"Unexpected error fetching models: {e}. Using fallback list.",
             exc_info=True,
         )
-        return None
+        return []
+
+
+async def _discover_any_free_model(
+    settings: LLMSettings,
+    api_key: str,
+    session: aiohttp.ClientSession,
+    api_settings,
+    already_tried: set[str],
+) -> list[str]:
+    """Fallback: discover free models from OpenRouter, excluding tiny models.
+
+    This is used as a last resort when all configured/discovered models fail.
+    Excludes models smaller than 7B parameters to avoid hallucination issues.
+
+    Args:
+    ----
+        settings: LLM settings configuration
+        api_key: API key for authentication
+        session: HTTP session for API calls
+        api_settings: Additional API settings
+        already_tried: Set of model IDs that have already been attempted
+
+    Returns:
+    -------
+        List of free model IDs not yet tried (sorted by size descending)
+
+    """
+    api_url = (
+        f"{(settings.base_url or 'https://openrouter.ai/api/v1').rstrip('/')}/models"
+    )
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    # Minimum context length to filter out tiny models (proxy for model size)
+    MIN_CONTEXT_LENGTH = 8000  # Small models often have small contexts
+
+    # Blocklist of models known to produce poor results
+    BLOCKLIST = {
+        "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
+        "liquid/lfm-2.5-1.2b-instruct",
+    }
+
+    logger.info("Fallback: discovering available free models (excluding tiny)...")
+    try:
+        if session is None or session.closed:  # type: ignore[attr-defined]
+            from src.utils.connection_pool import get_http_session
+
+            session = await get_http_session()
+
+        timeout = api_settings.llm_model_fetch_timeout_sec if api_settings else 30
+        async with session.get(api_url, headers=headers, timeout=timeout) as response:  # type: ignore[attr-defined]
+            response.raise_for_status()
+            data = await response.json()
+
+            # Collect free models with size/context filtering
+            candidates: list[tuple[str, int]] = []
+            if "data" in data and isinstance(data["data"], list):
+                for model in data["data"]:
+                    pricing = model.get("pricing", {})
+                    if (
+                        pricing.get("prompt") == "0"
+                        and pricing.get("completion") == "0"
+                    ):
+                        model_id = model.get("id")
+                        context_length = model.get("context_length", 0)
+
+                        # Skip if already tried, blocklisted, or too small
+                        if not model_id:
+                            continue
+                        if model_id in already_tried:
+                            continue
+                        if model_id in BLOCKLIST:
+                            logger.debug(f"Skipping blocklisted model: {model_id}")
+                            continue
+                        if context_length < MIN_CONTEXT_LENGTH:
+                            logger.debug(
+                                f"Skipping small model: {model_id} "
+                                f"(context={context_length})"
+                            )
+                            continue
+
+                        candidates.append((model_id, context_length))
+
+            # Sort by context length descending (larger models first)
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            all_free = [model_id for model_id, _ in candidates]
+
+            if all_free:
+                logger.info(
+                    f"Fallback discovered {len(all_free)} untried free models: "
+                    f"{all_free[:5]}..."
+                )
+            else:
+                logger.warning("Fallback: no additional free models available")
+
+            return all_free
+
+    except Exception as e:
+        logger.error(f"Fallback discovery failed: {e}")
+        return []
 
 
 async def _call_llm_api_with_retry(
@@ -394,15 +524,17 @@ async def generate_description(
             f"Missing API key from environment variable: {settings.api_key_env_var}"
         )
 
-    # Try to automatically select the best available model
-    auto_selected_model = await _fetch_and_select_model(
+    # Fetch available free models (returns ordered or shuffled list)
+    free_models = await _fetch_and_select_model(
         settings, api_key, session, api_settings
     )
 
-    # Build prioritized list of models to try
-    models_to_try = []
-    if auto_selected_model:
-        models_to_try.append(auto_selected_model)
+    # Build prioritized list: free models first, then fallback to configured list
+    models_to_try: list[str] = []
+    if free_models:
+        models_to_try.extend(free_models)
+
+    # Add configured models as fallback (if not already in list)
     for model in settings.models:
         if model not in models_to_try:
             models_to_try.append(model)
@@ -503,6 +635,32 @@ async def generate_description(
                     continue
                 else:
                     break
+
+    # Fallback: try discovering any free model not yet attempted
+    if settings.fallback_discover_any_free:
+        already_tried = set(models_to_try)
+        fallback_models = await _discover_any_free_model(
+            settings, api_key, session, api_settings, already_tried
+        )
+
+        for model in fallback_models:
+            try:
+                logger.info(f"Fallback: trying discovered model {model}")
+                description_text = await _call_llm_api_with_retry(
+                    prompt, model, settings, api_key, session, api_settings
+                )
+                clean_description = re.sub(r"```[\w\s]*", "", description_text).strip()
+                is_complete, validation_reason = validate_description_completeness(
+                    clean_description
+                )
+                if is_complete:
+                    logger.info(f"Fallback success with {model} - {validation_reason}")
+                    return clean_description
+                else:
+                    logger.warning(f"Fallback {model} incomplete: {validation_reason}")
+            except Exception as e:
+                logger.warning(f"Fallback model {model} failed: {e}")
+                continue
 
     logger.error("All models failed to generate a description.")
     return None

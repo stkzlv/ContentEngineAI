@@ -12,6 +12,8 @@ class LLMSettings(BaseModel):
     target_audience: str = Field("General audience")
     base_url: str | None = Field(None)
     auto_select_free_model: bool = Field(True)
+    random_model_selection: bool = Field(False)  # False = try models in order
+    fallback_discover_any_free: bool = Field(True)  # Try any free model as fallback
     max_tokens: int = Field(4096)  # Sensible default, configurable via YAML
     temperature: float = Field(0.7)  # Sensible default, configurable via YAML
     timeout_seconds: int = Field(60)  # Sensible default, configurable via YAML
