@@ -353,9 +353,270 @@ async def step_generate_script(ctx: PipelineContext):
         )
 
 
+def _extract_hashtags_from_title(title: str) -> list[str]:
+    """Extract hashtags from product title keywords.
+
+    Args:
+    ----
+        title: Product title to extract hashtags from.
+
+    Returns:
+    -------
+        List of hashtag strings (without # prefix), always includes 'ad'.
+
+    """
+    title_words = (title or "").split()
+    hashtags = []
+    for word in title_words:
+        clean = "".join(c for c in word if c.isalnum())
+        # Skip if: too short, all digits, common word, or looks like a year
+        if (
+            len(clean) < 4
+            or clean.isdigit()
+            or clean.lower() in HASHTAG_SKIP_WORDS
+            or (len(clean) == 4 and clean.isdigit())  # Years like 2026
+        ):
+            continue
+        hashtags.append(clean.capitalize())
+        if len(hashtags) >= 3:
+            break
+    # Always include #ad for advertising disclosure
+    hashtags.append("ad")
+    return hashtags
+
+
+def _check_existing_metadata(ctx: PipelineContext) -> bool:
+    """Check for and load existing metadata from previous run.
+
+    Args:
+    ----
+        ctx: Pipeline context to populate with loaded description.
+
+    Returns:
+    -------
+        True if existing metadata was found and loaded, False otherwise.
+
+    """
+    description_file = ctx.run_paths["description_file"]
+    product_root = ctx.run_paths["run_root"]
+    unified_metadata_path = product_root / "metadata.json"
+    platform_metadata_exists = any(
+        (product_root / f"metadata_{platform}.json").exists()
+        for platform in SUPPORTED_PLATFORMS
+    )
+
+    # Load from unified metadata.json first
+    if unified_metadata_path.exists():
+        logger.info("Loading existing unified metadata from previous run")
+        meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
+        ctx.description = meta.get("description", "")
+        logger.info(
+            "Loaded existing description from metadata.json (%d characters)",
+            len(ctx.description or ""),
+        )
+        return True
+
+    # Fallback to platform-specific metadata or description.txt
+    if platform_metadata_exists or description_file.exists():
+        logger.info("Loading existing description/metadata from previous run")
+        if description_file.exists():
+            ctx.description = description_file.read_text(encoding="utf-8")
+            logger.info(
+                "Loaded existing description from %s (%d characters)",
+                description_file.name,
+                len(ctx.description or ""),
+            )
+        return True
+
+    return False
+
+
+async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
+    """Generate platform-specific optimized metadata.
+
+    Args:
+    ----
+        ctx: Pipeline context with product and configuration.
+
+    Returns:
+    -------
+        True if generation succeeded, False to fall back to unified mode.
+
+    """
+    try:
+        logger.info(
+            "Platform metadata generation enabled, using PlatformMetadataFactory"
+        )
+
+        from src.ai.platform_metadata import (
+            PlatformMetadataFactory,
+            save_metadata_to_file,
+        )
+        from src.ai.platform_metadata.text_formatter import (
+            format_upload_instructions,
+        )
+
+        # Extract platform settings from config
+        pm_config = ctx.config.description_settings.platform_metadata
+        if pm_config is None:
+            logger.warning("Platform metadata is None, using unified mode")
+            return False
+
+        platform_settings: dict[str, dict] = {}
+        if pm_config.youtube is not None:
+            platform_settings["youtube"] = pm_config.youtube.model_dump()
+        if pm_config.tiktok is not None:
+            platform_settings["tiktok"] = pm_config.tiktok.model_dump()
+        if pm_config.instagram is not None:
+            platform_settings["instagram"] = pm_config.instagram.model_dump()
+
+        if not platform_settings:
+            logger.warning(
+                "Platform metadata enabled but no platform "
+                "configurations found, falling back to unified mode"
+            )
+            return False
+
+        # Prepare intermediate paths for metadata files
+        product_root = ctx.run_paths["run_root"]
+        text_dir = ctx.run_paths["description_file"].parent
+        intermediate_paths = {
+            "description": text_dir / "description.txt",
+            "metadata_youtube": product_root / "metadata_youtube.json",
+            "metadata_tiktok": product_root / "metadata_tiktok.json",
+            "metadata_instagram": product_root / "metadata_instagram.json",
+        }
+
+        # Generate metadata for all platforms in parallel
+        metadata_results = await PlatformMetadataFactory.generate_multi_platform(
+            product=ctx.product,
+            settings=ctx.config.llm_settings,
+            secrets=ctx.secrets,
+            session=ctx.session,
+            platform_settings=platform_settings,
+            intermediate_paths=intermediate_paths,
+            debug_mode=ctx.debug_mode,
+            api_settings=ctx.config.api_settings,
+        )
+
+        # Save metadata to individual platform files
+        saved_count = 0
+        for platform, metadata in metadata_results.items():
+            if metadata:
+                metadata_file = product_root / f"metadata_{platform}.json"
+                save_metadata_to_file(metadata, metadata_file)
+                logger.info("Saved %s metadata to %s", platform, metadata_file.name)
+                saved_count += 1
+
+        if saved_count == 0:
+            logger.warning(
+                "All platform metadata generation failed, "
+                "falling back to unified mode"
+            )
+            return False
+
+        logger.info(
+            "Platform metadata generation complete (%d/%d platforms succeeded)",
+            saved_count,
+            len(metadata_results),
+        )
+
+        # Generate upload instructions (non-critical)
+        try:
+            instructions_text = format_upload_instructions(
+                metadata_results=metadata_results,
+                product_id=ctx.product.asin or "unknown",
+                video_filename=Path(ctx.run_paths["final_video_output"]).name,
+                product_name=ctx.product.title or "Product",
+                product_url=ctx.product.url,
+            )
+            instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
+            instructions_file.write_text(instructions_text, encoding="utf-8")
+            logger.info("Generated upload instructions: %s", instructions_file.name)
+        except (RuntimeError, ValueError, OSError) as e:
+            logger.warning("Failed to generate upload instructions: %s", e)
+
+        # Set ctx.description for backward compatibility
+        for platform in SUPPORTED_PLATFORMS:
+            metadata = metadata_results.get(platform)
+            if metadata is not None:
+                ctx.description = metadata.description
+                logger.debug("Using %s description for ctx.description", platform)
+                break
+
+        return True
+
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.warning(
+            "Platform metadata generation failed: %s, "
+            "falling back to unified description mode",
+            e,
+            exc_info=ctx.debug_mode,
+        )
+        return False
+
+
+async def _generate_unified_metadata(ctx: PipelineContext) -> None:
+    """Generate unified metadata for all platforms.
+
+    Args:
+    ----
+        ctx: Pipeline context with product and configuration.
+
+    Raises:
+    ------
+        PipelineError: If description generation fails.
+
+    """
+    import re
+    from datetime import UTC, datetime
+
+    logger.info("Using unified description generation mode")
+
+    try:
+        description_text = await generate_ai_description(
+            ctx.product,
+            ctx.config.llm_settings,
+            ctx.secrets,
+            ctx.session,
+            {"description": ctx.run_paths["description_file"]},
+            ctx.debug_mode,
+            ctx.config.api_settings,
+        )
+    except (RuntimeError, ValueError, OSError) as e:
+        raise PipelineError(f"Description generation failed: {e}") from e
+
+    if not description_text:
+        raise PipelineError("Description generation failed to produce text.")
+
+    # Strip any hashtags from description (LLM may still include them)
+    description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
+    ctx.description = description_clean
+
+    # Generate hashtags from product title
+    hashtags = _extract_hashtags_from_title(ctx.product.title or "")
+
+    # Generate unified metadata file
+    product_root = ctx.run_paths["run_root"]
+    metadata_dict = {
+        "title": ctx.product.title,
+        "description": ctx.description,
+        "hashtags": hashtags,
+        "keywords": [],
+        "product_id": ctx.product.asin or "unknown",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "mode": "unified",
+    }
+
+    metadata_file = product_root / "metadata.json"
+    with metadata_file.open("w", encoding="utf-8") as f:
+        json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
+
+    logger.info("Saved unified metadata to %s", metadata_file.name)
+
+
 async def step_generate_description(ctx: PipelineContext):
     """Generate AI-powered video description for social media platforms."""
-    # Check if description generation is enabled
     if not ctx.config.description_settings.enabled:
         logger.info("Description generation is disabled, skipping step")
         return
@@ -367,234 +628,17 @@ async def step_generate_description(ctx: PipelineContext):
     ):
         logger.info("Executing step: GENERATE_DESCRIPTION")
 
-        # Check if description already exists from previous run
-        description_file = ctx.run_paths["description_file"]
-        text_dir = description_file.parent
-
-        # Check for existing metadata files (unified or platform-specific)
-        product_root = ctx.run_paths["run_root"]
-        unified_metadata_path = product_root / "metadata.json"
-        platform_metadata_exists = any(
-            (product_root / f"metadata_{platform}.json").exists()
-            for platform in SUPPORTED_PLATFORMS
-        )
-
-        # Load from unified metadata.json first
-        if unified_metadata_path.exists():
-            logger.info("Loading existing unified metadata from previous run")
-            meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
-            ctx.description = meta.get("description", "")
-            logger.info(
-                f"Loaded existing description from metadata.json "
-                f"({len(ctx.description or '')} characters)"
-            )
+        # Check for existing metadata from previous run
+        if _check_existing_metadata(ctx):
             return
 
-        # Fallback to platform-specific metadata or description.txt
-        if platform_metadata_exists or description_file.exists():
-            logger.info("Loading existing description/metadata from previous run")
-            if description_file.exists():
-                ctx.description = description_file.read_text(encoding="utf-8")
-                logger.info(
-                    f"Loaded existing description from {description_file.name} "
-                    f"({len(ctx.description or '')} characters)"
-                )
+        # Try optimized (platform-specific) mode first
+        use_optimized = ctx.config.description_settings.metadata_mode == "optimized"
+        if use_optimized and await _generate_optimized_metadata(ctx):
             return
 
-        # Check if platform-specific metadata generation is enabled (optimized mode)
-        use_optimized_mode = (
-            ctx.config.description_settings.metadata_mode == "optimized"
-        )
-
-        if use_optimized_mode:
-            # Attempt platform-specific metadata generation
-            try:
-                logger.info(
-                    "Platform metadata generation enabled, "
-                    "using PlatformMetadataFactory"
-                )
-
-                # Import factory for platform-specific generation
-                from src.ai.platform_metadata import (
-                    PlatformMetadataFactory,
-                    save_metadata_to_file,
-                )
-                from src.ai.platform_metadata.text_formatter import (
-                    format_upload_instructions,
-                )
-
-                # Extract platform settings from config
-                pm_config = ctx.config.description_settings.platform_metadata
-                if pm_config is None:
-                    logger.warning("Platform metadata is None, using unified mode")
-                    raise ValueError("Platform metadata config is None")
-
-                platform_settings: dict[str, dict] = {}
-                if pm_config.youtube is not None:
-                    platform_settings["youtube"] = pm_config.youtube.model_dump()
-                if pm_config.tiktok is not None:
-                    platform_settings["tiktok"] = pm_config.tiktok.model_dump()
-                if pm_config.instagram is not None:
-                    platform_settings["instagram"] = pm_config.instagram.model_dump()
-
-                if not platform_settings:
-                    logger.warning(
-                        "Platform metadata enabled but no platform "
-                        "configurations found, falling back to unified mode"
-                    )
-                    raise ValueError("No platform configurations available")
-
-                # Prepare intermediate paths for metadata files
-                product_root = ctx.run_paths["run_root"]
-                intermediate_paths = {
-                    "description": text_dir / "description.txt",
-                    "metadata_youtube": product_root / "metadata_youtube.json",
-                    "metadata_tiktok": product_root / "metadata_tiktok.json",
-                    "metadata_instagram": product_root / "metadata_instagram.json",
-                }
-
-                # Generate metadata for all platforms in parallel
-                factory = PlatformMetadataFactory
-                metadata_results = await factory.generate_multi_platform(
-                    product=ctx.product,
-                    settings=ctx.config.llm_settings,
-                    secrets=ctx.secrets,
-                    session=ctx.session,
-                    platform_settings=platform_settings,
-                    intermediate_paths=intermediate_paths,
-                    debug_mode=ctx.debug_mode,
-                    api_settings=ctx.config.api_settings,
-                )
-
-                # Save metadata to individual platform files (in product root)
-                saved_count = 0
-                for platform, metadata in metadata_results.items():
-                    if metadata:
-                        metadata_file = product_root / f"metadata_{platform}.json"
-                        save_metadata_to_file(metadata, metadata_file)
-                        logger.info(
-                            f"Saved {platform} metadata to {metadata_file.name}"
-                        )
-                        saved_count += 1
-
-                if saved_count == 0:
-                    logger.warning(
-                        "All platform metadata generation failed, "
-                        "falling back to unified mode"
-                    )
-                    raise RuntimeError("All platform metadata generation failed")
-
-                logger.info(
-                    f"Platform metadata generation complete "
-                    f"({saved_count}/{len(metadata_results)} platforms succeeded)"
-                )
-
-                # Generate human-readable upload instructions text file
-                try:
-                    instructions_text = format_upload_instructions(
-                        metadata_results=metadata_results,
-                        product_id=ctx.product.asin or "unknown",
-                        video_filename=Path(ctx.run_paths["final_video_output"]).name,
-                        product_name=ctx.product.title or "Product",
-                        product_url=ctx.product.url,
-                    )
-                    instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
-                    instructions_file.write_text(instructions_text, encoding="utf-8")
-                    logger.info(
-                        f"Generated upload instructions: {instructions_file.name}"
-                    )
-                except (RuntimeError, ValueError, OSError) as e:
-                    logger.warning("Failed to generate upload instructions: %s", e)
-                    # Non-critical - continue with workflow
-
-                # Set ctx.description to first available platform description
-                # for backward compatibility
-                for platform in SUPPORTED_PLATFORMS:
-                    metadata = metadata_results.get(platform)
-                    if metadata is not None:
-                        ctx.description = metadata.description
-                        logger.debug(
-                            f"Using {platform} description for ctx.description"
-                        )
-                        break
-
-                return  # Success - exit early
-
-            except (RuntimeError, ValueError, OSError) as e:
-                logger.warning(
-                    "Platform metadata generation failed: %s, "
-                    "falling back to unified description mode",
-                    e,
-                    exc_info=ctx.debug_mode,
-                )
-                # Fall through to unified mode
-
-        # Fallback: Use legacy unified description generation
-        logger.info("Using unified description generation mode")
-        try:
-            description_text = await generate_ai_description(
-                ctx.product,
-                ctx.config.llm_settings,
-                ctx.secrets,
-                ctx.session,
-                {"description": ctx.run_paths["description_file"]},
-                ctx.debug_mode,
-                ctx.config.api_settings,
-            )
-        except (RuntimeError, ValueError, OSError) as e:
-            raise PipelineError(f"Description generation failed: {e}") from e
-
-        if not description_text:
-            raise PipelineError("Description generation failed to produce text.")
-
-        # Strip any hashtags from description (LLM may still include them)
-        import re
-
-        description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
-        ctx.description = description_clean
-
-        # Generate unified metadata.json for publisher (single file for all platforms)
-        from datetime import UTC, datetime
-
-        # Generate hashtags from product title keywords
-        title_words = (ctx.product.title or "").split()
-        # Skip common words, numbers, short words, and brand-like words
-        skip_words = HASHTAG_SKIP_WORDS
-        hashtags = []
-        for word in title_words:
-            clean = "".join(c for c in word if c.isalnum())
-            # Skip if: too short, all digits, common word, or looks like a year
-            if (
-                len(clean) < 4
-                or clean.isdigit()
-                or clean.lower() in skip_words
-                or (len(clean) == 4 and clean.isdigit())  # Years like 2026
-            ):
-                continue
-            hashtags.append(clean.capitalize())
-            if len(hashtags) >= 3:
-                break
-        # Always include #ad for advertising disclosure
-        hashtags.append("ad")
-
-        # Generate single unified metadata file (in product root)
-        product_root = ctx.run_paths["run_root"]
-        metadata_dict = {
-            "title": ctx.product.title,  # Kept for reference, not used in post
-            "description": ctx.description,
-            "hashtags": hashtags,
-            "keywords": [],
-            "product_id": ctx.product.asin or "unknown",
-            "generated_at": datetime.now(UTC).isoformat(),
-            "mode": "unified",
-        }
-
-        # Save to single metadata.json file in product root
-        metadata_file = product_root / "metadata.json"
-        with metadata_file.open("w", encoding="utf-8") as f:
-            json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
-
-        logger.info("Saved unified metadata to %s", metadata_file.name)
+        # Fall back to unified mode
+        await _generate_unified_metadata(ctx)
 
 
 async def step_create_voiceover(ctx: PipelineContext):
