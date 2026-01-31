@@ -210,9 +210,7 @@ class TwoPartSubtitleHandler:
                     break
 
         if not upper_text:
-            logger.warning(
-                "No data found for upper subtitle field '%s'", source_field
-            )
+            logger.warning("No data found for upper subtitle field '%s'", source_field)
             return None
 
         # Apply URL prefix replacement if configured
@@ -361,8 +359,6 @@ class TwoPartSubtitleHandler:
         )
 
         # Generate upper
-        upper_path = self.generate_upper_subtitle(
-            visual_bounds, product_id, lower_path
-        )
+        upper_path = self.generate_upper_subtitle(visual_bounds, product_id, lower_path)
 
         return lower_path, upper_path
