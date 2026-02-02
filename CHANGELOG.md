@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **LLM Model Selection Improvements**:
+  - Random model selection option (`random_model_selection: true`)
+  - Fallback discovery for any free model when configured models fail
+  - Blocklist for tiny models (<7B) that produce low-quality output
+  - Updated model list with verified working free models (tngtech, arcee-ai, z-ai, nvidia)
+
+- **Centered Image Subtitle Positioning**:
+  - Calculate visual bounds from actual image dimensions for centered images
+  - Fix ABOVE_CONTENT anchor to position relative to visual content top edge
+  - Image fallback lookup for parallel pipeline execution
+
+### Refactored
+- **Video Producer Module**:
+  - Extract `two_part_subtitles.py` (464 lines) for subtitle handling logic
+  - Add `constants.py` with Platform enum and visual bounds defaults
+  - Add `artifact_registry.py` consolidating 6 duplicate loaders
+  - Split `step_generate_description()` into 4 focused helper functions
+  - Replace 13 bare `except Exception` with specific exception types
+  - Convert f-string logging to lazy format (`%s`)
+
 ## [0.26.0] - 2026-01-25
 
 ### Added
