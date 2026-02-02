@@ -140,6 +140,23 @@ class TwoPartSubtitleHandler:
         has_videos = self.ctx.scraped_videos and len(self.ctx.scraped_videos) > 0
         has_images = self.ctx.scraped_images and len(self.ctx.scraped_images) > 0
 
+        # If ctx.scraped_images is empty, try to find images from outputs directory
+        # (subtitle generation may run before gather_visuals completes)
+        if not has_images and not has_videos:
+            # run_root is the product directory (e.g., outputs/B0BPH6S4DN/)
+            images_dir = Path(self.ctx.run_paths["run_root"]) / "images"
+            if images_dir.exists():
+                image_files = list(images_dir.glob("*.jpg")) + list(
+                    images_dir.glob("*.png")
+                )
+                if image_files:
+                    self.ctx.scraped_images = image_files
+                    has_images = True
+                    logger.debug(
+                        "Found %d images in outputs directory for visual bounds",
+                        len(image_files),
+                    )
+
         if has_videos:
             video_top = (
                 self.ctx.profile.video_top_position_percent
@@ -151,13 +168,36 @@ class TwoPartSubtitleHandler:
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
             logger.debug("Using video positioning for visual bounds (videos present)")
         elif has_images:
-            video_top = (
-                self.ctx.profile.image_top_position_percent
-                or DEFAULT_VIDEO_TOP_POSITION
-            )
-            video_height = DEFAULT_VIDEO_HEIGHT
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
-            logger.debug("Using image positioning for visual bounds (images only)")
+            # Get vertical_align from video_settings (nested in merged_profile_settings)
+            video_settings = self.merged_profile_settings.get("video_settings", {})
+            vertical_align = video_settings.get("image_vertical_align", "center")
+            logger.debug(
+                "video_settings keys=%s, vertical_align=%s",
+                list(video_settings.keys())[:5],
+                vertical_align,
+            )
+
+            if vertical_align == "center":
+                # Estimate centered image position based on typical aspect ratio
+                video_top, video_height = self._estimate_centered_image_bounds(
+                    video_width
+                )
+                logger.debug(
+                    "Centered image bounds: video_top=%.4f (%.1f%%), "
+                    "video_height=%.4f (%.1f%%)",
+                    video_top,
+                    video_top * 100,
+                    video_height,
+                    video_height * 100,
+                )
+            else:
+                video_top = (
+                    self.ctx.profile.image_top_position_percent
+                    or DEFAULT_VIDEO_TOP_POSITION
+                )
+                video_height = DEFAULT_VIDEO_HEIGHT
+                logger.debug("Using top-aligned image positioning for visual bounds")
         else:
             video_top = DEFAULT_VIDEO_TOP_POSITION
             video_height = DEFAULT_VIDEO_HEIGHT
@@ -176,6 +216,66 @@ class TwoPartSubtitleHandler:
             width=video_width,
             height=video_height,
         )
+
+    def _estimate_centered_image_bounds(
+        self, image_width_percent: float
+    ) -> tuple[float, float]:
+        """Estimate visual bounds for a vertically centered image.
+
+        Args:
+        ----
+            image_width_percent: Image width as fraction of frame width.
+
+        Returns:
+        -------
+            Tuple of (y_position, height) as fractions of frame height.
+
+        """
+        # Get frame dimensions
+        frame_width, frame_height = self.ctx.config.video_settings.resolution
+
+        # Try to get actual image dimensions from first scraped image
+        if self.ctx.scraped_images:
+            try:
+                from PIL import Image
+
+                with Image.open(self.ctx.scraped_images[0]) as img:
+                    orig_w, orig_h = img.size
+                    # Calculate scaled dimensions
+                    scaled_w = int(frame_width * image_width_percent)
+                    scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else 0
+
+                    # Calculate centered Y position
+                    if scaled_h > 0 and scaled_h < frame_height:
+                        centered_y = (frame_height - scaled_h) / 2
+                        video_top = centered_y / frame_height
+                        video_height = scaled_h / frame_height
+                        logger.debug(
+                            "Calculated centered bounds from image: "
+                            "y=%.2f%%, h=%.2f%%",
+                            video_top * 100,
+                            video_height * 100,
+                        )
+                        return (video_top, video_height)
+            except (OSError, ValueError) as e:
+                logger.debug("Could not read image dimensions: %s", e)
+
+        # Fallback: estimate using typical portrait aspect ratio (4:5)
+        # Most product images are portrait
+        typical_aspect = 5 / 4  # height / width ratio
+        est_scaled_w = frame_width * image_width_percent
+        estimated_h = est_scaled_w * typical_aspect
+
+        if estimated_h < frame_height:
+            centered_y = (frame_height - estimated_h) / 2
+            video_top = centered_y / frame_height
+            video_height = estimated_h / frame_height
+        else:
+            # Image would fill frame vertically
+            video_top = 0.0
+            video_height = 1.0
+
+        return (video_top, video_height)
 
     def _get_upper_text(self) -> str | None:
         """Get text for upper subtitle from product data or custom URL."""

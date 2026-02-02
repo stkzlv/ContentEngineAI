@@ -114,9 +114,10 @@ class TestTwoPartSubtitles:
 
             y_pos = int(pos_match.group(2))
 
-            # Y position should be at margin from top: 0.005 * 1920 = 9.6 pixels
-            # Content-aware positioning ensures we stay above visual content
-            expected_y = int(0.005 * 1920)
+            # Y position should be above visual content with margin gap
+            # ABOVE_CONTENT: Y = (visual_bounds.y - margin) * height
+            # = (0.12 - 0.005) * 1920 = 0.115 * 1920 = 220.8 pixels
+            expected_y = int((0.12 - 0.005) * 1920)
             assert (
                 abs(y_pos - expected_y) < 10
             ), f"Y position {y_pos} not close to expected {expected_y}"
@@ -325,12 +326,16 @@ class TestTwoPartSubtitles:
             y_with = int(pos_with.group(2))
             y_without = int(pos_without.group(2))
 
-            # With corrected logic, both use margin from top, so positions are same
-            # Y position = margin * height = 0.005 * 1920 ≈ 9.6 pixels
-            expected_y = int(0.005 * 1920)
+            # WITH visual_bounds: Y = (visual_bounds.y - margin) * height
+            # = (0.2 - 0.005) * 1920 = 0.195 * 1920 = 374.4 pixels
+            expected_y_with = int((0.2 - 0.005) * 1920)
             assert (
-                abs(y_with - expected_y) < 10
-            ), f"Y with bounds should be at margin: {y_with} vs {expected_y}"
+                abs(y_with - expected_y_with) < 10
+            ), f"Y with bounds should be above content: {y_with} vs {expected_y_with}"
+
+            # WITHOUT visual_bounds: Y = margin * height (fallback to top margin)
+            # = 0.005 * 1920 = 9.6 pixels
+            expected_y_without = int(0.005 * 1920)
             assert (
-                abs(y_without - expected_y) < 20
-            ), f"Y without bounds should be at margin: {y_without} vs {expected_y}"
+                abs(y_without - expected_y_without) < 20
+            ), f"Y without bounds should be at margin: {y_without} vs {expected_y_without}"

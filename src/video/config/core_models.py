@@ -693,6 +693,7 @@ class VideoConfig(BaseModel):
                 "image_top_position_percent": (
                     self.video_settings.image_top_position_percent
                 ),
+                "image_vertical_align": self.video_settings.image_vertical_align,
                 "preserve_aspect_ratio": self.video_settings.preserve_aspect_ratio,
                 "resolution": self.video_settings.resolution,
                 "frame_rate": self.video_settings.frame_rate,

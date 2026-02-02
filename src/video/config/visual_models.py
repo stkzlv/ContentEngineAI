@@ -13,7 +13,10 @@ from src.video.config.constants import (
 
 class CTADetectionSettings(BaseModel):
     min_cta_duration: float = Field(
-        2.0, description="Minimum total duration (seconds) for detected CTA windows"
+        0.5, description="Minimum total duration (seconds) for detected CTA windows"
+    )
+    default_cta_duration: float = Field(
+        5.0, description="Default CTA window duration (seconds) when detection fails"
     )
     fallback_duration: float = Field(
         9999.0, description="Fallback duration (seconds) when voiceover unavailable"
@@ -39,7 +42,9 @@ class VideoSettings(BaseModel):
     inter_product_delay_min_sec: float = Field(1.5)
     inter_product_delay_max_sec: float = Field(4.0)
     min_visual_segment_duration_sec: float = Field(0.1)
-    dynamic_image_count_limit: int = Field(25)
+    dynamic_image_count_limit: int = Field(
+        25, description="Maximum images to use in dynamic image count mode"
+    )
     verification_probe_timeout_sec: int = Field(30)
     preserve_aspect_ratio: bool = Field(True)
     default_max_chars_per_line: int = Field(20)  # Configurable via YAML
