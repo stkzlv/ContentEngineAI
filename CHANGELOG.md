@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-02-02
+
 ### Added
 - **LLM Model Selection Improvements**:
   - Random model selection option (`random_model_selection: true`)
@@ -16,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Centered Image Subtitle Positioning**:
   - Calculate visual bounds from actual image dimensions for centered images
-  - Fix ABOVE_CONTENT anchor to position relative to visual content top edge
   - Image fallback lookup for parallel pipeline execution
+
+### Fixed
+- **Upper Subtitle Positioning**: Fix ABOVE_CONTENT anchor to position relative to visual content top edge instead of frame top
 
 ### Refactored
 - **Video Producer Module**:
