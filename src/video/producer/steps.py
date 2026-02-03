@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,14 @@ from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
+from src.video.producer.artifact_registry import register_artifact_loader
+from src.video.producer.constants import (
+    DEFAULT_VIDEO_HEIGHT,
+    DEFAULT_VIDEO_TOP_POSITION,
+    DEFAULT_VIDEO_WIDTH,
+    HASHTAG_SKIP_WORDS,
+    SUPPORTED_PLATFORMS,
+)
 from src.video.producer.context import (
     InsufficientMediaError,
     PipelineContext,
@@ -42,84 +51,66 @@ from src.video.tts import TTSManager
 logger = logging.getLogger(__name__)
 
 
-def _load_artifacts_gather_visuals(ctx: PipelineContext):
+@register_artifact_loader("gather_visuals")
+def _load_artifacts_gather_visuals(ctx: PipelineContext) -> None:
     """Load artifacts from completed gather_visuals step."""
-    try:
-        visuals_file = ctx.run_paths["gathered_visuals_file"]
-        if visuals_file.exists():
-            ctx.scraped_images, ctx.scraped_videos, ctx.stock_media = load_visuals_info(
-                visuals_file
-            )
-            logger.debug("Loaded artifacts for skipped step 'gather_visuals'")
-    except Exception as e:
-        logger.warning(f"Error loading gather_visuals artifacts: {e}")
+    visuals_file = ctx.run_paths["gathered_visuals_file"]
+    if visuals_file.exists():
+        ctx.scraped_images, ctx.scraped_videos, ctx.stock_media = load_visuals_info(
+            visuals_file
+        )
 
 
-def _load_artifacts_generate_script(ctx: PipelineContext):
+@register_artifact_loader("generate_script")
+def _load_artifacts_generate_script(ctx: PipelineContext) -> None:
     """Load artifacts from completed generate_script step."""
-    try:
-        script_file = ctx.run_paths["script_file"]
-        if script_file.exists():
-            ctx.script = script_file.read_text(encoding="utf-8")
-            logger.debug("Loaded artifacts for skipped step 'generate_script'")
-    except Exception as e:
-        logger.warning(f"Error loading generate_script artifacts: {e}")
+    script_file = ctx.run_paths["script_file"]
+    if script_file.exists():
+        ctx.script = script_file.read_text(encoding="utf-8")
 
 
-def _load_artifacts_generate_description(ctx: PipelineContext):
+@register_artifact_loader("generate_description")
+def _load_artifacts_generate_description(ctx: PipelineContext) -> None:
     """Load artifacts from completed generate_description step."""
-    try:
-        text_dir = ctx.run_paths["description_file"].parent
+    text_dir = ctx.run_paths["description_file"].parent
 
-        # Try loading unified metadata.json first (in product root)
-        unified_metadata = ctx.run_paths["run_root"] / "metadata.json"
-        if unified_metadata.exists():
-            meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
-            ctx.description = meta.get("description", "")
-            logger.debug(
-                "Loaded unified metadata artifact "
-                "for skipped step 'generate_description'"
-            )
+    # Try loading unified metadata.json first (in product root)
+    unified_metadata = ctx.run_paths["run_root"] / "metadata.json"
+    if unified_metadata.exists():
+        meta = json.loads(unified_metadata.read_text(encoding="utf-8"))
+        ctx.description = meta.get("description", "")
+        return
+
+    # Fallback to platform-specific metadata files
+    for platform in SUPPORTED_PLATFORMS:
+        metadata_file = text_dir / f"metadata_{platform}.json"
+        if metadata_file.exists():
             return
 
-        # Fallback to platform-specific metadata files
-        for platform in ["youtube", "tiktok", "instagram"]:
-            metadata_file = text_dir / f"metadata_{platform}.json"
-            if metadata_file.exists():
-                logger.debug(f"Found platform metadata file: {metadata_file.name}")
-                return
-
-        # Legacy fallback to description.txt
-        description_file = ctx.run_paths["description_file"]
-        if description_file.exists():
-            ctx.description = description_file.read_text(encoding="utf-8")
-            logger.debug(
-                "Loaded legacy description.txt artifact "
-                "for skipped step 'generate_description'"
-            )
-    except Exception as e:
-        logger.warning(f"Error loading generate_description artifacts: {e}")
+    # Legacy fallback to description.txt
+    description_file = ctx.run_paths["description_file"]
+    if description_file.exists():
+        ctx.description = description_file.read_text(encoding="utf-8")
 
 
-def _load_artifacts_create_voiceover(ctx: PipelineContext):
+@register_artifact_loader("create_voiceover")
+def _load_artifacts_create_voiceover(ctx: PipelineContext) -> None:
     """Load artifacts from completed create_voiceover step."""
-    try:
-        duration_file = ctx.run_paths["voiceover_duration_file"]
-        if duration_file.exists():
-            ctx.voiceover_duration = float(duration_file.read_text())
-            logger.debug("Loaded artifacts for skipped step 'create_voiceover'")
-    except Exception as e:
-        logger.warning(f"Error loading create_voiceover artifacts: {e}")
+    duration_file = ctx.run_paths["voiceover_duration_file"]
+    if duration_file.exists():
+        ctx.voiceover_duration = float(duration_file.read_text())
 
 
-def _load_artifacts_generate_subtitles(ctx: PipelineContext):
-    """Load artifacts from completed generate_subtitles step."""
-    logger.debug("Loaded artifacts for skipped step 'generate_subtitles'")
+@register_artifact_loader("generate_subtitles")
+def _load_artifacts_generate_subtitles(ctx: PipelineContext) -> None:
+    """Load artifacts from completed generate_subtitles step (no-op)."""
+    pass
 
 
-def _load_artifacts_download_music(ctx: PipelineContext):
-    """Load artifacts from completed download_music step."""
-    logger.debug("Loaded artifacts for skipped step 'download_music'")
+@register_artifact_loader("download_music")
+def _load_artifacts_download_music(ctx: PipelineContext) -> None:
+    """Load artifacts from completed download_music step (no-op)."""
+    pass
 
 
 async def step_gather_visuals(ctx: PipelineContext):
@@ -289,7 +280,7 @@ async def step_gather_visuals(ctx: PipelineContext):
             ctx.profile,
             ctx.config,
         )
-        logger.info(f"Media validation: {reason}")
+        logger.info("Media validation: %s", reason)
         if not is_valid:
             raise InsufficientMediaError(
                 f"Product '{ctx.product.asin or 'unknown'}' skipped: {reason}"
@@ -300,7 +291,7 @@ async def step_gather_visuals(ctx: PipelineContext):
         if ctx.tts_warmer:
             tts_task_ids = await ctx.tts_warmer.warm_tts_models(ctx.config)
             ctx.preload_task_ids.extend(tts_task_ids)
-            logger.debug(f"Started {len(tts_task_ids)} TTS model warming tasks")
+            logger.debug("Started %d TTS model warming tasks", len(tts_task_ids))
 
         # Save info file for both debug and resumability
         save_visuals_info(
@@ -349,7 +340,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.debug_mode,
                 ctx.config.api_settings,
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e
 
         if not script_text:
@@ -362,9 +353,270 @@ async def step_generate_script(ctx: PipelineContext):
         )
 
 
+def _extract_hashtags_from_title(title: str) -> list[str]:
+    """Extract hashtags from product title keywords.
+
+    Args:
+    ----
+        title: Product title to extract hashtags from.
+
+    Returns:
+    -------
+        List of hashtag strings (without # prefix), always includes 'ad'.
+
+    """
+    title_words = (title or "").split()
+    hashtags = []
+    for word in title_words:
+        clean = "".join(c for c in word if c.isalnum())
+        # Skip if: too short, all digits, common word, or looks like a year
+        if (
+            len(clean) < 4
+            or clean.isdigit()
+            or clean.lower() in HASHTAG_SKIP_WORDS
+            or (len(clean) == 4 and clean.isdigit())  # Years like 2026
+        ):
+            continue
+        hashtags.append(clean.capitalize())
+        if len(hashtags) >= 3:
+            break
+    # Always include #ad for advertising disclosure
+    hashtags.append("ad")
+    return hashtags
+
+
+def _check_existing_metadata(ctx: PipelineContext) -> bool:
+    """Check for and load existing metadata from previous run.
+
+    Args:
+    ----
+        ctx: Pipeline context to populate with loaded description.
+
+    Returns:
+    -------
+        True if existing metadata was found and loaded, False otherwise.
+
+    """
+    description_file = ctx.run_paths["description_file"]
+    product_root = ctx.run_paths["run_root"]
+    unified_metadata_path = product_root / "metadata.json"
+    platform_metadata_exists = any(
+        (product_root / f"metadata_{platform}.json").exists()
+        for platform in SUPPORTED_PLATFORMS
+    )
+
+    # Load from unified metadata.json first
+    if unified_metadata_path.exists():
+        logger.info("Loading existing unified metadata from previous run")
+        meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
+        ctx.description = meta.get("description", "")
+        logger.info(
+            "Loaded existing description from metadata.json (%d characters)",
+            len(ctx.description or ""),
+        )
+        return True
+
+    # Fallback to platform-specific metadata or description.txt
+    if platform_metadata_exists or description_file.exists():
+        logger.info("Loading existing description/metadata from previous run")
+        if description_file.exists():
+            ctx.description = description_file.read_text(encoding="utf-8")
+            logger.info(
+                "Loaded existing description from %s (%d characters)",
+                description_file.name,
+                len(ctx.description or ""),
+            )
+        return True
+
+    return False
+
+
+async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
+    """Generate platform-specific optimized metadata.
+
+    Args:
+    ----
+        ctx: Pipeline context with product and configuration.
+
+    Returns:
+    -------
+        True if generation succeeded, False to fall back to unified mode.
+
+    """
+    try:
+        logger.info(
+            "Platform metadata generation enabled, using PlatformMetadataFactory"
+        )
+
+        from src.ai.platform_metadata import (
+            PlatformMetadataFactory,
+            save_metadata_to_file,
+        )
+        from src.ai.platform_metadata.text_formatter import (
+            format_upload_instructions,
+        )
+
+        # Extract platform settings from config
+        pm_config = ctx.config.description_settings.platform_metadata
+        if pm_config is None:
+            logger.warning("Platform metadata is None, using unified mode")
+            return False
+
+        platform_settings: dict[str, dict] = {}
+        if pm_config.youtube is not None:
+            platform_settings["youtube"] = pm_config.youtube.model_dump()
+        if pm_config.tiktok is not None:
+            platform_settings["tiktok"] = pm_config.tiktok.model_dump()
+        if pm_config.instagram is not None:
+            platform_settings["instagram"] = pm_config.instagram.model_dump()
+
+        if not platform_settings:
+            logger.warning(
+                "Platform metadata enabled but no platform "
+                "configurations found, falling back to unified mode"
+            )
+            return False
+
+        # Prepare intermediate paths for metadata files
+        product_root = ctx.run_paths["run_root"]
+        text_dir = ctx.run_paths["description_file"].parent
+        intermediate_paths = {
+            "description": text_dir / "description.txt",
+            "metadata_youtube": product_root / "metadata_youtube.json",
+            "metadata_tiktok": product_root / "metadata_tiktok.json",
+            "metadata_instagram": product_root / "metadata_instagram.json",
+        }
+
+        # Generate metadata for all platforms in parallel
+        metadata_results = await PlatformMetadataFactory.generate_multi_platform(
+            product=ctx.product,
+            settings=ctx.config.llm_settings,
+            secrets=ctx.secrets,
+            session=ctx.session,
+            platform_settings=platform_settings,
+            intermediate_paths=intermediate_paths,
+            debug_mode=ctx.debug_mode,
+            api_settings=ctx.config.api_settings,
+        )
+
+        # Save metadata to individual platform files
+        saved_count = 0
+        for platform, metadata in metadata_results.items():
+            if metadata:
+                metadata_file = product_root / f"metadata_{platform}.json"
+                save_metadata_to_file(metadata, metadata_file)
+                logger.info("Saved %s metadata to %s", platform, metadata_file.name)
+                saved_count += 1
+
+        if saved_count == 0:
+            logger.warning(
+                "All platform metadata generation failed, "
+                "falling back to unified mode"
+            )
+            return False
+
+        logger.info(
+            "Platform metadata generation complete (%d/%d platforms succeeded)",
+            saved_count,
+            len(metadata_results),
+        )
+
+        # Generate upload instructions (non-critical)
+        try:
+            instructions_text = format_upload_instructions(
+                metadata_results=metadata_results,
+                product_id=ctx.product.asin or "unknown",
+                video_filename=Path(ctx.run_paths["final_video_output"]).name,
+                product_name=ctx.product.title or "Product",
+                product_url=ctx.product.url,
+            )
+            instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
+            instructions_file.write_text(instructions_text, encoding="utf-8")
+            logger.info("Generated upload instructions: %s", instructions_file.name)
+        except (RuntimeError, ValueError, OSError) as e:
+            logger.warning("Failed to generate upload instructions: %s", e)
+
+        # Set ctx.description for backward compatibility
+        for platform in SUPPORTED_PLATFORMS:
+            metadata = metadata_results.get(platform)
+            if metadata is not None:
+                ctx.description = metadata.description
+                logger.debug("Using %s description for ctx.description", platform)
+                break
+
+        return True
+
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.warning(
+            "Platform metadata generation failed: %s, "
+            "falling back to unified description mode",
+            e,
+            exc_info=ctx.debug_mode,
+        )
+        return False
+
+
+async def _generate_unified_metadata(ctx: PipelineContext) -> None:
+    """Generate unified metadata for all platforms.
+
+    Args:
+    ----
+        ctx: Pipeline context with product and configuration.
+
+    Raises:
+    ------
+        PipelineError: If description generation fails.
+
+    """
+    import re
+    from datetime import UTC, datetime
+
+    logger.info("Using unified description generation mode")
+
+    try:
+        description_text = await generate_ai_description(
+            ctx.product,
+            ctx.config.llm_settings,
+            ctx.secrets,
+            ctx.session,
+            {"description": ctx.run_paths["description_file"]},
+            ctx.debug_mode,
+            ctx.config.api_settings,
+        )
+    except (RuntimeError, ValueError, OSError) as e:
+        raise PipelineError(f"Description generation failed: {e}") from e
+
+    if not description_text:
+        raise PipelineError("Description generation failed to produce text.")
+
+    # Strip any hashtags from description (LLM may still include them)
+    description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
+    ctx.description = description_clean
+
+    # Generate hashtags from product title
+    hashtags = _extract_hashtags_from_title(ctx.product.title or "")
+
+    # Generate unified metadata file
+    product_root = ctx.run_paths["run_root"]
+    metadata_dict = {
+        "title": ctx.product.title,
+        "description": ctx.description,
+        "hashtags": hashtags,
+        "keywords": [],
+        "product_id": ctx.product.asin or "unknown",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "mode": "unified",
+    }
+
+    metadata_file = product_root / "metadata.json"
+    with metadata_file.open("w", encoding="utf-8") as f:
+        json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
+
+    logger.info("Saved unified metadata to %s", metadata_file.name)
+
+
 async def step_generate_description(ctx: PipelineContext):
     """Generate AI-powered video description for social media platforms."""
-    # Check if description generation is enabled
     if not ctx.config.description_settings.enabled:
         logger.info("Description generation is disabled, skipping step")
         return
@@ -376,252 +628,17 @@ async def step_generate_description(ctx: PipelineContext):
     ):
         logger.info("Executing step: GENERATE_DESCRIPTION")
 
-        # Check if description already exists from previous run
-        description_file = ctx.run_paths["description_file"]
-        text_dir = description_file.parent
-
-        # Check for existing metadata files (unified or platform-specific)
-        product_root = ctx.run_paths["run_root"]
-        unified_metadata_path = product_root / "metadata.json"
-        platform_metadata_exists = any(
-            (product_root / f"metadata_{platform}.json").exists()
-            for platform in ["youtube", "tiktok", "instagram"]
-        )
-
-        # Load from unified metadata.json first
-        if unified_metadata_path.exists():
-            logger.info("Loading existing unified metadata from previous run")
-            meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
-            ctx.description = meta.get("description", "")
-            logger.info(
-                f"Loaded existing description from metadata.json "
-                f"({len(ctx.description or '')} characters)"
-            )
+        # Check for existing metadata from previous run
+        if _check_existing_metadata(ctx):
             return
 
-        # Fallback to platform-specific metadata or description.txt
-        if platform_metadata_exists or description_file.exists():
-            logger.info("Loading existing description/metadata from previous run")
-            if description_file.exists():
-                ctx.description = description_file.read_text(encoding="utf-8")
-                logger.info(
-                    f"Loaded existing description from {description_file.name} "
-                    f"({len(ctx.description or '')} characters)"
-                )
+        # Try optimized (platform-specific) mode first
+        use_optimized = ctx.config.description_settings.metadata_mode == "optimized"
+        if use_optimized and await _generate_optimized_metadata(ctx):
             return
 
-        # Check if platform-specific metadata generation is enabled (optimized mode)
-        use_optimized_mode = (
-            ctx.config.description_settings.metadata_mode == "optimized"
-        )
-
-        if use_optimized_mode:
-            # Attempt platform-specific metadata generation
-            try:
-                logger.info(
-                    "Platform metadata generation enabled, "
-                    "using PlatformMetadataFactory"
-                )
-
-                # Import factory for platform-specific generation
-                from src.ai.platform_metadata import (
-                    PlatformMetadataFactory,
-                    save_metadata_to_file,
-                )
-                from src.ai.platform_metadata.text_formatter import (
-                    format_upload_instructions,
-                )
-
-                # Extract platform settings from config
-                pm_config = ctx.config.description_settings.platform_metadata
-                if pm_config is None:
-                    logger.warning("Platform metadata is None, using unified mode")
-                    raise ValueError("Platform metadata config is None")
-
-                platform_settings: dict[str, dict] = {}
-                if pm_config.youtube is not None:
-                    platform_settings["youtube"] = pm_config.youtube.model_dump()
-                if pm_config.tiktok is not None:
-                    platform_settings["tiktok"] = pm_config.tiktok.model_dump()
-                if pm_config.instagram is not None:
-                    platform_settings["instagram"] = pm_config.instagram.model_dump()
-
-                if not platform_settings:
-                    logger.warning(
-                        "Platform metadata enabled but no platform "
-                        "configurations found, falling back to unified mode"
-                    )
-                    raise ValueError("No platform configurations available")
-
-                # Prepare intermediate paths for metadata files
-                product_root = ctx.run_paths["run_root"]
-                intermediate_paths = {
-                    "description": text_dir / "description.txt",
-                    "metadata_youtube": product_root / "metadata_youtube.json",
-                    "metadata_tiktok": product_root / "metadata_tiktok.json",
-                    "metadata_instagram": product_root / "metadata_instagram.json",
-                }
-
-                # Generate metadata for all platforms in parallel
-                factory = PlatformMetadataFactory
-                metadata_results = await factory.generate_multi_platform(
-                    product=ctx.product,
-                    settings=ctx.config.llm_settings,
-                    secrets=ctx.secrets,
-                    session=ctx.session,
-                    platform_settings=platform_settings,
-                    intermediate_paths=intermediate_paths,
-                    debug_mode=ctx.debug_mode,
-                    api_settings=ctx.config.api_settings,
-                )
-
-                # Save metadata to individual platform files (in product root)
-                saved_count = 0
-                for platform, metadata in metadata_results.items():
-                    if metadata:
-                        metadata_file = product_root / f"metadata_{platform}.json"
-                        save_metadata_to_file(metadata, metadata_file)
-                        logger.info(
-                            f"Saved {platform} metadata to {metadata_file.name}"
-                        )
-                        saved_count += 1
-
-                if saved_count == 0:
-                    logger.warning(
-                        "All platform metadata generation failed, "
-                        "falling back to unified mode"
-                    )
-                    raise RuntimeError("All platform metadata generation failed")
-
-                logger.info(
-                    f"Platform metadata generation complete "
-                    f"({saved_count}/{len(metadata_results)} platforms succeeded)"
-                )
-
-                # Generate human-readable upload instructions text file
-                try:
-                    instructions_text = format_upload_instructions(
-                        metadata_results=metadata_results,
-                        product_id=ctx.product.asin or "unknown",
-                        video_filename=Path(ctx.run_paths["final_video_output"]).name,
-                        product_name=ctx.product.title or "Product",
-                        product_url=ctx.product.url,
-                    )
-                    instructions_file = text_dir / "UPLOAD_INSTRUCTIONS.txt"
-                    instructions_file.write_text(instructions_text, encoding="utf-8")
-                    logger.info(
-                        f"Generated upload instructions: {instructions_file.name}"
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to generate upload instructions: {e}")
-                    # Non-critical - continue with workflow
-
-                # Set ctx.description to first available platform description
-                # for backward compatibility
-                for platform in ["youtube", "tiktok", "instagram"]:
-                    metadata = metadata_results.get(platform)
-                    if metadata is not None:
-                        ctx.description = metadata.description
-                        logger.debug(
-                            f"Using {platform} description for ctx.description"
-                        )
-                        break
-
-                return  # Success - exit early
-
-            except Exception as e:
-                logger.warning(
-                    f"Platform metadata generation failed: {e}, "
-                    "falling back to unified description mode",
-                    exc_info=ctx.debug_mode,
-                )
-                # Fall through to unified mode
-
-        # Fallback: Use legacy unified description generation
-        logger.info("Using unified description generation mode")
-        try:
-            description_text = await generate_ai_description(
-                ctx.product,
-                ctx.config.llm_settings,
-                ctx.secrets,
-                ctx.session,
-                {"description": ctx.run_paths["description_file"]},
-                ctx.debug_mode,
-                ctx.config.api_settings,
-            )
-        except Exception as e:
-            raise PipelineError(f"Description generation failed: {e}") from e
-
-        if not description_text:
-            raise PipelineError("Description generation failed to produce text.")
-
-        # Strip any hashtags from description (LLM may still include them)
-        import re
-
-        description_clean = re.sub(r"\s*#\w+", "", description_text).strip()
-        ctx.description = description_clean
-
-        # Generate unified metadata.json for publisher (single file for all platforms)
-        from datetime import UTC, datetime
-
-        # Generate hashtags from product title keywords
-        title_words = (ctx.product.title or "").split()
-        # Skip common words, numbers, short words, and brand-like words
-        skip_words = {
-            "the",
-            "and",
-            "for",
-            "with",
-            "from",
-            "that",
-            "this",
-            "are",
-            "you",
-            "your",
-            "our",
-            "can",
-            "will",
-            "has",
-            "have",
-            "been",
-            "only",
-            "also",
-        }
-        hashtags = []
-        for word in title_words:
-            clean = "".join(c for c in word if c.isalnum())
-            # Skip if: too short, all digits, common word, or looks like a year
-            if (
-                len(clean) < 4
-                or clean.isdigit()
-                or clean.lower() in skip_words
-                or (len(clean) == 4 and clean.isdigit())  # Years like 2026
-            ):
-                continue
-            hashtags.append(clean.capitalize())
-            if len(hashtags) >= 3:
-                break
-        # Always include #ad for advertising disclosure
-        hashtags.append("ad")
-
-        # Generate single unified metadata file (in product root)
-        product_root = ctx.run_paths["run_root"]
-        metadata_dict = {
-            "title": ctx.product.title,  # Kept for reference, not used in post
-            "description": ctx.description,
-            "hashtags": hashtags,
-            "keywords": [],
-            "product_id": ctx.product.asin or "unknown",
-            "generated_at": datetime.now(UTC).isoformat(),
-            "mode": "unified",
-        }
-
-        # Save to single metadata.json file in product root
-        metadata_file = product_root / "metadata.json"
-        with metadata_file.open("w", encoding="utf-8") as f:
-            json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Saved unified metadata to {metadata_file.name}")
+        # Fall back to unified mode
+        await _generate_unified_metadata(ctx)
 
 
 async def step_create_voiceover(ctx: PipelineContext):
@@ -662,7 +679,7 @@ async def step_create_voiceover(ctx: PipelineContext):
             vo_path = await tts_manager.generate_speech(
                 ctx.script, ctx.run_paths["voiceover_file"]
             )
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             raise PipelineError(f"TTS generation failed: {e}") from e
 
         if not vo_path or not vo_path.exists():
@@ -704,9 +721,9 @@ async def step_create_voiceover(ctx: PipelineContext):
                     f"Trimmed silence from voiceover "
                     f"(threshold={threshold_db}dB, min_duration={min_duration}s)"
                 )
-            except Exception as e:
+            except (RuntimeError, OSError) as e:
                 logger.warning(
-                    f"Failed to trim silence from voiceover: {e}, using original"
+                    "Failed to trim silence from voiceover: %s, using original", e
                 )
         else:
             logger.debug("Silence removal disabled, skipping voiceover trimming")
@@ -770,16 +787,15 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # Check if two-part subtitle system is enabled
         # Handle both nested dict and flat key structures
         two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
-        logger.debug(f"DEBUG: two_part_config = {two_part_config}")
+        logger.debug("Two-part subtitle config: %s", two_part_config)
         logger.debug(
-            "DEBUG: profile_subtitle_settings keys = "
-            f"{list(profile_subtitle_settings.keys())}"
+            "Profile subtitle settings keys: %s", list(profile_subtitle_settings.keys())
         )
 
         if isinstance(two_part_config, dict) and "enabled" in two_part_config:
             two_part_enabled = two_part_config.get("enabled", False)
             logger.debug(
-                f"DEBUG: Using nested structure, two_part_enabled = {two_part_enabled}"
+                "Using nested config structure, two_part_enabled=%s", two_part_enabled
             )
         else:
             # Fallback to flat structure
@@ -787,233 +803,30 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 "two_part_subtitles_enabled", False
             )
             logger.debug(
-                "DEBUG: Using flat structure, two_part_subtitles_enabled key = "
-                f"{profile_subtitle_settings.get('two_part_subtitles_enabled')}"
+                "Using flat config structure, two_part_subtitles_enabled=%s",
+                profile_subtitle_settings.get("two_part_subtitles_enabled"),
             )
-            logger.debug(f"DEBUG: Final two_part_enabled = {two_part_enabled}")
 
         if two_part_enabled:
             logger.info("Two-part subtitle system enabled, generating dual subtitles")
 
-            # Import static subtitle generator
-            from src.video.subtitle_utils import create_static_upper_subtitle
+            from src.video.producer.two_part_subtitles import TwoPartSubtitleHandler
 
-            # Generate upper line (static product info)
-            # Handle both nested dict and flat key structures
-            if isinstance(two_part_config, dict) and "upper_line" in two_part_config:
-                upper_config = two_part_config.get("upper_line", {})
-                upper_enabled = upper_config.get("enabled", True)
-            else:
-                # Fallback to flat structure (settings at profile level,
-                # not in subtitle_settings)
-                upper_enabled = merged_profile_settings.get(
-                    "two_part_subtitles_upper_enabled", True
-                )
-                upper_config = {
-                    "enabled": upper_enabled,
-                    "source_field": merged_profile_settings.get(
-                        "two_part_subtitles_upper_source_field",
-                        "shortened_affiliate_link",
-                    ),
-                    "anchor": merged_profile_settings.get(
-                        "two_part_subtitles_upper_anchor", "above_content"
-                    ),
-                    "margin": merged_profile_settings.get(
-                        "two_part_subtitles_upper_margin", 0.08
-                    ),
-                    "font_size_scale": merged_profile_settings.get(
-                        "two_part_subtitles_upper_font_size_scale", 0.75
-                    ),
-                    "style_preset": merged_profile_settings.get(
-                        "two_part_subtitles_upper_style_preset", "minimal"
-                    ),
-                    "use_full_duration": merged_profile_settings.get(
-                        "two_part_subtitles_upper_use_full_duration", False
-                    ),
-                    "randomize_effects": merged_profile_settings.get(
-                        "two_part_subtitles_upper_randomize_effects", False
-                    ),
-                }
-
-            # Generate lower line (voiceover subtitles) first - needed for CTA detection
-            lower_path = None
-            # Handle both nested dict and flat key structures
-            if isinstance(two_part_config, dict) and "lower_line" in two_part_config:
-                lower_config = two_part_config.get("lower_line", {})
-                lower_enabled = lower_config.get("enabled", True)
-            else:
-                # Fallback to flat structure
-                lower_enabled = profile_subtitle_settings.get(
-                    "two_part_subtitles_lower_enabled", True
-                )
-                lower_config = {
-                    "enabled": lower_enabled,
-                    "anchor": profile_subtitle_settings.get(
-                        "two_part_subtitles_lower_anchor", "below_content"
-                    ),
-                    "margin": profile_subtitle_settings.get(
-                        "two_part_subtitles_lower_margin", 0.05
-                    ),
-                }
-
-            # Calculate visual bounds for content-aware positioning
-            from src.video.subtitle_positioning import VisualBounds
-
-            # Determine which media type is actually being used
-            has_videos = ctx.scraped_videos and len(ctx.scraped_videos) > 0
-            has_images = ctx.scraped_images and len(ctx.scraped_images) > 0
-
-            # Use appropriate position based on actual media type
-            if has_videos:
-                # Videos are present - use video positioning
-                video_top = ctx.profile.video_top_position_percent or 0.07
-                video_height = ctx.profile.video_content_height_percent or 0.8
-                video_width = ctx.profile.image_width_percent or 0.9
-                logger.debug(
-                    "Using video positioning for visual bounds (videos present)"
-                )
-            elif has_images:
-                # Only images - use image positioning
-                video_top = ctx.profile.image_top_position_percent or 0.07
-                video_height = 0.8  # Images use full available height
-                video_width = ctx.profile.image_width_percent or 0.9
-                logger.debug("Using image positioning for visual bounds (images only)")
-            else:
-                # No media - use defaults
-                video_top = 0.07
-                video_height = 0.8
-                video_width = 0.9
-                logger.debug("No media found, using default visual bounds")
-
-            visual_bounds = VisualBounds(
-                x=(1.0 - video_width) / 2,
-                y=video_top,
-                width=video_width,
-                height=video_height,
+            handler = TwoPartSubtitleHandler(
+                ctx=ctx,
+                profile_subtitle_settings=profile_subtitle_settings,
+                merged_profile_settings=merged_profile_settings,
+                two_part_config=two_part_config,
             )
 
-            logger.debug(
-                f"Visual bounds for subtitles: "
-                f"y={video_top:.2%}, height={video_height:.2%}"
-            )
+            lower_path, upper_path = await handler.generate(voiceover_path, product_id)
 
-            if lower_enabled:
-                # Update subtitle settings for lower line positioning
-                lower_subtitle_settings = profile_subtitle_settings.copy()
-                lower_subtitle_settings["anchor"] = lower_config.get(
-                    "anchor", "below_content"
-                )
-                lower_subtitle_settings["margin"] = lower_config.get("margin", 0.05)
+            lower_failed = not lower_path or not lower_path.exists()
+            if handler.config.lower_enabled and lower_failed:
+                raise PipelineError("Lower subtitle generation failed.")
 
-                # Override with custom style if provided
-                if lower_config.get("custom_style"):
-                    lower_subtitle_settings.update(lower_config["custom_style"])
-
-                lower_path = await create_unified_subtitles(
-                    voiceover_path,
-                    ctx.run_paths["subtitle_file"],
-                    lower_subtitle_settings,
-                    ctx.config.whisper_settings,
-                    ctx.config.google_cloud_stt_settings,
-                    ctx.secrets,
-                    ctx.script,
-                    ctx.voiceover_duration,
-                    ctx.debug_mode,
-                    ctx.config,
-                    Path(ctx.run_paths["run_root"])
-                    / ctx.config.output_structure.product_subdirs.temp,
-                    product_id,
-                    visual_bounds,
-                )
-
-                if not lower_path or not lower_path.exists():
-                    raise PipelineError("Lower subtitle generation failed.")
-                logger.info(f"Lower subtitle created: {lower_path.name}")
-
-            # Generate upper line (static URL) - after lower subtitle for CTA detection
-            logger.debug(f"DEBUG: upper_enabled={upper_enabled}")
-            if upper_enabled:
-                # Check for custom URL first (overrides product URL)
-                custom_url = profile_subtitle_settings.get(
-                    "two_part_subtitles_upper_custom_url"
-                )
-
-                if custom_url:
-                    upper_text = custom_url
-                    logger.info(f"Using custom URL for upper subtitle: {custom_url}")
-                else:
-                    # Get product URL from data
-                    source_field = upper_config.get(
-                        "source_field", "shortened_affiliate_link"
-                    )
-                    product_data_dict = ctx.product.__dict__
-                    upper_text = product_data_dict.get(source_field, "")
-
-                    if not upper_text:
-                        # Fallback to other URL fields
-                        for fallback_field in [
-                            "shortened_affiliate_link",
-                            "affiliate_link",
-                            "url",
-                        ]:
-                            upper_text = product_data_dict.get(fallback_field, "")
-                            if upper_text:
-                                logger.info(
-                                    f"Using fallback field '{fallback_field}' "
-                                    "for upper subtitle"
-                                )
-                                break
-
-                if upper_text:
-                    # Apply URL prefix replacement if configured
-                    prefix_replace = merged_profile_settings.get(
-                        "two_part_subtitles_upper_prefix_replace"
-                    )
-                    if prefix_replace:
-                        # Replace "https://" with the configured prefix
-                        if upper_text.startswith("https://"):
-                            upper_text = (
-                                prefix_replace + upper_text[8:]
-                            )  # Remove "https://"
-                        elif upper_text.startswith("http://"):
-                            upper_text = (
-                                prefix_replace + upper_text[7:]
-                            )  # Remove "http://"
-
-                    # Determine output format
-                    subtitle_format = profile_subtitle_settings.get(
-                        "subtitle_format", "srt"
-                    )
-                    upper_output_path = ctx.run_paths["subtitle_file"].with_name(
-                        f"subtitle_upper.{subtitle_format}"
-                    )
-
-                    upper_path = create_static_upper_subtitle(
-                        text=upper_text,
-                        output_path=upper_output_path,
-                        subtitle_settings=profile_subtitle_settings,
-                        video_config=ctx.config,
-                        format_type=subtitle_format,
-                        product_id=product_id,
-                        voiceover_duration=ctx.voiceover_duration,
-                        visual_bounds=visual_bounds,
-                        # Pass lower subtitle for CTA detection
-                        lower_subtitle_path=lower_path,
-                    )
-
-                    if upper_path and upper_path.exists():
-                        logger.info(f"Upper subtitle created: {upper_path.name}")
-                        # Store upper subtitle path for assembler
-                        ctx.run_paths["subtitle_upper_file"] = upper_path
-                    else:
-                        logger.warning(
-                            "Failed to generate upper subtitle, "
-                            "continuing with lower only"
-                        )
-                else:
-                    logger.warning(
-                        f"No data found for upper subtitle field '{source_field}'"
-                    )
+            if upper_path:
+                ctx.run_paths["subtitle_upper_file"] = upper_path
 
         else:
             # Standard single-line subtitle generation
@@ -1034,7 +847,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
             )
             if not srt_path or not srt_path.exists():
                 raise PipelineError("Subtitle generation process failed.")
-            logger.info(f"Subtitles file created: {srt_path.name}")
+            logger.info("Subtitles file created: %s", srt_path.name)
 
 
 async def step_download_music(ctx: PipelineContext):
@@ -1054,7 +867,7 @@ async def step_download_music(ctx: PipelineContext):
             ctx.voiceover_duration = float(duration_file.read_text())
 
         vo_duration = ctx.voiceover_duration
-        logger.info(f"Required music duration is at least {vo_duration:.2f} seconds.")
+        logger.info("Required music duration is at least %.2f seconds.", vo_duration)
         music_info = None
 
         if ctx.secrets.get(ctx.config.audio_settings.freesound_api_key_env_var):
@@ -1103,8 +916,8 @@ async def step_download_music(ctx: PipelineContext):
                                 )
                             if music_info:
                                 break
-                        except Exception as e:
-                            logger.warning(f"Failed to download from Freesound: {e}")
+                        except (RuntimeError, OSError, TimeoutError) as e:
+                            logger.warning("Failed to download from Freesound: %s", e)
                             # Continue to try next track, will fall back to local if
                             # all fail
 
@@ -1202,7 +1015,7 @@ async def step_assemble_video(ctx: PipelineContext):
             )
 
         random.shuffle(ctx.visuals)
-        logger.info(f"Final timeline contains {len(ctx.visuals)} visual elements.")
+        logger.info("Final timeline contains %d visual elements.", len(ctx.visuals))
         music_path_str = None
         music_info_path = ctx.run_paths["music_info_file"]
         if music_info_path.exists():
@@ -1245,9 +1058,9 @@ async def step_assemble_video(ctx: PipelineContext):
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
-        except Exception as e:
-            if isinstance(e, PipelineError):
-                raise
+        except PipelineError:
+            raise
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
             raise PipelineError(f"Video assembly process failed: {e}") from e
 
         if ctx.script is None and ctx.run_paths["script_file"].exists():
@@ -1260,7 +1073,7 @@ async def step_assemble_video(ctx: PipelineContext):
             script=ctx.script,
             subtitle_path=subtitle_path,
         )
-    logger.info(f"Verification results: {results['message']}")
+    logger.info("Verification results: %s", results["message"])
     if not results["success"]:
-        logger.warning(f"Verification for {final_video_path.name} reported issues.")
-    logger.info(f"Video successfully created: {final_video_path}")
+        logger.warning("Verification for %s reported issues.", final_video_path.name)
+    logger.info("Video successfully created: %s", final_video_path)

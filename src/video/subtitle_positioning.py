@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from src.video.config.constants import (
     SUBTITLE_BASE_FONT_SIZE_PERCENT,
     SUBTITLE_CENTER_POSITION_FRACTION,
+    SUBTITLE_FALLBACK_SPACING_PERCENT,
     SUBTITLE_LEFT_POSITION_FRACTION,
     SUBTITLE_MAX_FONT_SIZE,
     SUBTITLE_MAX_SAFE_Y_POSITION,
@@ -367,13 +368,30 @@ def calculate_position(
         base_y = 1.0 - config.margin
     elif config.anchor == PositionAnchor.ABOVE_CONTENT:
         if config.content_aware and visual_bounds:
-            # Position at margin from top (ensures minimum spacing from frame top)
-            # Content-aware ensures we stay above the visual content boundary
-            base_y = config.margin
+            # Position above visual content with margin gap
+            # visual_bounds.y is the top edge of content, subtract margin for gap
+            base_y = visual_bounds.y - config.margin
+            # Ensure we don't go above safe top margin
+            base_y = max(SUBTITLE_FALLBACK_SPACING_PERCENT, base_y)
+            logger.debug(
+                "ABOVE_CONTENT: visual_bounds.y=%.4f, margin=%.4f, "
+                "base_y=%.4f (Y=%dpx)",
+                visual_bounds.y,
+                config.margin,
+                base_y,
+                int(base_y * frame_height),
+            )
         else:
             # Fallback: Use top positioning when content_aware is disabled
             # or visual_bounds is not available
             base_y = config.margin
+            logger.debug(
+                "ABOVE_CONTENT fallback: content_aware=%s, "
+                "visual_bounds=%s, base_y=%.4f",
+                config.content_aware,
+                visual_bounds,
+                base_y,
+            )
     elif config.anchor == PositionAnchor.BELOW_CONTENT:
         if config.content_aware and visual_bounds:
             base_y = min(

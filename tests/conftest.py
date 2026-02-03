@@ -80,6 +80,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "output_preset": "ultrafast",
             "image_width_percent": 0.8,
             "image_top_position_percent": 0.05,
+            "image_vertical_align": "center",
             "default_image_duration_sec": 3.0,
             "transition_duration_sec": 0.5,
             "total_duration_limit_sec": 90,
@@ -265,6 +266,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
                 "video_transition_duration": 0.5,
                 "image_width_percent": 0.85,
                 "image_top_position_percent": 0.15,
+                "image_vertical_align": "center",
             },
             "product_video_single": {
                 "description": "Single best video mode",
@@ -279,6 +281,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
                 "enable_format_normalization": True,
                 "image_width_percent": 0.75,
                 "image_top_position_percent": 0.20,
+                "image_vertical_align": "top",
             },
             "product_video_mixed": {
                 "description": "Mixed videos and images",
@@ -295,6 +298,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
                 "video_transition_duration": 0.5,
                 "image_width_percent": 0.80,
                 "image_top_position_percent": 0.10,
+                "image_vertical_align": "center",
             },
             "product_video_primary": {
                 "description": "Primary video with image overlays",
@@ -310,6 +314,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
                 "enable_format_normalization": True,
                 "image_width_percent": 0.70,
                 "image_top_position_percent": 0.15,
+                "image_vertical_align": "center",
             },
         },
         "api_settings": {

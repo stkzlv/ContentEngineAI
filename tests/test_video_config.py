@@ -148,6 +148,24 @@ class TestVideoSettings:
         assert settings.output_codec == "libx264"
         assert settings.image_width_percent == 0.8
 
+    def test_video_settings_image_vertical_align(self):
+        """Test image_vertical_align parameter."""
+        # Default value is "center"
+        settings = VideoSettings(resolution=(1080, 1920), frame_rate=30)
+        assert settings.image_vertical_align == "center"
+
+        # Can set to "top"
+        settings_top = VideoSettings(
+            resolution=(1080, 1920), frame_rate=30, image_vertical_align="top"
+        )
+        assert settings_top.image_vertical_align == "top"
+
+        # Invalid value should fail
+        with pytest.raises(ValidationError):
+            VideoSettings(
+                resolution=(1080, 1920), frame_rate=30, image_vertical_align="bottom"
+            )
+
     def test_video_settings_invalid_resolution(self):
         """Test video settings with invalid resolution."""
         with pytest.raises(ValidationError):
@@ -322,6 +340,7 @@ class TestVideoConfig:
                 "output_preset": "ultrafast",
                 "image_width_percent": 0.8,
                 "image_top_position_percent": 0.05,
+                "image_vertical_align": "center",
                 "default_image_duration_sec": 3.0,
                 "transition_duration_sec": 0.5,
                 "total_duration_limit_sec": 90,
@@ -545,6 +564,7 @@ class TestLoadVideoConfig:
                 "output_preset": "ultrafast",
                 "image_width_percent": 0.8,
                 "image_top_position_percent": 0.05,
+                "image_vertical_align": "center",
                 "default_image_duration_sec": 3.0,
                 "transition_duration_sec": 0.5,
                 "total_duration_limit_sec": 90,

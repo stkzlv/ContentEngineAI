@@ -39,8 +39,8 @@ async def fetch_and_select_model(
     api_key: str,
     session: aiohttp.ClientSession,
     api_settings=None,
-) -> str | None:
-    """Fetch available models from OpenRouter and select a free model.
+) -> list[str]:
+    """Fetch available models from OpenRouter and return free models to try.
 
     This is a thin wrapper around description_generator._fetch_and_select_model()
     that provides a cleaner public interface.
@@ -54,7 +54,7 @@ async def fetch_and_select_model(
 
     Returns:
     -------
-        Selected model name or None if auto-selection disabled or failed
+        List of free model IDs to try (ordered or shuffled based on settings)
 
     """
     return await _fetch_and_select_model(settings, api_key, session, api_settings)
@@ -151,18 +151,22 @@ async def generate_with_llm(
         if debug_mode:
             logger.info(f"Formatted prompt ({len(prompt)} chars)")
 
-        # Step 3: Try auto-selecting free model
-        selected_model = await fetch_and_select_model(
+        # Step 3: Fetch available free models
+        free_models = await fetch_and_select_model(
             settings, api_key, session, api_settings
         )
 
-        # Step 4: Prepare model list (auto-selected first, then fallbacks)
-        models_to_try = []
-        if selected_model:
-            models_to_try.append(selected_model)
+        # Step 4: Prepare model list (free models first, then configured fallbacks)
+        models_to_try: list[str] = []
+        if free_models:
+            models_to_try.extend(free_models)
             if debug_mode:
-                logger.info(f"Auto-selected free model: {selected_model}")
-        models_to_try.extend(settings.models)
+                logger.info("Free models to try: %s", free_models[:3])
+
+        # Add configured models as fallback (if not already in list)
+        for model in settings.models:
+            if model not in models_to_try:
+                models_to_try.append(model)
 
         # Step 5: Try each model until one succeeds
         for model in models_to_try:

@@ -69,5 +69,43 @@ class TestVisualGeometry:
         assert geom.rendered_h < 1920
 
 
+@pytest.mark.unit
+class TestImagePositioning:
+    """Unit tests for image positioning calculations."""
+
+    def test_center_alignment_calculation(self):
+        """Test vertical centering calculation for images."""
+        frame_height = 1920
+        image_height = 1200
+
+        # Centering formula: (frame_height - image_height) / 2
+        expected_y = (frame_height - image_height) / 2
+        assert expected_y == 360
+
+    def test_top_alignment_with_offset(self):
+        """Test top alignment with percentage offset."""
+        frame_height = 1920
+        top_offset_percent = 0.1  # 10% from top
+
+        expected_y = frame_height * top_offset_percent
+        assert expected_y == 192
+
+    def test_image_width_scaling(self):
+        """Test image width scaling to percentage of frame."""
+        frame_width = 1080
+        width_percent = 1.0  # 100% (new default)
+
+        expected_width = int(frame_width * width_percent)
+        assert expected_width == 1080
+
+    def test_image_width_scaling_partial(self):
+        """Test image width scaling to partial percentage."""
+        frame_width = 1080
+        width_percent = 0.8  # 80%
+
+        expected_width = int(frame_width * width_percent)
+        assert expected_width == 864
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -1,75 +1,55 @@
 # Pull Request
 
-## 📋 Description
+## Summary
 
-Brief description of the changes introduced by this PR.
+<!-- Brief description of what this PR does and why -->
 
-Fixes #(issue number)
 
-## 🔄 Type of Change
+## Related Issues
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🧹 Code cleanup/refactoring
-- [ ] 🧪 Test improvements
-- [ ] ⚡ Performance improvement
-- [ ] 🔒 Security improvement
+<!-- Link to related issues using "Fixes #123" or "Relates to #123" -->
 
-## 🧪 Testing
 
-Describe how you've tested these changes:
+## Type of Change
 
-- [ ] Existing tests pass
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that causes existing functionality to change)
+- [ ] Documentation update
+- [ ] Refactoring (no functional changes)
+- [ ] Performance improvement
+- [ ] Test improvements
+
+## Changes Made
+
+<!-- List the key changes in this PR -->
+
+-
+-
+-
+
+## Testing
+
+<!-- Describe how you tested these changes -->
+
+- [ ] Existing tests pass (`make test`)
 - [ ] New tests added for new functionality
 - [ ] Manual testing performed
-- [ ] Integration tests pass
 
-**Test Commands:**
-```bash
-# Add the commands you ran to test your changes
-```
+## Checklist
 
-## 📝 Checklist
+- [ ] Code follows project style guidelines (`make lint` passes)
+- [ ] Self-review completed
+- [ ] Documentation updated (if applicable)
+- [ ] CHANGELOG.md updated (if applicable)
+- [ ] No new warnings introduced
 
-- [ ] My code follows the project's coding style (`make lint` passes)
-- [ ] I have performed a self-review of my code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] Any dependent changes have been merged and published
+## Deployment Notes
 
-## 🔍 Code Quality
+<!-- Any migration steps, environment changes, or deployment considerations? Leave blank if none -->
 
-- [ ] `make lint` passes without errors
-- [ ] `make test` passes without failures
-- [ ] `make security` passes without issues
-- [ ] Type checking passes (`mypy`)
 
-## 📖 Documentation
+## Additional Context
 
-- [ ] Documentation has been updated (if applicable)
-- [ ] CHANGELOG.md has been updated (if applicable)
-- [ ] README.md has been updated (if applicable)
-- [ ] Configuration documentation updated (if applicable)
+<!-- Any other information reviewers should know -->
 
-## 🚀 Deployment Notes
-
-Any special deployment considerations or migration steps needed:
-
-## 📸 Screenshots (if applicable)
-
-Add screenshots or videos demonstrating the changes.
-
-## 🔗 Related Issues/PRs
-
-- Related Issue: #
-- Depends on PR: #
-- Blocks PR: #
-
-## 💬 Additional Context
-
-Add any other context about the pull request here.

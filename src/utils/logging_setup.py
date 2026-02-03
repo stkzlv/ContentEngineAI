@@ -223,6 +223,9 @@ def setup_debug_logging(
     logging.getLogger("numba").setLevel(logging.WARNING)
     # Suppress websocket cleanup messages (harmless "goodbye" errors)
     logging.getLogger("websocket").setLevel(logging.CRITICAL)
+    # Suppress TTS library noise (espeak language listings, phonemizer details)
+    logging.getLogger("TTS").setLevel(logging.WARNING)
+    logging.getLogger("TTS.tts.utils.text.phonemizers").setLevel(logging.WARNING)
     if not debug_mode:
         for lib in ["httpx", "google", "aiohttp", "urllib3", "asyncio", "hpack"]:
             logging.getLogger(lib).setLevel(logging.WARNING)

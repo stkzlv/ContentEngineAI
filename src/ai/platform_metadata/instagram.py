@@ -137,17 +137,21 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             )
 
             # Try auto-selecting free model
-            selected_model = await fetch_and_select_model(
+            free_models = await fetch_and_select_model(
                 settings, api_key, session, api_settings
             )
 
-            # Prepare model list
-            models_to_try = []
-            if selected_model:
-                models_to_try.append(selected_model)
+            # Prepare model list (free models first, then configured fallbacks)
+            models_to_try: list[str] = []
+            if free_models:
+                models_to_try.extend(free_models)
                 if debug_mode:
-                    logger.info(f"Auto-selected free model: {selected_model}")
-            models_to_try.extend(settings.models)
+                    logger.info("Free models to try: %s", free_models[:3])
+
+            # Add configured models as fallback (if not already in list)
+            for model in settings.models:
+                if model not in models_to_try:
+                    models_to_try.append(model)
 
             # Try each model until one succeeds
             response = None

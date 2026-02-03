@@ -269,10 +269,12 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
 1. **Model Availability:**
    ```yaml
    llm_settings:
+     auto_select_free_model: true
+     fallback_discover_any_free: true  # Auto-discover free models
      models:
-       - "anthropic/claude-3-haiku"    # Try different models
-       - "openai/gpt-3.5-turbo"
-       - "meta-llama/llama-3-8b"
+       - "tngtech/deepseek-r1t2-chimera:free"
+       - "arcee-ai/trinity-large-preview:free"
+       - "nvidia/llama-3.1-nemotron-70b-instruct:free"
    ```
 
 2. **Timeout Issues:**

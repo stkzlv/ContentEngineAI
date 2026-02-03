@@ -13,12 +13,25 @@ llm_settings:
   
   # Whether to automatically select free models when available
   auto_select_free_model: true
-  
+
+  # Random vs sequential model selection (when auto_select_free_model is true)
+  # true = randomly pick from free models, false = try in order
+  random_model_selection: false
+
+  # Fallback: discover any free model if all configured models fail
+  # When true, queries OpenRouter API for ANY free model as last resort
+  # Useful when configured models are temporarily unavailable
+  fallback_discover_any_free: true
+
   # List of LLM models to try (in priority order)
+  # Verified working free models on OpenRouter as of Jan 2026
   models:
-    - "openai/gpt-3.5-turbo"
-    - "deepseek/deepseek-chat-v3-0324:free"
-    - "meta-llama/llama-3-8b-instruct:free"
+    - "tngtech/deepseek-r1t2-chimera:free"        # 671B MoE, 164K ctx, best quality
+    - "arcee-ai/trinity-large-preview:free"       # 400B MoE, 131K ctx, creative
+    - "z-ai/glm-4.5-air:free"                     # 40B, 131K ctx, agent-optimized
+    - "nvidia/nemotron-3-nano-30b-a3b:free"       # 30B, 256K ctx, efficient
+    - "tngtech/deepseek-r1t-chimera:free"         # 28B, 164K ctx, reasoning
+    - "tngtech/tng-r1t-chimera:free"              # 9.5B, 164K ctx, fast fallback
   
   # API base URL for LLM provider
   base_url: "https://openrouter.ai/api/v1"

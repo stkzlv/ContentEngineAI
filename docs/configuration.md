@@ -175,7 +175,9 @@ LLM and description generation settings (TTS is in `config/subtitles.yaml`):
 ```yaml
 llm_settings:
   api_key_env_var: "OPENROUTER_API_KEY"
-  models: ["openai/gpt-3.5-turbo"]
+  auto_select_free_model: true
+  random_model_selection: true
+  models: ["tngtech/deepseek-r1t2-chimera:free"]
   temperature: 0.7
 
 description_settings:
@@ -685,11 +687,16 @@ llm_settings:
   api_key_env_var: "OPENROUTER_API_KEY"
   auto_select_free_model: true
 
-  # Model selection with fallbacks
+  # Model selection behavior
+  random_model_selection: true       # true = randomly pick, false = try in order
+  fallback_discover_any_free: true   # Query API for any free model as last resort
+
+  # Model selection with fallbacks (verified working free models)
   models:
-    - "openai/gpt-3.5-turbo"              # Primary model
-    - "deepseek/deepseek-chat-v3-0324:free" # Free fallback
-    - "meta-llama/llama-3-8b-instruct:free" # Second free fallback
+    - "tngtech/deepseek-r1t2-chimera:free"   # 671B MoE, best quality
+    - "arcee-ai/trinity-large-preview:free"   # 400B MoE, creative
+    - "z-ai/z1-preview:free"                  # 405B, strong reasoning
+    - "nvidia/llama-3.1-nemotron-70b-instruct:free"  # 70B, instruction-following
 
   # Generation parameters
   temperature: 0.7                   # Creativity (0.0-2.0)

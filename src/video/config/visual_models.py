@@ -13,7 +13,10 @@ from src.video.config.constants import (
 
 class CTADetectionSettings(BaseModel):
     min_cta_duration: float = Field(
-        2.0, description="Minimum total duration (seconds) for detected CTA windows"
+        0.5, description="Minimum total duration (seconds) for detected CTA windows"
+    )
+    default_cta_duration: float = Field(
+        5.0, description="Default CTA window duration (seconds) when detection fails"
     )
     fallback_duration: float = Field(
         9999.0, description="Fallback duration (seconds) when voiceover unavailable"
@@ -28,8 +31,9 @@ class VideoSettings(BaseModel):
     output_codec: str = Field("libx264")
     output_pixel_format: str = Field("yuv420p")
     output_preset: str = Field("medium")
-    image_width_percent: float = Field(0.75)
-    image_top_position_percent: float = Field(0.20)
+    image_width_percent: float = Field(1.0)
+    image_top_position_percent: float = Field(0.0)
+    image_vertical_align: Literal["top", "center"] = Field("center")
     default_image_duration_sec: float = Field(3.0)
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
@@ -38,7 +42,9 @@ class VideoSettings(BaseModel):
     inter_product_delay_min_sec: float = Field(1.5)
     inter_product_delay_max_sec: float = Field(4.0)
     min_visual_segment_duration_sec: float = Field(0.1)
-    dynamic_image_count_limit: int = Field(25)
+    dynamic_image_count_limit: int = Field(
+        25, description="Maximum images to use in dynamic image count mode"
+    )
     verification_probe_timeout_sec: int = Field(30)
     preserve_aspect_ratio: bool = Field(True)
     default_max_chars_per_line: int = Field(20)  # Configurable via YAML

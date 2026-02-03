@@ -115,22 +115,39 @@ High-level requirements for ContentEngineAI.
 ### Video Assembly
 - Adjust video duration to match voiceover length
 - Display images with configurable duration (2-3 seconds)
-- Smooth transitions between media elements
+- Smooth transitions (crossfade) between media elements
 - Reuse images if needed to fill remaining time
 
-### Product Video Support
+### Image Positioning
+- Width as percentage of frame (default 100%)
+- **Vertical alignment**: center (default) or top with configurable offset
+- Always centered horizontally
+- Preserve aspect ratio by default
+- Reserve space below for subtitles (default 15%)
+
+### Video Positioning
+- Top offset as percentage of frame (default 10%)
+- Content height as percentage of frame (default 75%)
+- **Aspect modes**: letterbox (black bars), crop-to-fit (fill frame), smart-scale (auto-select)
+- Smart-scale uses 10% tolerance to choose between letterbox and crop
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
-- **Aspect ratio handling**: letterbox, crop-to-fit, smart-scale
 - **Audio handling**: remove original audio or mix at reduced volume
-- Normalize all videos to consistent format (H.264, 30fps, yuv420p)
+- Normalize to consistent format (H.264, 30fps, yuv420p)
 - Match final duration to voiceover (±1 second tolerance)
 
-### Subtitle System
-- **Unified anchor-based positioning**: top, center, bottom, above/below content
-- Content-aware mode adjusts position based on visual boundaries
-- Two-part subtitle support (upper: product URL, lower: voiceover text)
-- CTA detection for timed URL display
-- Per-profile styling and positioning
+### Subtitle Positioning
+- **Anchors**: top, center, bottom, above-content, below-content
+- Content-aware mode positions relative to actual media bounds
+- Margin as percentage of frame height (default 10%)
+- Horizontal alignment: left, center (default), right
+- Font size scales with frame height (default 4%, min 16px, max 100px)
+- Safe zone: max vertical position 95% to stay readable
+
+### Two-Part Subtitles
+- Upper line: static product URL or affiliate link
+- Lower line: voiceover transcription (word-by-word timing)
+- Independent positioning and styling per line
+- CTA detection triggers timed URL display
 
 ### Profile System
 - All visual settings configurable per video profile

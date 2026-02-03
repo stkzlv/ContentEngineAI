@@ -177,7 +177,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 40% (currently at 46.12%)
+- **Overall minimum**: 50% (currently at 56%)
 
 **Generate coverage report:**
 ```bash
@@ -313,8 +313,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1164 passing
-- **Coverage**: 45.51% (target 40% minimum)
+- **Total Tests**: 1741 passing
+- **Coverage**: 56% (target 50% minimum)
 
 ## Quick Reference
 
