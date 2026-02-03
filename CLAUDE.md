@@ -46,8 +46,15 @@ poetry run python tools/performance_report.py --report-type summary
 
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
 - **Type Annotations**: Use modern Python typing (`dict[str, Any]`, `| None`)
-- **Error Handling**: Specific exceptions, structured logging
+- **Error Handling**: Specific exceptions (never bare `except Exception`), structured logging
+- **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings
 - **Configuration**: Centralized in `src/video/config/` (Pydantic models)
+
+### Video Module Notes
+
+- **Subtitle positioning**: For centered images with mixed aspect ratios (landscape + portrait), use AVERAGE `video_top` across all images to balance positioning
+- **Visual bounds**: Calculated from actual image dimensions, not frame dimensions
+- **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`
 
 ## Development Guidelines
 
