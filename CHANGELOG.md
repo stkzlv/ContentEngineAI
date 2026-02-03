@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.27.0] - 2026-02-02
+## [0.27.0] - 2026-02-03
 
 ### Added
 - **LLM Model Selection Improvements**:
