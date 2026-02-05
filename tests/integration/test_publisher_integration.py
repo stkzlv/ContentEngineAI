@@ -634,6 +634,153 @@ class TestLinkInBio:
         assert result["success"] is False
         assert result["reason"] == "no_data"
 
+    @pytest.mark.asyncio
+    async def test_manager_returns_missing_fields_when_no_title(self, tmp_path: Path):
+        """Test manager returns missing_fields when title is empty."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0NOTITLE"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "", "url": "https://amazon.com/dp/B0NOTITLE"}])
+        )
+
+        mock_provider = AsyncMock()
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0NOTITLE", tmp_path)
+
+        assert result["success"] is False
+        assert result["reason"] == "missing_fields"
+
+    @pytest.mark.asyncio
+    async def test_manager_truncates_long_title(self, tmp_path: Path):
+        """Test manager truncates titles exceeding max_title_length."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        long_title = "A" * 100
+        product_dir = tmp_path / "B0LONG"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": long_title, "url": "https://amazon.com/dp/B0LONG"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True}
+
+        mgr = LinkInBioManager(
+            provider=mock_provider, max_links=25, max_title_length=50
+        )
+        await mgr.update("B0LONG", tmp_path)
+
+        call_title = mock_provider.add_link.call_args.kwargs["title"]
+        assert len(call_title) == 50
+        assert call_title.endswith("...")
+
+    def test_factory_creates_lnkbio_manager(self):
+        """Test factory creates manager with LnkBioProvider."""
+        from src.publisher.link_in_bio.lnkbio import LnkBioProvider
+        from src.publisher.link_in_bio.manager import create_link_in_bio_manager
+
+        mgr = create_link_in_bio_manager("lnkbio", max_links=10, max_title_length=60)
+        assert isinstance(mgr.provider, LnkBioProvider)
+        assert mgr.max_links == 10
+        assert mgr.max_title_length == 60
+
+    def test_factory_raises_on_unknown_provider(self):
+        """Test factory raises ValueError for unknown provider."""
+        from src.publisher.link_in_bio.manager import create_link_in_bio_manager
+
+        with pytest.raises(ValueError, match="Unknown link-in-bio provider"):
+            create_link_in_bio_manager("unknown_provider")
+
+
+class TestTikTokContentSettings:
+    """Test TikTokContentSettings dataclass."""
+
+    def test_to_sdk_dict_returns_all_fields(self):
+        """Test to_sdk_dict returns complete settings dict."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings()
+        sdk = settings.to_sdk_dict()
+
+        assert sdk["commercial_content_type"] == "brand_organic"
+        assert sdk["is_brand_organic_post"] is True
+        assert sdk["privacy_level"] == "PUBLIC_TO_EVERYONE"
+        assert sdk["allow_comment"] is True
+        assert sdk["allow_duet"] is False
+        assert sdk["allow_stitch"] is False
+        assert len(sdk) == 8
+
+    def test_to_top_level_dict_returns_camel_case(self):
+        """Test to_top_level_dict uses camelCase keys for API."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings()
+        top = settings.to_top_level_dict()
+
+        assert top["privacyLevel"] == "PUBLIC_TO_EVERYONE"
+        assert top["mediaType"] == "video"
+        assert top["commercialContentType"] == "brand_organic"
+
+    def test_custom_settings_propagate(self):
+        """Test non-default values appear in output."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings(
+            privacy_level="SELF_ONLY",
+            allow_duet=True,
+            commercial_content_type="brand_content",
+        )
+        sdk = settings.to_sdk_dict()
+
+        assert sdk["privacy_level"] == "SELF_ONLY"
+        assert sdk["allow_duet"] is True
+        assert sdk["commercial_content_type"] == "brand_content"
+
+
+class TestLinkInBioConfig:
+    """Test LinkInBioConfig validation."""
+
+    def test_rejects_negative_max_links(self):
+        """Test max_links < 0 raises ValueError."""
+        from src.publisher.models import LinkInBioConfig
+
+        with pytest.raises(ValueError, match="max_links"):
+            LinkInBioConfig(max_links=-1)
+
+    def test_rejects_short_max_title_length(self):
+        """Test max_title_length < 10 raises ValueError."""
+        from src.publisher.models import LinkInBioConfig
+
+        with pytest.raises(ValueError, match="max_title_length"):
+            LinkInBioConfig(max_title_length=5)
+
+    def test_default_values(self):
+        """Test default config values."""
+        from src.publisher.models import LinkInBioConfig
+
+        config = LinkInBioConfig()
+        assert config.enabled is False
+        assert config.provider == "lnkbio"
+        assert config.max_links == 25
+        assert config.max_title_length == 80
+
+
+class TestDefaultPlatforms:
+    """Test DEFAULT_PLATFORMS constant."""
+
+    def test_includes_all_primary_platforms(self):
+        """Test DEFAULT_PLATFORMS includes YouTube, TikTok, Instagram."""
+        from src.publisher.models import DEFAULT_PLATFORMS, Platform
+
+        assert Platform.YOUTUBE in DEFAULT_PLATFORMS
+        assert Platform.TIKTOK in DEFAULT_PLATFORMS
+        assert Platform.INSTAGRAM in DEFAULT_PLATFORMS
+        assert len(DEFAULT_PLATFORMS) == 3
+
 
 class TestScheduleCreation:
     """Test schedule creation scenarios."""
