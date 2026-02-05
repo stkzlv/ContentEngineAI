@@ -22,6 +22,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Publishing Schedule & Calendar](#-publishing-schedule--calendar)
 - [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
+- [Link-in-Bio Integration](#-link-in-bio-integration)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
 - [API Reference](#-api-reference)
@@ -42,6 +43,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **⚡ Smart Uploads**: Large files (>4MB) automatically routed through Vercel CDN
 - **🔁 Retry Logic**: Exponential backoff for rate limits and network errors
 - **✅ Progress Tracking**: Real-time upload progress with callbacks
+- **🔗 Link-in-Bio**: Auto-add affiliate links to bio page after publishing (Lnk.Bio, etc.)
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
 ---
@@ -105,7 +107,7 @@ LATE_API_KEY=sk_live_your_api_key_here
 LATE_VERCEL_TOKEN=vercel_blob_rw_your_token_here
 
 # Optional: Override default settings
-LATE_TIMEOUT=30.0
+LATE_TIMEOUT=120.0
 LATE_MAX_RETRIES=3
 ```
 
@@ -485,7 +487,6 @@ default_platforms:                  # Platforms to use if none specified
 # === Retry & Timeout ===
 max_retries: 3                     # Maximum retry attempts on failure
 timeout: 120.0                     # HTTP request timeout (TikTok needs longer)
-backoff_multiplier: 2.0            # Exponential backoff multiplier (2^n)
 
 # === Batch Settings ===
 stagger_delay_min: 30              # Min delay between batch uploads (seconds)
@@ -1305,6 +1306,66 @@ If cleanup runs accidentally:
 - ❌ Disable `verify_before_delete` in production
 - ❌ Set `keep_published_days: 0` without archiving enabled
 - ❌ Clean up before verifying posts are actually published (not just scheduled)
+
+</details>
+
+---
+
+## 🔗 Link-in-Bio Integration
+
+After publishing a video, the publisher can automatically add the product's Amazon affiliate link to a link-in-bio page (e.g., Lnk.Bio, Linktree).
+
+<details>
+<summary><strong>Configuration</strong></summary>
+
+**YAML** (`config/publisher.yaml`):
+
+```yaml
+link_in_bio:
+  enabled: false          # Toggle on/off
+  provider: lnkbio        # Provider name (lnkbio supported)
+  max_links: 25           # Max links on bio page (oldest rotated out)
+  max_title_length: 80    # Truncate link titles beyond this length
+```
+
+**Environment Variables** (required when enabled):
+
+```bash
+export LNKBIO_CLIENT_ID=your_client_id
+export LNKBIO_CLIENT_SECRET=your_client_secret
+```
+
+</details>
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+1. After a successful `single` publish, the manager reads product info from `outputs/<product_id>/data.json`
+2. Adds a link to the bio page with the product title, affiliate URL, and thumbnail
+3. If `max_links` is exceeded, the oldest link is automatically removed
+4. Failures are logged as warnings and never block publishing
+
+**Data Source** (`outputs/<product_id>/data.json`):
+- `title` → link title (truncated to `max_title_length`)
+- `url` → Amazon affiliate URL (destination)
+- `main_image` → thumbnail (optional)
+
+</details>
+
+<details>
+<summary><strong>Adding New Providers</strong></summary>
+
+Implement `BaseLinkInBioProvider` from `src/publisher/link_in_bio/base.py`:
+
+```python
+class BaseLinkInBioProvider(ABC):
+    async def authenticate(self) -> bool: ...
+    async def add_link(self, title: str, url: str, image: str | None = None) -> dict: ...
+    async def list_links(self) -> list[dict]: ...
+    async def delete_link(self, link_id: str) -> bool: ...
+```
+
+Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager()`.
 
 </details>
 

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Link-in-Bio Integration**: Automatically add product affiliate links to a link-in-bio page after publishing
+  - Provider-agnostic design with Lnk.Bio as first implementation
+  - Configurable max links with automatic oldest-link rotation
+  - Non-blocking: failures never affect video publishing
+  - Disabled by default (`link_in_bio.enabled: false`)
+- **TikTok Content Settings**: Configurable `TikTokContentSettings` dataclass for content disclosure fields
+- **DEFAULT_PLATFORMS constant**: Single source of truth for default platform list
+
+### Fixed
+- **TikTok Commercial Content Disclosure**: Fix `commercial_content_type` and `is_brand_organic_post` fields unreachable when `use_platform_specific_content: false`
+- **Timeout default mismatch**: Align model default (was 30s) with YAML config (120s)
+
+### Removed
+- **backoff_multiplier**: Deprecated field removed from `PublisherConfig` (unused after retry refactor)
+
 ## [0.28.0] - 2026-02-08
 
 ### Added
