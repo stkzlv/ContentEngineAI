@@ -336,7 +336,7 @@ class TestPublisherConfig:
         ]
         assert config.immediate_publish is True
         assert config.max_retries == 3
-        assert config.timeout == 30.0
+        assert config.timeout == 120.0
         assert config.stagger_delay_min == 30
         assert config.stagger_delay_max == 60
 

@@ -16,11 +16,11 @@ class BaseLinkInBioProvider(ABC):
         title: str,
         url: str,
         image: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Add a link to the bio page. Returns provider response."""
 
     @abstractmethod
-    async def list_links(self) -> list[dict]:
+    async def list_links(self) -> list[dict[str, object]]:
         """List all current links. Each dict has at least 'id', 'title', 'url'."""
 
     @abstractmethod

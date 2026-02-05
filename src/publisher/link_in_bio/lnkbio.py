@@ -57,7 +57,7 @@ class LnkBioProvider(BaseLinkInBioProvider):
         method: str,
         path: str,
         data: dict | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Make an API request with auto-retry on 401."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.request(
@@ -78,14 +78,15 @@ class LnkBioProvider(BaseLinkInBioProvider):
                 )
 
             resp.raise_for_status()
-            return resp.json()
+            result: dict[str, object] = resp.json()
+            return result
 
     async def add_link(
         self,
         title: str,
         url: str,
         image: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         data: dict[str, str] = {"title": title, "link": url}
         if image:
             data["image"] = image
@@ -94,11 +95,10 @@ class LnkBioProvider(BaseLinkInBioProvider):
         logger.info("Created link: %s", title[:50])
         return result
 
-    async def list_links(self) -> list[dict]:
+    async def list_links(self) -> list[dict[str, object]]:
         result = await self._request("GET", "/lnks")
-        if isinstance(result, dict):
-            return result.get("data", result.get("lnks", []))
-        return result if isinstance(result, list) else []
+        links: list[dict[str, object]] = result.get("data", result.get("lnks", []))  # type: ignore[assignment]
+        return links
 
     async def delete_link(self, link_id: str | int) -> bool:
         await self._request("POST", "/lnk/delete", data={"link_id": str(link_id)})

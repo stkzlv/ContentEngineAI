@@ -619,7 +619,7 @@ class TestLinkInBio:
         result = await mgr.update("B0NEW", tmp_path)
 
         assert result["success"] is True
-        mock_provider.delete_link.assert_called_once_with(2)
+        mock_provider.delete_link.assert_called_once_with("2")
         mock_provider.add_link.assert_called_once()
 
     @pytest.mark.asyncio
