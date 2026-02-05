@@ -16,6 +16,7 @@ import yaml
 from src.publisher.models import (
     AccountConfig,
     CleanupConfig,
+    LinkInBioConfig,
     Platform,
     PublisherConfig,
     RecurringSlot,
@@ -262,10 +263,23 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     else:
         result["cleanup_config"] = CleanupConfig()
 
+    # Parse link_in_bio config
+    link_in_bio_section = result.get("link_in_bio", {})
+    if link_in_bio_section:
+        try:
+            result["link_in_bio_config"] = LinkInBioConfig(**link_in_bio_section)
+            logger.debug("Parsed link_in_bio config: %s", link_in_bio_section)
+        except Exception as e:
+            logger.warning("Failed to parse link_in_bio config: %s, using defaults", e)
+            result["link_in_bio_config"] = LinkInBioConfig()
+    else:
+        result["link_in_bio_config"] = LinkInBioConfig()
+
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
+    result.pop("link_in_bio", None)
     result.pop("use_platform_specific_content", None)
 
     return result
@@ -602,6 +616,7 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "active_account": None,
         "schedule_config": ScheduleConfig(),
         "cleanup_config": CleanupConfig(),
+        "link_in_bio_config": LinkInBioConfig(),
     }
 
     for key, default_value in defaults.items():

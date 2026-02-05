@@ -241,3 +241,21 @@ cleanup:
   # false = Delete logs during cleanup
   # Affects: Debugging capability, disk space
   preserve_logs: true
+
+# ============================================================================
+# LINK-IN-BIO INTEGRATION
+# ============================================================================
+# Automatically add product affiliate links to a link-in-bio page
+# after successful video publication. Provider-agnostic design.
+
+link_in_bio:
+  # Enable/disable link-in-bio updates after publishing
+  enabled: false
+
+  # Provider to use (lnkbio, linktree, beacons, etc.)
+  # Credentials via environment variables (e.g., LNKBIO_CLIENT_ID)
+  provider: lnkbio
+
+  # Maximum links on bio page — oldest rotated out when exceeded
+  # 0 = unlimited (no rotation)
+  max_links: 25

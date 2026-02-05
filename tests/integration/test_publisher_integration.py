@@ -532,6 +532,109 @@ class TestPlatformPublishing:
             )
 
 
+class TestLinkInBio:
+    """Test link-in-bio integration."""
+
+    @pytest.mark.asyncio
+    async def test_manager_adds_link_from_data_json(self, tmp_path: Path):
+        """Test LinkInBioManager reads data.json and adds link."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        # Create mock data.json
+        product_dir = tmp_path / "B0TEST123"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Test Product Title",
+                        "url": "https://amazon.com/dp/B0TEST123?tag=test-20",
+                        "main_image": "https://images.amazon.com/test.jpg",
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 42}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0TEST123", tmp_path)
+
+        assert result["success"] is True
+        mock_provider.add_link.assert_called_once_with(
+            title="Test Product Title",
+            url="https://amazon.com/dp/B0TEST123?tag=test-20",
+            image="https://images.amazon.com/test.jpg",
+        )
+
+    @pytest.mark.asyncio
+    async def test_manager_skips_duplicate(self, tmp_path: Path):
+        """Test LinkInBioManager skips when product link already exists."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0TEST123"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "Test", "url": "https://amazon.com/dp/B0TEST123"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = [
+            {"id": 1, "url": "https://amazon.com/dp/B0TEST123?tag=test-20"},
+        ]
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0TEST123", tmp_path)
+
+        assert result["success"] is True
+        assert result["existing"] is True
+        mock_provider.add_link.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_manager_rotates_oldest_at_capacity(self, tmp_path: Path):
+        """Test LinkInBioManager deletes oldest link when at max capacity."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0NEW"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "New Product", "url": "https://amazon.com/dp/B0NEW"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = [
+            {"id": 1, "url": "https://amazon.com/dp/B0OLD1"},
+            {"id": 2, "url": "https://amazon.com/dp/B0OLD2"},
+        ]
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 3}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=2)
+        result = await mgr.update("B0NEW", tmp_path)
+
+        assert result["success"] is True
+        mock_provider.delete_link.assert_called_once_with(2)
+        mock_provider.add_link.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_manager_skips_missing_data(self, tmp_path: Path):
+        """Test LinkInBioManager handles missing data.json gracefully."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        mock_provider = AsyncMock()
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0MISSING", tmp_path)
+
+        assert result["success"] is False
+        assert result["reason"] == "no_data"
+
+
 class TestScheduleCreation:
     """Test schedule creation scenarios."""
 

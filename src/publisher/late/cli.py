@@ -340,6 +340,27 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         logger.info("Single video publishing complete")
 
+        # Link-in-bio update if enabled
+        if config.link_in_bio_config.enabled:
+            try:
+                from src.publisher.link_in_bio.manager import (
+                    create_link_in_bio_manager,
+                )
+
+                link_bio_mgr = create_link_in_bio_manager(
+                    provider_name=config.link_in_bio_config.provider,
+                    max_links=config.link_in_bio_config.max_links,
+                )
+                bio_result = await link_bio_mgr.update(product_id, outputs_dir)
+                if bio_result.get("success"):
+                    logger.info("Link-in-bio updated for %s", product_id)
+                else:
+                    logger.warning(
+                        "Link-in-bio skipped: %s", bio_result.get("reason", "unknown")
+                    )
+            except Exception as bio_error:
+                logger.warning("Link-in-bio failed: %s", bio_error)
+
         # Automatic cleanup if enabled
         if config.cleanup_config.enabled and not args.no_cleanup:
             logger.info("Running automatic cleanup...")

@@ -359,6 +359,9 @@ class PublisherConfig:
     stagger_delay_max: int = 60
     schedule_config: "ScheduleConfig" = field(default_factory=lambda: ScheduleConfig())
     cleanup_config: "CleanupConfig" = field(default_factory=lambda: CleanupConfig())
+    link_in_bio_config: "LinkInBioConfig" = field(
+        default_factory=lambda: LinkInBioConfig()
+    )
 
     def __post_init__(self):
         """Post-initialization validation."""
@@ -949,3 +952,24 @@ class CleanupConfig:
             "preserve_metadata": self.preserve_metadata,
             "preserve_logs": self.preserve_logs,
         }
+
+
+@dataclass
+class LinkInBioConfig:
+    """Configuration for link-in-bio integration.
+
+    Attributes
+    ----------
+        enabled: Enable link-in-bio updates after publish
+        provider: Provider name (lnkbio, linktree, etc.)
+        max_links: Maximum links on bio page (oldest rotated out)
+
+    """
+
+    enabled: bool = False
+    provider: str = "lnkbio"
+    max_links: int = 25
+
+    def __post_init__(self):
+        if self.max_links < 0:
+            raise ValueError("max_links must be non-negative")
