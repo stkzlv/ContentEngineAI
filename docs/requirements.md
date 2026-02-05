@@ -230,6 +230,13 @@ High-level requirements for ContentEngineAI.
 - Safety checks verify publication success before deletion
 - Require all platforms to succeed before cleanup
 
+### Link-in-Bio Integration
+- After publishing a video, add the product's Amazon affiliate link to a link-in-bio page
+- Provider-agnostic: swappable between Lnk.Bio, Linktree, Beacons, etc.
+- Configurable max links with automatic oldest-link rotation
+- Non-blocking: failures never affect video publishing
+- Disabled by default, toggled via config
+
 ---
 
 ## Content Metadata Module
