@@ -478,6 +478,33 @@ class TestPlatformPublishing:
         assert result["post_id"] == "post_abc123"
 
     @pytest.mark.asyncio
+    async def test_publish_tiktok_includes_commercial_disclosure(self, mock_publisher):
+        """Test TikTok gets commercial content disclosure even without platform_contents."""
+        platforms = [
+            {"platform": "tiktok", "account_id": "acc_tt_001"},
+        ]
+
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            content="TikTok post #ad",
+        )
+
+        # Verify posts.create was called with TikTok platform data
+        call_kwargs = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call_kwargs.kwargs.get(
+            "platforms", call_kwargs[1].get("platforms", [])
+        )
+        tiktok_platform = next(p for p in sdk_platforms if p["platform"] == "tiktok")
+        tiktok_settings = tiktok_platform["platformSpecificData"]["tiktokSettings"]
+
+        assert tiktok_settings["commercial_content_type"] == "brand_organic"
+        assert tiktok_settings["is_brand_organic_post"] is True
+        assert tiktok_settings["privacy_level"] == "PUBLIC_TO_EVERYONE"
+        assert tiktok_settings["content_preview_confirmed"] is True
+        assert tiktok_settings["express_consent_given"] is True
+
+    @pytest.mark.asyncio
     async def test_publish_validates_empty_platforms(self, mock_publisher):
         """Test publish rejects empty platforms list."""
         from src.publisher.base import ValidationError

@@ -986,10 +986,30 @@ class LatePublisher(BasePublisher):
                                 "allow_comment": True,
                                 "allow_duet": False,
                                 "allow_stitch": False,
+                                "commercial_content_type": "brand_organic",
+                                "is_brand_organic_post": True,
                                 "content_preview_confirmed": True,
                                 "express_consent_given": True,
                             }
                         }
+
+                # Add TikTok settings even without platform-specific content
+                if (
+                    platform_name == "tiktok"
+                    and "platformSpecificData" not in platform_entry
+                ):
+                    platform_entry["platformSpecificData"] = {
+                        "tiktokSettings": {
+                            "privacy_level": "PUBLIC_TO_EVERYONE",
+                            "allow_comment": True,
+                            "allow_duet": False,
+                            "allow_stitch": False,
+                            "commercial_content_type": "brand_organic",
+                            "is_brand_organic_post": True,
+                            "content_preview_confirmed": True,
+                            "express_consent_given": True,
+                        }
+                    }
 
                 sdk_platforms.append(platform_entry)
 
