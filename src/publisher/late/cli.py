@@ -33,7 +33,7 @@ from src.publisher import PublisherProvider, create_publisher
 from src.publisher.batch import BatchPublisher
 from src.publisher.cleanup import CleanupManager
 from src.publisher.config import load_publisher_config
-from src.publisher.models import Platform
+from src.publisher.models import DEFAULT_PLATFORMS, Platform
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
 from src.utils.logging_setup import setup_debug_logging
@@ -102,6 +102,7 @@ async def cmd_list_accounts(
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -164,7 +165,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
     # Default to all 3 platforms if none specified
     if not args.platforms:
-        args.platforms = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+        args.platforms = list(DEFAULT_PLATFORMS)
         logger.info("Using default platforms: youtube, tiktok, instagram")
 
     logger.info(f"Publishing single video: {video_path.name}")
@@ -177,6 +178,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -350,6 +352,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 link_bio_mgr = create_link_in_bio_manager(
                     provider_name=config.link_in_bio_config.provider,
                     max_links=config.link_in_bio_config.max_links,
+                    max_title_length=config.link_in_bio_config.max_title_length,
                 )
                 bio_result = await link_bio_mgr.update(product_id, outputs_dir)
                 if bio_result.get("success"):
@@ -430,6 +433,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -644,6 +648,7 @@ async def cmd_schedule_auto(
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -769,6 +774,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -847,6 +853,7 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:

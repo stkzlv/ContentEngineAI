@@ -8,7 +8,7 @@ from src.publisher.link_in_bio.base import BaseLinkInBioProvider
 
 logger = logging.getLogger(__name__)
 
-MAX_TITLE_LENGTH = 80
+DEFAULT_MAX_TITLE_LENGTH = 80
 
 
 class LinkInBioManager:
@@ -18,9 +18,11 @@ class LinkInBioManager:
         self,
         provider: BaseLinkInBioProvider,
         max_links: int = 25,
+        max_title_length: int = DEFAULT_MAX_TITLE_LENGTH,
     ) -> None:
         self.provider = provider
         self.max_links = max_links
+        self.max_title_length = max_title_length
 
     async def update(self, product_id: str, outputs_dir: Path) -> dict:
         """Add product link to bio page after successful publish.
@@ -70,10 +72,10 @@ class LinkInBioManager:
                 await self.provider.delete_link(oldest_id)
 
         # Truncate title for readability
-        if len(title) <= MAX_TITLE_LENGTH:
+        if len(title) <= self.max_title_length:
             display_title = title
         else:
-            display_title = title[: MAX_TITLE_LENGTH - 3] + "..."
+            display_title = title[: self.max_title_length - 3] + "..."
 
         image = product.get("main_image")
         result = await self.provider.add_link(
@@ -89,11 +91,16 @@ class LinkInBioManager:
 def create_link_in_bio_manager(
     provider_name: str,
     max_links: int = 25,
+    max_title_length: int = DEFAULT_MAX_TITLE_LENGTH,
 ) -> LinkInBioManager:
     """Factory to create a LinkInBioManager for the given provider."""
     if provider_name == "lnkbio":
         from src.publisher.link_in_bio.lnkbio import LnkBioProvider
 
-        return LinkInBioManager(provider=LnkBioProvider(), max_links=max_links)
+        return LinkInBioManager(
+            provider=LnkBioProvider(),
+            max_links=max_links,
+            max_title_length=max_title_length,
+        )
 
     raise ValueError(f"Unknown link-in-bio provider: {provider_name}")

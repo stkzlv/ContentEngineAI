@@ -13,7 +13,12 @@ from pathlib import Path
 
 from src.publisher.base import BasePublisher, PublishError
 from src.publisher.metadata import load_platform_metadata
-from src.publisher.models import BatchPublishSummary, Platform, PublishStatus
+from src.publisher.models import (
+    DEFAULT_PLATFORMS,
+    BatchPublishSummary,
+    Platform,
+    PublishStatus,
+)
 from src.publisher.tracking import (
     add_to_retry_queue,
     get_retry_queue,
@@ -89,11 +94,7 @@ class BatchPublisher:
         self.outputs_dir = (
             Path(outputs_dir) if isinstance(outputs_dir, str) else outputs_dir
         )
-        self.platforms = platforms or [
-            Platform.YOUTUBE,
-            Platform.TIKTOK,
-            Platform.INSTAGRAM,
-        ]
+        self.platforms = platforms or list(DEFAULT_PLATFORMS)
         self.stagger_delay_min = stagger_delay_min
         self.stagger_delay_max = stagger_delay_max
         self.fail_fast = fail_fast

@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 
 from src.publisher.models import (
+    DEFAULT_PLATFORMS,
     AccountConfig,
     CleanupConfig,
     LinkInBioConfig,
@@ -21,6 +22,7 @@ from src.publisher.models import (
     PublisherConfig,
     RecurringSlot,
     ScheduleConfig,
+    TikTokContentSettings,
 )
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
@@ -274,6 +276,18 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             result["link_in_bio_config"] = LinkInBioConfig()
     else:
         result["link_in_bio_config"] = LinkInBioConfig()
+
+    # Parse tiktok_settings config
+    tiktok_section = result.get("tiktok_settings", {})
+    if tiktok_section:
+        try:
+            result["tiktok_settings"] = TikTokContentSettings(**tiktok_section)
+            logger.debug("Parsed tiktok_settings config: %s", tiktok_section)
+        except Exception as e:
+            logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
+            result["tiktok_settings"] = TikTokContentSettings()
+    else:
+        result["tiktok_settings"] = TikTokContentSettings()
 
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
@@ -610,13 +624,14 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "timeout": 120.0,  # TikTok video processing can take 60-120 seconds
         "stagger_delay_min": 30,
         "stagger_delay_max": 60,
-        "default_platforms": [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
+        "default_platforms": list(DEFAULT_PLATFORMS),
         "privacy_settings": {},
         "accounts": {},
         "active_account": None,
         "schedule_config": ScheduleConfig(),
         "cleanup_config": CleanupConfig(),
         "link_in_bio_config": LinkInBioConfig(),
+        "tiktok_settings": TikTokContentSettings(),
     }
 
     for key, default_value in defaults.items():

@@ -62,7 +62,6 @@ default_platforms:
 
 max_retries: 2
 timeout: 30.0
-backoff_multiplier: 2.0
 
 stagger_delay_min: 5
 stagger_delay_max: 10
