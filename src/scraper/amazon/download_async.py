@@ -262,9 +262,9 @@ async def _download_media_async(
         min_image_file_size = download_config.get("min_image_file_size", 10000)
 
         # Setup output directories
-        from .botasaurus_output import get_outputs_root
+        from .botasaurus_output import _effective_dir, get_outputs_root
 
-        outputs_root = get_outputs_root(output_dir)
+        outputs_root = get_outputs_root(_effective_dir(output_dir))
         product_dir = outputs_root / asin
         images_dir = product_dir / "images"
         videos_dir = product_dir / "videos"

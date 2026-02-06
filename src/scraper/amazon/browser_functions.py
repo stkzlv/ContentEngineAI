@@ -54,6 +54,12 @@ def scrape_amazon_products_browser_impl(
         .get("base_url", "https://www.amazon.com")
     )
 
+    # Initialize variables used by final debug verification (set per-branch below)
+    global_settings = CONFIG.get("global_settings", {})
+    count_products_with_media = global_settings.get("count_products_with_media", False)
+    products_with_media_count = 0
+    max_products = data.get("max_products", 1)
+
     if is_url:
         # Direct URL navigation — follow redirects (e.g. shortened URLs → Amazon)
         logger.info("🔗 Navigating to URL: %s", keyword)

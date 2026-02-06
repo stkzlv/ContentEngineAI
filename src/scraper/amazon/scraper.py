@@ -145,6 +145,12 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         """
         self.output_dir = output_dir
+
+        # Set module-level output dir override so Botasaurus callbacks use it
+        if output_dir:
+            from .botasaurus_output import set_output_dir
+
+            set_output_dir(output_dir)
         global DEBUG_MODE
 
         self.config = self._load_config(config_path)
@@ -709,9 +715,15 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
         for i, product in enumerate(products):
-            product_dir = get_product_directory(product.asin or "unknown")
-            images_dir = get_product_images_directory(product.asin or "unknown")
-            videos_dir = get_product_videos_directory(product.asin or "unknown")
+            product_dir = get_product_directory(
+                product.asin or "unknown", custom_dir=self.output_dir
+            )
+            images_dir = get_product_images_directory(
+                product.asin or "unknown", custom_outputs_dir=self.output_dir
+            )
+            videos_dir = get_product_videos_directory(
+                product.asin or "unknown", custom_outputs_dir=self.output_dir
+            )
 
             actual_images = []
             actual_videos = []

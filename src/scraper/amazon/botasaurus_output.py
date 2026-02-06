@@ -18,13 +18,26 @@ from ...utils.outputs_paths import (
     get_product_directory,
 )
 
+# Module-level output directory override. When set, all output functions
+# use this instead of the config default ("outputs").
+# Set via set_output_dir() before running the scraper.
+_output_dir_override: str | None = None
+
+
+def set_output_dir(output_dir: str | None) -> None:
+    """Set the module-level output directory override."""
+    global _output_dir_override
+    _output_dir_override = output_dir
+
+
+def _effective_dir(explicit: str | None = None) -> str | None:
+    """Return effective output dir: explicit param > module override > None."""
+    return explicit or _output_dir_override
+
 
 def get_product_output_dir(product_id: str, custom_dir: str | None = None) -> Path:
-    """Get the output directory for a specific product.
-
-    DEPRECATED: Use get_product_directory from utils.outputs_paths instead.
-    """
-    return get_product_directory(product_id, custom_dir=custom_dir)
+    """Get the output directory for a specific product."""
+    return get_product_directory(product_id, custom_dir=_effective_dir(custom_dir))
 
 
 def get_global_botasaurus_dir() -> Path:
