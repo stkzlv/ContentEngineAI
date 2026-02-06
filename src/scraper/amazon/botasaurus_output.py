@@ -19,12 +19,12 @@ from ...utils.outputs_paths import (
 )
 
 
-def get_product_output_dir(product_id: str) -> Path:
+def get_product_output_dir(product_id: str, custom_dir: str | None = None) -> Path:
     """Get the output directory for a specific product.
 
     DEPRECATED: Use get_product_directory from utils.outputs_paths instead.
     """
-    return get_product_directory(product_id)
+    return get_product_directory(product_id, custom_dir=custom_dir)
 
 
 def get_global_botasaurus_dir() -> Path:
@@ -35,7 +35,11 @@ def get_global_botasaurus_dir() -> Path:
     return get_botasaurus_cache_directory()
 
 
-def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
+def write_scraped_data_output(
+    data: Any,
+    result: list[dict[str, Any]],
+    output_dir: str | None = None,
+) -> None:
     """Custom output function for browser scraping tasks.
     Saves scraped product data to the appropriate product directory.
 
@@ -43,6 +47,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
     ----
         data: Input data containing scraping parameters
         result: Scraped product data
+        output_dir: Custom output directory (overrides config base_directory)
 
     """
     print(
@@ -67,7 +72,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
 
             # Get product-specific directory
             product_id = product.get("asin") or product.get("id") or "unknown_product"
-            product_dir = get_product_output_dir(product_id)
+            product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
 
             try:
                 # Save individual product as JSON in its own directory
@@ -81,7 +86,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
     else:
         # Fallback for non-list results
         product_id = "unknown_product"
-        product_dir = get_product_output_dir(product_id)
+        product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
 
         import json
         import os

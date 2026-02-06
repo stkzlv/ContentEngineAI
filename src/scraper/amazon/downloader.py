@@ -82,6 +82,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     video_urls = data.get("videos", [])
     platform = data.get("platform", "amazon")
     debug_mode = data.get("debug_mode", False)
+    output_dir = data.get("output_dir")
 
     if debug_mode:
         logger.info("📥 [MEDIA DOWNLOAD] Starting async download for ASIN: %s", asin)
@@ -103,7 +104,12 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 future = executor.submit(
                     lambda: asyncio.run(
                         _download_media_async(
-                            asin, image_urls, video_urls, platform, debug_mode
+                            asin,
+                            image_urls,
+                            video_urls,
+                            platform,
+                            debug_mode,
+                            output_dir=output_dir,
                         )
                     )
                 )
@@ -112,7 +118,12 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             # No event loop running, safe to use asyncio.run()
             download_result = asyncio.run(
                 _download_media_async(
-                    asin, image_urls, video_urls, platform, debug_mode
+                    asin,
+                    image_urls,
+                    video_urls,
+                    platform,
+                    debug_mode,
+                    output_dir=output_dir,
                 )
             )
 
