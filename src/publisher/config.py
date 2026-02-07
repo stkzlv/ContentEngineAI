@@ -98,7 +98,13 @@ def load_publisher_config(
     # Validate required fields
     _validate_required_fields(config_dict)
 
-    # Convert to PublisherConfig Pydantic model
+    # Strip keys not accepted by PublisherConfig (e.g. deprecated backoff_multiplier)
+    import dataclasses as _dc
+
+    _known = {f.name for f in _dc.fields(PublisherConfig)}
+    config_dict = {k: v for k, v in config_dict.items() if k in _known}
+
+    # Convert to PublisherConfig dataclass
     try:
         config = PublisherConfig(**config_dict)
         logger.info(

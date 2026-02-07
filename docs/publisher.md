@@ -536,6 +536,12 @@ export LATE_STAGGER_MAX=30
 - Privacy: `public`, `friends`, `private`
 - Supports scheduled publishing
 - Max caption length: 2200 characters (includes hashtags)
+- **Content Disclosure** (required for commercial accounts):
+  - `commercial_content_type`: `"brand_organic"` (Your Brand) or `"branded_content"` (Branded Content)
+  - `is_brand_organic_post`: `true` for Your Brand posts
+  - `content_preview_confirmed`: `true` (user confirmed preview)
+  - `express_consent_given`: `true` (user gave consent)
+  - These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)
 
 **Instagram:**
 - Privacy: `everyone`, `followers`, `close_friends`
@@ -1603,6 +1609,29 @@ WARNING: No metadata found for youtube, using basic content
 </details>
 
 <details>
+<summary><strong>TikTok Content Disclosure Errors</strong></summary>
+
+**Problem**: `TikTok UX validation failed: Commercial content disclosure is enabled but no option selected. Please select "Your Brand" or "Branded Content" or both.`
+
+**Cause**: TikTok requires explicit content disclosure settings for commercial accounts. If `commercial_content_type` and `is_brand_organic_post` are not set in the post's `tiktokSettings`, TikTok rejects the publish.
+
+**Solutions:**
+
+1. **For new posts** — the fix is built-in (v0.28.0+). `TikTokContentSettings` defaults include:
+   ```python
+   commercial_content_type = "brand_organic"
+   is_brand_organic_post = True
+   content_preview_confirmed = True
+   express_consent_given = True
+   ```
+
+2. **For existing failed posts** — use the Late SDK `update` method to set correct settings (see Workflow 5 above). The update automatically triggers re-publish.
+
+3. **Verify settings are being sent** — run with `--debug` and check for `tiktokSettings` in the API request payload.
+
+</details>
+
+<details>
 <summary><strong>Debug Mode</strong></summary>
 
 Enable verbose debug logging for troubleshooting:
@@ -1815,7 +1844,51 @@ poetry run python -m src.publisher.late batch \
   --platform youtube --platform tiktok --immediate --retry-failed --debug
 ```
 
-### Workflow 5: Safe Cleanup After Publishing
+### Workflow 5: Fix Failed TikTok Posts (Disclosure Error)
+
+If TikTok fails with "Commercial content disclosure is enabled but no option selected":
+
+```python
+import asyncio, late, os
+
+async def fix_tiktok(post_id: str):
+    client = late.Late(api_key=os.environ["LATE_API_KEY"])
+
+    # Update platform-level TikTok settings with correct disclosure
+    platforms = [
+        {"platform": "youtube", "accountId": "<youtube_account_id>"},
+        {
+            "platform": "tiktok",
+            "accountId": "<tiktok_account_id>",
+            "platformSpecificData": {
+                "tiktokSettings": {
+                    "privacy_level": "PUBLIC_TO_EVERYONE",
+                    "allow_comment": True,
+                    "allow_duet": False,
+                    "allow_stitch": False,
+                    "commercial_content_type": "brand_organic",
+                    "is_brand_organic_post": True,
+                    "content_preview_confirmed": True,
+                    "express_consent_given": True,
+                }
+            },
+        },
+        {"platform": "instagram", "accountId": "<instagram_account_id>"},
+    ]
+
+    # Update triggers automatic re-publish (no retry() needed)
+    result = await client.posts.aupdate(post_id, platforms=platforms)
+    print(f"TikTok status: {result.post.platforms[1].status}")
+    # Status changes: failed → pending → processing → published
+
+asyncio.run(fix_tiktok("your_post_id"))
+```
+
+**Important**: Calling `aupdate()` with corrected platform settings automatically
+triggers re-publish for the failed platform. Do NOT call `retry()` after — it will
+return 409 "Post is currently publishing". Wait ~30s and check status with `aget()`.
+
+### Workflow 6: Safe Cleanup After Publishing
 
 ```bash
 # Preview what would be cleaned (dry run)
