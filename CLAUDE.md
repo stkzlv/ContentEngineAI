@@ -20,6 +20,12 @@ poetry run python -m src.scraper.amazon.scraper --keywords "wireless earbuds" "h
 # Batch scraping (mixed mode with fail-fast)
 poetry run python -m src.scraper.amazon.scraper --product-ids B0ASIN1 --keywords "product" --fail-fast --debug
 
+# Scraping from URLs (shortened or full Amazon URLs)
+poetry run python -m src.scraper.amazon.scraper --product-ids "https://tr.ee/mUk1eH" --output-dir tmp --debug
+
+# Batch scraping from file with chunked processing
+poetry run python -m src.scraper.amazon.scraper --input-file products.txt --output-dir tmp --batch-size 10 --debug
+
 # Batch video production (fixed profile)
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1 --debug
 

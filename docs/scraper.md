@@ -22,6 +22,18 @@ Scrape multiple specific products:
 poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS B08DTZM7LM B07ZPC9QD4 --fail-fast
 ```
 
+### URL Scraping
+Scrape from full or shortened Amazon URLs (e.g. tr.ee, amzn.to):
+```bash
+poetry run python -m src.scraper.amazon.scraper --product-ids "https://tr.ee/mUk1eH" --output-dir tmp --debug
+```
+
+### Batch from File
+Read product IDs or URLs from a file, process in batches:
+```bash
+poetry run python -m src.scraper.amazon.scraper --input-file products.txt --output-dir tmp --batch-size 10 --debug
+```
+
 ## 📖 CLI Reference
 
 The scraper is run via `src.scraper.amazon.scraper`.
@@ -35,6 +47,9 @@ The scraper is run via `src.scraper.amazon.scraper`.
 | `--products-per-keyword` | Maximum products per individual keyword | `--products-per-keyword 2` |
 | `--fail-fast` | Stop batch processing on first error | `--fail-fast` |
 | `--clean` | Delete output directory before scraping | `--clean` |
+| `--input-file` | Read product IDs/URLs from file (one per line) | `--input-file products.txt` |
+| `--batch-size` | Process products in batches of N | `--batch-size 10` |
+| `--output-dir` | Override output directory (default: `outputs`) | `--output-dir tmp` |
 
 ### Filtering & Search
 | Argument | Description | Example |
