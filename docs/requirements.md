@@ -237,6 +237,14 @@ High-level requirements for ContentEngineAI.
 - Non-blocking: failures never affect video publishing
 - Disabled by default, toggled via config
 
+### Published Products Registry
+- Maintain a registry of all published products in the outputs directory
+- Fields: product ID (ASIN), product title, canonical URL, affiliate URL
+- Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
+- Append new entries after each successful publish (no duplicates)
+- Support bulk import from existing scraped data directories
+- CLI command to rebuild registry from existing data
+
 ---
 
 ## Content Metadata Module

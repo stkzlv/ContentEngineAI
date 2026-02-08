@@ -212,6 +212,13 @@ class BatchPublisher:
                         summary.add_platform_result(platform, success=True)
                     # Remove from retry queue on success (idempotent)
                     remove_from_retry_queue(product_id, self.outputs_dir)
+                    # Add to published products registry
+                    try:
+                        from src.publisher.product_registry import add_to_registry
+
+                        add_to_registry(product_id, self.outputs_dir)
+                    except Exception as exc:
+                        logger.warning("Failed to update product registry: %s", exc)
 
                 elif publish_result["status"] == "skipped":
                     skipped += 1

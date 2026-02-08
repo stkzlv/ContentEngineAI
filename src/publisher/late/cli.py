@@ -34,6 +34,7 @@ from src.publisher.batch import BatchPublisher
 from src.publisher.cleanup import CleanupManager
 from src.publisher.config import load_publisher_config
 from src.publisher.models import DEFAULT_PLATFORMS, Platform
+from src.publisher.product_registry import add_to_registry, rebuild_registry
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
 from src.utils.logging_setup import setup_debug_logging
@@ -341,6 +342,12 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
 
         logger.info("Single video publishing complete")
+
+        # Add to published products registry
+        try:
+            add_to_registry(product_id, outputs_dir)
+        except Exception as exc:
+            logger.warning("Failed to update product registry: %s", exc)
 
         # Link-in-bio update if enabled
         if config.link_in_bio_config.enabled:
@@ -877,6 +884,18 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
         sys.exit(1)
 
 
+def cmd_registry(args: argparse.Namespace) -> None:
+    """Manage published products registry."""
+    outputs_dir = args.outputs_dir
+
+    if args.rebuild:
+        count = rebuild_registry(outputs_dir)
+        logger.info("Registry rebuilt: %d products in %s", count, outputs_dir)
+    else:
+        logger.error("No action specified. Use --rebuild to rebuild the registry.")
+        sys.exit(1)
+
+
 async def main():
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
@@ -1151,6 +1170,28 @@ Examples:
         help="Enable debug logging",
     )
 
+    # registry command
+    registry_parser = subparsers.add_parser(
+        "registry",
+        help="Manage published products registry (JSON + CSV)",
+    )
+    registry_parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Rebuild registry from all data.json files in outputs directory",
+    )
+    registry_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=Path("outputs"),
+        help="Directory to scan for product data (default: outputs)",
+    )
+    registry_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1255,6 +1296,8 @@ Examples:
             await cmd_cleanup(args, config, session)
         elif args.command == "delete":
             await cmd_delete(args, config, session)
+        elif args.command == "registry":
+            cmd_registry(args)
 
 
 if __name__ == "__main__":
