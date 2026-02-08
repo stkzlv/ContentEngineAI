@@ -765,7 +765,7 @@ class TestLinkInBioConfig:
         config = LinkInBioConfig()
         assert config.enabled is False
         assert config.provider == "lnkbio"
-        assert config.max_links == 25
+        assert config.max_links == 0
         assert config.max_title_length == 80
 
 

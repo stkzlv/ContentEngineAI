@@ -44,6 +44,10 @@ poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --m
 # Global batch pipeline (mixed mode with fail-fast)
 poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile slideshow_images1 --fail-fast --debug
 
+# Published products registry
+poetry run python -m src.publisher.late registry --rebuild --outputs-dir outputs
+poetry run python -m src.publisher.late registry --rebuild --scan-dir tmp --outputs-dir outputs
+
 # Performance monitoring
 poetry run python tools/performance_report.py --report-type summary
 ```

@@ -23,6 +23,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Link-in-Bio Integration](#-link-in-bio-integration)
+- [Published Products Registry](#-published-products-registry)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
 - [API Reference](#-api-reference)
@@ -272,6 +273,18 @@ python -m src.publisher.late delete <post_id>
 | Option | Required | Description |
 |--------|----------|-------------|
 | `post_id` | Yes | Late.dev post ID to delete |
+
+### Command: `registry`
+
+```
+python -m src.publisher.late registry --rebuild --outputs-dir outputs
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--rebuild` | Yes | Rebuild registry from all `data.json` files |
+| `--outputs-dir` | No | Directory to save registry files (default: `outputs`) |
+| `--scan-dir` | No | Directory to scan for product data (default: same as `--outputs-dir`) |
 
 ---
 
@@ -1330,7 +1343,7 @@ After publishing a video, the publisher can automatically add the product's Amaz
 link_in_bio:
   enabled: false          # Toggle on/off
   provider: lnkbio        # Provider name (lnkbio supported)
-  max_links: 25           # Max links on bio page (oldest rotated out)
+  max_links: 0            # Max links on bio page (0 = unlimited, >0 = oldest rotated out)
   max_title_length: 80    # Truncate link titles beyond this length
 ```
 
@@ -1372,6 +1385,46 @@ class BaseLinkInBioProvider(ABC):
 ```
 
 Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager()`.
+
+</details>
+
+---
+
+## 📋 Published Products Registry
+
+The publisher maintains a persistent registry of all published products in both JSON and CSV formats. Entries are automatically added after each successful publish (single or batch).
+
+**Registry files** (in outputs directory):
+- `published_products.json` — machine-readable array of product objects
+- `published_products.csv` — spreadsheet-friendly with header row
+
+**Fields**: product ID (ASIN), title, canonical Amazon URL, affiliate URL.
+
+<details>
+<summary><strong>Rebuild from Existing Data</strong></summary>
+
+Scan all `<product_id>/data.json` files and rebuild the registry:
+
+```bash
+# Rebuild from outputs/ directory
+python -m src.publisher.late registry --rebuild --outputs-dir outputs
+
+# Scan from one directory, save to another
+python -m src.publisher.late registry --rebuild --scan-dir tmp --outputs-dir outputs
+```
+
+Running rebuild is idempotent and replaces existing registry files.
+
+</details>
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+1. After a successful publish, `add_to_registry()` reads `data.json` for the product
+2. Extracts title, URL (normalized to `https://www.amazon.com/dp/<ASIN>`), and affiliate URL
+3. Skips if product already exists in registry (dedup by product ID)
+4. Writes updated registry to both JSON and CSV
+5. Failures are logged as warnings and never block publishing
 
 </details>
 

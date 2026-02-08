@@ -17,7 +17,7 @@ class LinkInBioManager:
     def __init__(
         self,
         provider: BaseLinkInBioProvider,
-        max_links: int = 25,
+        max_links: int = 0,
         max_title_length: int = DEFAULT_MAX_TITLE_LENGTH,
     ) -> None:
         self.provider = provider
@@ -90,7 +90,7 @@ class LinkInBioManager:
 
 def create_link_in_bio_manager(
     provider_name: str,
-    max_links: int = 25,
+    max_links: int = 0,
     max_title_length: int = DEFAULT_MAX_TITLE_LENGTH,
 ) -> LinkInBioManager:
     """Factory to create a LinkInBioManager for the given provider."""

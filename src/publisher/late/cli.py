@@ -889,7 +889,8 @@ def cmd_registry(args: argparse.Namespace) -> None:
     outputs_dir = args.outputs_dir
 
     if args.rebuild:
-        count = rebuild_registry(outputs_dir)
+        scan_dir = getattr(args, "scan_dir", None)
+        count = rebuild_registry(outputs_dir, scan_dir=scan_dir)
         logger.info("Registry rebuilt: %d products in %s", count, outputs_dir)
     else:
         logger.error("No action specified. Use --rebuild to rebuild the registry.")
@@ -1184,7 +1185,13 @@ Examples:
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
-        help="Directory to scan for product data (default: outputs)",
+        help="Directory to save registry files (default: outputs)",
+    )
+    registry_parser.add_argument(
+        "--scan-dir",
+        type=Path,
+        default=None,
+        help="Directory to scan for product data (default: same as --outputs-dir)",
     )
     registry_parser.add_argument(
         "--debug",

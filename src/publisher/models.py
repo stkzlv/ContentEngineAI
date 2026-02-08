@@ -966,7 +966,7 @@ class LinkInBioConfig:
 
     enabled: bool = False
     provider: str = "lnkbio"
-    max_links: int = 25
+    max_links: int = 0
     max_title_length: int = 80
 
     def __post_init__(self):

@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Disabled by default (`link_in_bio.enabled: false`)
 - **TikTok Content Settings**: Configurable `TikTokContentSettings` dataclass for content disclosure fields
 - **DEFAULT_PLATFORMS constant**: Single source of truth for default platform list
+- **Published Products Registry**: Track all published products in JSON and CSV formats
+  - Fields: product ID (ASIN), title, canonical URL, affiliate URL
+  - Automatically appended after each successful publish (single and batch)
+  - CLI command to rebuild registry from existing data (`registry --rebuild`)
+  - Supports separate scan and output directories (`--scan-dir`)
+
+### Changed
+- **max_links default**: Changed from 25 to 0 (unlimited) — no link rotation by default
 
 ### Fixed
 - **TikTok Commercial Content Disclosure**: Fix `commercial_content_type` and `is_brand_organic_post` fields unreachable when `use_platform_specific_content: false`

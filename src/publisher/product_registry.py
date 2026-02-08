@@ -118,17 +118,25 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
     return True
 
 
-def rebuild_registry(outputs_dir: Path) -> int:
-    """Rebuild registry from all product data.json files in outputs_dir."""
+def rebuild_registry(
+    outputs_dir: Path, *, scan_dir: Path | None = None
+) -> int:
+    """Rebuild registry from all product data.json files.
+
+    Args:
+        outputs_dir: Directory to save registry files.
+        scan_dir: Directory to scan for product data. Defaults to outputs_dir.
+    """
+    source = scan_dir or outputs_dir
     entries: list[RegistryEntry] = []
     seen: set[str] = set()
 
-    for data_json in sorted(outputs_dir.glob("*/data.json")):
+    for data_json in sorted(source.glob("*/data.json")):
         product_id = data_json.parent.name
         if product_id in seen:
             continue
 
-        entry = _read_product_data(product_id, outputs_dir)
+        entry = _read_product_data(product_id, source)
         if entry and entry.title:
             entries.append(entry)
             seen.add(product_id)
