@@ -18,13 +18,26 @@ from ...utils.outputs_paths import (
     get_product_directory,
 )
 
+# Module-level output directory override. When set, all output functions
+# use this instead of the config default ("outputs").
+# Set via set_output_dir() before running the scraper.
+_output_dir_override: str | None = None
 
-def get_product_output_dir(product_id: str) -> Path:
-    """Get the output directory for a specific product.
 
-    DEPRECATED: Use get_product_directory from utils.outputs_paths instead.
-    """
-    return get_product_directory(product_id)
+def set_output_dir(output_dir: str | None) -> None:
+    """Set the module-level output directory override."""
+    global _output_dir_override
+    _output_dir_override = output_dir
+
+
+def _effective_dir(explicit: str | None = None) -> str | None:
+    """Return effective output dir: explicit param > module override > None."""
+    return explicit or _output_dir_override
+
+
+def get_product_output_dir(product_id: str, custom_dir: str | None = None) -> Path:
+    """Get the output directory for a specific product."""
+    return get_product_directory(product_id, custom_dir=_effective_dir(custom_dir))
 
 
 def get_global_botasaurus_dir() -> Path:
@@ -35,7 +48,11 @@ def get_global_botasaurus_dir() -> Path:
     return get_botasaurus_cache_directory()
 
 
-def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
+def write_scraped_data_output(
+    data: Any,
+    result: list[dict[str, Any]],
+    output_dir: str | None = None,
+) -> None:
     """Custom output function for browser scraping tasks.
     Saves scraped product data to the appropriate product directory.
 
@@ -43,6 +60,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
     ----
         data: Input data containing scraping parameters
         result: Scraped product data
+        output_dir: Custom output directory (overrides config base_directory)
 
     """
     print(
@@ -67,7 +85,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
 
             # Get product-specific directory
             product_id = product.get("asin") or product.get("id") or "unknown_product"
-            product_dir = get_product_output_dir(product_id)
+            product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
 
             try:
                 # Save individual product as JSON in its own directory
@@ -81,7 +99,7 @@ def write_scraped_data_output(data: Any, result: list[dict[str, Any]]) -> None:
     else:
         # Fallback for non-list results
         product_id = "unknown_product"
-        product_dir = get_product_output_dir(product_id)
+        product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
 
         import json
         import os

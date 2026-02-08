@@ -8,6 +8,7 @@ import contextlib
 import logging
 import os
 import platform
+import re
 from typing import Any
 
 from botasaurus.browser import Driver, browser
@@ -41,8 +42,9 @@ def scrape_amazon_products_browser_impl(
     )
     keyword = data["keyword"]
     is_asin = data.get("is_asin", False)
-    logger.info("🔍 [DEBUG] is_asin: %s", is_asin)
-    products = []
+    is_url = data.get("is_url", False)
+    logger.info("🔍 [DEBUG] is_asin: %s, is_url: %s", is_asin, is_url)
+    products: list[dict[str, Any]] = []
 
     # Get Amazon base URL from config (used by both ASIN and search paths)
 
@@ -52,7 +54,42 @@ def scrape_amazon_products_browser_impl(
         .get("base_url", "https://www.amazon.com")
     )
 
-    if is_asin:
+    # Initialize variables used by final debug verification (set per-branch below)
+    global_settings = CONFIG.get("global_settings", {})
+    count_products_with_media = global_settings.get("count_products_with_media", False)
+    products_with_media_count = 0
+    max_products = data.get("max_products", 1)
+
+    if is_url:
+        # Direct URL navigation — follow redirects (e.g. shortened URLs → Amazon)
+        logger.info("🔗 Navigating to URL: %s", keyword)
+        driver.google_get(keyword, bypass_cloudflare=True)
+        driver.short_random_sleep()
+
+        # Extract ASIN from the final (redirected) URL
+        final_url = driver.current_url
+        asin_match = re.search(r"/dp/([A-Z0-9]{10})", final_url)
+        if not asin_match:
+            asin_match = re.search(r"/gp/product/([A-Z0-9]{10})", final_url)
+        if not asin_match:
+            logger.warning("Could not extract ASIN from redirected URL: %s", final_url)
+            return products
+
+        asin = asin_match.group(1)
+        logger.info("🔗 Resolved URL → ASIN: %s (from %s)", asin, final_url)
+
+        # Extract product data using the resolved ASIN
+        product_data = extract_product_data_from_page(
+            driver,
+            asin,
+            asin,
+            debug_mode=DEBUG_MODE,
+            debug_options=data.get("debug_options"),
+        )
+        if product_data:
+            products.append(product_data)
+
+    elif is_asin:
         # Direct product page scraping for ASIN
         product_url = f"{base_url}/dp/{keyword}"
         logger.info("🔍 [DEBUG] Calling scrape_single_product for ASIN: %s", keyword)

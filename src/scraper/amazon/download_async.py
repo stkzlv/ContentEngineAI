@@ -233,6 +233,7 @@ async def _download_media_async(
     video_urls: list[str],
     platform: str,
     debug_mode: bool,
+    output_dir: str | None = None,
 ) -> dict[str, Any]:
     """Async helper function for downloading media files.
 
@@ -243,6 +244,7 @@ async def _download_media_async(
         video_urls: List of video URLs
         platform: Platform name
         debug_mode: Debug mode flag
+        output_dir: Custom output directory (overrides config base_directory)
 
     Returns:
     -------
@@ -260,9 +262,9 @@ async def _download_media_async(
         min_image_file_size = download_config.get("min_image_file_size", 10000)
 
         # Setup output directories
-        from .botasaurus_output import get_outputs_root
+        from .botasaurus_output import _effective_dir, get_outputs_root
 
-        outputs_root = get_outputs_root()
+        outputs_root = get_outputs_root(_effective_dir(output_dir))
         product_dir = outputs_root / asin
         images_dir = product_dir / "images"
         videos_dir = product_dir / "videos"

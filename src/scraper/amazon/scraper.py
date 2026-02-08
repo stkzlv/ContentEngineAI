@@ -132,6 +132,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         config_path: str = "config/scraper.yaml",
         debug_override: bool = None,
         debug_options: dict = None,
+        output_dir: str | None = None,
     ):
         """Initialize scraper with configuration
 
@@ -140,8 +141,16 @@ class BotasaurusAmazonScraper(BaseScraper):
             config_path: Path to YAML configuration file
             debug_override: Override debug mode setting from CLI
             debug_options: Dictionary of debug options for detailed analysis
+            output_dir: Custom output directory (overrides config base_directory)
 
         """
+        self.output_dir = output_dir
+
+        # Set module-level output dir override so Botasaurus callbacks use it
+        if output_dir:
+            from .botasaurus_output import set_output_dir
+
+            set_output_dir(output_dir)
         global DEBUG_MODE
 
         self.config = self._load_config(config_path)
@@ -357,6 +366,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             data = {
                 "keyword": keyword,
                 "is_asin": self._is_asin(keyword),
+                "is_url": self._is_url(keyword),
                 "search_params": search_params,
                 "debug_mode": self.debug_mode,
                 "debug_options": self.debug_options,
@@ -448,6 +458,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         "videos": result.get("videos", []),
                         "platform": "amazon",
                         "debug_mode": self.debug_mode,
+                        "output_dir": self.output_dir,
                     }
                 )
                 if self.debug_mode:
@@ -704,9 +715,15 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
         for i, product in enumerate(products):
-            product_dir = get_product_directory(product.asin or "unknown")
-            images_dir = get_product_images_directory(product.asin or "unknown")
-            videos_dir = get_product_videos_directory(product.asin or "unknown")
+            product_dir = get_product_directory(
+                product.asin or "unknown", custom_dir=self.output_dir
+            )
+            images_dir = get_product_images_directory(
+                product.asin or "unknown", custom_outputs_dir=self.output_dir
+            )
+            videos_dir = get_product_videos_directory(
+                product.asin or "unknown", custom_outputs_dir=self.output_dir
+            )
 
             actual_images = []
             actual_videos = []
@@ -888,6 +905,11 @@ class BotasaurusAmazonScraper(BaseScraper):
     def _is_asin(self, keyword: str) -> bool:
         """Check if a keyword looks like an Amazon ASIN"""
         return self._validate_asin_format(keyword.strip())
+
+    @staticmethod
+    def _is_url(keyword: str) -> bool:
+        """Check if a keyword is a URL (shortened or full)."""
+        return keyword.strip().startswith(("http://", "https://"))
 
     def _validate_asin_format(self, asin: str) -> bool:
         """Validate proper ASIN format: B0[A-Z0-9]{8} (requirement #10)"""
@@ -1088,7 +1110,9 @@ class BotasaurusAmazonScraper(BaseScraper):
             self.logger.info("📄 Saving %d products manually", len(product_dicts))
 
         # Call the output function directly
-        write_scraped_data_output({"manual_save": True}, product_dicts)
+        write_scraped_data_output(
+            {"manual_save": True}, product_dicts, output_dir=self.output_dir
+        )
 
     def _product_to_dict(self, product: ProductData) -> dict[str, Any]:
         """Convert ProductData to dictionary for JSON serialization"""
@@ -1270,7 +1294,54 @@ def main():
         "--category", metavar="ID", help="Category ID for filtering (advanced usage)"
     )
 
+    # Batch input/output arguments
+    parser.add_argument(
+        "--input-file",
+        metavar="FILE",
+        help=(
+            "Read product IDs or URLs from file (one per line), "
+            "merged with --product-ids"
+        ),
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        metavar="N",
+        help="Process products in batches of N (default: all at once)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        metavar="DIR",
+        help='Override output directory (default: "outputs" from config)',
+    )
+
     args = parser.parse_args()
+
+    # --input-file: read product IDs/URLs from file and merge with --product-ids
+    if args.input_file:
+        input_path = Path(args.input_file)
+        if not input_path.is_absolute():
+            input_path = Path(__file__).parent.parent.parent.parent / input_path
+        if input_path.exists():
+            with open(input_path, encoding="utf-8") as f:
+                file_ids = [line.strip() for line in f if line.strip()]
+            # Deduplicate while preserving order
+            existing = list(args.product_ids or [])
+            seen = set(existing)
+            for fid in file_ids:
+                if fid not in seen:
+                    existing.append(fid)
+                    seen.add(fid)
+            args.product_ids = existing
+            logger.info(
+                "📂 Loaded %d entries from %s (%d unique total)",
+                len(file_ids),
+                args.input_file,
+                len(args.product_ids),
+            )
+        else:
+            logger.error("❌ Input file not found: %s", input_path)
+            return
 
     # Load keywords/product_ids from config if not provided via CLI
     if not args.keywords and not args.product_ids:
@@ -1574,27 +1645,74 @@ def main():
         # Only pass debug_override if explicitly set via CLI (not default False)
         debug_override = args.debug if args.debug else None
         scraper = BotasaurusAmazonScraper(
-            debug_override=debug_override, debug_options=debug_options
+            debug_override=debug_override,
+            debug_options=debug_options,
+            output_dir=getattr(args, "output_dir", None),
         )
 
         # Batch mode: use BatchController for multiple products
         if is_batch_mode:
             from .batch_controller import BatchController
             from .config import load_batch_config
+            from .models import BatchSummary
 
-            # Load batch configuration with CLI precedence
-            batch_config = load_batch_config(
-                cli_product_ids=args.product_ids,
-                cli_keywords=args.keywords,
-                cli_fail_fast=args.fail_fast,
-            )
+            # --batch-size: split product_ids into chunks and run sequentially
+            batch_size = getattr(args, "batch_size", None)
+            all_product_ids = list(args.product_ids or [])
+            all_keywords = list(args.keywords or [])
 
-            # Override search parameters in batch config with CLI parameters
-            batch_config.search_params = search_params
+            if batch_size and all_product_ids:
+                chunks = [
+                    all_product_ids[i : i + batch_size]
+                    for i in range(0, len(all_product_ids), batch_size)
+                ]
+                logger.info(
+                    "📦 Splitting %d products into %d batches of %d",
+                    len(all_product_ids),
+                    len(chunks),
+                    batch_size,
+                )
+            else:
+                chunks = [all_product_ids] if all_product_ids else [[]]
 
-            # Instantiate and run BatchController
-            controller = BatchController(scraper, batch_config)
-            summary = controller.run_batch()
+            total_summary: BatchSummary | None = None
+            for chunk_idx, chunk in enumerate(chunks):
+                if len(chunks) > 1:
+                    logger.info(
+                        "📦 Batch %d/%d (%d products)",
+                        chunk_idx + 1,
+                        len(chunks),
+                        len(chunk) if chunk else 0,
+                    )
+
+                # Load batch configuration with CLI precedence
+                batch_config = load_batch_config(
+                    cli_product_ids=chunk,
+                    cli_keywords=all_keywords if chunk_idx == 0 else None,
+                    cli_fail_fast=args.fail_fast,
+                )
+
+                # Override search parameters in batch config with CLI parameters
+                batch_config.search_params = search_params
+
+                # Instantiate and run BatchController
+                controller = BatchController(scraper, batch_config)
+                summary = controller.run_batch()
+
+                if total_summary is None:
+                    total_summary = summary
+                else:
+                    total_summary.total_attempted += summary.total_attempted
+                    total_summary.product_ids_attempted += summary.product_ids_attempted
+                    total_summary.successful += summary.successful
+                    total_summary.failed += summary.failed
+                    total_summary.failed_products.extend(summary.failed_products)
+                    total_summary.duration_sec += summary.duration_sec
+
+            if total_summary is None:
+                logger.warning("No batches were processed")
+                return
+            summary = total_summary
 
             # Display final summary
             logger.info("=" * 60)

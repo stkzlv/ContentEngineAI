@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-02-08
+
+### Added
+- **Scraper URL Support**: Accept full or shortened URLs (tr.ee, amzn.to, etc.) via `--product-ids` or `--input-file`. URLs are navigated directly in the browser and ASIN extracted from the redirected URL.
+- **Scraper CLI Options**:
+  - `--input-file FILE`: Read product IDs/URLs from a file (one per line), merged with `--product-ids`
+  - `--batch-size N`: Process products in sequential batches of N
+  - `--output-dir DIR`: Override output directory (e.g. `--output-dir tmp` instead of default `outputs/`)
+
 ## [0.27.0] - 2026-02-03
 
 ### Added

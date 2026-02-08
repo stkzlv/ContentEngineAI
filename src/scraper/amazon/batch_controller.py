@@ -109,8 +109,9 @@ class BatchController:
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
-            # Validate ASIN format
-            if not validate_asin_format(product_id):
+            # URLs are passed through directly; ASINs are validated
+            is_url = product_id.startswith(("http://", "https://"))
+            if not is_url and not validate_asin_format(product_id):
                 self.logger.warning(
                     "[%d/%d] ⚠️  Invalid ASIN format: %s - Skipping",
                     i,
