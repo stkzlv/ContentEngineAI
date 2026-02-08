@@ -323,7 +323,12 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
     if not url:
         return url
 
-    # Load associate tag from config if not provided
+    # Load associate tag: env var > config > None
+    if associate_tag is None:
+        import os
+
+        associate_tag = os.environ.get("AMAZON_ASSOCIATE_TAG")
+
     if associate_tag is None:
         try:
             from .config import CONFIG

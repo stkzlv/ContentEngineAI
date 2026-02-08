@@ -200,7 +200,7 @@ class TestAmazonScraperConfig:
         assert config.base_url == "https://www.amazon.com"
         assert config.keywords == ["keyboard"]
         assert config.max_products == 2
-        assert config.associate_tag == "stealtech06-20"
+        assert config.associate_tag == ""
         assert isinstance(config.default_search_parameters, SearchParameters)
         assert isinstance(config.filter_parameters, FilterParameters)
         assert isinstance(config.http_headers, HTTPHeaders)
