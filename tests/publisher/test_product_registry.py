@@ -71,7 +71,9 @@ class TestLoadSaveRegistry:
         assert len(rows) == 1
         assert rows[0]["product_id"] == "B0ABC12345"
 
-    def test_save_creates_parent_dirs(self, tmp_path: Path, sample_entry: RegistryEntry):
+    def test_save_creates_parent_dirs(
+        self, tmp_path: Path, sample_entry: RegistryEntry
+    ):
         deep_dir = tmp_path / "a" / "b" / "c"
         save_registry([sample_entry], deep_dir)
         assert (deep_dir / "published_products.json").exists()
@@ -162,12 +164,20 @@ class TestRebuildRegistry:
         _write_data_json(
             outputs_dir,
             "B0NOTITLE0",
-            {"title": "", "url": "https://www.amazon.com/dp/B0NOTITLE0", "affiliate_link": ""},
+            {
+                "title": "",
+                "url": "https://www.amazon.com/dp/B0NOTITLE0",
+                "affiliate_link": "",
+            },
         )
         _write_data_json(
             outputs_dir,
             "B0HASTITLE",
-            {"title": "Good", "url": "https://www.amazon.com/dp/B0HASTITLE", "affiliate_link": ""},
+            {
+                "title": "Good",
+                "url": "https://www.amazon.com/dp/B0HASTITLE",
+                "affiliate_link": "",
+            },
         )
 
         count = rebuild_registry(outputs_dir)
@@ -177,7 +187,11 @@ class TestRebuildRegistry:
         _write_data_json(
             outputs_dir,
             "B0ABC12345",
-            {"title": "Product", "url": "https://www.amazon.com/dp/B0ABC12345", "affiliate_link": ""},
+            {
+                "title": "Product",
+                "url": "https://www.amazon.com/dp/B0ABC12345",
+                "affiliate_link": "",
+            },
         )
 
         assert rebuild_registry(outputs_dir) == 1
@@ -191,7 +205,11 @@ class TestRebuildRegistry:
         _write_data_json(
             scan_dir,
             "B0ABC12345",
-            {"title": "Product", "url": "https://www.amazon.com/dp/B0ABC12345", "affiliate_link": ""},
+            {
+                "title": "Product",
+                "url": "https://www.amazon.com/dp/B0ABC12345",
+                "affiliate_link": "",
+            },
         )
 
         count = rebuild_registry(save_dir, scan_dir=scan_dir)

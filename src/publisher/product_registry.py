@@ -118,14 +118,14 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
     return True
 
 
-def rebuild_registry(
-    outputs_dir: Path, *, scan_dir: Path | None = None
-) -> int:
+def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
     """Rebuild registry from all product data.json files.
 
     Args:
+    ----
         outputs_dir: Directory to save registry files.
         scan_dir: Directory to scan for product data. Defaults to outputs_dir.
+
     """
     source = scan_dir or outputs_dir
     entries: list[RegistryEntry] = []
