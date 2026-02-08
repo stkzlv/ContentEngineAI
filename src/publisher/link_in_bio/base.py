@@ -1,6 +1,7 @@
 """Abstract base class for link-in-bio providers."""
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 
 class BaseLinkInBioProvider(ABC):
@@ -16,6 +17,7 @@ class BaseLinkInBioProvider(ABC):
         title: str,
         url: str,
         image: str | None = None,
+        image_file: Path | None = None,
     ) -> dict[str, object]:
         """Add a link to the bio page. Returns provider response."""
 

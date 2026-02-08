@@ -250,7 +250,7 @@ cleanup:
 
 link_in_bio:
   # Enable/disable link-in-bio updates after publishing
-  enabled: false
+  enabled: true
 
   # Provider to use (lnkbio, linktree, beacons, etc.)
   # Credentials via environment variables (e.g., LNKBIO_CLIENT_ID)

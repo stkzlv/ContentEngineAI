@@ -349,8 +349,13 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         except Exception as exc:
             logger.warning("Failed to update product registry: %s", exc)
 
-        # Link-in-bio update if enabled
-        if config.link_in_bio_config.enabled:
+        # Link-in-bio update if enabled (CLI flags override config)
+        link_in_bio_enabled = config.link_in_bio_config.enabled
+        if getattr(args, "no_link_in_bio", False):
+            link_in_bio_enabled = False
+        elif getattr(args, "link_in_bio", None):
+            link_in_bio_enabled = True
+        if link_in_bio_enabled:
             try:
                 from src.publisher.link_in_bio.manager import (
                     create_link_in_bio_manager,
@@ -983,6 +988,17 @@ Examples:
         "--no-cleanup",
         action="store_true",
         help="Disable automatic cleanup after successful publish",
+    )
+    single_parser.add_argument(
+        "--link-in-bio",
+        action="store_true",
+        default=None,
+        help="Enable link-in-bio update after publish (overrides config)",
+    )
+    single_parser.add_argument(
+        "--no-link-in-bio",
+        action="store_true",
+        help="Disable link-in-bio update after publish (overrides config)",
     )
     single_parser.add_argument(
         "--debug",
