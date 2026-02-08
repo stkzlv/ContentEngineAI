@@ -78,6 +78,10 @@ class LinkInBioManager:
             display_title = title[: self.max_title_length - 3] + "..."
 
         image = product.get("main_image")
+        if not image:
+            images = product.get("images", [])
+            if images:
+                image = images[0]
         result = await self.provider.add_link(
             title=display_title,
             url=url,

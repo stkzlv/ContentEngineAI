@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 TOKEN_URL = "https://lnk.bio/oauth/token"  # noqa: S105
 BASE_URL = "https://lnk.bio/oauth/v1"
+_DEFAULT_HEADERS = {"User-Agent": "ContentEngineAI/1.0"}
 
 
 class LnkBioProvider(BaseLinkInBioProvider):
@@ -31,14 +32,13 @@ class LnkBioProvider(BaseLinkInBioProvider):
         if not self.client_id or not self.client_secret:
             raise ValueError("LNKBIO_CLIENT_ID and LNKBIO_CLIENT_SECRET must be set")
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, headers=_DEFAULT_HEADERS
+        ) as client:
             resp = await client.post(
                 TOKEN_URL,
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                },
+                auth=(self.client_id, self.client_secret),
+                data={"grant_type": "client_credentials"},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -59,7 +59,9 @@ class LnkBioProvider(BaseLinkInBioProvider):
         data: dict | None = None,
     ) -> dict[str, object]:
         """Make an API request with auto-retry on 401."""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, headers=_DEFAULT_HEADERS
+        ) as client:
             resp = await client.request(
                 method,
                 f"{BASE_URL}{path}",
@@ -96,8 +98,8 @@ class LnkBioProvider(BaseLinkInBioProvider):
         return result
 
     async def list_links(self) -> list[dict[str, object]]:
-        result = await self._request("GET", "/lnks")
-        links: list[dict[str, object]] = result.get("data", result.get("lnks", []))  # type: ignore[assignment]
+        result = await self._request("GET", "/lnk/list")
+        links: list[dict[str, object]] = result.get("data", [])  # type: ignore[assignment]
         return links
 
     async def delete_link(self, link_id: str | int) -> bool:
