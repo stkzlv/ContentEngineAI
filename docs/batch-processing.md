@@ -68,6 +68,56 @@ scrapers:
       prime_only: true
 ```
 
+### File-Based Input
+
+Read product IDs or URLs from a file (one per line):
+
+```bash
+# Batch from file with custom output directory
+poetry run python -m src.scraper.amazon.scraper \
+  --input-file products.txt \
+  --output-dir tmp \
+  --batch-size 10 \
+  --debug
+```
+
+The `--input-file` entries are merged with any `--product-ids` provided on the command line, and duplicates are removed automatically.
+
+### URL Scraping
+
+Scrape from full or shortened Amazon URLs (e.g. tr.ee, amzn.to):
+
+```bash
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids "https://tr.ee/mUk1eH" "https://www.amazon.com/dp/B0CZ6TVK4Y" \
+  --output-dir tmp \
+  --debug
+```
+
+URLs are navigated directly in the browser and the ASIN is extracted from the redirected URL.
+
+### Custom Output Directory
+
+Override the default `outputs/` directory:
+
+```bash
+poetry run python -m src.scraper.amazon.scraper \
+  --product-ids B0BTYCRJSS \
+  --output-dir tmp \
+  --debug
+```
+
+### Batch Sizing
+
+Process products in sequential batches of N:
+
+```bash
+poetry run python -m src.scraper.amazon.scraper \
+  --input-file products.txt \
+  --batch-size 10 \
+  --debug
+```
+
 ### Mixed Mode
 
 Combine product IDs and keywords in a single batch:
