@@ -352,7 +352,7 @@ class PublisherConfig:
     accounts: dict[str, AccountConfig] = field(default_factory=dict)
     active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
-    immediate_publish: bool = True
+    immediate_publish: bool = False
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
     timeout: float = 120.0
@@ -964,7 +964,7 @@ class LinkInBioConfig:
 
     """
 
-    enabled: bool = False
+    enabled: bool = True
     provider: str = "lnkbio"
     max_links: int = 0
     max_title_length: int = 80

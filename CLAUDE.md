@@ -198,6 +198,15 @@ make test-cov      # Run tests with coverage report
 - **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`, `use_platform_specific_content`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
 - **`.env` file**: Must be sourced before running publisher CLI (`set -a && source .env && set +a`), or use `poetry run` which auto-loads `.env` if `python-dotenv` is installed.
 
+## Link-in-Bio Module Notes
+
+- **CLI flags**: `--link-in-bio` and `--no-link-in-bio` override `link_in_bio.enabled` config for single publish
+- **Affiliate URL fallback**: Uses `affiliate_link` field first, falls back to `url` if unavailable
+- **Image fallback**: Uses `images[0]` URL first, falls back to `downloaded_images[0]` local file upload
+- **Lnk.Bio auth**: Requires HTTP Basic Auth (not form-encoded), plus `User-Agent: ContentEngineAI/1.0` header to bypass Cloudflare
+- **Lnk.Bio API endpoints**: Auth: `POST /oauth/token`, Add: `POST /oauth/v1/lnk/add`, List: `GET /oauth/v1/lnk/list`, Delete: `POST /oauth/v1/lnk/delete`
+- **Non-blocking**: Failures never block video publishing; logged as warnings
+
 ## Scraper Module Notes
 
 - **URL support**: Scraper accepts full URLs (including shortened URLs like tr.ee) via `--product-ids` or `--input-file`. URLs are detected by `startswith("http")`, navigated directly in the browser, and ASIN is extracted from the redirected URL via regex `/dp/([A-Z0-9]{10})`.

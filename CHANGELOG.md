@@ -12,7 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provider-agnostic design with Lnk.Bio as first implementation
   - Configurable max links with automatic oldest-link rotation
   - Non-blocking: failures never affect video publishing
-  - Disabled by default (`link_in_bio.enabled: false`)
+  - Enabled by default (`link_in_bio.enabled: true`)
+  - CLI flags: `--link-in-bio` / `--no-link-in-bio` to override config
+  - Affiliate URL priority: uses `affiliate_link` field, falls back to `url`
+  - Image fallback: images array URL first, downloaded local file as fallback
+  - Improved logging: INFO for outcomes, DEBUG for API details
 - **TikTok Content Settings**: Configurable `TikTokContentSettings` dataclass for content disclosure fields
 - **DEFAULT_PLATFORMS constant**: Single source of truth for default platform list
 - **Published Products Registry**: Track all published products in JSON and CSV formats
@@ -27,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **TikTok Commercial Content Disclosure**: Fix `commercial_content_type` and `is_brand_organic_post` fields unreachable when `use_platform_specific_content: false`
 - **Timeout default mismatch**: Align model default (was 30s) with YAML config (120s)
+- **Lnk.Bio auth**: Use HTTP Basic Auth and proper User-Agent to bypass Cloudflare
+- **Lnk.Bio list endpoint**: Corrected from `/lnks` to `/lnk/list`
+- **Config default mismatches**: Sync `immediate_publish` and `link_in_bio.enabled` code defaults with YAML
 
 ### Removed
 - **backoff_multiplier**: Deprecated field removed from `PublisherConfig` (unused after retry refactor)

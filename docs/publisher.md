@@ -1341,10 +1341,20 @@ After publishing a video, the publisher can automatically add the product's Amaz
 
 ```yaml
 link_in_bio:
-  enabled: false          # Toggle on/off
+  enabled: true           # Toggle on/off
   provider: lnkbio        # Provider name (lnkbio supported)
   max_links: 0            # Max links on bio page (0 = unlimited, >0 = oldest rotated out)
   max_title_length: 80    # Truncate link titles beyond this length
+```
+
+**CLI Overrides**:
+
+```bash
+# Enable link-in-bio for this publish (overrides config)
+poetry run python -m src.publisher.late single B0ABC --link-in-bio
+
+# Disable link-in-bio for this publish (overrides config)
+poetry run python -m src.publisher.late single B0ABC --no-link-in-bio
 ```
 
 **Environment Variables** (required when enabled):
@@ -1366,8 +1376,8 @@ export LNKBIO_CLIENT_SECRET=your_client_secret
 
 **Data Source** (`outputs/<product_id>/data.json`):
 - `title` → link title (truncated to `max_title_length`)
-- `url` → Amazon affiliate URL (destination)
-- `main_image` → thumbnail (optional)
+- `affiliate_link` → destination URL (falls back to `url` if unavailable)
+- `images[0]` → thumbnail URL (falls back to `downloaded_images[0]` local file)
 
 </details>
 
