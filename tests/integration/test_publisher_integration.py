@@ -542,7 +542,7 @@ class TestLinkInBio:
 
         from src.publisher.link_in_bio.manager import LinkInBioManager
 
-        # Create mock data.json
+        # Create mock data.json with affiliate_link and images array
         product_dir = tmp_path / "B0TEST123"
         product_dir.mkdir()
         (product_dir / "data.json").write_text(
@@ -550,8 +550,13 @@ class TestLinkInBio:
                 [
                     {
                         "title": "Test Product Title",
-                        "url": "https://amazon.com/dp/B0TEST123?tag=test-20",
-                        "main_image": "https://images.amazon.com/test.jpg",
+                        "url": "https://amazon.com/dp/B0TEST123/ref=sr_1_1",
+                        "affiliate_link": "https://amazon.com/dp/B0TEST123?tag=test-20",
+                        "images": [
+                            "https://images.amazon.com/test.jpg",
+                            "https://images.amazon.com/test2.jpg",
+                        ],
+                        "downloaded_images": [],
                     }
                 ]
             )
@@ -570,7 +575,85 @@ class TestLinkInBio:
             title="Test Product Title",
             url="https://amazon.com/dp/B0TEST123?tag=test-20",
             image="https://images.amazon.com/test.jpg",
+            image_file=None,
         )
+
+    @pytest.mark.asyncio
+    async def test_manager_uses_affiliate_link_over_url(self, tmp_path: Path):
+        """Test manager prefers affiliate_link over url field."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0AFF"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Affiliate Test",
+                        "url": "https://amazon.com/dp/B0AFF/ref=sr",
+                        "affiliate_link": "https://amazon.com/dp/B0AFF?tag=mytag-20",
+                        "images": [],
+                        "downloaded_images": [],
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 1}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0AFF", tmp_path)
+
+        assert result["success"] is True
+        call_kwargs = mock_provider.add_link.call_args.kwargs
+        assert call_kwargs["url"] == "https://amazon.com/dp/B0AFF?tag=mytag-20"
+
+    @pytest.mark.asyncio
+    async def test_manager_falls_back_to_downloaded_image(self, tmp_path: Path):
+        """Test manager uses downloaded_images when images array is empty."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0IMG"
+        product_dir.mkdir()
+        img_dir = product_dir / "images"
+        img_dir.mkdir()
+        img_file = img_dir / "B0IMG_image_0.jpg"
+        img_file.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
+
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Image Fallback Test",
+                        "url": "https://amazon.com/dp/B0IMG",
+                        "images": [],
+                        "downloaded_images": [
+                            "B0IMG/images/B0IMG_image_0.jpg",
+                        ],
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 2}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0IMG", tmp_path)
+
+        assert result["success"] is True
+        call_kwargs = mock_provider.add_link.call_args.kwargs
+        assert call_kwargs["image"] is None
+        assert call_kwargs["image_file"] == img_file
 
     @pytest.mark.asyncio
     async def test_manager_skips_duplicate(self, tmp_path: Path):
