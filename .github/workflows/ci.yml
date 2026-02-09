@@ -30,11 +30,12 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Install setuptools (required by openai-whisper)
+      run: pip install setuptools
+
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: |
-        pip install setuptools
-        poetry install --no-interaction --no-root
+      run: poetry install --no-interaction --no-root
 
     - name: Install project
       run: poetry install --no-interaction
@@ -79,11 +80,12 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Install setuptools (required by openai-whisper)
+      run: pip install setuptools
+
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: |
-        pip install setuptools
-        poetry install --no-interaction --no-root
+      run: poetry install --no-interaction --no-root
 
     - name: Install project
       run: poetry install --no-interaction
