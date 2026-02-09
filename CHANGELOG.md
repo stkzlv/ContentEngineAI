@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-02-09
+
 ### Added
 - **Link-in-Bio Integration**: Automatically add product affiliate links to a link-in-bio page after publishing
   - Provider-agnostic design with Lnk.Bio as first implementation
@@ -29,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **max_links default**: Changed from 25 to 0 (unlimited) — no link rotation by default
 
 ### Fixed
+- **Global Batch Single Post**: Fixed pipeline to create one post per product for all platforms (was creating separate posts per platform)
+- **Global Batch Link-in-Bio**: Added link-in-bio, record_publish, and product registry calls to global batch pipeline
 - **TikTok Commercial Content Disclosure**: Fix `commercial_content_type` and `is_brand_organic_post` fields unreachable when `use_platform_specific_content: false`
 - **Timeout default mismatch**: Align model default (was 30s) with YAML config (120s)
 - **Lnk.Bio auth**: Use HTTP Basic Auth and proper User-Agent to bypass Cloudflare

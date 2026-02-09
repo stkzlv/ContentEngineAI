@@ -481,7 +481,7 @@ VIDEO PRODUCTION PHASE:
     - video_sequential: 1 (33.3%)
   Duration: 87.6s
 
-PUBLISHING PHASE:
+PUBLISHING PHASE (1 post per product, all platforms):
   Total Attempted: 3
   Successful: 3
   Failed: 0
