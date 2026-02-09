@@ -36,8 +36,7 @@ jobs:
 
     - name: Install project
       run: |
-        poetry run pip install setuptools wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
+        poetry run pip install "setuptools<81" wheel
         poetry install --no-interaction
 
     - name: Run linting
@@ -86,8 +85,7 @@ jobs:
 
     - name: Install project
       run: |
-        poetry run pip install setuptools wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
+        poetry run pip install "setuptools<81" wheel
         poetry install --no-interaction
 
     - name: Install Playwright browsers
