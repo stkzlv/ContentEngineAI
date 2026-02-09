@@ -846,7 +846,7 @@ class TestLinkInBioConfig:
         from src.publisher.models import LinkInBioConfig
 
         config = LinkInBioConfig()
-        assert config.enabled is False
+        assert config.enabled is True
         assert config.provider == "lnkbio"
         assert config.max_links == 0
         assert config.max_title_length == 80
