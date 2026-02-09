@@ -279,9 +279,11 @@ class TwoPartSubtitleHandler:
 
     def _get_upper_text(self) -> str | None:
         """Get text for upper subtitle from product data or custom URL."""
-        # Check for custom URL first
-        custom_url: str | None = self.profile_subtitle_settings.get(
-            "two_part_subtitles_upper_custom_url"
+        import os
+
+        # Check env var first, then config
+        custom_url: str | None = os.environ.get("SUBTITLE_BUSINESS_URL") or (
+            self.profile_subtitle_settings.get("two_part_subtitles_upper_custom_url")
         )
         if custom_url:
             logger.info("Using custom URL for upper subtitle: %s", custom_url)

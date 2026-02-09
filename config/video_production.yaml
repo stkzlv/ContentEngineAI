@@ -508,7 +508,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Business URL (overrides source_field)
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var  # Business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
     two_part_subtitles_upper_margin: 0.04
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -557,7 +557,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"  # Custom business URL (overrides source_field)
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var  # Custom business URL (overrides source_field)
     two_part_subtitles_upper_anchor: "above_content"     # Position above the image
     two_part_subtitles_upper_margin: 0.03     # Gap above image (3% = ~58px)
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -629,7 +629,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
     two_part_subtitles_upper_anchor: "above_content"
     two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -688,7 +688,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
     two_part_subtitles_upper_anchor: "above_content"
     two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -748,7 +748,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
     two_part_subtitles_upper_anchor: "above_content"
     two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7
@@ -808,7 +808,7 @@ video_profiles:
     two_part_subtitles_enabled: true
     two_part_subtitles_upper_enabled: true
     two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: "https://linktr.ee/stealtech"
+    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
     two_part_subtitles_upper_anchor: "above_content"
     two_part_subtitles_upper_margin: 0.08                    # Gap above content (3% spacing)
     two_part_subtitles_upper_font_size_scale: 0.7

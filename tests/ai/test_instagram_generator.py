@@ -83,7 +83,7 @@ def product_data():
         title="Portable Phone Charger 20000mAh Power Bank",
         description="High-capacity portable charger with fast charging, 3 USB ports, LED display, and compact design. Perfect for travel and emergencies.",
         url="https://amazon.com/dp/B0TEST789",
-        affiliate_link="https://amazon.com/dp/B0TEST789?tag=stealtech06-20",
+        affiliate_link="https://amazon.com/dp/B0TEST789?tag=test-20",
         shortened_affiliate_link="https://stte.psee.io/test789",
     )
 

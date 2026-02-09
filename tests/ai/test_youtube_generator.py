@@ -59,7 +59,7 @@ def product_data():
         title="Wireless Earbuds with Noise Cancellation",
         description="Premium wireless earbuds with active noise cancellation, 30-hour battery life, and crystal-clear sound quality. Perfect for workouts, commutes, and travel.",
         url="https://amazon.com/dp/B0TEST123",
-        affiliate_link="https://amazon.com/dp/B0TEST123?tag=stealtech06-20",
+        affiliate_link="https://amazon.com/dp/B0TEST123?tag=test-20",
         shortened_affiliate_link="https://stte.psee.io/test123",
     )
 
