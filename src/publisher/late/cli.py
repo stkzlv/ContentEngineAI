@@ -269,23 +269,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         media_url = await publisher.upload_media(video_path)
         logger.info(f"Upload complete: {media_url}")
 
-        # Load unified metadata (use YouTube metadata as source, fallback to any)
-        from src.publisher.metadata import load_platform_metadata
-
-        unified_metadata = None
-        for platform in [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]:
-            unified_metadata = load_platform_metadata(product_id, platform, outputs_dir)
-            if unified_metadata:
-                logger.info(f"Loaded unified metadata from {platform.value}")
-                break
-
-        if unified_metadata:
-            content = unified_metadata.format_content()
-        else:
-            logger.warning("No metadata found, using basic content")
-            content = f"Check out this product: {product_id}"
-
-        # Build platforms list for single multi-platform post
+        # Build platforms list (filter duplicates and validate accounts)
         platforms_to_publish = []
         for platform in args.platforms:
             # Check for duplicates (unless --force)
@@ -319,27 +303,39 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.warning("No platforms to publish to after filtering")
             return
 
-        # Publish single post to all platforms
-        logger.info(
-            f"Publishing to {len(platforms_to_publish)} platform(s) in single post..."
+        # Publish (unified or platform-specific mode)
+        from src.publisher.publish_modes import publish_product
+
+        platform_specific = (
+            getattr(args, "platform_specific", False)
+            or config.use_platform_specific_content
         )
-        result = await publisher.publish(
+
+        publish_results = await publish_product(
+            publisher=publisher,
             media_id=media_url,
+            product_id=product_id,
             platforms=platforms_to_publish,
-            content=content,
-            scheduled_time=schedule_time,
+            outputs_dir=outputs_dir,
+            platform_specific=platform_specific,
+            schedule_time=schedule_time,
         )
 
-        logger.info(
-            f"Published: post_id={result['post_id']}, status={result['status']}"
-        )
+        # Record successful publish for each result
+        for pub_result in publish_results:
+            result_data = pub_result["result"]
+            post_id = str(result_data.get("post_id", ""))
+            logger.info(
+                "Published: post_id=%s, status=%s",
+                post_id,
+                result_data.get("status"),
+            )
 
-        # Record successful publish for each platform
-        for platform in args.platforms:
-            if any(p["platform"] == platform.value for p in platforms_to_publish):
-                record_publish(
-                    product_id, platform.value, str(result["post_id"]), outputs_dir
-                )
+            if pub_result["platform"] == "all":
+                for p_info in platforms_to_publish:
+                    record_publish(product_id, p_info["platform"], post_id, outputs_dir)
+            else:
+                record_publish(product_id, pub_result["platform"], post_id, outputs_dir)
 
         logger.info("Single video publishing complete")
 
@@ -999,6 +995,14 @@ Examples:
         "--no-link-in-bio",
         action="store_true",
         help="Disable link-in-bio update after publish (overrides config)",
+    )
+    single_parser.add_argument(
+        "--platform-specific",
+        action="store_true",
+        help=(
+            "Create separate posts per platform with optimized metadata. "
+            "Default: single post for all platforms."
+        ),
     )
     single_parser.add_argument(
         "--debug",

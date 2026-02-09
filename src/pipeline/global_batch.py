@@ -253,6 +253,14 @@ Examples:
         action="store_true",
         help="Stop publishing on first failure (default: continue publishing)",
     )
+    publisher_group.add_argument(
+        "--platform-specific",
+        action="store_true",
+        help=(
+            "Create separate posts per platform with optimized metadata. "
+            "Default: single post for all platforms."
+        ),
+    )
 
     return parser
 
@@ -1073,7 +1081,6 @@ class GlobalPipelineOrchestrator:
         import yaml
 
         from src.publisher import PublisherProvider, create_publisher
-        from src.publisher.metadata import load_platform_metadata
         from src.publisher.models import Platform
 
         phase_start = time.time()
@@ -1338,18 +1345,6 @@ class GlobalPipelineOrchestrator:
                 media_id = await publisher.upload_media(video_path)
                 logger.info(f"[{idx}/{total_attempted}] Upload complete: {media_id}")
 
-                # Load unified metadata (try youtube first, then others)
-                metadata = None
-                for try_platform in platforms:
-                    metadata = load_platform_metadata(
-                        product_id, try_platform, self.config.outputs_dir
-                    )
-                    if metadata:
-                        break
-
-                if not metadata:
-                    raise ValueError(f"No metadata found for {product_id}")
-
                 # Build platforms list (validate accounts upfront)
                 pub_platforms: list[dict[str, str]] = []
                 for platform in platforms:
@@ -1380,41 +1375,58 @@ class GlobalPipelineOrchestrator:
                 if not pub_platforms:
                     raise ValueError("No valid platform accounts found")
 
-                # Single publish call for all platforms
-                content = metadata.format_content()
-                logger.info(
-                    f"[{idx}/{total_attempted}] Publishing to "
-                    f"{len(pub_platforms)} platform(s) in single post..."
+                # Publish (unified or platform-specific mode)
+                from src.publisher.publish_modes import publish_product
+
+                platform_specific = (
+                    self.config.platform_specific_content
+                    or publisher_config.get("use_platform_specific_content", False)
                 )
 
-                publish_result = await publisher.publish(
+                publish_results = await publish_product(
+                    publisher=publisher,
                     media_id=media_id,
+                    product_id=product_id,
                     platforms=pub_platforms,
-                    content=content,
-                    scheduled_time=schedule_time,
+                    outputs_dir=self.config.outputs_dir,
+                    platform_specific=platform_specific,
+                    schedule_time=schedule_time,
                 )
 
-                post_id = str(publish_result.get("post_id", ""))
-                logger.info(
-                    f"✓ [{idx}/{total_attempted}] Published: "
-                    f"post_id={post_id}, "
-                    f"status={publish_result.get('status')}"
-                )
-
-                # Update platform stats
-                for p_info in pub_platforms:
-                    platform_results[p_info["platform"]]["successful"] += 1
-
-                # Record publish for each platform
+                # Process results and record publish
                 from src.publisher.tracking import record_publish
 
-                for p_info in pub_platforms:
-                    record_publish(
-                        product_id,
-                        p_info["platform"],
+                for pub_result in publish_results:
+                    result_data = pub_result["result"]
+                    post_id = str(result_data.get("post_id", ""))
+                    logger.info(
+                        "✓ [%d/%d] Published: post_id=%s, status=%s",
+                        idx,
+                        total_attempted,
                         post_id,
-                        self.config.outputs_dir,
+                        result_data.get("status"),
                     )
+
+                    if pub_result["platform"] == "all":
+                        # Unified mode: one post_id for all platforms
+                        for p_info in pub_platforms:
+                            platform_results[p_info["platform"]]["successful"] += 1
+                            record_publish(
+                                product_id,
+                                p_info["platform"],
+                                post_id,
+                                self.config.outputs_dir,
+                            )
+                    else:
+                        # Platform-specific mode: per-platform post_id
+                        p_name = pub_result["platform"]
+                        platform_results[p_name]["successful"] += 1
+                        record_publish(
+                            product_id,
+                            p_name,
+                            post_id,
+                            self.config.outputs_dir,
+                        )
 
                 # Add to product registry
                 try:

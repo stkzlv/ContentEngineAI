@@ -300,7 +300,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
     result.pop("link_in_bio", None)
-    result.pop("use_platform_specific_content", None)
+    # Keep use_platform_specific_content for PublisherConfig (don't pop)
 
     return result
 

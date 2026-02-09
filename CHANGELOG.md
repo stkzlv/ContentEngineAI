@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Platform-Specific Publishing Mode**: Support both unified (single post, default) and platform-specific (separate posts per platform) publishing modes via `use_platform_specific_content` config flag or `--platform-specific` CLI flag
+
+### Changed
+- **Shared Publishing Helper**: Extract `publish_product()` into `src/publisher/publish_modes.py` for consistent behavior across CLI, batch pipeline, and scheduler
+
 ## [0.29.0] - 2026-02-09
 
 ### Added

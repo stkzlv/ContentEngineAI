@@ -366,6 +366,7 @@ class PublisherConfig:
     tiktok_settings: "TikTokContentSettings" = field(
         default_factory=lambda: TikTokContentSettings()
     )
+    use_platform_specific_content: bool = False
 
     def __post_init__(self):
         """Post-initialization validation."""
