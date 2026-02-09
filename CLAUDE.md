@@ -195,7 +195,8 @@ make test-cov      # Run tests with coverage report
 - **TikTok content disclosure**: Posts **must** include `commercial_content_type: "brand_organic"` and `is_brand_organic_post: true` in `tiktokSettings`. Without these, TikTok rejects with "Commercial content disclosure is enabled but no option selected". The fix is in `src/publisher/late/client.py` — settings are sent both per-platform (`platformSpecificData.tiktokSettings`) and at top-level (`tiktok_settings`).
 - **Fixing failed TikTok posts**: Use Late SDK `posts.aupdate()` to set correct `tiktokSettings` per-platform, then the platform status resets from `failed` → `pending` and auto-publishes. No need to call `retry()` — the update triggers re-publish automatically. Calling `retry()` after that gives 409 "Post is currently publishing".
 - **Late SDK post methods**: `create`, `get`, `update`, `delete`, `retry`, `list` (+ async variants `acreate`, etc.)
-- **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`, `use_platform_specific_content`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
+- **Publishing modes**: Unified (default) = 1 post to all platforms; platform-specific (`--platform-specific` or `use_platform_specific_content: true`) = 1 post per platform with optimized metadata. Shared helper: `src/publisher/publish_modes.py`.
+- **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
 - **`.env` file**: Must be sourced before running publisher CLI (`set -a && source .env && set +a`), or use `poetry run` which auto-loads `.env` if `python-dotenv` is installed.
 
 ## Link-in-Bio Module Notes
