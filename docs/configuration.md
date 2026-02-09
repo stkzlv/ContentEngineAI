@@ -1612,6 +1612,9 @@ These enhance functionality but are not required for basic operation.
 | `GOOGLE_APPLICATION_CREDENTIALS` | path | None | Path to Google Cloud service account JSON for TTS |
 | `LATE_API_KEY` | string | None | Late.ai API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
 | `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
+| `AMAZON_ASSOCIATE_TAG` | string | None | Amazon Associates affiliate tag for monetization |
+| `LNKBIO_CLIENT_ID` | string | None | Lnk.Bio OAuth2 client ID for link-in-bio |
+| `LNKBIO_CLIENT_SECRET` | string | None | Lnk.Bio OAuth2 client secret |
 
 ### Freesound OAuth2 (Full-Quality Downloads)
 
@@ -1707,6 +1710,11 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 # Optional - Publishing
 LATE_API_KEY=your-late-api-key
 PICSEE_API_KEY=your-picsee-key
+AMAZON_ASSOCIATE_TAG=your-tag-20
+
+# Optional - Link-in-Bio
+LNKBIO_CLIENT_ID=your-client-id
+LNKBIO_CLIENT_SECRET=your-client-secret
 
 # Runtime overrides
 CONTENT_ENGINE_DEBUG=false
@@ -1922,7 +1930,7 @@ scrapers:
     base_url: "https://www.amazon.com"
     keywords: ["wireless earbuds"]
     max_products: 3
-    associate_tag: "your-associate-tag-20"
+    associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
 ```
 
 ### Advanced Search Parameters

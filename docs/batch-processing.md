@@ -407,6 +407,7 @@ global_batch:
 - `immediate_publish: false` enables auto-scheduling
 - `recurring_schedule.slots` defines available time slots
 - `cleanup.enabled: true` removes product directories after successful publish
+- `link_in_bio.enabled: true` adds affiliate link to bio page after each publish
 
 ### Configuration Precedence
 
