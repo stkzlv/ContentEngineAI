@@ -309,21 +309,26 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
 
     Returns:
     -------
-        Clean URL with tag parameter (e.g., "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20")
+        Clean URL with tag parameter (e.g., "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20")
 
     Examples:
     --------
         >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS")
-        "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20"
+        "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
 
         >>> build_affiliate_url("https://www.amazon.com/product/dp/B0BTYCRJSS?dib=...")
-        "https://www.amazon.com/dp/B0BTYCRJSS?tag=stealtech06-20"
+        "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
 
     """
     if not url:
         return url
 
-    # Load associate tag from config if not provided
+    # Load associate tag: env var > config > None
+    if associate_tag is None:
+        import os
+
+        associate_tag = os.environ.get("AMAZON_ASSOCIATE_TAG")
+
     if associate_tag is None:
         try:
             from .config import CONFIG

@@ -59,7 +59,7 @@ def product_data():
         title="Smart Fitness Tracker Watch",
         description="Advanced fitness tracker with heart rate monitoring, sleep tracking, GPS, and 10-day battery life. Water-resistant design perfect for athletes.",
         url="https://amazon.com/dp/B0TEST456",
-        affiliate_link="https://amazon.com/dp/B0TEST456?tag=stealtech06-20",
+        affiliate_link="https://amazon.com/dp/B0TEST456?tag=test-20",
         shortened_affiliate_link="https://stte.psee.io/test456",
     )
 

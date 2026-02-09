@@ -23,6 +23,7 @@ from src.publisher.base import (
     UploadError,
     ValidationError,
 )
+from src.publisher.models import TikTokContentSettings
 from src.publisher.registry import register_publisher
 from src.video.config.constants import (
     DEFAULT_EXPONENTIAL_BACKOFF_BASE,
@@ -63,6 +64,7 @@ class LatePublisher(BasePublisher):
         session: aiohttp.ClientSession | None = None,
         timeout: float = 120.0,  # Configurable via publisher.yaml
         max_retries: int = 3,  # Configurable via publisher.yaml
+        tiktok_settings: TikTokContentSettings | None = None,
     ):
         """Initialize Late.dev publisher client.
 
@@ -71,8 +73,9 @@ class LatePublisher(BasePublisher):
             api_key: Late.dev API key (required)
             vercel_token: Vercel token for large file uploads (optional)
             session: Aiohttp session for HTTP requests (optional, created if None)
-            timeout: Request timeout in seconds (default: 30.0)
+            timeout: Request timeout in seconds (default: 120.0)
             max_retries: Maximum retry attempts for transient failures (default: 3)
+            tiktok_settings: TikTok content disclosure settings (optional)
 
         Raises:
         ------
@@ -103,6 +106,7 @@ class LatePublisher(BasePublisher):
         self.vercel_token = vercel_token
         self.timeout = timeout
         self.max_retries = max_retries
+        self.tiktok_settings = tiktok_settings or TikTokContentSettings()
 
         # Initialize Late SDK client
         try:
@@ -981,15 +985,17 @@ class LatePublisher(BasePublisher):
                     # Add TikTok settings
                     if platform_name == "tiktok":
                         platform_entry["platformSpecificData"] = {
-                            "tiktokSettings": {
-                                "privacy_level": "PUBLIC_TO_EVERYONE",
-                                "allow_comment": True,
-                                "allow_duet": False,
-                                "allow_stitch": False,
-                                "content_preview_confirmed": True,
-                                "express_consent_given": True,
-                            }
+                            "tiktokSettings": self.tiktok_settings.to_sdk_dict()
                         }
+
+                # Add TikTok settings even without platform-specific content
+                if (
+                    platform_name == "tiktok"
+                    and "platformSpecificData" not in platform_entry
+                ):
+                    platform_entry["platformSpecificData"] = {
+                        "tiktokSettings": self.tiktok_settings.to_sdk_dict()
+                    }
 
                 sdk_platforms.append(platform_entry)
 
@@ -1006,11 +1012,9 @@ class LatePublisher(BasePublisher):
                     p.get("platform", "").lower() == "tiktok" for p in platforms
                 )
                 if has_tiktok:
-                    post_data["tiktok_settings"] = {
-                        "privacyLevel": "PUBLIC_TO_EVERYONE",
-                        "mediaType": "video",
-                        "commercialContentType": "brand_organic",
-                    }
+                    post_data["tiktok_settings"] = (
+                        self.tiktok_settings.to_top_level_dict()
+                    )
 
                 if scheduled_time:
                     # Convert to UTC ISO format for API

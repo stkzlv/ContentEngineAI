@@ -478,6 +478,33 @@ class TestPlatformPublishing:
         assert result["post_id"] == "post_abc123"
 
     @pytest.mark.asyncio
+    async def test_publish_tiktok_includes_commercial_disclosure(self, mock_publisher):
+        """Test TikTok gets commercial content disclosure even without platform_contents."""
+        platforms = [
+            {"platform": "tiktok", "account_id": "acc_tt_001"},
+        ]
+
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            content="TikTok post #ad",
+        )
+
+        # Verify posts.create was called with TikTok platform data
+        call_kwargs = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call_kwargs.kwargs.get(
+            "platforms", call_kwargs[1].get("platforms", [])
+        )
+        tiktok_platform = next(p for p in sdk_platforms if p["platform"] == "tiktok")
+        tiktok_settings = tiktok_platform["platformSpecificData"]["tiktokSettings"]
+
+        assert tiktok_settings["commercial_content_type"] == "brand_organic"
+        assert tiktok_settings["is_brand_organic_post"] is True
+        assert tiktok_settings["privacy_level"] == "PUBLIC_TO_EVERYONE"
+        assert tiktok_settings["content_preview_confirmed"] is True
+        assert tiktok_settings["express_consent_given"] is True
+
+    @pytest.mark.asyncio
     async def test_publish_validates_empty_platforms(self, mock_publisher):
         """Test publish rejects empty platforms list."""
         from src.publisher.base import ValidationError
@@ -503,6 +530,339 @@ class TestPlatformPublishing:
                 content="Test #ad",
                 scheduled_time=past_time,
             )
+
+
+class TestLinkInBio:
+    """Test link-in-bio integration."""
+
+    @pytest.mark.asyncio
+    async def test_manager_adds_link_from_data_json(self, tmp_path: Path):
+        """Test LinkInBioManager reads data.json and adds link."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        # Create mock data.json with affiliate_link and images array
+        product_dir = tmp_path / "B0TEST123"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Test Product Title",
+                        "url": "https://amazon.com/dp/B0TEST123/ref=sr_1_1",
+                        "affiliate_link": "https://amazon.com/dp/B0TEST123?tag=test-20",
+                        "images": [
+                            "https://images.amazon.com/test.jpg",
+                            "https://images.amazon.com/test2.jpg",
+                        ],
+                        "downloaded_images": [],
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 42}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0TEST123", tmp_path)
+
+        assert result["success"] is True
+        mock_provider.add_link.assert_called_once_with(
+            title="Test Product Title",
+            url="https://amazon.com/dp/B0TEST123?tag=test-20",
+            image="https://images.amazon.com/test.jpg",
+            image_file=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_manager_uses_affiliate_link_over_url(self, tmp_path: Path):
+        """Test manager prefers affiliate_link over url field."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0AFF"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Affiliate Test",
+                        "url": "https://amazon.com/dp/B0AFF/ref=sr",
+                        "affiliate_link": "https://amazon.com/dp/B0AFF?tag=mytag-20",
+                        "images": [],
+                        "downloaded_images": [],
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 1}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0AFF", tmp_path)
+
+        assert result["success"] is True
+        call_kwargs = mock_provider.add_link.call_args.kwargs
+        assert call_kwargs["url"] == "https://amazon.com/dp/B0AFF?tag=mytag-20"
+
+    @pytest.mark.asyncio
+    async def test_manager_falls_back_to_downloaded_image(self, tmp_path: Path):
+        """Test manager uses downloaded_images when images array is empty."""
+        from unittest.mock import AsyncMock
+
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0IMG"
+        product_dir.mkdir()
+        img_dir = product_dir / "images"
+        img_dir.mkdir()
+        img_file = img_dir / "B0IMG_image_0.jpg"
+        img_file.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
+
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "title": "Image Fallback Test",
+                        "url": "https://amazon.com/dp/B0IMG",
+                        "images": [],
+                        "downloaded_images": [
+                            "B0IMG/images/B0IMG_image_0.jpg",
+                        ],
+                    }
+                ]
+            )
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 2}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0IMG", tmp_path)
+
+        assert result["success"] is True
+        call_kwargs = mock_provider.add_link.call_args.kwargs
+        assert call_kwargs["image"] is None
+        assert call_kwargs["image_file"] == img_file
+
+    @pytest.mark.asyncio
+    async def test_manager_skips_duplicate(self, tmp_path: Path):
+        """Test LinkInBioManager skips when product link already exists."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0TEST123"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "Test", "url": "https://amazon.com/dp/B0TEST123"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = [
+            {"id": 1, "url": "https://amazon.com/dp/B0TEST123?tag=test-20"},
+        ]
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0TEST123", tmp_path)
+
+        assert result["success"] is True
+        assert result["existing"] is True
+        mock_provider.add_link.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_manager_rotates_oldest_at_capacity(self, tmp_path: Path):
+        """Test LinkInBioManager deletes oldest link when at max capacity."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0NEW"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "New Product", "url": "https://amazon.com/dp/B0NEW"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = [
+            {"id": 1, "url": "https://amazon.com/dp/B0OLD1"},
+            {"id": 2, "url": "https://amazon.com/dp/B0OLD2"},
+        ]
+        mock_provider.add_link.return_value = {"status": True, "data": {"id": 3}}
+
+        mgr = LinkInBioManager(provider=mock_provider, max_links=2)
+        result = await mgr.update("B0NEW", tmp_path)
+
+        assert result["success"] is True
+        mock_provider.delete_link.assert_called_once_with("2")
+        mock_provider.add_link.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_manager_skips_missing_data(self, tmp_path: Path):
+        """Test LinkInBioManager handles missing data.json gracefully."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        mock_provider = AsyncMock()
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0MISSING", tmp_path)
+
+        assert result["success"] is False
+        assert result["reason"] == "no_data"
+
+    @pytest.mark.asyncio
+    async def test_manager_returns_missing_fields_when_no_title(self, tmp_path: Path):
+        """Test manager returns missing_fields when title is empty."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        product_dir = tmp_path / "B0NOTITLE"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": "", "url": "https://amazon.com/dp/B0NOTITLE"}])
+        )
+
+        mock_provider = AsyncMock()
+        mgr = LinkInBioManager(provider=mock_provider, max_links=25)
+        result = await mgr.update("B0NOTITLE", tmp_path)
+
+        assert result["success"] is False
+        assert result["reason"] == "missing_fields"
+
+    @pytest.mark.asyncio
+    async def test_manager_truncates_long_title(self, tmp_path: Path):
+        """Test manager truncates titles exceeding max_title_length."""
+        from src.publisher.link_in_bio.manager import LinkInBioManager
+
+        long_title = "A" * 100
+        product_dir = tmp_path / "B0LONG"
+        product_dir.mkdir()
+        (product_dir / "data.json").write_text(
+            json.dumps([{"title": long_title, "url": "https://amazon.com/dp/B0LONG"}])
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = True
+        mock_provider.list_links.return_value = []
+        mock_provider.add_link.return_value = {"status": True}
+
+        mgr = LinkInBioManager(
+            provider=mock_provider, max_links=25, max_title_length=50
+        )
+        await mgr.update("B0LONG", tmp_path)
+
+        call_title = mock_provider.add_link.call_args.kwargs["title"]
+        assert len(call_title) == 50
+        assert call_title.endswith("...")
+
+    def test_factory_creates_lnkbio_manager(self):
+        """Test factory creates manager with LnkBioProvider."""
+        from src.publisher.link_in_bio.lnkbio import LnkBioProvider
+        from src.publisher.link_in_bio.manager import create_link_in_bio_manager
+
+        mgr = create_link_in_bio_manager("lnkbio", max_links=10, max_title_length=60)
+        assert isinstance(mgr.provider, LnkBioProvider)
+        assert mgr.max_links == 10
+        assert mgr.max_title_length == 60
+
+    def test_factory_raises_on_unknown_provider(self):
+        """Test factory raises ValueError for unknown provider."""
+        from src.publisher.link_in_bio.manager import create_link_in_bio_manager
+
+        with pytest.raises(ValueError, match="Unknown link-in-bio provider"):
+            create_link_in_bio_manager("unknown_provider")
+
+
+class TestTikTokContentSettings:
+    """Test TikTokContentSettings dataclass."""
+
+    def test_to_sdk_dict_returns_all_fields(self):
+        """Test to_sdk_dict returns complete settings dict."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings()
+        sdk = settings.to_sdk_dict()
+
+        assert sdk["commercial_content_type"] == "brand_organic"
+        assert sdk["is_brand_organic_post"] is True
+        assert sdk["privacy_level"] == "PUBLIC_TO_EVERYONE"
+        assert sdk["allow_comment"] is True
+        assert sdk["allow_duet"] is False
+        assert sdk["allow_stitch"] is False
+        assert len(sdk) == 8
+
+    def test_to_top_level_dict_returns_camel_case(self):
+        """Test to_top_level_dict uses camelCase keys for API."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings()
+        top = settings.to_top_level_dict()
+
+        assert top["privacyLevel"] == "PUBLIC_TO_EVERYONE"
+        assert top["mediaType"] == "video"
+        assert top["commercialContentType"] == "brand_organic"
+
+    def test_custom_settings_propagate(self):
+        """Test non-default values appear in output."""
+        from src.publisher.models import TikTokContentSettings
+
+        settings = TikTokContentSettings(
+            privacy_level="SELF_ONLY",
+            allow_duet=True,
+            commercial_content_type="brand_content",
+        )
+        sdk = settings.to_sdk_dict()
+
+        assert sdk["privacy_level"] == "SELF_ONLY"
+        assert sdk["allow_duet"] is True
+        assert sdk["commercial_content_type"] == "brand_content"
+
+
+class TestLinkInBioConfig:
+    """Test LinkInBioConfig validation."""
+
+    def test_rejects_negative_max_links(self):
+        """Test max_links < 0 raises ValueError."""
+        from src.publisher.models import LinkInBioConfig
+
+        with pytest.raises(ValueError, match="max_links"):
+            LinkInBioConfig(max_links=-1)
+
+    def test_rejects_short_max_title_length(self):
+        """Test max_title_length < 10 raises ValueError."""
+        from src.publisher.models import LinkInBioConfig
+
+        with pytest.raises(ValueError, match="max_title_length"):
+            LinkInBioConfig(max_title_length=5)
+
+    def test_default_values(self):
+        """Test default config values."""
+        from src.publisher.models import LinkInBioConfig
+
+        config = LinkInBioConfig()
+        assert config.enabled is True
+        assert config.provider == "lnkbio"
+        assert config.max_links == 0
+        assert config.max_title_length == 80
+
+
+class TestDefaultPlatforms:
+    """Test DEFAULT_PLATFORMS constant."""
+
+    def test_includes_all_primary_platforms(self):
+        """Test DEFAULT_PLATFORMS includes YouTube, TikTok, Instagram."""
+        from src.publisher.models import DEFAULT_PLATFORMS, Platform
+
+        assert Platform.YOUTUBE in DEFAULT_PLATFORMS
+        assert Platform.TIKTOK in DEFAULT_PLATFORMS
+        assert Platform.INSTAGRAM in DEFAULT_PLATFORMS
+        assert len(DEFAULT_PLATFORMS) == 3
 
 
 class TestScheduleCreation:

@@ -348,6 +348,7 @@ class GlobalBatchConfig:
     platforms: list[str] | None = None
     schedule_time: str | None = None
     fail_fast_publish: bool = False
+    platform_specific_content: bool = False
 
     # Resume configuration
     resume: bool = False
@@ -790,6 +791,10 @@ def load_global_batch_config(
         cli_args, "fail_fast_publish", False
     ) or yaml_config.get("fail_fast_publish", False)
 
+    platform_specific_content = getattr(
+        cli_args, "platform_specific", False
+    ) or yaml_config.get("platform_specific_content", False)
+
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
@@ -816,6 +821,7 @@ def load_global_batch_config(
         platforms=platforms,
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
+        platform_specific_content=platform_specific_content,
         resume=resume,
         dry_run=dry_run,
         output_format=output_format,

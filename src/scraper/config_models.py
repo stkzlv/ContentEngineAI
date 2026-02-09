@@ -283,7 +283,7 @@ class AmazonScraperConfig(BaseModel):
     base_url: str = Field(default="https://www.amazon.com")
     keywords: list[str] = Field(default=["keyboard"])
     max_products: int = Field(default=2, gt=0)
-    associate_tag: str = Field(default="stealtech06-20")
+    associate_tag: str = Field(default="")
     default_search_parameters: SearchParameters = Field(
         default_factory=lambda: SearchParameters()
     )

@@ -467,7 +467,7 @@ scrapers:
     max_products: 2
 
     # Amazon Associates affiliate tag for monetization
-    associate_tag: "stealtech06-20"
+    associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
 
     # ---- Default Search Parameters ----
     default_search_parameters:

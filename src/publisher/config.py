@@ -14,12 +14,15 @@ from typing import Any
 import yaml
 
 from src.publisher.models import (
+    DEFAULT_PLATFORMS,
     AccountConfig,
     CleanupConfig,
+    LinkInBioConfig,
     Platform,
     PublisherConfig,
     RecurringSlot,
     ScheduleConfig,
+    TikTokContentSettings,
 )
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
@@ -95,7 +98,13 @@ def load_publisher_config(
     # Validate required fields
     _validate_required_fields(config_dict)
 
-    # Convert to PublisherConfig Pydantic model
+    # Strip keys not accepted by PublisherConfig (e.g. deprecated backoff_multiplier)
+    import dataclasses as _dc
+
+    _known = {f.name for f in _dc.fields(PublisherConfig)}
+    config_dict = {k: v for k, v in config_dict.items() if k in _known}
+
+    # Convert to PublisherConfig dataclass
     try:
         config = PublisherConfig(**config_dict)
         logger.info(
@@ -262,11 +271,36 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     else:
         result["cleanup_config"] = CleanupConfig()
 
+    # Parse link_in_bio config
+    link_in_bio_section = result.get("link_in_bio", {})
+    if link_in_bio_section:
+        try:
+            result["link_in_bio_config"] = LinkInBioConfig(**link_in_bio_section)
+            logger.debug("Parsed link_in_bio config: %s", link_in_bio_section)
+        except Exception as e:
+            logger.warning("Failed to parse link_in_bio config: %s, using defaults", e)
+            result["link_in_bio_config"] = LinkInBioConfig()
+    else:
+        result["link_in_bio_config"] = LinkInBioConfig()
+
+    # Parse tiktok_settings config
+    tiktok_section = result.get("tiktok_settings", {})
+    if tiktok_section:
+        try:
+            result["tiktok_settings"] = TikTokContentSettings(**tiktok_section)
+            logger.debug("Parsed tiktok_settings config: %s", tiktok_section)
+        except Exception as e:
+            logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
+            result["tiktok_settings"] = TikTokContentSettings()
+    else:
+        result["tiktok_settings"] = TikTokContentSettings()
+
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
-    result.pop("use_platform_specific_content", None)
+    result.pop("link_in_bio", None)
+    # Keep use_platform_specific_content for PublisherConfig (don't pop)
 
     return result
 
@@ -596,12 +630,14 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "timeout": 120.0,  # TikTok video processing can take 60-120 seconds
         "stagger_delay_min": 30,
         "stagger_delay_max": 60,
-        "default_platforms": [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
+        "default_platforms": list(DEFAULT_PLATFORMS),
         "privacy_settings": {},
         "accounts": {},
         "active_account": None,
         "schedule_config": ScheduleConfig(),
         "cleanup_config": CleanupConfig(),
+        "link_in_bio_config": LinkInBioConfig(),
+        "tiktok_settings": TikTokContentSettings(),
     }
 
     for key, default_value in defaults.items():

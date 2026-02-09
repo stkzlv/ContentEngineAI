@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-02-09
+
+### Added
+- **Platform-Specific Publishing Mode**: Support both unified (single post, default) and platform-specific (separate posts per platform) publishing modes via `use_platform_specific_content` config flag or `--platform-specific` CLI flag
+- **Link-in-Bio Integration**: Automatically add product affiliate links to a link-in-bio page after publishing
+  - Provider-agnostic design with Lnk.Bio as first implementation
+  - Configurable max links with automatic oldest-link rotation
+  - Non-blocking: failures never affect video publishing
+  - Enabled by default (`link_in_bio.enabled: true`)
+  - CLI flags: `--link-in-bio` / `--no-link-in-bio` to override config
+  - Affiliate URL priority: uses `affiliate_link` field, falls back to `url`
+  - Image fallback: images array URL first, downloaded local file as fallback
+  - Improved logging: INFO for outcomes, DEBUG for API details
+- **TikTok Content Settings**: Configurable `TikTokContentSettings` dataclass for content disclosure fields
+- **DEFAULT_PLATFORMS constant**: Single source of truth for default platform list
+- **Published Products Registry**: Track all published products in JSON and CSV formats
+  - Fields: product ID (ASIN), title, canonical URL, affiliate URL
+  - Automatically appended after each successful publish (single and batch)
+  - CLI command to rebuild registry from existing data (`registry --rebuild`)
+  - Supports separate scan and output directories (`--scan-dir`)
+
+### Changed
+- **Shared Publishing Helper**: Extract `publish_product()` into `src/publisher/publish_modes.py` for consistent behavior across CLI, batch pipeline, and scheduler
+- **max_links default**: Changed from 25 to 0 (unlimited) — no link rotation by default
+
+### Fixed
+- **Global Batch Single Post**: Fixed pipeline to create one post per product for all platforms (was creating separate posts per platform)
+- **Global Batch Link-in-Bio**: Added link-in-bio, record_publish, and product registry calls to global batch pipeline
+- **TikTok Commercial Content Disclosure**: Fix `commercial_content_type` and `is_brand_organic_post` fields unreachable when `use_platform_specific_content: false`
+- **Timeout default mismatch**: Align model default (was 30s) with YAML config (120s)
+- **Lnk.Bio auth**: Use HTTP Basic Auth and proper User-Agent to bypass Cloudflare
+- **Lnk.Bio list endpoint**: Corrected from `/lnks` to `/lnk/list`
+- **Config default mismatches**: Sync `immediate_publish` and `link_in_bio.enabled` code defaults with YAML
+
+### Removed
+- **backoff_multiplier**: Deprecated field removed from `PublisherConfig` (unused after retry refactor)
+
 ## [0.28.0] - 2026-02-08
 
 ### Added

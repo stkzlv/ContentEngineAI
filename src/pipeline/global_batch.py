@@ -253,6 +253,14 @@ Examples:
         action="store_true",
         help="Stop publishing on first failure (default: continue publishing)",
     )
+    publisher_group.add_argument(
+        "--platform-specific",
+        action="store_true",
+        help=(
+            "Create separate posts per platform with optimized metadata. "
+            "Default: single post for all platforms."
+        ),
+    )
 
     return parser
 
@@ -1073,7 +1081,6 @@ class GlobalPipelineOrchestrator:
         import yaml
 
         from src.publisher import PublisherProvider, create_publisher
-        from src.publisher.metadata import load_platform_metadata
         from src.publisher.models import Platform
 
         phase_start = time.time()
@@ -1325,74 +1332,6 @@ class GlobalPipelineOrchestrator:
                 duration_sec=time.time() - phase_start,
             )
 
-        # Helper function to publish to a single platform (for parallel execution)
-        async def publish_to_platform(
-            platform: Platform,
-            media_id: str,
-            product_id: str,
-            idx: int,
-        ) -> tuple[Platform, bool, str | None]:
-            """Publish to a single platform with error isolation.
-
-            Returns
-            -------
-                Tuple of (platform, success, error_message)
-
-            """
-            try:
-                # Load platform-specific metadata
-                metadata = load_platform_metadata(
-                    product_id, platform, self.config.outputs_dir
-                )
-
-                if not metadata:
-                    return (platform, False, f"Missing metadata for {platform.value}")
-
-                # Get account ID for this platform
-                platform_account = next(
-                    (
-                        acc
-                        for acc in accounts
-                        if acc["platform"].lower() == platform.value
-                    ),
-                    None,
-                )
-
-                if not platform_account:
-                    return (
-                        platform,
-                        False,
-                        f"No connected account for {platform.value}",
-                    )
-
-                # Format content
-                content = metadata.format_content()
-
-                # Publish
-                await publisher.publish(
-                    media_id=media_id,
-                    platforms=[
-                        {
-                            "platform": platform.value,
-                            "account_id": platform_account["account_id"],
-                        }
-                    ],
-                    content=content,
-                    scheduled_time=schedule_time,
-                )
-
-                logger.info(
-                    f"✓ [{idx}/{total_attempted}] Published to {platform.value}"
-                )
-                return (platform, True, None)
-
-            except Exception as e:
-                logger.error(
-                    f"✗ [{idx}/{total_attempted}] Failed to publish to "
-                    f"{platform.value}: {e}"
-                )
-                return (platform, False, f"{platform.value}: {e}")
-
         # Publish each video
         for idx, (video_path, product_id) in enumerate(produced_videos, 1):
             logger.info(f"[{idx}/{total_attempted}] Publishing video for {product_id}")
@@ -1401,55 +1340,117 @@ class GlobalPipelineOrchestrator:
             video_errors: list[str] = []
 
             try:
-                # Upload video once (reuse media_id for all platforms)
+                # Upload video once
                 logger.info(f"[{idx}/{total_attempted}] Uploading video...")
                 media_id = await publisher.upload_media(video_path)
                 logger.info(f"[{idx}/{total_attempted}] Upload complete: {media_id}")
 
-                # Publish to all platforms concurrently
-                logger.info(
-                    f"[{idx}/{total_attempted}] Publishing to "
-                    f"{len(platforms)} platform(s) in parallel..."
+                # Build platforms list (validate accounts upfront)
+                pub_platforms: list[dict[str, str]] = []
+                for platform in platforms:
+                    platform_account = next(
+                        (
+                            acc
+                            for acc in accounts
+                            if acc["platform"].lower() == platform.value
+                        ),
+                        None,
+                    )
+                    if not platform_account:
+                        logger.warning(
+                            "[%d/%d] No account for %s, skipping",
+                            idx,
+                            total_attempted,
+                            platform.value,
+                        )
+                        platform_results[platform.value]["failed"] += 1
+                        continue
+                    pub_platforms.append(
+                        {
+                            "platform": platform.value,
+                            "account_id": platform_account["account_id"],
+                        }
+                    )
+
+                if not pub_platforms:
+                    raise ValueError("No valid platform accounts found")
+
+                # Publish (unified or platform-specific mode)
+                from src.publisher.publish_modes import publish_product
+
+                platform_specific = (
+                    self.config.platform_specific_content
+                    or publisher_config.get("use_platform_specific_content", False)
                 )
 
-                # Create tasks for parallel platform publishing
-                publish_tasks = [
-                    publish_to_platform(platform, media_id, product_id, idx)
-                    for platform in platforms
-                ]
+                publish_results = await publish_product(
+                    publisher=publisher,
+                    media_id=media_id,
+                    product_id=product_id,
+                    platforms=pub_platforms,
+                    outputs_dir=self.config.outputs_dir,
+                    platform_specific=platform_specific,
+                    schedule_time=schedule_time,
+                )
 
-                # Execute all platform publishes concurrently with error isolation
-                results = await asyncio.gather(*publish_tasks, return_exceptions=True)
+                # Process results and record publish
+                from src.publisher.tracking import record_publish
 
-                # Process results and update statistics
-                for result in results:
-                    if isinstance(result, Exception):
-                        # Unexpected exception during task execution
-                        video_successful = False
-                        error_msg = f"Unexpected error: {result}"
-                        video_errors.append(error_msg)
-                        logger.error(f"[{idx}/{total_attempted}] {error_msg}")
+                for pub_result in publish_results:
+                    result_data = pub_result["result"]
+                    post_id = str(result_data.get("post_id", ""))
+                    logger.info(
+                        "✓ [%d/%d] Published: post_id=%s, status=%s",
+                        idx,
+                        total_attempted,
+                        post_id,
+                        result_data.get("status"),
+                    )
+
+                    if pub_result["platform"] == "all":
+                        # Unified mode: one post_id for all platforms
+                        for p_info in pub_platforms:
+                            platform_results[p_info["platform"]]["successful"] += 1
+                            record_publish(
+                                product_id,
+                                p_info["platform"],
+                                post_id,
+                                self.config.outputs_dir,
+                            )
                     else:
-                        platform, success, error = result  # type: ignore[misc]
-                        if success:
-                            platform_results[platform.value]["successful"] += 1
-                        else:
-                            platform_results[platform.value]["failed"] += 1
-                            video_successful = False
-                            if error:
-                                video_errors.append(error)
-                                logger.warning(
-                                    f"[{idx}/{total_attempted}] {platform.value}: "
-                                    f"{error}"
-                                )
+                        # Platform-specific mode: per-platform post_id
+                        p_name = pub_result["platform"]
+                        platform_results[p_name]["successful"] += 1
+                        record_publish(
+                            product_id,
+                            p_name,
+                            post_id,
+                            self.config.outputs_dir,
+                        )
 
-                # Check fail-fast after all platforms processed
+                # Add to product registry
+                try:
+                    from src.publisher.product_registry import add_to_registry
+
+                    add_to_registry(product_id, self.config.outputs_dir)
+                except Exception as reg_exc:
+                    logger.warning("Failed to update product registry: %s", reg_exc)
+
+                # Check if all platforms were published
+                if len(pub_platforms) < len(platforms):
+                    video_successful = False
+                    video_errors.append("Some platforms skipped (no account)")
+
+                # Check fail-fast after publish
                 if not video_successful and self.config.fail_fast_publish:
                     logger.error("Fail-fast enabled, stopping publishing phase")
                     failed += 1
                     failed_videos.append(product_id)
                     errors.append(
-                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                        {
+                            "product_id": product_id,
+                            "error": "; ".join(video_errors),
+                        }
                     )
                     break
 
@@ -1461,6 +1462,38 @@ class GlobalPipelineOrchestrator:
                         f"Successfully published {product_id} to all platforms"
                     )
 
+                    # Link-in-bio (non-blocking, before cleanup)
+                    link_in_bio_cfg = publisher_config.get("link_in_bio", {})
+                    if link_in_bio_cfg.get("enabled", False):
+                        try:
+                            from src.publisher.link_in_bio.manager import (
+                                create_link_in_bio_manager,
+                            )
+
+                            mgr = create_link_in_bio_manager(
+                                provider_name=link_in_bio_cfg.get("provider", "lnkbio"),
+                                max_links=link_in_bio_cfg.get("max_links", 0),
+                                max_title_length=link_in_bio_cfg.get(
+                                    "max_title_length", 80
+                                ),
+                            )
+                            bio_result = await mgr.update(
+                                product_id, self.config.outputs_dir
+                            )
+                            if bio_result.get("success"):
+                                logger.info("Link-in-bio updated for %s", product_id)
+                            else:
+                                logger.warning(
+                                    "Link-in-bio skipped: %s",
+                                    bio_result.get("reason", "unknown"),
+                                )
+                        except Exception as bio_err:
+                            logger.warning(
+                                "Link-in-bio failed for %s: %s",
+                                product_id,
+                                bio_err,
+                            )
+
                     # Cleanup product directory if configured
                     cleanup_config = publisher_config.get("cleanup", {})
                     cleanup_enabled = cleanup_config.get("enabled", False)
@@ -1471,9 +1504,7 @@ class GlobalPipelineOrchestrator:
                         )
 
                         # Only cleanup if published to ALL platforms
-                        # (already verified above)
                         if require_all_platforms:
-                            # Find product directory
                             product_dir = self.config.outputs_dir / product_id
 
                             if product_dir.exists():
@@ -1481,7 +1512,8 @@ class GlobalPipelineOrchestrator:
                                     import shutil
 
                                     logger.info(
-                                        f"Cleaning up product directory: {product_dir}"
+                                        "Cleaning up product directory: "
+                                        f"{product_dir}"
                                     )
                                     shutil.rmtree(product_dir)
                                     logger.info(f"✓ Removed {product_dir}")
@@ -1493,10 +1525,14 @@ class GlobalPipelineOrchestrator:
                     failed += 1
                     failed_videos.append(product_id)
                     errors.append(
-                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                        {
+                            "product_id": product_id,
+                            "error": "; ".join(video_errors),
+                        }
                     )
                     logger.warning(
-                        f"⚠ [{idx}/{total_attempted}] Partially failed for {product_id}"
+                        f"⚠ [{idx}/{total_attempted}] "
+                        f"Partially failed for {product_id}"
                     )
 
             except Exception as e:

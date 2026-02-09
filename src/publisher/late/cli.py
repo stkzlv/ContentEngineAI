@@ -33,7 +33,8 @@ from src.publisher import PublisherProvider, create_publisher
 from src.publisher.batch import BatchPublisher
 from src.publisher.cleanup import CleanupManager
 from src.publisher.config import load_publisher_config
-from src.publisher.models import Platform
+from src.publisher.models import DEFAULT_PLATFORMS, Platform
+from src.publisher.product_registry import add_to_registry, rebuild_registry
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
 from src.utils.logging_setup import setup_debug_logging
@@ -102,6 +103,7 @@ async def cmd_list_accounts(
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -164,7 +166,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
     # Default to all 3 platforms if none specified
     if not args.platforms:
-        args.platforms = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+        args.platforms = list(DEFAULT_PLATFORMS)
         logger.info("Using default platforms: youtube, tiktok, instagram")
 
     logger.info(f"Publishing single video: {video_path.name}")
@@ -177,6 +179,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -266,23 +269,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         media_url = await publisher.upload_media(video_path)
         logger.info(f"Upload complete: {media_url}")
 
-        # Load unified metadata (use YouTube metadata as source, fallback to any)
-        from src.publisher.metadata import load_platform_metadata
-
-        unified_metadata = None
-        for platform in [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]:
-            unified_metadata = load_platform_metadata(product_id, platform, outputs_dir)
-            if unified_metadata:
-                logger.info(f"Loaded unified metadata from {platform.value}")
-                break
-
-        if unified_metadata:
-            content = unified_metadata.format_content()
-        else:
-            logger.warning("No metadata found, using basic content")
-            content = f"Check out this product: {product_id}"
-
-        # Build platforms list for single multi-platform post
+        # Build platforms list (filter duplicates and validate accounts)
         platforms_to_publish = []
         for platform in args.platforms:
             # Check for duplicates (unless --force)
@@ -316,29 +303,74 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.warning("No platforms to publish to after filtering")
             return
 
-        # Publish single post to all platforms
-        logger.info(
-            f"Publishing to {len(platforms_to_publish)} platform(s) in single post..."
+        # Publish (unified or platform-specific mode)
+        from src.publisher.publish_modes import publish_product
+
+        platform_specific = (
+            getattr(args, "platform_specific", False)
+            or config.use_platform_specific_content
         )
-        result = await publisher.publish(
+
+        publish_results = await publish_product(
+            publisher=publisher,
             media_id=media_url,
+            product_id=product_id,
             platforms=platforms_to_publish,
-            content=content,
-            scheduled_time=schedule_time,
+            outputs_dir=outputs_dir,
+            platform_specific=platform_specific,
+            schedule_time=schedule_time,
         )
 
-        logger.info(
-            f"Published: post_id={result['post_id']}, status={result['status']}"
-        )
+        # Record successful publish for each result
+        for pub_result in publish_results:
+            result_data = pub_result["result"]
+            post_id = str(result_data.get("post_id", ""))
+            logger.info(
+                "Published: post_id=%s, status=%s",
+                post_id,
+                result_data.get("status"),
+            )
 
-        # Record successful publish for each platform
-        for platform in args.platforms:
-            if any(p["platform"] == platform.value for p in platforms_to_publish):
-                record_publish(
-                    product_id, platform.value, str(result["post_id"]), outputs_dir
-                )
+            if pub_result["platform"] == "all":
+                for p_info in platforms_to_publish:
+                    record_publish(product_id, p_info["platform"], post_id, outputs_dir)
+            else:
+                record_publish(product_id, pub_result["platform"], post_id, outputs_dir)
 
         logger.info("Single video publishing complete")
+
+        # Add to published products registry
+        try:
+            add_to_registry(product_id, outputs_dir)
+        except Exception as exc:
+            logger.warning("Failed to update product registry: %s", exc)
+
+        # Link-in-bio update if enabled (CLI flags override config)
+        link_in_bio_enabled = config.link_in_bio_config.enabled
+        if getattr(args, "no_link_in_bio", False):
+            link_in_bio_enabled = False
+        elif getattr(args, "link_in_bio", None):
+            link_in_bio_enabled = True
+        if link_in_bio_enabled:
+            try:
+                from src.publisher.link_in_bio.manager import (
+                    create_link_in_bio_manager,
+                )
+
+                link_bio_mgr = create_link_in_bio_manager(
+                    provider_name=config.link_in_bio_config.provider,
+                    max_links=config.link_in_bio_config.max_links,
+                    max_title_length=config.link_in_bio_config.max_title_length,
+                )
+                bio_result = await link_bio_mgr.update(product_id, outputs_dir)
+                if bio_result.get("success"):
+                    logger.info("Link-in-bio updated for %s", product_id)
+                else:
+                    logger.warning(
+                        "Link-in-bio skipped: %s", bio_result.get("reason", "unknown")
+                    )
+            except Exception as bio_error:
+                logger.warning("Link-in-bio failed: %s", bio_error)
 
         # Automatic cleanup if enabled
         if config.cleanup_config.enabled and not args.no_cleanup:
@@ -409,6 +441,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -623,6 +656,7 @@ async def cmd_schedule_auto(
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -748,6 +782,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -826,6 +861,7 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
         vercel_token=config.vercel_token,
         timeout=config.timeout,
         max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
     )
 
     try:
@@ -846,6 +882,19 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
     except Exception as e:
         logger.error(f"Delete failed: {e}", exc_info=args.debug)
+        sys.exit(1)
+
+
+def cmd_registry(args: argparse.Namespace) -> None:
+    """Manage published products registry."""
+    outputs_dir = args.outputs_dir
+
+    if args.rebuild:
+        scan_dir = getattr(args, "scan_dir", None)
+        count = rebuild_registry(outputs_dir, scan_dir=scan_dir)
+        logger.info("Registry rebuilt: %d products in %s", count, outputs_dir)
+    else:
+        logger.error("No action specified. Use --rebuild to rebuild the registry.")
         sys.exit(1)
 
 
@@ -935,6 +984,25 @@ Examples:
         "--no-cleanup",
         action="store_true",
         help="Disable automatic cleanup after successful publish",
+    )
+    single_parser.add_argument(
+        "--link-in-bio",
+        action="store_true",
+        default=None,
+        help="Enable link-in-bio update after publish (overrides config)",
+    )
+    single_parser.add_argument(
+        "--no-link-in-bio",
+        action="store_true",
+        help="Disable link-in-bio update after publish (overrides config)",
+    )
+    single_parser.add_argument(
+        "--platform-specific",
+        action="store_true",
+        help=(
+            "Create separate posts per platform with optimized metadata. "
+            "Default: single post for all platforms."
+        ),
     )
     single_parser.add_argument(
         "--debug",
@@ -1123,6 +1191,34 @@ Examples:
         help="Enable debug logging",
     )
 
+    # registry command
+    registry_parser = subparsers.add_parser(
+        "registry",
+        help="Manage published products registry (JSON + CSV)",
+    )
+    registry_parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Rebuild registry from all data.json files in outputs directory",
+    )
+    registry_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=Path("outputs"),
+        help="Directory to save registry files (default: outputs)",
+    )
+    registry_parser.add_argument(
+        "--scan-dir",
+        type=Path,
+        default=None,
+        help="Directory to scan for product data (default: same as --outputs-dir)",
+    )
+    registry_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1227,6 +1323,8 @@ Examples:
             await cmd_cleanup(args, config, session)
         elif args.command == "delete":
             await cmd_delete(args, config, session)
+        elif args.command == "registry":
+            cmd_registry(args)
 
 
 if __name__ == "__main__":

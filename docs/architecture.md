@@ -180,9 +180,14 @@ src/
 │   ├── schedule.py           # Scheduling utilities
 │   ├── schedule_validator.py # Schedule validation
 │   ├── tracking.py           # Publish status tracking
-│   └── late/                 # Late.dev integration
-│       ├── client.py         # Late API client
-│       └── cli.py            # Late publisher CLI
+│   ├── product_registry.py   # Published products registry (JSON + CSV)
+│   ├── late/                 # Late.dev integration
+│   │   ├── client.py         # Late API client
+│   │   └── cli.py            # Late publisher CLI
+│   └── link_in_bio/          # Link-in-bio integration
+│       ├── base.py           # Provider interface
+│       ├── lnkbio.py         # Lnk.Bio provider
+│       └── manager.py        # Orchestration and fallback logic
 │
 └── pipeline/                  # Batch processing orchestration
     ├── config.py             # Pipeline configuration

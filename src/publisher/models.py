@@ -35,6 +35,9 @@ class Platform(Enum):
     LINKEDIN = "linkedin"
 
 
+DEFAULT_PLATFORMS = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+
+
 @dataclass(frozen=True)
 class PublishResult:
     """Result of a video publishing operation.
@@ -336,7 +339,6 @@ class PublisherConfig:
         privacy_settings: Platform-specific privacy levels
         max_retries: Maximum retry attempts for failed operations
         timeout: Request timeout in seconds
-        backoff_multiplier: Exponential backoff multiplier for retries
         stagger_delay_min: Minimum delay between batch posts (seconds)
         stagger_delay_max: Maximum delay between batch posts (seconds)
         schedule_config: Configuration for scheduling and validation
@@ -350,15 +352,21 @@ class PublisherConfig:
     accounts: dict[str, AccountConfig] = field(default_factory=dict)
     active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
-    immediate_publish: bool = True
+    immediate_publish: bool = False
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
-    timeout: float = 30.0
-    backoff_multiplier: float = 2.0
+    timeout: float = 120.0
     stagger_delay_min: int = 30
     stagger_delay_max: int = 60
     schedule_config: "ScheduleConfig" = field(default_factory=lambda: ScheduleConfig())
     cleanup_config: "CleanupConfig" = field(default_factory=lambda: CleanupConfig())
+    link_in_bio_config: "LinkInBioConfig" = field(
+        default_factory=lambda: LinkInBioConfig()
+    )
+    tiktok_settings: "TikTokContentSettings" = field(
+        default_factory=lambda: TikTokContentSettings()
+    )
+    use_platform_specific_content: bool = False
 
     def __post_init__(self):
         """Post-initialization validation."""
@@ -375,8 +383,6 @@ class PublisherConfig:
             raise ValueError("max_retries must be non-negative")
         if self.timeout <= 0:
             raise ValueError("timeout must be positive")
-        if self.backoff_multiplier <= 1.0:
-            raise ValueError("backoff_multiplier must be > 1.0")
         if self.stagger_delay_min < 0:
             raise ValueError("stagger_delay_min must be non-negative")
         if self.stagger_delay_max < self.stagger_delay_min:
@@ -384,11 +390,7 @@ class PublisherConfig:
 
         # Set default platforms if empty
         if not self.default_platforms:
-            self.default_platforms = [
-                Platform.YOUTUBE,
-                Platform.TIKTOK,
-                Platform.INSTAGRAM,
-            ]
+            self.default_platforms = list(DEFAULT_PLATFORMS)
 
     def get_account(self, name: str | None = None) -> AccountConfig | None:
         """Get account configuration by name.
@@ -438,7 +440,6 @@ class PublisherConfig:
             "privacy_settings": {p.value: v for p, v in self.privacy_settings.items()},
             "max_retries": self.max_retries,
             "timeout": self.timeout,
-            "backoff_multiplier": self.backoff_multiplier,
             "stagger_delay_min": self.stagger_delay_min,
             "stagger_delay_max": self.stagger_delay_max,
             "schedule_config": self.schedule_config.to_dict(),
@@ -948,4 +949,77 @@ class CleanupConfig:
             "keep_published_days": self.keep_published_days,
             "preserve_metadata": self.preserve_metadata,
             "preserve_logs": self.preserve_logs,
+        }
+
+
+@dataclass
+class LinkInBioConfig:
+    """Configuration for link-in-bio integration.
+
+    Attributes
+    ----------
+        enabled: Enable link-in-bio updates after publish
+        provider: Provider name (lnkbio, linktree, etc.)
+        max_links: Maximum links on bio page (oldest rotated out)
+        max_title_length: Maximum characters for link title
+
+    """
+
+    enabled: bool = True
+    provider: str = "lnkbio"
+    max_links: int = 0
+    max_title_length: int = 80
+
+    def __post_init__(self):
+        if self.max_links < 0:
+            raise ValueError("max_links must be non-negative")
+        if self.max_title_length < 10:
+            raise ValueError("max_title_length must be at least 10")
+
+
+@dataclass
+class TikTokContentSettings:
+    """TikTok API content disclosure and interaction settings.
+
+    Attributes
+    ----------
+        privacy_level: TikTok privacy setting
+        allow_comment: Allow comments on posts
+        allow_duet: Allow duets
+        allow_stitch: Allow stitches
+        commercial_content_type: Content disclosure type
+        is_brand_organic_post: Whether post is brand organic
+        content_preview_confirmed: User confirmed content preview
+        express_consent_given: User gave express consent
+
+    """
+
+    privacy_level: str = "PUBLIC_TO_EVERYONE"
+    allow_comment: bool = True
+    allow_duet: bool = False
+    allow_stitch: bool = False
+    commercial_content_type: str = "brand_organic"
+    is_brand_organic_post: bool = True
+    content_preview_confirmed: bool = True
+    express_consent_given: bool = True
+
+    def to_sdk_dict(self) -> dict[str, object]:
+        """Convert to dict format expected by Late SDK."""
+        return {
+            "privacy_level": self.privacy_level,
+            "allow_comment": self.allow_comment,
+            "allow_duet": self.allow_duet,
+            "allow_stitch": self.allow_stitch,
+            "commercial_content_type": self.commercial_content_type,
+            "is_brand_organic_post": self.is_brand_organic_post,
+            "content_preview_confirmed": self.content_preview_confirmed,
+            "express_consent_given": self.express_consent_given,
+        }
+
+    def to_top_level_dict(self) -> dict[str, str]:
+        """Convert to top-level tiktok_settings format."""
+        return {
+            "privacyLevel": self.privacy_level,
+            "mediaType": "video",
+            "commercialContentType": self.commercial_content_type,
         }

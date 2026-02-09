@@ -191,6 +191,22 @@ For downloading full-quality audio files from Freesound:
 5. **Update .env file:**
    - Replace the Freesound OAuth2 placeholder values with your actual credentials from the curl response
 
+### Optional: Publishing & Link-in-Bio
+
+For social media publishing and link-in-bio integration, add these to your `.env`:
+
+```bash
+# Publishing (Late.dev)
+LATE_API_KEY=your-late-api-key
+
+# Amazon affiliate tag
+AMAZON_ASSOCIATE_TAG=your-tag-20
+
+# Link-in-Bio (Lnk.Bio)
+LNKBIO_CLIENT_ID=your-client-id
+LNKBIO_CLIENT_SECRET=your-client-secret
+```
+
 ## Configuration
 
 ### Initial Configuration
