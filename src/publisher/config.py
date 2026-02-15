@@ -114,7 +114,7 @@ def load_publisher_config(
             config.max_retries,
         )
         return config
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         logger.error("Configuration validation failed: %s", e)
         raise ValueError(f"Invalid publisher configuration: {e}") from e
 
@@ -150,7 +150,7 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
     except yaml.YAMLError as e:
         logger.error("Error parsing YAML file %s: %s", config_path, e)
         return {}
-    except Exception as e:
+    except OSError as e:
         logger.error("Error loading config file %s: %s", config_path, e)
         return {}
 
@@ -202,7 +202,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
                 slots.append(slot)
             schedule_config_dict["slots"] = slots
             logger.debug("Parsed %d recurring slots from config", len(slots))
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse recurring slots: %s, using empty slots", e)
             schedule_config_dict["slots"] = []
 
@@ -235,7 +235,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["schedule_config"] = ScheduleConfig(**schedule_config_dict)
             logger.debug("Parsed schedule config: %s", schedule_config_dict)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse schedule config: %s, using defaults", e)
             result["schedule_config"] = ScheduleConfig()
     else:
@@ -266,7 +266,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["cleanup_config"] = CleanupConfig(**cleanup_config_dict)
             logger.debug("Parsed cleanup config: %s", cleanup_config_dict)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse cleanup config: %s, using defaults", e)
             result["cleanup_config"] = CleanupConfig()
     else:
@@ -278,7 +278,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["link_in_bio_config"] = LinkInBioConfig(**link_in_bio_section)
             logger.debug("Parsed link_in_bio config: %s", link_in_bio_section)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse link_in_bio config: %s, using defaults", e)
             result["link_in_bio_config"] = LinkInBioConfig()
     else:
@@ -290,7 +290,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["tiktok_settings"] = TikTokContentSettings(**tiktok_section)
             logger.debug("Parsed tiktok_settings config: %s", tiktok_section)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
             result["tiktok_settings"] = TikTokContentSettings()
     else:

@@ -120,7 +120,7 @@ class ScheduleManager:
                         slot_index=entry_dict.get("slot_index"),
                     )
                     entries.append(entry)
-                except Exception as e:
+                except (ValueError, TypeError, KeyError) as e:
                     logger.warning("Failed to parse entry %s: %s", entry_dict, e)
                     continue
 
@@ -130,7 +130,7 @@ class ScheduleManager:
         except json.JSONDecodeError as e:
             logger.warning("Failed to parse schedule JSON: %s, starting empty", e)
             self.entries = []
-        except Exception as e:
+        except OSError as e:
             logger.error("Error loading schedule: %s, starting empty", e)
             self.entries = []
 
@@ -168,7 +168,7 @@ class ScheduleManager:
                 "Saved %d entries to %s", len(self.entries), self.schedule_path
             )
 
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to save schedule: %s", e)
             # Clean up temp file if it exists
             if tmp_path.exists():
@@ -239,7 +239,7 @@ class ScheduleManager:
                     min_time = next_time
                     min_index = idx
 
-            except Exception as e:
+            except (ValueError, KeyError) as e:
                 logger.warning(
                     "Failed to calculate next occurrence for slot %d: %s", idx, e
                 )
@@ -360,7 +360,7 @@ class ScheduleManager:
                 current_slot = (next_idx + 1) % len(self.config.slots)
                 attempts += 1
 
-            except Exception as e:
+            except (ValueError, KeyError) as e:
                 logger.warning("Error finding alternative: %s", e)
                 attempts += 1
                 break
@@ -748,7 +748,7 @@ class ScheduleManager:
                             % max_attempts
                         )
 
-                except Exception as e:
+                except (ValueError, KeyError) as e:
                     logger.error("Failed to calculate next slot: %s", e)
                     failed_count += 1
                     continue
@@ -1170,7 +1170,7 @@ class ScheduleManager:
                 entry.product_id,
                 len(self.entries),
             )
-        except Exception as e:
+        except OSError as e:
             # Roll back on write failure
             self.entries.pop()
             logger.error("Failed to save schedule after adding entry: %s", e)

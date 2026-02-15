@@ -116,7 +116,7 @@ class LatePublisher(BasePublisher):
                 timeout=timeout,
                 max_retries=max_retries,
             )
-        except Exception as e:
+        except (TypeError, ValueError) as e:
             logger.error("Failed to initialize Late client: %s", e)
             raise ValidationError(f"Invalid Late API configuration: {e}") from e
 
@@ -1210,7 +1210,7 @@ class LatePublisher(BasePublisher):
                     local_time = scheduled_time.astimezone(local_tz)
                     time_str = local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
                     logger.info("Scheduled for: %s", time_str)
-                except Exception:
+                except (ImportError, KeyError):
                     # Fallback if zoneinfo not available
                     time_str = scheduled_time.strftime("%Y-%m-%d %H:%M:%S UTC")
                     logger.info("Scheduled for: %s", time_str)
@@ -1321,7 +1321,7 @@ class LatePublisher(BasePublisher):
                         scheduled_time = dt.astimezone(UTC)
                     elif isinstance(scheduled_time_str, datetime):
                         scheduled_time = scheduled_time_str.astimezone(UTC)
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.debug("Could not parse scheduled_time: %s", e)
 
                 # Convert to local timezone if specified
@@ -1331,7 +1331,7 @@ class LatePublisher(BasePublisher):
 
                         local_tz = zoneinfo.ZoneInfo(local_timezone)
                         scheduled_time_local = scheduled_time.astimezone(local_tz)
-                    except Exception as e:
+                    except (KeyError, ImportError) as e:
                         logger.debug(
                             "Could not convert to timezone %s: %s", local_timezone, e
                         )
@@ -1354,7 +1354,7 @@ class LatePublisher(BasePublisher):
                         published_time = dt.astimezone(UTC)
                     elif isinstance(published_time_str, datetime):
                         published_time = published_time_str.astimezone(UTC)
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.debug("Could not parse published_time: %s", e)
 
                 # Convert to local timezone if specified
@@ -1364,7 +1364,7 @@ class LatePublisher(BasePublisher):
 
                         local_tz = zoneinfo.ZoneInfo(local_timezone)
                         published_time_local = published_time.astimezone(local_tz)
-                    except Exception as e:
+                    except (KeyError, ImportError) as e:
                         logger.debug(
                             "Could not convert to timezone %s: %s", local_timezone, e
                         )

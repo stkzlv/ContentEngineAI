@@ -54,7 +54,7 @@ def get_schedule_entry(
                     return dict(entry) if isinstance(entry, dict) else None
 
         return None
-    except Exception as e:
+    except (json.JSONDecodeError, OSError) as e:
         logger.warning("Failed to load schedule.json: %s", e)
         return None
 
@@ -179,7 +179,7 @@ class CleanupManager:
                 data = json.loads(self.audit_log_path.read_text())
                 if not isinstance(data, dict) or "cleanups" not in data:
                     data = {"cleanups": []}
-            except Exception as e:
+            except (json.JSONDecodeError, OSError) as e:
                 logger.warning("Failed to load audit log, creating new: %s", e)
                 data = {"cleanups": []}
         else:
@@ -302,7 +302,7 @@ class CleanupManager:
                     status,
                     post_id,
                 )
-            except Exception as e:
+            except Exception as e:  # Network/SDK errors
                 logger.error(
                     "Failed to get status for %s (post_id: %s): %s",
                     platform.value,
@@ -400,7 +400,7 @@ class CleanupManager:
             )
 
             return archive_path_obj
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to create archive for %s: %s", product_dir, e)
             raise OSError(f"Archive creation failed: {e}") from e
 
@@ -564,7 +564,7 @@ class CleanupManager:
         if self.config.archive_before_delete:
             try:
                 archive_path = self.archive_directory(product_dir)
-            except Exception as e:
+            except OSError as e:
                 logger.error("Archive failed for %s: %s", product_id, e)
                 return {
                     "success": False,
@@ -587,7 +587,7 @@ class CleanupManager:
                 product_id,
                 disk_freed / 1024 / 1024,
             )
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to remove directory %s: %s", product_dir, e)
             return {
                 "success": False,
@@ -600,7 +600,7 @@ class CleanupManager:
             self._log_cleanup(
                 product_id, platforms, post_urls, disk_freed, archive_path
             )
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to log cleanup for %s: %s", product_id, e)
             # Don't fail cleanup if logging fails
 

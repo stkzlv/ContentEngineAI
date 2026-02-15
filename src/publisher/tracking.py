@@ -27,7 +27,7 @@ def load_tracking(
             data = json.loads(path.read_text())
             if isinstance(data, dict):
                 return data
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load tracking: %s", e)
     return {"posts": {}}
 

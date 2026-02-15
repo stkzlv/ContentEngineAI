@@ -638,7 +638,7 @@ class RecurringSlot:
         # Get timezone
         try:
             tz = ZoneInfo(self.timezone)
-        except Exception as e:
+        except (KeyError, ImportError) as e:
             raise ValueError(f"Invalid timezone '{self.timezone}': {e}") from e
 
         # Convert after to slot timezone

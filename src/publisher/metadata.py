@@ -174,7 +174,7 @@ def _load_from_json(
     except json.JSONDecodeError as e:
         logger.error("Invalid JSON in %s: %s", json_path, e)
         return None
-    except Exception as e:
+    except OSError as e:
         logger.error("Error loading JSON from %s: %s", json_path, e)
         return None
 
@@ -259,7 +259,7 @@ def _load_from_instructions(
         )
         return metadata
 
-    except Exception as e:
+    except (ValueError, OSError) as e:
         logger.error("Error parsing %s: %s", instructions_path, e)
         return None
 
