@@ -158,7 +158,7 @@ class TestAutoSchedule:
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         # Mock is_already_published to return True for first video
-        with patch("src.publisher.tracking.is_already_published") as mock_check:
+        with patch("src.publisher.schedule.is_already_published") as mock_check:
             # First video is already published to YouTube
             def side_effect(product_id, platform):
                 return product_id == "B0TEST001" and platform == "youtube"

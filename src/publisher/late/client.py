@@ -131,6 +131,24 @@ class LatePublisher(BasePublisher):
         vercel_status = "set" if vercel_token else "NOT SET"
         logger.debug("Vercel token: %s", vercel_status)
 
+    async def _call_sdk(self, method: Callable, *args, **kwargs):
+        """Call an SDK method, handling both sync and async variants.
+
+        Args:
+        ----
+            method: SDK method to call
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+
+        Returns:
+        -------
+            Result from the SDK method
+
+        """
+        if asyncio.iscoroutinefunction(method):
+            return await method(*args, **kwargs)
+        return method(*args, **kwargs)
+
     @property
     def provider(self) -> PublisherProvider:
         """Return the publisher provider.
@@ -437,13 +455,7 @@ class LatePublisher(BasePublisher):
         try:
             # Test authentication by attempting to list accounts
             async def _auth_test():
-                # Note: Late SDK methods might be sync or async
-                # Check if method is async and call appropriately
-                if asyncio.iscoroutinefunction(self.client.accounts.list):
-                    accounts = await self.client.accounts.list()
-                else:
-                    accounts = self.client.accounts.list()
-                return accounts
+                return await self._call_sdk(self.client.accounts.list)
 
             await self._retry_with_backoff(_auth_test, "Authentication")
 
@@ -489,10 +501,7 @@ class LatePublisher(BasePublisher):
         try:
 
             async def _fetch_accounts():
-                if asyncio.iscoroutinefunction(self.client.accounts.list):
-                    return await self.client.accounts.list()
-                else:
-                    return self.client.accounts.list()
+                return await self._call_sdk(self.client.accounts.list)
 
             raw_accounts = await self._retry_with_backoff(
                 _fetch_accounts, "Fetch accounts"
@@ -584,14 +593,11 @@ class LatePublisher(BasePublisher):
             while True:
 
                 async def _fetch_posts_page(current_page=page):
-                    if asyncio.iscoroutinefunction(self.client.posts.list):
-                        return await self.client.posts.list(
-                            page=current_page, limit=page_size
-                        )
-                    else:
-                        return self.client.posts.list(
-                            page=current_page, limit=page_size
-                        )
+                    return await self._call_sdk(
+                        self.client.posts.list,
+                        page=current_page,
+                        limit=page_size,
+                    )
 
                 raw_posts = await self._retry_with_backoff(
                     _fetch_posts_page, f"Fetch posts page {page}"
@@ -708,10 +714,7 @@ class LatePublisher(BasePublisher):
         try:
 
             async def _delete_post():
-                if asyncio.iscoroutinefunction(self.client.posts.delete):
-                    return await self.client.posts.delete(post_id)
-                else:
-                    return self.client.posts.delete(post_id)
+                return await self._call_sdk(self.client.posts.delete, post_id)
 
             await self._retry_with_backoff(_delete_post, "Delete post")
             logger.info("Post %s deleted successfully", post_id)
@@ -841,12 +844,9 @@ class LatePublisher(BasePublisher):
                 logger.info("Using direct upload for small file")
 
                 async def _upload_small():
-                    # Late SDK expects file path, not file object
-                    if asyncio.iscoroutinefunction(self.client.media.upload):
-                        result = await self.client.media.upload(str(video_path))
-                    else:
-                        result = self.client.media.upload(str(video_path))
-                    # Simulate 100% progress for callback
+                    result = await self._call_sdk(
+                        self.client.media.upload, str(video_path)
+                    )
                     _log_progress(file_size, file_size)
                     return result
 
@@ -865,21 +865,12 @@ class LatePublisher(BasePublisher):
                 logger.info("Note: Progress tracking may not work for large uploads")
 
                 async def _upload_large():
-                    # Late SDK may not support progress callbacks for large uploads
                     logger.info("Starting large file upload...")
-
-                    # Late SDK expects file path, not file object
-                    if asyncio.iscoroutinefunction(self.client.media.upload_large):
-                        result = await self.client.media.upload_large(
-                            str(video_path),
-                            vercel_token=self.vercel_token,
-                        )
-                    else:
-                        result = self.client.media.upload_large(
-                            str(video_path), vercel_token=self.vercel_token
-                        )
-
-                    # Log completion
+                    result = await self._call_sdk(
+                        self.client.media.upload_large,
+                        str(video_path),
+                        vercel_token=self.vercel_token,
+                    )
                     _log_progress(file_size, file_size)
                     return result
 
@@ -917,6 +908,172 @@ class LatePublisher(BasePublisher):
             error_msg = f"Upload failed for {video_path.name}: {e}"
             logger.error(error_msg)
             raise UploadError(error_msg) from e
+
+    def _build_sdk_platforms(
+        self,
+        platforms: list[dict[str, str]],
+        content: str | None,
+        platform_contents: dict[str, dict[str, str]] | None,
+    ) -> tuple[list[dict[str, object]], str | None]:
+        """Build SDK platform entries with per-platform content and TikTok settings.
+
+        Returns
+        -------
+            Tuple of (sdk_platforms list, resolved main_content)
+
+        """
+        sdk_platforms: list[dict[str, object]] = []
+        main_content = content
+
+        for p in platforms:
+            platform_name = p["platform"]
+            platform_entry: dict[str, object] = {
+                "platform": platform_name,
+                "accountId": p["account_id"],
+            }
+
+            if platform_contents and platform_name in platform_contents:
+                pc = platform_contents[platform_name]
+                if main_content is None:
+                    main_content = pc.get("content", "")
+                platform_entry["customContent"] = pc.get("content", "")
+
+                if platform_name == "youtube" and pc.get("title"):
+                    platform_entry["platformSpecificData"] = {
+                        "title": pc["title"],
+                    }
+                if platform_name == "tiktok":
+                    platform_entry["platformSpecificData"] = {
+                        "tiktokSettings": self.tiktok_settings.to_sdk_dict()
+                    }
+
+            # Add TikTok settings even without platform-specific content
+            if (
+                platform_name == "tiktok"
+                and "platformSpecificData" not in platform_entry
+            ):
+                platform_entry["platformSpecificData"] = {
+                    "tiktokSettings": self.tiktok_settings.to_sdk_dict()
+                }
+
+            sdk_platforms.append(platform_entry)
+
+        return sdk_platforms, main_content
+
+    def _parse_publish_response(
+        self,
+        post_response: Any,
+        publish_now: bool,
+    ) -> dict[str, Any]:
+        """Parse post creation response into standardized result dict.
+
+        Returns
+        -------
+            Dict with post_id, status, published_urls keys
+
+        """
+        logger.debug("Post response type: %s", type(post_response))
+        logger.debug("Post response: %s", post_response)
+
+        post_id = None
+        post_obj = None
+        if hasattr(post_response, "post") and post_response.post:
+            post_obj = post_response.post
+            post_id = getattr(post_obj, "field_id", None)
+            if not post_id:
+                post_id = getattr(post_obj, "id", None)
+        elif hasattr(post_response, "field_id"):
+            post_id = post_response.field_id
+        elif hasattr(post_response, "id"):
+            post_id = post_response.id
+        elif isinstance(post_response, dict):
+            post = post_response.get("post", {})
+            post_id = post.get("_id") or post.get("id", "")
+        if not post_id:
+            post_id = "unknown"
+
+        if post_obj and hasattr(post_obj, "status"):
+            status = (
+                str(post_obj.status.value)
+                if hasattr(post_obj.status, "value")
+                else str(post_obj.status)
+            )
+        else:
+            status = "published" if publish_now else "scheduled"
+
+        published_urls = []
+        if post_obj and hasattr(post_obj, "platforms"):
+            for p in post_obj.platforms or []:
+                url = getattr(p, "platformPostUrl", None)
+                if url:
+                    published_urls.append(str(url))
+
+        return {
+            "post_id": post_id,
+            "status": status,
+            "published_urls": published_urls,
+        }
+
+    def _extract_platform_failures(
+        self,
+        post_response: Any,
+    ) -> list[dict[str, str]]:
+        """Extract platform-specific failures from post response.
+
+        Returns
+        -------
+            List of dicts with platform and error keys
+
+        """
+        failures: list[dict[str, str]] = []
+
+        # Check platform_results attribute
+        platform_results = None
+        if hasattr(post_response, "platform_results"):
+            platform_results = post_response.platform_results
+        elif (
+            isinstance(post_response, dict) and "platform_results" in post_response
+        ):
+            platform_results = post_response.get("platform_results", [])
+
+        if platform_results:
+            for pr in platform_results:
+                if hasattr(pr, "platform"):
+                    name = pr.platform
+                    pr_status = getattr(pr, "status", "unknown")
+                    error = getattr(pr, "error", "Unknown error")
+                else:
+                    name = pr.get("platform", "unknown")
+                    pr_status = pr.get("status", "unknown")
+                    error = pr.get("error", "Unknown error")
+
+                if pr_status in ("failed", "error"):
+                    failures.append({"platform": name, "error": error})
+                    logger.warning(
+                        "Platform '%s' failed: %s", name, error
+                    )
+                else:
+                    logger.info("Platform '%s' succeeded", name)
+
+        # Check errors attribute
+        errors = None
+        if hasattr(post_response, "errors"):
+            errors = post_response.errors
+        elif isinstance(post_response, dict) and "errors" in post_response:
+            errors = post_response.get("errors", [])
+
+        if errors:
+            for err in errors:
+                if hasattr(err, "platform"):
+                    name = err.platform
+                    msg = getattr(err, "message", "Unknown error")
+                else:
+                    name = err.get("platform", "unknown")
+                    msg = err.get("message", "Unknown error")
+                failures.append({"platform": name, "error": msg})
+                logger.warning("Platform '%s' failed: %s", name, msg)
+
+        return failures
 
     async def publish(
         self,
@@ -994,52 +1151,10 @@ class LatePublisher(BasePublisher):
                 )
 
         try:
-            # Prepare post data for Late SDK
             publish_now = scheduled_time is None
-
-            # Build SDK platforms with platformSpecificData for per-platform content
-            sdk_platforms: list[dict[str, object]] = []
-            main_content = content  # Default fallback
-
-            for p in platforms:
-                platform_name = p["platform"]
-                platform_entry: dict[str, object] = {
-                    "platform": platform_name,
-                    "accountId": p["account_id"],
-                }
-
-                # Add platform-specific data if provided
-                if platform_contents and platform_name in platform_contents:
-                    pc = platform_contents[platform_name]
-                    # Use first platform's content as main content
-                    if main_content is None:
-                        main_content = pc.get("content", "")
-
-                    # Add customContent for this platform
-                    platform_entry["customContent"] = pc.get("content", "")
-
-                    # Add platformSpecificData for YouTube title
-                    if platform_name == "youtube" and pc.get("title"):
-                        platform_entry["platformSpecificData"] = {
-                            "title": pc["title"],
-                        }
-
-                    # Add TikTok settings
-                    if platform_name == "tiktok":
-                        platform_entry["platformSpecificData"] = {
-                            "tiktokSettings": self.tiktok_settings.to_sdk_dict()
-                        }
-
-                # Add TikTok settings even without platform-specific content
-                if (
-                    platform_name == "tiktok"
-                    and "platformSpecificData" not in platform_entry
-                ):
-                    platform_entry["platformSpecificData"] = {
-                        "tiktokSettings": self.tiktok_settings.to_sdk_dict()
-                    }
-
-                sdk_platforms.append(platform_entry)
+            sdk_platforms, main_content = self._build_sdk_platforms(
+                platforms, content, platform_contents
+            )
 
             async def _create_post():
                 post_data: dict[str, object] = {
@@ -1064,103 +1179,16 @@ class LatePublisher(BasePublisher):
                         UTC
                     ).isoformat()
 
-                if asyncio.iscoroutinefunction(self.client.posts.create):
-                    return await self.client.posts.create(**post_data)
-                else:
-                    return self.client.posts.create(**post_data)
+                return await self._call_sdk(self.client.posts.create, **post_data)
 
             post_response = await self._retry_with_backoff(_create_post, "Create post")
 
-            # Parse response (handle both Pydantic model and dict)
-            logger.debug("Post response type: %s", type(post_response))
-            logger.debug("Post response: %s", post_response)
-
-            # Extract post_id from response (PostCreateResponse has post.field_id)
-            post_id = None
-            post_obj = None
-            if hasattr(post_response, "post") and post_response.post:
-                post_obj = post_response.post
-                post_id = getattr(post_obj, "field_id", None)
-                if not post_id:
-                    post_id = getattr(post_obj, "id", None)
-            elif hasattr(post_response, "field_id"):
-                post_id = post_response.field_id
-            elif hasattr(post_response, "id"):
-                post_id = post_response.id
-            elif isinstance(post_response, dict):
-                post = post_response.get("post", {})
-                post_id = post.get("_id") or post.get("id", "")
-            if not post_id:
-                post_id = "unknown"
-
-            # Get status from response or use default
-            if post_obj and hasattr(post_obj, "status"):
-                status = (
-                    str(post_obj.status.value)
-                    if hasattr(post_obj.status, "value")
-                    else str(post_obj.status)
-                )
-            else:
-                status = "published" if publish_now else "scheduled"
-
-            # Extract URLs from platform results
-            published_urls = []
-            if post_obj and hasattr(post_obj, "platforms"):
-                for p in post_obj.platforms or []:
-                    url = getattr(p, "platformPostUrl", None)
-                    if url:
-                        published_urls.append(str(url))
-
-            # Check for platform-specific failures in response
-            platform_failures = []
-            platform_results = None
-            if hasattr(post_response, "platform_results"):
-                platform_results = post_response.platform_results
-            elif (
-                isinstance(post_response, dict) and "platform_results" in post_response
-            ):
-                platform_results = post_response.get("platform_results", [])
-
-            if platform_results:
-                for platform_result in platform_results:
-                    if hasattr(platform_result, "platform"):
-                        platform_name = platform_result.platform
-                        platform_status = getattr(platform_result, "status", "unknown")
-                        error_msg = getattr(platform_result, "error", "Unknown error")
-                    else:
-                        platform_name = platform_result.get("platform", "unknown")
-                        platform_status = platform_result.get("status", "unknown")
-                        error_msg = platform_result.get("error", "Unknown error")
-
-                    if platform_status in ("failed", "error"):
-                        platform_failures.append(
-                            {"platform": platform_name, "error": error_msg}
-                        )
-                        logger.warning(
-                            "Platform '%s' failed: %s", platform_name, error_msg
-                        )
-                    else:
-                        logger.info("Platform '%s' succeeded", platform_name)
-
-            # Check if response indicates partial failure
-            errors = None
-            if hasattr(post_response, "errors"):
-                errors = post_response.errors
-            elif isinstance(post_response, dict) and "errors" in post_response:
-                errors = post_response.get("errors", [])
-
-            if errors:
-                for error in errors:
-                    if hasattr(error, "platform"):
-                        platform_name = error.platform
-                        error_msg = getattr(error, "message", "Unknown error")
-                    else:
-                        platform_name = error.get("platform", "unknown")
-                        error_msg = error.get("message", "Unknown error")
-                    platform_failures.append(
-                        {"platform": platform_name, "error": error_msg}
-                    )
-                    logger.warning("Platform '%s' failed: %s", platform_name, error_msg)
+            # Parse response and extract failures
+            parsed = self._parse_publish_response(post_response, publish_now)
+            post_id = parsed["post_id"]
+            status = parsed["status"]
+            published_urls = parsed["published_urls"]
+            platform_failures = self._extract_platform_failures(post_response)
 
             # Build result
             result = {
@@ -1170,7 +1198,6 @@ class LatePublisher(BasePublisher):
                 "published_urls": published_urls,
             }
 
-            # Add platform failures if any occurred
             if platform_failures:
                 result["platform_failures"] = platform_failures
                 failed_count = len(platform_failures)
@@ -1267,10 +1294,7 @@ class LatePublisher(BasePublisher):
         try:
 
             async def _get_post():
-                if asyncio.iscoroutinefunction(self.client.posts.get):
-                    return await self.client.posts.get(post_id)
-                else:
-                    return self.client.posts.get(post_id)
+                return await self._call_sdk(self.client.posts.get, post_id)
 
             post_response = await self._retry_with_backoff(
                 _get_post, f"Get status for {post_id}"

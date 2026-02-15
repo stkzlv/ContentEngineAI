@@ -6,6 +6,7 @@ This module provides three-tier configuration precedence:
 3. CLI arguments - highest precedence
 """
 
+import dataclasses
 import logging
 import os
 from pathlib import Path
@@ -99,9 +100,7 @@ def load_publisher_config(
     _validate_required_fields(config_dict)
 
     # Strip keys not accepted by PublisherConfig (e.g. deprecated backoff_multiplier)
-    import dataclasses as _dc
-
-    _known = {f.name for f in _dc.fields(PublisherConfig)}
+    _known = {f.name for f in dataclasses.fields(PublisherConfig)}
     config_dict = {k: v for k, v in config_dict.items() if k in _known}
 
     # Convert to PublisherConfig dataclass
@@ -715,57 +714,58 @@ def create_default_config_file(
     # Ensure parent directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        # Write with comments manually for better formatting
-        sep = "# " + "=" * 77 + "\n"
-        f.write("# Publisher Configuration\n\n")
+    sep = "# " + "=" * 77
+    template = f"""\
+# Publisher Configuration
 
-        f.write(sep)
-        f.write("# SINGLE ACCOUNT MODE (Legacy - use env vars for credentials)\n")
-        f.write(sep)
-        f.write("provider: late\n")
-        f.write('api_key_env_var: "LATE_API_KEY"\n')
-        f.write('vercel_token_env_var: "LATE_VERCEL_TOKEN"\n\n')
+{sep}
+# SINGLE ACCOUNT MODE (Legacy - use env vars for credentials)
+{sep}
+provider: late
+api_key_env_var: "LATE_API_KEY"
+vercel_token_env_var: "LATE_VERCEL_TOKEN"
 
-        f.write(sep)
-        f.write("# MULTI-ACCOUNT MODE (uncomment to enable)\n")
-        f.write(sep)
-        f.write("# accounts:\n")
-        f.write("#   main:\n")
-        f.write("#     api_key: ${LATE_API_KEY}  # Use env var reference\n")
-        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN}\n")
-        f.write('#     description: "Main production account"\n')
-        f.write("#   secondary:\n")
-        f.write("#     api_key: ${LATE_API_KEY_2}\n")
-        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN_2}\n")
-        f.write('#     description: "Overflow account for high volume"\n')
-        f.write("#     default_platforms:\n")
-        f.write("#       - youtube\n")
-        f.write("#       - tiktok\n")
-        f.write("# default_account: main  # Which account to use by default\n\n")
+{sep}
+# MULTI-ACCOUNT MODE (uncomment to enable)
+{sep}
+# accounts:
+#   main:
+#     api_key: ${{LATE_API_KEY}}  # Use env var reference
+#     vercel_token: ${{LATE_VERCEL_TOKEN}}
+#     description: "Main production account"
+#   secondary:
+#     api_key: ${{LATE_API_KEY_2}}
+#     vercel_token: ${{LATE_VERCEL_TOKEN_2}}
+#     description: "Overflow account for high volume"
+#     default_platforms:
+#       - youtube
+#       - tiktok
+# default_account: main  # Which account to use by default
 
-        f.write(sep)
-        f.write("# PUBLISHING BEHAVIOR\n")
-        f.write(sep)
-        f.write("immediate_publish: true\n")
-        f.write("default_platforms:\n")
-        f.write("  - youtube\n")
-        f.write("  - tiktok\n")
-        f.write("  - instagram\n\n")
+{sep}
+# PUBLISHING BEHAVIOR
+{sep}
+immediate_publish: true
+default_platforms:
+  - youtube
+  - tiktok
+  - instagram
 
-        f.write("# Retry and timeout settings\n")
-        f.write("max_retries: 3\n")
-        f.write("timeout: 120.0\n\n")
+# Retry and timeout settings
+max_retries: 3
+timeout: 120.0
 
-        f.write("# Batch publishing delays (seconds)\n")
-        f.write("stagger_delay_min: 30\n")
-        f.write("stagger_delay_max: 60\n\n")
+# Batch publishing delays (seconds)
+stagger_delay_min: 30
+stagger_delay_max: 60
 
-        f.write("# Privacy settings per platform\n")
-        f.write("privacy_settings:\n")
-        f.write("  youtube: public\n")
-        f.write("  tiktok: public\n")
-        f.write("  instagram: everyone\n")
+# Privacy settings per platform
+privacy_settings:
+  youtube: public
+  tiktok: public
+  instagram: everyone
+"""
+    output_path.write_text(template, encoding="utf-8")
 
     logger.info("Created default config file: %s", output_path)
     print(f"Created default publisher config: {output_path}")

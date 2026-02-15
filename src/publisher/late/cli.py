@@ -42,6 +42,30 @@ from src.utils.logging_setup import setup_debug_logging
 logger = logging.getLogger(__name__)
 
 
+def _create_publisher_from_config(config, session: aiohttp.ClientSession):
+    """Create a publisher instance from loaded config.
+
+    Args:
+    ----
+        config: PublisherConfig instance
+        session: aiohttp ClientSession
+
+    Returns:
+    -------
+        Configured publisher instance
+
+    """
+    return create_publisher(
+        provider=PublisherProvider(config.provider),
+        api_key=config.api_key,
+        session=session,
+        vercel_token=config.vercel_token,
+        timeout=config.timeout,
+        max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
+    )
+
+
 def parse_datetime(datetime_str: str) -> datetime:
     """Parse datetime string in ISO format or common formats.
 
@@ -96,15 +120,7 @@ async def cmd_list_accounts(
     """
     logger.info("Listing connected social media accounts...")
 
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate first
@@ -172,15 +188,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
     logger.info("Publishing single video: %s", video_path.name)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
 
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate
@@ -435,15 +443,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
     )
     logger.info("Fail-fast: %s", args.fail_fast)
 
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate
@@ -652,15 +652,7 @@ async def cmd_schedule_auto(
     )
 
     # Create publisher
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate
@@ -779,15 +771,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
     logger.info("Outputs directory: %s", args.outputs_dir)
 
     # Create publisher
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate
@@ -859,15 +843,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
 
 async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSession):
     """Delete a post from Late.dev."""
-    publisher = create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-    )
+    publisher = _create_publisher_from_config(config, session)
 
     try:
         # Authenticate

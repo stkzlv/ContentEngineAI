@@ -8,6 +8,7 @@ import contextlib
 import json
 import logging
 import shutil
+from asyncio import Semaphore, gather
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -663,8 +664,6 @@ class CleanupManager:
         disk_freed = 0
 
         # Limit concurrent operations
-        from asyncio import Semaphore, gather
-
         semaphore = Semaphore(MAX_CONCURRENT_CLEANUPS)
 
         async def cleanup_with_semaphore(product_id: str):

@@ -284,31 +284,44 @@ class WebhookHandler:
             raw_payload=payload,
         )
 
-    def is_event_processed(self, event_id: str) -> bool:
+    def is_event_processed(
+        self,
+        event_id: str,
+        tracking: dict | None = None,
+    ) -> bool:
         """Check if event was already processed (idempotency check).
 
         Args:
         ----
             event_id: Unique event identifier
+            tracking: Pre-loaded tracking dict (avoids redundant file read)
 
         Returns:
         -------
             True if event was already processed
 
         """
-        tracking = load_tracking(self.outputs_dir)
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
         processed_events = tracking.get("webhook_events", {})
         return event_id in processed_events
 
-    def mark_event_processed(self, event: WebhookEvent) -> None:
+    def mark_event_processed(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Mark event as processed for idempotency.
 
         Args:
         ----
             event: Processed webhook event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
         if "webhook_events" not in tracking:
             tracking["webhook_events"] = {}
 
@@ -330,21 +343,29 @@ class WebhookHandler:
                 sorted_events[:WEBHOOK_EVENT_HISTORY_LIMIT]
             )
 
-        save_tracking(tracking, self.outputs_dir)
+        if save:
+            save_tracking(tracking, self.outputs_dir)
 
-    def update_post_status(self, event: WebhookEvent) -> None:
+    def update_post_status(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Update post status in tracking based on webhook event.
 
         Args:
         ----
             event: Parsed webhook event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
         if not event.post_id:
             logger.debug("No post_id in event %s, skipping", event.event_type.value)
             return
 
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
 
         # Initialize post_status section if needed
         if "post_status" not in tracking:
@@ -371,22 +392,30 @@ class WebhookHandler:
             "event_type": event.event_type.value,
         }
 
-        save_tracking(tracking, self.outputs_dir)
+        if save:
+            save_tracking(tracking, self.outputs_dir)
         logger.info("Updated post status: %s -> %s", event.post_id, status)
 
-    def handle_account_disconnected(self, event: WebhookEvent) -> None:
+    def handle_account_disconnected(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Handle account disconnection event.
 
         Args:
         ----
             event: Account disconnected event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
         if not event.account_id:
             logger.warning("Account disconnected event without account_id")
             return
 
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
 
         # Initialize disconnected_accounts section if needed
         if "disconnected_accounts" not in tracking:
@@ -398,7 +427,8 @@ class WebhookHandler:
             "raw_event": event.raw_payload,
         }
 
-        save_tracking(tracking, self.outputs_dir)
+        if save:
+            save_tracking(tracking, self.outputs_dir)
         logger.warning("Account disconnected: %s", event.account_id)
 
     def process_webhook(
@@ -464,19 +494,23 @@ class WebhookHandler:
             event.event_id,
         )
 
+        # Load tracking once for all operations
+        tracking = load_tracking(self.outputs_dir)
+
         # Step 3: Idempotency check
-        if self.is_event_processed(event.event_id):
+        if self.is_event_processed(event.event_id, tracking=tracking):
             logger.info("Event already processed, skipping: %s", event.event_id)
             return event
 
         # Step 4: Update tracking based on event type
         if event.event_type == WebhookEventType.ACCOUNT_DISCONNECTED:
-            self.handle_account_disconnected(event)
+            self.handle_account_disconnected(event, tracking=tracking)
         else:
-            self.update_post_status(event)
+            self.update_post_status(event, tracking=tracking)
 
-        # Step 5: Mark as processed
-        self.mark_event_processed(event)
+        # Step 5: Mark as processed and save once
+        self.mark_event_processed(event, tracking=tracking)
+        save_tracking(tracking, self.outputs_dir)
 
         logger.info("Webhook processed successfully: %s", event.event_id)
         return event

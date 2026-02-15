@@ -20,6 +20,7 @@ from src.publisher.models import (
     ScheduleEntry,
 )
 from src.publisher.schedule_validator import ScheduleValidator
+from src.publisher.tracking import is_already_published
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -105,8 +106,6 @@ class ScheduleManager:
                     created_at = datetime.fromisoformat(entry_dict["created_at"])
 
                     # Parse platforms
-                    from src.publisher.models import Platform
-
                     platforms = [Platform(p) for p in entry_dict["platforms"]]
 
                     # Create ScheduleEntry
@@ -467,8 +466,6 @@ class ScheduleManager:
             ... )
 
         """
-        from src.publisher.models import Platform
-
         # Start with all entries
         filtered = self.entries.copy()
 
@@ -598,10 +595,6 @@ class ScheduleManager:
         )
         logger.info("Platforms: %s", ", ".join([p.value for p in platforms]))
         logger.info("Start slot: %d, Dry run: %s", start_slot, dry_run)
-
-        # Import tracking utilities and models
-        from src.publisher.models import Platform
-        from src.publisher.tracking import is_already_published
 
         # Initialize reference time for calculating next slot
         current_time = datetime.now(UTC)
@@ -871,8 +864,6 @@ class ScheduleManager:
                         media_id = await publisher.upload_media(video)
 
                         # Build per-platform content from metadata files
-                        import json
-
                         platform_contents = {}
 
                         # Try unified metadata.json first
