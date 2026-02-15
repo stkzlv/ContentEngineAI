@@ -10,6 +10,7 @@ import logging
 import re
 from pathlib import Path
 
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.models import Platform, PublishMetadata
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def load_platform_metadata(
     product_id: str,
     platform: Platform | str,
-    outputs_dir: Path | str = Path("outputs"),
+    outputs_dir: Path | str = DEFAULT_OUTPUTS_DIR,
 ) -> PublishMetadata | None:
     """Load platform-specific metadata for publishing.
 
@@ -49,7 +50,7 @@ def load_platform_metadata(
         try:
             platform = Platform(platform.lower())
         except ValueError:
-            logger.error(f"Invalid platform: {platform}")
+            logger.error("Invalid platform: %s", platform)
             return None
 
     # Convert outputs_dir to Path
@@ -58,14 +59,16 @@ def load_platform_metadata(
 
     product_dir = outputs_dir / product_id
 
-    logger.info(f"Loading metadata for product {product_id}, platform {platform.value}")
+    logger.info(
+        "Loading metadata for product %s, platform %s", product_id, platform.value
+    )
 
     # Try loading from unified metadata.json first (unified mode)
     unified_path = product_dir / "metadata.json"
     metadata = _load_from_json(unified_path, platform, product_id)
 
     if metadata:
-        logger.info(f"Loaded metadata from unified JSON: {unified_path}")
+        logger.info("Loaded metadata from unified JSON: %s", unified_path)
         return metadata
 
     # Fallback to platform-specific JSON (optimized mode)
@@ -73,7 +76,7 @@ def load_platform_metadata(
     metadata = _load_from_json(platform_path, platform, product_id)
 
     if metadata:
-        logger.info(f"Loaded metadata from platform JSON: {platform_path}")
+        logger.info("Loaded metadata from platform JSON: %s", platform_path)
         return metadata
 
     # Fallback to UPLOAD_INSTRUCTIONS.txt
@@ -82,13 +85,17 @@ def load_platform_metadata(
 
     if metadata:
         logger.info(
-            f"Loaded metadata from UPLOAD_INSTRUCTIONS.txt: {instructions_path}"
+            "Loaded metadata from UPLOAD_INSTRUCTIONS.txt: %s", instructions_path
         )
         return metadata
 
     logger.error(
-        f"Could not load metadata for {product_id}/{platform.value} "
-        f"(tried {unified_path}, {platform_path}, and {instructions_path})"
+        "Could not load metadata for %s/%s (tried %s, %s, and %s)",
+        product_id,
+        platform.value,
+        unified_path,
+        platform_path,
+        instructions_path,
     )
     return None
 
@@ -112,7 +119,7 @@ def _load_from_json(
 
     """
     if not json_path.exists():
-        logger.debug(f"JSON file not found: {json_path}")
+        logger.debug("JSON file not found: %s", json_path)
         return None
 
     try:
@@ -135,7 +142,7 @@ def _load_from_json(
 
         # Validate required fields
         if not description:
-            logger.error(f"Missing description in {json_path}")
+            logger.error("Missing description in %s", json_path)
             return None
 
         # Create PublishMetadata
@@ -151,20 +158,24 @@ def _load_from_json(
         # Validate character limits
         is_valid, error_msg = metadata.validate_limits()
         if not is_valid:
-            logger.warning(f"Metadata validation failed for {json_path}: {error_msg}")
+            logger.warning(
+                "Metadata validation failed for %s: %s", json_path, error_msg
+            )
             # Return metadata anyway - publisher may truncate or reject
 
         logger.debug(
-            f"Loaded JSON metadata: title={len(title) if title else 0} chars, "
-            f"desc={len(description)} chars, hashtags={len(hashtags)}"
+            "Loaded JSON metadata: title=%d chars, desc=%d chars, hashtags=%d",
+            len(title) if title else 0,
+            len(description),
+            len(hashtags),
         )
         return metadata
 
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in {json_path}: {e}")
+        logger.error("Invalid JSON in %s: %s", json_path, e)
         return None
     except Exception as e:
-        logger.error(f"Error loading JSON from {json_path}: {e}")
+        logger.error("Error loading JSON from %s: %s", json_path, e)
         return None
 
 
@@ -189,7 +200,7 @@ def _load_from_instructions(
 
     """
     if not instructions_path.exists():
-        logger.debug(f"UPLOAD_INSTRUCTIONS.txt not found: {instructions_path}")
+        logger.debug("UPLOAD_INSTRUCTIONS.txt not found: %s", instructions_path)
         return None
 
     try:
@@ -200,7 +211,7 @@ def _load_from_instructions(
         platform_section = _extract_platform_section(content, platform)
         if not platform_section:
             logger.error(
-                f"Could not find {platform.value} section in {instructions_path}"
+                "Could not find %s section in %s", platform.value, instructions_path
             )
             return None
 
@@ -215,7 +226,8 @@ def _load_from_instructions(
 
         if not description:
             logger.error(
-                f"Could not extract {description_field} from {platform.value} section"
+                "Could not extract %s from %s section",
+                description_field, platform.value,
             )
             return None
 
@@ -235,17 +247,20 @@ def _load_from_instructions(
         # Validate character limits
         is_valid, error_msg = metadata.validate_limits()
         if not is_valid:
-            plat = platform.value
-            logger.warning(f"Metadata validation for {plat}: {error_msg}")
+            logger.warning(
+                "Metadata validation for %s: %s", platform.value, error_msg
+            )
 
         logger.debug(
-            f"Parsed instructions metadata: title={len(title) if title else 0} chars, "
-            f"desc={len(description)} chars, hashtags={len(hashtags)}"
+            "Parsed instructions metadata: title=%d chars, desc=%d chars, hashtags=%d",
+            len(title) if title else 0,
+            len(description),
+            len(hashtags),
         )
         return metadata
 
     except Exception as e:
-        logger.error(f"Error parsing {instructions_path}: {e}")
+        logger.error("Error parsing %s: %s", instructions_path, e)
         return None
 
 

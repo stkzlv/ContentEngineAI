@@ -52,8 +52,8 @@ class ScheduleValidator:
         self.config = config
         self.existing_entries = existing_entries
         logger.debug(
-            f"ScheduleValidator initialized with "
-            f"{len(existing_entries)} existing entries"
+            "ScheduleValidator initialized with %s existing entries",
+            len(existing_entries),
         )
 
     def validate(self, entry: ScheduleEntry) -> tuple[bool, str]:
@@ -124,7 +124,7 @@ class ScheduleValidator:
         if not limit_valid:
             return False, limit_message
 
-        logger.debug(f"Entry validation passed for {entry.product_id}")
+        logger.debug("Entry validation passed for %s", entry.product_id)
         return True, ""
 
     def _is_duplicate(self, entry: ScheduleEntry) -> bool:
@@ -158,7 +158,9 @@ class ScheduleValidator:
             entry_platforms = set(entry.platforms)
             if existing_platforms & entry_platforms:
                 logger.debug(
-                    f"Duplicate detected: {entry.product_id} at {entry.scheduled_time}"
+                    "Duplicate detected: %s at %s",
+                    entry.product_id,
+                    entry.scheduled_time,
                 )
                 return True
 

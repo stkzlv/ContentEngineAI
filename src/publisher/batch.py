@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from src.publisher.base import BasePublisher, PublishError
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import (
     DEFAULT_PLATFORMS,
@@ -50,7 +51,7 @@ class BatchPublisher:
     def __init__(
         self,
         publisher: BasePublisher,
-        outputs_dir: Path | str = Path("outputs"),
+        outputs_dir: Path | str = DEFAULT_OUTPUTS_DIR,
         platforms: list[Platform] | None = None,
         stagger_delay_min: int = 30,
         stagger_delay_max: int = 60,
@@ -103,9 +104,13 @@ class BatchPublisher:
         platforms_str = [p.value for p in self.platforms]
         mode = "RETRY MODE" if retry_failed else "normal"
         logger.info(
-            f"Initialized BatchPublisher: platforms={platforms_str}, "
-            f"stagger={stagger_delay_min}-{stagger_delay_max}s, fail_fast={fail_fast}, "
-            f"mode={mode}"
+            "Initialized BatchPublisher: platforms=%s, stagger=%d-%ds, "
+            "fail_fast=%s, mode=%s",
+            platforms_str,
+            stagger_delay_min,
+            stagger_delay_max,
+            fail_fast,
+            mode,
         )
 
     async def publish_batch(self) -> BatchPublishSummary:
@@ -156,7 +161,7 @@ class BatchPublisher:
                     skipped=0,
                     duration_seconds=time.time() - batch_start,
                 )
-            logger.info(f"Found {len(videos)} failed video(s) to retry")
+            logger.info("Found %d failed video(s) to retry", len(videos))
         else:
             videos = self._discover_videos()
             if not videos:
@@ -168,9 +173,9 @@ class BatchPublisher:
                     skipped=0,
                     duration_seconds=time.time() - batch_start,
                 )
-            logger.info(f"Found {len(videos)} video(s) to publish")
+            logger.info("Found %d video(s) to publish", len(videos))
 
-        logger.info(f"Target platforms: {[p.value for p in self.platforms]}")
+        logger.info("Target platforms: %s", [p.value for p in self.platforms])
 
         # Track statistics - initialize with zeros, set total_videos at end
         successful = 0
@@ -195,11 +200,11 @@ class BatchPublisher:
             scheduled_time = video_info.get("scheduled_time")
 
             logger.info("-" * 80)
-            logger.info(f"[{idx}/{len(videos)}] Processing: {video_path.name}")
-            logger.info(f"Product ID: {product_id}")
+            logger.info("[%d/%d] Processing: %s", idx, len(videos), video_path.name)
+            logger.info("Product ID: %s", product_id)
             if self.retry_failed:
                 retry_count = video_info.get("retry_count", 1)
-                logger.info(f"Retry attempt: {retry_count}")
+                logger.info("Retry attempt: %d", retry_count)
 
             try:
                 # Publish video to all target platforms
@@ -254,7 +259,7 @@ class BatchPublisher:
                 failed += 1
                 summary.failed += 1
                 error_msg = f"Unexpected error: {e}"
-                logger.error(f"[{idx}/{len(videos)}] {error_msg}")
+                logger.error("[%d/%d] %s", idx, len(videos), error_msg)
                 summary.add_error(product_id, error_msg)
                 # Add to retry queue for later retry
                 self._add_failed_to_retry_queue(product_id, error_msg, scheduled_time)
@@ -287,10 +292,10 @@ class BatchPublisher:
             List of video info dicts: [{"path": Path, "product_id": str}, ...]
 
         """
-        logger.info(f"Scanning for videos in: {self.outputs_dir}")
+        logger.info("Scanning for videos in: %s", self.outputs_dir)
 
         if not self.outputs_dir.exists():
-            logger.warning(f"Outputs directory not found: {self.outputs_dir}")
+            logger.warning("Outputs directory not found: %s", self.outputs_dir)
             return []
 
         videos = []
@@ -308,7 +313,7 @@ class BatchPublisher:
             for video_file in video_files:
                 videos.append({"path": video_file, "product_id": product_id})
 
-        logger.info(f"Discovered {len(videos)} video(s)")
+        logger.info("Discovered %d video(s)", len(videos))
         return videos
 
     def _get_retry_queue_videos(self) -> list[dict]:
@@ -322,7 +327,7 @@ class BatchPublisher:
             List of video info dicts with path, product_id, scheduled_time, retry_count
 
         """
-        logger.info(f"Checking retry queue in: {self.outputs_dir}")
+        logger.info("Checking retry queue in: %s", self.outputs_dir)
 
         retry_items = get_retry_queue(self.outputs_dir)
         if not retry_items:
@@ -335,14 +340,14 @@ class BatchPublisher:
 
             if not product_dir.exists():
                 logger.warning(
-                    f"Product directory not found for retry item: {product_id}"
+                    "Product directory not found for retry item: %s", product_id
                 )
                 continue
 
             # Find video file
             video_files = list(product_dir.glob("video_*.mp4"))
             if not video_files:
-                logger.warning(f"No video file found for retry item: {product_id}")
+                logger.warning("No video file found for retry item: %s", product_id)
                 continue
 
             # Use first video file found
@@ -357,7 +362,7 @@ class BatchPublisher:
                 }
             )
 
-        logger.info(f"Found {len(videos)} video(s) in retry queue")
+        logger.info("Found %d video(s) in retry queue", len(videos))
         return videos
 
     def _add_failed_to_retry_queue(
@@ -409,14 +414,17 @@ class BatchPublisher:
         """
         try:
             # Upload video once (reuse media_id for all platforms)
-            logger.info(f"[{current_idx}/{total_count}] Uploading video...")
+            logger.info("[%d/%d] Uploading video...", current_idx, total_count)
             media_id = await self.publisher.upload_media(video_path)
-            logger.info(f"[{current_idx}/{total_count}] Upload complete: {media_id}")
+            logger.info(
+                "[%d/%d] Upload complete: %s", current_idx, total_count, media_id
+            )
 
             # Publish to each platform
             for platform in self.platforms:
                 logger.info(
-                    f"[{current_idx}/{total_count}] Publishing to {platform.value}..."
+                    "[%d/%d] Publishing to %s...",
+                    current_idx, total_count, platform.value,
                 )
 
                 # Load platform-specific metadata
@@ -426,8 +434,10 @@ class BatchPublisher:
 
                 if not metadata:
                     logger.warning(
-                        f"[{current_idx}/{total_count}] Skipping {platform.value}: "
-                        f"metadata not found"
+                        "[%d/%d] Skipping %s: metadata not found",
+                        current_idx,
+                        total_count,
+                        platform.value,
                     )
                     return {
                         "status": "skipped",
@@ -446,8 +456,10 @@ class BatchPublisher:
 
                 if not platform_account:
                     logger.warning(
-                        f"[{current_idx}/{total_count}] Skipping {platform.value}: "
-                        f"no connected account"
+                        "[%d/%d] Skipping %s: no connected account",
+                        current_idx,
+                        total_count,
+                        platform.value,
                     )
                     continue
 
@@ -472,27 +484,36 @@ class BatchPublisher:
                     post_status = result["status"]
 
                     logger.info(
-                        f"[{current_idx}/{total_count}] Published to {platform.value}: "
-                        f"post_id={post_id}, status={post_status}"
+                        "[%d/%d] Published to %s: post_id=%s, status=%s",
+                        current_idx,
+                        total_count,
+                        platform.value,
+                        post_id,
+                        post_status,
                     )
 
                     # Log published URLs if available
                     published_urls = result.get("published_urls")
                     if published_urls and isinstance(published_urls, list):
                         logger.info(
-                            f"[{current_idx}/{total_count}] "
-                            f"Published URLs for {platform.value}:"
+                            "[%d/%d] Published URLs for %s:",
+                            current_idx,
+                            total_count,
+                            platform.value,
                         )
                         for url in published_urls:
-                            logger.info(f"[{current_idx}/{total_count}]   - {url}")
+                            logger.info("[%d/%d]   - %s", current_idx, total_count, url)
 
                     # Fetch and log post status after creation (non-blocking)
                     try:
                         status_info = await self.publisher.get_status(post_id)
                         if status_info["status"] != "unknown":
                             logger.debug(
-                                f"[{current_idx}/{total_count}] Status for "
-                                f"{platform.value}: {status_info['status']}"
+                                "[%d/%d] Status for %s: %s",
+                                current_idx,
+                                total_count,
+                                platform.value,
+                                status_info["status"],
                             )
                             # If status check found additional URLs
                             status_urls = status_info.get("published_urls")
@@ -502,18 +523,21 @@ class BatchPublisher:
                                 and not published_urls
                             ):
                                 logger.info(
-                                    f"[{current_idx}/{total_count}] "
-                                    f"URLs from status check:"
+                                    "[%d/%d] URLs from status check:",
+                                    current_idx,
+                                    total_count,
                                 )
                                 for url in status_urls:
                                     logger.info(
-                                        f"[{current_idx}/{total_count}]   - {url}"
+                                        "[%d/%d]   - %s", current_idx, total_count, url
                                     )
                     except Exception as status_err:
                         # Status check failure is non-critical
                         logger.debug(
-                            f"[{current_idx}/{total_count}] Status check failed: "
-                            f"{status_err}"
+                            "[%d/%d] Status check failed: %s",
+                            current_idx,
+                            total_count,
+                            status_err,
                         )
 
                 except PublishError as e:
@@ -521,8 +545,12 @@ class BatchPublisher:
                     if "429" in str(e) or "rate limit" in str(e).lower():
                         wait_time = LATE_DEFAULT_RETRY_AFTER_SEC
                         logger.warning(
-                            f"[{current_idx}/{total_count}] Rate limit hit for "
-                            f"{platform.value}, waiting {wait_time}s before retry..."
+                            "[%d/%d] Rate limit hit for %s, "
+                            "waiting %ds before retry...",
+                            current_idx,
+                            total_count,
+                            platform.value,
+                            wait_time,
                         )
                         # Wait for retry-after period
                         await asyncio.sleep(LATE_DEFAULT_RETRY_AFTER_SEC)
@@ -539,8 +567,10 @@ class BatchPublisher:
                             scheduled_time=None,
                         )
                         logger.info(
-                            f"[{current_idx}/{total_count}] Retry successful for "
-                            f"{platform.value}"
+                            "[%d/%d] Retry successful for %s",
+                            current_idx,
+                            total_count,
+                            platform.value,
                         )
                     else:
                         raise
@@ -549,7 +579,7 @@ class BatchPublisher:
 
         except Exception as e:
             error_msg = f"Publishing failed: {e}"
-            logger.error(f"[{current_idx}/{total_count}] {error_msg}")
+            logger.error("[%d/%d] %s", current_idx, total_count, error_msg)
             return {"status": "failed", "error": error_msg}
 
     async def _apply_staggered_delay(self, current_idx: int, total_count: int):
@@ -563,7 +593,7 @@ class BatchPublisher:
         """
         delay = random.randint(self.stagger_delay_min, self.stagger_delay_max)  # noqa: S311
         logger.info(
-            f"[{current_idx}/{total_count}] Waiting {delay}s before next video..."
+            "[%d/%d] Waiting %ds before next video...", current_idx, total_count, delay
         )
         await asyncio.sleep(delay)
 
@@ -580,11 +610,11 @@ class BatchPublisher:
         logger.info("=" * 80)
 
         # Overall statistics
-        logger.info(f"Total videos attempted: {summary.total_videos}")
-        logger.info(f"Successful: {summary.successful}")
-        logger.info(f"Failed: {summary.failed}")
-        logger.info(f"Skipped: {summary.skipped}")
-        logger.info(f"Success rate: {summary.get_success_rate():.1f}%")
+        logger.info("Total videos attempted: %d", summary.total_videos)
+        logger.info("Successful: %d", summary.successful)
+        logger.info("Failed: %d", summary.failed)
+        logger.info("Skipped: %d", summary.skipped)
+        logger.info("Success rate: %.1f%%", summary.get_success_rate())
 
         # Duration formatting
         if summary.duration_seconds < 60:
@@ -598,12 +628,12 @@ class BatchPublisher:
             minutes = int((summary.duration_seconds % 3600) // 60)
             duration_str = f"{hours}h {minutes}m"
 
-        logger.info(f"Total duration: {duration_str}")
+        logger.info("Total duration: %s", duration_str)
 
         # Average time per video
         if summary.successful > 0:
             avg_time = summary.duration_seconds / summary.successful
-            logger.info(f"Average time per successful video: {avg_time:.1f}s")
+            logger.info("Average time per successful video: %.1fs", avg_time)
 
         # Platform-specific results
         if summary.platform_results:
@@ -622,15 +652,18 @@ class BatchPublisher:
                     else 0.0
                 )
                 logger.info(
-                    f"{platform.value:<15} {counts['successful']:<12} "
-                    f"{counts['failed']:<10} {total_attempts:<10} "
-                    f"{success_rate:>6.1f}%"
+                    "%s %d %d %d %6.1f%%",
+                    f"{platform.value:<15}",
+                    counts["successful"],
+                    counts["failed"],
+                    total_attempts,
+                    success_rate,
                 )
 
         # Errors (show first 10, summarize rest)
         if summary.errors:
             logger.info("-" * 80)
-            logger.info(f"Errors ({len(summary.errors)} total):")
+            logger.info("Errors (%d total):", len(summary.errors))
 
             # Group errors by type for better readability
             error_types: dict[str, list[str]] = {}
@@ -644,24 +677,26 @@ class BatchPublisher:
 
             # Display grouped errors
             for error_type, video_ids in list(error_types.items())[:5]:
-                logger.info(f"  {error_type}:")
+                logger.info("  %s:", error_type)
                 for video_id in video_ids[:3]:
-                    logger.info(f"    - {video_id}")
+                    logger.info("    - %s", video_id)
                 if len(video_ids) > 3:
-                    logger.info(f"    ... and {len(video_ids) - 3} more videos")
+                    logger.info("    ... and %d more videos", len(video_ids) - 3)
 
             if len(error_types) > 5:
-                logger.info(f"  ... and {len(error_types) - 5} more error types")
+                logger.info("  ... and %d more error types", len(error_types) - 5)
 
         # Success summary
         logger.info("=" * 80)
         if summary.failed == 0 and summary.skipped == 0:
-            logger.info("✓ All videos published successfully!")
+            logger.info("All videos published successfully!")
         elif summary.successful > 0:
             logger.info(
-                f"✓ Completed with {summary.successful} successful, "
-                f"{summary.failed} failed, {summary.skipped} skipped"
+                "Completed with %d successful, %d failed, %d skipped",
+                summary.successful,
+                summary.failed,
+                summary.skipped,
             )
         else:
-            logger.info("✗ No videos were successfully published")
+            logger.info("No videos were successfully published")
         logger.info("=" * 80)

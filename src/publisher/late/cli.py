@@ -122,17 +122,17 @@ async def cmd_list_accounts(
             logger.warning("No connected accounts found")
             return
 
-        logger.info(f"Found {len(accounts)} connected account(s):")
+        logger.info("Found %d connected account(s):", len(accounts))
         logger.info("-" * 80)
 
         for account in accounts:
-            logger.info(f"Platform: {account['platform']}")
-            logger.info(f"Account ID: {account['account_id']}")
-            logger.info(f"Username: {account.get('username', 'N/A')}")
+            logger.info("Platform: %s", account['platform'])
+            logger.info("Account ID: %s", account['account_id'])
+            logger.info("Username: %s", account.get('username', 'N/A'))
             logger.info("-" * 80)
 
     except Exception as e:
-        logger.error(f"Failed to list accounts: {e}", exc_info=args.debug)
+        logger.error("Failed to list accounts: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -151,26 +151,26 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
     product_dir = outputs_dir / product_id
 
     if not product_dir.exists():
-        logger.error(f"Product directory not found: {product_dir}")
+        logger.error("Product directory not found: %s", product_dir)
         sys.exit(1)
 
     # Auto-discover video file
     video_files = list(product_dir.glob("video_*.mp4"))
     if not video_files:
-        logger.error(f"No video files found in {product_dir}")
+        logger.error("No video files found in %s", product_dir)
         sys.exit(1)
 
     # Use the first video file (usually the most recent or main one)
     video_path = video_files[0]
-    logger.info(f"Auto-discovered video: {video_path.name}")
+    logger.info("Auto-discovered video: %s", video_path.name)
 
     # Default to all 3 platforms if none specified
     if not args.platforms:
         args.platforms = list(DEFAULT_PLATFORMS)
         logger.info("Using default platforms: youtube, tiktok, instagram")
 
-    logger.info(f"Publishing single video: {video_path.name}")
-    logger.info(f"Target platforms: {[p.value for p in args.platforms]}")
+    logger.info("Publishing single video: %s", video_path.name)
+    logger.info("Target platforms: %s", [p.value for p in args.platforms])
 
     publisher = create_publisher(
         provider=PublisherProvider(config.provider),
@@ -210,7 +210,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             try:
                 logger.debug("Fetching all posts from Late.dev...")
                 api_posts = await publisher.list_posts()
-                logger.debug(f"Found {len(api_posts)} posts on Late.dev")
+                logger.debug("Found %d posts on Late.dev", len(api_posts))
 
                 for api_post in api_posts:
                     scheduled_for = api_post.get("scheduledFor")
@@ -229,9 +229,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                     # Normalize to minute precision for comparison
                     normalized = scheduled_dt.replace(second=0, microsecond=0)
                     occupied_slot_times.add(normalized)
-                logger.debug(f"Occupied slots: {len(occupied_slot_times)} times")
+                logger.debug("Occupied slots: %d times", len(occupied_slot_times))
             except Exception as e:
-                logger.warning(f"Failed to fetch existing posts: {e}")
+                logger.warning("Failed to fetch existing posts: %s", e)
 
             # Find first available slot (gap detection)
             search_time = datetime.now(UTC)
@@ -247,27 +247,27 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
                 if normalized not in occupied_slot_times:
                     schedule_time = next_time
-                    logger.info(f"Found available slot: {schedule_time.isoformat()}")
+                    logger.info("Found available slot: %s", schedule_time.isoformat())
                     break
 
                 # Slot is occupied, try next
                 search_time = next_time
                 attempts += 1
-                logger.debug(f"Slot {normalized} occupied, trying next...")
+                logger.debug("Slot %s occupied, trying next...", normalized)
 
             if not schedule_time:
                 logger.error("Could not find available slot within search range")
                 sys.exit(1)
 
         if schedule_time:
-            logger.info(f"Scheduled time: {schedule_time}")
+            logger.info("Scheduled time: %s", schedule_time)
         else:
             logger.info("Publishing immediately")
 
         # Upload video
         logger.info("Uploading video...")
         media_url = await publisher.upload_media(video_path)
-        logger.info(f"Upload complete: {media_url}")
+        logger.info("Upload complete: %s", media_url)
 
         # Build platforms list (filter duplicates and validate accounts)
         platforms_to_publish = []
@@ -277,8 +277,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 product_id, platform.value, outputs_dir
             ):
                 logger.warning(
-                    f"Product {product_id} already published to {platform.value}. "
-                    f"Use --force to republish."
+                    "Product %s already published to %s. Use --force to republish.",
+                    product_id,
+                    platform.value,
                 )
                 continue
 
@@ -289,7 +290,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             )
 
             if not platform_account:
-                logger.warning(f"No connected account for {platform.value}, skipping")
+                logger.warning(
+                    "No connected account for %s, skipping", platform.value
+                )
                 continue
 
             platforms_to_publish.append(
@@ -390,18 +393,16 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
 
                 if cleanup_result["success"]:
-                    logger.info(f"✓ Cleanup complete: {cleanup_result['message']}")
+                    logger.info("✓ Cleanup complete: %s", cleanup_result['message'])
                     disk_freed = cleanup_result["disk_freed"]
                     if isinstance(disk_freed, int) and disk_freed > 0:
-                        logger.info(
-                            f"  Disk space freed: {format_bytes(disk_freed)}"  # noqa: E501
-                        )
+                        logger.info("  Disk space freed: %s", format_bytes(disk_freed))
                 else:
-                    logger.warning(f"Cleanup skipped: {cleanup_result['message']}")
+                    logger.warning("Cleanup skipped: %s", cleanup_result['message'])
 
             except Exception as cleanup_error:
                 logger.warning(
-                    f"Cleanup failed but publish was successful: {cleanup_error}"
+                    "Cleanup failed but publish was successful: %s", cleanup_error
                 )
 
         elif args.no_cleanup:
@@ -410,7 +411,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.debug("Cleanup not configured in config file")
 
     except Exception as e:
-        logger.error(f"Failed to publish video: {e}", exc_info=args.debug)
+        logger.error("Failed to publish video: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -427,12 +428,12 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
     logger.info("=" * 80)
     logger.info("BATCH PUBLISHING MODE")
     logger.info("=" * 80)
-    logger.info(f"Target platforms: {[p.value for p in args.platforms]}")
-    logger.info(f"Outputs directory: {args.outputs_dir}")
+    logger.info("Target platforms: %s", [p.value for p in args.platforms])
+    logger.info("Outputs directory: %s", args.outputs_dir)
     logger.info(
-        f"Stagger delay: {config.stagger_delay_min}-{config.stagger_delay_max}s"
+        "Stagger delay: %d-%ds", config.stagger_delay_min, config.stagger_delay_max
     )
-    logger.info(f"Fail-fast: {args.fail_fast}")
+    logger.info("Fail-fast: %s", args.fail_fast)
 
     publisher = create_publisher(
         provider=PublisherProvider(config.provider),
@@ -489,15 +490,17 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
                 )
 
                 logger.info("✓ Cleanup complete")
-                logger.info(f"  Products cleaned: {cleanup_summary['cleaned']}")
-                logger.info(f"  Products skipped: {cleanup_summary['skipped']}")
+                logger.info("  Products cleaned: %d", cleanup_summary['cleaned'])
+                logger.info("  Products skipped: %d", cleanup_summary['skipped'])
                 logger.info(
-                    f"  Total disk space freed: {format_bytes(cleanup_summary['disk_freed'])}"  # noqa: E501
+                    "  Total disk space freed: %s",
+                    format_bytes(cleanup_summary['disk_freed']),
                 )
 
             except Exception as cleanup_error:
                 logger.warning(
-                    f"Cleanup failed but batch publish was successful: {cleanup_error}"
+                    "Cleanup failed but batch publish was successful: %s",
+                    cleanup_error,
                 )
 
         elif args.no_cleanup:
@@ -512,7 +515,7 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
             sys.exit(1)
 
     except Exception as e:
-        logger.error(f"Batch publishing failed: {e}", exc_info=args.debug)
+        logger.error("Batch publishing failed: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -543,7 +546,7 @@ async def cmd_calendar(
             if date_from.tzinfo is None:
                 date_from = date_from.replace(tzinfo=UTC)
         except ValueError as e:
-            logger.error(f"Invalid date-from format: {e}")
+            logger.error("Invalid date-from format: %s", e)
             sys.exit(1)
 
     if args.date_to:
@@ -552,7 +555,7 @@ async def cmd_calendar(
             if date_to.tzinfo is None:
                 date_to = date_to.replace(tzinfo=UTC)
         except ValueError as e:
-            logger.error(f"Invalid date-to format: {e}")
+            logger.error("Invalid date-to format: %s", e)
             sys.exit(1)
 
     # List scheduled posts
@@ -567,18 +570,18 @@ async def cmd_calendar(
         logger.info("No scheduled posts found")
         return
 
-    logger.info(f"Found {len(entries)} scheduled post(s):")
+    logger.info("Found %d scheduled post(s):", len(entries))
     logger.info("=" * 80)
 
     for entry in entries:
-        logger.info(f"Product: {entry.product_id}")
-        logger.info(f"Scheduled: {entry.scheduled_time.isoformat()} (UTC)")
-        logger.info(f"Platforms: {', '.join([p.value for p in entry.platforms])}")
-        logger.info(f"Status: {entry.status}")
+        logger.info("Product: %s", entry.product_id)
+        logger.info("Scheduled: %s (UTC)", entry.scheduled_time.isoformat())
+        logger.info("Platforms: %s", ', '.join([p.value for p in entry.platforms]))
+        logger.info("Status: %s", entry.status)
         if entry.post_id:
-            logger.info(f"Post ID: {entry.post_id}")
+            logger.info("Post ID: %s", entry.post_id)
         if entry.slot_index is not None:
-            logger.info(f"Slot Index: {entry.slot_index}")
+            logger.info("Slot Index: %d", entry.slot_index)
         logger.info("-" * 80)
 
 
@@ -597,13 +600,13 @@ async def cmd_schedule_auto(
     logger.info("=" * 80)
     logger.info("AUTO-SCHEDULING MODE")
     logger.info("=" * 80)
-    logger.info(f"Target platforms: {[p.value for p in args.platforms]}")
-    logger.info(f"Outputs directory: {args.outputs_dir}")
+    logger.info("Target platforms: %s", [p.value for p in args.platforms])
+    logger.info("Outputs directory: %s", args.outputs_dir)
     if args.dry_run:
         logger.info("DRY RUN MODE - No actual scheduling will occur")
 
     # Scan for videos in outputs directory
-    logger.info(f"Scanning {args.outputs_dir} for videos...")
+    logger.info("Scanning %s for videos...", args.outputs_dir)
     video_paths = []
 
     for product_dir in args.outputs_dir.iterdir():
@@ -615,10 +618,10 @@ async def cmd_schedule_auto(
             video_paths.append(video_file)
 
     if not video_paths:
-        logger.warning(f"No video files found in {args.outputs_dir}")
+        logger.warning("No video files found in %s", args.outputs_dir)
         return
 
-    logger.info(f"Found {len(video_paths)} video(s)")
+    logger.info("Found %d video(s)", len(video_paths))
 
     # Filter out already published videos
     logger.info("Filtering already published videos...")
@@ -637,7 +640,7 @@ async def cmd_schedule_auto(
             unpublished_videos.append(video_path)
         else:
             logger.debug(
-                f"Skipping {product_id} - already published to all target platforms"
+                "Skipping %s - already published to all target platforms", product_id
             )
 
     if not unpublished_videos:
@@ -645,7 +648,7 @@ async def cmd_schedule_auto(
         return
 
     logger.info(
-        f"Found {len(unpublished_videos)} unpublished video(s) ready for scheduling"
+        "Found %d unpublished video(s) ready for scheduling", len(unpublished_videos)
     )
 
     # Create publisher
@@ -693,17 +696,18 @@ async def cmd_schedule_auto(
         logger.info("=" * 80)
         logger.info("AUTO-SCHEDULING SUMMARY")
         logger.info("=" * 80)
-        logger.info(f"Total videos processed: {len(unpublished_videos)}")
-        logger.info(f"Successfully scheduled: {summary['scheduled']}")
-        logger.info(f"Skipped (already scheduled): {summary['skipped']}")
-        logger.info(f"Failed: {summary['failed']}")
+        logger.info("Total videos processed: %d", len(unpublished_videos))
+        logger.info("Successfully scheduled: %d", summary['scheduled'])
+        logger.info("Skipped (already scheduled): %d", summary['skipped'])
+        logger.info("Failed: %d", summary['failed'])
         if summary.get("conflicts_resolved", 0) > 0:
-            logger.info(f"Conflicts auto-resolved: {summary['conflicts_resolved']}")
+            logger.info("Conflicts auto-resolved: %d", summary['conflicts_resolved'])
         logger.info("=" * 80)
 
         if args.dry_run:
             logger.info(
-                "[DRY RUN] No actual scheduling occurred - run without --dry-run to schedule"  # noqa: E501
+                "[DRY RUN] No actual scheduling occurred - "
+                "run without --dry-run to schedule"
             )
 
         # Exit with error if any failures
@@ -711,7 +715,7 @@ async def cmd_schedule_auto(
             sys.exit(1)
 
     except Exception as e:
-        logger.error(f"Auto-scheduling failed: {e}", exc_info=args.debug)
+        logger.error("Auto-scheduling failed: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -771,8 +775,8 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             Platform.INSTAGRAM,
         ]
 
-    logger.info(f"Target platforms: {[p.value for p in platforms]}")
-    logger.info(f"Outputs directory: {args.outputs_dir}")
+    logger.info("Target platforms: %s", [p.value for p in platforms])
+    logger.info("Outputs directory: %s", args.outputs_dir)
 
     # Create publisher
     publisher = create_publisher(
@@ -803,7 +807,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
 
         if args.product_id:
             # Single product cleanup
-            logger.info(f"Cleaning up product: {args.product_id}")
+            logger.info("Cleaning up product: %s", args.product_id)
             logger.info("-" * 80)
 
             result = await cleanup_mgr.cleanup(
@@ -813,12 +817,12 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             )
 
             if result["success"]:
-                logger.info(f"✓ {result['message']}")
+                logger.info("✓ %s", result['message'])
                 disk_freed = result["disk_freed"]
                 if isinstance(disk_freed, int) and disk_freed > 0:
-                    logger.info(f"  Disk space freed: {format_bytes(disk_freed)}")
+                    logger.info("  Disk space freed: %s", format_bytes(disk_freed))
             else:
-                logger.warning(f"✗ {result['message']}")
+                logger.warning("✗ %s", result['message'])
                 sys.exit(1)
 
         elif args.all:
@@ -835,20 +839,21 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             logger.info("=" * 80)
             logger.info("CLEANUP SUMMARY")
             logger.info("=" * 80)
-            logger.info(f"Products cleaned: {summary['cleaned']}")
-            logger.info(f"Products skipped: {summary['skipped']}")
+            logger.info("Products cleaned: %d", summary['cleaned'])
+            logger.info("Products skipped: %d", summary['skipped'])
             logger.info(
-                f"Total disk space freed: {format_bytes(summary['disk_freed'])}"
+                "Total disk space freed: %s", format_bytes(summary['disk_freed'])
             )
             logger.info("=" * 80)
 
             if args.dry_run:
                 logger.info(
-                    "[DRY RUN] No actual deletion occurred - run without --dry-run to cleanup"  # noqa: E501
+                    "[DRY RUN] No actual deletion occurred - "
+                    "run without --dry-run to cleanup"
                 )
 
     except Exception as e:
-        logger.error(f"Cleanup failed: {e}", exc_info=args.debug)
+        logger.error("Cleanup failed: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -871,17 +876,17 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.error("Authentication failed - check your API key")
             sys.exit(1)
 
-        logger.info(f"Deleting post: {args.post_id}")
+        logger.info("Deleting post: %s", args.post_id)
         success = await publisher.delete_post(args.post_id)
 
         if success:
-            logger.info(f"Successfully deleted post: {args.post_id}")
+            logger.info("Successfully deleted post: %s", args.post_id)
         else:
-            logger.error(f"Failed to delete post: {args.post_id}")
+            logger.error("Failed to delete post: %s", args.post_id)
             sys.exit(1)
 
     except Exception as e:
-        logger.error(f"Delete failed: {e}", exc_info=args.debug)
+        logger.error("Delete failed: %s", e, exc_info=args.debug)
         sys.exit(1)
 
 
@@ -1300,10 +1305,13 @@ Examples:
         account_info = (
             f", account={config.active_account}" if config.active_account else ""
         )
-        logger.info(f"Configuration loaded: provider={config.provider}{account_info}")
+        logger.info(
+            "Configuration loaded: provider=%s%s",
+            config.provider, account_info,
+        )
 
     except Exception as e:
-        logger.error(f"Configuration loading failed: {e}", exc_info=args.debug)
+        logger.error("Configuration loading failed: %s", e, exc_info=args.debug)
         sys.exit(1)
 
     # Create aiohttp session

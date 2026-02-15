@@ -37,6 +37,13 @@ class Platform(Enum):
 
 DEFAULT_PLATFORMS = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
 
+# Platform-specific content limits for validation
+PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
+    Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
+    Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
+    Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
+}
+
 
 @dataclass(frozen=True)
 class PublishResult:
@@ -158,13 +165,7 @@ class PublishMetadata:
                 - message: "Content within limits" if valid, error desc if invalid
 
         """
-        limits: dict[Platform, dict[str, int | tuple[int, int]]] = {
-            Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
-            Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
-            Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
-        }
-
-        platform_limits = limits.get(self.platform)
+        platform_limits = PLATFORM_LIMITS.get(self.platform)
         if not platform_limits:
             return True, "Content within limits"
 

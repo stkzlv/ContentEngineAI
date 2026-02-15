@@ -23,6 +23,7 @@ from src.publisher.base import (
     UploadError,
     ValidationError,
 )
+from src.publisher.constants import SDK_LIST_PAGE_SIZE
 from src.publisher.models import TikTokContentSettings
 from src.publisher.registry import register_publisher
 from src.video.config.constants import (
@@ -116,18 +117,19 @@ class LatePublisher(BasePublisher):
                 max_retries=max_retries,
             )
         except Exception as e:
-            logger.error(f"Failed to initialize Late client: {e}")
+            logger.error("Failed to initialize Late client: %s", e)
             raise ValidationError(f"Invalid Late API configuration: {e}") from e
 
         # HTTP session for additional requests if needed
         self._session = session
         self._should_close_session = session is None
 
-        logger.info(f"Late publisher: {timeout}s timeout, {max_retries} retries")
+        logger.info("Late publisher: %ss timeout, %d retries", timeout, max_retries)
         logger.debug(
-            f"API key: {api_key[:4]}..." if len(api_key) > 4 else "API key set"
+            "%s", f"API key: {api_key[:4]}..." if len(api_key) > 4 else "API key set"
         )
-        logger.debug(f"Vercel token: {'set' if vercel_token else 'NOT SET'}")
+        vercel_status = "set" if vercel_token else "NOT SET"
+        logger.debug("Vercel token: %s", vercel_status)
 
     @property
     def provider(self) -> PublisherProvider:
@@ -201,7 +203,7 @@ class LatePublisher(BasePublisher):
             try:
                 result = await operation(*args, **kwargs)
                 if attempt > 1:
-                    logger.info(f"{operation_name} succeeded on attempt {attempt}")
+                    logger.info("%s succeeded on attempt %d", operation_name, attempt)
                 return result
 
             except aiohttp.ClientResponseError as e:
@@ -223,9 +225,12 @@ class LatePublisher(BasePublisher):
                     retry_after = self._extract_retry_after(e)
                     if attempt < self.max_retries:
                         logger.warning(
-                            f"{operation_name} rate limited (429), "
-                            f"waiting {retry_after}s before retry "
-                            f"(attempt {attempt}/{self.max_retries})"
+                            "%s rate limited (429), waiting %ds before retry "
+                            "(attempt %d/%d)",
+                            operation_name,
+                            retry_after,
+                            attempt,
+                            self.max_retries,
                         )
                         await asyncio.sleep(retry_after)
                         continue
@@ -251,8 +256,13 @@ class LatePublisher(BasePublisher):
                     if attempt < self.max_retries:
                         delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                         logger.warning(
-                            f"{operation_name} server error ({e.status}), retry "
-                            f"{attempt}/{self.max_retries} in {delay}s: {e.message}"
+                            "%s server error (%d), retry %d/%d in %ds: %s",
+                            operation_name,
+                            e.status,
+                            attempt,
+                            self.max_retries,
+                            delay,
+                            e.message,
                         )
                         await asyncio.sleep(delay)
                         continue
@@ -267,9 +277,14 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        f"{operation_name} failed (HTTP {e.status}), "
-                        f"retrying in {delay}s (attempt {attempt}/{self.max_retries}): "
-                        f"{e.message}"
+                        "%s failed (HTTP %d), retrying in %ds "
+                        "(attempt %d/%d): %s",
+                        operation_name,
+                        e.status,
+                        delay,
+                        attempt,
+                        self.max_retries,
+                        e.message,
                     )
                     await asyncio.sleep(delay)
                 else:
@@ -285,8 +300,12 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        f"{operation_name} connection error, "
-                        f"retry {attempt}/{self.max_retries} in {delay}s: {e}"
+                        "%s connection error, retry %d/%d in %ds: %s",
+                        operation_name,
+                        attempt,
+                        self.max_retries,
+                        delay,
+                        e,
                     )
                     await asyncio.sleep(delay)
                 else:
@@ -302,8 +321,13 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        f"{operation_name} timed out after {self.timeout}s, "
-                        f"retrying in {delay}s (attempt {attempt}/{self.max_retries})"
+                        "%s timed out after %ss, retrying in %ds "
+                        "(attempt %d/%d)",
+                        operation_name,
+                        self.timeout,
+                        delay,
+                        attempt,
+                        self.max_retries,
                     )
                     await asyncio.sleep(delay)
                 else:
@@ -319,8 +343,12 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        f"{operation_name} client error, "
-                        f"retry {attempt}/{self.max_retries} in {delay}s: {e}"
+                        "%s client error, retry %d/%d in %ds: %s",
+                        operation_name,
+                        attempt,
+                        self.max_retries,
+                        delay,
+                        e,
                     )
                     await asyncio.sleep(delay)
                 else:
@@ -336,7 +364,10 @@ class LatePublisher(BasePublisher):
                 # Unexpected errors - log full context and don't retry
                 err_type = type(e).__name__
                 logger.error(
-                    f"{operation_name} unexpected error: {err_type}: {e}",
+                    "%s unexpected error: %s: %s",
+                    operation_name,
+                    err_type,
+                    e,
                     exc_info=True,
                 )
                 raise
@@ -370,10 +401,12 @@ class LatePublisher(BasePublisher):
             if retry_header:
                 try:
                     retry_after = int(retry_header)
-                    logger.debug(f"Extracted Retry-After header: {retry_after}s")
+                    logger.debug("Extracted Retry-After header: %ds", retry_after)
                 except ValueError:
                     # Retry-After might be HTTP date format, not seconds
-                    logger.debug(f"Could not parse Retry-After header: {retry_header}")
+                    logger.debug(
+                        "Could not parse Retry-After header: %s", retry_header
+                    )
 
         return retry_after
 
@@ -466,8 +499,8 @@ class LatePublisher(BasePublisher):
             )
 
             # Debug: Log raw response structure
-            logger.debug(f"Raw accounts type: {type(raw_accounts)}")
-            logger.debug(f"Raw accounts value: {raw_accounts}")
+            logger.debug("Raw accounts type: %s", type(raw_accounts))
+            logger.debug("Raw accounts value: %s", raw_accounts)
 
             # Parse and normalize account data
             # Late SDK returns AccountsListResponse with .accounts attribute
@@ -505,7 +538,7 @@ class LatePublisher(BasePublisher):
                     }
                 accounts.append(account_dict)
 
-            logger.info(f"Found {len(accounts)} connected accounts")
+            logger.info("Found %d connected accounts", len(accounts))
             return accounts
 
         except Exception as e:
@@ -538,13 +571,15 @@ class LatePublisher(BasePublisher):
             ...     print(f"{post['id']}: {post['scheduledFor']}")
 
         """
-        logger.info(f"Fetching posts from Late.dev (status={status or 'all'})")
+        logger.info(
+            "Fetching posts from Late.dev (status=%s)", status or "all"
+        )
 
         try:
             # Fetch all posts with pagination
             all_posts_list = []
             page = 1
-            page_size = 100  # Max items per page
+            page_size = SDK_LIST_PAGE_SIZE
 
             while True:
 
@@ -581,7 +616,7 @@ class LatePublisher(BasePublisher):
                 page += 1
 
             logger.debug(
-                f"Fetched {len(all_posts_list)} total posts " f"across {page} page(s)"
+                "Fetched %d total posts across %d page(s)", len(all_posts_list), page
             )
 
             posts = []
@@ -635,7 +670,7 @@ class LatePublisher(BasePublisher):
                 if status is None or post_status == status:
                     posts.append(post_dict)
 
-            logger.info(f"Found {len(posts)} post(s)")
+            logger.info("Found %d post(s)", len(posts))
             return posts
 
         except Exception as e:
@@ -668,7 +703,7 @@ class LatePublisher(BasePublisher):
             ...     print("Post deleted")
 
         """
-        logger.info(f"Deleting post: {post_id}")
+        logger.info("Deleting post: %s", post_id)
 
         try:
 
@@ -679,7 +714,7 @@ class LatePublisher(BasePublisher):
                     return self.client.posts.delete(post_id)
 
             await self._retry_with_backoff(_delete_post, "Delete post")
-            logger.info(f"Post {post_id} deleted successfully")
+            logger.info("Post %s deleted successfully", post_id)
             return True
 
         except Exception as e:
@@ -688,7 +723,9 @@ class LatePublisher(BasePublisher):
             if "401" in str(e) or "403" in str(e):
                 raise AuthenticationError(f"Authentication expired: {e}") from e
             if "404" in str(e):
-                logger.warning(f"Post {post_id} not found (may already be deleted)")
+                logger.warning(
+                    "Post %s not found (may already be deleted)", post_id
+                )
                 return True  # Consider it deleted if not found
             raise PublishError(error_msg) from e
 
@@ -725,7 +762,7 @@ class LatePublisher(BasePublisher):
             >>> print(f"Uploaded: {media_id}")
 
         """
-        logger.info(f"Uploading video: {video_path}")
+        logger.info("Uploading video: %s", video_path)
 
         # Comprehensive file validation
         if not video_path.exists():
@@ -758,7 +795,7 @@ class LatePublisher(BasePublisher):
             raise ValidationError(f"Video file is empty: {video_path}")
 
         file_size_mb = file_size / (1024 * 1024)
-        logger.info(f"File size: {file_size_mb:.2f} MB")
+        logger.info("File size: %.2f MB", file_size_mb)
 
         # Check size limits
         if file_size > LATE_MAX_UPLOAD_SIZE_BYTES:
@@ -770,9 +807,11 @@ class LatePublisher(BasePublisher):
         # Validate video file extension
         valid_extensions = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv"}
         if video_path.suffix.lower() not in valid_extensions:
+            extensions_str = ", ".join(valid_extensions)
             logger.warning(
-                f"Video file has unusual extension: {video_path.suffix}. "
-                f"Expected one of: {', '.join(valid_extensions)}"
+                "Video file has unusual extension: %s. Expected one of: %s",
+                video_path.suffix,
+                extensions_str,
             )
 
         # Track upload progress
@@ -787,7 +826,9 @@ class LatePublisher(BasePublisher):
             if progress_pct >= last_logged_progress + 10:
                 up_mb = bytes_uploaded / (1024 * 1024)
                 tot_mb = total_bytes / (1024 * 1024)
-                logger.info(f"Upload: {progress_pct}% ({up_mb:.1f}/{tot_mb:.1f} MB)")
+                logger.info(
+                    "Upload: %d%% (%.1f/%.1f MB)", progress_pct, up_mb, tot_mb
+                )
                 last_logged_progress = progress_pct
 
             # Call user-provided callback if any
@@ -867,7 +908,7 @@ class LatePublisher(BasePublisher):
             if not media_url:
                 raise UploadError(f"No media URL in response: {media_response}")
 
-            logger.info(f"Upload successful, media URL: {media_url}")
+            logger.info("Upload successful, media URL: %s", media_url)
             return media_url
 
         except ValidationError:
@@ -920,8 +961,9 @@ class LatePublisher(BasePublisher):
 
         """
         platform_names = [p.get("platform", "unknown") for p in platforms]
+        platforms_str = ", ".join(platform_names)
         logger.info(
-            f"Publishing to {len(platforms)} platform(s): {', '.join(platform_names)}"
+            "Publishing to %d platform(s): %s", len(platforms), platforms_str
         )
 
         # Validate inputs
@@ -1030,8 +1072,8 @@ class LatePublisher(BasePublisher):
             post_response = await self._retry_with_backoff(_create_post, "Create post")
 
             # Parse response (handle both Pydantic model and dict)
-            logger.debug(f"Post response type: {type(post_response)}")
-            logger.debug(f"Post response: {post_response}")
+            logger.debug("Post response type: %s", type(post_response))
+            logger.debug("Post response: %s", post_response)
 
             # Extract post_id from response (PostCreateResponse has post.field_id)
             post_id = None
@@ -1095,10 +1137,10 @@ class LatePublisher(BasePublisher):
                             {"platform": platform_name, "error": error_msg}
                         )
                         logger.warning(
-                            f"Platform '{platform_name}' failed: {error_msg}"
+                            "Platform '%s' failed: %s", platform_name, error_msg
                         )
                     else:
-                        logger.info(f"Platform '{platform_name}' succeeded")
+                        logger.info("Platform '%s' succeeded", platform_name)
 
             # Check if response indicates partial failure
             errors = None
@@ -1118,7 +1160,7 @@ class LatePublisher(BasePublisher):
                     platform_failures.append(
                         {"platform": platform_name, "error": error_msg}
                     )
-                    logger.warning(f"Platform '{platform_name}' failed: {error_msg}")
+                    logger.warning("Platform '%s' failed: %s", platform_name, error_msg)
 
             # Build result
             result = {
@@ -1134,19 +1176,23 @@ class LatePublisher(BasePublisher):
                 failed_count = len(platform_failures)
                 success_count = len(platforms) - failed_count
                 logger.warning(
-                    f"Post partial success: {failed_count} failed, {success_count} ok"
+                    "Post partial success: %d failed, %d ok",
+                    failed_count,
+                    success_count,
                 )
             else:
                 logger.info(
-                    f"Post created successfully: {post_id} (status: {status}) "
-                    f"on {len(platforms)} platform(s)"
+                    "Post created successfully: %s (status: %s) on %d platform(s)",
+                    post_id,
+                    status,
+                    len(platforms),
                 )
 
             # Log published URLs if available
             if published_urls:
                 logger.info("Published URLs:")
                 for url in published_urls:
-                    logger.info(f"  - {url}")
+                    logger.info("  - %s", url)
             elif status == "published":
                 logger.debug(
                     "No published URLs in API response yet (may take time to propagate)"
@@ -1162,13 +1208,12 @@ class LatePublisher(BasePublisher):
                         "America/New_York"
                     )  # Default to Eastern
                     local_time = scheduled_time.astimezone(local_tz)
-                    logger.info(
-                        f"Scheduled for: {local_time.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-                    )
+                    time_str = local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    logger.info("Scheduled for: %s", time_str)
                 except Exception:
                     # Fallback if zoneinfo not available
                     time_str = scheduled_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-                    logger.info(f"Scheduled for: {time_str}")
+                    logger.info("Scheduled for: %s", time_str)
 
             return result
 
@@ -1178,9 +1223,9 @@ class LatePublisher(BasePublisher):
             error_msg = f"Failed to create post on all platforms: {e}"
             logger.error(error_msg)
             # Log platform details for debugging (without sensitive data)
-            logger.error(f"Target platforms: {platform_names}")
+            logger.error("Target platforms: %s", platform_names)
             content_len = len(content) if content else 0
-            logger.error(f"Content length: {content_len} chars")
+            logger.error("Content length: %d chars", content_len)
             raise PublishError(error_msg) from e
 
     async def get_status(
@@ -1217,7 +1262,7 @@ class LatePublisher(BasePublisher):
         if not post_id or not post_id.strip():
             raise ValidationError("post_id cannot be empty")
 
-        logger.info(f"Fetching status for post: {post_id}")
+        logger.info("Fetching status for post: %s", post_id)
 
         try:
 
@@ -1232,7 +1277,7 @@ class LatePublisher(BasePublisher):
             )
 
             # Handle both Pydantic model and dict responses (like publish() does)
-            logger.debug(f"Post response type: {type(post_response)}")
+            logger.debug("Post response type: %s", type(post_response))
 
             # Extract post object from response wrapper if present
             post_data = None
@@ -1277,7 +1322,7 @@ class LatePublisher(BasePublisher):
                     elif isinstance(scheduled_time_str, datetime):
                         scheduled_time = scheduled_time_str.astimezone(UTC)
                 except Exception as e:
-                    logger.debug(f"Could not parse scheduled_time: {e}")
+                    logger.debug("Could not parse scheduled_time: %s", e)
 
                 # Convert to local timezone if specified
                 if scheduled_time and local_timezone:
@@ -1288,7 +1333,7 @@ class LatePublisher(BasePublisher):
                         scheduled_time_local = scheduled_time.astimezone(local_tz)
                     except Exception as e:
                         logger.debug(
-                            f"Could not convert to timezone {local_timezone}: {e}"
+                            "Could not convert to timezone %s: %s", local_timezone, e
                         )
 
             # Get published_time from model or dict
@@ -1310,7 +1355,7 @@ class LatePublisher(BasePublisher):
                     elif isinstance(published_time_str, datetime):
                         published_time = published_time_str.astimezone(UTC)
                 except Exception as e:
-                    logger.debug(f"Could not parse published_time: {e}")
+                    logger.debug("Could not parse published_time: %s", e)
 
                 # Convert to local timezone if specified
                 if published_time and local_timezone:
@@ -1321,7 +1366,7 @@ class LatePublisher(BasePublisher):
                         published_time_local = published_time.astimezone(local_tz)
                     except Exception as e:
                         logger.debug(
-                            f"Could not convert to timezone {local_timezone}: {e}"
+                            "Could not convert to timezone %s: %s", local_timezone, e
                         )
 
             # Extract platform-specific results if available
@@ -1367,21 +1412,23 @@ class LatePublisher(BasePublisher):
             }
 
             # Log status details
-            logger.info(f"Post status: {status_info['status']}")
+            logger.info("Post status: %s", status_info["status"])
             published_urls_list = status_info["published_urls"]
             if published_urls_list and isinstance(published_urls_list, list):
-                logger.debug(f"Published URLs: {len(published_urls_list)} URL(s)")
+                logger.debug("Published URLs: %d URL(s)", len(published_urls_list))
             if status_info["error_message"]:
-                logger.warning(f"Post error: {status_info['error_message']}")
+                logger.warning("Post error: %s", status_info["error_message"])
             if platform_results:
                 count = len(platform_results)
-                logger.debug(f"Platform results available for {count} platform(s)")
+                logger.debug("Platform results available for %d platform(s)", count)
 
             return status_info
 
         except Exception as e:
             # Don't raise exception for status check failures - continue gracefully
-            logger.warning(f"Failed to fetch status for {post_id}: {e}", exc_info=False)
+            logger.warning(
+                "Failed to fetch status for %s: %s", post_id, e, exc_info=False
+            )
             return {
                 "post_id": post_id,
                 "status": "unknown",
