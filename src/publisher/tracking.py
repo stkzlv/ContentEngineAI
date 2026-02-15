@@ -29,9 +29,17 @@ def load_tracking(outputs_dir: Path = Path("outputs")) -> dict[str, dict[str, di
 
 
 def save_tracking(data: dict, outputs_dir: Path = Path("outputs")) -> None:
-    """Save publish tracking data."""
+    """Save publish tracking data atomically via temp-file + rename."""
     path = get_tracking_path(outputs_dir)
-    path.write_text(json.dumps(data, indent=2, default=str))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(".tmp")
+    try:
+        temp_path.write_text(json.dumps(data, indent=2, default=str))
+        temp_path.replace(path)
+    except OSError:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
 
 
 def is_already_published(

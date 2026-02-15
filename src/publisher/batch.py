@@ -184,6 +184,9 @@ class BatchPublisher:
             skipped=0,
         )
 
+        # Fetch connected accounts once (reused for all videos/platforms)
+        accounts = await self.publisher.get_accounts()
+
         # Process each video
         for idx, video_info in enumerate(videos, 1):
             video_path = video_info["path"]
@@ -201,7 +204,7 @@ class BatchPublisher:
             try:
                 # Publish video to all target platforms
                 publish_result = await self._publish_single_video(
-                    video_path, product_id, idx, len(videos)
+                    video_path, product_id, idx, len(videos), accounts
                 )
 
                 if publish_result["status"] == "success":
@@ -387,6 +390,7 @@ class BatchPublisher:
         product_id: str,
         current_idx: int,
         total_count: int,
+        accounts: list[dict],
     ) -> dict:
         """Publish a single video to target platforms.
 
@@ -396,6 +400,7 @@ class BatchPublisher:
             product_id: Product identifier
             current_idx: Current video index (1-based)
             total_count: Total number of videos
+            accounts: Pre-fetched list of connected platform accounts
 
         Returns:
         -------
@@ -429,8 +434,7 @@ class BatchPublisher:
                         "error": f"Missing metadata for {platform.value}",
                     }
 
-                # Get account ID for this platform (from connected accounts)
-                accounts = await self.publisher.get_accounts()
+                # Get account ID for this platform (from pre-fetched accounts)
                 platform_account = next(
                     (
                         acc

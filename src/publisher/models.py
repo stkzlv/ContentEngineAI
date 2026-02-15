@@ -6,7 +6,7 @@ metadata, configuration, and batch summaries.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -74,12 +74,6 @@ class PublishResult:
         # Validate platforms list is not empty
         if not self.platforms:
             raise ValueError("platforms cannot be empty")
-
-        # Validate scheduled_time is not in the past (if provided)
-        if self.scheduled_time and self.scheduled_time < datetime.now(
-            self.scheduled_time.tzinfo
-        ):
-            raise ValueError("scheduled_time cannot be in the past")
 
         # Validate error_message is provided for FAILED status
         if self.status == PublishStatus.FAILED and not self.error_message:
@@ -733,7 +727,7 @@ class ScheduleEntry:
     platforms: list[Platform]
     post_id: str | None = None
     status: str = "pending"
-    created_at: datetime = field(default_factory=lambda: datetime.now())
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     slot_index: int | None = None
 
     def __post_init__(self):
