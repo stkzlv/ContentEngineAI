@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.publisher.base import PublishError
 from src.publisher.models import Platform, RecurringSlot, ScheduleConfig, ScheduleEntry
 from src.publisher.schedule import ScheduleManager
 
@@ -322,7 +323,7 @@ class TestAutoSchedule:
             nonlocal call_count
             call_count += 1
             if call_count == 2:
-                raise Exception("Publish failed")
+                raise PublishError("Publish failed")
             return {"post_id": f"post_{call_count}", "status": "scheduled"}
 
         mock_publisher.publish.side_effect = publish_side_effect

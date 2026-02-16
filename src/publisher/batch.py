@@ -225,7 +225,7 @@ class BatchPublisher:
                         from src.publisher.product_registry import add_to_registry
 
                         add_to_registry(product_id, self.outputs_dir)
-                    except Exception as exc:
+                    except (OSError, ValueError) as exc:
                         logger.warning("Failed to update product registry: %s", exc)
 
                 elif publish_result["status"] == "skipped":
@@ -255,7 +255,7 @@ class BatchPublisher:
                         logger.error("Fail-fast enabled, stopping batch processing")
                         break
 
-            except Exception as e:
+            except Exception as e:  # Per-video boundary
                 failed += 1
                 summary.failed += 1
                 error_msg = f"Unexpected error: {e}"
@@ -533,7 +533,7 @@ class BatchPublisher:
                                     logger.info(
                                         "[%d/%d]   - %s", current_idx, total_count, url
                                     )
-                    except Exception as status_err:
+                    except (PublishError, OSError, TimeoutError) as status_err:
                         # Status check failure is non-critical
                         logger.debug(
                             "[%d/%d] Status check failed: %s",
@@ -579,7 +579,7 @@ class BatchPublisher:
 
             return {"status": "success"}
 
-        except Exception as e:
+        except Exception as e:  # Per-video boundary
             error_msg = f"Publishing failed: {e}"
             logger.error("[%d/%d] %s", current_idx, total_count, error_msg)
             return {"status": "failed", "error": error_msg}

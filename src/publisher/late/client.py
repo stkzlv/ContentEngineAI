@@ -7,6 +7,7 @@ Instagram, and other social media platforms.
 
 import asyncio
 import logging
+import zoneinfo
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -1213,8 +1214,6 @@ class LatePublisher(BasePublisher):
             if scheduled_time:
                 # Convert to local timezone for user-friendly display
                 try:
-                    import zoneinfo
-
                     local_tz = zoneinfo.ZoneInfo(
                         "America/New_York"
                     )  # Default to Eastern
@@ -1335,8 +1334,6 @@ class LatePublisher(BasePublisher):
                 # Convert to local timezone if specified
                 if scheduled_time and local_timezone:
                     try:
-                        import zoneinfo
-
                         local_tz = zoneinfo.ZoneInfo(local_timezone)
                         scheduled_time_local = scheduled_time.astimezone(local_tz)
                     except (KeyError, ImportError) as e:
@@ -1368,8 +1365,6 @@ class LatePublisher(BasePublisher):
                 # Convert to local timezone if specified
                 if published_time and local_timezone:
                     try:
-                        import zoneinfo
-
                         local_tz = zoneinfo.ZoneInfo(local_timezone)
                         published_time_local = published_time.astimezone(local_tz)
                     except (KeyError, ImportError) as e:

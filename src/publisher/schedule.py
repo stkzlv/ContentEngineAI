@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from src.publisher.base import PublishError
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -657,7 +658,7 @@ class ScheduleManager:
                     len(occupied_slot_times),
                 )
 
-        except Exception as e:
+        except (PublishError, OSError, TimeoutError) as e:
             logger.warning("Failed to check API schedule: %s", e)
 
         # Initialize counters
@@ -1050,14 +1051,14 @@ class ScheduleManager:
                                         product_id,
                                         cleanup_result.get("message", "unknown"),
                                     )
-                            except Exception as cleanup_error:
+                            except (OSError, ValueError) as cleanup_error:
                                 logger.warning(
                                     "Cleanup failed for %s: %s",
                                     product_id,
                                     cleanup_error,
                                 )
 
-                    except Exception as e:
+                    except (PublishError, OSError, TimeoutError) as e:
                         logger.error("Failed to schedule %s: %s", product_id, e)
                         # Create failed entry for tracking
                         failed_entry = ScheduleEntry(
@@ -1079,7 +1080,7 @@ class ScheduleManager:
                 # Update current_time to after this scheduled post
                 current_time = next_time
 
-            except Exception as e:
+            except Exception as e:  # Per-video boundary
                 logger.error("Unexpected error processing %s: %s", video, e)
                 failed_count += 1
                 continue

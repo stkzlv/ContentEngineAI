@@ -6,10 +6,11 @@ metadata, configuration, and batch summaries.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
@@ -626,8 +627,6 @@ class RecurringSlot:
             >>> # Returns next Monday at 10:00 UTC
 
         """
-        from zoneinfo import ZoneInfo
-
         # Validate after has timezone
         if after.tzinfo is None:
             raise ValueError("after datetime must be timezone-aware")
@@ -673,10 +672,7 @@ class RecurringSlot:
             days_ahead += 7
 
         # Calculate next occurrence
-        next_date = after_local.date()
-        from datetime import timedelta
-
-        next_date = next_date + timedelta(days=days_ahead)
+        next_date = after_local.date() + timedelta(days=days_ahead)
         next_datetime = datetime(
             next_date.year,
             next_date.month,
