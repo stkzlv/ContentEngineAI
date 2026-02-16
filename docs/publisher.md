@@ -157,6 +157,8 @@ Use `--account NAME` CLI flag to switch accounts at runtime:
 poetry run python -m src.publisher.late single B0ABC123 --account staging
 ```
 
+> **Note:** The `backoff_multiplier` key is deprecated and silently ignored. Use `retry_delay` and `retry_max_attempts` instead.
+
 See [Configuration](#-configuration) for full options.
 
 ### 4. Verify Setup
@@ -548,7 +550,7 @@ export LATE_STAGGER_MAX=30
 **TikTok:**
 - Privacy: `public`, `friends`, `private`
 - Supports scheduled publishing
-- Max caption length: 2200 characters (includes hashtags)
+- Max caption length: 150 characters (includes hashtags)
 - **Content Disclosure** (required for commercial accounts):
   - `commercial_content_type`: `"brand_organic"` (Your Brand) or `"branded_content"` (Branded Content)
   - `is_brand_organic_post`: `true` for Your Brand posts
@@ -1819,6 +1821,39 @@ class BasePublisher(ABC):
     ) -> dict:
         """Publish media to platforms."""
 ```
+
+</details>
+
+<details>
+<summary><strong>Module Reference</strong></summary>
+
+**`src/publisher/constants.py`** — Shared constants used across the publisher module:
+
+| Constant | Value | Usage |
+|----------|-------|-------|
+| `SDK_LIST_PAGE_SIZE` | `100` | Page size for Late SDK list operations |
+| `MAX_CONCURRENT_CLEANUPS` | `3` | Concurrent cleanup operations limit |
+| `DEFAULT_OUTPUTS_DIR` | `Path("outputs")` | Default outputs directory path |
+
+**`src/publisher/publish_modes.py`** — Shared publish orchestration used by CLI, global batch, and scheduler:
+
+```python
+from src.publisher.publish_modes import publish_product
+
+results = await publish_product(
+    publisher=publisher,
+    media_id="media_123",
+    product_id="B0ABC",
+    platforms=[{"platform": "youtube", "account_id": "acc_123"}],
+    outputs_dir="outputs",
+    platform_specific=False,  # True for per-platform metadata
+    schedule_time=None,       # datetime for scheduled posts
+)
+```
+
+**`src/publisher/tracking.py`** — Publish history tracking with atomic writes (temp-file + rename) to prevent corruption on crash. Key functions: `record_publish()`, `is_already_published()`, `load_tracking()`, `save_tracking()`.
+
+**`src/publisher/webhooks.py`** — Late.dev webhook event handling for post-publish status updates, failure notifications, and retry triggers.
 
 </details>
 

@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1164 tests** across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite with **1888 tests** across unit, integration, and end-to-end categories.
 
 ## Quick Start
 
@@ -102,11 +102,19 @@ tests/
 ├── publisher/
 │   ├── late/
 │   │   └── test_client.py           # Late.dev API client
+│   ├── test_accounts.py             # Account management
 │   ├── test_base.py                 # Base publisher interface
 │   ├── test_batch.py                # Batch publishing
 │   ├── test_cleanup.py              # Cleanup functionality
+│   ├── test_conflict_resolution.py  # Schedule conflict resolution
+│   ├── test_metadata.py             # Platform metadata loading
+│   ├── test_models.py               # Publisher models
+│   ├── test_product_registry.py     # Published products registry
+│   ├── test_publish_modes.py        # Unified/platform-specific modes
+│   ├── test_registry.py             # Provider registry
 │   ├── test_schedule*.py            # Scheduling tests (4 files)
-│   └── test_models.py               # Publisher models
+│   ├── test_tracking_extended.py    # Tracking atomic writes/retry queue
+│   └── test_webhooks.py             # Webhook event handling
 │
 ├── # Scraper Tests
 ├── scraper/
