@@ -142,9 +142,9 @@ async def cmd_list_accounts(
         logger.info("-" * 80)
 
         for account in accounts:
-            logger.info("Platform: %s", account['platform'])
-            logger.info("Account ID: %s", account['account_id'])
-            logger.info("Username: %s", account.get('username', 'N/A'))
+            logger.info("Platform: %s", account["platform"])
+            logger.info("Account ID: %s", account["account_id"])
+            logger.info("Username: %s", account.get("username", "N/A"))
             logger.info("-" * 80)
 
     except Exception as e:
@@ -298,9 +298,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             )
 
             if not platform_account:
-                logger.warning(
-                    "No connected account for %s, skipping", platform.value
-                )
+                logger.warning("No connected account for %s, skipping", platform.value)
                 continue
 
             platforms_to_publish.append(
@@ -401,12 +399,12 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
 
                 if cleanup_result["success"]:
-                    logger.info("✓ Cleanup complete: %s", cleanup_result['message'])
+                    logger.info("✓ Cleanup complete: %s", cleanup_result["message"])
                     disk_freed = cleanup_result["disk_freed"]
                     if isinstance(disk_freed, int) and disk_freed > 0:
                         logger.info("  Disk space freed: %s", format_bytes(disk_freed))
                 else:
-                    logger.warning("Cleanup skipped: %s", cleanup_result['message'])
+                    logger.warning("Cleanup skipped: %s", cleanup_result["message"])
 
             except Exception as cleanup_error:
                 logger.warning(
@@ -490,11 +488,11 @@ async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSes
                 )
 
                 logger.info("✓ Cleanup complete")
-                logger.info("  Products cleaned: %d", cleanup_summary['cleaned'])
-                logger.info("  Products skipped: %d", cleanup_summary['skipped'])
+                logger.info("  Products cleaned: %d", cleanup_summary["cleaned"])
+                logger.info("  Products skipped: %d", cleanup_summary["skipped"])
                 logger.info(
                     "  Total disk space freed: %s",
-                    format_bytes(cleanup_summary['disk_freed']),
+                    format_bytes(cleanup_summary["disk_freed"]),
                 )
 
             except Exception as cleanup_error:
@@ -576,7 +574,7 @@ async def cmd_calendar(
     for entry in entries:
         logger.info("Product: %s", entry.product_id)
         logger.info("Scheduled: %s (UTC)", entry.scheduled_time.isoformat())
-        logger.info("Platforms: %s", ', '.join([p.value for p in entry.platforms]))
+        logger.info("Platforms: %s", ", ".join([p.value for p in entry.platforms]))
         logger.info("Status: %s", entry.status)
         if entry.post_id:
             logger.info("Post ID: %s", entry.post_id)
@@ -689,11 +687,11 @@ async def cmd_schedule_auto(
         logger.info("AUTO-SCHEDULING SUMMARY")
         logger.info("=" * 80)
         logger.info("Total videos processed: %d", len(unpublished_videos))
-        logger.info("Successfully scheduled: %d", summary['scheduled'])
-        logger.info("Skipped (already scheduled): %d", summary['skipped'])
-        logger.info("Failed: %d", summary['failed'])
+        logger.info("Successfully scheduled: %d", summary["scheduled"])
+        logger.info("Skipped (already scheduled): %d", summary["skipped"])
+        logger.info("Failed: %d", summary["failed"])
         if summary.get("conflicts_resolved", 0) > 0:
-            logger.info("Conflicts auto-resolved: %d", summary['conflicts_resolved'])
+            logger.info("Conflicts auto-resolved: %d", summary["conflicts_resolved"])
         logger.info("=" * 80)
 
         if args.dry_run:
@@ -801,12 +799,12 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             )
 
             if result["success"]:
-                logger.info("✓ %s", result['message'])
+                logger.info("✓ %s", result["message"])
                 disk_freed = result["disk_freed"]
                 if isinstance(disk_freed, int) and disk_freed > 0:
                     logger.info("  Disk space freed: %s", format_bytes(disk_freed))
             else:
-                logger.warning("✗ %s", result['message'])
+                logger.warning("✗ %s", result["message"])
                 sys.exit(1)
 
         elif args.all:
@@ -823,10 +821,10 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             logger.info("=" * 80)
             logger.info("CLEANUP SUMMARY")
             logger.info("=" * 80)
-            logger.info("Products cleaned: %d", summary['cleaned'])
-            logger.info("Products skipped: %d", summary['skipped'])
+            logger.info("Products cleaned: %d", summary["cleaned"])
+            logger.info("Products skipped: %d", summary["skipped"])
             logger.info(
-                "Total disk space freed: %s", format_bytes(summary['disk_freed'])
+                "Total disk space freed: %s", format_bytes(summary["disk_freed"])
             )
             logger.info("=" * 80)
 
@@ -1283,7 +1281,8 @@ Examples:
         )
         logger.info(
             "Configuration loaded: provider=%s%s",
-            config.provider, account_info,
+            config.provider,
+            account_info,
         )
 
     except Exception as e:

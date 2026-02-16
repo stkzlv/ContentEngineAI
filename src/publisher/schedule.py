@@ -1053,7 +1053,8 @@ class ScheduleManager:
                             except Exception as cleanup_error:
                                 logger.warning(
                                     "Cleanup failed for %s: %s",
-                                    product_id, cleanup_error,
+                                    product_id,
+                                    cleanup_error,
                                 )
 
                     except Exception as e:

@@ -371,8 +371,9 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                     ]
                 except ValueError as e:
                     logger.warning(
-                        "Invalid platform in account '%s': %s, "
-                        "using empty list", name, e,
+                        "Invalid platform in account '%s': %s, " "using empty list",
+                        name,
+                        e,
                     )
 
             try:

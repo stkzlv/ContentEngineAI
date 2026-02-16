@@ -295,8 +295,7 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        "%s failed (HTTP %d), retrying in %ds "
-                        "(attempt %d/%d): %s",
+                        "%s failed (HTTP %d), retrying in %ds " "(attempt %d/%d): %s",
                         operation_name,
                         e.status,
                         delay,
@@ -339,8 +338,7 @@ class LatePublisher(BasePublisher):
                 if attempt < self.max_retries:
                     delay = DEFAULT_EXPONENTIAL_BACKOFF_BASE ** (attempt - 1)
                     logger.warning(
-                        "%s timed out after %ss, retrying in %ds "
-                        "(attempt %d/%d)",
+                        "%s timed out after %ss, retrying in %ds " "(attempt %d/%d)",
                         operation_name,
                         self.timeout,
                         delay,
@@ -422,9 +420,7 @@ class LatePublisher(BasePublisher):
                     logger.debug("Extracted Retry-After header: %ds", retry_after)
                 except ValueError:
                     # Retry-After might be HTTP date format, not seconds
-                    logger.debug(
-                        "Could not parse Retry-After header: %s", retry_header
-                    )
+                    logger.debug("Could not parse Retry-After header: %s", retry_header)
 
         return retry_after
 
@@ -580,9 +576,7 @@ class LatePublisher(BasePublisher):
             ...     print(f"{post['id']}: {post['scheduledFor']}")
 
         """
-        logger.info(
-            "Fetching posts from Late.dev (status=%s)", status or "all"
-        )
+        logger.info("Fetching posts from Late.dev (status=%s)", status or "all")
 
         try:
             # Fetch all posts with pagination
@@ -726,9 +720,7 @@ class LatePublisher(BasePublisher):
             if "401" in str(e) or "403" in str(e):
                 raise AuthenticationError(f"Authentication expired: {e}") from e
             if "404" in str(e):
-                logger.warning(
-                    "Post %s not found (may already be deleted)", post_id
-                )
+                logger.warning("Post %s not found (may already be deleted)", post_id)
                 return True  # Consider it deleted if not found
             raise PublishError(error_msg) from e
 
@@ -829,9 +821,7 @@ class LatePublisher(BasePublisher):
             if progress_pct >= last_logged_progress + 10:
                 up_mb = bytes_uploaded / (1024 * 1024)
                 tot_mb = total_bytes / (1024 * 1024)
-                logger.info(
-                    "Upload: %d%% (%.1f/%.1f MB)", progress_pct, up_mb, tot_mb
-                )
+                logger.info("Upload: %d%% (%.1f/%.1f MB)", progress_pct, up_mb, tot_mb)
                 last_logged_progress = progress_pct
 
             # Call user-provided callback if any
@@ -1031,9 +1021,7 @@ class LatePublisher(BasePublisher):
         platform_results = None
         if hasattr(post_response, "platform_results"):
             platform_results = post_response.platform_results
-        elif (
-            isinstance(post_response, dict) and "platform_results" in post_response
-        ):
+        elif isinstance(post_response, dict) and "platform_results" in post_response:
             platform_results = post_response.get("platform_results", [])
 
         if platform_results:
@@ -1049,9 +1037,7 @@ class LatePublisher(BasePublisher):
 
                 if pr_status in ("failed", "error"):
                     failures.append({"platform": name, "error": error})
-                    logger.warning(
-                        "Platform '%s' failed: %s", name, error
-                    )
+                    logger.warning("Platform '%s' failed: %s", name, error)
                 else:
                     logger.info("Platform '%s' succeeded", name)
 
@@ -1119,9 +1105,7 @@ class LatePublisher(BasePublisher):
         """
         platform_names = [p.get("platform", "unknown") for p in platforms]
         platforms_str = ", ".join(platform_names)
-        logger.info(
-            "Publishing to %d platform(s): %s", len(platforms), platforms_str
-        )
+        logger.info("Publishing to %d platform(s): %s", len(platforms), platforms_str)
 
         # Validate inputs
         if not media_id or not media_id.strip():

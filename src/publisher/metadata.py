@@ -227,7 +227,8 @@ def _load_from_instructions(
         if not description:
             logger.error(
                 "Could not extract %s from %s section",
-                description_field, platform.value,
+                description_field,
+                platform.value,
             )
             return None
 
@@ -247,9 +248,7 @@ def _load_from_instructions(
         # Validate character limits
         is_valid, error_msg = metadata.validate_limits()
         if not is_valid:
-            logger.warning(
-                "Metadata validation for %s: %s", platform.value, error_msg
-            )
+            logger.warning("Metadata validation for %s: %s", platform.value, error_msg)
 
         logger.debug(
             "Parsed instructions metadata: title=%d chars, desc=%d chars, hashtags=%d",

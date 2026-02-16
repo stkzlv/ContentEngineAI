@@ -424,7 +424,9 @@ class BatchPublisher:
             for platform in self.platforms:
                 logger.info(
                     "[%d/%d] Publishing to %s...",
-                    current_idx, total_count, platform.value,
+                    current_idx,
+                    total_count,
+                    platform.value,
                 )
 
                 # Load platform-specific metadata
