@@ -38,7 +38,7 @@ def load_registry(outputs_dir: Path) -> list[RegistryEntry]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return [RegistryEntry(**entry) for entry in data]
-    except Exception as exc:
+    except (json.JSONDecodeError, OSError, ValueError) as exc:
         logger.warning("Failed to load registry: %s", exc)
         return []
 
@@ -95,7 +95,7 @@ def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | No
             url=url,
             affiliate_url=affiliate_url,
         )
-    except Exception as exc:
+    except (json.JSONDecodeError, OSError, KeyError, ValueError) as exc:
         logger.warning("Failed to read data.json for %s: %s", product_id, exc)
         return None
 

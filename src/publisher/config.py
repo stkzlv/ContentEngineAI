@@ -6,6 +6,7 @@ This module provides three-tier configuration precedence:
 3. CLI arguments - highest precedence
 """
 
+import dataclasses
 import logging
 import os
 from pathlib import Path
@@ -74,7 +75,7 @@ def load_publisher_config(
     elif isinstance(config_path, str):
         config_path = Path(config_path)
 
-    logger.info(f"Loading publisher configuration from {config_path}")
+    logger.info("Loading publisher configuration from %s", config_path)
 
     # Load YAML config (lowest precedence)
     yaml_config = _load_yaml_config(config_path)
@@ -99,22 +100,21 @@ def load_publisher_config(
     _validate_required_fields(config_dict)
 
     # Strip keys not accepted by PublisherConfig (e.g. deprecated backoff_multiplier)
-    import dataclasses as _dc
-
-    _known = {f.name for f in _dc.fields(PublisherConfig)}
+    _known = {f.name for f in dataclasses.fields(PublisherConfig)}
     config_dict = {k: v for k, v in config_dict.items() if k in _known}
 
     # Convert to PublisherConfig dataclass
     try:
         config = PublisherConfig(**config_dict)
         logger.info(
-            f"Configuration loaded: provider={config.provider}, "
-            f"immediate_publish={config.immediate_publish}, "
-            f"max_retries={config.max_retries}"
+            "Configuration loaded: provider=%s, immediate_publish=%s, max_retries=%d",
+            config.provider,
+            config.immediate_publish,
+            config.max_retries,
         )
         return config
-    except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
+    except (ValueError, TypeError) as e:
+        logger.error("Configuration validation failed: %s", e)
         raise ValueError(f"Invalid publisher configuration: {e}") from e
 
 
@@ -132,7 +132,7 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
     """
     if not config_path.exists():
         logger.warning(
-            f"Config file not found: {config_path}, using defaults and env vars"
+            "Config file not found: %s, using defaults and env vars", config_path
         )
         return {}
 
@@ -141,16 +141,16 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
             config = yaml.safe_load(f)
             if not isinstance(config, dict):
                 logger.warning(
-                    f"Invalid YAML structure in {config_path}, using empty config"
+                    "Invalid YAML structure in %s, using empty config", config_path
                 )
                 return {}
-            logger.debug(f"Loaded YAML config from {config_path}")
+            logger.debug("Loaded YAML config from %s", config_path)
             return config
     except yaml.YAMLError as e:
-        logger.error(f"Error parsing YAML file {config_path}: {e}")
+        logger.error("Error parsing YAML file %s: %s", config_path, e)
         return {}
-    except Exception as e:
-        logger.error(f"Error loading config file {config_path}: {e}")
+    except OSError as e:
+        logger.error("Error loading config file %s: %s", config_path, e)
         return {}
 
 
@@ -200,9 +200,9 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
                 )
                 slots.append(slot)
             schedule_config_dict["slots"] = slots
-            logger.debug(f"Parsed {len(slots)} recurring slots from config")
-        except Exception as e:
-            logger.warning(f"Failed to parse recurring slots: {e}, using empty slots")
+            logger.debug("Parsed %d recurring slots from config", len(slots))
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to parse recurring slots: %s, using empty slots", e)
             schedule_config_dict["slots"] = []
 
     # From schedule_validation section
@@ -233,9 +233,9 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     if schedule_config_dict:
         try:
             result["schedule_config"] = ScheduleConfig(**schedule_config_dict)
-            logger.debug(f"Parsed schedule config: {schedule_config_dict}")
-        except Exception as e:
-            logger.warning(f"Failed to parse schedule config: {e}, using defaults")
+            logger.debug("Parsed schedule config: %s", schedule_config_dict)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to parse schedule config: %s, using defaults", e)
             result["schedule_config"] = ScheduleConfig()
     else:
         result["schedule_config"] = ScheduleConfig()
@@ -264,9 +264,9 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     if cleanup_config_dict:
         try:
             result["cleanup_config"] = CleanupConfig(**cleanup_config_dict)
-            logger.debug(f"Parsed cleanup config: {cleanup_config_dict}")
-        except Exception as e:
-            logger.warning(f"Failed to parse cleanup config: {e}, using defaults")
+            logger.debug("Parsed cleanup config: %s", cleanup_config_dict)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to parse cleanup config: %s, using defaults", e)
             result["cleanup_config"] = CleanupConfig()
     else:
         result["cleanup_config"] = CleanupConfig()
@@ -277,7 +277,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["link_in_bio_config"] = LinkInBioConfig(**link_in_bio_section)
             logger.debug("Parsed link_in_bio config: %s", link_in_bio_section)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse link_in_bio config: %s, using defaults", e)
             result["link_in_bio_config"] = LinkInBioConfig()
     else:
@@ -289,7 +289,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         try:
             result["tiktok_settings"] = TikTokContentSettings(**tiktok_section)
             logger.debug("Parsed tiktok_settings config: %s", tiktok_section)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
             result["tiktok_settings"] = TikTokContentSettings()
     else:
@@ -345,13 +345,13 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
         # Multi-account mode
         for name, account_data in accounts_section.items():
             if not isinstance(account_data, dict):
-                logger.warning(f"Invalid account config for '{name}', skipping")
+                logger.warning("Invalid account config for '%s', skipping", name)
                 continue
 
             # Get API key (supports env var reference)
             api_key = account_data.get("api_key")
             if not api_key:
-                logger.warning(f"Account '{name}' missing api_key, skipping")
+                logger.warning("Account '%s' missing api_key, skipping", name)
                 continue
 
             # Get vercel token
@@ -371,7 +371,9 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                     ]
                 except ValueError as e:
                     logger.warning(
-                        f"Invalid platform in account '{name}': {e}, using empty list"
+                        "Invalid platform in account '%s': %s, " "using empty list",
+                        name,
+                        e,
                     )
 
             try:
@@ -382,13 +384,13 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                     description=description,
                     default_platforms=default_platforms,
                 )
-                logger.debug(f"Parsed account: {name}")
+                logger.debug("Parsed account: %s", name)
             except ValueError as e:
-                logger.warning(f"Failed to create account '{name}': {e}")
+                logger.warning("Failed to create account '%s': %s", name, e)
 
         if accounts_dict:
             result["accounts"] = accounts_dict
-            logger.info(f"Loaded {len(accounts_dict)} account(s) from config")
+            logger.info("Loaded %d account(s) from config", len(accounts_dict))
 
             # Set default account if specified
             default_account = config.get("default_account")
@@ -398,7 +400,7 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                 default_acc = accounts_dict[default_account]
                 result["api_key"] = default_acc.api_key
                 result["vercel_token"] = default_acc.vercel_token
-                logger.info(f"Using default account: {default_account}")
+                logger.info("Using default account: %s", default_account)
             elif accounts_dict:
                 # Use first account if no default specified
                 first_account = next(iter(accounts_dict.values()))
@@ -406,7 +408,7 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                 result["api_key"] = first_account.api_key
                 result["vercel_token"] = first_account.vercel_token
                 logger.info(
-                    f"No default_account specified, using first: {first_account.name}"
+                    "No default_account specified, using first: %s", first_account.name
                 )
     else:
         # Single-account mode (legacy) - create "default" account if api_key exists
@@ -424,7 +426,7 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
                 result["active_account"] = "default"
                 logger.debug("Created default account from legacy config")
             except ValueError as e:
-                logger.debug(f"Could not create default account: {e}")
+                logger.debug("Could not create default account: %s", e)
 
     # Remove raw accounts section (already parsed)
     result.pop("default_account", None)
@@ -492,7 +494,7 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         try:
             result["max_retries"] = int(max_retries)
         except ValueError:
-            logger.warning(f"Invalid PUBLISHER_MAX_RETRIES: {max_retries}")
+            logger.warning("Invalid PUBLISHER_MAX_RETRIES: %s", max_retries)
 
     # Timeout
     timeout = os.environ.get("PUBLISHER_TIMEOUT")
@@ -500,7 +502,7 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         try:
             result["timeout"] = float(timeout)
         except ValueError:
-            logger.warning(f"Invalid PUBLISHER_TIMEOUT: {timeout}")
+            logger.warning("Invalid PUBLISHER_TIMEOUT: %s", timeout)
 
     # Default platforms (comma-separated)
     platforms_str = os.environ.get("PUBLISHER_DEFAULT_PLATFORMS")
@@ -509,7 +511,7 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
             platform_list = [p.strip() for p in platforms_str.split(",")]
             result["default_platforms"] = [Platform(p.lower()) for p in platform_list]
         except ValueError as e:
-            logger.warning(f"Invalid PUBLISHER_DEFAULT_PLATFORMS: {e}")
+            logger.warning("Invalid PUBLISHER_DEFAULT_PLATFORMS: %s", e)
 
     # Privacy settings (e.g., PUBLISHER_PRIVACY_YOUTUBE=public)
     for platform in ["youtube", "tiktok", "instagram"]:
@@ -566,7 +568,7 @@ def _apply_cli_overrides(
                         Platform(p) if isinstance(p, str) else p for p in value
                     ]
                 except ValueError as e:
-                    logger.warning(f"Invalid platform in CLI: {e}")
+                    logger.warning("Invalid platform in CLI: %s", e)
             continue
 
         if key == "immediate":
@@ -581,7 +583,7 @@ def _apply_cli_overrides(
                 result["active_account"] = value
                 result["api_key"] = account.api_key
                 result["vercel_token"] = account.vercel_token
-                logger.info(f"Switched to account: {value}")
+                logger.info("Switched to account: %s", value)
             else:
                 available = list(accounts.keys()) if accounts else []
                 raise ValueError(
@@ -593,7 +595,7 @@ def _apply_cli_overrides(
         # Direct mapping for other keys
         result[key] = value
 
-    logger.debug(f"Applied CLI overrides: {list(cli_overrides.keys())}")
+    logger.debug("Applied CLI overrides: %s", list(cli_overrides.keys()))
     return result
 
 
@@ -713,57 +715,58 @@ def create_default_config_file(
     # Ensure parent directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        # Write with comments manually for better formatting
-        sep = "# " + "=" * 77 + "\n"
-        f.write("# Publisher Configuration\n\n")
+    sep = "# " + "=" * 77
+    template = f"""\
+# Publisher Configuration
 
-        f.write(sep)
-        f.write("# SINGLE ACCOUNT MODE (Legacy - use env vars for credentials)\n")
-        f.write(sep)
-        f.write("provider: late\n")
-        f.write('api_key_env_var: "LATE_API_KEY"\n')
-        f.write('vercel_token_env_var: "LATE_VERCEL_TOKEN"\n\n')
+{sep}
+# SINGLE ACCOUNT MODE (Legacy - use env vars for credentials)
+{sep}
+provider: late
+api_key_env_var: "LATE_API_KEY"
+vercel_token_env_var: "LATE_VERCEL_TOKEN"
 
-        f.write(sep)
-        f.write("# MULTI-ACCOUNT MODE (uncomment to enable)\n")
-        f.write(sep)
-        f.write("# accounts:\n")
-        f.write("#   main:\n")
-        f.write("#     api_key: ${LATE_API_KEY}  # Use env var reference\n")
-        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN}\n")
-        f.write('#     description: "Main production account"\n')
-        f.write("#   secondary:\n")
-        f.write("#     api_key: ${LATE_API_KEY_2}\n")
-        f.write("#     vercel_token: ${LATE_VERCEL_TOKEN_2}\n")
-        f.write('#     description: "Overflow account for high volume"\n')
-        f.write("#     default_platforms:\n")
-        f.write("#       - youtube\n")
-        f.write("#       - tiktok\n")
-        f.write("# default_account: main  # Which account to use by default\n\n")
+{sep}
+# MULTI-ACCOUNT MODE (uncomment to enable)
+{sep}
+# accounts:
+#   main:
+#     api_key: ${{LATE_API_KEY}}  # Use env var reference
+#     vercel_token: ${{LATE_VERCEL_TOKEN}}
+#     description: "Main production account"
+#   secondary:
+#     api_key: ${{LATE_API_KEY_2}}
+#     vercel_token: ${{LATE_VERCEL_TOKEN_2}}
+#     description: "Overflow account for high volume"
+#     default_platforms:
+#       - youtube
+#       - tiktok
+# default_account: main  # Which account to use by default
 
-        f.write(sep)
-        f.write("# PUBLISHING BEHAVIOR\n")
-        f.write(sep)
-        f.write("immediate_publish: true\n")
-        f.write("default_platforms:\n")
-        f.write("  - youtube\n")
-        f.write("  - tiktok\n")
-        f.write("  - instagram\n\n")
+{sep}
+# PUBLISHING BEHAVIOR
+{sep}
+immediate_publish: true
+default_platforms:
+  - youtube
+  - tiktok
+  - instagram
 
-        f.write("# Retry and timeout settings\n")
-        f.write("max_retries: 3\n")
-        f.write("timeout: 120.0\n\n")
+# Retry and timeout settings
+max_retries: 3
+timeout: 120.0
 
-        f.write("# Batch publishing delays (seconds)\n")
-        f.write("stagger_delay_min: 30\n")
-        f.write("stagger_delay_max: 60\n\n")
+# Batch publishing delays (seconds)
+stagger_delay_min: 30
+stagger_delay_max: 60
 
-        f.write("# Privacy settings per platform\n")
-        f.write("privacy_settings:\n")
-        f.write("  youtube: public\n")
-        f.write("  tiktok: public\n")
-        f.write("  instagram: everyone\n")
+# Privacy settings per platform
+privacy_settings:
+  youtube: public
+  tiktok: public
+  instagram: everyone
+"""
+    output_path.write_text(template, encoding="utf-8")
 
-    logger.info(f"Created default config file: {output_path}")
+    logger.info("Created default config file: %s", output_path)
     print(f"Created default publisher config: {output_path}")

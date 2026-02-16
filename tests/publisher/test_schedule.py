@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.publisher.base import PublishError
 from src.publisher.models import Platform, RecurringSlot, ScheduleConfig, ScheduleEntry
 from src.publisher.schedule import ScheduleManager
 
@@ -158,7 +159,7 @@ class TestAutoSchedule:
         manager = ScheduleManager(temp_schedule_file, schedule_config_with_slots)
 
         # Mock is_already_published to return True for first video
-        with patch("src.publisher.tracking.is_already_published") as mock_check:
+        with patch("src.publisher.schedule.is_already_published") as mock_check:
             # First video is already published to YouTube
             def side_effect(product_id, platform):
                 return product_id == "B0TEST001" and platform == "youtube"
@@ -322,7 +323,7 @@ class TestAutoSchedule:
             nonlocal call_count
             call_count += 1
             if call_count == 2:
-                raise Exception("Publish failed")
+                raise PublishError("Publish failed")
             return {"post_id": f"post_{call_count}", "status": "scheduled"}
 
         mock_publisher.publish.side_effect = publish_side_effect

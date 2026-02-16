@@ -8,10 +8,12 @@ import contextlib
 import json
 import logging
 import shutil
+from asyncio import Semaphore, gather
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR, MAX_CONCURRENT_CLEANUPS
 from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
 
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 def get_schedule_entry(
     product_id: str,
     platform: str,
-    outputs_dir: Path = Path("outputs"),
+    outputs_dir: Path = DEFAULT_OUTPUTS_DIR,
 ) -> dict[str, Any] | None:
     """Get schedule entry for product/platform from schedule.json.
 
@@ -53,8 +55,8 @@ def get_schedule_entry(
                     return dict(entry) if isinstance(entry, dict) else None
 
         return None
-    except Exception as e:
-        logger.warning(f"Failed to load schedule.json: {e}")
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to load schedule.json: %s", e)
         return None
 
 
@@ -102,8 +104,9 @@ class CleanupManager:
         self.audit_log_path = self.outputs_dir / "cleanup_audit.json"
 
         logger.debug(
-            f"CleanupManager initialized with outputs_dir={outputs_dir}, "
-            f"enabled={config.enabled}"
+            "CleanupManager initialized with outputs_dir=%s, enabled=%s",
+            outputs_dir,
+            config.enabled,
         )
 
     def _calculate_dir_size(self, directory: Path) -> int:
@@ -132,7 +135,7 @@ class CleanupManager:
                 if item.is_file():
                     total_size += item.stat().st_size
         except OSError as e:
-            logger.warning(f"Error calculating size for {directory}: {e}")
+            logger.warning("Error calculating size for %s: %s", directory, e)
         return total_size
 
     def _log_cleanup(
@@ -177,8 +180,8 @@ class CleanupManager:
                 data = json.loads(self.audit_log_path.read_text())
                 if not isinstance(data, dict) or "cleanups" not in data:
                     data = {"cleanups": []}
-            except Exception as e:
-                logger.warning(f"Failed to load audit log, creating new: {e}")
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to load audit log, creating new: %s", e)
                 data = {"cleanups": []}
         else:
             data = {"cleanups": []}
@@ -202,11 +205,12 @@ class CleanupManager:
             temp_path.write_text(json.dumps(data, indent=2))
             temp_path.replace(self.audit_log_path)
             logger.info(
-                f"Logged cleanup for {product_id}: "
-                f"{disk_freed_bytes / 1024 / 1024:.2f} MB freed"
+                "Logged cleanup for %s: %.2f MB freed",
+                product_id,
+                disk_freed_bytes / 1024 / 1024,
             )
         except OSError as e:
-            logger.error(f"Failed to write audit log: {e}")
+            logger.error("Failed to write audit log: %s", e)
             if temp_path.exists():
                 temp_path.unlink()
             raise OSError(f"Failed to save cleanup audit log: {e}") from e
@@ -261,8 +265,9 @@ class CleanupManager:
             if not record:
                 platform_statuses[platform.value] = "not_published"
                 logger.warning(
-                    f"No publish or schedule record found for {product_id} on "
-                    f"{platform.value}"
+                    "No publish or schedule record found for %s on %s",
+                    product_id,
+                    platform.value,
                 )
                 continue
 
@@ -273,8 +278,9 @@ class CleanupManager:
             if local_status == "scheduled":
                 platform_statuses[platform.value] = "scheduled"
                 logger.debug(
-                    f"Platform {platform.value} status: scheduled "
-                    f"(post_id: {post_id}, from local record)"
+                    "Platform %s status: scheduled (post_id: %s, from local record)",
+                    platform.value,
+                    post_id,
                 )
                 continue
 
@@ -282,7 +288,7 @@ class CleanupManager:
             if not post_id:
                 platform_statuses[platform.value] = "missing_post_id"
                 logger.warning(
-                    f"Record missing post_id for {product_id} on {platform.value}"
+                    "Record missing post_id for %s on %s", product_id, platform.value
                 )
                 continue
 
@@ -292,13 +298,17 @@ class CleanupManager:
                 platform_statuses[platform.value] = status
 
                 logger.debug(
-                    f"Platform {platform.value} status: {status} "
-                    f"(post_id: {post_id}, from API)"
+                    "Platform %s status: %s (post_id: %s, from API)",
+                    platform.value,
+                    status,
+                    post_id,
                 )
-            except Exception as e:
+            except Exception as e:  # Network/SDK errors
                 logger.error(
-                    f"Failed to get status for {platform.value} "
-                    f"(post_id: {post_id}): {e}"
+                    "Failed to get status for %s (post_id: %s): %s",
+                    platform.value,
+                    post_id,
+                    e,
                 )
                 platform_statuses[platform.value] = "api_error"
 
@@ -317,14 +327,17 @@ class CleanupManager:
 
         if all_published:
             logger.info(
-                f"Verification passed for {product_id} "
-                f"(require_all={self.config.require_all_platforms})"
+                "Verification passed for %s (require_all=%s)",
+                product_id,
+                self.config.require_all_platforms,
             )
         else:
             failed = [
                 f"{p}={s}" for p, s in platform_statuses.items() if s != "published"
             ]
-            logger.warning(f"Verification failed for {product_id}: {', '.join(failed)}")
+            logger.warning(
+                "Verification failed for %s: %s", product_id, ", ".join(failed)
+            )
 
         return all_published, platform_statuses
 
@@ -371,7 +384,7 @@ class CleanupManager:
         archive_name = f"{product_id}_{timestamp}"
         archive_base = archive_dir / archive_name
 
-        logger.info(f"Creating archive for {product_id}...")
+        logger.info("Creating archive for %s...", product_id)
 
         try:
             # Create ZIP archive (shutil.make_archive adds .zip extension)
@@ -382,13 +395,14 @@ class CleanupManager:
 
             archive_size = archive_path_obj.stat().st_size
             logger.info(
-                f"Archive created: {archive_path_obj.name} "
-                f"({archive_size / 1024 / 1024:.2f} MB)"
+                "Archive created: %s (%.2f MB)",
+                archive_path_obj.name,
+                archive_size / 1024 / 1024,
             )
 
             return archive_path_obj
-        except Exception as e:
-            logger.error(f"Failed to create archive for {product_dir}: {e}")
+        except OSError as e:
+            logger.error("Failed to create archive for %s: %s", product_dir, e)
             raise OSError(f"Archive creation failed: {e}") from e
 
     def _should_cleanup(self, product_id: str, published_at: datetime | None) -> bool:
@@ -413,7 +427,7 @@ class CleanupManager:
 
         if not published_at:
             logger.warning(
-                f"No published_at timestamp for {product_id}, allowing cleanup"
+                "No published_at timestamp for %s, allowing cleanup", product_id
             )
             return True
 
@@ -423,14 +437,18 @@ class CleanupManager:
 
         if age >= required_age:
             logger.debug(
-                f"{product_id} is {age.days} days old "
-                f"(>= {self.config.keep_published_days}), cleanup allowed"
+                "%s is %d days old (>= %d), cleanup allowed",
+                product_id,
+                age.days,
+                self.config.keep_published_days,
             )
             return True
         else:
             logger.info(
-                f"{product_id} is only {age.days} days old "
-                f"(< {self.config.keep_published_days}), skipping cleanup"
+                "%s is only %d days old (< %d), skipping cleanup",
+                product_id,
+                age.days,
+                self.config.keep_published_days,
             )
             return False
 
@@ -505,7 +523,7 @@ class CleanupManager:
 
         # Verify publication if configured
         if self.config.verify_before_delete:
-            logger.info(f"Verifying publication status for {product_id}...")
+            logger.info("Verifying publication status for %s...", product_id)
             all_published, statuses = await self.verify_publication(
                 product_id, platforms
             )
@@ -529,8 +547,9 @@ class CleanupManager:
         # Dry run mode
         if dry_run:
             logger.info(
-                f"[DRY RUN] Would cleanup {product_id} "
-                f"({disk_freed / 1024 / 1024:.2f} MB)"
+                "[DRY RUN] Would cleanup %s (%.2f MB)",
+                product_id,
+                disk_freed / 1024 / 1024,
             )
             return {
                 "success": True,
@@ -546,8 +565,8 @@ class CleanupManager:
         if self.config.archive_before_delete:
             try:
                 archive_path = self.archive_directory(product_dir)
-            except Exception as e:
-                logger.error(f"Archive failed for {product_id}: {e}")
+            except OSError as e:
+                logger.error("Archive failed for %s: %s", product_id, e)
                 return {
                     "success": False,
                     "message": f"Archive creation failed: {e}",
@@ -565,11 +584,12 @@ class CleanupManager:
         try:
             shutil.rmtree(product_dir)
             logger.info(
-                f"Removed product directory: {product_id} "
-                f"({disk_freed / 1024 / 1024:.2f} MB freed)"
+                "Removed product directory: %s (%.2f MB freed)",
+                product_id,
+                disk_freed / 1024 / 1024,
             )
-        except Exception as e:
-            logger.error(f"Failed to remove directory {product_dir}: {e}")
+        except OSError as e:
+            logger.error("Failed to remove directory %s: %s", product_dir, e)
             return {
                 "success": False,
                 "message": f"Directory removal failed: {e}",
@@ -581,8 +601,8 @@ class CleanupManager:
             self._log_cleanup(
                 product_id, platforms, post_urls, disk_freed, archive_path
             )
-        except Exception as e:
-            logger.error(f"Failed to log cleanup for {product_id}: {e}")
+        except OSError as e:
+            logger.error("Failed to log cleanup for %s: %s", product_id, e)
             # Don't fail cleanup if logging fails
 
         return {
@@ -637,16 +657,14 @@ class CleanupManager:
             if not d.name.startswith(".") and d.name not in ["archive", "__pycache__"]
         ]
 
-        logger.info(f"Found {len(product_dirs)} product directories")
+        logger.info("Found %d product directories", len(product_dirs))
 
         cleaned = 0
         skipped = 0
         disk_freed = 0
 
         # Limit concurrent operations
-        from asyncio import Semaphore, gather
-
-        semaphore = Semaphore(3)  # Max 3 concurrent cleanups
+        semaphore = Semaphore(MAX_CONCURRENT_CLEANUPS)
 
         async def cleanup_with_semaphore(product_id: str):
             async with semaphore:
@@ -660,7 +678,7 @@ class CleanupManager:
 
         for result in results:
             if isinstance(result, Exception):
-                logger.error(f"Cleanup failed: {result}")
+                logger.error("Cleanup failed: %s", result)
                 skipped += 1
             elif isinstance(result, dict):
                 if result.get("success"):
@@ -672,8 +690,10 @@ class CleanupManager:
                 skipped += 1
 
         logger.info(
-            f"Cleanup complete: {cleaned} cleaned, {skipped} skipped, "
-            f"{disk_freed / 1024 / 1024:.2f} MB freed"
+            "Cleanup complete: %d cleaned, %d skipped, %.2f MB freed",
+            cleaned,
+            skipped,
+            disk_freed / 1024 / 1024,
         )
 
         return {"cleaned": cleaned, "skipped": skipped, "disk_freed": disk_freed}

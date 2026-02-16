@@ -33,7 +33,7 @@ class PublisherRegistry:
 
         """
         cls._providers[provider] = publisher_class
-        logger.debug(f"Registered publisher: {provider.value}")
+        logger.debug("Registered publisher: %s", provider.value)
 
     @classmethod
     def get_publisher_class(

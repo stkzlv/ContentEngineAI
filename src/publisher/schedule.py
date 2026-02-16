@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from src.publisher.base import PublishError
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -20,6 +21,7 @@ from src.publisher.models import (
     ScheduleEntry,
 )
 from src.publisher.schedule_validator import ScheduleValidator
+from src.publisher.tracking import is_already_published
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -73,7 +75,7 @@ class ScheduleManager:
         """
         if not self.schedule_path.exists():
             logger.debug(
-                f"Schedule file not found: {self.schedule_path}, starting empty"
+                "Schedule file not found: %s, starting empty", self.schedule_path
             )
             self.entries = []
             return
@@ -82,7 +84,7 @@ class ScheduleManager:
             data = json.loads(self.schedule_path.read_text())
             if not isinstance(data, dict):
                 logger.warning(
-                    f"Invalid schedule format in {self.schedule_path}, starting empty"
+                    "Invalid schedule format in %s, starting empty", self.schedule_path
                 )
                 self.entries = []
                 return
@@ -105,8 +107,6 @@ class ScheduleManager:
                     created_at = datetime.fromisoformat(entry_dict["created_at"])
 
                     # Parse platforms
-                    from src.publisher.models import Platform
-
                     platforms = [Platform(p) for p in entry_dict["platforms"]]
 
                     # Create ScheduleEntry
@@ -120,18 +120,18 @@ class ScheduleManager:
                         slot_index=entry_dict.get("slot_index"),
                     )
                     entries.append(entry)
-                except Exception as e:
-                    logger.warning(f"Failed to parse entry {entry_dict}: {e}")
+                except (ValueError, TypeError, KeyError) as e:
+                    logger.warning("Failed to parse entry %s: %s", entry_dict, e)
                     continue
 
             self.entries = entries
-            logger.info(f"Loaded {len(self.entries)} schedule entries")
+            logger.info("Loaded %d schedule entries", len(self.entries))
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse schedule JSON: {e}, starting empty")
+            logger.warning("Failed to parse schedule JSON: %s, starting empty", e)
             self.entries = []
-        except Exception as e:
-            logger.error(f"Error loading schedule: {e}, starting empty")
+        except OSError as e:
+            logger.error("Error loading schedule: %s, starting empty", e)
             self.entries = []
 
     def _save_schedule(self) -> None:
@@ -164,10 +164,12 @@ class ScheduleManager:
 
             # Atomic rename
             tmp_path.replace(self.schedule_path)
-            logger.debug(f"Saved {len(self.entries)} entries to {self.schedule_path}")
+            logger.debug(
+                "Saved %d entries to %s", len(self.entries), self.schedule_path
+            )
 
-        except Exception as e:
-            logger.error(f"Failed to save schedule: {e}")
+        except OSError as e:
+            logger.error("Failed to save schedule: %s", e)
             # Clean up temp file if it exists
             if tmp_path.exists():
                 tmp_path.unlink()
@@ -215,7 +217,8 @@ class ScheduleManager:
         # Validate slot_index
         if slot_index < 0 or slot_index >= len(slots):
             raise ValueError(
-                f"slot_index must be between 0 and {len(slots) - 1}, got {slot_index}"
+                "slot_index must be between 0 and %d, got %d"
+                % (len(slots) - 1, slot_index)
             )
 
         # Calculate next occurrence for each slot starting from slot_index
@@ -236,9 +239,9 @@ class ScheduleManager:
                     min_time = next_time
                     min_index = idx
 
-            except Exception as e:
+            except (ValueError, KeyError) as e:
                 logger.warning(
-                    f"Failed to calculate next occurrence for slot {idx}: {e}"
+                    "Failed to calculate next occurrence for slot %d: %s", idx, e
                 )
                 continue
 
@@ -350,15 +353,15 @@ class ScheduleManager:
 
                 if is_valid and next_time not in alternatives:
                     alternatives.append(next_time)
-                    logger.debug(f"Found alternative slot: {next_time}")
+                    logger.debug("Found alternative slot: %s", next_time)
 
                 # Move to next slot
                 search_time = next_time
                 current_slot = (next_idx + 1) % len(self.config.slots)
                 attempts += 1
 
-            except Exception as e:
-                logger.warning(f"Error finding alternative: {e}")
+            except (ValueError, KeyError) as e:
+                logger.warning("Error finding alternative: %s", e)
                 attempts += 1
                 break
 
@@ -366,7 +369,9 @@ class ScheduleManager:
         alternatives.sort(key=lambda t: abs((t - preferred_time).total_seconds()))
 
         logger.info(
-            f"Found {len(alternatives)} alternatives for conflict at {preferred_time}"
+            "Found %d alternatives for conflict at %s",
+            len(alternatives),
+            preferred_time,
         )
 
         return ConflictResolution(
@@ -421,8 +426,10 @@ class ScheduleManager:
             resolution.auto_resolved = True
             resolution.resolved_time = resolved_time
             logger.info(
-                f"Auto-resolved conflict: {preferred_time} -> {resolved_time} "
-                f"(reason: {resolution.conflict_reason})"
+                "Auto-resolved conflict: %s -> %s (reason: %s)",
+                preferred_time,
+                resolved_time,
+                resolution.conflict_reason,
             )
 
         return resolution
@@ -460,8 +467,6 @@ class ScheduleManager:
             ... )
 
         """
-        from src.publisher.models import Platform
-
         # Start with all entries
         filtered = self.entries.copy()
 
@@ -474,7 +479,7 @@ class ScheduleManager:
                     entry for entry in filtered if platform_enum in entry.platforms
                 ]
             except ValueError:
-                logger.warning(f"Invalid platform '{platform}', returning empty list")
+                logger.warning("Invalid platform '%s', returning empty list", platform)
                 return []
 
         # Filter by status
@@ -505,9 +510,14 @@ class ScheduleManager:
         filtered.sort(key=lambda e: e.scheduled_time)
 
         logger.debug(
-            f"Filtered {len(self.entries)} entries to {len(filtered)} "
-            f"(platform={platform}, status={status}, "
-            f"date_from={date_from}, date_to={date_to})"
+            "Filtered %d entries to %d "
+            "(platform=%s, status=%s, date_from=%s, date_to=%s)",
+            len(self.entries),
+            len(filtered),
+            platform,
+            status,
+            date_from,
+            date_to,
         )
 
         return filtered
@@ -580,15 +590,12 @@ class ScheduleManager:
             )
 
         logger.info(
-            f"Auto-scheduling {len(videos)} video(s) to "
-            f"{len(self.config.slots)} recurring slot(s)"
+            "Auto-scheduling %d video(s) to %d recurring slot(s)",
+            len(videos),
+            len(self.config.slots),
         )
-        logger.info(f"Platforms: {', '.join([p.value for p in platforms])}")
-        logger.info(f"Start slot: {start_slot}, Dry run: {dry_run}")
-
-        # Import tracking utilities and models
-        from src.publisher.models import Platform
-        from src.publisher.tracking import is_already_published
+        logger.info("Platforms: %s", ", ".join([p.value for p in platforms]))
+        logger.info("Start slot: %d, Dry run: %s", start_slot, dry_run)
 
         # Initialize reference time for calculating next slot
         current_time = datetime.now(UTC)
@@ -603,7 +610,7 @@ class ScheduleManager:
             logger.debug("Fetching existing posts from API (all statuses)...")
             # Fetch ALL posts (scheduled + published) to avoid slot conflicts
             api_posts = await publisher.list_posts()
-            logger.debug(f"Found {len(api_posts)} posts on API")
+            logger.debug("Found %d posts on API", len(api_posts))
 
             # Build set of all occupied slot times from API posts
             for api_post in api_posts:
@@ -627,7 +634,7 @@ class ScheduleManager:
                 normalized = scheduled_dt.replace(second=0, microsecond=0)
                 occupied_slot_times.add(normalized)
 
-            logger.info(f"Found {len(occupied_slot_times)} occupied slots from API")
+            logger.info("Found %d occupied slots from API", len(occupied_slot_times))
 
             # Also include local schedule entries in occupied slots
             # This prevents duplicates and enables proper gap-filling
@@ -636,21 +643,23 @@ class ScheduleManager:
                 occupied_slot_times.add(normalized)
 
             logger.info(
-                f"Total {len(occupied_slot_times)} occupied slots " f"(API + local)"
+                "Total %d occupied slots (API + local)", len(occupied_slot_times)
             )
 
             # Log latest post time for debugging, but keep current_time at NOW
             # to enable gap-filling from current time forward
             if occupied_slot_times:
                 api_latest_time = max(occupied_slot_times)
-                logger.info(f"Latest post on API: {api_latest_time}")
+                logger.info("Latest post on API: %s", api_latest_time)
                 logger.info(
-                    f"Searching for next available slot from now ({current_time}), "
-                    f"skipping {len(occupied_slot_times)} occupied slots"
+                    "Searching for next available slot from now (%s), "
+                    "skipping %d occupied slots",
+                    current_time,
+                    len(occupied_slot_times),
                 )
 
-        except Exception as e:
-            logger.warning(f"Failed to check API schedule: {e}")
+        except (PublishError, OSError, TimeoutError) as e:
+            logger.warning("Failed to check API schedule: %s", e)
 
         # Initialize counters
         scheduled_count = 0
@@ -677,7 +686,7 @@ class ScheduleManager:
                 # Extract product_id from video path
                 # e.g., "outputs/B0ABC123/video_B0ABC123.mp4" -> "B0ABC123"
                 product_id = video.parent.name
-                logger.debug(f"Processing video: {product_id}")
+                logger.debug("Processing video: %s", product_id)
 
                 # Check if already published to ANY of the specified platforms
                 already_published = []
@@ -687,8 +696,9 @@ class ScheduleManager:
 
                 if already_published:
                     logger.info(
-                        f"Skipping {product_id}: already published to "
-                        f"{', '.join(already_published)}"
+                        "Skipping %s: already published to %s",
+                        product_id,
+                        ", ".join(already_published),
                     )
                     skipped_count += 1
                     continue
@@ -712,26 +722,28 @@ class ScheduleManager:
                         # Check if slot is occupied by API post
                         if normalized not in occupied_slot_times:
                             logger.debug(
-                                f"Next slot for {product_id}: "
-                                f"{next_time} (slot {next_idx})"
+                                "Next slot for %s: %s (slot %d)",
+                                product_id,
+                                next_time,
+                                next_idx,
                             )
                             break
 
                         # Slot occupied, try next one
                         logger.debug(
-                            f"Slot {next_time} occupied by API post, trying next slot"
+                            "Slot %s occupied by API post, trying next slot", next_time
                         )
                         search_time = next_time
                         attempts += 1
 
                     if attempts >= max_attempts:
                         raise ValueError(
-                            f"Could not find available slot after "
-                            f"{max_attempts} attempts"
+                            "Could not find available slot after %d attempts"
+                            % max_attempts
                         )
 
-                except Exception as e:
-                    logger.error(f"Failed to calculate next slot: {e}")
+                except (ValueError, KeyError) as e:
+                    logger.error("Failed to calculate next slot: %s", e)
                     failed_count += 1
                     continue
 
@@ -761,9 +773,11 @@ class ScheduleManager:
                         )
                         if resolution.auto_resolved and resolution.resolved_time:
                             logger.info(
-                                f"Conflict resolved for {product_id}: "
-                                f"{next_time} -> {resolution.resolved_time} "
-                                f"(reason: {resolution.conflict_reason})"
+                                "Conflict resolved for %s: %s -> %s (reason: %s)",
+                                product_id,
+                                next_time,
+                                resolution.resolved_time,
+                                resolution.conflict_reason,
                             )
                             next_time = resolution.resolved_time
                             conflicts_resolved_count += 1
@@ -773,19 +787,20 @@ class ScheduleManager:
                             )
                         else:
                             logger.warning(
-                                f"Could not resolve conflict for {product_id}: "
-                                f"{error_message}"
+                                "Could not resolve conflict for %s: %s",
+                                product_id,
+                                error_message,
                             )
                             if resolution.alternatives:
                                 alt_str = ", ".join(
                                     t.isoformat() for t in resolution.alternatives[:3]
                                 )
-                                logger.info(f"Available alternatives: {alt_str}")
+                                logger.info("Available alternatives: %s", alt_str)
                             failed_count += 1
                             continue
                     else:
                         logger.warning(
-                            f"Validation failed for {product_id}: {error_message}"
+                            "Validation failed for %s: %s", product_id, error_message
                         )
                         # Suggest alternatives even without auto-resolve
                         resolution = self.find_alternatives(
@@ -798,7 +813,7 @@ class ScheduleManager:
                                 t.isoformat() for t in resolution.alternatives[:3]
                             )
                             logger.info(
-                                f"Suggested alternatives for {product_id}: {alt_str}"
+                                "Suggested alternatives for %s: %s", product_id, alt_str
                             )
                             logger.info("Use --auto-resolve to automatically use first")
                         failed_count += 1
@@ -807,15 +822,20 @@ class ScheduleManager:
                 if dry_run:
                     # Dry run mode: just log without publishing
                     logger.info(
-                        f"[DRY RUN] Would schedule {product_id} at "
-                        f"{next_time} (slot {next_idx})"
+                        "[DRY RUN] Would schedule %s at %s (slot %d)",
+                        product_id,
+                        next_time,
+                        next_idx,
                     )
                     scheduled_count += 1
                 else:
                     # Call publisher.publish() with scheduled_time
                     try:
                         logger.info(
-                            f"Scheduling {product_id} at {next_time} (slot {next_idx})"
+                            "Scheduling %s at %s (slot %d)",
+                            product_id,
+                            next_time,
+                            next_idx,
                         )
 
                         # Get actual account IDs from publisher
@@ -829,7 +849,7 @@ class ScheduleManager:
                         for p in platforms:
                             account_id = account_map.get(p.value)
                             if not account_id:
-                                logger.warning(f"No account for {p.value}")
+                                logger.warning("No account for %s", p.value)
                                 continue
                             platform_dicts.append(
                                 {
@@ -845,8 +865,6 @@ class ScheduleManager:
                         media_id = await publisher.upload_media(video)
 
                         # Build per-platform content from metadata files
-                        import json
-
                         platform_contents = {}
 
                         # Try unified metadata.json first
@@ -854,7 +872,9 @@ class ScheduleManager:
                         unified_meta = None
                         if unified_meta_path.exists():
                             unified_meta = json.loads(unified_meta_path.read_text())
-                            logger.debug(f"Using unified metadata: {unified_meta_path}")
+                            logger.debug(
+                                "Using unified metadata: %s", unified_meta_path
+                            )
 
                         for p in platforms:
                             meta = None
@@ -933,8 +953,10 @@ class ScheduleManager:
 
                                 self.entries.append(platform_entry)
                                 logger.info(
-                                    f"Scheduled {product_id} on {p_name} "
-                                    f"(post: {platform_entry.post_id})"
+                                    "Scheduled %s on %s (post: %s)",
+                                    product_id,
+                                    p_name,
+                                    platform_entry.post_id,
                                 )
 
                             # Mark slot as occupied
@@ -996,8 +1018,10 @@ class ScheduleManager:
                                 p["platform"] for p in platform_dicts
                             )
                             logger.info(
-                                f"Scheduled {product_id} on {platform_names} "
-                                f"(post: {unified_entry.post_id})"
+                                "Scheduled %s on %s (post: %s)",
+                                product_id,
+                                platform_names,
+                                unified_entry.post_id,
                             )
 
                             # Mark slot as occupied
@@ -1017,21 +1041,25 @@ class ScheduleManager:
                                 if cleanup_result.get("success"):
                                     cleaned_count += 1
                                     logger.info(
-                                        f"Cleaned up {product_id}: "
-                                        f"{cleanup_result.get('message', 'success')}"
+                                        "Cleaned up %s: %s",
+                                        product_id,
+                                        cleanup_result.get("message", "success"),
                                     )
                                 else:
                                     logger.warning(
-                                        f"Cleanup skipped for {product_id}: "
-                                        f"{cleanup_result.get('message', 'unknown')}"
+                                        "Cleanup skipped for %s: %s",
+                                        product_id,
+                                        cleanup_result.get("message", "unknown"),
                                     )
-                            except Exception as cleanup_error:
+                            except (OSError, ValueError) as cleanup_error:
                                 logger.warning(
-                                    f"Cleanup failed for {product_id}: {cleanup_error}"
+                                    "Cleanup failed for %s: %s",
+                                    product_id,
+                                    cleanup_error,
                                 )
 
-                    except Exception as e:
-                        logger.error(f"Failed to schedule {product_id}: {e}")
+                    except (PublishError, OSError, TimeoutError) as e:
+                        logger.error("Failed to schedule %s: %s", product_id, e)
                         # Create failed entry for tracking
                         failed_entry = ScheduleEntry(
                             product_id=product_id,
@@ -1052,8 +1080,8 @@ class ScheduleManager:
                 # Update current_time to after this scheduled post
                 current_time = next_time
 
-            except Exception as e:
-                logger.error(f"Unexpected error processing {video}: {e}")
+            except Exception as e:  # Per-video boundary
+                logger.error("Unexpected error processing %s: %s", video, e)
                 failed_count += 1
                 continue
 
@@ -1066,7 +1094,7 @@ class ScheduleManager:
         ]
         if conflicts_resolved_count > 0:
             summary_parts.append(f"conflicts_resolved={conflicts_resolved_count}")
-        logger.info(f"Auto-schedule complete: {', '.join(summary_parts)}")
+        logger.info("Auto-schedule complete: %s", ", ".join(summary_parts))
 
         return {
             "scheduled": scheduled_count,
@@ -1114,26 +1142,31 @@ class ScheduleManager:
         is_valid, error_message = validator.validate(entry)
 
         if not is_valid:
-            logger.warning(f"Validation failed for {entry.product_id}: {error_message}")
+            logger.warning(
+                "Validation failed for %s: %s", entry.product_id, error_message
+            )
             raise ValueError(f"Entry validation failed: {error_message}")
 
         # Add to entries list
         self.entries.append(entry)
         logger.debug(
-            f"Adding entry for {entry.product_id} scheduled at {entry.scheduled_time}"
+            "Adding entry for %s scheduled at %s",
+            entry.product_id,
+            entry.scheduled_time,
         )
 
         # Atomic write to disk
         try:
             self._save_schedule()
             logger.info(
-                f"Successfully added entry for {entry.product_id} "
-                f"(total entries: {len(self.entries)})"
+                "Successfully added entry for %s (total entries: %d)",
+                entry.product_id,
+                len(self.entries),
             )
-        except Exception as e:
+        except OSError as e:
             # Roll back on write failure
             self.entries.pop()
-            logger.error(f"Failed to save schedule after adding entry: {e}")
+            logger.error("Failed to save schedule after adding entry: %s", e)
             raise OSError(f"Failed to save schedule: {e}") from e
 
     def remove_entries(
@@ -1168,7 +1201,7 @@ class ScheduleManager:
             try:
                 platform = Platform(platform.lower())
             except ValueError:
-                logger.warning(f"Invalid platform '{platform}'")
+                logger.warning("Invalid platform '%s'", platform)
                 return 0
 
         original_count = len(self.entries)
@@ -1187,9 +1220,12 @@ class ScheduleManager:
 
         if removed_count > 0:
             self._save_schedule()
+            platform_suffix = f" on {platform.value}" if platform else ""
             logger.info(
-                f"Removed {removed_count} entries for {product_id}"
-                + (f" on {platform.value}" if platform else "")
+                "Removed %d entries for %s%s",
+                removed_count,
+                product_id,
+                platform_suffix,
             )
 
         return removed_count
@@ -1262,10 +1298,10 @@ class ScheduleManager:
         # Remove entries (in reverse order to preserve indices)
         for idx in sorted(to_remove, reverse=True):
             removed = self.entries.pop(idx)
-            logger.debug(f"Removed duplicate: {removed.product_id}")
+            logger.debug("Removed duplicate: %s", removed.product_id)
 
         if to_remove:
             self._save_schedule()
-            logger.info(f"Removed {len(to_remove)} duplicate entries")
+            logger.info("Removed %d duplicate entries", len(to_remove))
 
         return len(to_remove)

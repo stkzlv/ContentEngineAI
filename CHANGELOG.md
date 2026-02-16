@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-02-16
+
+### Fixed
+- **Correctness**: Remove wrong past-time validation from `PublishResult.__post_init__` (broke deserialized historical results)
+- **Correctness**: Make `save_tracking()` atomic via temp-file + rename (prevents corruption on crash)
+- **Correctness**: Fix timezone-naive `datetime.now()` in `ScheduleEntry.created_at`
+- **Performance**: Hoist `get_accounts()` out of platform loop in batch publisher (N×M → 1 API call)
+- **TikTok docs**: Fix caption limit from 2200 to 150 characters (matching `PLATFORM_LIMITS`)
+
+### Changed
+- **Logging**: Convert 120+ f-string log calls to lazy `%s`/`%d` format across publisher module
+- **Exception handling**: Narrow 15+ bare `except Exception` to specific types (`PublishError`, `OSError`, `TimeoutError`, `ValueError`, `yaml.YAMLError`, `json.JSONDecodeError`)
+- **Type safety**: Fix `publisher: object` → `BasePublisher` in `publish_modes.py` using `TYPE_CHECKING`
+- **Constants**: Extract `PLATFORM_LIMITS`, `SDK_LIST_PAGE_SIZE`, `MAX_CONCURRENT_CLEANUPS`, `DEFAULT_OUTPUTS_DIR` to `constants.py`
+- **DRY**: Extract `_create_publisher_from_config()` (6 call sites), `_call_sdk()` (12+ patterns), split 300-line `publish()` into focused helpers
+- **Config**: Simplify `create_default_config_file()` with template string (was 30 `f.write()` calls)
+
+### Added
+- Tests for `publish_modes.py` (0% → 98% coverage), `metadata.py` (10% → 62%), `tracking.py` (61% → 94%)
+
 ## [0.29.0] - 2026-02-09
 
 ### Added

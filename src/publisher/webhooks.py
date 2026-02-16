@@ -24,6 +24,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.tracking import load_tracking, save_tracking
 from src.video.config.constants import WEBHOOK_EVENT_HISTORY_LIMIT
 
@@ -98,7 +99,7 @@ class WebhookHandler:
     -------
         >>> handler = WebhookHandler(
         ...     secret="your-webhook-secret",
-        ...     outputs_dir=Path("outputs")
+        ...     outputs_dir=DEFAULT_OUTPUTS_DIR
         ... )
         >>> # In your web framework endpoint:
         >>> event = handler.process_webhook(
@@ -115,7 +116,7 @@ class WebhookHandler:
     def __init__(
         self,
         secret: str | None = None,
-        outputs_dir: Path | str = Path("outputs"),
+        outputs_dir: Path | str = DEFAULT_OUTPUTS_DIR,
     ):
         """Initialize webhook handler.
 
@@ -137,8 +138,9 @@ class WebhookHandler:
             )
 
         logger.info(
-            f"WebhookHandler initialized: outputs_dir={self.outputs_dir}, "
-            f"signature_verification={'enabled' if secret else 'disabled'}"
+            "WebhookHandler initialized: outputs_dir=%s, signature_verification=%s",
+            self.outputs_dir,
+            "enabled" if secret else "disabled",
         )
 
     def verify_signature(self, payload: bytes, signature: str | None) -> bool:
@@ -282,31 +284,44 @@ class WebhookHandler:
             raw_payload=payload,
         )
 
-    def is_event_processed(self, event_id: str) -> bool:
+    def is_event_processed(
+        self,
+        event_id: str,
+        tracking: dict | None = None,
+    ) -> bool:
         """Check if event was already processed (idempotency check).
 
         Args:
         ----
             event_id: Unique event identifier
+            tracking: Pre-loaded tracking dict (avoids redundant file read)
 
         Returns:
         -------
             True if event was already processed
 
         """
-        tracking = load_tracking(self.outputs_dir)
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
         processed_events = tracking.get("webhook_events", {})
         return event_id in processed_events
 
-    def mark_event_processed(self, event: WebhookEvent) -> None:
+    def mark_event_processed(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Mark event as processed for idempotency.
 
         Args:
         ----
             event: Processed webhook event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
         if "webhook_events" not in tracking:
             tracking["webhook_events"] = {}
 
@@ -328,21 +343,29 @@ class WebhookHandler:
                 sorted_events[:WEBHOOK_EVENT_HISTORY_LIMIT]
             )
 
-        save_tracking(tracking, self.outputs_dir)
+        if save:
+            save_tracking(tracking, self.outputs_dir)
 
-    def update_post_status(self, event: WebhookEvent) -> None:
+    def update_post_status(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Update post status in tracking based on webhook event.
 
         Args:
         ----
             event: Parsed webhook event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
         if not event.post_id:
-            logger.debug(f"No post_id in event {event.event_type.value}, skipping")
+            logger.debug("No post_id in event %s, skipping", event.event_type.value)
             return
 
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
 
         # Initialize post_status section if needed
         if "post_status" not in tracking:
@@ -369,22 +392,30 @@ class WebhookHandler:
             "event_type": event.event_type.value,
         }
 
-        save_tracking(tracking, self.outputs_dir)
-        logger.info(f"Updated post status: {event.post_id} -> {status}")
+        if save:
+            save_tracking(tracking, self.outputs_dir)
+        logger.info("Updated post status: %s -> %s", event.post_id, status)
 
-    def handle_account_disconnected(self, event: WebhookEvent) -> None:
+    def handle_account_disconnected(
+        self,
+        event: WebhookEvent,
+        tracking: dict | None = None,
+    ) -> None:
         """Handle account disconnection event.
 
         Args:
         ----
             event: Account disconnected event
+            tracking: Pre-loaded tracking dict (caller saves)
 
         """
         if not event.account_id:
             logger.warning("Account disconnected event without account_id")
             return
 
-        tracking = load_tracking(self.outputs_dir)
+        save = tracking is None
+        if tracking is None:
+            tracking = load_tracking(self.outputs_dir)
 
         # Initialize disconnected_accounts section if needed
         if "disconnected_accounts" not in tracking:
@@ -396,8 +427,9 @@ class WebhookHandler:
             "raw_event": event.raw_payload,
         }
 
-        save_tracking(tracking, self.outputs_dir)
-        logger.warning(f"Account disconnected: {event.account_id}")
+        if save:
+            save_tracking(tracking, self.outputs_dir)
+        logger.warning("Account disconnected: %s", event.account_id)
 
     def process_webhook(
         self,
@@ -456,25 +488,31 @@ class WebhookHandler:
         # Step 2: Parse event
         event = self.parse_event(payload_dict)
         logger.info(
-            f"Received webhook: {event.event_type.value} "
-            f"(post_id={event.post_id}, event_id={event.event_id})"
+            "Received webhook: %s (post_id=%s, event_id=%s)",
+            event.event_type.value,
+            event.post_id,
+            event.event_id,
         )
 
+        # Load tracking once for all operations
+        tracking = load_tracking(self.outputs_dir)
+
         # Step 3: Idempotency check
-        if self.is_event_processed(event.event_id):
-            logger.info(f"Event already processed, skipping: {event.event_id}")
+        if self.is_event_processed(event.event_id, tracking=tracking):
+            logger.info("Event already processed, skipping: %s", event.event_id)
             return event
 
         # Step 4: Update tracking based on event type
         if event.event_type == WebhookEventType.ACCOUNT_DISCONNECTED:
-            self.handle_account_disconnected(event)
+            self.handle_account_disconnected(event, tracking=tracking)
         else:
-            self.update_post_status(event)
+            self.update_post_status(event, tracking=tracking)
 
-        # Step 5: Mark as processed
-        self.mark_event_processed(event)
+        # Step 5: Mark as processed and save once
+        self.mark_event_processed(event, tracking=tracking)
+        save_tracking(tracking, self.outputs_dir)
 
-        logger.info(f"Webhook processed successfully: {event.event_id}")
+        logger.info("Webhook processed successfully: %s", event.event_id)
         return event
 
 
@@ -485,7 +523,7 @@ class WebhookHandler:
 
 def get_post_status(
     post_id: str,
-    outputs_dir: Path = Path("outputs"),
+    outputs_dir: Path = DEFAULT_OUTPUTS_DIR,
 ) -> dict[str, Any] | None:
     """Get current status for a post from webhook updates.
 
@@ -504,7 +542,7 @@ def get_post_status(
 
 
 def get_disconnected_accounts(
-    outputs_dir: Path = Path("outputs"),
+    outputs_dir: Path = DEFAULT_OUTPUTS_DIR,
 ) -> list[dict[str, Any]]:
     """Get list of disconnected accounts from webhook events.
 
@@ -518,7 +556,7 @@ def get_disconnected_accounts(
 
 
 def clear_webhook_events(
-    outputs_dir: Path = Path("outputs"),
+    outputs_dir: Path = DEFAULT_OUTPUTS_DIR,
 ) -> int:
     """Clear processed webhook events history.
 
@@ -533,6 +571,6 @@ def clear_webhook_events(
     if count > 0:
         tracking["webhook_events"] = {}
         save_tracking(tracking, outputs_dir)
-        logger.info(f"Cleared webhook events: {count} event(s)")
+        logger.info("Cleared webhook events: %d event(s)", count)
 
     return count

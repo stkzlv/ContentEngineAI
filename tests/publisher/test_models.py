@@ -87,7 +87,6 @@ class TestPublishResult:
         """Test PublishResult with scheduled_time."""
         from datetime import timedelta
 
-        # Use future date (7 days from now) to avoid validation error
         scheduled_time = datetime.now(UTC) + timedelta(days=7)
         result = PublishResult(
             post_id="post_123",
@@ -98,6 +97,20 @@ class TestPublishResult:
 
         assert result.scheduled_time == scheduled_time
         assert result.status == PublishStatus.SCHEDULED
+
+    def test_publish_result_with_past_scheduled_time(self):
+        """Test PublishResult accepts past scheduled_time (historical results)."""
+        from datetime import timedelta
+
+        past_time = datetime.now(UTC) - timedelta(days=30)
+        result = PublishResult(
+            post_id="post_123",
+            status=PublishStatus.PUBLISHED,
+            platforms=(Platform.YOUTUBE,),
+            scheduled_time=past_time,
+        )
+
+        assert result.scheduled_time == past_time
 
     def test_publish_result_with_error(self):
         """Test PublishResult with error_message."""

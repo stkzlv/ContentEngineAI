@@ -6,10 +6,11 @@ metadata, configuration, and batch summaries.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
@@ -36,6 +37,13 @@ class Platform(Enum):
 
 
 DEFAULT_PLATFORMS = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+
+# Platform-specific content limits for validation
+PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
+    Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
+    Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
+    Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
+}
 
 
 @dataclass(frozen=True)
@@ -74,12 +82,6 @@ class PublishResult:
         # Validate platforms list is not empty
         if not self.platforms:
             raise ValueError("platforms cannot be empty")
-
-        # Validate scheduled_time is not in the past (if provided)
-        if self.scheduled_time and self.scheduled_time < datetime.now(
-            self.scheduled_time.tzinfo
-        ):
-            raise ValueError("scheduled_time cannot be in the past")
 
         # Validate error_message is provided for FAILED status
         if self.status == PublishStatus.FAILED and not self.error_message:
@@ -164,13 +166,7 @@ class PublishMetadata:
                 - message: "Content within limits" if valid, error desc if invalid
 
         """
-        limits: dict[Platform, dict[str, int | tuple[int, int]]] = {
-            Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
-            Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
-            Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
-        }
-
-        platform_limits = limits.get(self.platform)
+        platform_limits = PLATFORM_LIMITS.get(self.platform)
         if not platform_limits:
             return True, "Content within limits"
 
@@ -631,8 +627,6 @@ class RecurringSlot:
             >>> # Returns next Monday at 10:00 UTC
 
         """
-        from zoneinfo import ZoneInfo
-
         # Validate after has timezone
         if after.tzinfo is None:
             raise ValueError("after datetime must be timezone-aware")
@@ -643,7 +637,7 @@ class RecurringSlot:
         # Get timezone
         try:
             tz = ZoneInfo(self.timezone)
-        except Exception as e:
+        except (KeyError, ImportError) as e:
             raise ValueError(f"Invalid timezone '{self.timezone}': {e}") from e
 
         # Convert after to slot timezone
@@ -678,10 +672,7 @@ class RecurringSlot:
             days_ahead += 7
 
         # Calculate next occurrence
-        next_date = after_local.date()
-        from datetime import timedelta
-
-        next_date = next_date + timedelta(days=days_ahead)
+        next_date = after_local.date() + timedelta(days=days_ahead)
         next_datetime = datetime(
             next_date.year,
             next_date.month,
@@ -733,7 +724,7 @@ class ScheduleEntry:
     platforms: list[Platform]
     post_id: str | None = None
     status: str = "pending"
-    created_at: datetime = field(default_factory=lambda: datetime.now())
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     slot_index: int | None = None
 
     def __post_init__(self):

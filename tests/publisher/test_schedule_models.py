@@ -191,15 +191,16 @@ class TestScheduleEntry:
         assert schedule_entry_published.slot_index == 0
 
     def test_created_at_defaults_to_now(self):
-        """Test created_at defaults to current time."""
-        before = datetime.now()  # Naive datetime, model uses naive created_at
+        """Test created_at defaults to current UTC time."""
+        before = datetime.now(UTC)
         entry = ScheduleEntry(
             product_id="B0TEST",
             scheduled_time=datetime(2026, 1, 20, 10, 0, 0, tzinfo=UTC),
             platforms=[Platform.YOUTUBE],
         )
-        after = datetime.now()
+        after = datetime.now(UTC)
 
+        assert entry.created_at.tzinfo is not None
         assert before <= entry.created_at <= after
 
     def test_to_dict(self, schedule_entry_pending):

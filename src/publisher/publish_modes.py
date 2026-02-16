@@ -5,15 +5,19 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import Platform
+
+if TYPE_CHECKING:
+    from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
 
 
 async def publish_product(
-    publisher: object,
+    publisher: BasePublisher,
     media_id: str,
     product_id: str,
     platforms: list[dict[str, str]],
@@ -57,7 +61,7 @@ async def publish_product(
 
 
 async def _publish_unified(
-    publisher: object,
+    publisher: BasePublisher,
     media_id: str,
     product_id: str,
     platforms: list[dict[str, str]],
@@ -80,7 +84,7 @@ async def _publish_unified(
     content = metadata.format_content()
     logger.info("Publishing to %d platform(s) in single post...", len(platforms))
 
-    result = await publisher.publish(  # type: ignore[attr-defined]
+    result = await publisher.publish(
         media_id=media_id,
         platforms=platforms,
         content=content,
@@ -91,7 +95,7 @@ async def _publish_unified(
 
 
 async def _publish_platform_specific(
-    publisher: object,
+    publisher: BasePublisher,
     media_id: str,
     product_id: str,
     platforms: list[dict[str, str]],
@@ -126,7 +130,7 @@ async def _publish_platform_specific(
 
         logger.info("Publishing to %s (platform-specific post)...", platform_name)
 
-        result = await publisher.publish(  # type: ignore[attr-defined]
+        result = await publisher.publish(
             media_id=media_id,
             platforms=[p_info],
             content=content,
