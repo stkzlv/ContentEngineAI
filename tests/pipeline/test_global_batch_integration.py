@@ -171,7 +171,7 @@ async def test_pipeline_with_product_ids_only(
         ) as mock_create_video,
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch(
-            "src.publisher.metadata.load_platform_metadata",
+            "src.publisher.publish_modes.load_platform_metadata",
             side_effect=mock_metadata_factory,
         ),
         patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),

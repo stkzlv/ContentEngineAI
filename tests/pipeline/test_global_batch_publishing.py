@@ -144,7 +144,7 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
             },
         ),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-        patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
+        patch("src.publisher.publish_modes.load_platform_metadata") as mock_load_metadata,
         patch("src.publisher.schedule.datetime") as mock_datetime,
     ):
         # Freeze time at Sunday Jan 5, 2026 08:00 UTC
@@ -230,7 +230,7 @@ async def test_auto_scheduling_falls_back_to_immediate_when_all_slots_occupied(
             },
         ),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-        patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
+        patch("src.publisher.publish_modes.load_platform_metadata") as mock_load_metadata,
         patch("pathlib.Path.exists", return_value=True),
     ):
         temp_publisher = AsyncMock()
@@ -293,7 +293,7 @@ async def test_cleanup_removes_directory_after_successful_publish(
         patch("yaml.safe_load", return_value=mock_publisher_config),
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-        patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
+        patch("src.publisher.publish_modes.load_platform_metadata") as mock_load_metadata,
     ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
@@ -352,7 +352,7 @@ async def test_cleanup_preserves_directory_on_partial_failure(
         patch("yaml.safe_load", return_value=mock_publisher_config),
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
-        patch("src.publisher.metadata.load_platform_metadata") as mock_load_metadata,
+        patch("src.publisher.publish_modes.load_platform_metadata") as mock_load_metadata,
     ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()

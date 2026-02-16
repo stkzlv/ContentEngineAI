@@ -114,6 +114,8 @@ class TestRecordPublish:
 
         yt = get_publish_record("B0TEST001", "youtube", outputs_dir)
         tt = get_publish_record("B0TEST001", "tiktok", outputs_dir)
+        assert yt is not None
+        assert tt is not None
         assert yt["post_id"] == "yt_123"
         assert tt["post_id"] == "tt_456"
 
@@ -142,6 +144,7 @@ class TestRetryQueue:
         add_to_retry_queue("B0TEST001", ["youtube"], "Error 2", None, outputs_dir)
 
         item = get_retry_queue_item("B0TEST001", outputs_dir)
+        assert item is not None
         assert item["retry_count"] == 2
         assert item["error"] == "Error 2"
 
@@ -188,5 +191,6 @@ class TestRetryQueue:
         )
 
         item = get_retry_queue_item("B0TEST001", outputs_dir)
+        assert item is not None
         assert item["scheduled_time"] == "2026-03-01T10:00:00"
         assert item["platforms"] == ["youtube", "tiktok"]

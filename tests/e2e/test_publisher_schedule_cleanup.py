@@ -363,7 +363,7 @@ class TestScheduleWorkflowIntegration:
             return bool(product_id == first_product["product_id"])
 
         with patch(
-            "src.publisher.tracking.is_already_published",
+            "src.publisher.schedule.is_already_published",
             side_effect=mock_is_published,
         ):
             summary = await manager.auto_schedule(
