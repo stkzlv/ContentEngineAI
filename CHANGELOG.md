@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.2] - 2026-02-20
+
+### Dependencies
+- Update aiohttp 3.11.18 → 3.13.3
+- Update pillow 11.2.1 → 11.3.0
+- Update torchaudio 2.7.0 → 2.8.0
+- Update fonttools 4.58.0 → 4.60.2
+- Update transformers 4.51.3 → 4.53.0
+- Update authlib 1.6.3 → 1.6.6
+- Update marshmallow 4.0.0 → 4.1.2
+- Update virtualenv 20.31.2 → 20.36.1
+- Regenerate poetry.lock (Poetry 2.2.1 format)
+
 ## [0.29.1] - 2026-02-16
 
 ### Fixed
