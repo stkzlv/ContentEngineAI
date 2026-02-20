@@ -76,8 +76,32 @@ Automated dependency updates (Dependabot) follow the **batch into patch releases
 **Workflow**:
 1. Dependabot creates grouped PR with `poetry.lock` updates targeting `main`
 2. PR remains open until next patch release cycle
-3. At release time: merge grouped PR, bump version, update CHANGELOG
-4. Tag release from `main`
+3. At release time, checkout the Dependabot branch and prepare it for release:
+   ```bash
+   # Rebase onto latest main (Dependabot branches may be stale)
+   gh pr checkout <PR-number>
+   git rebase main
+
+   # Install updated deps and run full test suite
+   poetry install
+   poetry run pytest
+
+   # Bump version and update CHANGELOG on the branch
+   # Edit pyproject.toml: version = "X.Y.Z"
+   # Edit CHANGELOG.md: add [X.Y.Z] section with "Dependencies" subsection
+
+   # Commit, force-push (rebase changed history), merge
+   git add pyproject.toml CHANGELOG.md poetry.lock
+   git commit -m "Bump version to X.Y.Z"
+   git push --force-with-lease
+   gh pr merge <PR-number> --squash
+   ```
+4. Tag release from `main`:
+   ```bash
+   git checkout main && git pull
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
 
 ## Path to 1.0.0
 

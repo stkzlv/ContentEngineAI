@@ -174,6 +174,7 @@ High-level requirements for ContentEngineAI.
 - Multi-platform music client (Freesound primary)
 - Dynamic duration matching to voiceover
 - OAuth2 for full quality, API key for previews
+- Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture, no manual steps
 - Fallback to local stock files if online sources fail
 - Proper attribution and license tracking
 
