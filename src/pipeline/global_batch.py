@@ -288,6 +288,7 @@ class GlobalPipelineOrchestrator:
         config: GlobalBatchConfig,
         state: PipelineState | None = None,
         webhook_notifier: WebhookNotifier | None = None,
+        video_config: Any = None,
     ):
         """Initialize orchestrator with unified configuration.
 
@@ -296,15 +297,45 @@ class GlobalPipelineOrchestrator:
             config: Global batch configuration with scraper and producer settings
             state: Optional pipeline state for resume capability
             webhook_notifier: Optional webhook notifier for pipeline events
+            video_config: Video configuration for profile-aware scraper validation
 
         """
         self.config = config
         self.state = state or PipelineState.create_new(config)
         self.webhook_notifier = webhook_notifier
+        self.video_config = video_config
 
     def _save_state(self) -> None:
         """Save current pipeline state to disk."""
         save_pipeline_state(self.state, self.config.outputs_dir)
+
+    def _resolve_profile_uses_videos(self) -> bool | None:
+        """Check if the target profile(s) use scraped videos.
+
+        Returns False if any profile in the selection doesn't use videos
+        (strictest requirement wins). Returns None when no profile info
+        is available.
+        """
+        if not self.video_config:
+            return None
+
+        if self.config.profile:
+            profile = self.video_config.video_profiles.get(self.config.profile)
+            if profile:
+                return profile.use_scraped_videos
+            return None
+
+        if self.config.random_profile:
+            pool = self.config.profile_pool or list(
+                self.video_config.video_profiles.keys()
+            )
+            for name in pool:
+                profile = self.video_config.video_profiles.get(name)
+                if profile and not profile.use_scraped_videos:
+                    return False
+            return True
+
+        return None
 
     async def _notify_webhook(
         self,
@@ -729,9 +760,16 @@ class GlobalPipelineOrchestrator:
             f"{self.config.max_products} total"
         )
 
-        # Initialize scraper
+        # Initialize scraper with profile-aware validation
+        profile_uses_videos = self._resolve_profile_uses_videos()
+        if profile_uses_videos is not None:
+            logger.info(
+                "Scraper validation aligned with profile: videos %s",
+                "enabled" if profile_uses_videos else "disabled (image-only)",
+            )
         scraper = BotasaurusAmazonScraper(
             debug_override=self.config.debug,
+            profile_uses_videos=profile_uses_videos,
         )
 
         # Set products_per_keyword as the per-input limit
@@ -1709,7 +1747,7 @@ async def main():
 
         # Handle dry-run mode
         if config.dry_run:
-            orchestrator = GlobalPipelineOrchestrator(config)
+            orchestrator = GlobalPipelineOrchestrator(config, video_config=video_config)
             orchestrator.display_execution_plan(video_config)
             logger.info("Dry-run completed - exiting without execution")
             sys.exit(0)
@@ -1757,7 +1795,10 @@ async def main():
 
         # Execute pipeline
         orchestrator = GlobalPipelineOrchestrator(
-            config, state=state, webhook_notifier=webhook_notifier
+            config,
+            state=state,
+            webhook_notifier=webhook_notifier,
+            video_config=video_config,
         )
         summary = await orchestrator.run_pipeline()
 

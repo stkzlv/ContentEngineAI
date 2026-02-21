@@ -17,7 +17,10 @@ class SearchParameterBuilder:
         self.base_url = base_url
 
     def build_search_url(
-        self, keyword: str, parameters: SearchParameters | None = None
+        self,
+        keyword: str,
+        parameters: SearchParameters | None = None,
+        page: int = 1,
     ) -> str:
         """Build Amazon search URL with keyword and optional filters."""
         if parameters is None:
@@ -32,6 +35,8 @@ class SearchParameterBuilder:
 
         # Start with basic search parameters
         url_params = {"k": keyword.replace(" ", "+")}
+        if page > 1:
+            url_params["page"] = str(page)
 
         # Build refinement hierarchy (rh) parameter
         refinements = []
