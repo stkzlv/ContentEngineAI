@@ -3,7 +3,7 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
@@ -148,6 +148,13 @@ class VideoSettings(BaseModel):
             "Larger values = more space for video, less for subtitles/borders."
         ),
     )
+    video_vertical_align: str = Field(
+        "top",
+        description=(
+            "Vertical alignment for video content: 'top' uses "
+            "video_top_position_percent, 'center' centers in frame."
+        ),
+    )
 
     # Video duration constraints
     min_trimmed_video_duration: float = Field(
@@ -268,6 +275,9 @@ class VideoProfile(BaseModel):
     )
     video_content_height_percent: float | None = Field(
         None, ge=0.0, le=1.0, description="Video height as fraction of frame (0.0-1.0)"
+    )
+    video_vertical_align: str | None = Field(
+        None, description="Video vertical alignment: 'top' or 'center'"
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
@@ -403,6 +413,98 @@ class VideoProfile(BaseModel):
     two_part_subtitles_lower_margin: float | None = Field(
         None, description="Override lower subtitle margin as fraction (0.0-0.5)"
     )
+
+
+class MergedSubtitleSettings(BaseModel):
+    """Merged subtitle settings (global + profile overrides)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    # Core positioning
+    anchor: str = "bottom"
+    margin: float = 0.1
+    content_aware: bool = True
+    style_preset: str = "modern"
+    font_size_scale: float = 1.0
+    horizontal_alignment: str = "center"
+
+    # Font and color
+    font_name: str = "Arial"
+    font_color: str = "&H00FFFFFF"
+    outline_color: str = "&H00000000"
+    back_color: str | None = None
+    randomize_effects: bool = False
+
+    # Text formatting
+    max_line_length: int = 38
+    max_words_per_line: int = 3
+    max_subtitle_duration: float = 4.5
+    min_subtitle_duration: float = 0.4
+    max_subtitle_width_fraction: float = 0.67
+
+    # Advanced
+    enabled: bool = True
+    font_directory: str = "static/fonts"
+    font_size_percent: float = 0.05
+    font_width_to_height_ratio: float = 0.5
+
+    # Randomization
+    randomize_fonts: bool = False
+    randomize_colors: bool = False
+    available_fonts: list[Any] = Field(default_factory=list)
+    available_color_combinations: list[Any] = Field(default_factory=list)
+
+    # Output
+    temp_subtitle_dir: str = "temp"
+    temp_subtitle_filename: str = "captions.srt"
+    save_srt_with_video: bool = True
+    subtitle_format: str = "srt"
+    script_paths: list[Any] = Field(default_factory=list)
+    bold: bool = False
+    outline_thickness: int = 2
+    shadow: int = 0
+
+    # Manual overrides
+    selected_font: str | None = None
+    selected_color_pair: str | None = None
+
+    # Two-part subtitle system (flat keys)
+    two_part_subtitles_enabled: bool = False
+    two_part_subtitles_upper_enabled: bool = True
+    two_part_subtitles_upper_source_field: str = "shortened_affiliate_link"
+    two_part_subtitles_upper_custom_url: str | None = None
+    two_part_subtitles_upper_anchor: str = "above_content"
+    two_part_subtitles_upper_margin: float = 0.08
+    two_part_subtitles_upper_font_size_scale: float = 0.75
+    two_part_subtitles_upper_style_preset: str = "minimal"
+    two_part_subtitles_upper_use_full_duration: bool = True
+    two_part_subtitles_upper_randomize_effects: bool = False
+    two_part_subtitles_upper_prefix_replace: str | None = None
+    two_part_subtitles_lower_enabled: bool = True
+    two_part_subtitles_lower_anchor: str = "below_content"
+    two_part_subtitles_lower_margin: float = 0.05
+
+
+class ProfileInfo(BaseModel):
+    """Profile metadata."""
+
+    name: str
+    description: str = ""
+    use_scraped_images: bool = True
+    use_scraped_videos: bool = False
+    use_stock_images: bool = False
+    use_stock_videos: bool = False
+    stock_image_count: int = 0
+    stock_video_count: int = 0
+    use_dynamic_image_count: bool = False
+
+
+class MergedProfileSettings(BaseModel):
+    """Typed container for merged profile settings."""
+
+    video_settings: "VideoSettings"
+    subtitle_settings: MergedSubtitleSettings
+    profile: ProfileInfo
 
 
 class VideoProcessingSettings(BaseModel):

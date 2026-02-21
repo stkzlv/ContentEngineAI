@@ -107,11 +107,9 @@ class TestProfileSpecificSettings:
             # Get merged settings for a profile
             merged = config.get_profile_merged_settings("slideshow_images1")
 
-            # Should contain both global and profile-specific settings
-            assert "video_settings" in merged
-            assert "subtitle_settings" in merged
-            assert isinstance(merged["video_settings"], dict)
-            assert isinstance(merged["subtitle_settings"], dict)
+            # Should contain typed settings
+            assert merged.video_settings is not None
+            assert merged.subtitle_settings is not None
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
@@ -135,7 +133,7 @@ class TestCLIOverridePrecedence:
             )
 
             # CLI override should take precedence over profile setting (0.80)
-            assert merged["video_settings"]["image_width_percent"] == 0.65
+            assert merged.video_settings.image_width_percent == 0.65
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
@@ -153,7 +151,7 @@ class TestCLIOverridePrecedence:
             )
 
             # CLI override should take precedence over profile setting (0.15)
-            assert merged["video_settings"]["image_top_position_percent"] == 0.30
+            assert merged.video_settings.image_top_position_percent == 0.30
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
@@ -171,7 +169,7 @@ class TestCLIOverridePrecedence:
             )
 
             # CLI override should take precedence
-            assert merged["subtitle_settings"]["anchor"] == "top"
+            assert merged.subtitle_settings.anchor == "top"
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
@@ -194,10 +192,10 @@ class TestCLIOverridePrecedence:
             )
 
             # All CLI overrides should be applied
-            assert merged["video_settings"]["image_width_percent"] == 0.70
-            assert merged["video_settings"]["image_top_position_percent"] == 0.25
-            assert merged["subtitle_settings"]["anchor"] == "center"
-            assert merged["subtitle_settings"]["margin"] == 0.12
+            assert merged.video_settings.image_width_percent == 0.70
+            assert merged.video_settings.image_top_position_percent == 0.25
+            assert merged.subtitle_settings.anchor == "center"
+            assert merged.subtitle_settings.margin == 0.12
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")
@@ -241,10 +239,10 @@ class TestCLIOverridePrecedence:
             )
 
             # CLI-overridden setting should use new value
-            assert merged["video_settings"]["image_width_percent"] == 0.60
+            assert merged.video_settings.image_width_percent == 0.60
 
             # Non-overridden setting should use profile default
-            assert merged["video_settings"]["image_top_position_percent"] == 0.15
+            assert merged.video_settings.image_top_position_percent == 0.15
 
         except (KeyError, FileNotFoundError):
             pytest.skip("Config file or profile not found")

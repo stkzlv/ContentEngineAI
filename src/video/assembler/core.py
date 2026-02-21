@@ -107,19 +107,18 @@ class VideoAssembler:
             logger.debug(f"Applied profile settings for '{profile_name}'")
             logger.debug(
                 f"Image width percent: "
-                f"{self.profile_settings['video_settings']['image_width_percent']}"
+                f"{self.profile_settings.video_settings.image_width_percent}"
             )
             logger.debug(
                 f"Image top position: "
-                f"{self.profile_settings['video_settings']['image_top_position_percent']}"
+                f"{self.profile_settings.video_settings.image_top_position_percent}"
             )
             logger.debug(
-                f"Subtitle anchor: "
-                f"{self.profile_settings['subtitle_settings']['anchor']}"
+                f"Subtitle anchor: " f"{self.profile_settings.subtitle_settings.anchor}"
             )
             logger.debug(
                 f"Subtitle style preset: "
-                f"{self.profile_settings['subtitle_settings']['style_preset']}"
+                f"{self.profile_settings.subtitle_settings.style_preset}"
             )
 
         # Initialize builders that depend on profile settings
@@ -175,26 +174,13 @@ class VideoAssembler:
     def _get_effective_video_settings(self) -> dict[str, Any]:
         """Get effective video settings with profile overrides applied."""
         if self.profile_settings:
-            return self.profile_settings["video_settings"]  # type: ignore[no-any-return]
-        # Fallback to global config if no profile settings
+            return self.profile_settings.video_settings.model_dump()
         return self.config.video_settings.model_dump()
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
         if self.profile_settings:
-            settings = self.profile_settings["subtitle_settings"]
-
-            from src.video.subtitle_positioning import UnifiedSubtitleConfig
-
-            try:
-                validated_config = UnifiedSubtitleConfig(**settings)
-                return validated_config.model_dump()
-            except Exception as e:
-                logger.warning(
-                    f"Subtitle settings validation failed, using raw settings: {e}"
-                )
-                return settings  # type: ignore[no-any-return]
-
+            return self.profile_settings.subtitle_settings.model_dump()
         return self.config.subtitle_settings
 
     def verify_video(

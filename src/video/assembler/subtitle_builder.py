@@ -8,10 +8,14 @@ import logging
 import re
 import textwrap
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.video.assembler.subtitle_utils import SubtitleParser, SubtitleStyler
 from src.video.assembler.visual_builder import VisualGeometry
 from src.video.config import VideoConfig
+
+if TYPE_CHECKING:
+    from src.video.config.visual_models import MergedProfileSettings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ class SubtitleGraphBuilder:
     def __init__(
         self,
         config: VideoConfig,
-        profile_settings: dict | None,
+        profile_settings: "MergedProfileSettings | None",
         product_id: str,
         debug_mode: bool = False,
     ):
@@ -31,7 +35,7 @@ class SubtitleGraphBuilder:
         Args:
         ----
             config: VideoConfig containing settings
-            profile_settings: Profile settings dict
+            profile_settings: Merged profile settings
             product_id: Product identifier for style randomization
             debug_mode: Enable debug logging
 
@@ -45,12 +49,9 @@ class SubtitleGraphBuilder:
 
     def _get_effective_subtitle_settings(self) -> dict:
         """Get merged subtitle settings from profile and config."""
-        # subtitle_settings is already a dict, not a Pydantic model
-        base_settings = dict(self.config.subtitle_settings)
-        if self.profile_settings and "subtitle_settings" in self.profile_settings:
-            profile_sub = self.profile_settings["subtitle_settings"]
-            base_settings.update(profile_sub)
-        return base_settings
+        if self.profile_settings:
+            return self.profile_settings.subtitle_settings.model_dump()
+        return dict(self.config.subtitle_settings)
 
     def _resolve_font_path(self, font_name: str) -> Path | None:
         """Resolve font name to path using SubtitleStyler."""
@@ -352,16 +353,10 @@ class SubtitleGraphBuilder:
                                 )
                         else:
                             # Fall back to configured video positioning
-                            has_settings = (
-                                self.profile_settings
-                                and "video_settings" in self.profile_settings
-                            )
-                            if has_settings and self.profile_settings:
-                                vs = self.profile_settings["video_settings"]
-                                video_top_percent = vs.get("video_top_position_percent")
-                                video_height_percent = vs.get(
-                                    "video_content_height_percent"
-                                )
+                            if self.profile_settings:
+                                vs = self.profile_settings.video_settings
+                                video_top_percent = vs.video_top_position_percent
+                                video_height_percent = vs.video_content_height_percent
 
                                 if (
                                     video_top_percent is not None
@@ -529,15 +524,13 @@ class SubtitleGraphBuilder:
                                         )
                                     else:
                                         # Fall back to configured video positioning
-                                        ps = self.profile_settings
-                                        has_settings = ps and "video_settings" in ps
-                                        if has_settings and self.profile_settings:
-                                            vs = self.profile_settings["video_settings"]
-                                            video_top_percent = vs.get(
-                                                "video_top_position_percent"
+                                        if self.profile_settings:
+                                            vs = self.profile_settings.video_settings
+                                            video_top_percent = (
+                                                vs.video_top_position_percent
                                             )
-                                            video_height_percent = vs.get(
-                                                "video_content_height_percent"
+                                            video_height_percent = (
+                                                vs.video_content_height_percent
                                             )
 
                                             if (
@@ -826,10 +819,10 @@ class SubtitleGraphBuilder:
 
     def _get_content_bottom(self, geom: VisualGeometry, frame_height: int) -> int:
         """Get content bottom position from geometry or settings."""
-        if self.profile_settings and "video_settings" in self.profile_settings:
-            vs = self.profile_settings["video_settings"]
-            video_top = vs.get("video_top_position_percent")
-            video_height = vs.get("video_content_height_percent")
+        if self.profile_settings:
+            vs = self.profile_settings.video_settings
+            video_top = vs.video_top_position_percent
+            video_height = vs.video_content_height_percent
 
             if video_top is not None and video_height is not None:
                 return int(frame_height * (video_top + video_height))

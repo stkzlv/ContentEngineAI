@@ -777,7 +777,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         merged_profile_settings = ctx.config.get_profile_merged_settings(
             ctx.profile_name, ctx.cli_overrides
         )
-        profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
+        subtitle_settings = merged_profile_settings.subtitle_settings
 
         # Derive product_id for randomization
         from src.utils import sanitize_filename
@@ -785,27 +785,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
 
         # Check if two-part subtitle system is enabled
-        # Handle both nested dict and flat key structures
-        two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
-        logger.debug("Two-part subtitle config: %s", two_part_config)
-        logger.debug(
-            "Profile subtitle settings keys: %s", list(profile_subtitle_settings.keys())
-        )
-
-        if isinstance(two_part_config, dict) and "enabled" in two_part_config:
-            two_part_enabled = two_part_config.get("enabled", False)
-            logger.debug(
-                "Using nested config structure, two_part_enabled=%s", two_part_enabled
-            )
-        else:
-            # Fallback to flat structure
-            two_part_enabled = profile_subtitle_settings.get(
-                "two_part_subtitles_enabled", False
-            )
-            logger.debug(
-                "Using flat config structure, two_part_subtitles_enabled=%s",
-                profile_subtitle_settings.get("two_part_subtitles_enabled"),
-            )
+        two_part_enabled = subtitle_settings.two_part_subtitles_enabled
+        logger.debug("two_part_subtitles_enabled=%s", two_part_enabled)
 
         if two_part_enabled:
             logger.info("Two-part subtitle system enabled, generating dual subtitles")
@@ -814,9 +795,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
             handler = TwoPartSubtitleHandler(
                 ctx=ctx,
-                profile_subtitle_settings=profile_subtitle_settings,
                 merged_profile_settings=merged_profile_settings,
-                two_part_config=two_part_config,
             )
 
             lower_path, upper_path = await handler.generate(voiceover_path, product_id)
@@ -830,10 +809,11 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         else:
             # Standard single-line subtitle generation
+            subtitle_dict = subtitle_settings.model_dump()
             srt_path = await create_unified_subtitles(
                 voiceover_path,
                 ctx.run_paths["subtitle_file"],
-                profile_subtitle_settings,
+                subtitle_dict,
                 ctx.config.whisper_settings,
                 ctx.config.google_cloud_stt_settings,
                 ctx.secrets,
