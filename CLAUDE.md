@@ -68,6 +68,10 @@ poetry run python tools/performance_report.py --report-type summary
 - **Visual bounds**: Calculated from actual image dimensions, not frame dimensions
 - **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`
 - **Scraper-producer alignment**: Pass `profile_uses_videos` to scraper so media validation counts only what the profile actually uses
+- **TTS voice profiles**: Configured in `config/subtitles.yaml` under `tts_config.voice_profiles`. Profiles specify provider (`google_cloud` or `gemini`), style prompt, voice criteria, and markup rules
+- **Gemini TTS**: Uses same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=..., prompt=...)`. Requires `Vertex AI User` IAM role on the service account. Falls back to Google Cloud TTS on failure
+- **TTS hash slice**: Voice profiles use md5 hex `[16:24]` (fonts use `[0:8]`, colors `[8:16]`, voice within profile `[24:32]`)
+- **TTS metadata**: Profile name and voice name saved in `pipeline_state.json` under `create_voiceover.tts_metadata`
 
 ## Development Guidelines
 

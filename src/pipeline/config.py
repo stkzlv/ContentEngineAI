@@ -350,6 +350,9 @@ class GlobalBatchConfig:
     fail_fast_publish: bool = False
     platform_specific_content: bool = False
 
+    # Voice profile override
+    voice_profile: str | None = None
+
     # Resume configuration
     resume: bool = False
 
@@ -795,6 +798,11 @@ def load_global_batch_config(
         cli_args, "platform_specific", False
     ) or yaml_config.get("platform_specific_content", False)
 
+    # Voice profile override
+    voice_profile = getattr(cli_args, "voice_profile", None) or yaml_config.get(
+        "voice_profile"
+    )
+
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
@@ -822,6 +830,7 @@ def load_global_batch_config(
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
         platform_specific_content=platform_specific_content,
+        voice_profile=voice_profile,
         resume=resume,
         dry_run=dry_run,
         output_format=output_format,

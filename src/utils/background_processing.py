@@ -433,6 +433,13 @@ class TTSWarmer:
             ("google_cloud", tts_config.google_cloud),
         ]
 
+        # Gemini uses same client as google_cloud, so warm it if any
+        # voice profile uses gemini and we haven't already warmed google_cloud
+        has_gemini_profiles = any(
+            p.provider == "gemini" for p in tts_config.voice_profiles.values()
+        )
+        needs_google_cloud = tts_config.google_cloud is not None
+
         for provider_name, provider_config in providers_to_check:
             if provider_config and getattr(provider_config, "enabled", True):
                 task_id = f"tts_warm_{provider_name}"
@@ -458,6 +465,23 @@ class TTSWarmer:
 
                 if task:
                     task_ids.append(task_id)
+
+        # Warm google_cloud client for Gemini profiles if not already warming
+        if (
+            has_gemini_profiles
+            and needs_google_cloud
+            and "tts_warm_google_cloud" not in task_ids
+        ):
+            task = await self.bg_processor.start_task(
+                task_id="tts_warm_gemini",
+                name="TTS Client Warming (gemini)",
+                coro_func=self._warm_google_cloud_client,
+                provider_config=tts_config.google_cloud,
+                priority=3,
+                metadata={"provider": "gemini"},
+            )
+            if task:
+                task_ids.append("tts_warm_gemini")
 
         return task_ids
 

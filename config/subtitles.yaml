@@ -240,12 +240,6 @@ tts_config:
   # Pricing: ~$16 per 1 million characters (check current rates)
   # Documentation: https://cloud.google.com/text-to-speech
   google_cloud:
-    # Model name - newer models offer better quality
-    # Chirp3-HD: Latest, most natural voices
-    # Neural2: High quality, widely available
-    # Standard: Basic quality, lowest cost
-    model_name: "en-US-Chirp3-HD"
-
     # Primary language code for voice selection
     # Format: language-region (e.g., "en-US", "en-GB", "es-ES")
     language_code: "en-US"
@@ -295,6 +289,52 @@ tts_config:
 
     # Speaker name for multi-speaker models (null for single-speaker)
     speaker_name: null
+
+  # Set to false to disable voice profiles (uses default Chirp3-HD selection)
+  voice_profiles_enabled: true
+
+  # Voice profiles for style variety across products
+  # Each profile controls provider, style, voice, and text markup
+  # A random profile is selected per product (deterministic by product ID)
+  #
+  # Gemini profiles use simple voice names (Kore, Charon, Aoede, Puck, etc.)
+  # and support the 'prompt' field for style control. Requires Vertex AI API
+  # enabled on the GCP project.
+  #
+  # Google Cloud profiles use Chirp3-HD / Neural2 voices with SSML.
+  voice_profiles:
+    warm_conversational:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak in a warm, friendly, conversational tone. Sound natural and enthusiastic about the product."
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+
+    energetic_pitch:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak with high energy and excitement, like a product reviewer who genuinely loves what they found."
+      speaking_rate: 1.1
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[pause] ' }
+
+    calm_authority:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak calmly and authoritatively, like a trusted tech reviewer giving honest advice."
+      speaking_rate: 0.95
+
+    chirp3_natural:
+      provider: google_cloud
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+
+  # Pool for random profile selection
+  # Empty list = use all profiles. Set to ["chirp3_natural"] to use only Chirp3.
+  voice_profile_pool: []
 
 # ============================================================================
 # SUBTITLE EFFECTS (ASS Format Animations)

@@ -41,6 +41,10 @@ coverage.xml
 .env.local
 *.env
 
+# GCP service account credentials
+*-credentials*.json
+contentengineai-*.json
+
 # Testing and profiling (coverage reports now in outputs/coverage/)
 .profile
 *.prof

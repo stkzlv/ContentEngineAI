@@ -54,7 +54,7 @@ class GoogleCloudVoiceCriteria(BaseModel):
 class GoogleCloudTTSSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
-    model_name: str
+    model_name: str = Field("")
     language_code: str
     voice_selection_criteria: list[GoogleCloudVoiceCriteria] = Field(..., min_length=1)
     speaking_rate: float = Field(1.0)
@@ -82,10 +82,35 @@ class CoquiTTSSettings(BaseModel):
     speaker_name: str | None = Field(None)
 
 
+class TextMarkupRule(BaseModel):
+    """Rule for inserting inline markup into TTS text."""
+
+    pattern: str  # regex pattern to match
+    insert_before: str = Field("")
+    insert_after: str = Field("")
+
+
+class VoiceProfileConfig(BaseModel):
+    """A named voice profile with style, markup, and voice preferences."""
+
+    model_config = {"protected_namespaces": ()}
+
+    provider: str = Field("google_cloud")
+    style_prompt: str | None = Field(None)
+    gemini_model_name: str = Field("gemini-2.5-flash-tts")
+    voice_criteria: list[GoogleCloudVoiceCriteria] | None = Field(None)
+    speaking_rate: float | None = Field(None)
+    pitch: float | None = Field(None)
+    markup_rules: list[TextMarkupRule] = Field(default_factory=list)
+
+
 class TTSConfig(BaseModel):
     provider_order: list[str] = Field(..., min_length=1)
     google_cloud: GoogleCloudTTSSettings | None = Field(None)
     coqui: CoquiTTSSettings | None = Field(None)
+    voice_profiles_enabled: bool = Field(True)
+    voice_profiles: dict[str, VoiceProfileConfig] = Field(default_factory=dict)
+    voice_profile_pool: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_provider_settings_exist(self) -> "TTSConfig":
@@ -97,7 +122,9 @@ class TTSConfig(BaseModel):
 
         for name in self.provider_order:
             if (
-                name == "google_cloud" and self.google_cloud and GOOGLE_CLOUD_AVAILABLE
+                name in ("google_cloud", "gemini")
+                and self.google_cloud
+                and GOOGLE_CLOUD_AVAILABLE
             ) or (name == "coqui" and self.coqui and COQUI_AVAILABLE):
                 valid_providers.append(name)
             else:

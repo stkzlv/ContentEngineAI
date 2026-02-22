@@ -18,7 +18,7 @@ coqui-tts = "^0.26.0"
 pexels-api-py = "^0.0.5"
 ffmpeg-python = "^0.2.0"
 freesound-api = "^1.1"
-google-cloud-texttospeech = "^2.26.0" # Ensure version matches latest confirmed
+google-cloud-texttospeech = "^2.29.0" # Gemini TTS prompt field requires >=2.29
 aiofiles = "^24.1.0" # Ensure version matches latest confirmed
 google-auth = "^2.29.0" # Added explicitly for Google Cloud auth dependency
 google-api-core = "^2.18.0" # Added explicitly for Google Cloud core dependency

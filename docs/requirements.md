@@ -161,6 +161,17 @@ High-level requirements for ContentEngineAI.
 - Default to free models with fallback
 - Google Cloud TTS with voice prioritization
 
+### TTS Voice Profiles
+- Named presets combining provider, style, voice criteria, and markup rules
+- Providers: `google_cloud` (Chirp3-HD), `gemini` (style-directed via Vertex AI)
+- Gemini profiles use `SynthesisInput(prompt=...)` for tone control ("warm and friendly", "calm authority")
+- Inline markup rules: regex-based insertion of `[short pause]`, `[pause]` at sentence boundaries
+- Markup stripped automatically on fallback to providers that don't support it
+- Deterministic profile selection per product ID (md5 hash, hex slice `[16:24]`)
+- Pool-based filtering: restrict random selection to a subset of profiles
+- `--voice-profile` CLI override for both producer and global batch
+- Profile metadata (name, voice) persisted in pipeline state
+
 ### Stock Background Music
 - Multi-platform music client (Freesound primary)
 - Dynamic duration matching to voiceover

@@ -16,9 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MergedSubtitleSettings`, `ProfileInfo`, `MergedProfileSettings` Pydantic models in `visual_models.py`
 - `--profile` CLI arg for standalone scraper to align media validation with producer
 - `profile_uses_videos` parameter on scraper constructor for profile-aware validation
+- **TTS voice profiles**: Configurable voice presets with style prompts, markup rules, and per-profile provider routing
+- **Gemini TTS provider**: Style-directed speech via `SynthesisInput(prompt=...)` with automatic fallback to Google Cloud TTS
+- `VoiceProfileConfig`, `TextMarkupRule` Pydantic models in `audio_models.py`
+- `--voice-profile` CLI override for producer and global batch pipeline
+- TTS metadata (profile name, voice name) saved in `pipeline_state.json`
+- Inline markup preprocessing: `[short pause]`, `[pause]` inserted at sentence boundaries per profile rules
+- Deterministic voice profile selection per product (md5 hash, hex slice `[16:24]`)
 
 ### Fixed
 - Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
+
+### Dependencies
+- Bump `google-cloud-texttospeech` from ^2.26.0 to ^2.29.0 (adds `SynthesisInput.prompt` support)
 
 ## [0.29.2] - 2026-02-20
 

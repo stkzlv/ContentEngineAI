@@ -675,7 +675,12 @@ async def step_create_voiceover(ctx: PipelineContext):
             ctx.script = script_path.read_text(encoding="utf-8")
 
         try:
-            tts_manager = TTSManager(ctx.config.tts_config, ctx.secrets)
+            tts_manager = TTSManager(
+                ctx.config.tts_config,
+                ctx.secrets,
+                product_id=ctx.product.asin,
+                voice_profile_override=ctx.cli_overrides.get("voice_profile"),
+            )
             vo_path = await tts_manager.generate_speech(
                 ctx.script, ctx.run_paths["voiceover_file"]
             )
@@ -684,6 +689,17 @@ async def step_create_voiceover(ctx: PipelineContext):
 
         if not vo_path or not vo_path.exists():
             raise PipelineError("TTS generation failed.")
+
+        # Save TTS metadata for pipeline state tracking
+        ctx.state["tts_metadata"] = {
+            "voice_profile": tts_manager.selected_profile_name,
+            "voice_name": tts_manager.selected_voice_name,
+        }
+        logger.debug(
+            "TTS metadata: profile=%s, voice=%s",
+            tts_manager.selected_profile_name,
+            tts_manager.selected_voice_name,
+        )
 
         # Trim leading/trailing silence from voiceover
         # Whisper normalizes timestamps to start at first speech

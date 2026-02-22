@@ -237,6 +237,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "metadata_mode") and args.metadata_mode is not None:
         overrides["description_settings.metadata_mode"] = args.metadata_mode
 
+    # Voice profile override
+    if hasattr(args, "voice_profile") and args.voice_profile is not None:
+        overrides["voice_profile"] = args.voice_profile
+
     return overrides
 
 
@@ -497,6 +501,11 @@ async def main():
             "unified: Single title/description/hashtags for all platforms (default). "
             "optimized: Platform-specific SEO-tailored metadata."
         ),
+    )
+    parser.add_argument(
+        "--voice-profile",
+        type=str,
+        help="Override voice profile selection.",
     )
     parser.add_argument(
         "--output-format",

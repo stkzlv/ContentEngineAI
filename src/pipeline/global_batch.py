@@ -167,6 +167,12 @@ Examples:
             "Example: --profile-pool slideshow_images1 video_sequential"
         ),
     )
+    producer_group.add_argument(
+        "--voice-profile",
+        type=str,
+        metavar="NAME",
+        help="Override voice profile selection for all products.",
+    )
 
     # Common arguments
     common_group = parser.add_argument_group("Common Options")
@@ -1026,7 +1032,9 @@ class GlobalPipelineOrchestrator:
                             debug_mode=self.config.debug,
                             clean_run=False,
                             debug_step_target=None,
-                            cli_overrides=None,
+                            cli_overrides={"voice_profile": self.config.voice_profile}
+                            if self.config.voice_profile
+                            else None,
                         ),
                         timeout=config.pipeline_timeout_sec,
                     )
