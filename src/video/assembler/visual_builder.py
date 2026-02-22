@@ -233,14 +233,8 @@ class VisualFilterBuilder:
         try:
             # Check if subtitles are enabled at the profile level
             if self.profile_settings:
-                subtitle_settings_dict = self.profile_settings.get(
-                    "subtitle_settings", {}
-                )
-                subtitle_enabled = (
-                    subtitle_settings_dict.get("enabled", False)
-                    if subtitle_settings_dict
-                    else False
-                )
+                sub_settings = self.profile_settings.subtitle_settings
+                subtitle_enabled = getattr(sub_settings, "enabled", False)
             else:
                 subtitle_enabled = False
 

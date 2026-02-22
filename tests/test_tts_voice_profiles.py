@@ -126,6 +126,7 @@ class TestVoiceProfileOverride:
         mgr = TTSManager(cfg, {}, product_id="B0TEST001", voice_profile_override="calm")
         name, profile = mgr._select_voice_profile()
         assert name == "calm"
+        assert profile is not None
         assert profile.style_prompt == "Speak calmly."
 
     def test_override_ignores_product_hash(self):
@@ -360,6 +361,7 @@ class TestVoiceProfileConfigModel:
                 GoogleCloudVoiceCriteria(language_code="en-US", name_contains="Chirp3"),
             ],
         )
+        assert profile.voice_criteria is not None
         assert len(profile.voice_criteria) == 1
         assert profile.voice_criteria[0].name_contains == "Chirp3"
 

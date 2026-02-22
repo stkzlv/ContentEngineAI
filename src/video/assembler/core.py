@@ -32,6 +32,7 @@ from src.video.assembler.subtitle_utils import SubtitleStyler
 from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_builder import VisualFilterBuilder
 from src.video.config import VideoConfig
+from src.video.config.visual_models import MergedProfileSettings
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class VideoAssembler:
         ).replace("ffmpeg", "ffprobe")
 
         # Profile-specific settings (applied when using set_profile_settings)
-        self.profile_settings: dict[str, Any] | None = None
+        self.profile_settings: MergedProfileSettings | None = None
 
         # Product identifier for randomization seeding
         self.product_id: str | None = None

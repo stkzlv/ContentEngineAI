@@ -328,7 +328,7 @@ class GlobalPipelineOrchestrator:
         if self.config.profile:
             profile = self.video_config.video_profiles.get(self.config.profile)
             if profile:
-                return profile.use_scraped_videos
+                return bool(profile.use_scraped_videos)
             return None
 
         if self.config.random_profile:

@@ -466,7 +466,9 @@ async def _generate_gemini_speech(
     lang = settings.language_code
     criteria = profile.voice_criteria
     if not criteria:
-        criteria = [GoogleCloudVoiceCriteria(language_code=lang)]
+        criteria = [GoogleCloudVoiceCriteria(
+            language_code=lang, ssml_gender=None, name_contains=None,
+        )]
 
     # Filter for Gemini-compatible voices (simple names, no locale prefix)
     gemini_voices = [
@@ -662,11 +664,15 @@ class TTSManager:
     def _apply_markup_rules(text: str, rules: list[TextMarkupRule]) -> str:
         """Insert inline markup into text based on profile rules."""
         for rule in rules:
-            text = re.sub(
-                rule.pattern,
-                lambda m, r=rule: r.insert_before + m.group(0) + r.insert_after,
-                text,
-            )
+
+            def _replacer(
+                m: re.Match[str],
+                b: str = rule.insert_before,
+                a: str = rule.insert_after,
+            ) -> str:
+                return b + m.group(0) + a
+
+            text = re.sub(rule.pattern, _replacer, text)
         return text
 
     @classmethod
@@ -685,13 +691,13 @@ class TTSManager:
         self.selected_profile_name = profile_name
 
         # Apply markup rules if the profile defines them
-        has_markup = bool(profile and profile.markup_rules)
+        markup_rules = profile.markup_rules if profile else []
         processed_text = text
-        if has_markup:
-            processed_text = self._apply_markup_rules(text, profile.markup_rules)
+        if markup_rules:
+            processed_text = self._apply_markup_rules(text, markup_rules)
             logger.debug(
                 "Applied %d markup rules from profile '%s'",
-                len(profile.markup_rules),
+                len(markup_rules),
                 profile_name,
             )
 
@@ -715,7 +721,7 @@ class TTSManager:
         # Strip markup before falling back to non-Gemini providers
         # (SSML and Coqui would speak "[short pause]" literally)
         fallback_text = (
-            self._strip_markup(processed_text) if has_markup else processed_text
+            self._strip_markup(processed_text) if markup_rules else processed_text
         )
 
         # Standard provider fallback loop
