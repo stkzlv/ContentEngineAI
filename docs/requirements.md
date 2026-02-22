@@ -120,21 +120,29 @@ High-level requirements for ContentEngineAI.
 
 ### Image Positioning
 - Width as percentage of frame (default 100%)
+- **Horizontal alignment**: always centered in frame
 - **Vertical alignment**: center (default) or top with configurable offset
 - Preserve aspect ratio by default
 
 ### Video Positioning
-- **Vertical alignment**: center (default) or top with absolute offset
-- **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select based on similarity)
+- **Vertical alignment**: center (default) or top with offset (default 10%)
+- **Content height**: configurable portion of frame (default 75%)
+- **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select when aspect ratios within 10%)
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
 - **Audio handling**: remove original audio or mix at configurable volume
 - Match final duration to voiceover (±1 second tolerance)
 
 ### Subtitles
 - **Anchors**: top, center, bottom, above-content, below-content
-- Content-aware positioning relative to actual media bounds
+- **Margin** from anchor edge (default 10%)
+- **Horizontal alignment**: left, center (default), right
+- Content-aware positioning relative to actual media bounds, with safe zone (95% of frame)
+- **Font size**: scales with resolution (range 4-16% of frame height)
 - **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
+- **CTA detection**: auto-detects call-to-action phrases in voiceover for styling emphasis
 - Style presets: minimal, modern, bold, animated, random
+- **ASS effects**: blur, fade_in, fade_out, scale_up, typewriter, bounce, glow, shake, slide_left, slide_right, wave
+- One effect applied per video (deterministic by product ID)
 - Deterministic randomization seeded by product ID
 
 ### Profile System
