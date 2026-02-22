@@ -114,15 +114,29 @@ class TwoPartSubtitleHandler:
                     )
 
         if has_videos:
-            video_top = (
-                self.ctx.profile.video_top_position_percent
-                or DEFAULT_VIDEO_TOP_POSITION
-            )
-            video_height = (
-                self.ctx.profile.video_content_height_percent or DEFAULT_VIDEO_HEIGHT
-            )
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
-            logger.debug("Using video positioning for visual bounds (videos present)")
+            video_settings = self.merged_profile_settings.video_settings
+            vertical_align = video_settings.video_vertical_align
+
+            if vertical_align == "center":
+                video_top, video_height = self._estimate_centered_video_bounds(
+                    video_width
+                )
+                logger.debug(
+                    "Centered video bounds: y=%.2f%%, h=%.2f%%",
+                    video_top * 100,
+                    video_height * 100,
+                )
+            else:
+                video_top = (
+                    self.ctx.profile.video_top_position_percent
+                    or DEFAULT_VIDEO_TOP_POSITION
+                )
+                video_height = (
+                    self.ctx.profile.video_content_height_percent
+                    or DEFAULT_VIDEO_HEIGHT
+                )
+                logger.debug("Using top-aligned video positioning for visual bounds")
         elif has_images:
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
             # Get vertical_align from video_settings
@@ -228,6 +242,75 @@ class TwoPartSubtitleHandler:
             video_height = 1.0
 
         return (video_top, video_height)
+
+    def _estimate_centered_video_bounds(
+        self, video_width_percent: float
+    ) -> tuple[float, float]:
+        """Estimate visual bounds for a vertically centered video.
+
+        Uses ffprobe on the first scraped video to get actual dimensions,
+        then calculates where FFmpeg's center padding places it.
+        """
+        import subprocess
+
+        frame_width, frame_height = self.ctx.config.video_settings.resolution
+
+        if self.ctx.scraped_videos:
+            try:
+                video_path = self.ctx.scraped_videos[0]
+                result = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "v:0",
+                        "-show_entries",
+                        "stream=width,height",
+                        "-of",
+                        "csv=p=0",
+                        str(video_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    parts = result.stdout.strip().split(",")
+                    orig_w, orig_h = int(parts[0]), int(parts[1])
+
+                    # Video is scaled to fit frame width, height follows
+                    scaled_w = int(frame_width * video_width_percent)
+                    scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else 0
+
+                    if 0 < scaled_h < frame_height:
+                        centered_y = (frame_height - scaled_h) / 2
+                        top = centered_y / frame_height
+                        height = scaled_h / frame_height
+                        logger.debug(
+                            "Video bounds from probe: %dx%d scaled to %dx%d, "
+                            "y=%.2f%%, h=%.2f%%",
+                            orig_w,
+                            orig_h,
+                            scaled_w,
+                            scaled_h,
+                            top * 100,
+                            height * 100,
+                        )
+                        return (top, height)
+            except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+                logger.debug("Could not probe video dimensions: %s", e)
+
+        # Fallback: assume 16:9 landscape video in 9:16 portrait frame
+        typical_aspect = 9 / 16
+        est_w = frame_width * video_width_percent
+        estimated_h = est_w * typical_aspect
+
+        if estimated_h < frame_height:
+            centered_y = (frame_height - estimated_h) / 2
+            return (centered_y / frame_height, estimated_h / frame_height)
+
+        return (0.0, 1.0)
 
     def _get_upper_text(self) -> str | None:
         """Get text for upper subtitle from product data or custom URL."""
