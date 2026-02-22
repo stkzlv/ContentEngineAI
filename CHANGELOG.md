@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Config**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` Pydantic model instead of raw dicts
+- **Config**: Add `video_vertical_align` field ("center"/"top") for video content positioning via FFmpeg pad expression
+- **Scraper**: Validate media counts against producer profile requirements (skip products the profile can't use)
+
+### Added
+- `MergedSubtitleSettings`, `ProfileInfo`, `MergedProfileSettings` Pydantic models in `visual_models.py`
+- `--profile` CLI arg for standalone scraper to align media validation with producer
+- `profile_uses_videos` parameter on scraper constructor for profile-aware validation
+
+### Fixed
+- Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
+
 ## [0.29.2] - 2026-02-20
 
 ### Dependencies
