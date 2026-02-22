@@ -121,49 +121,32 @@ High-level requirements for ContentEngineAI.
 ### Image Positioning
 - Width as percentage of frame (default 100%)
 - **Vertical alignment**: center (default) or top with configurable offset
-- Always centered horizontally
 - Preserve aspect ratio by default
-- Reserve space below for subtitles (default 15%)
 
 ### Video Positioning
-- Top offset as percentage of frame (default 10%)
-- Content height as percentage of frame (default 75%)
-- **Aspect modes**: letterbox (black bars), crop-to-fit (fill frame), smart-scale (auto-select)
-- Smart-scale uses 10% tolerance to choose between letterbox and crop
+- **Vertical alignment**: center (default) or top with absolute offset
+- **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select based on similarity)
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
-- **Audio handling**: remove original audio or mix at reduced volume
-- Normalize to consistent format (H.264, 30fps, yuv420p)
+- **Audio handling**: remove original audio or mix at configurable volume
 - Match final duration to voiceover (±1 second tolerance)
 
-### Subtitle Positioning
+### Subtitles
 - **Anchors**: top, center, bottom, above-content, below-content
-- Content-aware mode positions relative to actual media bounds
-- Margin as percentage of frame height (default 10%)
-- Horizontal alignment: left, center (default), right
-- Font size scales with frame height (default 4%, min 16px, max 100px)
-- Safe zone: max vertical position 95% to stay readable
-
-### Two-Part Subtitles
-- Upper line: static product URL or affiliate link
-- Lower line: voiceover transcription (word-by-word timing)
-- Independent positioning and styling per line
-- CTA detection triggers timed URL display
+- Content-aware positioning relative to actual media bounds
+- **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
+- Style presets: minimal, modern, bold, animated, random
+- Deterministic randomization seeded by product ID
 
 ### Profile System
-- All visual settings configurable per video profile
-- Profile settings override global defaults
-- Backward compatibility with existing configurations
-- Runtime profile selection via CLI
+- **Precedence**: CLI > Profile > Global defaults
+- All visual, subtitle, and video settings configurable per profile
+- Typed Pydantic models for merged settings
+- Deterministic random profile selection per product
 
-### Font & Color Management
-- Style presets: minimal, modern, bold, animated, random
-- Deterministic randomization using product ID as seed
-- Coordinated color combinations with proper contrast
-
-### ASS Effects
-- One effect per video for visual consistency
-- Support: scale, rotation, glow, typewriter, karaoke, fade, movement
-- Proper ASS formatting for FFmpeg compatibility
+### Media Validation
+- Scraper validates media against producer profile requirements
+- If profile ignores videos, scraper counts images only
+- Insufficient media = skipped (not failed)
 
 ### AI Service Integration
 - Auto-select AI models from OpenRouter API
