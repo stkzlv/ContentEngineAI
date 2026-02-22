@@ -466,9 +466,13 @@ async def _generate_gemini_speech(
     lang = settings.language_code
     criteria = profile.voice_criteria
     if not criteria:
-        criteria = [GoogleCloudVoiceCriteria(
-            language_code=lang, ssml_gender=None, name_contains=None,
-        )]
+        criteria = [
+            GoogleCloudVoiceCriteria(
+                language_code=lang,
+                ssml_gender=None,
+                name_contains=None,
+            )
+        ]
 
     # Filter for Gemini-compatible voices (simple names, no locale prefix)
     gemini_voices = [
