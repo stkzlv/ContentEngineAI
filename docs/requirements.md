@@ -162,6 +162,13 @@ High-level requirements for ContentEngineAI.
 - Default to free models with fallback
 - Google Cloud TTS and Gemini TTS with voice prioritization
 
+### Script Templates
+- Multiple prompt templates with different styles (curiosity hook, problem-solution, storytelling, comparison, etc.)
+- Deterministic template selection per product for batch consistency
+- Configurable template pool to restrict which styles get used
+- CLI override to force a specific template
+- Template metadata recorded in pipeline output for traceability
+
 ### TTS Voice Profiles
 - Named voice presets with style direction, voice preferences, and text markup
 - Multiple TTS providers with automatic fallback

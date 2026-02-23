@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline markup preprocessing: `[short pause]`, `[pause]` inserted at sentence boundaries per profile rules
 - Deterministic voice profile selection per product (md5 hash, hex slice `[16:24]`)
 - **Dynamic upper subtitle positioning**: content-aware per-segment repositioning using assembler geometry, splits CTA across visual segments
+- **Script template system**: 15 distinct prompt templates (curiosity hook, problem-solution, storytelling, comparison, etc.) with deterministic per-product selection via salted md5 hash
+- `ScriptTemplateConfig` model: `enabled`, `templates_dir`, `template_pool`, `fixed_template` fields
+- `--script-template` CLI override for producer and global batch pipeline
+- Script template name saved in `pipeline_state.json` under generate_script metadata
 
 ### Fixed
 - Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
