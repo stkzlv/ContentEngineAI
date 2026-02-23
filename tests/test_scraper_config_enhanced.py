@@ -48,7 +48,7 @@ class TestEnhancedScraperConfig:
         image_config = config_data.get("global_settings", {}).get("image_config", {})
 
         assert "max_images_per_product" in image_config
-        assert image_config["max_images_per_product"] == 10
+        assert image_config["max_images_per_product"] == 15
 
     def test_media_config_js_context_chars(self, config_data):
         """Test JavaScript context character limit configuration."""

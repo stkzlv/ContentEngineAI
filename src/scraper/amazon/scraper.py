@@ -1253,6 +1253,20 @@ def main():
         ),
     )
     parser.add_argument(
+        "--max-products",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Global cap on total products to collect across all keywords",
+    )
+    parser.add_argument(
+        "--products-per-keyword",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Maximum products to scrape per individual keyword",
+    )
+    parser.add_argument(
         "--fail-fast",
         action="store_true",
         help=(
@@ -1783,6 +1797,8 @@ def main():
                     cli_product_ids=chunk,
                     cli_keywords=all_keywords if chunk_idx == 0 else None,
                     cli_fail_fast=args.fail_fast,
+                    cli_max_products=args.max_products,
+                    cli_products_per_keyword=args.products_per_keyword,
                 )
 
                 # Override search parameters in batch config with CLI parameters

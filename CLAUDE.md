@@ -44,6 +44,12 @@ poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --m
 # Global batch pipeline (mixed mode with fail-fast)
 poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile slideshow_images1 --fail-fast --debug
 
+# Publish single product (auto-schedules to next slot)
+poetry run python -m src.publisher.late single B0ASIN1 --debug
+
+# Publish to specific platforms
+poetry run python -m src.publisher.late single B0ASIN1 --platform youtube --platform tiktok --debug
+
 # Published products registry
 poetry run python -m src.publisher.late registry --rebuild --outputs-dir outputs
 poetry run python -m src.publisher.late registry --rebuild --scan-dir tmp --outputs-dir outputs
@@ -204,7 +210,8 @@ make test-cov      # Run tests with coverage report
 - **Late SDK post methods**: `create`, `get`, `update`, `delete`, `retry`, `list` (+ async variants `acreate`, etc.)
 - **Publishing modes**: Unified (default) = 1 post to all platforms; platform-specific (`--platform-specific` or `use_platform_specific_content: true`) = 1 post per platform with optimized metadata. Shared helper: `src/publisher/publish_modes.py`.
 - **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
-- **`.env` file**: Must be sourced before running publisher CLI (`set -a && source .env && set +a`), or use `poetry run` which auto-loads `.env` if `python-dotenv` is installed.
+- **`.env` file**: Auto-loaded by the CLI via `load_dotenv()`. No manual sourcing needed.
+- **CLI format**: `poetry run python -m src.publisher.late single <PRODUCT_ID> --debug`. Takes product ID (not file paths). Video is auto-discovered from `outputs/<product_id>/`. Don't pass `--immediate` or `--platform-specific` by default.
 
 ## Link-in-Bio Module Notes
 
