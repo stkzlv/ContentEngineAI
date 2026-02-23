@@ -241,6 +241,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "voice_profile") and args.voice_profile is not None:
         overrides["voice_profile"] = args.voice_profile
 
+    # Script template override
+    if hasattr(args, "script_template") and args.script_template is not None:
+        overrides["script_template"] = args.script_template
+
     return overrides
 
 
@@ -508,6 +512,11 @@ async def main():
         help="Override voice profile selection.",
     )
     parser.add_argument(
+        "--script-template",
+        type=str,
+        help="Override script template (name without .md).",
+    )
+    parser.add_argument(
         "--output-format",
         choices=["text", "json"],
         default="text",
@@ -584,6 +593,12 @@ async def main():
     except SystemExit:
         logger.critical(f"Complete log saved to: {log_file}")
         raise
+
+    # Apply script template override to LLM settings
+    if cli_overrides.get("script_template"):
+        config.llm_settings.script_templates.fixed_template = cli_overrides[
+            "script_template"
+        ]
 
     # Log applied CLI overrides (already applied via config loader)
     if cli_overrides:

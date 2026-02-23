@@ -353,6 +353,9 @@ class GlobalBatchConfig:
     # Voice profile override
     voice_profile: str | None = None
 
+    # Script template override
+    script_template: str | None = None
+
     # Resume configuration
     resume: bool = False
 
@@ -803,6 +806,11 @@ def load_global_batch_config(
         "voice_profile"
     )
 
+    # Script template override
+    script_template = getattr(cli_args, "script_template", None) or yaml_config.get(
+        "script_template"
+    )
+
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
@@ -831,6 +839,7 @@ def load_global_batch_config(
         fail_fast_publish=fail_fast_publish,
         platform_specific_content=platform_specific_content,
         voice_profile=voice_profile,
+        script_template=script_template,
         resume=resume,
         dry_run=dry_run,
         output_format=output_format,

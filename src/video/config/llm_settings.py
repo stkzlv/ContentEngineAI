@@ -4,6 +4,15 @@
 from pydantic import BaseModel, Field
 
 
+class ScriptTemplateConfig(BaseModel):
+    """Config for multi-template script generation."""
+
+    enabled: bool = False
+    templates_dir: str = "src/ai/prompts/scripts"
+    template_pool: list[str] = Field(default_factory=list)
+    fixed_template: str | None = None
+
+
 class LLMSettings(BaseModel):
     provider: str
     api_key_env_var: str
@@ -17,3 +26,4 @@ class LLMSettings(BaseModel):
     max_tokens: int = Field(4096)  # Sensible default, configurable via YAML
     temperature: float = Field(0.7)  # Sensible default, configurable via YAML
     timeout_seconds: int = Field(60)  # Sensible default, configurable via YAML
+    script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)

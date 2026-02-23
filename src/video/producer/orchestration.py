@@ -223,6 +223,12 @@ async def create_video_for_product(
         profile = config.get_profile(profile_name)
         ensure_dirs_exist(run_paths["run_root"])
 
+        # Apply script template override to LLM settings
+        if cli_overrides and cli_overrides.get("script_template"):
+            config.llm_settings.script_templates.fixed_template = cli_overrides[
+                "script_template"
+            ]
+
         ctx = PipelineContext(
             product,
             profile,

@@ -80,6 +80,10 @@ poetry run python tools/performance_report.py --report-type summary
 - **TTS hash slice**: Voice profiles use md5 hex `[16:24]` (fonts use `[0:8]`, colors `[8:16]`, voice within profile `[24:32]`)
 - **TTS metadata**: Profile name and voice name saved in `pipeline_state.json` under `create_voiceover.tts_metadata`
 
+## Session Continuity
+
+After every context compaction (session continuation), run `/github-workflow` to check CI status and catch any issues from the previous session. This is non-optional.
+
 ## Development Guidelines
 
 - Use Poetry for dependency management

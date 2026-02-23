@@ -173,6 +173,12 @@ Examples:
         metavar="NAME",
         help="Override voice profile selection for all products.",
     )
+    producer_group.add_argument(
+        "--script-template",
+        type=str,
+        metavar="NAME",
+        help="Override script template for all products (name without .md).",
+    )
 
     # Common arguments
     common_group = parser.add_argument_group("Common Options")
@@ -314,6 +320,15 @@ class GlobalPipelineOrchestrator:
     def _save_state(self) -> None:
         """Save current pipeline state to disk."""
         save_pipeline_state(self.state, self.config.outputs_dir)
+
+    def _build_cli_overrides(self) -> dict[str, str] | None:
+        """Build CLI overrides dict from pipeline config."""
+        overrides: dict[str, str] = {}
+        if self.config.voice_profile:
+            overrides["voice_profile"] = self.config.voice_profile
+        if self.config.script_template:
+            overrides["script_template"] = self.config.script_template
+        return overrides or None
 
     def _resolve_profile_uses_videos(self) -> bool | None:
         """Check if the target profile(s) use scraped videos.
@@ -1032,9 +1047,7 @@ class GlobalPipelineOrchestrator:
                             debug_mode=self.config.debug,
                             clean_run=False,
                             debug_step_target=None,
-                            cli_overrides={"voice_profile": self.config.voice_profile}
-                            if self.config.voice_profile
-                            else None,
+                            cli_overrides=self._build_cli_overrides(),
                         ),
                         timeout=config.pipeline_timeout_sec,
                     )

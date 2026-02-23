@@ -56,6 +56,21 @@ llm_settings:
   retry_min_wait_sec: 2
   retry_max_wait_sec: 30
 
+  # Script template system
+  # Templates control the style/structure of generated scripts
+  # Each product gets a template selected deterministically by product ID
+  script_templates:
+    enabled: true
+    # Directory containing template .md files
+    templates_dir: "src/ai/prompts/scripts"
+    # Pool of template names to use (empty = all templates in directory)
+    # Example: ["curiosity_hook", "problem_solution", "story_driven"]
+    template_pool: []
+    # Override: use this specific template for all products
+    # Takes priority over random selection. Set null for random.
+    # Example: "curiosity_hook"
+    fixed_template: null
+
 # ============================================================================
 # TTS CONFIGURATION
 # ============================================================================

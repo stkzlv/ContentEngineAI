@@ -15,6 +15,7 @@ and serve as the foundation for the video's voiceover and subtitles.
 """
 
 import asyncio
+import hashlib
 import logging
 import random
 import re
@@ -127,6 +128,68 @@ def save_debug_prompt(prompt: str, path: Path):
         logger.debug(f"Saved formatted prompt to {path}")
     except Exception as e:
         logger.error(f"Failed to save debug prompt to {path}: {e}", exc_info=True)
+
+
+def select_script_template(
+    settings: LLMSettings,
+    product_id: str | None = None,
+) -> Path:
+    """Select a script template, deterministically by product ID.
+
+    When script_templates is enabled, picks from the templates directory.
+    Falls back to the single prompt_template_path when disabled.
+    """
+    templates_cfg = settings.script_templates
+
+    if not templates_cfg.enabled:
+        return Path(settings.prompt_template_path)
+
+    # Fixed template override (from config or CLI --script-template)
+    if templates_cfg.fixed_template:
+        path = Path(templates_cfg.templates_dir) / f"{templates_cfg.fixed_template}.md"
+        if path.exists():
+            return path
+        logger.warning(
+            "Fixed template '%s' not found, falling back to default",
+            templates_cfg.fixed_template,
+        )
+        return Path(settings.prompt_template_path)
+
+    # Discover available templates
+    templates_dir = Path(templates_cfg.templates_dir)
+    if not templates_dir.is_dir():
+        logger.warning("Templates dir '%s' not found, falling back", templates_dir)
+        return Path(settings.prompt_template_path)
+
+    all_templates = sorted(p.stem for p in templates_dir.glob("*.md"))
+    if not all_templates:
+        logger.warning("No templates found in '%s'", templates_dir)
+        return Path(settings.prompt_template_path)
+
+    # Apply pool filter (empty = all)
+    pool = templates_cfg.template_pool or all_templates
+    pool = [t for t in pool if t in all_templates]
+    if not pool:
+        pool = all_templates
+
+    # Deterministic selection using salted product ID hash
+    if product_id:
+        hash_hex = hashlib.md5(
+            f"{product_id}:script_template".encode(),
+            usedforsecurity=False,
+        ).hexdigest()
+        seed = int(hash_hex[:8], 16)
+        rng = random.Random(seed)  # noqa: S311
+        name = rng.choice(pool)
+    else:
+        name = random.choice(pool)  # noqa: S311
+
+    logger.info(
+        "Selected script template '%s' for product '%s'",
+        name,
+        product_id,
+    )
+    return templates_dir / f"{name}.md"
 
 
 async def _fetch_and_select_model(
@@ -548,40 +611,12 @@ async def generate_script(
     intermediate_paths: dict[str, Path],
     debug_mode: bool,
     api_settings=None,
-) -> str | None:
+    product_id: str | None = None,
+) -> tuple[str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
-    This is the main entry point for script generation. It orchestrates the entire
-    process:
-    1. Validates API credentials
-    2. Selects appropriate LLM models to try
-    3. Loads and formats the prompt template with product data
-    4. Makes API requests to generate the script
-    5. Handles fallback to alternative models if needed
-    6. Saves debug information when in debug mode
-    7. Sanitizes and returns the final script
-
-    The function implements a fallback mechanism that tries multiple models in sequence
-    if earlier attempts fail, providing resilience against model-specific issues.
-
-    Args:
-    ----
-        product: Product data containing title, description, etc.
-        settings: LLM configuration settings
-        secrets: Dictionary containing API keys and credentials
-        session: Shared HTTP session for API requests
-        intermediate_paths: Dictionary of paths for saving intermediate files
-        debug_mode: Whether to save debug information
-        api_settings: Additional API settings for configuration
-
-    Returns:
-    -------
-        The generated and sanitized script, or None if generation failed
-
-    Raises:
-    ------
-        ScriptGenerationError: If script generation fails for all models
-
+    Returns (script_text, template_name) tuple. template_name is the stem
+    of the selected template file (e.g. "curiosity_hook"), or None on failure.
     """
     # Get API key from secrets
     api_key = secrets.get(settings.api_key_env_var)
@@ -611,8 +646,10 @@ async def generate_script(
 
     logger.info(f"Order of models to attempt: {models_to_try}")
 
+    template_path = select_script_template(settings, product_id)
+    template_name = template_path.stem
     try:
-        template = load_prompt_template(Path(settings.prompt_template_path))
+        template = load_prompt_template(template_path)
         prompt = format_prompt(template, product, settings.target_audience)
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
@@ -647,7 +684,7 @@ async def generate_script(
                         f"Script successfully generated with model: {model} - "
                         f"{validation_reason}"
                     )
-                    return clean_script
+                    return clean_script, template_name
                 else:
                     logger.warning(
                         f"Script incomplete from {model}: {validation_reason}"
@@ -714,7 +751,7 @@ async def generate_script(
                 )
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
-                    return clean_script
+                    return clean_script, template_name
                 else:
                     logger.warning(f"Fallback {model} incomplete: {validation_reason}")
             except Exception as e:
@@ -722,4 +759,4 @@ async def generate_script(
                 continue
 
     logger.error("All models failed to generate a script.")
-    return None
+    return None, None

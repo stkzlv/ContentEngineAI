@@ -331,7 +331,7 @@ async def step_generate_script(ctx: PipelineContext):
             return
 
         try:
-            script_text = await generate_ai_script(
+            script_text, template_name = await generate_ai_script(
                 ctx.product,
                 ctx.config.llm_settings,
                 ctx.secrets,
@@ -339,6 +339,7 @@ async def step_generate_script(ctx: PipelineContext):
                 {"script": ctx.run_paths["script_file"]},
                 ctx.debug_mode,
                 ctx.config.api_settings,
+                product_id=ctx.product.asin,
             )
         except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e
@@ -348,8 +349,12 @@ async def step_generate_script(ctx: PipelineContext):
         ctx.script = sanitize_script(script_text)
         ensure_dirs_exist(ctx.run_paths["script_file"].parent)
         ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
+        if template_name:
+            ctx.state["script_template"] = template_name
         logger.info(
-            f"Script generated and saved to {ctx.run_paths['script_file'].name}"
+            "Script generated (template=%s) and saved to %s",
+            template_name,
+            ctx.run_paths["script_file"].name,
         )
 
 

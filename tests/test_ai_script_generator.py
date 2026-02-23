@@ -215,7 +215,7 @@ class TestGenerateScript:
                 debug_mode=True,
             )
 
-        assert result == "Generated script content"
+        assert result[0] == "Generated script content"
         assert mock_session.post.called
 
     @pytest.mark.asyncio
@@ -296,7 +296,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result is None  # Should return None on failure
+        assert result == (None, None)
 
     @pytest.mark.asyncio
     async def test_generate_script_empty_response(
@@ -343,8 +343,8 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        # Should return None for empty response
-        assert result is None
+        # Should return (None, None) for empty response
+        assert result == (None, None)
 
     @pytest.mark.skip(
         reason="Test needs async session mock fix - temporary skip for CI"
@@ -407,7 +407,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result == "Generated script content"
+        assert result[0] == "Generated script content"
         assert mock_aiohttp_session.post.call_count == 2  # Called twice due to fallback
 
     @pytest.mark.asyncio
@@ -514,7 +514,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result is None  # Should return None when all models fail
+        assert result == (None, None)
         assert (
             mock_aiohttp_session.post.call_count == 6
         )  # Called for each model (2 models * 3 retries)
@@ -561,7 +561,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result is None  # Should return None on timeout
+        assert result == (None, None)
 
     @pytest.mark.skip(
         reason="Test needs async session mock fix - temporary skip for CI"
@@ -613,6 +613,6 @@ class TestGenerateScript:
                 debug_mode=True,
             )
 
-        assert result == "Generated script content"
+        assert result[0] == "Generated script content"
         # Check that debug file was created
         assert (temp_dir / "prompt.txt").exists()

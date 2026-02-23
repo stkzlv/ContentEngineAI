@@ -427,6 +427,26 @@ batch:
     - "LED Strip Lights"
     - "robot toy"
     - "UV sanitizing phone case"
+    - "smart bicycle helmet"
+    - "pocket thermal printer"
+    - "smart cat litter box"
+    - "compact power station"
+    - "smart posture corrector"
+    - "smart luggage tracker"
+    - "smart pet feeder"
+    - "compost-monitoring smart bin"
+    - "laser projection virtual keyboard"
+    - "solar backpack"
+    - "water-from-air gadget"
+    - "smart mirror"
+    - "drone with follow me mode camera"
+    - "gesture control flying orb light"
+    - "3D pen"
+    - "smart scent diffusers"
+    - "levitating bluetooth speaker"
+    - "magnetic floating light bulb"
+    - "kinetic desk toy"
+    - "retro game console"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure
@@ -469,7 +489,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 50
+    max_products: 150
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
