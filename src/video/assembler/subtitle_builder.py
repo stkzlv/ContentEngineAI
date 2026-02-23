@@ -4,6 +4,7 @@ This module provides utilities for building FFmpeg subtitle filter graphs
 with content-aware positioning, dual-line support, and ASS file generation.
 """
 
+import contextlib
 import logging
 import re
 import textwrap
@@ -827,9 +828,7 @@ class SubtitleGraphBuilder:
 
             # Get upper line margin from settings
             settings_dict = self._get_effective_subtitle_settings()
-            upper_margin = settings_dict.get(
-                "two_part_subtitles_upper_margin", 0.04
-            )
+            upper_margin = settings_dict.get("two_part_subtitles_upper_margin", 0.04)
             spacing_px = upper_margin * frame_height
 
             # Parse actual font size from ASS Style line (much more accurate
@@ -839,10 +838,8 @@ class SubtitleGraphBuilder:
                 if line.strip().startswith("Style:"):
                     style_parts = line.split(",")
                     if len(style_parts) > 2:
-                        try:
+                        with contextlib.suppress(ValueError):
                             font_size = float(style_parts[2])
-                        except ValueError:
-                            pass
                     break
 
             min_safe_y = (
@@ -869,7 +866,7 @@ class SubtitleGraphBuilder:
 
                 # Find all segments this dialogue overlaps
                 for seg_idx, (seg_start, seg_end) in enumerate(
-                    zip(segment_start_times, segment_end_times)
+                    zip(segment_start_times, segment_end_times, strict=False)
                 ):
                     if ev_end <= seg_start or ev_start >= seg_end:
                         continue  # no overlap
@@ -921,15 +918,23 @@ class SubtitleGraphBuilder:
                             f"{{\\pos({subtitle_x},{subtitle_y})}}{clean_text}"
                         )
 
-                    new_parts = parts[:1] + [start_str, end_str] + parts[3:9] + [positioned_text]
+                    new_parts = (
+                        parts[:1]
+                        + [start_str, end_str]
+                        + parts[3:9]
+                        + [positioned_text]
+                    )
                     content_aware_events.append(",".join(new_parts))
 
                     if self.debug_mode:
                         logger.debug(
                             "Upper subtitle seg %d: y=%d (content_top=%d), "
                             "time=%.2f-%.2fs",
-                            seg_idx, subtitle_y, content_top,
-                            clip_start, clip_end,
+                            seg_idx,
+                            subtitle_y,
+                            content_top,
+                            clip_start,
+                            clip_end,
                         )
 
             if not content_aware_events:
