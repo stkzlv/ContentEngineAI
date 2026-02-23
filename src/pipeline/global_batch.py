@@ -1851,6 +1851,12 @@ async def main():
         logger.critical("To resume from last checkpoint, run with --resume flag")
         sys.exit(1)
 
+    finally:
+        # Clean up HTTP connection pool to avoid "Unclosed connector" warnings
+        from src.utils.connection_pool import close_global_pool
+
+        await close_global_pool()
+
 
 if __name__ == "__main__":
     import asyncio

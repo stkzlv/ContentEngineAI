@@ -31,8 +31,8 @@ global_batch:
   max_products: 10
 
   # Maximum products to scrape per individual keyword
-  # Default: 2
-  products_per_keyword: 2
+  # Default: 1
+  products_per_keyword: 1
 
   # ---- Scraper Filter Configuration ----
   # Optional filters to apply when searching for products

@@ -329,7 +329,7 @@ class GlobalBatchConfig:
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     max_products: int = 10
-    products_per_keyword: int = 2
+    products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
 
     # Producer configuration
@@ -736,7 +736,7 @@ def load_global_batch_config(
     products_per_keyword = (
         getattr(cli_args, "products_per_keyword", None)
         or yaml_config.get("products_per_keyword")
-        or 2
+        or 1
     )
 
     # Scraper filters (SearchParameters)
