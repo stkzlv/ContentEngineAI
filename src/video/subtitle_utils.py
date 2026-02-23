@@ -294,10 +294,10 @@ def create_static_upper_subtitle(
             "two_part_subtitles_upper_anchor", "above_content"
         )
         upper_subtitle_settings["margin"] = subtitle_settings.get(
-            "two_part_subtitles_upper_margin", 0.08
+            "two_part_subtitles_upper_margin", 0.04
         )
         upper_subtitle_settings["font_size_scale"] = subtitle_settings.get(
-            "two_part_subtitles_upper_font_size_scale", 0.8
+            "two_part_subtitles_upper_font_size_scale", 0.7
         )
         upper_subtitle_settings["style_preset"] = subtitle_settings.get(
             "two_part_subtitles_upper_style_preset", "minimal"

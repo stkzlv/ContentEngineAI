@@ -6,7 +6,7 @@ Voice profiles give each product video a distinct vocal identity: style directio
 
 1. A voice profile is selected per product using deterministic hashing (md5 of product ID, hex slice `[16:24]`)
 2. If the profile uses Gemini TTS, the text gets a `prompt` field for style control and optional inline markup like `[short pause]`
-3. If Gemini fails, markup is stripped and the standard provider chain (Chirp3-HD, Coqui) handles it
+3. If Gemini fails, markup is stripped and the standard provider chain handles it (Google Cloud TTS preferring Chirp3-HD voices, then Coqui as final fallback)
 4. The selected profile name and voice name are saved to `pipeline_state.json` under `tts_metadata`
 
 ## Configuration

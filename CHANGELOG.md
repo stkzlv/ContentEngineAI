@@ -11,11 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` Pydantic model instead of raw dicts
 - **Config**: Add `video_vertical_align` field ("center"/"top") for video content positioning via FFmpeg pad expression
 - **Scraper**: Validate media counts against producer profile requirements (skip products the profile can't use)
+- **Scraper**: Default `products_per_keyword: 1` and `max_products: 50` (was 5 and 1)
+- **Config**: Align upper subtitle defaults with YAML profiles (margin 0.04, font_size_scale 0.7)
 
 ### Added
 - `MergedSubtitleSettings`, `ProfileInfo`, `MergedProfileSettings` Pydantic models in `visual_models.py`
 - `--profile` CLI arg for standalone scraper to align media validation with producer
 - `profile_uses_videos` parameter on scraper constructor for profile-aware validation
+- `--max-products` and `--products-per-keyword` CLI args for standalone scraper
 - **TTS voice profiles**: Configurable voice presets with style prompts, markup rules, and per-profile provider routing
 - **Gemini TTS provider**: Style-directed speech via `SynthesisInput(prompt=...)` with automatic fallback to Google Cloud TTS
 - `VoiceProfileConfig`, `TextMarkupRule` Pydantic models in `audio_models.py`
@@ -23,9 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TTS metadata (profile name, voice name) saved in `pipeline_state.json`
 - Inline markup preprocessing: `[short pause]`, `[pause]` inserted at sentence boundaries per profile rules
 - Deterministic voice profile selection per product (md5 hash, hex slice `[16:24]`)
+- **Dynamic upper subtitle positioning**: content-aware per-segment repositioning using assembler geometry, splits CTA across visual segments
 
 ### Fixed
 - Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
+- Upper subtitle floating in middle of black bar for letterboxed video profiles (now positioned near content edge)
+- Unclosed aiohttp session on producer exit (close global connection pool in CLI)
 
 ### Dependencies
 - Bump `google-cloud-texttospeech` from ^2.26.0 to ^2.29.0 (adds `SynthesisInput.prompt` support)

@@ -908,6 +908,11 @@ async def main():
     logger.info("Video producer completed successfully")
     logger.info(f"Complete log saved to: {log_file}")
 
+    # Clean up HTTP connection pool
+    from src.utils.connection_pool import close_global_pool
+
+    await close_global_pool()
+
     # Ensure all log messages are flushed
     for handler in logging.getLogger().handlers:
         handler.flush()

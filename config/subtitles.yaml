@@ -172,7 +172,7 @@ subtitle_settings:
       # 0.04 = 4% of frame height spacing (~77px gap from content)
       margin: 0.04
       # Font size relative to main subtitles (0.5-2.0)
-      font_size_scale: 0.75
+      font_size_scale: 0.7
       # Style preset for upper line (minimal, modern, bold, animated, random)
       style_preset: "minimal"
       # Custom styling (optional, overrides preset)

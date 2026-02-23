@@ -72,7 +72,8 @@ poetry run python tools/performance_report.py --report-type summary
 - **Video centering**: Use `video_vertical_align: center` in profile config. Setting `video_top_position_percent: 0.0` puts video at top, not center. The `center` value triggers FFmpeg's `(oh-ih)/2` pad expression.
 - **Subtitle positioning**: For centered images with mixed aspect ratios (landscape + portrait), use AVERAGE `video_top` across all images to balance positioning
 - **Visual bounds**: Calculated from actual image dimensions, not frame dimensions
-- **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`
+- **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`. Upper subtitle is dynamically repositioned per visual segment in `subtitle_builder._create_content_aware_upper_ass_file()` using actual geometry from the assembler
+- **Upper subtitle positioning gotcha**: The pre-assembly `calculate_visual_bounds()` can produce wrong bounds (e.g., `ctx.scraped_videos` empty). The real fix is in the assembler where per-segment `VisualGeometry` data is available
 - **Scraper-producer alignment**: Pass `profile_uses_videos` to scraper so media validation counts only what the profile actually uses
 - **TTS voice profiles**: Configured in `config/subtitles.yaml` under `tts_config.voice_profiles`. Profiles specify provider (`google_cloud` or `gemini`), style prompt, voice criteria, and markup rules
 - **Gemini TTS**: Uses same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=..., prompt=...)`. Requires `Vertex AI User` IAM role on the service account. Falls back to Google Cloud TTS on failure

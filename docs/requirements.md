@@ -134,14 +134,15 @@ High-level requirements for ContentEngineAI.
 
 ### Subtitles
 - **Anchors**: top, center, bottom, above-content, below-content
-- **Margin** from anchor edge (default 10%)
+- **Margin** from anchor edge (default 4%)
 - **Horizontal alignment**: left, center (default), right
 - Content-aware positioning relative to actual media bounds, with safe zone (95% of frame)
 - **Font size**: scales with resolution (range 4-16% of frame height)
 - **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
+- **Dynamic repositioning**: both upper and lower subtitles repositioned per visual segment using actual assembler geometry (handles mixed-media profiles where video and images have different bounds)
 - **CTA detection**: auto-detects call-to-action phrases in voiceover for styling emphasis
 - Style presets: minimal, modern, bold, animated, random
-- **ASS effects**: blur, fade_in, fade_out, scale_up, typewriter, bounce, glow, shake, slide_left, slide_right, wave
+- **ASS effects**: fade, scale_pulse, rotation_bounce, glow, typewriter, karaoke, movement
 - One effect applied per video (deterministic by product ID)
 - Deterministic randomization seeded by product ID
 
@@ -159,7 +160,7 @@ High-level requirements for ContentEngineAI.
 ### AI Service Integration
 - Auto-select AI models from OpenRouter API
 - Default to free models with fallback
-- Google Cloud TTS with voice prioritization
+- Google Cloud TTS and Gemini TTS with voice prioritization
 
 ### TTS Voice Profiles
 - Named voice presets with style direction, voice preferences, and text markup

@@ -391,7 +391,7 @@ class TwoPartSubtitleHandler:
         lower_subtitle_settings["anchor"] = self.config.lower_config.get(
             "anchor", "below_content"
         )
-        lower_subtitle_settings["margin"] = self.config.lower_config.get("margin", 0.05)
+        lower_subtitle_settings["margin"] = self.config.lower_config.get("margin", 0.04)
 
         if self.config.lower_config.get("custom_style"):
             lower_subtitle_settings.update(self.config.lower_config["custom_style"])

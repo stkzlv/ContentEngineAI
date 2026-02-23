@@ -278,6 +278,15 @@ class SubtitleGraphBuilder:
 
         # Apply upper subtitle (static product info)
         if subtitle_upper_path.suffix.lower() == ".ass":
+            if use_content_aware and geometries:
+                content_aware_upper = await self._create_content_aware_upper_ass_file(
+                    subtitle_upper_path,
+                    geometries,
+                    timed_visuals,
+                    temp_sub_dir,
+                )
+                if content_aware_upper:
+                    subtitle_upper_path = content_aware_upper
             ass_path_upper = subtitle_upper_path.as_posix().replace(":", r"\:")
             video_filters.append(f"{current_stream}ass='{ass_path_upper}'[v_upper]")
             current_stream = "[v_upper]"
@@ -296,9 +305,9 @@ class SubtitleGraphBuilder:
                 upper_settings = settings_dict.copy()
                 upper_settings["style_preset"] = style_preset
                 upper_settings["anchor"] = upper_config.get("anchor", "above_content")
-                upper_settings["margin"] = upper_config.get("margin", 0.08)
+                upper_settings["margin"] = upper_config.get("margin", 0.04)
                 upper_settings["font_size_scale"] = upper_config.get(
-                    "font_size_scale", 0.8
+                    "font_size_scale", 0.7
                 )
 
                 try:
@@ -385,7 +394,7 @@ class SubtitleGraphBuilder:
                         1
                     ] * settings_dict.get("font_size_percent", 0.04)
                     upper_font_size = base_font_size * upper_settings.get(
-                        "font_size_scale", 0.8
+                        "font_size_scale", 0.7
                     )
 
                     x_pos_expr = f"w*{position.x} - text_w/2"
@@ -437,7 +446,7 @@ class SubtitleGraphBuilder:
                 lower_config = two_part_config.get("lower_line", {})
                 lower_settings = settings_dict.copy()
                 lower_settings["anchor"] = lower_config.get("anchor", "below_content")
-                lower_settings["margin"] = lower_config.get("margin", 0.05)
+                lower_settings["margin"] = lower_config.get("margin", 0.04)
 
                 # Get style configuration for lower line
                 from src.video.subtitle_positioning import get_style_config
@@ -760,6 +769,195 @@ class SubtitleGraphBuilder:
         except Exception as e:
             logger.error(f"Failed to create content-aware ASS file: {e}")
             return None
+
+    async def _create_content_aware_upper_ass_file(
+        self,
+        original_ass_path: Path,
+        geometries: list[VisualGeometry],
+        timed_visuals: list[tuple[Path, float, bool]],
+        temp_dir: Path,
+    ) -> Path | None:
+        """Create ASS file with per-segment positioning for upper subtitle.
+
+        The upper subtitle (CTA/URL) may span the entire video, but each visual
+        segment has different geometry (video vs images). This splits long
+        dialogue lines into per-segment sub-dialogues positioned just above
+        each segment's actual content.
+        """
+        try:
+            logger.info(
+                "Creating content-aware upper ASS file with per-segment positioning"
+            )
+
+            with open(original_ass_path, encoding="utf-8") as f:
+                original_content = f.read()
+
+            lines = original_content.strip().split("\n")
+            header_lines = []
+            events_lines = []
+            in_events = False
+
+            for line in lines:
+                if line.strip().startswith("[Events]"):
+                    in_events = True
+                    header_lines.append(line)
+                elif in_events and line.strip().startswith("Dialogue:"):
+                    events_lines.append(line)
+                elif (
+                    in_events
+                    and line.strip()
+                    and not line.strip().startswith("Dialogue:")
+                ):
+                    header_lines.append(line)
+                else:
+                    header_lines.append(line)
+
+            if not events_lines:
+                logger.warning("No dialogue events found in upper ASS file")
+                return None
+
+            segment_end_times = self._calculate_segment_times(timed_visuals)
+            if not segment_end_times:
+                return None
+
+            # Build segment start times from end times
+            segment_start_times = [0.0] + segment_end_times[:-1]
+
+            frame_width, frame_height = self.config.video_settings.resolution
+
+            # Get upper line margin from settings
+            settings_dict = self._get_effective_subtitle_settings()
+            upper_margin = settings_dict.get(
+                "two_part_subtitles_upper_margin", 0.04
+            )
+            spacing_px = upper_margin * frame_height
+
+            # Parse actual font size from ASS Style line (much more accurate
+            # than recalculating from font_size_percent which is a legacy value)
+            font_size = 53.0  # safe default
+            for line in header_lines:
+                if line.strip().startswith("Style:"):
+                    style_parts = line.split(",")
+                    if len(style_parts) > 2:
+                        try:
+                            font_size = float(style_parts[2])
+                        except ValueError:
+                            pass
+                    break
+
+            min_safe_y = (
+                self.config.text_rendering.min_safe_y_position
+                if self.config.text_rendering
+                else 0.05
+            )
+            min_y = int(frame_height * min_safe_y)
+
+            content_aware_events = []
+
+            for event_line in events_lines:
+                parts = event_line.split(",", 9)
+                if len(parts) < 10:
+                    content_aware_events.append(event_line)
+                    continue
+
+                ev_start = self.parser.parse_ass_time(parts[1])
+                ev_end = self.parser.parse_ass_time(parts[2])
+                text_content = parts[9]
+
+                # Strip existing \pos() tags
+                clean_text = re.sub(r"\\pos\([^)]+\)", "", text_content)
+
+                # Find all segments this dialogue overlaps
+                for seg_idx, (seg_start, seg_end) in enumerate(
+                    zip(segment_start_times, segment_end_times)
+                ):
+                    if ev_end <= seg_start or ev_start >= seg_end:
+                        continue  # no overlap
+
+                    if seg_idx >= len(geometries):
+                        continue
+
+                    geom = geometries[seg_idx]
+
+                    # Clip to segment boundaries
+                    clip_start = max(ev_start, seg_start)
+                    clip_end = min(ev_end, seg_end)
+
+                    # Calculate Y just above content
+                    if geom.rendered_h > 0:
+                        content_top = geom.rendered_y
+                    else:
+                        # Fallback to config
+                        content_top = int(frame_height * 0.34)
+
+                    # Cap spacing so the text stays near the content edge.
+                    # The configured margin (8% of frame) is too large for
+                    # letterboxed content with big black bars. Limit to 1.5x
+                    # font size for a proportional gap.
+                    effective_gap = min(spacing_px, font_size * 1.5)
+                    # Alignment 5 = center, so \pos y is text center.
+                    # Place text bottom at: content_top - effective_gap
+                    subtitle_y = int(content_top - effective_gap - font_size / 2)
+                    subtitle_y = max(subtitle_y, min_y)
+
+                    # Center X on content
+                    subtitle_x = geom.rendered_x + geom.rendered_w // 2
+
+                    # Format times back to ASS
+                    start_str = self._format_ass_time_str(clip_start)
+                    end_str = self._format_ass_time_str(clip_end)
+
+                    # Rebuild text with new position
+                    if clean_text.startswith("{") and "}" in clean_text:
+                        effect_end = clean_text.find("}") + 1
+                        effect_content = clean_text[1 : effect_end - 1]
+                        after_effects = clean_text[effect_end:]
+                        positioned_text = (
+                            f"{{\\pos({subtitle_x},{subtitle_y})"
+                            f"{effect_content}}}{after_effects}"
+                        )
+                    else:
+                        positioned_text = (
+                            f"{{\\pos({subtitle_x},{subtitle_y})}}{clean_text}"
+                        )
+
+                    new_parts = parts[:1] + [start_str, end_str] + parts[3:9] + [positioned_text]
+                    content_aware_events.append(",".join(new_parts))
+
+                    if self.debug_mode:
+                        logger.debug(
+                            "Upper subtitle seg %d: y=%d (content_top=%d), "
+                            "time=%.2f-%.2fs",
+                            seg_idx, subtitle_y, content_top,
+                            clip_start, clip_end,
+                        )
+
+            if not content_aware_events:
+                logger.warning("No content-aware upper events generated")
+                return None
+
+            output_path = temp_dir / "subtitles_upper_content_aware.ass"
+            with open(output_path, "w", encoding="utf-8") as f:
+                for line in header_lines:
+                    f.write(line + "\n")
+                for event_line in content_aware_events:
+                    f.write(event_line + "\n")
+
+            logger.info("Created content-aware upper ASS: %s", output_path.name)
+            return output_path
+
+        except Exception as e:
+            logger.error("Failed to create content-aware upper ASS: %s", e)
+            return None
+
+    @staticmethod
+    def _format_ass_time_str(seconds: float) -> str:
+        """Format seconds to ASS time (H:MM:SS.CC)."""
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        s = seconds % 60
+        cs = int((s % 1) * 100)
+        return f" {h}:{m:02d}:{int(s):02d}.{cs:02d}"
 
     def _calculate_segment_times(
         self, timed_visuals: list[tuple[Path, float, bool]]
