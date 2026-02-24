@@ -8,7 +8,7 @@ import asyncio
 import logging
 
 import aiohttp
-from google import genai  # type: ignore[import-untyped]
+from google import genai  # type: ignore[attr-defined]
 
 from src.video.config.llm_settings import LLMSettings
 
@@ -110,4 +110,4 @@ async def _call_gemini(
     if not response.text or not response.text.strip():
         raise LLMCallError("Empty content in Gemini response")
 
-    return response.text
+    return str(response.text)

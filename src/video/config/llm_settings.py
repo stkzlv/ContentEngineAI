@@ -53,7 +53,7 @@ class LLMSettings(BaseModel):
     min_context_length: int = Field(8000)  # Filter out tiny models
     # Script validation thresholds
     script_validation: ScriptValidationConfig = Field(
-        default_factory=ScriptValidationConfig
+        default_factory=ScriptValidationConfig  # type: ignore[arg-type]
     )
     script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)
     fallback_provider: LLMSettings | None = Field(None)

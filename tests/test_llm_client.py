@@ -219,6 +219,7 @@ class TestFallbackProvider:
                 "auto_select_free_model": True,
             },
         )
+        assert s.fallback_provider is not None
         assert s.fallback_provider.provider == "openrouter"
         assert s.fallback_provider.base_url == "https://openrouter.ai/api/v1"
 
@@ -236,6 +237,7 @@ class TestFallbackProvider:
                 "prompt_template_path": "test.md",
             },
         )
+        assert s.fallback_provider is not None
         assert s.fallback_provider.fallback_provider is None
 
     async def test_fallback_dispatches_to_openrouter(self):
