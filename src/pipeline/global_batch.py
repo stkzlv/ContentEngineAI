@@ -977,17 +977,20 @@ class GlobalPipelineOrchestrator:
         config = load_video_config_modular()
 
         # Build secrets dict from environment variables
+        secret_names = [
+            config.llm_settings.api_key_env_var,
+            config.stock_media_settings.pexels_api_key_env_var,
+            config.audio_settings.freesound_api_key_env_var,
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            config.audio_settings.freesound_client_id_env_var,
+            config.audio_settings.freesound_client_secret_env_var,
+            config.audio_settings.freesound_refresh_token_env_var,
+        ]
+        if config.llm_settings.fallback_provider:
+            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {
             name: os.getenv(name)
-            for name in [
-                config.llm_settings.api_key_env_var,
-                config.stock_media_settings.pexels_api_key_env_var,
-                config.audio_settings.freesound_api_key_env_var,
-                "GOOGLE_APPLICATION_CREDENTIALS",
-                config.audio_settings.freesound_client_id_env_var,
-                config.audio_settings.freesound_client_secret_env_var,
-                config.audio_settings.freesound_refresh_token_env_var,
-            ]
+            for name in secret_names
             if name and os.getenv(name)
         }
 

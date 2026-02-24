@@ -27,7 +27,7 @@ llm_settings:
   prompt_template_path: "src/ai/prompts/video_script.md"
 
   # Maximum tokens for LLM response
-  max_tokens: 350
+  max_tokens: 600
 
   # Temperature for text generation (0.0 = deterministic, 1.0 = creative)
   temperature: 0.7
