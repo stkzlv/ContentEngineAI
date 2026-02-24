@@ -247,9 +247,7 @@ class TestFallbackProvider:
         mock_resp = AsyncMock()
         mock_resp.raise_for_status = MagicMock()
         mock_resp.json = AsyncMock(
-            return_value={
-                "choices": [{"message": {"content": "Fallback response"}}]
-            }
+            return_value={"choices": [{"message": {"content": "Fallback response"}}]}
         )
         mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
         mock_resp.__aexit__ = AsyncMock(return_value=False)

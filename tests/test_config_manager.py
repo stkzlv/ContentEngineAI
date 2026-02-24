@@ -165,7 +165,9 @@ class TestValidateRequiredSecrets:
 
         assert result.valid is True
         assert len(result.missing_required) == 0
-        assert len(result.missing_optional) == 5  # GEMINI, OPENROUTER, GOOGLE, LATE, PICSEE
+        assert (
+            len(result.missing_optional) == 5
+        )  # GEMINI, OPENROUTER, GOOGLE, LATE, PICSEE
         assert len(result.present) == 2
 
     @pytest.mark.unit

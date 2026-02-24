@@ -238,11 +238,7 @@ async def _fetch_and_select_model(
             response.raise_for_status()
             data = await response.json()
 
-            # Blocklist of models known to produce poor results
-            blocklist = {
-                "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
-                "liquid/lfm-2.5-1.2b-instruct",
-            }
+            blocklist = set(settings.model_blocklist)
 
             # Build set of ALL free model IDs (for checking configured models)
             all_free_ids: set[str] = set()
@@ -332,14 +328,8 @@ async def _discover_any_free_model(
     )
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    # Minimum context length to filter out tiny models (proxy for model size)
-    MIN_CONTEXT_LENGTH = 8000  # Small models often have small contexts
-
-    # Blocklist of models known to produce poor results
-    BLOCKLIST = {
-        "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
-        "liquid/lfm-2.5-1.2b-instruct",
-    }
+    blocklist = set(settings.model_blocklist)
+    min_ctx = settings.min_context_length
 
     logger.info("Fallback: discovering available free models (excluding tiny)...")
     try:
@@ -370,10 +360,10 @@ async def _discover_any_free_model(
                             continue
                         if model_id in already_tried:
                             continue
-                        if model_id in BLOCKLIST:
+                        if model_id in blocklist:
                             logger.debug(f"Skipping blocklisted model: {model_id}")
                             continue
-                        if context_length < MIN_CONTEXT_LENGTH:
+                        if context_length < min_ctx:
                             logger.debug(
                                 f"Skipping small model: {model_id} "
                                 f"(context={context_length})"
@@ -482,12 +472,16 @@ async def _call_llm_api(
         raise ScriptGenerationError(str(e)) from e
 
 
-def validate_script_completeness(script: str) -> tuple[bool, str]:
+def validate_script_completeness(
+    script: str, min_chars: int = 200, min_words: int = 50
+) -> tuple[bool, str]:
     """Validate if a script appears complete and well-formed.
 
     Args:
     ----
         script: The generated script text
+        min_chars: Minimum character count for a valid script
+        min_words: Minimum word count for a valid script
 
     Returns:
     -------
@@ -540,13 +534,13 @@ def validate_script_completeness(script: str) -> tuple[bool, str]:
         return False, "Script doesn't end with proper punctuation"
 
     # Check minimum length (very short scripts might be incomplete)
-    if len(script) < 200:
-        return False, f"Script too short ({len(script)} chars, minimum 200)"
+    if len(script) < min_chars:
+        return False, f"Script too short ({len(script)} chars, minimum {min_chars})"
 
     # Check for reasonable word count
     words = script.split()
-    if len(words) < 50:
-        return False, f"Script too few words ({len(words)}, minimum 50)"
+    if len(words) < min_words:
+        return False, f"Script too few words ({len(words)}, minimum {min_words})"
 
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
@@ -567,6 +561,11 @@ async def generate_script(
     Returns (script_text, template_name) tuple. template_name is the stem
     of the selected template file (e.g. "curiosity_hook"), or None on failure.
     """
+    # Script validation thresholds from config
+    sv = settings.script_validation
+    sv_min_chars = sv.min_chars
+    sv_min_words = sv.min_words
+
     # Get API key from secrets
     api_key = secrets.get(settings.api_key_env_var)
     if not api_key:
@@ -629,7 +628,7 @@ async def generate_script(
 
                 # Validate script completeness
                 is_complete, validation_reason = validate_script_completeness(
-                    clean_script
+                    clean_script, sv_min_chars, sv_min_words
                 )
                 if is_complete:
                     logger.info(
@@ -699,7 +698,7 @@ async def generate_script(
                 )
                 clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                 is_complete, validation_reason = validate_script_completeness(
-                    clean_script
+                    clean_script, sv_min_chars, sv_min_words
                 )
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
@@ -715,9 +714,7 @@ async def generate_script(
         fb = settings.fallback_provider
         fb_api_key = secrets.get(fb.api_key_env_var)
         if fb_api_key:
-            logger.info(
-                "Primary provider exhausted, falling back to %s", fb.provider
-            )
+            logger.info("Primary provider exhausted, falling back to %s", fb.provider)
 
             # Build fallback model list (with free model discovery for OpenRouter)
             if fb.provider == "openrouter":
@@ -739,16 +736,14 @@ async def generate_script(
                         prompt, model, fb, fb_api_key, session, api_settings
                     )
                     clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
-                    is_complete, reason = validate_script_completeness(clean_script)
+                    is_complete, reason = validate_script_completeness(
+                        clean_script, sv_min_chars, sv_min_words
+                    )
                     if is_complete:
-                        logger.info(
-                            "Fallback success with %s - %s", model, reason
-                        )
+                        logger.info("Fallback success with %s - %s", model, reason)
                         return clean_script, template_name
                     else:
-                        logger.warning(
-                            "Fallback %s incomplete: %s", model, reason
-                        )
+                        logger.warning("Fallback %s incomplete: %s", model, reason)
                 except Exception as e:
                     logger.warning("Fallback model %s failed: %s", model, e)
                     continue
@@ -765,11 +760,9 @@ async def generate_script(
                         script_text = await _call_llm_api_with_retry(
                             prompt, model, fb, fb_api_key, session, api_settings
                         )
-                        clean_script = re.sub(
-                            r"```[\w\s]*", "", script_text
-                        ).strip()
+                        clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                         is_complete, reason = validate_script_completeness(
-                            clean_script
+                            clean_script, sv_min_chars, sv_min_words
                         )
                         if is_complete:
                             logger.info(

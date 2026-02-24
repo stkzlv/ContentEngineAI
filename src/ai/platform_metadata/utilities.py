@@ -104,6 +104,7 @@ async def generate_with_llm(
     session: aiohttp.ClientSession,
     api_settings=None,
     debug_mode: bool = False,
+    secrets: dict[str, str] | None = None,
 ) -> str | None:
     """High-level helper to generate content using LLM with automatic model fallback.
 
@@ -123,21 +124,11 @@ async def generate_with_llm(
         session: Aiohttp session for API calls
         api_settings: Optional API-specific settings override
         debug_mode: Enable verbose logging if True
+        secrets: Dict of env var names to values for fallback provider key lookup
 
     Returns:
     -------
         LLM-generated text or None if all attempts fail
-
-    Example:
-    -------
-        response = await generate_with_llm(
-            Path("src/ai/prompts/youtube_metadata.md"),
-            product,
-            settings,
-            api_key,
-            session,
-            debug_mode=True
-        )
 
     """
     try:
@@ -191,11 +182,7 @@ async def generate_with_llm(
         # Provider fallback: try fallback_provider if primary exhausted
         if settings.fallback_provider:
             fb = settings.fallback_provider
-            fb_api_key_val = None
-            # Try to get the fallback API key from environment
-            import os
-
-            fb_api_key_val = os.environ.get(fb.api_key_env_var)
+            fb_api_key_val = (secrets or {}).get(fb.api_key_env_var)
             if fb_api_key_val:
                 logger.info(
                     "Primary provider exhausted, falling back to %s", fb.provider

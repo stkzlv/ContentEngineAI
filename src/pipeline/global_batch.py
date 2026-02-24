@@ -989,9 +989,7 @@ class GlobalPipelineOrchestrator:
         if config.llm_settings.fallback_provider:
             secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {
-            name: os.getenv(name)
-            for name in secret_names
-            if name and os.getenv(name)
+            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
         }
 
         # Initialize profile tracking if random mode

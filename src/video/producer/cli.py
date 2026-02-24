@@ -617,13 +617,9 @@ async def main():
             config.audio_settings.freesound_refresh_token_env_var,
         ]
         if config.llm_settings.fallback_provider:
-            secret_names.append(
-                config.llm_settings.fallback_provider.api_key_env_var
-            )
+            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {
-            name: os.getenv(name)
-            for name in secret_names
-            if name and os.getenv(name)
+            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
         }
     except Exception as e:
         logger.critical(f"Config/Secrets Error: {e}", exc_info=True)

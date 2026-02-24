@@ -113,6 +113,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
                 session,
                 api_settings,
                 debug_mode,
+                secrets=secrets,
             )
 
             if not response:

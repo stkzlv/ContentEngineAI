@@ -35,10 +35,21 @@ llm_settings:
   # Request timeout in seconds
   timeout_seconds: 60
 
-  # Retry configuration
+  # Retry configuration for LLM API calls
   retry_attempts: 5
   retry_min_wait_sec: 2
   retry_max_wait_sec: 30
+
+  # OpenRouter model discovery filters
+  model_blocklist:
+    - "liquid/lfm-2.5-1.2b-instruct:free"
+    - "liquid/lfm-2.5-1.2b-instruct"
+  min_context_length: 8000  # Skip models with context < this (proxy for model size)
+
+  # Script validation thresholds
+  script_validation:
+    min_chars: 200
+    min_words: 50
 
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:
@@ -48,6 +59,9 @@ llm_settings:
     prompt_template_path: "src/ai/prompts/video_script.md"
     auto_select_free_model: true
     fallback_discover_any_free: true
+    max_tokens: 600
+    temperature: 0.7
+    timeout_seconds: 60
     models:
       - "tngtech/deepseek-r1t2-chimera:free"
       - "arcee-ai/trinity-large-preview:free"

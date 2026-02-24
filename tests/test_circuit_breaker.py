@@ -336,8 +336,7 @@ class TestCircuitBreakerConfigLoading:
         assert pexels_circuit_breaker.timeout == config["pexels"]["timeout_sec"]
 
         assert (
-            llm_circuit_breaker.failure_threshold
-            == config["llm"]["failure_threshold"]
+            llm_circuit_breaker.failure_threshold == config["llm"]["failure_threshold"]
         )
         assert llm_circuit_breaker.timeout == config["llm"]["timeout_sec"]
 
