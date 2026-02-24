@@ -110,7 +110,7 @@ For example, if `products_per_keyword: 3`, the scraper fetches ~9 products per p
 
 ### Config precedence
 
-CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, code defaults apply (2 for products_per_keyword, 10 for max_products).
+CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword` in both `config/scraper.yaml` and `config/pipeline.yaml`, 10 for `max_products`).
 
 ### Examples
 

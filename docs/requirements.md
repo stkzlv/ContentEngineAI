@@ -158,8 +158,9 @@ High-level requirements for ContentEngineAI.
 - Insufficient media = skipped (not failed)
 
 ### AI Service Integration
-- Auto-select AI models from OpenRouter API
-- Default to free models with fallback
+- Provider fallback chain: primary provider (Gemini) with automatic fallback to secondary (OpenRouter)
+- OpenRouter free model discovery with blocklist filtering and context length minimum
+- Configurable retry, validation thresholds, and model blocklist via `LLMSettings`
 - Google Cloud TTS and Gemini TTS with voice prioritization
 
 ### Script Templates

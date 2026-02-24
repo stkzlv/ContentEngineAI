@@ -83,6 +83,9 @@ poetry run python tools/performance_report.py --report-type summary
 - **TTS hash slice**: Voice profiles use md5 hex `[16:24]` (fonts use `[0:8]`, colors `[8:16]`, voice within profile `[24:32]`)
 - **TTS metadata**: Profile name and voice name saved in `pipeline_state.json` under `create_voiceover.tts_metadata`
 - **Script templates**: 15 prompt templates in `src/ai/prompts/scripts/` with different styles (curiosity hook, problem-solution, storytelling, etc.). Configured in `config/ai_services.yaml` under `llm_settings.script_templates`. Selection is deterministic per product using salted md5 hash (`md5(product_id + ":script_template")`). Override with `--script-template NAME` CLI arg. Template name saved in `pipeline_state.json` under `generate_script.script_template`
+- **LLM provider fallback**: Gemini is primary, OpenRouter is automatic fallback. Configured via `llm_settings.fallback_provider` in `ai_services.yaml` (self-referencing `LLMSettings`). Both `global_batch.py` and `cli.py` must include fallback provider's API key env var in the secrets dict. Shared dispatch in `src/ai/llm_client.py`
+- **LLM config fields**: `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec`, and `script_validation` (min_chars, min_words) all live on `LLMSettings`. Don't hardcode these in generator code
+- **`.env` safety**: `update_env_file()` in `freesound_client.py` only updates existing keys, never adds new lines
 
 ## Session Continuity
 

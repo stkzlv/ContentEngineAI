@@ -26,7 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 def update_env_file(key_to_update: str, new_value: str):
-    """Safely updates a key in the project's .env file."""
+    """Safely updates an existing key in the project's .env file.
+
+    Only overwrites if the key already exists — never adds new lines.
+    """
     try:
         project_root = Path(__file__).resolve().parent.parent.parent
         env_path = project_root / ".env"
@@ -34,6 +37,16 @@ def update_env_file(key_to_update: str, new_value: str):
             logger.warning(
                 f".env file not found at {env_path}. "
                 f"Cannot update refresh token automatically."
+            )
+            return
+
+        # Only update if key already exists in .env
+        env_content = env_path.read_text()
+        if f"{key_to_update}=" not in env_content:
+            logger.warning(
+                "Key '%s' not found in %s, skipping (won't add new entries)",
+                key_to_update,
+                env_path,
             )
             return
 

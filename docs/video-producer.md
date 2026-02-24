@@ -303,8 +303,8 @@ poetry run python -m src.video.producer --batch --batch-profile profile1 --outpu
 - **Solution**: Verify scraping completed successfully; check `min_images_if_no_video` setting (default: 5)
 
 **Issue**: "TTS generation failed"
-- **Cause**: OpenRouter API key missing or invalid
-- **Solution**: Set `OPENROUTER_API_KEY` environment variable
+- **Cause**: Google Cloud credentials missing or invalid
+- **Solution**: Set `GOOGLE_APPLICATION_CREDENTIALS` to your service account JSON path; verify Text-to-Speech API is enabled
 
 **Issue**: "Freesound download failed"
 - **Cause**: Freesound API credentials missing or circuit breaker tripped

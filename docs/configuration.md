@@ -681,36 +681,58 @@ tts_config:
 
 ```yaml
 llm_settings:
-  # LLM provider configuration
-  provider: "openrouter"
-  base_url: "https://openrouter.ai/api/v1"
-  api_key_env_var: "OPENROUTER_API_KEY"
-  auto_select_free_model: true
-
-  # Model selection behavior
-  random_model_selection: true       # true = randomly pick, false = try in order
-  fallback_discover_any_free: true   # Query API for any free model as last resort
-
-  # Model selection with fallbacks (verified working free models)
+  # Primary provider: Gemini
+  provider: "gemini"
+  api_key_env_var: "GEMINI_API_KEY"
   models:
-    - "tngtech/deepseek-r1t2-chimera:free"   # 671B MoE, best quality
-    - "arcee-ai/trinity-large-preview:free"   # 400B MoE, creative
-    - "z-ai/z1-preview:free"                  # 405B, strong reasoning
-    - "nvidia/llama-3.1-nemotron-70b-instruct:free"  # 70B, instruction-following
+    - "gemini-2.5-flash-lite"
+
+  # Gemini doesn't use free model discovery
+  auto_select_free_model: false
+  random_model_selection: false
+  fallback_discover_any_free: false
 
   # Generation parameters
-  temperature: 0.7                   # Creativity (0.0-2.0)
-  max_tokens: 350                    # Maximum response length
+  temperature: 0.7
+  max_tokens: 600
+  timeout_seconds: 60
+
+  # Retry configuration
+  retry_attempts: 5
+  retry_min_wait_sec: 2
+  retry_max_wait_sec: 30
+
+  # OpenRouter model discovery filters (used by fallback)
+  model_blocklist:
+    - "liquid/lfm-2.5-1.2b-instruct:free"
+    - "liquid/lfm-2.5-1.2b-instruct"
+  min_context_length: 8000
+
+  # Script validation thresholds
+  script_validation:
+    min_chars: 200
+    min_words: 50
 
   # Prompt configuration
   prompt_template_path: "src/ai/prompts/video_script.md"
   target_audience: "Tech-savvy young adults"
 
-  # Timeouts and retries
-  timeout_seconds: 90
-  retry_attempts: 5
-  retry_min_wait_sec: 2
-  retry_max_wait_sec: 30
+  # Fallback provider: activated when primary exhausts all models
+  fallback_provider:
+    provider: "openrouter"
+    api_key_env_var: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    prompt_template_path: "src/ai/prompts/video_script.md"
+    auto_select_free_model: true
+    fallback_discover_any_free: true
+    max_tokens: 600
+    temperature: 0.7
+    timeout_seconds: 60
+    models:
+      - "tngtech/deepseek-r1t2-chimera:free"
+      - "arcee-ai/trinity-large-preview:free"
+      - "z-ai/glm-4.5-air:free"
+      - "nvidia/nemotron-3-nano-30b-a3b:free"
 ```
 
 **Platform-Specific Metadata Generation:**
@@ -1599,7 +1621,7 @@ These secrets are validated at startup. The system will exit with an error if an
 
 | Variable | Type | Description | Setup URL |
 |----------|------|-------------|-----------|
-| `OPENROUTER_API_KEY` | string | OpenRouter API key for LLM script generation | https://openrouter.ai/ |
+| `GEMINI_API_KEY` | string | Google Gemini API key for LLM script/description generation | https://aistudio.google.com/apikey |
 | `PEXELS_API_KEY` | string | Pexels API key for stock images/videos | https://www.pexels.com/api/ |
 | `FREESOUND_API_KEY` | string | Freesound API key for background music | https://freesound.org/apiv2/apply/ |
 
@@ -1609,6 +1631,7 @@ These enhance functionality but are not required for basic operation.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
+| `OPENROUTER_API_KEY` | string | None | OpenRouter API key for LLM fallback when Gemini fails |
 | `GOOGLE_APPLICATION_CREDENTIALS` | path | None | Path to Google Cloud service account JSON for TTS |
 | `LATE_API_KEY` | string | None | Late.ai API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
 | `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
@@ -1700,9 +1723,12 @@ result = manager.validate_required_secrets(exit_on_missing=True)
 
 ```bash
 # Required
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
+GEMINI_API_KEY=your-gemini-key
 PEXELS_API_KEY=your-pexels-key
 FREESOUND_API_KEY=your-freesound-key
+
+# Optional - LLM fallback
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
 # Optional - TTS
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
@@ -2091,9 +2117,10 @@ cta_detection:
 #### LLM Settings
 ```yaml
 llm_settings:
-  # Script validation thresholds
-  min_script_chars: 200    # Minimum character count for valid scripts
-  min_script_words: 50     # Minimum word count for valid scripts
+  # Script validation thresholds (nested under script_validation)
+  script_validation:
+    min_chars: 200    # Minimum character count for valid scripts
+    min_words: 50     # Minimum word count for valid scripts
 ```
 
 #### Text Processing

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scraper**: Validate media counts against producer profile requirements (skip products the profile can't use)
 - **Scraper**: Default `products_per_keyword: 1` and `max_products: 50` (was 5 and 1)
 - **Config**: Align upper subtitle defaults with YAML profiles (margin 0.04, font_size_scale 0.7)
+- **Config**: Move hardcoded LLM values (blocklist, validation thresholds, retry settings) from code into `LLMSettings` and `ai_services.yaml`
+- **LLM**: Switch primary provider from OpenRouter to Gemini, OpenRouter becomes fallback
+- **LLM**: Rename `openrouter_circuit_breaker` to `llm_circuit_breaker` (provider-agnostic)
 
 ### Added
 - `MergedSubtitleSettings`, `ProfileInfo`, `MergedProfileSettings` Pydantic models in `visual_models.py`
@@ -31,11 +34,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ScriptTemplateConfig` model: `enabled`, `templates_dir`, `template_pool`, `fixed_template` fields
 - `--script-template` CLI override for producer and global batch pipeline
 - Script template name saved in `pipeline_state.json` under generate_script metadata
+- **Provider fallback chain**: Gemini as primary LLM, automatic fallback to OpenRouter with free model discovery when primary exhausts all models
+- `fallback_provider` field on `LLMSettings` (self-referencing Pydantic model)
+- `ScriptValidationConfig` model with configurable `min_chars`/`min_words` thresholds
+- `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec` fields on `LLMSettings`
+- `make batch-lowpri` target for resource-constrained batch runs (nice, ionice, memory cap)
+- `src/ai/llm_client.py`: shared LLM dispatch layer (Gemini via google-genai SDK, OpenRouter via aiohttp)
 
 ### Fixed
 - Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
 - Upper subtitle floating in middle of black bar for letterboxed video profiles (now positioned near content edge)
 - Unclosed aiohttp session on producer exit (close global connection pool in CLI)
+- Fallback provider API key not loaded into secrets dict (global_batch.py, cli.py)
+- `os.environ.get()` bypass in platform metadata utilities (now uses secrets dict)
+- `update_env_file()` no longer adds new keys to `.env` (only updates existing ones)
 
 ### Dependencies
 - Bump `google-cloud-texttospeech` from ^2.26.0 to ^2.29.0 (adds `SynthesisInput.prompt` support)
