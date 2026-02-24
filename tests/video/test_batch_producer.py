@@ -193,6 +193,7 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
             new_callable=AsyncMock,
         ) as mock_create,
         patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
     ):
         mock_create.return_value = Path("video.mp4")
         await main()
@@ -215,6 +216,7 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
             new_callable=AsyncMock,
         ) as mock_create,
         patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
     ):
         mock_create.side_effect = Exception("Failed!")
         await main()

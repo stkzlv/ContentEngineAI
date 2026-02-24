@@ -5,56 +5,85 @@
 # LLM SETTINGS
 # ============================================================================
 llm_settings:
-  # LLM provider service
-  provider: "openrouter"
-  
+  # LLM provider: "gemini" or "openrouter"
+  provider: "gemini"
+
   # Environment variable containing API key
-  api_key_env_var: "OPENROUTER_API_KEY"
-  
-  # Whether to automatically select free models when available
-  auto_select_free_model: true
+  api_key_env_var: "GEMINI_API_KEY"
 
-  # Random vs sequential model selection (when auto_select_free_model is true)
-  # true = randomly pick from free models, false = try in order
-  random_model_selection: false
-
-  # Fallback: discover any free model if all configured models fail
-  # When true, queries OpenRouter API for ANY free model as last resort
-  # Useful when configured models are temporarily unavailable
-  fallback_discover_any_free: true
-
-  # List of LLM models to try (in priority order)
-  # Verified working free models on OpenRouter as of Jan 2026
+  # Models to try (in priority order)
   models:
-    - "tngtech/deepseek-r1t2-chimera:free"        # 671B MoE, 164K ctx, best quality
-    - "arcee-ai/trinity-large-preview:free"       # 400B MoE, 131K ctx, creative
-    - "z-ai/glm-4.5-air:free"                     # 40B, 131K ctx, agent-optimized
-    - "nvidia/nemotron-3-nano-30b-a3b:free"       # 30B, 256K ctx, efficient
-    - "tngtech/deepseek-r1t-chimera:free"         # 28B, 164K ctx, reasoning
-    - "tngtech/tng-r1t-chimera:free"              # 9.5B, 164K ctx, fast fallback
-  
-  # API base URL for LLM provider
-  base_url: "https://openrouter.ai/api/v1"
-  
+    - "gemini-2.5-flash-lite"
+
+  # Gemini doesn't need free model discovery or fallback
+  auto_select_free_model: false
+  random_model_selection: false
+  fallback_discover_any_free: false
+
   # Target audience description for script personalization
   target_audience: "Tech-savvy young adults"
-  
+
   # Path to prompt template file for script generation
   prompt_template_path: "src/ai/prompts/video_script.md"
-  
+
   # Maximum tokens for LLM response
-  max_tokens: 350
-  
+  max_tokens: 600
+
   # Temperature for text generation (0.0 = deterministic, 1.0 = creative)
   temperature: 0.7
-  
-  # Request timeout in seconds
-  timeout_seconds: 90
 
-  # Retry configuration
+  # Request timeout in seconds
+  timeout_seconds: 60
+
+  # Retry configuration for LLM API calls
   retry_attempts: 5
   retry_min_wait_sec: 2
   retry_max_wait_sec: 30
+
+  # OpenRouter model discovery filters
+  model_blocklist:
+    - "liquid/lfm-2.5-1.2b-instruct:free"
+    - "liquid/lfm-2.5-1.2b-instruct"
+  min_context_length: 8000  # Skip models with context < this (proxy for model size)
+
+  # Script validation thresholds
+  script_validation:
+    min_chars: 200
+    min_words: 50
+
+  # Fallback provider: used when primary provider exhausts all models
+  fallback_provider:
+    provider: "openrouter"
+    api_key_env_var: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    prompt_template_path: "src/ai/prompts/video_script.md"
+    auto_select_free_model: true
+    fallback_discover_any_free: true
+    max_tokens: 600
+    temperature: 0.7
+    timeout_seconds: 60
+    models:
+      - "tngtech/deepseek-r1t2-chimera:free"
+      - "arcee-ai/trinity-large-preview:free"
+      - "z-ai/glm-4.5-air:free"
+      - "nvidia/nemotron-3-nano-30b-a3b:free"
+      - "tngtech/deepseek-r1t-chimera:free"
+      - "tngtech/tng-r1t-chimera:free"
+
+  # Script template system
+  # Templates control the style/structure of generated scripts
+  # Each product gets a template selected deterministically by product ID
+  script_templates:
+    enabled: true
+    # Directory containing template .md files
+    templates_dir: "src/ai/prompts/scripts"
+    # Pool of template names to use (empty = all templates in directory)
+    # Example: ["curiosity_hook", "problem_solution", "story_driven"]
+    template_pool: []
+    # Override: use this specific template for all products
+    # Takes priority over random selection. Set null for random.
+    # Example: "curiosity_hook"
+    fixed_template: null
 
 # ============================================================================
 # TTS CONFIGURATION

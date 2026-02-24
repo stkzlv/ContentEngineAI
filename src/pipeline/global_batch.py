@@ -167,6 +167,18 @@ Examples:
             "Example: --profile-pool slideshow_images1 video_sequential"
         ),
     )
+    producer_group.add_argument(
+        "--voice-profile",
+        type=str,
+        metavar="NAME",
+        help="Override voice profile selection for all products.",
+    )
+    producer_group.add_argument(
+        "--script-template",
+        type=str,
+        metavar="NAME",
+        help="Override script template for all products (name without .md).",
+    )
 
     # Common arguments
     common_group = parser.add_argument_group("Common Options")
@@ -288,6 +300,7 @@ class GlobalPipelineOrchestrator:
         config: GlobalBatchConfig,
         state: PipelineState | None = None,
         webhook_notifier: WebhookNotifier | None = None,
+        video_config: Any = None,
     ):
         """Initialize orchestrator with unified configuration.
 
@@ -296,15 +309,54 @@ class GlobalPipelineOrchestrator:
             config: Global batch configuration with scraper and producer settings
             state: Optional pipeline state for resume capability
             webhook_notifier: Optional webhook notifier for pipeline events
+            video_config: Video configuration for profile-aware scraper validation
 
         """
         self.config = config
         self.state = state or PipelineState.create_new(config)
         self.webhook_notifier = webhook_notifier
+        self.video_config = video_config
 
     def _save_state(self) -> None:
         """Save current pipeline state to disk."""
         save_pipeline_state(self.state, self.config.outputs_dir)
+
+    def _build_cli_overrides(self) -> dict[str, str] | None:
+        """Build CLI overrides dict from pipeline config."""
+        overrides: dict[str, str] = {}
+        if self.config.voice_profile:
+            overrides["voice_profile"] = self.config.voice_profile
+        if self.config.script_template:
+            overrides["script_template"] = self.config.script_template
+        return overrides or None
+
+    def _resolve_profile_uses_videos(self) -> bool | None:
+        """Check if the target profile(s) use scraped videos.
+
+        Returns False if any profile in the selection doesn't use videos
+        (strictest requirement wins). Returns None when no profile info
+        is available.
+        """
+        if not self.video_config:
+            return None
+
+        if self.config.profile:
+            profile = self.video_config.video_profiles.get(self.config.profile)
+            if profile:
+                return bool(profile.use_scraped_videos)
+            return None
+
+        if self.config.random_profile:
+            pool = self.config.profile_pool or list(
+                self.video_config.video_profiles.keys()
+            )
+            for name in pool:
+                profile = self.video_config.video_profiles.get(name)
+                if profile and not profile.use_scraped_videos:
+                    return False
+            return True
+
+        return None
 
     async def _notify_webhook(
         self,
@@ -729,9 +781,16 @@ class GlobalPipelineOrchestrator:
             f"{self.config.max_products} total"
         )
 
-        # Initialize scraper
+        # Initialize scraper with profile-aware validation
+        profile_uses_videos = self._resolve_profile_uses_videos()
+        if profile_uses_videos is not None:
+            logger.info(
+                "Scraper validation aligned with profile: videos %s",
+                "enabled" if profile_uses_videos else "disabled (image-only)",
+            )
         scraper = BotasaurusAmazonScraper(
             debug_override=self.config.debug,
+            profile_uses_videos=profile_uses_videos,
         )
 
         # Set products_per_keyword as the per-input limit
@@ -918,18 +977,19 @@ class GlobalPipelineOrchestrator:
         config = load_video_config_modular()
 
         # Build secrets dict from environment variables
+        secret_names = [
+            config.llm_settings.api_key_env_var,
+            config.stock_media_settings.pexels_api_key_env_var,
+            config.audio_settings.freesound_api_key_env_var,
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            config.audio_settings.freesound_client_id_env_var,
+            config.audio_settings.freesound_client_secret_env_var,
+            config.audio_settings.freesound_refresh_token_env_var,
+        ]
+        if config.llm_settings.fallback_provider:
+            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {
-            name: os.getenv(name)
-            for name in [
-                config.llm_settings.api_key_env_var,
-                config.stock_media_settings.pexels_api_key_env_var,
-                config.audio_settings.freesound_api_key_env_var,
-                "GOOGLE_APPLICATION_CREDENTIALS",
-                config.audio_settings.freesound_client_id_env_var,
-                config.audio_settings.freesound_client_secret_env_var,
-                config.audio_settings.freesound_refresh_token_env_var,
-            ]
-            if name and os.getenv(name)
+            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
         }
 
         # Initialize profile tracking if random mode
@@ -988,7 +1048,7 @@ class GlobalPipelineOrchestrator:
                             debug_mode=self.config.debug,
                             clean_run=False,
                             debug_step_target=None,
-                            cli_overrides=None,
+                            cli_overrides=self._build_cli_overrides(),
                         ),
                         timeout=config.pipeline_timeout_sec,
                     )
@@ -1709,7 +1769,7 @@ async def main():
 
         # Handle dry-run mode
         if config.dry_run:
-            orchestrator = GlobalPipelineOrchestrator(config)
+            orchestrator = GlobalPipelineOrchestrator(config, video_config=video_config)
             orchestrator.display_execution_plan(video_config)
             logger.info("Dry-run completed - exiting without execution")
             sys.exit(0)
@@ -1757,7 +1817,10 @@ async def main():
 
         # Execute pipeline
         orchestrator = GlobalPipelineOrchestrator(
-            config, state=state, webhook_notifier=webhook_notifier
+            config,
+            state=state,
+            webhook_notifier=webhook_notifier,
+            video_config=video_config,
         )
         summary = await orchestrator.run_pipeline()
 
@@ -1801,6 +1864,12 @@ async def main():
         logger.critical(f"Complete log saved to: {log_file}")
         logger.critical("To resume from last checkpoint, run with --resume flag")
         sys.exit(1)
+
+    finally:
+        # Clean up HTTP connection pool to avoid "Unclosed connector" warnings
+        from src.utils.connection_pool import close_global_pool
+
+        await close_global_pool()
 
 
 if __name__ == "__main__":

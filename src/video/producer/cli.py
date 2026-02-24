@@ -237,6 +237,14 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "metadata_mode") and args.metadata_mode is not None:
         overrides["description_settings.metadata_mode"] = args.metadata_mode
 
+    # Voice profile override
+    if hasattr(args, "voice_profile") and args.voice_profile is not None:
+        overrides["voice_profile"] = args.voice_profile
+
+    # Script template override
+    if hasattr(args, "script_template") and args.script_template is not None:
+        overrides["script_template"] = args.script_template
+
     return overrides
 
 
@@ -499,6 +507,16 @@ async def main():
         ),
     )
     parser.add_argument(
+        "--voice-profile",
+        type=str,
+        help="Override voice profile selection.",
+    )
+    parser.add_argument(
+        "--script-template",
+        type=str,
+        help="Override script template (name without .md).",
+    )
+    parser.add_argument(
         "--output-format",
         choices=["text", "json"],
         default="text",
@@ -576,6 +594,12 @@ async def main():
         logger.critical(f"Complete log saved to: {log_file}")
         raise
 
+    # Apply script template override to LLM settings
+    if cli_overrides.get("script_template"):
+        config.llm_settings.script_templates.fixed_template = cli_overrides[
+            "script_template"
+        ]
+
     # Log applied CLI overrides (already applied via config loader)
     if cli_overrides:
         logger.info(f"Applied {len(cli_overrides)} CLI override(s):")
@@ -583,18 +607,19 @@ async def main():
             logger.info(f"  {key} = {value}")
 
     try:
+        secret_names = [
+            config.llm_settings.api_key_env_var,
+            config.stock_media_settings.pexels_api_key_env_var,
+            config.audio_settings.freesound_api_key_env_var,
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            config.audio_settings.freesound_client_id_env_var,
+            config.audio_settings.freesound_client_secret_env_var,
+            config.audio_settings.freesound_refresh_token_env_var,
+        ]
+        if config.llm_settings.fallback_provider:
+            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {
-            name: os.getenv(name)
-            for name in [
-                config.llm_settings.api_key_env_var,
-                config.stock_media_settings.pexels_api_key_env_var,
-                config.audio_settings.freesound_api_key_env_var,
-                "GOOGLE_APPLICATION_CREDENTIALS",
-                config.audio_settings.freesound_client_id_env_var,
-                config.audio_settings.freesound_client_secret_env_var,
-                config.audio_settings.freesound_refresh_token_env_var,
-            ]
-            if name and os.getenv(name)
+            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
         }
     except Exception as e:
         logger.critical(f"Config/Secrets Error: {e}", exc_info=True)
@@ -898,6 +923,11 @@ async def main():
 
     logger.info("Video producer completed successfully")
     logger.info(f"Complete log saved to: {log_file}")
+
+    # Clean up HTTP connection pool
+    from src.utils.connection_pool import close_global_pool
+
+    await close_global_pool()
 
     # Ensure all log messages are flushed
     for handler in logging.getLogger().handlers:

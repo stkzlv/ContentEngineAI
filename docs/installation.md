@@ -122,11 +122,11 @@ The `.env.example` file contains all required and optional environment variables
 
 Edit your `.env` file and replace the placeholder values with your actual API keys:
 
-#### 1. OpenRouter API Key (Required)
-For LLM script generation:
-- Register at [OpenRouter](https://openrouter.ai/)
-- Get your API key from the dashboard
-- Replace `your_openrouter_api_key_here` in `.env`
+#### 1. Google Gemini API Key (Required)
+For LLM script and description generation:
+- Go to [Google AI Studio](https://aistudio.google.com/apikey)
+- Create an API key
+- Add it as `GEMINI_API_KEY` in `.env`
 
 #### 2. Pexels API Key (Required)
 For stock images and videos:
@@ -243,7 +243,8 @@ poetry run python -c "
 import os
 from dotenv import load_dotenv
 load_dotenv()
-if os.getenv('OPENROUTER_API_KEY'): print('✓ OpenRouter API key found')
+if os.getenv('GEMINI_API_KEY'): print('✓ Gemini API key found')
+if os.getenv('OPENROUTER_API_KEY'): print('✓ OpenRouter API key found (fallback)')
 if os.getenv('PEXELS_API_KEY'): print('✓ Pexels API key found')
 if os.getenv('FREESOUND_API_KEY'): print('✓ Freesound API key found')
 "

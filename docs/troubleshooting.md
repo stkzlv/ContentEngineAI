@@ -153,33 +153,36 @@ poetry run playwright install chromium
 
 ## API and Authentication Issues
 
-### OpenRouter API Issues
+### Gemini API Issues (Primary LLM Provider)
 
 **Error:** `Invalid API key` or `Authentication failed`
 
 **Diagnostics:**
 ```bash
-# Test API key manually
+# Test Gemini API key
+poetry run python -c "import os; print(repr(os.getenv('GEMINI_API_KEY')))"
+```
+
+**Solutions:**
+1. **Get API Key:** Go to [Google AI Studio](https://aistudio.google.com/apikey) and create a key
+2. **Check `.env`:** Verify `GEMINI_API_KEY=` has no extra spaces or quotes
+3. **Verify it works:** The key should not show `None` in the diagnostic above
+
+### OpenRouter API Issues (Fallback LLM Provider)
+
+OpenRouter activates automatically when Gemini fails. If both providers fail, check:
+
+**Diagnostics:**
+```bash
+# Test OpenRouter API key
 curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
      https://openrouter.ai/api/v1/models
 ```
 
 **Solutions:**
-1. **Check API Key Format:**
-   - Should start with `sk-or-`
-   - No extra spaces or quotes in `.env` file
-
-2. **Verify API Key:**
-   - Log into [OpenRouter Dashboard](https://openrouter.ai/)
-   - Check key is active and has credits
-
-3. **Environment Variable Issues:**
-   ```bash
-   # Check if loaded correctly
-   poetry run python -c "import os; print(repr(os.getenv('OPENROUTER_API_KEY')))"
-   
-   # Should not show 'None' or have extra characters
-   ```
+1. **Check API Key Format:** Should start with `sk-or-`
+2. **Verify API Key:** Log into [OpenRouter Dashboard](https://openrouter.ai/) and check key status
+3. **Optional:** OpenRouter is a fallback. If `OPENROUTER_API_KEY` is missing, the system still works with Gemini alone
 
 ### Google Cloud Authentication
 
@@ -258,30 +261,31 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
 
 2. **Test LLM Connection:**
    ```bash
-   # Test with simple request
-   curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d '{"model":"anthropic/claude-3-haiku","messages":[{"role":"user","content":"Hello"}]}' \
-        https://openrouter.ai/api/v1/chat/completions
+   # Test Gemini API
+   curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
    ```
 
 **Solutions:**
 1. **Model Availability:**
    ```yaml
+   # config/ai_services.yaml - primary provider
    llm_settings:
-     auto_select_free_model: true
-     fallback_discover_any_free: true  # Auto-discover free models
+     provider: "gemini"
      models:
-       - "tngtech/deepseek-r1t2-chimera:free"
-       - "arcee-ai/trinity-large-preview:free"
-       - "nvidia/llama-3.1-nemotron-70b-instruct:free"
+       - "gemini-2.5-flash-lite"
+
+     # Automatic fallback when Gemini exhausts all models
+     fallback_provider:
+       provider: "openrouter"
+       auto_select_free_model: true
+       fallback_discover_any_free: true
    ```
 
 2. **Timeout Issues:**
    ```yaml
    llm_settings:
-     timeout_sec: 60  # Increase from default 30
-     max_retries: 5   # Increase retries
+     timeout_seconds: 60  # Increase from default 30
+     retry_attempts: 5    # Increase retries
    ```
 
 3. **Prompt Issues:**

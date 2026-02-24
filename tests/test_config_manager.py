@@ -117,6 +117,7 @@ class TestValidateRequiredSecrets:
         monkeypatch.setenv("PEXELS_API_KEY", "pexels-test-key-1234")
         monkeypatch.setenv("FREESOUND_API_KEY", "freesound-test-key")
         # Set optional secrets too
+        monkeypatch.setenv("GEMINI_API_KEY", "gemini-test-key")
         monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/creds.json")
         monkeypatch.setenv("LATE_API_KEY", "late-api-key-test")
         monkeypatch.setenv("PICSEE_API_KEY", "picsee-key-test")
@@ -137,15 +138,14 @@ class TestValidateRequiredSecrets:
             for alt in secret.alternative_names:
                 monkeypatch.delenv(alt, raising=False)
 
-        # Set only PEXELS and FREESOUND, missing OPENROUTER
-        monkeypatch.setenv("PEXELS_API_KEY", "pexels-test-key")
+        # Set only FREESOUND, missing PEXELS
         monkeypatch.setenv("FREESOUND_API_KEY", "freesound-test-key")
 
         result = config_manager.validate_required_secrets(exit_on_missing=False)
 
         assert result.valid is False
         assert len(result.missing_required) == 1
-        assert result.missing_required[0].name == "OPENROUTER_API_KEY"
+        assert result.missing_required[0].name == "PEXELS_API_KEY"
 
     @pytest.mark.unit
     def test_optional_secret_missing_still_valid(self, config_manager, monkeypatch):
@@ -157,17 +157,18 @@ class TestValidateRequiredSecrets:
                 monkeypatch.delenv(alt, raising=False)
 
         # Set all required secrets
-        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test1234567890")
         monkeypatch.setenv("PEXELS_API_KEY", "pexels-test-key-1234")
         monkeypatch.setenv("FREESOUND_API_KEY", "freesound-test-key")
-        # Don't set optional secrets
+        # Don't set optional secrets (GEMINI, OPENROUTER, GOOGLE, LATE, PICSEE)
 
         result = config_manager.validate_required_secrets(exit_on_missing=False)
 
         assert result.valid is True
         assert len(result.missing_required) == 0
-        assert len(result.missing_optional) == 3  # GOOGLE, LATE, PICSEE
-        assert len(result.present) == 3
+        assert (
+            len(result.missing_optional) == 5
+        )  # GEMINI, OPENROUTER, GOOGLE, LATE, PICSEE
+        assert len(result.present) == 2
 
     @pytest.mark.unit
     def test_alternative_name_accepted(self, config_manager, monkeypatch):
@@ -227,16 +228,15 @@ class TestValidateRequiredSecrets:
             for alt in secret.alternative_names:
                 monkeypatch.delenv(alt, raising=False)
 
-        # Set only one required secret
-        monkeypatch.setenv("FREESOUND_API_KEY", "freesound-test-key")
+        # Don't set any required secrets (PEXELS, FREESOUND)
 
         result = config_manager.validate_required_secrets(exit_on_missing=False)
 
         assert result.valid is False
         assert len(result.missing_required) == 2
         missing_names = [s.name for s in result.missing_required]
-        assert "OPENROUTER_API_KEY" in missing_names
         assert "PEXELS_API_KEY" in missing_names
+        assert "FREESOUND_API_KEY" in missing_names
 
 
 class TestSecretsRegistry:
@@ -246,7 +246,6 @@ class TestSecretsRegistry:
     def test_registry_has_required_secrets(self):
         """Test registry contains expected required secrets."""
         required_names = [s.name for s in SECRETS_REGISTRY if s.required]
-        assert "OPENROUTER_API_KEY" in required_names
         assert "PEXELS_API_KEY" in required_names
         assert "FREESOUND_API_KEY" in required_names
 
@@ -254,6 +253,8 @@ class TestSecretsRegistry:
     def test_registry_has_optional_secrets(self):
         """Test registry contains expected optional secrets."""
         optional_names = [s.name for s in SECRETS_REGISTRY if not s.required]
+        assert "GEMINI_API_KEY" in optional_names
+        assert "OPENROUTER_API_KEY" in optional_names
         assert "GOOGLE_APPLICATION_CREDENTIALS" in optional_names
         assert "LATE_API_KEY" in optional_names
         assert "PICSEE_API_KEY" in optional_names

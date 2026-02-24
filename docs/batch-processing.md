@@ -57,7 +57,7 @@ batch:
     - "wireless earbuds"
     - "bluetooth headphones"
   max_products: 10          # Global cap across all keywords
-  products_per_keyword: 2   # Limit per individual keyword
+  products_per_keyword: 1   # Limit per individual keyword
 
 scrapers:
   amazon:
@@ -376,7 +376,7 @@ global_batch:
 
   # Product Limits (Two-Tier System)
   max_products: 10        # Global cap across all keywords
-  products_per_keyword: 2 # Limit per individual keyword
+  products_per_keyword: 1 # Limit per individual keyword
 
   # Scraper Filters
   scraper_filters:
@@ -423,16 +423,16 @@ Settings are merged with this priority order:
 The pipeline uses a **two-tier limit system** for keyword searches:
 
 - **`max_products`** (default: 10): Global cap on total products collected
-- **`products_per_keyword`** (default: 2): Maximum products per individual keyword
+- **`products_per_keyword`** (default: 1): Maximum products per individual keyword
 
 **Behavior**:
 - Processing iterates through keywords, collecting up to `products_per_keyword` from each
 - Stops immediately when `max_products` is reached, even if keywords remain
 - Product IDs count toward `max_products` but are not limited by `products_per_keyword`
 
-**Example**: With `max_products: 10` and `products_per_keyword: 2` across 6 keywords:
-- Keywords 1-5: 2 products each = 10 total (global cap reached)
-- Keyword 6: Skipped (global cap already reached)
+**Example**: With `max_products: 10` and `products_per_keyword: 1` across 12 keywords:
+- Keywords 1-10: 1 product each = 10 total (global cap reached)
+- Keywords 11-12: Skipped (global cap already reached)
 
 ### Error Handling
 
@@ -518,6 +518,21 @@ Total Pipeline Duration: 158.2s
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
 - **Error Resilience**: Graceful failure handling with optional fail-fast mode per phase
+- **Low-Priority Mode**: `make batch-lowpri` runs with reduced CPU, I/O, and memory priority
+
+### Low-Priority Batch Mode
+
+For long-running batch jobs on shared or resource-constrained machines, use `make batch-lowpri` instead of `make batch`. It wraps the pipeline with `nice`, `ionice`, and `systemd-run` memory limits:
+
+```bash
+# Run with default limits (nice=10, ionice=best-effort/4, mem=4G)
+make batch-lowpri ARGS="--keywords 'wireless earbuds' --profile slideshow_images1 --debug"
+
+# Override resource limits
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
+```
+
+Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.
 
 ---
 

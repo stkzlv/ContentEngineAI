@@ -35,14 +35,23 @@ poetry run python -m src.video.producer --batch --random-profile --debug
 # Batch video production (random from specific pool)
 poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 video_sequential --debug
 
-# Global batch pipeline (fixed profile)
-poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 B0ASIN2 --profile slideshow_images1 --debug
+# Global batch pipeline (always use make batch-lowpri for batch runs)
+make batch-lowpri ARGS="--product-ids B0ASIN1 B0ASIN2 --profile slideshow_images1 --debug"
 
 # Global batch pipeline (random profiles with filters)
-poetry run python -m src.pipeline.global_batch --keywords "wireless earbuds" --max-products 10 --min-price 20 --min-rating 4.0 --random-profile --profile-pool slideshow_images1 video_sequential --debug
+make batch-lowpri ARGS="--keywords 'wireless earbuds' --max-products 10 --min-price 20 --min-rating 4.0 --random-profile --debug"
 
-# Global batch pipeline (mixed mode with fail-fast)
-poetry run python -m src.pipeline.global_batch --product-ids B0ASIN1 --keywords "smart watch" --profile slideshow_images1 --fail-fast --debug
+# Global batch pipeline (skip publishing)
+make batch-lowpri ARGS="--keywords 'smart watch' --skip-publish --debug"
+
+# Tune resource limits if needed (defaults: MEM_LIMIT=8G, NICE_LEVEL=10)
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
+
+# Publish single product (auto-schedules to next slot)
+poetry run python -m src.publisher.late single B0ASIN1 --debug
+
+# Publish to specific platforms
+poetry run python -m src.publisher.late single B0ASIN1 --platform youtube --platform tiktok --debug
 
 # Published products registry
 poetry run python -m src.publisher.late registry --rebuild --outputs-dir outputs
@@ -62,9 +71,25 @@ poetry run python tools/performance_report.py --report-type summary
 
 ### Video Module Notes
 
+- **Profile settings**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` (not dicts). Access via `.video_settings.field` and `.subtitle_settings.field`. Use `.model_dump()` when downstream functions need dicts.
+- **Video centering**: Use `video_vertical_align: center` in profile config. Setting `video_top_position_percent: 0.0` puts video at top, not center. The `center` value triggers FFmpeg's `(oh-ih)/2` pad expression.
 - **Subtitle positioning**: For centered images with mixed aspect ratios (landscape + portrait), use AVERAGE `video_top` across all images to balance positioning
 - **Visual bounds**: Calculated from actual image dimensions, not frame dimensions
-- **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`
+- **Two-part subtitles**: Upper (static URL) + Lower (voiceover-synced) handled in `two_part_subtitles.py`. Upper subtitle is dynamically repositioned per visual segment in `subtitle_builder._create_content_aware_upper_ass_file()` using actual geometry from the assembler
+- **Upper subtitle positioning gotcha**: The pre-assembly `calculate_visual_bounds()` can produce wrong bounds (e.g., `ctx.scraped_videos` empty). The real fix is in the assembler where per-segment `VisualGeometry` data is available
+- **Scraper-producer alignment**: Pass `profile_uses_videos` to scraper so media validation counts only what the profile actually uses
+- **TTS voice profiles**: Configured in `config/subtitles.yaml` under `tts_config.voice_profiles`. Profiles specify provider (`google_cloud` or `gemini`), style prompt, voice criteria, and markup rules
+- **Gemini TTS**: Uses same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=..., prompt=...)`. Requires `Vertex AI User` IAM role on the service account. Falls back to Google Cloud TTS on failure
+- **TTS hash slice**: Voice profiles use md5 hex `[16:24]` (fonts use `[0:8]`, colors `[8:16]`, voice within profile `[24:32]`)
+- **TTS metadata**: Profile name and voice name saved in `pipeline_state.json` under `create_voiceover.tts_metadata`
+- **Script templates**: 15 prompt templates in `src/ai/prompts/scripts/` with different styles (curiosity hook, problem-solution, storytelling, etc.). Configured in `config/ai_services.yaml` under `llm_settings.script_templates`. Selection is deterministic per product using salted md5 hash (`md5(product_id + ":script_template")`). Override with `--script-template NAME` CLI arg. Template name saved in `pipeline_state.json` under `generate_script.script_template`
+- **LLM provider fallback**: Gemini is primary, OpenRouter is automatic fallback. Configured via `llm_settings.fallback_provider` in `ai_services.yaml` (self-referencing `LLMSettings`). Both `global_batch.py` and `cli.py` must include fallback provider's API key env var in the secrets dict. Shared dispatch in `src/ai/llm_client.py`
+- **LLM config fields**: `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec`, and `script_validation` (min_chars, min_words) all live on `LLMSettings`. Don't hardcode these in generator code
+- **`.env` safety**: `update_env_file()` in `freesound_client.py` only updates existing keys, never adds new lines
+
+## Session Continuity
+
+After every context compaction (session continuation), run `/github-workflow` to check CI status and catch any issues from the previous session. This is non-optional.
 
 ## Development Guidelines
 
@@ -197,7 +222,8 @@ make test-cov      # Run tests with coverage report
 - **Late SDK post methods**: `create`, `get`, `update`, `delete`, `retry`, `list` (+ async variants `acreate`, etc.)
 - **Publishing modes**: Unified (default) = 1 post to all platforms; platform-specific (`--platform-specific` or `use_platform_specific_content: true`) = 1 post per platform with optimized metadata. Shared helper: `src/publisher/publish_modes.py`.
 - **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
-- **`.env` file**: Must be sourced before running publisher CLI (`set -a && source .env && set +a`), or use `poetry run` which auto-loads `.env` if `python-dotenv` is installed.
+- **`.env` file**: Auto-loaded by the CLI via `load_dotenv()`. No manual sourcing needed.
+- **CLI format**: `poetry run python -m src.publisher.late single <PRODUCT_ID> --debug`. Takes product ID (not file paths). Video is auto-discovered from `outputs/<product_id>/`. Don't pass `--immediate` or `--platform-specific` by default.
 
 ## Link-in-Bio Module Notes
 

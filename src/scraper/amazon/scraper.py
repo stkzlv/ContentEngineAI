@@ -133,6 +133,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         debug_override: bool = None,
         debug_options: dict = None,
         output_dir: str | None = None,
+        profile_uses_videos: bool | None = None,
     ):
         """Initialize scraper with configuration
 
@@ -142,9 +143,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             debug_override: Override debug mode setting from CLI
             debug_options: Dictionary of debug options for detailed analysis
             output_dir: Custom output directory (overrides config base_directory)
+            profile_uses_videos: Whether the target video profile uses scraped
+                videos. When False, validation ignores videos and requires
+                enough images for image-only processing. None keeps default.
 
         """
         self.output_dir = output_dir
+        self.profile_uses_videos = profile_uses_videos
 
         # Set module-level output dir override so Botasaurus callbacks use it
         if output_dir:
@@ -273,9 +278,14 @@ class BotasaurusAmazonScraper(BaseScraper):
         search_params: SearchParameters | None,
         target_count: int,
     ) -> list[ProductData]:
-        """Loop scraping until target_count validated products are collected"""
+        """Loop scraping until target_count validated products are collected.
+
+        Paginates through search result pages when products on the current
+        page fail validation. Stops when target is reached, search results
+        are exhausted, or max_scrape_attempts raw products have been examined.
+        """
         validated_products: list[ProductData] = []
-        total_scraped = 0
+        total_raw_scraped = 0
 
         # Get batch processing config values
         batch_cfg = CONFIG.get("global_settings", {}).get("batch_processing", {})
@@ -284,48 +294,85 @@ class BotasaurusAmazonScraper(BaseScraper):
             "prefetch_multiplier", DEFAULT_PREFETCH_MULTIPLIER
         )
         max_batch_size = batch_cfg.get("max_batch_size", DEFAULT_MAX_BATCH_SIZE)
+        max_pages = batch_cfg.get("max_pages", 7)
+
+        current_page = 1
 
         self.logger.info(
             "🎯 Target: %d products that pass validation requirements",
             target_count,
         )
 
-        while len(validated_products) < target_count and total_scraped < max_attempts:
-            remaining = target_count - len(validated_products)
-            batch_size = min(remaining * prefetch_multiplier, max_batch_size)
-
-            if self.debug_mode:
-                self.logger.info(
-                    "📊 Progress: %d/%d validated | Requesting %d more products...",
-                    len(validated_products),
-                    target_count,
-                    batch_size,
-                )
-
-            # Scrape a batch (fetch 3x but only download media for remaining)
-            batch = self._scrape_single_pass(
-                keyword, search_params, batch_size, target_download_count=remaining
-            )
-
-            if not batch:
+        while len(validated_products) < target_count:
+            if total_raw_scraped >= max_attempts:
                 self.logger.warning(
-                    "⚠️ No more products available. Stopping with "
-                    "%d/%d validated products.",
+                    "Reached max scrape attempts (%d raw products). "
+                    "Stopping with %d/%d validated.",
+                    max_attempts,
                     len(validated_products),
                     target_count,
                 )
                 break
 
-            total_scraped += len(batch)
+            if current_page > max_pages:
+                self.logger.warning(
+                    "Reached max pages (%d). Stopping with %d/%d validated.",
+                    max_pages,
+                    len(validated_products),
+                    target_count,
+                )
+                break
+
+            remaining = target_count - len(validated_products)
+            batch_size = min(remaining * prefetch_multiplier, max_batch_size)
+
+            if self.debug_mode:
+                self.logger.info(
+                    "📊 Progress: %d/%d validated | Page %d | "
+                    "Requesting %d more products...",
+                    len(validated_products),
+                    target_count,
+                    current_page,
+                    batch_size,
+                )
+
+            # Scrape a batch from the current page
+            batch = self._scrape_single_pass(
+                keyword,
+                search_params,
+                batch_size,
+                target_download_count=remaining,
+                page=current_page,
+            )
+
+            if not batch:
+                # No validated products from this page. Try the next page
+                # unless the browser returned nothing at all (exhausted results).
+                # We detect exhausted results by checking if raw products were
+                # found: _scrape_single_pass calls _validate_and_convert_products
+                # which logs rejections. If we're on page 1 and got 0, the search
+                # itself may have returned products that all failed validation.
+                # Move to next page to find better candidates.
+                self.logger.info(
+                    "No validated products on page %d, trying next page...",
+                    current_page,
+                )
+                current_page += 1
+                continue
+
+            total_raw_scraped += len(batch)
             validated_products.extend(batch)
 
             if self.debug_mode:
                 self.logger.info(
-                    "✅ Batch complete: +%d validated products " "(total: %d/%d)",
+                    "✅ Batch complete: +%d validated products (total: %d/%d)",
                     len(batch),
                     len(validated_products),
                     target_count,
                 )
+
+            # Move to next page for the next iteration if still needed
+            current_page += 1
 
         # Trim to exact count if we over-collected
         if len(validated_products) > target_count:
@@ -345,6 +392,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         products_limit: int,
         filter_validated: bool = True,
         target_download_count: int | None = None,
+        page: int = 1,
     ) -> list[ProductData]:
         """Single-pass scraping with download and validation
 
@@ -355,6 +403,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             products_limit: Number of products to scrape
             filter_validated: If True, return only products that pass validation
             target_download_count: Max products to download media for (None = all)
+            page: Search results page number (1-based)
 
         Returns:
         -------
@@ -371,6 +420,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "debug_mode": self.debug_mode,
                 "debug_options": self.debug_options,
                 "max_products": products_limit,
+                "page": page,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
@@ -765,22 +815,27 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "min_images_with_video", DEFAULT_MIN_IMAGES_WITH_VIDEO
             )
 
-            total_media = img_count + vid_count
+            # When profile doesn't use videos, ignore them for validation
+            effective_vid_count = vid_count
+            if self.profile_uses_videos is False:
+                effective_vid_count = 0
+
+            total_media = img_count + effective_vid_count
             meets_requirements = True
             rejection_reason = ""
 
             if total_media < min_total:
                 meets_requirements = False
                 rejection_reason = f"total media {total_media} < {min_total}"
-            elif vid_count == 0 and img_count < min_imgs_no_vid:
+            elif effective_vid_count == 0 and img_count < min_imgs_no_vid:
                 meets_requirements = False
                 rejection_reason = (
-                    f"no videos and images {img_count} < {min_imgs_no_vid}"
+                    f"no usable videos and images {img_count} < {min_imgs_no_vid}"
                 )
-            elif vid_count > 0 and img_count < min_imgs_with_vid:
+            elif effective_vid_count > 0 and img_count < min_imgs_with_vid:
                 meets_requirements = False
                 rejection_reason = (
-                    f"has videos but images " f"{img_count} < {min_imgs_with_vid}"
+                    f"has videos but images {img_count} < {min_imgs_with_vid}"
                 )
 
             if meets_requirements:
@@ -1198,6 +1253,20 @@ def main():
         ),
     )
     parser.add_argument(
+        "--max-products",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Global cap on total products to collect across all keywords",
+    )
+    parser.add_argument(
+        "--products-per-keyword",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Maximum products to scrape per individual keyword",
+    )
+    parser.add_argument(
         "--fail-fast",
         action="store_true",
         help=(
@@ -1292,6 +1361,17 @@ def main():
     )
     parser.add_argument(
         "--category", metavar="ID", help="Category ID for filtering (advanced usage)"
+    )
+
+    # Video profile alignment
+    parser.add_argument(
+        "--profile",
+        type=str,
+        metavar="NAME",
+        help=(
+            "Video profile name to align media validation with producer "
+            "requirements (e.g., slideshow_images4)"
+        ),
     )
 
     # Batch input/output arguments
@@ -1644,10 +1724,37 @@ def main():
 
         # Only pass debug_override if explicitly set via CLI (not default False)
         debug_override = args.debug if args.debug else None
+
+        # Resolve profile-aware media validation
+        profile_uses_videos = None
+        if getattr(args, "profile", None):
+            try:
+                from src.video.config_adapter import load_video_config_modular
+
+                video_config = load_video_config_modular()
+                profile_obj = video_config.video_profiles.get(args.profile)
+                if profile_obj:
+                    profile_uses_videos = profile_obj.use_scraped_videos
+                    logger.info(
+                        "Media validation aligned with profile '%s': " "videos %s",
+                        args.profile,
+                        "enabled" if profile_uses_videos else "disabled",
+                    )
+                else:
+                    logger.warning(
+                        "Profile '%s' not found, using default validation",
+                        args.profile,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "Could not load video config for profile alignment: %s", e
+                )
+
         scraper = BotasaurusAmazonScraper(
             debug_override=debug_override,
             debug_options=debug_options,
             output_dir=getattr(args, "output_dir", None),
+            profile_uses_videos=profile_uses_videos,
         )
 
         # Batch mode: use BatchController for multiple products
@@ -1690,6 +1797,8 @@ def main():
                     cli_product_ids=chunk,
                     cli_keywords=all_keywords if chunk_idx == 0 else None,
                     cli_fail_fast=args.fail_fast,
+                    cli_max_products=args.max_products,
+                    cli_products_per_keyword=args.products_per_keyword,
                 )
 
                 # Override search parameters in batch config with CLI parameters

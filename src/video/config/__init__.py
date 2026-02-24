@@ -14,7 +14,9 @@ from src.video.config.audio_models import (  # noqa: F401
     GoogleCloudSTTSettings,
     GoogleCloudTTSSettings,
     GoogleCloudVoiceCriteria,
+    TextMarkupRule,
     TTSConfig,
+    VoiceProfileConfig,
 )
 from src.video.config.constants import *  # noqa: F403, F401
 
@@ -82,7 +84,9 @@ __all__ = [
     "GoogleCloudSTTSettings",
     "GoogleCloudTTSSettings",
     "GoogleCloudVoiceCriteria",
+    "TextMarkupRule",
     "TTSConfig",
+    "VoiceProfileConfig",
     # Visual models
     "CTADetectionSettings",
     "MediaSettings",

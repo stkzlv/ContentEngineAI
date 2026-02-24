@@ -9,10 +9,13 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.video_strategies import VideoStrategyFactory
+
+if TYPE_CHECKING:
+    from src.video.config.visual_models import MergedProfileSettings
 from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
@@ -48,7 +51,7 @@ class VisualFilterBuilder:
         media_inspector: MediaInspector,
         config: VideoConfig,
         strategy_factory: VideoStrategyFactory | None,
-        profile_settings: dict | None,
+        profile_settings: "MergedProfileSettings | None",
         debug_mode: bool = False,
         normalize_video_callback: (Callable[[Path], Awaitable[Path]] | None) = None,
     ):
@@ -59,7 +62,7 @@ class VisualFilterBuilder:
             media_inspector: MediaInspector instance for media operations
             config: VideoConfig containing settings
             strategy_factory: VideoStrategyFactory for video mode strategies
-            profile_settings: Profile settings dict (may be None initially)
+            profile_settings: Merged profile settings (may be None initially)
             debug_mode: Enable debug logging
             normalize_video_callback: Async callback for video format normalization
 
@@ -74,9 +77,7 @@ class VisualFilterBuilder:
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
         if self.profile_settings:
-            settings = self.profile_settings.get("subtitle_settings", {})
-            if settings:
-                return dict(settings)
+            return self.profile_settings.subtitle_settings.model_dump()
         return dict(self.config.subtitle_settings)
 
     def apply_aspect_ratio_mode(
@@ -232,14 +233,8 @@ class VisualFilterBuilder:
         try:
             # Check if subtitles are enabled at the profile level
             if self.profile_settings:
-                subtitle_settings_dict = self.profile_settings.get(
-                    "subtitle_settings", {}
-                )
-                subtitle_enabled = (
-                    subtitle_settings_dict.get("enabled", False)
-                    if subtitle_settings_dict
-                    else False
-                )
+                sub_settings = self.profile_settings.subtitle_settings
+                subtitle_enabled = getattr(sub_settings, "enabled", False)
             else:
                 subtitle_enabled = False
 
@@ -369,10 +364,12 @@ class VisualFilterBuilder:
         has_any_videos = any(is_video for _, _, is_video in timed_visuals)
         image_positioning_overridden = False
         if not has_any_videos and self.profile_settings:
-            vs_dict = self.profile_settings.get("video_settings", {})
+            vs_model = self.profile_settings.video_settings
             has_video_positioning = (
-                vs_dict.get("video_top_position_percent") is not None
-                or vs_dict.get("video_content_height_percent") is not None
+                vs_model.video_top_position_percent
+                != self.config.video_settings.video_top_position_percent
+                or vs_model.video_content_height_percent
+                != self.config.video_settings.video_content_height_percent
             )
 
             if has_video_positioning:
@@ -436,28 +433,25 @@ class VisualFilterBuilder:
 
             # Apply aspect ratio handling for videos
             if is_video_item:
-                # Get video positioning from profile settings
-                default_top = self.config.video_settings.video_top_position_percent
-                default_height = self.config.video_settings.video_content_height_percent
-                if self.profile_settings and "video_settings" in self.profile_settings:
-                    vs = self.profile_settings["video_settings"]
-                    video_top_percent = getattr(
-                        vs, "video_top_position_percent", default_top
-                    )
-                    video_height_percent = getattr(
-                        vs, "video_content_height_percent", default_height
-                    )
-                    logger.debug(
-                        f"[VIDEO POS] Reading from video_settings: "
-                        f"top={video_top_percent:.2%}, "
-                        f"height={video_height_percent:.2%}"
-                    )
-                else:
-                    video_top_percent = default_top
-                    video_height_percent = default_height
-                    logger.debug("[VIDEO POS] Using defaults (no video_settings)")
+                # Get video positioning from profile or global settings
+                vs = (
+                    self.profile_settings.video_settings
+                    if self.profile_settings
+                    else self.config.video_settings
+                )
+                video_top_percent = vs.video_top_position_percent
+                video_height_percent = vs.video_content_height_percent
+                video_valign = vs.video_vertical_align
+                logger.debug(
+                    f"[VIDEO POS] top={video_top_percent:.2%}, "
+                    f"height={video_height_percent:.2%}, align={video_valign}"
+                )
 
                 target_content_height = int(height * video_height_percent)
+
+                # When centering, pass video_top_percent=None so
+                # apply_aspect_ratio_mode uses FFmpeg's (oh-ih)/2 expression
+                effective_top = None if video_valign == "center" else video_top_percent
 
                 aspect_filter, aspect_label, actual_geom = self.apply_aspect_ratio_mode(
                     f"[{i}:v]",
@@ -467,7 +461,7 @@ class VisualFilterBuilder:
                     orig_w,
                     orig_h,
                     output_label=f"[v{i}_scaled]",
-                    video_top_percent=video_top_percent,
+                    video_top_percent=effective_top,
                     target_content_height=target_content_height,
                 )
 
@@ -488,8 +482,11 @@ class VisualFilterBuilder:
                     geometries.append(actual_geom)
                 else:
                     # Fallback: compute from config (for non-letterbox modes)
-                    video_top_pixels = int(height * video_top_percent)
                     video_height_pixels = int(height * video_height_percent)
+                    if video_valign == "center":
+                        video_top_pixels = (height - video_height_pixels) // 2
+                    else:
+                        video_top_pixels = int(height * video_top_percent)
                     logger.debug(
                         f"Video {i}: Config-based geometry "
                         f"y={video_top_pixels}px, height={video_height_pixels}px"

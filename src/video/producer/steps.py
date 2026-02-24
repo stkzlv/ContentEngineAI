@@ -331,7 +331,7 @@ async def step_generate_script(ctx: PipelineContext):
             return
 
         try:
-            script_text = await generate_ai_script(
+            script_text, template_name = await generate_ai_script(
                 ctx.product,
                 ctx.config.llm_settings,
                 ctx.secrets,
@@ -339,6 +339,7 @@ async def step_generate_script(ctx: PipelineContext):
                 {"script": ctx.run_paths["script_file"]},
                 ctx.debug_mode,
                 ctx.config.api_settings,
+                product_id=ctx.product.asin,
             )
         except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e
@@ -348,8 +349,12 @@ async def step_generate_script(ctx: PipelineContext):
         ctx.script = sanitize_script(script_text)
         ensure_dirs_exist(ctx.run_paths["script_file"].parent)
         ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
+        if template_name:
+            ctx.state["script_template"] = template_name
         logger.info(
-            f"Script generated and saved to {ctx.run_paths['script_file'].name}"
+            "Script generated (template=%s) and saved to %s",
+            template_name,
+            ctx.run_paths["script_file"].name,
         )
 
 
@@ -675,7 +680,12 @@ async def step_create_voiceover(ctx: PipelineContext):
             ctx.script = script_path.read_text(encoding="utf-8")
 
         try:
-            tts_manager = TTSManager(ctx.config.tts_config, ctx.secrets)
+            tts_manager = TTSManager(
+                ctx.config.tts_config,
+                ctx.secrets,
+                product_id=ctx.product.asin,
+                voice_profile_override=ctx.cli_overrides.get("voice_profile"),
+            )
             vo_path = await tts_manager.generate_speech(
                 ctx.script, ctx.run_paths["voiceover_file"]
             )
@@ -684,6 +694,17 @@ async def step_create_voiceover(ctx: PipelineContext):
 
         if not vo_path or not vo_path.exists():
             raise PipelineError("TTS generation failed.")
+
+        # Save TTS metadata for pipeline state tracking
+        ctx.state["tts_metadata"] = {
+            "voice_profile": tts_manager.selected_profile_name,
+            "voice_name": tts_manager.selected_voice_name,
+        }
+        logger.debug(
+            "TTS metadata: profile=%s, voice=%s",
+            tts_manager.selected_profile_name,
+            tts_manager.selected_voice_name,
+        )
 
         # Trim leading/trailing silence from voiceover
         # Whisper normalizes timestamps to start at first speech
@@ -777,7 +798,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         merged_profile_settings = ctx.config.get_profile_merged_settings(
             ctx.profile_name, ctx.cli_overrides
         )
-        profile_subtitle_settings = merged_profile_settings["subtitle_settings"]
+        subtitle_settings = merged_profile_settings.subtitle_settings
 
         # Derive product_id for randomization
         from src.utils import sanitize_filename
@@ -785,27 +806,8 @@ async def step_generate_subtitles(ctx: PipelineContext):
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
 
         # Check if two-part subtitle system is enabled
-        # Handle both nested dict and flat key structures
-        two_part_config = profile_subtitle_settings.get("two_part_subtitles", {})
-        logger.debug("Two-part subtitle config: %s", two_part_config)
-        logger.debug(
-            "Profile subtitle settings keys: %s", list(profile_subtitle_settings.keys())
-        )
-
-        if isinstance(two_part_config, dict) and "enabled" in two_part_config:
-            two_part_enabled = two_part_config.get("enabled", False)
-            logger.debug(
-                "Using nested config structure, two_part_enabled=%s", two_part_enabled
-            )
-        else:
-            # Fallback to flat structure
-            two_part_enabled = profile_subtitle_settings.get(
-                "two_part_subtitles_enabled", False
-            )
-            logger.debug(
-                "Using flat config structure, two_part_subtitles_enabled=%s",
-                profile_subtitle_settings.get("two_part_subtitles_enabled"),
-            )
+        two_part_enabled = subtitle_settings.two_part_subtitles_enabled
+        logger.debug("two_part_subtitles_enabled=%s", two_part_enabled)
 
         if two_part_enabled:
             logger.info("Two-part subtitle system enabled, generating dual subtitles")
@@ -814,9 +816,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
             handler = TwoPartSubtitleHandler(
                 ctx=ctx,
-                profile_subtitle_settings=profile_subtitle_settings,
                 merged_profile_settings=merged_profile_settings,
-                two_part_config=two_part_config,
             )
 
             lower_path, upper_path = await handler.generate(voiceover_path, product_id)
@@ -830,10 +830,11 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         else:
             # Standard single-line subtitle generation
+            subtitle_dict = subtitle_settings.model_dump()
             srt_path = await create_unified_subtitles(
                 voiceover_path,
                 ctx.run_paths["subtitle_file"],
-                profile_subtitle_settings,
+                subtitle_dict,
                 ctx.config.whisper_settings,
                 ctx.config.google_cloud_stt_settings,
                 ctx.secrets,

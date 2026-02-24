@@ -6,6 +6,7 @@ import json
 import logging
 import shutil
 from pathlib import Path
+from typing import Any
 
 from src.utils import ensure_dirs_exist
 from src.video.config import VideoConfig
@@ -251,10 +252,18 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     elif step_name == STEP_ASSEMBLE_VIDEO:
         artifacts["final_video_output"] = ctx.run_paths["final_video_output"]
 
-    ctx.state[step_name] = {
+    step_state: dict[str, Any] = {
         "status": "done",
         "artifacts": {k: str(v) for k, v in artifacts.items()},
     }
+    # Include script template metadata (saved by step_generate_script)
+    if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("script_template"):
+        step_state["script_template"] = ctx.state["script_template"]
+    # Include TTS metadata if available (saved by step_create_voiceover)
+    if step_name == STEP_CREATE_VOICEOVER and ctx.state.get("tts_metadata"):
+        step_state["tts_metadata"] = ctx.state["tts_metadata"]
+
+    ctx.state[step_name] = step_state
     logger.debug(f"Updated state for completed step: {step_name}")
 
 

@@ -329,7 +329,7 @@ class GlobalBatchConfig:
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     max_products: int = 10
-    products_per_keyword: int = 2
+    products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
 
     # Producer configuration
@@ -349,6 +349,12 @@ class GlobalBatchConfig:
     schedule_time: str | None = None
     fail_fast_publish: bool = False
     platform_specific_content: bool = False
+
+    # Voice profile override
+    voice_profile: str | None = None
+
+    # Script template override
+    script_template: str | None = None
 
     # Resume configuration
     resume: bool = False
@@ -733,7 +739,7 @@ def load_global_batch_config(
     products_per_keyword = (
         getattr(cli_args, "products_per_keyword", None)
         or yaml_config.get("products_per_keyword")
-        or 2
+        or 1
     )
 
     # Scraper filters (SearchParameters)
@@ -753,6 +759,10 @@ def load_global_batch_config(
     random_profile = getattr(cli_args, "random_profile", False) or yaml_config.get(
         "random_profile", False
     )
+
+    # Default to random profile when no explicit profile is set
+    if not profile and not random_profile:
+        random_profile = True
 
     profile_pool = (
         getattr(cli_args, "profile_pool", None)
@@ -795,6 +805,16 @@ def load_global_batch_config(
         cli_args, "platform_specific", False
     ) or yaml_config.get("platform_specific_content", False)
 
+    # Voice profile override
+    voice_profile = getattr(cli_args, "voice_profile", None) or yaml_config.get(
+        "voice_profile"
+    )
+
+    # Script template override
+    script_template = getattr(cli_args, "script_template", None) or yaml_config.get(
+        "script_template"
+    )
+
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
@@ -822,6 +842,8 @@ def load_global_batch_config(
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
         platform_specific_content=platform_specific_content,
+        voice_profile=voice_profile,
+        script_template=script_template,
         resume=resume,
         dry_run=dry_run,
         output_format=output_format,

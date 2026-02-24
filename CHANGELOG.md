@@ -5,7 +5,52 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.30.0] - 2026-02-24
+
+### Changed
+- **Config**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` Pydantic model instead of raw dicts
+- **Config**: Add `video_vertical_align` field ("center"/"top") for video content positioning via FFmpeg pad expression
+- **Scraper**: Validate media counts against producer profile requirements (skip products the profile can't use)
+- **Scraper**: Default `products_per_keyword: 1` and `max_products: 50` (was 5 and 1)
+- **Config**: Align upper subtitle defaults with YAML profiles (margin 0.04, font_size_scale 0.7)
+- **Config**: Move hardcoded LLM values (blocklist, validation thresholds, retry settings) from code into `LLMSettings` and `ai_services.yaml`
+- **LLM**: Switch primary provider from OpenRouter to Gemini, OpenRouter becomes fallback
+- **LLM**: Rename `openrouter_circuit_breaker` to `llm_circuit_breaker` (provider-agnostic)
+
+### Added
+- `MergedSubtitleSettings`, `ProfileInfo`, `MergedProfileSettings` Pydantic models in `visual_models.py`
+- `--profile` CLI arg for standalone scraper to align media validation with producer
+- `profile_uses_videos` parameter on scraper constructor for profile-aware validation
+- `--max-products` and `--products-per-keyword` CLI args for standalone scraper
+- **TTS voice profiles**: Configurable voice presets with style prompts, markup rules, and per-profile provider routing
+- **Gemini TTS provider**: Style-directed speech via `SynthesisInput(prompt=...)` with automatic fallback to Google Cloud TTS
+- `VoiceProfileConfig`, `TextMarkupRule` Pydantic models in `audio_models.py`
+- `--voice-profile` CLI override for producer and global batch pipeline
+- TTS metadata (profile name, voice name) saved in `pipeline_state.json`
+- Inline markup preprocessing: `[short pause]`, `[pause]` inserted at sentence boundaries per profile rules
+- Deterministic voice profile selection per product (md5 hash, hex slice `[16:24]`)
+- **Dynamic upper subtitle positioning**: content-aware per-segment repositioning using assembler geometry, splits CTA across visual segments
+- **Script template system**: 15 distinct prompt templates (curiosity hook, problem-solution, storytelling, comparison, etc.) with deterministic per-product selection via salted md5 hash
+- `ScriptTemplateConfig` model: `enabled`, `templates_dir`, `template_pool`, `fixed_template` fields
+- `--script-template` CLI override for producer and global batch pipeline
+- Script template name saved in `pipeline_state.json` under generate_script metadata
+- **Provider fallback chain**: Gemini as primary LLM, automatic fallback to OpenRouter with free model discovery when primary exhausts all models
+- `fallback_provider` field on `LLMSettings` (self-referencing Pydantic model)
+- `ScriptValidationConfig` model with configurable `min_chars`/`min_words` thresholds
+- `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec` fields on `LLMSettings`
+- `make batch-lowpri` target for resource-constrained batch runs (nice, ionice, memory cap)
+- `src/ai/llm_client.py`: shared LLM dispatch layer (Gemini via google-genai SDK, OpenRouter via aiohttp)
+
+### Fixed
+- Video content stuck at top of frame when `video_top_position_percent: 0.0` was set (now uses FFmpeg centering)
+- Upper subtitle floating in middle of black bar for letterboxed video profiles (now positioned near content edge)
+- Unclosed aiohttp session on producer exit (close global connection pool in CLI)
+- Fallback provider API key not loaded into secrets dict (global_batch.py, cli.py)
+- `os.environ.get()` bypass in platform metadata utilities (now uses secrets dict)
+- `update_env_file()` no longer adds new keys to `.env` (only updates existing ones)
+
+### Dependencies
+- Bump `google-cloud-texttospeech` from ^2.26.0 to ^2.29.0 (adds `SynthesisInput.prompt` support)
 
 ## [0.29.2] - 2026-02-20
 

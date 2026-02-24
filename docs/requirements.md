@@ -120,55 +120,65 @@ High-level requirements for ContentEngineAI.
 
 ### Image Positioning
 - Width as percentage of frame (default 100%)
+- **Horizontal alignment**: always centered in frame
 - **Vertical alignment**: center (default) or top with configurable offset
-- Always centered horizontally
 - Preserve aspect ratio by default
-- Reserve space below for subtitles (default 15%)
 
 ### Video Positioning
-- Top offset as percentage of frame (default 10%)
-- Content height as percentage of frame (default 75%)
-- **Aspect modes**: letterbox (black bars), crop-to-fit (fill frame), smart-scale (auto-select)
-- Smart-scale uses 10% tolerance to choose between letterbox and crop
+- **Vertical alignment**: center (default) or top with offset (default 10%)
+- **Content height**: configurable portion of frame (default 75%)
+- **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select when aspect ratios within 10%)
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
-- **Audio handling**: remove original audio or mix at reduced volume
-- Normalize to consistent format (H.264, 30fps, yuv420p)
+- **Audio handling**: remove original audio or mix at configurable volume
 - Match final duration to voiceover (±1 second tolerance)
 
-### Subtitle Positioning
+### Subtitles
 - **Anchors**: top, center, bottom, above-content, below-content
-- Content-aware mode positions relative to actual media bounds
-- Margin as percentage of frame height (default 10%)
-- Horizontal alignment: left, center (default), right
-- Font size scales with frame height (default 4%, min 16px, max 100px)
-- Safe zone: max vertical position 95% to stay readable
-
-### Two-Part Subtitles
-- Upper line: static product URL or affiliate link
-- Lower line: voiceover transcription (word-by-word timing)
-- Independent positioning and styling per line
-- CTA detection triggers timed URL display
+- **Margin** from anchor edge (default 4%)
+- **Horizontal alignment**: left, center (default), right
+- Content-aware positioning relative to actual media bounds, with safe zone (95% of frame)
+- **Font size**: scales with resolution (range 4-16% of frame height)
+- **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
+- **Dynamic repositioning**: both upper and lower subtitles repositioned per visual segment using actual assembler geometry (handles mixed-media profiles where video and images have different bounds)
+- **CTA detection**: auto-detects call-to-action phrases in voiceover for styling emphasis
+- Style presets: minimal, modern, bold, animated, random
+- **ASS effects**: fade, scale_pulse, rotation_bounce, glow, typewriter, karaoke, movement
+- One effect applied per video (deterministic by product ID)
+- Deterministic randomization seeded by product ID
 
 ### Profile System
-- All visual settings configurable per video profile
-- Profile settings override global defaults
-- Backward compatibility with existing configurations
-- Runtime profile selection via CLI
+- **Precedence**: CLI > Profile > Global defaults
+- All visual, subtitle, and video settings configurable per profile
+- Typed Pydantic models for merged settings
+- Deterministic random profile selection per product
 
-### Font & Color Management
-- Style presets: minimal, modern, bold, animated, random
-- Deterministic randomization using product ID as seed
-- Coordinated color combinations with proper contrast
-
-### ASS Effects
-- One effect per video for visual consistency
-- Support: scale, rotation, glow, typewriter, karaoke, fade, movement
-- Proper ASS formatting for FFmpeg compatibility
+### Media Validation
+- Scraper validates media against producer profile requirements
+- If profile ignores videos, scraper counts images only
+- Insufficient media = skipped (not failed)
 
 ### AI Service Integration
-- Auto-select AI models from OpenRouter API
-- Default to free models with fallback
-- Google Cloud TTS with voice prioritization
+- Provider fallback chain: primary provider (Gemini) with automatic fallback to secondary (OpenRouter)
+- OpenRouter free model discovery with blocklist filtering and context length minimum
+- Configurable retry, validation thresholds, and model blocklist via `LLMSettings`
+- Google Cloud TTS and Gemini TTS with voice prioritization
+
+### Script Templates
+- Multiple prompt templates with different styles (curiosity hook, problem-solution, storytelling, comparison, etc.)
+- Deterministic template selection per product for batch consistency
+- Configurable template pool to restrict which styles get used
+- CLI override to force a specific template
+- Template metadata recorded in pipeline output for traceability
+
+### TTS Voice Profiles
+- Named voice presets with style direction, voice preferences, and text markup
+- Multiple TTS providers with automatic fallback
+- Style-directed speech (tone, energy, pacing)
+- Inline markup rules for pause insertion at sentence boundaries
+- Deterministic profile selection per product for reproducibility
+- Configurable profile pool to restrict selection
+- CLI override to force a specific profile
+- Profile metadata recorded in pipeline output
 
 ### Stock Background Music
 - Multi-platform music client (Freesound primary)

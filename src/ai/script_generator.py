@@ -15,6 +15,7 @@ and serve as the foundation for the video's voiceover and subtitles.
 """
 
 import asyncio
+import hashlib
 import logging
 import random
 import re
@@ -33,7 +34,7 @@ from tenacity import (
 
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
-from src.utils.circuit_breaker import openrouter_circuit_breaker
+from src.utils.circuit_breaker import llm_circuit_breaker
 from src.video.config import LLMSettings, config
 
 # Configure module logger
@@ -129,6 +130,68 @@ def save_debug_prompt(prompt: str, path: Path):
         logger.error(f"Failed to save debug prompt to {path}: {e}", exc_info=True)
 
 
+def select_script_template(
+    settings: LLMSettings,
+    product_id: str | None = None,
+) -> Path:
+    """Select a script template, deterministically by product ID.
+
+    When script_templates is enabled, picks from the templates directory.
+    Falls back to the single prompt_template_path when disabled.
+    """
+    templates_cfg = settings.script_templates
+
+    if not templates_cfg.enabled:
+        return Path(settings.prompt_template_path)
+
+    # Fixed template override (from config or CLI --script-template)
+    if templates_cfg.fixed_template:
+        path = Path(templates_cfg.templates_dir) / f"{templates_cfg.fixed_template}.md"
+        if path.exists():
+            return path
+        logger.warning(
+            "Fixed template '%s' not found, falling back to default",
+            templates_cfg.fixed_template,
+        )
+        return Path(settings.prompt_template_path)
+
+    # Discover available templates
+    templates_dir = Path(templates_cfg.templates_dir)
+    if not templates_dir.is_dir():
+        logger.warning("Templates dir '%s' not found, falling back", templates_dir)
+        return Path(settings.prompt_template_path)
+
+    all_templates = sorted(p.stem for p in templates_dir.glob("*.md"))
+    if not all_templates:
+        logger.warning("No templates found in '%s'", templates_dir)
+        return Path(settings.prompt_template_path)
+
+    # Apply pool filter (empty = all)
+    pool = templates_cfg.template_pool or all_templates
+    pool = [t for t in pool if t in all_templates]
+    if not pool:
+        pool = all_templates
+
+    # Deterministic selection using salted product ID hash
+    if product_id:
+        hash_hex = hashlib.md5(
+            f"{product_id}:script_template".encode(),
+            usedforsecurity=False,
+        ).hexdigest()
+        seed = int(hash_hex[:8], 16)
+        rng = random.Random(seed)  # noqa: S311
+        name = rng.choice(pool)
+    else:
+        name = random.choice(pool)  # noqa: S311
+
+    logger.info(
+        "Selected script template '%s' for product '%s'",
+        name,
+        product_id,
+    )
+    return templates_dir / f"{name}.md"
+
+
 async def _fetch_and_select_model(
     settings: LLMSettings, api_key: str, session: aiohttp.ClientSession, api_settings
 ) -> list[str]:
@@ -175,11 +238,7 @@ async def _fetch_and_select_model(
             response.raise_for_status()
             data = await response.json()
 
-            # Blocklist of models known to produce poor results
-            blocklist = {
-                "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
-                "liquid/lfm-2.5-1.2b-instruct",
-            }
+            blocklist = set(settings.model_blocklist)
 
             # Build set of ALL free model IDs (for checking configured models)
             all_free_ids: set[str] = set()
@@ -269,14 +328,8 @@ async def _discover_any_free_model(
     )
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    # Minimum context length to filter out tiny models (proxy for model size)
-    MIN_CONTEXT_LENGTH = 8000  # Small models often have small contexts
-
-    # Blocklist of models known to produce poor results
-    BLOCKLIST = {
-        "liquid/lfm-2.5-1.2b-instruct:free",  # 1.2B - hallucinates
-        "liquid/lfm-2.5-1.2b-instruct",
-    }
+    blocklist = set(settings.model_blocklist)
+    min_ctx = settings.min_context_length
 
     logger.info("Fallback: discovering available free models (excluding tiny)...")
     try:
@@ -307,10 +360,10 @@ async def _discover_any_free_model(
                             continue
                         if model_id in already_tried:
                             continue
-                        if model_id in BLOCKLIST:
+                        if model_id in blocklist:
                             logger.debug(f"Skipping blocklisted model: {model_id}")
                             continue
-                        if context_length < MIN_CONTEXT_LENGTH:
+                        if context_length < min_ctx:
                             logger.debug(
                                 f"Skipping small model: {model_id} "
                                 f"(context={context_length})"
@@ -408,74 +461,27 @@ async def _call_llm_api(
 ) -> str:
     """Call the LLM API to generate script content.
 
-    This function makes an asynchronous request to the LLM API (typically OpenRouter)
-    to generate a script based on the provided prompt.
-
-    Args:
-    ----
-        prompt: The formatted prompt to send to the LLM
-        model: The specific LLM model identifier to use
-        settings: LLM configuration settings
-        api_key: API key for authentication
-        session: Shared aiohttp client session for making requests
-        api_settings: Additional API settings for configuration
-
-    Returns:
-    -------
-        The generated script text
-
-    Raises:
-    ------
-        ScriptGenerationError: If the response is empty or invalid
-        ClientError: If there's an HTTP error communicating with the API
-        asyncio.TimeoutError: If the API request times out
-
+    Delegates to the shared llm_client which handles provider dispatch
+    (OpenRouter vs Gemini).
     """
-    # Construct API URL, defaulting to OpenRouter if not specified
-    api_url = f"{(settings.base_url or 'https://openrouter.ai/api/v1').rstrip('/')}/chat/completions"
+    from src.ai.llm_client import LLMCallError, call_llm
 
-    # Set up authentication and content headers
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-    # Prepare request payload with model parameters
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": config.llm_settings.max_tokens,
-        "temperature": config.llm_settings.temperature,
-    }
-
-    # Check if session is None or closed and get a new one if needed
-    if session is None or session.closed:  # type: ignore[attr-defined]
-        logger.warning("Session is closed during API call, getting new session")
-        from src.utils.connection_pool import get_http_session
-
-        session = await get_http_session()
-
-    # Make the API request
-    async with session.post(
-        api_url,
-        headers=headers,
-        json=payload,
-        timeout=config.llm_settings.timeout_seconds,
-    ) as response:
-        response.raise_for_status()  # Raise exception for HTTP errors
-        data = await response.json()
-
-        # Extract the generated content from the response
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if not content or not content.strip():
-            raise ScriptGenerationError("Empty content in response")
-
-        return str(content)
+    try:
+        return await call_llm(prompt, model, settings, api_key, session)
+    except LLMCallError as e:
+        raise ScriptGenerationError(str(e)) from e
 
 
-def validate_script_completeness(script: str) -> tuple[bool, str]:
+def validate_script_completeness(
+    script: str, min_chars: int = 200, min_words: int = 50
+) -> tuple[bool, str]:
     """Validate if a script appears complete and well-formed.
 
     Args:
     ----
         script: The generated script text
+        min_chars: Minimum character count for a valid script
+        min_words: Minimum word count for a valid script
 
     Returns:
     -------
@@ -528,18 +534,18 @@ def validate_script_completeness(script: str) -> tuple[bool, str]:
         return False, "Script doesn't end with proper punctuation"
 
     # Check minimum length (very short scripts might be incomplete)
-    if len(script) < 200:
-        return False, f"Script too short ({len(script)} chars, minimum 200)"
+    if len(script) < min_chars:
+        return False, f"Script too short ({len(script)} chars, minimum {min_chars})"
 
     # Check for reasonable word count
     words = script.split()
-    if len(words) < 50:
-        return False, f"Script too few words ({len(words)}, minimum 50)"
+    if len(words) < min_words:
+        return False, f"Script too few words ({len(words)}, minimum {min_words})"
 
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
 
-@openrouter_circuit_breaker
+@llm_circuit_breaker
 async def generate_script(
     product: ProductData,
     settings: LLMSettings,
@@ -548,41 +554,18 @@ async def generate_script(
     intermediate_paths: dict[str, Path],
     debug_mode: bool,
     api_settings=None,
-) -> str | None:
+    product_id: str | None = None,
+) -> tuple[str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
-    This is the main entry point for script generation. It orchestrates the entire
-    process:
-    1. Validates API credentials
-    2. Selects appropriate LLM models to try
-    3. Loads and formats the prompt template with product data
-    4. Makes API requests to generate the script
-    5. Handles fallback to alternative models if needed
-    6. Saves debug information when in debug mode
-    7. Sanitizes and returns the final script
-
-    The function implements a fallback mechanism that tries multiple models in sequence
-    if earlier attempts fail, providing resilience against model-specific issues.
-
-    Args:
-    ----
-        product: Product data containing title, description, etc.
-        settings: LLM configuration settings
-        secrets: Dictionary containing API keys and credentials
-        session: Shared HTTP session for API requests
-        intermediate_paths: Dictionary of paths for saving intermediate files
-        debug_mode: Whether to save debug information
-        api_settings: Additional API settings for configuration
-
-    Returns:
-    -------
-        The generated and sanitized script, or None if generation failed
-
-    Raises:
-    ------
-        ScriptGenerationError: If script generation fails for all models
-
+    Returns (script_text, template_name) tuple. template_name is the stem
+    of the selected template file (e.g. "curiosity_hook"), or None on failure.
     """
+    # Script validation thresholds from config
+    sv = settings.script_validation
+    sv_min_chars = sv.min_chars
+    sv_min_words = sv.min_words
+
     # Get API key from secrets
     api_key = secrets.get(settings.api_key_env_var)
     if not api_key:
@@ -590,10 +573,13 @@ async def generate_script(
             f"Missing API key from environment variable: {settings.api_key_env_var}"
         )
 
-    # Fetch available free models (returns ordered or shuffled list)
-    free_models = await _fetch_and_select_model(
-        settings, api_key, session, api_settings
-    )
+    # Fetch available free models (OpenRouter only; Gemini uses configured models)
+    if settings.provider == "openrouter":
+        free_models = await _fetch_and_select_model(
+            settings, api_key, session, api_settings
+        )
+    else:
+        free_models = []
 
     # Build prioritized list: free models first, then fallback to configured list
     models_to_try: list[str] = []
@@ -611,8 +597,10 @@ async def generate_script(
 
     logger.info(f"Order of models to attempt: {models_to_try}")
 
+    template_path = select_script_template(settings, product_id)
+    template_name = template_path.stem
     try:
-        template = load_prompt_template(Path(settings.prompt_template_path))
+        template = load_prompt_template(template_path)
         prompt = format_prompt(template, product, settings.target_audience)
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
@@ -640,14 +628,14 @@ async def generate_script(
 
                 # Validate script completeness
                 is_complete, validation_reason = validate_script_completeness(
-                    clean_script
+                    clean_script, sv_min_chars, sv_min_words
                 )
                 if is_complete:
                     logger.info(
                         f"Script successfully generated with model: {model} - "
                         f"{validation_reason}"
                     )
-                    return clean_script
+                    return clean_script, template_name
                 else:
                     logger.warning(
                         f"Script incomplete from {model}: {validation_reason}"
@@ -695,8 +683,8 @@ async def generate_script(
                 else:
                     break
 
-    # Fallback: try discovering any free model not yet attempted
-    if settings.fallback_discover_any_free:
+    # Fallback: try discovering any free model not yet attempted (OpenRouter only)
+    if settings.provider == "openrouter" and settings.fallback_discover_any_free:
         already_tried = set(models_to_try)
         fallback_models = await _discover_any_free_model(
             settings, api_key, session, api_settings, already_tried
@@ -710,16 +698,89 @@ async def generate_script(
                 )
                 clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                 is_complete, validation_reason = validate_script_completeness(
-                    clean_script
+                    clean_script, sv_min_chars, sv_min_words
                 )
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
-                    return clean_script
+                    return clean_script, template_name
                 else:
                     logger.warning(f"Fallback {model} incomplete: {validation_reason}")
             except Exception as e:
                 logger.warning(f"Fallback model {model} failed: {e}")
                 continue
 
+    # Provider fallback: try fallback_provider if primary exhausted all models
+    if settings.fallback_provider:
+        fb = settings.fallback_provider
+        fb_api_key = secrets.get(fb.api_key_env_var)
+        if fb_api_key:
+            logger.info("Primary provider exhausted, falling back to %s", fb.provider)
+
+            # Build fallback model list (with free model discovery for OpenRouter)
+            if fb.provider == "openrouter":
+                fb_free_models = await _fetch_and_select_model(
+                    fb, fb_api_key, session, api_settings
+                )
+            else:
+                fb_free_models = []
+
+            fb_models: list[str] = list(fb_free_models)
+            for m in fb.models:
+                if m not in fb_models:
+                    fb_models.append(m)
+
+            for model in fb_models:
+                try:
+                    logger.info("Fallback provider: trying %s", model)
+                    script_text = await _call_llm_api_with_retry(
+                        prompt, model, fb, fb_api_key, session, api_settings
+                    )
+                    clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
+                    is_complete, reason = validate_script_completeness(
+                        clean_script, sv_min_chars, sv_min_words
+                    )
+                    if is_complete:
+                        logger.info("Fallback success with %s - %s", model, reason)
+                        return clean_script, template_name
+                    else:
+                        logger.warning("Fallback %s incomplete: %s", model, reason)
+                except Exception as e:
+                    logger.warning("Fallback model %s failed: %s", model, e)
+                    continue
+
+            # OpenRouter fallback: discover any free model as last resort
+            if fb.provider == "openrouter" and fb.fallback_discover_any_free:
+                already_tried_fb = set(fb_models)
+                discovered = await _discover_any_free_model(
+                    fb, fb_api_key, session, api_settings, already_tried_fb
+                )
+                for model in discovered:
+                    try:
+                        logger.info("Fallback discovery: trying %s", model)
+                        script_text = await _call_llm_api_with_retry(
+                            prompt, model, fb, fb_api_key, session, api_settings
+                        )
+                        clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
+                        is_complete, reason = validate_script_completeness(
+                            clean_script, sv_min_chars, sv_min_words
+                        )
+                        if is_complete:
+                            logger.info(
+                                "Fallback discovery success with %s - %s",
+                                model,
+                                reason,
+                            )
+                            return clean_script, template_name
+                    except Exception as e:
+                        logger.warning(
+                            "Fallback discovered model %s failed: %s", model, e
+                        )
+                        continue
+        else:
+            logger.warning(
+                "Fallback provider configured but API key %s not found",
+                fb.api_key_env_var,
+            )
+
     logger.error("All models failed to generate a script.")
-    return None
+    return None, None

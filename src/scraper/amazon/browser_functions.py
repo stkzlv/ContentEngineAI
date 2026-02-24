@@ -164,7 +164,8 @@ def scrape_amazon_products_browser_impl(
 
         # Build search URL with parameters
         url_builder = SearchParameterBuilder(base_url)
-        search_url = url_builder.build_search_url(keyword, search_params)
+        page = data.get("page", 1)
+        search_url = url_builder.build_search_url(keyword, search_params, page=page)
 
         if DEBUG_MODE:
             url_builder.log_search_parameters(keyword, search_params)

@@ -11,7 +11,7 @@ from src.utils.circuit_breaker import (
     _load_circuit_breaker_config,
     freesound_circuit_breaker,
     google_stt_circuit_breaker,
-    openrouter_circuit_breaker,
+    llm_circuit_breaker,
     pexels_circuit_breaker,
     scraper_circuit_breaker,
 )
@@ -253,12 +253,12 @@ class TestPreconfiguredCircuitBreakers:
         assert pexels_circuit_breaker.timeout == 90
         assert ConnectionError in pexels_circuit_breaker.expected_exceptions
 
-    def test_openrouter_circuit_breaker_configuration(self):
-        """Test OpenRouter circuit breaker has appropriate configuration."""
-        assert openrouter_circuit_breaker.name == "OpenRouter"
-        assert openrouter_circuit_breaker.failure_threshold == 2
-        assert openrouter_circuit_breaker.timeout == 30
-        assert ConnectionError in openrouter_circuit_breaker.expected_exceptions
+    def test_llm_circuit_breaker_configuration(self):
+        """Test LLM circuit breaker has appropriate configuration."""
+        assert llm_circuit_breaker.name == "LLM"
+        assert llm_circuit_breaker.failure_threshold == 2
+        assert llm_circuit_breaker.timeout == 30
+        assert ConnectionError in llm_circuit_breaker.expected_exceptions
 
     def test_scraper_circuit_breaker_configuration(self):
         """Test Scraper circuit breaker has appropriate configuration."""
@@ -284,7 +284,7 @@ class TestCircuitBreakerConfigLoading:
             "google_stt",
             "freesound",
             "pexels",
-            "openrouter",
+            "llm",
             "scraper",
         ]
         for service in expected_services:
@@ -306,8 +306,8 @@ class TestCircuitBreakerConfigLoading:
         assert config["pexels"]["failure_threshold"] == 3
         assert config["pexels"]["timeout_sec"] == 90
 
-        assert config["openrouter"]["failure_threshold"] == 2
-        assert config["openrouter"]["timeout_sec"] == 30
+        assert config["llm"]["failure_threshold"] == 2
+        assert config["llm"]["timeout_sec"] == 30
 
         assert config["scraper"]["failure_threshold"] == 5
         assert config["scraper"]["timeout_sec"] == 60
@@ -336,10 +336,9 @@ class TestCircuitBreakerConfigLoading:
         assert pexels_circuit_breaker.timeout == config["pexels"]["timeout_sec"]
 
         assert (
-            openrouter_circuit_breaker.failure_threshold
-            == config["openrouter"]["failure_threshold"]
+            llm_circuit_breaker.failure_threshold == config["llm"]["failure_threshold"]
         )
-        assert openrouter_circuit_breaker.timeout == config["openrouter"]["timeout_sec"]
+        assert llm_circuit_breaker.timeout == config["llm"]["timeout_sec"]
 
         assert (
             scraper_circuit_breaker.failure_threshold

@@ -17,6 +17,7 @@ from src.video.producer.constants import (
 )
 
 if TYPE_CHECKING:
+    from src.video.config.visual_models import MergedProfileSettings
     from src.video.producer.context import PipelineContext
     from src.video.subtitle_positioning import VisualBounds
 
@@ -45,91 +46,46 @@ class TwoPartSubtitleHandler:
     def __init__(
         self,
         ctx: "PipelineContext",
-        profile_subtitle_settings: dict[str, Any],
-        merged_profile_settings: dict[str, Any],
-        two_part_config: dict[str, Any],
+        merged_profile_settings: "MergedProfileSettings",
     ):
         """Initialize the handler.
 
         Args:
         ----
             ctx: Pipeline context with product data and configuration.
-            profile_subtitle_settings: Subtitle-specific settings from profile.
-            merged_profile_settings: Full merged profile settings.
-            two_part_config: Two-part subtitle configuration dict.
+            merged_profile_settings: Full merged profile settings (typed).
 
         """
         self.ctx = ctx
-        self.profile_subtitle_settings = profile_subtitle_settings
         self.merged_profile_settings = merged_profile_settings
-        self.two_part_config = two_part_config
         self.config = self._parse_config()
 
     def _parse_config(self) -> TwoPartConfig:
-        """Parse configuration supporting both nested dict and flat key structures."""
-        # Parse upper line config
-        if (
-            isinstance(self.two_part_config, dict)
-            and "upper_line" in self.two_part_config
-        ):
-            upper_config = self.two_part_config.get("upper_line", {})
-            upper_enabled = upper_config.get("enabled", True)
-        else:
-            upper_enabled = self.merged_profile_settings.get(
-                "two_part_subtitles_upper_enabled", True
-            )
-            upper_config = {
-                "enabled": upper_enabled,
-                "source_field": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_source_field",
-                    "shortened_affiliate_link",
-                ),
-                "anchor": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_anchor", "above_content"
-                ),
-                "margin": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_margin", 0.08
-                ),
-                "font_size_scale": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_font_size_scale", 0.75
-                ),
-                "style_preset": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_style_preset", "minimal"
-                ),
-                "use_full_duration": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_use_full_duration", False
-                ),
-                "randomize_effects": self.merged_profile_settings.get(
-                    "two_part_subtitles_upper_randomize_effects", False
-                ),
-            }
+        """Parse two-part config from typed subtitle settings model."""
+        ss = self.merged_profile_settings.subtitle_settings
 
-        # Parse lower line config
-        if (
-            isinstance(self.two_part_config, dict)
-            and "lower_line" in self.two_part_config
-        ):
-            lower_config = self.two_part_config.get("lower_line", {})
-            lower_enabled = lower_config.get("enabled", True)
-        else:
-            lower_enabled = self.profile_subtitle_settings.get(
-                "two_part_subtitles_lower_enabled", True
-            )
-            lower_config = {
-                "enabled": lower_enabled,
-                "anchor": self.profile_subtitle_settings.get(
-                    "two_part_subtitles_lower_anchor", "below_content"
-                ),
-                "margin": self.profile_subtitle_settings.get(
-                    "two_part_subtitles_lower_margin", 0.05
-                ),
-            }
+        upper_config = {
+            "enabled": ss.two_part_subtitles_upper_enabled,
+            "source_field": ss.two_part_subtitles_upper_source_field,
+            "anchor": ss.two_part_subtitles_upper_anchor,
+            "margin": ss.two_part_subtitles_upper_margin,
+            "font_size_scale": ss.two_part_subtitles_upper_font_size_scale,
+            "style_preset": ss.two_part_subtitles_upper_style_preset,
+            "use_full_duration": ss.two_part_subtitles_upper_use_full_duration,
+            "randomize_effects": ss.two_part_subtitles_upper_randomize_effects,
+        }
+
+        lower_config = {
+            "enabled": ss.two_part_subtitles_lower_enabled,
+            "anchor": ss.two_part_subtitles_lower_anchor,
+            "margin": ss.two_part_subtitles_lower_margin,
+        }
 
         return TwoPartConfig(
             enabled=True,
-            upper_enabled=upper_enabled,
+            upper_enabled=ss.two_part_subtitles_upper_enabled,
             upper_config=upper_config,
-            lower_enabled=lower_enabled,
+            lower_enabled=ss.two_part_subtitles_lower_enabled,
             lower_config=lower_config,
         )
 
@@ -158,25 +114,35 @@ class TwoPartSubtitleHandler:
                     )
 
         if has_videos:
-            video_top = (
-                self.ctx.profile.video_top_position_percent
-                or DEFAULT_VIDEO_TOP_POSITION
-            )
-            video_height = (
-                self.ctx.profile.video_content_height_percent or DEFAULT_VIDEO_HEIGHT
-            )
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
-            logger.debug("Using video positioning for visual bounds (videos present)")
+            video_settings = self.merged_profile_settings.video_settings
+            vertical_align = video_settings.video_vertical_align
+
+            if vertical_align == "center":
+                video_top, video_height = self._estimate_centered_video_bounds(
+                    video_width
+                )
+                logger.debug(
+                    "Centered video bounds: y=%.2f%%, h=%.2f%%",
+                    video_top * 100,
+                    video_height * 100,
+                )
+            else:
+                video_top = (
+                    self.ctx.profile.video_top_position_percent
+                    or DEFAULT_VIDEO_TOP_POSITION
+                )
+                video_height = (
+                    self.ctx.profile.video_content_height_percent
+                    or DEFAULT_VIDEO_HEIGHT
+                )
+                logger.debug("Using top-aligned video positioning for visual bounds")
         elif has_images:
             video_width = self.ctx.profile.image_width_percent or DEFAULT_VIDEO_WIDTH
-            # Get vertical_align from video_settings (nested in merged_profile_settings)
-            video_settings = self.merged_profile_settings.get("video_settings", {})
-            vertical_align = video_settings.get("image_vertical_align", "center")
-            logger.debug(
-                "video_settings keys=%s, vertical_align=%s",
-                list(video_settings.keys())[:5],
-                vertical_align,
-            )
+            # Get vertical_align from video_settings
+            video_settings = self.merged_profile_settings.video_settings
+            vertical_align = video_settings.image_vertical_align
+            logger.debug("vertical_align=%s", vertical_align)
 
             if vertical_align == "center":
                 # Estimate centered image position based on typical aspect ratio
@@ -277,13 +243,83 @@ class TwoPartSubtitleHandler:
 
         return (video_top, video_height)
 
+    def _estimate_centered_video_bounds(
+        self, video_width_percent: float
+    ) -> tuple[float, float]:
+        """Estimate visual bounds for a vertically centered video.
+
+        Uses ffprobe on the first scraped video to get actual dimensions,
+        then calculates where FFmpeg's center padding places it.
+        """
+        import subprocess
+
+        frame_width, frame_height = self.ctx.config.video_settings.resolution
+
+        if self.ctx.scraped_videos:
+            try:
+                video_path = self.ctx.scraped_videos[0]
+                result = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "v:0",
+                        "-show_entries",
+                        "stream=width,height",
+                        "-of",
+                        "csv=p=0",
+                        str(video_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    parts = result.stdout.strip().split(",")
+                    orig_w, orig_h = int(parts[0]), int(parts[1])
+
+                    # Video is scaled to fit frame width, height follows
+                    scaled_w = int(frame_width * video_width_percent)
+                    scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else 0
+
+                    if 0 < scaled_h < frame_height:
+                        centered_y = (frame_height - scaled_h) / 2
+                        top = centered_y / frame_height
+                        height = scaled_h / frame_height
+                        logger.debug(
+                            "Video bounds from probe: %dx%d scaled to %dx%d, "
+                            "y=%.2f%%, h=%.2f%%",
+                            orig_w,
+                            orig_h,
+                            scaled_w,
+                            scaled_h,
+                            top * 100,
+                            height * 100,
+                        )
+                        return (top, height)
+            except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+                logger.debug("Could not probe video dimensions: %s", e)
+
+        # Fallback: assume 16:9 landscape video in 9:16 portrait frame
+        typical_aspect = 9 / 16
+        est_w = frame_width * video_width_percent
+        estimated_h = est_w * typical_aspect
+
+        if estimated_h < frame_height:
+            centered_y = (frame_height - estimated_h) / 2
+            return (centered_y / frame_height, estimated_h / frame_height)
+
+        return (0.0, 1.0)
+
     def _get_upper_text(self) -> str | None:
         """Get text for upper subtitle from product data or custom URL."""
         import os
 
         # Check env var first, then config
+        ss = self.merged_profile_settings.subtitle_settings
         custom_url: str | None = os.environ.get("SUBTITLE_BUSINESS_URL") or (
-            self.profile_subtitle_settings.get("two_part_subtitles_upper_custom_url")
+            ss.two_part_subtitles_upper_custom_url
         )
         if custom_url:
             logger.info("Using custom URL for upper subtitle: %s", custom_url)
@@ -316,9 +352,7 @@ class TwoPartSubtitleHandler:
             return None
 
         # Apply URL prefix replacement if configured
-        prefix_replace = self.merged_profile_settings.get(
-            "two_part_subtitles_upper_prefix_replace"
-        )
+        prefix_replace = ss.two_part_subtitles_upper_prefix_replace
         if prefix_replace:
             if upper_text.startswith("https://"):
                 upper_text = prefix_replace + upper_text[8:]
@@ -351,11 +385,13 @@ class TwoPartSubtitleHandler:
 
         from src.video.subtitle_utils import create_unified_subtitles
 
-        lower_subtitle_settings = self.profile_subtitle_settings.copy()
+        lower_subtitle_settings = (
+            self.merged_profile_settings.subtitle_settings.model_dump()
+        )
         lower_subtitle_settings["anchor"] = self.config.lower_config.get(
             "anchor", "below_content"
         )
-        lower_subtitle_settings["margin"] = self.config.lower_config.get("margin", 0.05)
+        lower_subtitle_settings["margin"] = self.config.lower_config.get("margin", 0.04)
 
         if self.config.lower_config.get("custom_style"):
             lower_subtitle_settings.update(self.config.lower_config["custom_style"])
@@ -412,7 +448,8 @@ class TwoPartSubtitleHandler:
 
         logger.debug("Upper subtitle enabled: %s", self.config.upper_enabled)
 
-        subtitle_format = self.profile_subtitle_settings.get("subtitle_format", "srt")
+        subtitle_dict = self.merged_profile_settings.subtitle_settings.model_dump()
+        subtitle_format = subtitle_dict.get("subtitle_format", "srt")
         upper_output_path = self.ctx.run_paths["subtitle_file"].with_name(
             f"subtitle_upper.{subtitle_format}"
         )
@@ -420,7 +457,7 @@ class TwoPartSubtitleHandler:
         upper_path = create_static_upper_subtitle(
             text=upper_text,
             output_path=upper_output_path,
-            subtitle_settings=self.profile_subtitle_settings,
+            subtitle_settings=subtitle_dict,
             video_config=self.ctx.config,
             format_type=subtitle_format,
             product_id=product_id,

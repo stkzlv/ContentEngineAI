@@ -1,0 +1,126 @@
+# TTS Voice Profiles
+
+Voice profiles give each product video a distinct vocal identity: style direction, inline markup (pauses, whispers), and deterministic voice selection so the same product always gets the same voice.
+
+## How it works
+
+1. A voice profile is selected per product using deterministic hashing (md5 of product ID, hex slice `[16:24]`)
+2. If the profile uses Gemini TTS, the text gets a `prompt` field for style control and optional inline markup like `[short pause]`
+3. If Gemini fails, markup is stripped and the standard provider chain handles it (Google Cloud TTS preferring Chirp3-HD voices, then Coqui as final fallback)
+4. The selected profile name and voice name are saved to `pipeline_state.json` under `tts_metadata`
+
+## Configuration
+
+Voice profiles live in `config/subtitles.yaml` under `tts_config`:
+
+```yaml
+tts_config:
+  voice_profiles_enabled: true   # false to skip profiles entirely
+
+  voice_profiles:
+    warm_conversational:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak in a warm, friendly, conversational tone."
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+
+    chirp3_natural:
+      provider: google_cloud
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
+        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+
+  voice_profile_pool: []  # empty = use all profiles
+```
+
+Set `voice_profiles_enabled: false` to disable profiles and use the default Chirp3-HD path.
+
+To restrict which profiles are used, list them in `voice_profile_pool`. Empty list means all profiles are eligible.
+
+## Providers
+
+### Google Cloud TTS (Chirp3-HD)
+
+The current default. Uses the Cloud Text-to-Speech API with SSML input. Voices have locale-prefixed names like `en-US-Chirp3-HD-Achird`.
+
+- No style prompt support (SSML only)
+- Deterministic voice selection per product (md5 hex slice `[24:32]`)
+- Requires: `GOOGLE_APPLICATION_CREDENTIALS` service account
+
+### Gemini TTS
+
+Uses the same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=..., prompt=...)` instead of SSML. The `prompt` field controls speaking style.
+
+- Voices use simple names: `Kore`, `Charon`, `Aoede`, `Puck`, etc.
+- Requires `model_name` on `VoiceSelectionParams` (e.g. `gemini-2.5-flash-tts`)
+- Requires Vertex AI API enabled on the GCP project (`aiplatform.googleapis.com`)
+- Same service account auth as Cloud TTS
+
+### Coqui TTS
+
+Local open-source fallback. No style or markup support. Used when cloud providers are unavailable.
+
+## Inline markup
+
+Gemini TTS understands inline tags like `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`, etc. Markup rules in profiles inject these tags into the script text using regex patterns.
+
+When falling back to non-Gemini providers, all markup is automatically stripped so it won't be spoken literally.
+
+## Deterministic selection
+
+Different hash slices prevent correlation between randomized choices:
+
+| Feature | MD5 hex slice |
+|---------|---------------|
+| Font family | `[0:8]` |
+| Color palette | `[8:16]` |
+| Voice profile | `[16:24]` |
+| Voice name | `[24:32]` |
+
+Same product ID always produces the same combination.
+
+## Pricing (as of Feb 2026)
+
+### Cloud TTS API (current, what we use)
+
+| Voice tier | Free tier | Paid rate |
+|------------|-----------|-----------|
+| Standard | 4M chars/month | $4 / 1M chars |
+| WaveNet, Neural2 | 1M chars/month | $16 / 1M chars |
+| Chirp3-HD | none | $30 / 1M chars |
+
+### Gemini TTS via Vertex AI
+
+| Model | Input | Output (audio) |
+|-------|-------|----------------|
+| Flash TTS | $0.15 / 1M tokens | $0.60 / 1M tokens |
+| Flash TTS (Gemini API free tier) | free | free |
+| Pro TTS | $1.00 / 1M tokens | $20.00 / 1M tokens |
+
+### Cost per video
+
+A typical script is ~500 characters / ~125 input tokens. A 30-second voiceover produces ~750 output tokens.
+
+| Provider | Per video | 100 videos/month | 1,000 videos/month |
+|----------|-----------|-------------------|---------------------|
+| Chirp3-HD (Cloud TTS) | ~$0.015 | ~$1.50 | ~$15 |
+| Gemini Flash (Vertex AI) | ~$0.0005 | ~$0.05 | ~$0.50 |
+| Gemini Flash (Gemini API free) | $0 | $0 | $0 |
+
+### Why we chose Vertex AI (Cloud TTS client)
+
+The Gemini API free tier is tempting, but it uses a different SDK (`google-genai`) with API key auth. Our code already uses the `google.cloud.texttospeech` client with service account auth, which routes through Vertex AI.
+
+At our scale the Vertex AI cost is negligible (~$0.05/month for 100 videos). Keeping the same client avoids maintaining two auth paths and two SDK integrations.
+
+To use Gemini TTS: enable Vertex AI API (`aiplatform.googleapis.com`) in the GCP project.
+
+## Setup
+
+1. Ensure `google-cloud-texttospeech >= 2.29.0` (for `SynthesisInput.prompt` support)
+2. Enable Vertex AI API in GCP console for Gemini profiles
+3. Configure profiles in `config/subtitles.yaml`
+4. Run: `poetry run python -m src.video.producer outputs/<ASIN>/data.json <profile> --debug`
+5. Check logs for `Selected voice profile` and `TTS metadata` entries

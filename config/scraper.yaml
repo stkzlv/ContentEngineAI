@@ -94,7 +94,7 @@ global_settings:
 
     # Maximum images to extract per product (prevents excessive downloads)
     # Affects: Media extraction loop limits, prevents runaway downloads
-    max_images_per_product: 10
+    max_images_per_product: 15
 
   # ---- Debug File Generation Controls ----
   debug_settings:
@@ -353,7 +353,7 @@ global_settings:
     # Maximum products to extract from search results page
     # Limits number of products processed per search query
     # Affects: Search result extraction loop, memory usage
-    max_products_per_search: 5
+    max_products_per_search: 10
 
     # Page load timeout (milliseconds) for browser navigation
     # How long to wait for pages to fully load before proceeding
@@ -417,11 +417,36 @@ batch:
   # Empty list means no batch processing via keywords
   keywords:
     - "smart ring"
+    - "blue light blocking glasses"
+    - "motion sensor trash can"
+    - "smart plant pot"
     - "mini projector"
     - "portable charger"
     - "wallet finder"
     - "car charger"
     - "LED Strip Lights"
+    - "robot toy"
+    - "UV sanitizing phone case"
+    - "smart bicycle helmet"
+    - "pocket thermal printer"
+    - "smart cat litter box"
+    - "compact power station"
+    - "smart posture corrector"
+    - "smart luggage tracker"
+    - "smart pet feeder"
+    - "compost-monitoring smart bin"
+    - "laser projection virtual keyboard"
+    - "solar backpack"
+    - "water-from-air gadget"
+    - "smart mirror"
+    - "drone with follow me mode camera"
+    - "gesture control flying orb light"
+    - "3D pen"
+    - "smart scent diffusers"
+    - "levitating bluetooth speaker"
+    - "magnetic floating light bulb"
+    - "kinetic desk toy"
+    - "retro game console"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure
@@ -431,7 +456,7 @@ batch:
   # Maximum products to scrape per keyword/product ID (default: 2)
   # Controls how many products are scraped for each individual keyword or product ID
   # Example: products_per_keyword: 5 means max 5 products per keyword
-  products_per_keyword: 2
+  products_per_keyword: 1
 
   # ---- Batch Logging Configuration ----
   # Controls batch progress and summary logging format
@@ -464,7 +489,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 2
+    max_products: 150
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
@@ -472,11 +497,11 @@ scrapers:
     # ---- Default Search Parameters ----
     default_search_parameters:
       # Price filtering (in USD, set to null to disable)
-      min_price: 10              # Minimum price filter (e.g., 10.99)
-      max_price: 150               # Maximum price filter (e.g., 99.99)
+      min_price: 20              # Minimum price filter (e.g., 10.99)
+      max_price: 150             # Maximum price filter (e.g., 99.99)
 
       # Quality filtering (1-5 stars, set to null to disable)
-      min_rating: null             # Minimum rating filter (e.g., 4 for 4+ stars)
+      min_rating: 4              # Minimum rating filter (e.g., 4 for 4+ stars)
 
       # Shipping and service filters
       prime_only: false            # Filter for Prime eligible items only

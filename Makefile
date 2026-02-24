@@ -17,7 +17,8 @@ NC := \033[0m # No Color
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run \
 	install-botasaurus validate-migration rollback-migration \
-	scrape-test scrape-advanced produce-video migration-status
+	scrape-test scrape-advanced produce-video migration-status \
+	batch batch-lowpri
 
 # Default target
 help:
@@ -77,6 +78,11 @@ help:
 	@echo "  validate-migration - Validate migration is working"
 	@echo "  rollback-migration - Emergency rollback to pre-migration"
 	@echo "  migration-status   - Show migration status"
+	@echo ""
+	@echo "$(GREEN)Batch Pipeline:$(NC)"
+	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
+	@echo "  batch-lowpri  - Same but with reduced CPU/IO/memory priority"
+	@echo "                  Override limits: MEM_LIMIT=6G NICE_LEVEL=10"
 	@echo ""
 	@echo "$(YELLOW)Scraping Commands:$(NC)"
 	@echo "  scrape-test        - Run test scrape with Botasaurus"
@@ -384,6 +390,30 @@ scrape-advanced: ## Run scraper with advanced search parameters
 	poetry run python -m src.scraper.amazon.scraper \
 		--keywords "wireless headphones" --min-price 20 --max-price 100 \
 		--min-rating 4 --prime-only --sort price-asc-rank --debug --clean
+
+# Batch pipeline commands
+# Resource limits for low-priority mode
+NICE_LEVEL := 15
+IONICE_CLASS := 2
+IONICE_LEVEL := 6
+MEM_LIMIT := 4G
+
+batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
+	poetry run python -m src.pipeline.global_batch $(ARGS)
+
+batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			poetry run python -m src.pipeline.global_batch $(ARGS); \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			poetry run python -m src.pipeline.global_batch $(ARGS); \
+	fi
 
 # Video production commands
 produce-video: ## Run video producer on scraped data

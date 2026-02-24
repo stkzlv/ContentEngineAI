@@ -12,7 +12,7 @@ ContentEngineAI is a modular, async-first pipeline system designed for automated
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Data Sources  │    │   AI Services   │    │  Media Sources  │
 │                 │    │                 │    │                 │
-│ • Amazon Pages  │    │ • OpenRouter    │    │ • Pexels API    │
+│ • Amazon Pages  │    │ • Gemini / OR   │    │ • Pexels API    │
 │ • Product Data  │    │ • Google Cloud  │    │ • Freesound     │
 │ • Images/Videos │    │ • Local Models  │    │ • Local Files   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
@@ -117,7 +117,8 @@ src/
 │   └── unified_subtitle_generator.py  # Unified subtitle generation system
 │
 ├── ai/                        # AI & LLM integration
-│   ├── script_generator.py    # Script generation via OpenRouter
+│   ├── llm_client.py          # Shared LLM dispatch (Gemini, OpenRouter)
+│   ├── script_generator.py    # Script generation with provider fallback
 │   ├── description_generator.py # Social media description generation
 │   ├── platform_metadata/     # Platform-specific metadata (v0.17.0+)
 │   │   ├── base.py            # Base metadata generator interface
@@ -336,21 +337,23 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 - **Subtitle Styling**: Font, color, positioning customization
 - **Multi-Track Audio**: amix filter with volume normalization
 
-### 4. AI Integration (`src/ai/script_generator.py`)
+### 4. AI Integration (`src/ai/`)
 
-**Purpose**: Generates promotional scripts using LLM providers.
+**Purpose**: Generates promotional scripts and descriptions using LLM providers.
 
 **Provider Architecture:**
-- **Primary Provider**: OpenRouter API with multiple model support
-- **Fallback Mechanism**: Automatic model switching on failures
-- **Retry Logic**: Exponential backoff with configurable limits
-- **Prompt Engineering**: Template-based prompt construction
+- **Primary Provider**: Gemini via `google-genai` SDK
+- **Fallback Provider**: OpenRouter via aiohttp (OpenAI chat/completions format)
+- **Dispatch Layer**: `llm_client.py` routes calls based on `settings.provider`
+- **Fallback Chain**: Primary exhausts all models, then `fallback_provider` settings activate with separate API key, models, and discovery
+- **Retry Logic**: Exponential backoff with configurable limits per provider
 
 **Features:**
-- **Model Auto-Selection**: Prioritized model list with fallbacks
+- **Provider Fallback**: Configurable via `llm_settings.fallback_provider` in YAML
+- **Free Model Discovery**: OpenRouter auto-selects free models, filtered by blocklist and context length
+- **Script Templates**: 15 prompt styles with deterministic per-product selection
 - **Script Sanitization**: Removes emojis, hashtags, formatting issues
-- **Token Management**: Efficient API usage with caching
-- **Error Handling**: Graceful degradation with detailed logging
+- **Configurable Validation**: min_chars/min_words thresholds in `script_validation`
 
 ### 5. Media Processing
 

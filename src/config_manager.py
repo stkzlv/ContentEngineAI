@@ -46,9 +46,15 @@ class SecretDefinition:
 SECRETS_REGISTRY: tuple[SecretDefinition, ...] = (
     # Required secrets
     SecretDefinition(
+        name="GEMINI_API_KEY",
+        description="Google Gemini API for LLM script generation",
+        required=False,
+        setup_url="https://aistudio.google.com/apikey",
+    ),
+    SecretDefinition(
         name="OPENROUTER_API_KEY",
-        description="OpenRouter API for LLM script generation",
-        required=True,
+        description="OpenRouter API for LLM script generation (fallback)",
+        required=False,
         setup_url="https://openrouter.ai/",
     ),
     SecretDefinition(
@@ -72,9 +78,9 @@ SECRETS_REGISTRY: tuple[SecretDefinition, ...] = (
     ),
     SecretDefinition(
         name="LATE_API_KEY",
-        description="Late.ai API for social media publishing",
+        description="Late.dev API for social media publishing",
         required=False,
-        setup_url="https://late.ai/",
+        setup_url="https://getlate.dev/",
         alternative_names=("PUBLISHER_API_KEY",),
     ),
     SecretDefinition(
