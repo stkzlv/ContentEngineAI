@@ -297,11 +297,11 @@ pexels_circuit_breaker = CircuitBreaker(
     name="Pexels",
 )
 
-openrouter_circuit_breaker = CircuitBreaker(
-    failure_threshold=_cb_config.get("openrouter", {}).get("failure_threshold", 2),
-    timeout=_cb_config.get("openrouter", {}).get("timeout_sec", 30),
+llm_circuit_breaker = CircuitBreaker(
+    failure_threshold=_cb_config.get("llm", {}).get("failure_threshold", 2),
+    timeout=_cb_config.get("llm", {}).get("timeout_sec", 30),
     expected_exceptions=_NETWORK_EXCEPTIONS,
-    name="OpenRouter",
+    name="LLM",
 )
 
 scraper_circuit_breaker = CircuitBreaker(

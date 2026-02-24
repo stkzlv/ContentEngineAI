@@ -28,6 +28,7 @@ pysrt = "^1.1.2"
 botasaurus = "^4.0.88"
 beautifulsoup4 = "^4.13.4"
 tenacity = "^9.1.2"
+google-genai = "^1.0"
 late-sdk = "^1.1.1"
 vercel = "^0.3.6"
 
@@ -150,7 +151,7 @@ ignore_missing_imports = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "aiofiles", "whisper", "pexelsapi.*", "pysrt", "TTS.*", "late", "late.*"]
+module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "google.genai", "google.genai.*", "aiofiles", "whisper", "pexelsapi.*", "pysrt", "TTS.*", "late", "late.*"]
 ignore_missing_imports = true
 ignore_errors = true
 

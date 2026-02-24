@@ -34,7 +34,7 @@ from tenacity import (
 
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
-from src.utils.circuit_breaker import openrouter_circuit_breaker
+from src.utils.circuit_breaker import llm_circuit_breaker
 from src.video.config import LLMSettings, config
 
 # Configure module logger
@@ -471,66 +471,15 @@ async def _call_llm_api(
 ) -> str:
     """Call the LLM API to generate script content.
 
-    This function makes an asynchronous request to the LLM API (typically OpenRouter)
-    to generate a script based on the provided prompt.
-
-    Args:
-    ----
-        prompt: The formatted prompt to send to the LLM
-        model: The specific LLM model identifier to use
-        settings: LLM configuration settings
-        api_key: API key for authentication
-        session: Shared aiohttp client session for making requests
-        api_settings: Additional API settings for configuration
-
-    Returns:
-    -------
-        The generated script text
-
-    Raises:
-    ------
-        ScriptGenerationError: If the response is empty or invalid
-        ClientError: If there's an HTTP error communicating with the API
-        asyncio.TimeoutError: If the API request times out
-
+    Delegates to the shared llm_client which handles provider dispatch
+    (OpenRouter vs Gemini).
     """
-    # Construct API URL, defaulting to OpenRouter if not specified
-    api_url = f"{(settings.base_url or 'https://openrouter.ai/api/v1').rstrip('/')}/chat/completions"
+    from src.ai.llm_client import LLMCallError, call_llm
 
-    # Set up authentication and content headers
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-    # Prepare request payload with model parameters
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": config.llm_settings.max_tokens,
-        "temperature": config.llm_settings.temperature,
-    }
-
-    # Check if session is None or closed and get a new one if needed
-    if session is None or session.closed:  # type: ignore[attr-defined]
-        logger.warning("Session is closed during API call, getting new session")
-        from src.utils.connection_pool import get_http_session
-
-        session = await get_http_session()
-
-    # Make the API request
-    async with session.post(
-        api_url,
-        headers=headers,
-        json=payload,
-        timeout=config.llm_settings.timeout_seconds,
-    ) as response:
-        response.raise_for_status()  # Raise exception for HTTP errors
-        data = await response.json()
-
-        # Extract the generated content from the response
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if not content or not content.strip():
-            raise ScriptGenerationError("Empty content in response")
-
-        return str(content)
+    try:
+        return await call_llm(prompt, model, settings, api_key, session)
+    except LLMCallError as e:
+        raise ScriptGenerationError(str(e)) from e
 
 
 def validate_script_completeness(script: str) -> tuple[bool, str]:
@@ -602,7 +551,7 @@ def validate_script_completeness(script: str) -> tuple[bool, str]:
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
 
-@openrouter_circuit_breaker
+@llm_circuit_breaker
 async def generate_script(
     product: ProductData,
     settings: LLMSettings,
@@ -625,10 +574,13 @@ async def generate_script(
             f"Missing API key from environment variable: {settings.api_key_env_var}"
         )
 
-    # Fetch available free models (returns ordered or shuffled list)
-    free_models = await _fetch_and_select_model(
-        settings, api_key, session, api_settings
-    )
+    # Fetch available free models (OpenRouter only; Gemini uses configured models)
+    if settings.provider == "openrouter":
+        free_models = await _fetch_and_select_model(
+            settings, api_key, session, api_settings
+        )
+    else:
+        free_models = []
 
     # Build prioritized list: free models first, then fallback to configured list
     models_to_try: list[str] = []
@@ -732,8 +684,8 @@ async def generate_script(
                 else:
                     break
 
-    # Fallback: try discovering any free model not yet attempted
-    if settings.fallback_discover_any_free:
+    # Fallback: try discovering any free model not yet attempted (OpenRouter only)
+    if settings.provider == "openrouter" and settings.fallback_discover_any_free:
         already_tried = set(models_to_try)
         fallback_models = await _discover_any_free_model(
             settings, api_key, session, api_settings, already_tried
@@ -757,6 +709,85 @@ async def generate_script(
             except Exception as e:
                 logger.warning(f"Fallback model {model} failed: {e}")
                 continue
+
+    # Provider fallback: try fallback_provider if primary exhausted all models
+    if settings.fallback_provider:
+        fb = settings.fallback_provider
+        fb_api_key = secrets.get(fb.api_key_env_var)
+        if fb_api_key:
+            logger.info(
+                "Primary provider exhausted, falling back to %s", fb.provider
+            )
+
+            # Build fallback model list (with free model discovery for OpenRouter)
+            if fb.provider == "openrouter":
+                fb_free_models = await _fetch_and_select_model(
+                    fb, fb_api_key, session, api_settings
+                )
+            else:
+                fb_free_models = []
+
+            fb_models: list[str] = list(fb_free_models)
+            for m in fb.models:
+                if m not in fb_models:
+                    fb_models.append(m)
+
+            for model in fb_models:
+                try:
+                    logger.info("Fallback provider: trying %s", model)
+                    script_text = await _call_llm_api_with_retry(
+                        prompt, model, fb, fb_api_key, session, api_settings
+                    )
+                    clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
+                    is_complete, reason = validate_script_completeness(clean_script)
+                    if is_complete:
+                        logger.info(
+                            "Fallback success with %s - %s", model, reason
+                        )
+                        return clean_script, template_name
+                    else:
+                        logger.warning(
+                            "Fallback %s incomplete: %s", model, reason
+                        )
+                except Exception as e:
+                    logger.warning("Fallback model %s failed: %s", model, e)
+                    continue
+
+            # OpenRouter fallback: discover any free model as last resort
+            if fb.provider == "openrouter" and fb.fallback_discover_any_free:
+                already_tried_fb = set(fb_models)
+                discovered = await _discover_any_free_model(
+                    fb, fb_api_key, session, api_settings, already_tried_fb
+                )
+                for model in discovered:
+                    try:
+                        logger.info("Fallback discovery: trying %s", model)
+                        script_text = await _call_llm_api_with_retry(
+                            prompt, model, fb, fb_api_key, session, api_settings
+                        )
+                        clean_script = re.sub(
+                            r"```[\w\s]*", "", script_text
+                        ).strip()
+                        is_complete, reason = validate_script_completeness(
+                            clean_script
+                        )
+                        if is_complete:
+                            logger.info(
+                                "Fallback discovery success with %s - %s",
+                                model,
+                                reason,
+                            )
+                            return clean_script, template_name
+                    except Exception as e:
+                        logger.warning(
+                            "Fallback discovered model %s failed: %s", model, e
+                        )
+                        continue
+        else:
+            logger.warning(
+                "Fallback provider configured but API key %s not found",
+                fb.api_key_env_var,
+            )
 
     logger.error("All models failed to generate a script.")
     return None, None

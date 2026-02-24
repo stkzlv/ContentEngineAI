@@ -151,10 +151,13 @@ async def generate_with_llm(
         if debug_mode:
             logger.info(f"Formatted prompt ({len(prompt)} chars)")
 
-        # Step 3: Fetch available free models
-        free_models = await fetch_and_select_model(
-            settings, api_key, session, api_settings
-        )
+        # Step 3: Fetch available free models (OpenRouter only)
+        if settings.provider == "openrouter":
+            free_models = await fetch_and_select_model(
+                settings, api_key, session, api_settings
+            )
+        else:
+            free_models = []
 
         # Step 4: Prepare model list (free models first, then configured fallbacks)
         models_to_try: list[str] = []
@@ -185,7 +188,52 @@ async def generate_with_llm(
                 logger.warning(f"Model {model} failed: {e}")
                 continue
 
-        # All models failed
+        # Provider fallback: try fallback_provider if primary exhausted
+        if settings.fallback_provider:
+            fb = settings.fallback_provider
+            fb_api_key_val = None
+            # Try to get the fallback API key from environment
+            import os
+
+            fb_api_key_val = os.environ.get(fb.api_key_env_var)
+            if fb_api_key_val:
+                logger.info(
+                    "Primary provider exhausted, falling back to %s", fb.provider
+                )
+
+                if fb.provider == "openrouter":
+                    fb_free_models = await fetch_and_select_model(
+                        fb, fb_api_key_val, session, api_settings
+                    )
+                else:
+                    fb_free_models = []
+
+                fb_models: list[str] = list(fb_free_models)
+                for m in fb.models:
+                    if m not in fb_models:
+                        fb_models.append(m)
+
+                for model in fb_models:
+                    try:
+                        logger.info("Fallback provider: trying %s", model)
+                        response = await call_llm_api_with_retry(
+                            prompt, model, fb, fb_api_key_val, session, api_settings
+                        )
+                        logger.info(
+                            "Fallback success with %s (%d chars)",
+                            model,
+                            len(response),
+                        )
+                        return response
+                    except Exception as e:
+                        logger.warning("Fallback model %s failed: %s", model, e)
+                        continue
+            else:
+                logger.warning(
+                    "Fallback provider configured but API key %s not found",
+                    fb.api_key_env_var,
+                )
+
         logger.error("All models failed to generate content")
         return None
 

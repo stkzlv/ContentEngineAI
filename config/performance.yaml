@@ -150,8 +150,8 @@ circuit_breaker:
     failure_threshold: 3
     timeout_sec: 90  # 1.5 minutes recovery time
 
-  # OpenRouter LLM API (faster recovery for AI services)
-  openrouter:
+  # LLM API (OpenRouter, Gemini, etc.)
+  llm:
     failure_threshold: 2
     timeout_sec: 30  # 30 seconds recovery time
 
