@@ -1633,7 +1633,7 @@ These enhance functionality but are not required for basic operation.
 |----------|------|---------|-------------|
 | `OPENROUTER_API_KEY` | string | None | OpenRouter API key for LLM fallback when Gemini fails |
 | `GOOGLE_APPLICATION_CREDENTIALS` | path | None | Path to Google Cloud service account JSON for TTS |
-| `LATE_API_KEY` | string | None | Late.ai API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
+| `LATE_API_KEY` | string | None | Late.dev API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
 | `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
 | `AMAZON_ASSOCIATE_TAG` | string | None | Amazon Associates affiliate tag for monetization |
 | `LNKBIO_CLIENT_ID` | string | None | Lnk.Bio OAuth2 client ID for link-in-bio |

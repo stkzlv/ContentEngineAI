@@ -29,7 +29,7 @@ poetry install && poetry run playwright install
 cp .env.example .env  # Configure API keys
 
 # 2. Generate a video
-poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
+poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --debug
 
 # 3. Batch pipeline (scrape + produce + publish)
@@ -50,6 +50,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Configuration](docs/configuration.md) | YAML config reference and CLI overrides |
 | [Scraper](docs/scraper.md) | Product data extraction from Amazon |
 | [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
+| [TTS Voice Profiles](docs/tts-voice-profiles.md) | Voice presets, providers, and style direction |
 | [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
 | [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
 | [Architecture](docs/architecture.md) | System design and module overview |

@@ -78,9 +78,9 @@ SECRETS_REGISTRY: tuple[SecretDefinition, ...] = (
     ),
     SecretDefinition(
         name="LATE_API_KEY",
-        description="Late.ai API for social media publishing",
+        description="Late.dev API for social media publishing",
         required=False,
-        setup_url="https://late.ai/",
+        setup_url="https://getlate.dev/",
         alternative_names=("PUBLISHER_API_KEY",),
     ),
     SecretDefinition(

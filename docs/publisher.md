@@ -60,7 +60,7 @@ echo "LATE_API_KEY=sk_live_your_key_here" >> .env
 echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files >4MB
 
 # 3. Connect your social media accounts
-# Visit https://late.dev/dashboard/accounts and connect platforms
+# Visit https://getlate.dev/dashboard/accounts and connect platforms
 
 # 4. Verify setup - list connected accounts
 poetry run python -m src.publisher.late list-accounts --debug
@@ -1505,7 +1505,7 @@ ERROR: Video file not found: outputs/B0ABC/video.mp4
 ```
 ERROR: No connected accounts found
 ```
-**Solution**: Connect platforms at https://late.dev/dashboard/accounts
+**Solution**: Connect platforms at https://getlate.dev/dashboard/accounts
 
 **Metadata Not Found:**
 ```
@@ -1536,7 +1536,7 @@ WARNING: No metadata found for youtube, using basic content
    ```
 
 3. Regenerate API key:
-   - Go to https://late.dev/dashboard/developers
+   - Go to https://getlate.dev/dashboard/developers
    - Revoke old key
    - Create new key
    - Update `.env`
@@ -1575,7 +1575,7 @@ WARNING: No metadata found for youtube, using basic content
 4. Upgrade Late.dev tier:
    - Standard: 100 req/hour
    - Pro: 1000 req/hour
-   - Visit https://late.dev/pricing
+   - Visit https://getlate.dev/pricing
 
 </details>
 
@@ -1608,7 +1608,7 @@ WARNING: No metadata found for youtube, using basic content
    ```
 
 5. Check Late.dev status:
-   - Visit https://late.dev/status
+   - Visit https://getlate.dev/status
    - Check for ongoing incidents
 
 </details>
@@ -1658,7 +1658,7 @@ WARNING: No metadata found for youtube, using basic content
    ```
 
 2. Connect platform:
-   - Visit https://late.dev/dashboard/accounts
+   - Visit https://getlate.dev/dashboard/accounts
    - Click "Connect Account" for the platform
    - Complete OAuth authorization
    - Verify account appears in dashboard
@@ -1881,7 +1881,7 @@ poetry run python -m src.publisher.late single B0BTYCRJSS \
   --platform youtube --immediate --debug
 
 # Step 5: Verify in Late.dev dashboard
-# Visit https://late.dev/dashboard/posts
+# Visit https://getlate.dev/dashboard/posts
 ```
 
 ### Workflow 2: Weekly Content Pipeline
@@ -2003,11 +2003,11 @@ poetry run python -m src.publisher.late cleanup --all --confirm --debug
 
 ## 🔗 External Resources
 
-- **Late.dev Documentation**: https://docs.late.dev
-- **Late.dev API Reference**: https://docs.late.dev/api
-- **Late.dev Dashboard**: https://late.dev/dashboard
-- **Late.dev Pricing**: https://late.dev/pricing
-- **Late.dev Status**: https://late.dev/status
+- **Late.dev Documentation**: https://docs.getlate.dev
+- **Late.dev API Reference**: https://docs.getlate.dev/api
+- **Late.dev Dashboard**: https://getlate.dev/dashboard
+- **Late.dev Pricing**: https://getlate.dev/pricing
+- **Late.dev Status**: https://getlate.dev/status
 
 ---
 
