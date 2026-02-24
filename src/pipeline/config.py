@@ -760,6 +760,10 @@ def load_global_batch_config(
         "random_profile", False
     )
 
+    # Default to random profile when no explicit profile is set
+    if not profile and not random_profile:
+        random_profile = True
+
     profile_pool = (
         getattr(cli_args, "profile_pool", None)
         or yaml_config.get("profile_pool", [])
