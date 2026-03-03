@@ -185,14 +185,24 @@ async def create_video_for_product(
     product_id = product.asin or sanitize_filename(product.title[:30])
     logger.info(f"--- Starting video for '{product_id}' profile '{profile_name}' ---")
 
-    # Initialize performance history manager
+    # Initialize performance history manager with configurable retention
+    max_runs = 100
+    if config.optimization_settings:
+        max_runs = config.optimization_settings.performance_history_max_runs
+
     history_manager = PerformanceHistoryManager(
         history_dir=config.global_output_root_path / "performance_history",
-        max_runs=100,  # Configurable retention
+        max_runs=max_runs,
     )
 
-    # Set history manager on the global performance monitor
-    performance_monitor.history_manager = history_manager
+    # Reset the global performance monitor with fresh state
+    monitor_interval = 0.1
+    if config.optimization_settings:
+        opt = config.optimization_settings
+        monitor_interval = opt.performance_monitoring_interval_sec
+    performance_monitor.reset(
+        history_manager=history_manager, memory_monitor_interval=monitor_interval
+    )
 
     # Generate run ID for this pipeline execution
     import uuid
@@ -349,6 +359,19 @@ async def create_video_for_product(
 
         # Mark pipeline as successful for history tracking
         performance_monitor.finish_pipeline(success=True)
+
+        # Check performance thresholds and log warnings
+        timing_threshold = 5.0
+        memory_warning = 1000
+        if config.debug_settings:
+            timing_threshold = config.debug_settings.operation_timing_threshold_sec
+            memory_warning = config.debug_settings.memory_usage_warning_mb
+        threshold_warnings = performance_monitor.check_thresholds(
+            timing_threshold_sec=timing_threshold,
+            memory_warning_mb=memory_warning,
+        )
+        for warning in threshold_warnings:
+            logger.warning("Performance threshold exceeded: %s", warning)
 
         # Clean up background processing
         if ctx.background_processor:

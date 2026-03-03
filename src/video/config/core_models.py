@@ -512,6 +512,7 @@ class OptimizationSettings(BaseModel):
 
     # Performance Monitoring Configuration
     performance_history_max_runs: int = Field(100)
+    performance_history_cleanup_interval: int = Field(10)
     performance_monitoring_interval_sec: float = Field(0.1)
     memory_mb_conversion_factor: int = Field(1048576)
     performance_report_summary_limit: int = Field(50)

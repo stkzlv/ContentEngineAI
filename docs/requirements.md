@@ -64,10 +64,38 @@ High-level requirements for ContentEngineAI.
 - Custom validators for domain-specific rules (product IDs, URLs, file formats)
 - Early validation with clear error messages
 
-### Performance Metrics
-- Time tracking for critical operations (scraping, video assembly, API calls)
-- Success/failure rate monitoring
-- Resource usage patterns for optimization
+### Performance Monitoring
+
+#### Step-Level Measurement
+- Track each pipeline step: wall-clock duration, memory (start/peak/end), CPU percent, disk I/O
+- Continuous peak memory sampling during step execution (configurable interval, default 100ms)
+- Capture errors per step for correlation with resource spikes
+- Timing decorators for any async or sync function
+
+#### Pipeline Run Tracking
+- Each pipeline run recorded with: product ID, profile name, success/failure, total duration, aggregated resource usage
+- Automatic history persistence after pipeline completion
+- Retention limit with periodic cleanup (default: 100 runs, cleanup every 10 saves)
+- Corrupt history entries skipped gracefully on load
+
+#### Threshold Warnings
+- Configurable per-step timing threshold (default 5s) and memory ceiling (default 1000MB)
+- Warnings logged after pipeline completion for any step exceeding thresholds
+
+#### Reporting
+- **Summary**: success rate, duration stats with percentiles (p50/p95/p99), memory/CPU averages, product/profile distribution, step-level breakdown
+- **Trends**: daily aggregates over configurable window (default 30 days), filterable by product, includes per-step daily averages
+- **Detailed**: individual run records with per-step breakdown, exportable as CSV
+- **Comparison**: side-by-side profile performance (run count, success rate, duration percentiles, memory)
+- **Regression detection**: compare last N runs vs previous N, flag steps exceeding a slowdown factor (default 2x)
+
+#### Configuration
+- **History retention**: max runs to keep (default 100)
+- **Cleanup interval**: how often to check retention limit (default every 10 saves)
+- **Memory sampling interval**: peak memory polling frequency (default 0.1s)
+- **Timing threshold**: warn if a step exceeds this duration (default 5s)
+- **Memory threshold**: warn if peak memory exceeds this value (default 1000MB)
+- **Report defaults**: summary limit (50), detailed limit (20), trends window (30 days), recent window (10 runs)
 
 ---
 
