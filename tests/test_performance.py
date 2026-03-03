@@ -1,6 +1,7 @@
 """Tests for performance monitoring utilities."""
 
 import asyncio
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -8,8 +9,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.utils.performance import (
+    PerformanceHistoryManager,
     PerformanceMetrics,
     PerformanceMonitor,
+    PipelineRunMetrics,
     async_timer,
     performance_monitor,
     timer,
@@ -66,6 +69,11 @@ class TestPerformanceMonitor:
         assert monitor.current_step is None
         assert monitor.pipeline_start is None
 
+    def test_monitor_custom_interval(self):
+        """Test monitor with custom memory_monitor_interval."""
+        monitor = PerformanceMonitor(memory_monitor_interval=0.5)
+        assert monitor.memory_monitor_interval == 0.5
+
     def test_start_pipeline(self):
         """Test pipeline start tracking."""
         monitor = PerformanceMonitor()
@@ -73,6 +81,52 @@ class TestPerformanceMonitor:
 
         assert monitor.pipeline_start is not None
         assert monitor.metrics == []
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_reset_clears_state(self, mock_process_class):
+        """Test reset() clears all pipeline state."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()
+        monitor.start_pipeline(
+            run_id="test-run", product_id="P1", profile_name="profile1"
+        )
+        monitor.metrics.append(
+            PerformanceMetrics(
+                step_name="s",
+                start_time=0,
+                end_time=1,
+                duration=1,
+                memory_start=0,
+                memory_peak=0,
+                memory_end=0,
+                cpu_percent=0,
+            )
+        )
+
+        monitor.reset()
+
+        assert monitor.metrics == []
+        assert monitor.pipeline_start is None
+        assert monitor.current_step is None
+        assert monitor.current_run_id is None
+        assert monitor.current_product_id is None
+        assert monitor.current_profile_name is None
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_reset_sets_history_manager(self, mock_process_class):
+        """Test reset() can set a new history manager."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()
+        assert monitor.history_manager is None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            monitor.reset(history_manager=hm)
+            assert monitor.history_manager is hm
 
     @patch("src.utils.performance.psutil.Process")
     def test_get_memory_usage(self, mock_process_class):
@@ -225,14 +279,346 @@ class TestPerformanceMonitor:
 
             assert output_path.exists()
 
-            import json
-
             with output_path.open() as f:
                 data = json.load(f)
 
             assert "pipeline_summary" in data
             assert "step_metrics" in data
             assert len(data["step_metrics"]) == 1
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_check_thresholds_no_warnings(self, mock_process_class):
+        """Test check_thresholds when everything is within limits."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()
+        monitor.metrics = [
+            PerformanceMetrics(
+                step_name="fast_step",
+                start_time=0,
+                end_time=1,
+                duration=1.0,
+                memory_start=100,
+                memory_peak=200,
+                memory_end=150,
+                cpu_percent=50,
+            )
+        ]
+
+        warnings = monitor.check_thresholds(
+            timing_threshold_sec=5.0, memory_warning_mb=1000
+        )
+        assert warnings == []
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_check_thresholds_timing_exceeded(self, mock_process_class):
+        """Test check_thresholds warns on slow steps."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()
+        monitor.metrics = [
+            PerformanceMetrics(
+                step_name="slow_step",
+                start_time=0,
+                end_time=10,
+                duration=10.0,
+                memory_start=100,
+                memory_peak=200,
+                memory_end=150,
+                cpu_percent=50,
+            )
+        ]
+
+        warnings = monitor.check_thresholds(
+            timing_threshold_sec=5.0, memory_warning_mb=1000
+        )
+        assert len(warnings) == 1
+        assert "slow_step" in warnings[0]
+        assert "10.0s" in warnings[0]
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_check_thresholds_memory_exceeded(self, mock_process_class):
+        """Test check_thresholds warns on high memory."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()
+        monitor.metrics = [
+            PerformanceMetrics(
+                step_name="hungry_step",
+                start_time=0,
+                end_time=1,
+                duration=1.0,
+                memory_start=100,
+                memory_peak=1500,
+                memory_end=150,
+                cpu_percent=50,
+            )
+        ]
+
+        warnings = monitor.check_thresholds(
+            timing_threshold_sec=5.0, memory_warning_mb=1000
+        )
+        assert len(warnings) == 1
+        assert "hungry_step" in warnings[0]
+        assert "1500" in warnings[0]
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_finish_pipeline_saves_to_history(self, mock_process_class):
+        """Test finish_pipeline writes to history manager."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            monitor = PerformanceMonitor(history_manager=hm)
+            monitor.start_pipeline(
+                run_id="run-1", product_id="P1", profile_name="profile1"
+            )
+            monitor.metrics = [
+                PerformanceMetrics(
+                    step_name="s1",
+                    start_time=1000,
+                    end_time=1002,
+                    duration=2.0,
+                    memory_start=100,
+                    memory_peak=120,
+                    memory_end=110,
+                    cpu_percent=25,
+                )
+            ]
+
+            monitor.finish_pipeline(success=True)
+
+            runs = hm.get_run_history()
+            assert len(runs) == 1
+            assert runs[0].run_id == "run-1"
+            assert runs[0].success is True
+
+    @patch("src.utils.performance.psutil.Process")
+    def test_finish_pipeline_no_history_manager(self, mock_process_class):
+        """Test finish_pipeline is a no-op without history manager."""
+        mock_process = Mock()
+        mock_process_class.return_value = mock_process
+
+        monitor = PerformanceMonitor()  # no history_manager
+        monitor.start_pipeline(run_id="run-1", product_id="P1", profile_name="profile1")
+        # Should not raise
+        monitor.finish_pipeline(success=True)
+
+
+class TestPerformanceHistoryManager:
+    """Test performance history storage and retrieval."""
+
+    def _make_run(
+        self,
+        run_id: str = "r1",
+        product_id: str = "P1",
+        profile_name: str = "prof1",
+        duration: float = 10.0,
+        success: bool = True,
+        timestamp: str = "2025-01-15T10:00:00+00:00",
+    ) -> PipelineRunMetrics:
+        return PipelineRunMetrics(
+            run_id=run_id,
+            product_id=product_id,
+            profile_name=profile_name,
+            start_timestamp=timestamp,
+            end_timestamp=timestamp,
+            total_duration=duration,
+            total_memory_delta=5.0,
+            peak_memory=200.0,
+            total_cpu_percent=30.0,
+            step_metrics=[
+                {
+                    "step_name": "gather_visuals",
+                    "start_time": 1000,
+                    "end_time": 1005,
+                    "duration": duration / 2,
+                    "memory_start": 100,
+                    "memory_peak": 150,
+                    "memory_end": 120,
+                    "cpu_percent": 30,
+                    "io_read_bytes": 0,
+                    "io_write_bytes": 0,
+                    "errors": [],
+                    "metadata": {},
+                }
+            ],
+            success=success,
+        )
+
+    def test_save_and_load_round_trip(self):
+        """Test saving and loading metrics preserves data."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            run = self._make_run(run_id="round-trip")
+            hm.save_run_metrics(run)
+
+            loaded = hm.get_run_history()
+            assert len(loaded) == 1
+            assert loaded[0].run_id == "round-trip"
+            assert loaded[0].total_duration == 10.0
+            assert loaded[0].success is True
+
+    def test_cleanup_enforces_max_runs(self):
+        """Test that cleanup keeps only max_runs entries."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp), max_runs=3)
+
+            # Save 5 runs (cleanup runs every 10 saves, so force it)
+            for i in range(5):
+                run = self._make_run(
+                    run_id=f"r{i}",
+                    timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00",
+                )
+                hm.save_run_metrics(run)
+
+            hm.force_cleanup()
+
+            loaded = hm.get_run_history()
+            assert len(loaded) == 3
+            # Should keep the 3 newest
+            run_ids = {r.run_id for r in loaded}
+            assert "r4" in run_ids
+            assert "r3" in run_ids
+            assert "r2" in run_ids
+
+    def test_product_filtering(self):
+        """Test get_metrics_for_product returns only matching runs."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.save_run_metrics(self._make_run(run_id="r1", product_id="A"))
+            hm.save_run_metrics(self._make_run(run_id="r2", product_id="B"))
+            hm.save_run_metrics(self._make_run(run_id="r3", product_id="A"))
+
+            a_runs = hm.get_metrics_for_product("A")
+            assert len(a_runs) == 2
+            assert all(r.product_id == "A" for r in a_runs)
+
+            b_runs = hm.get_metrics_for_product("B")
+            assert len(b_runs) == 1
+
+    def test_empty_history(self):
+        """Test loading from nonexistent history file returns empty."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            assert hm.get_run_history() == []
+            assert hm.get_metrics_for_product("X") == []
+
+    def test_corrupt_jsonl_handling(self):
+        """Test that corrupt lines are skipped gracefully."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+
+            # Write one good and one bad line
+            good_run = self._make_run(run_id="good")
+            hm.save_run_metrics(good_run)
+
+            # Append a corrupt line
+            with open(hm.history_file, "a") as f:
+                f.write("{this is not valid json}\n")
+                f.write('{"run_id": "bad", "missing_fields": true}\n')
+
+            loaded = hm.get_run_history()
+            assert len(loaded) == 1
+            assert loaded[0].run_id == "good"
+
+    def test_limit_on_get_run_history(self):
+        """Test limit parameter on get_run_history."""
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            for i in range(5):
+                hm.save_run_metrics(
+                    self._make_run(
+                        run_id=f"r{i}",
+                        timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00",
+                    )
+                )
+
+            loaded = hm.get_run_history(limit=2)
+            assert len(loaded) == 2
+
+
+class TestPipelineRunMetrics:
+    """Test PipelineRunMetrics creation and factory methods."""
+
+    def test_from_pipeline_summary_with_metrics(self):
+        """Test creating run metrics from pipeline summary."""
+        metrics = [
+            PerformanceMetrics(
+                step_name="step1",
+                start_time=1000,
+                end_time=1005,
+                duration=5.0,
+                memory_start=100,
+                memory_peak=200,
+                memory_end=150,
+                cpu_percent=40,
+            ),
+            PerformanceMetrics(
+                step_name="step2",
+                start_time=1005,
+                end_time=1008,
+                duration=3.0,
+                memory_start=150,
+                memory_peak=300,
+                memory_end=180,
+                cpu_percent=60,
+            ),
+        ]
+
+        run = PipelineRunMetrics.from_pipeline_summary(
+            run_id="test-run",
+            product_id="PROD1",
+            profile_name="slideshow",
+            start_time=1000.0,
+            end_time=1008.0,
+            metrics=metrics,
+        )
+
+        assert run.run_id == "test-run"
+        assert run.total_duration == 8.0
+        assert run.peak_memory == 300  # max of 200 and 300
+        assert run.total_memory_delta == 80  # 180 - 100
+        assert run.total_cpu_percent == 50.0  # (40 + 60) / 2
+        assert run.success is True
+        assert len(run.step_metrics) == 2
+
+    def test_from_pipeline_summary_empty_metrics(self):
+        """Test creating run metrics with no step metrics."""
+        run = PipelineRunMetrics.from_pipeline_summary(
+            run_id="empty",
+            product_id="P1",
+            profile_name="prof",
+            start_time=1000.0,
+            end_time=1005.0,
+            metrics=[],
+        )
+
+        assert run.total_duration == 5.0
+        assert run.peak_memory == 0
+        assert run.total_memory_delta == 0
+        assert run.total_cpu_percent == 0
+        assert run.step_metrics == []
+
+    def test_from_pipeline_summary_with_error(self):
+        """Test creating run metrics with error message."""
+        run = PipelineRunMetrics.from_pipeline_summary(
+            run_id="fail",
+            product_id="P1",
+            profile_name="prof",
+            start_time=1000.0,
+            end_time=1002.0,
+            metrics=[],
+            success=False,
+            error_message="Something broke",
+        )
+
+        assert run.success is False
+        assert run.error_message == "Something broke"
 
 
 class TestTimingDecorators:

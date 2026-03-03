@@ -15,7 +15,7 @@ NC := \033[0m # No Color
 
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
-	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run \
+	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
 	batch batch-lowpri
@@ -64,6 +64,9 @@ help:
 	@echo "  clean-all     - Deep clean (including dependencies)"
 	@echo "  clean-outputs - Clean up unexpected files in outputs directory"
 	@echo "  perf-report   - Generate performance monitoring report"
+	@echo "  perf-trends   - Generate performance trends report"
+	@echo "  perf-detailed - Generate detailed performance report"
+	@echo "  perf-compare  - Compare performance across profiles"
 	@echo "  pre-commit    - Install pre-commit hooks"
 	@echo ""
 	@echo "$(GREEN)Individual Tools:$(NC)"
@@ -247,6 +250,24 @@ perf-report:
 	@test -f tools/performance_report.py || { echo "$(RED)Error: tools/performance_report.py not found$(NC)"; exit 1; }
 	@poetry run python tools/performance_report.py --report-type summary
 	@echo "$(GREEN)Performance report completed!$(NC)"
+
+perf-trends:
+	@echo "$(BLUE)Generating performance trends report...$(NC)"
+	@test -f tools/performance_report.py || { echo "$(RED)Error: tools/performance_report.py not found$(NC)"; exit 1; }
+	@poetry run python tools/performance_report.py --report-type trends
+	@echo "$(GREEN)Trends report completed!$(NC)"
+
+perf-detailed:
+	@echo "$(BLUE)Generating detailed performance report...$(NC)"
+	@test -f tools/performance_report.py || { echo "$(RED)Error: tools/performance_report.py not found$(NC)"; exit 1; }
+	@poetry run python tools/performance_report.py --report-type detailed
+	@echo "$(GREEN)Detailed report completed!$(NC)"
+
+perf-compare:
+	@echo "$(BLUE)Generating profile comparison report...$(NC)"
+	@test -f tools/performance_report.py || { echo "$(RED)Error: tools/performance_report.py not found$(NC)"; exit 1; }
+	@poetry run python tools/performance_report.py --report-type comparison
+	@echo "$(GREEN)Comparison report completed!$(NC)"
 
 pre-commit:
 	@echo "$(BLUE)Installing pre-commit hooks...$(NC)"
