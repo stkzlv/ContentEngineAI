@@ -4,6 +4,19 @@
 
 ContentEngineAI is an AI-powered video production pipeline for e-commerce platforms.
 
+## Session Start
+
+At the very beginning of a new session, verify the correct Python venv is active:
+```bash
+echo $VIRTUAL_ENV  # should contain "ContentEngineAI"
+```
+
+The project uses a **pyenv virtualenv** (not poetry-managed). If wrong venv is active:
+```bash
+deactivate 2>/dev/null; pyenv activate ContentEngineAI
+```
+Or source directly: `source "$(pyenv prefix ContentEngineAI)/bin/activate"`
+
 ## Essential Commands
 
 ```bash
@@ -59,6 +72,11 @@ poetry run python -m src.publisher.late registry --rebuild --scan-dir tmp --outp
 
 # Performance monitoring
 poetry run python tools/performance_report.py --report-type summary
+poetry run python tools/performance_report.py --report-type trends --days 30
+poetry run python tools/performance_report.py --report-type detailed --limit 10
+poetry run python tools/performance_report.py --report-type comparison
+poetry run python tools/performance_report.py --report-type regressions --window 10
+poetry run python tools/performance_report.py --report-type detailed --format csv --limit 5
 ```
 
 ## Code Standards

@@ -5,6 +5,34 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Performance**: Convert all f-string logger calls to lazy `%s` formatting in performance module
+- **Performance**: Cleanup interval now configurable via `cleanup_interval` param (default: every 10 saves)
+- **Performance**: Step completion log level changed from INFO to DEBUG
+- **Performance**: `PerformanceMonitor.reset()` accepts `memory_monitor_interval` for config-driven tuning
+- **Config**: Wire `performance_monitoring_interval_sec` and `performance_history_cleanup_interval` from config into runtime
+
+### Added
+- `PerformanceMonitor.reset()` method for clean state between batch runs
+- `PerformanceMonitor.check_thresholds()` for timing/memory warnings after pipeline runs
+- `PerformanceHistoryManager.force_cleanup()` for on-demand history pruning
+- Corrupt JSONL line handling in history loading (skip and warn instead of crash)
+- Percentile stats (p50/p95/p99) in summary and step analysis reports
+- `--report-type comparison` for profile-vs-profile performance comparison
+- `--report-type regressions` with configurable window/threshold for detecting slowdowns
+- Step-level trends in trends report (per-step daily averages)
+- `--format csv` export for detailed and trends reports
+- `performance_history_cleanup_interval` config field in `OptimizationSettings`
+- `perf-trends`, `perf-detailed`, `perf-compare` Makefile targets
+- `tests/test_performance_report.py` with 22 tests for report generation
+- Expanded `tests/test_performance.py` with HistoryManager, PipelineRunMetrics, and monitor tests
+
+### Removed
+- Dead `network_sent`/`network_recv` fields from `PerformanceMetrics` (always zero)
+- `sys.path.insert` hack in `tools/performance_report.py`
+
 ## [0.30.0] - 2026-02-24
 
 ### Changed
