@@ -144,6 +144,11 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = false
 mypy_path = "typings"
+exclude = ["^tools/"]
+
+[[tool.mypy.overrides]]
+module = "tools.*"
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "aiohttp.*"
