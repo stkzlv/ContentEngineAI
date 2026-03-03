@@ -196,7 +196,13 @@ async def create_video_for_product(
     )
 
     # Reset the global performance monitor with fresh state
-    performance_monitor.reset(history_manager=history_manager)
+    monitor_interval = 0.1
+    if config.optimization_settings:
+        opt = config.optimization_settings
+        monitor_interval = opt.performance_monitoring_interval_sec
+    performance_monitor.reset(
+        history_manager=history_manager, memory_monitor_interval=monitor_interval
+    )
 
     # Generate run ID for this pipeline execution
     import uuid

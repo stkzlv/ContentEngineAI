@@ -109,9 +109,12 @@ class PipelineRunMetrics:
 class PerformanceHistoryManager:
     """Manages historical performance metrics storage and retrieval."""
 
-    def __init__(self, history_dir: Path, max_runs: int = 100):
+    def __init__(
+        self, history_dir: Path, max_runs: int = 100, cleanup_interval: int = 10
+    ):
         self.history_dir = Path(history_dir)
         self.max_runs = max_runs
+        self.cleanup_interval = cleanup_interval
         self.history_file = self.history_dir / "performance_history.jsonl"
         self._save_count = 0
 
@@ -127,8 +130,7 @@ class PerformanceHistoryManager:
 
             self._save_count += 1
 
-            # Only check cleanup every 10 saves
-            if self._save_count % 10 == 0:
+            if self._save_count % self.cleanup_interval == 0:
                 self._cleanup_old_runs()
 
             logger.debug("Saved run metrics for %s", run_metrics.run_id)
@@ -227,11 +229,15 @@ class PerformanceMonitor:
         self.current_product_id: str | None = None
         self.current_profile_name: str | None = None
 
-    def reset(self, history_manager: PerformanceHistoryManager | None = None) -> None:
+    def reset(
+        self,
+        history_manager: PerformanceHistoryManager | None = None,
+        memory_monitor_interval: float | None = None,
+    ) -> None:
         """Reset monitor state for a new pipeline run.
 
-        Optionally sets a new history manager. Use this instead of
-        directly mutating attributes between batch runs.
+        Optionally sets a new history manager and/or memory monitor interval.
+        Use this instead of directly mutating attributes between batch runs.
         """
         self.metrics.clear()
         self.current_step = None
@@ -241,6 +247,8 @@ class PerformanceMonitor:
         self.current_profile_name = None
         if history_manager is not None:
             self.history_manager = history_manager
+        if memory_monitor_interval is not None:
+            self.memory_monitor_interval = memory_monitor_interval
 
     def start_pipeline(
         self,

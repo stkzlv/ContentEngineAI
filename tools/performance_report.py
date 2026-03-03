@@ -42,7 +42,9 @@ class PerformanceReportGenerator:
     def __init__(self, history_manager: PerformanceHistoryManager):
         self.history_manager = history_manager
 
-    def generate_summary_report(self, limit: int = 50) -> dict[str, Any]:
+    def generate_summary_report(
+        self, limit: int = 50, recent_window: int = 10
+    ) -> dict[str, Any]:
         """Generate overall summary report."""
         runs = self.history_manager.get_run_history(limit=limit)
 
@@ -85,7 +87,7 @@ class PerformanceReportGenerator:
             )
 
         # Recent performance trends
-        recent_runs = runs[: min(10, len(runs))]
+        recent_runs = runs[: min(recent_window, len(runs))]
         recent_avg_duration = (
             sum(run.total_duration for run in recent_runs) / len(recent_runs)
             if recent_runs
