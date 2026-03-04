@@ -73,7 +73,7 @@ def mock_publisher_config():
 def mock_video_config():
     """Mock video configuration."""
     return SimpleNamespace(
-        pipeline_timeout_sec=300,
+        pipeline_timeout_sec=900,
         llm_settings=SimpleNamespace(api_key_env_var=None),
     )
 

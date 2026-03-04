@@ -106,7 +106,7 @@ def mock_product_data_factory():
 def mock_video_config():
     """Create mock video config with all required settings."""
     return SimpleNamespace(
-        pipeline_timeout_sec=300,
+        pipeline_timeout_sec=900,
         llm_settings=SimpleNamespace(api_key_env_var=None),
         stock_media_settings=SimpleNamespace(pexels_api_key_env_var=None),
         audio_settings=SimpleNamespace(

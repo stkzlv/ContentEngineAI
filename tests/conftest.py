@@ -332,9 +332,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "stock_media_concurrent_downloads": 5,
             "stock_media_search_multiplier": 2,
             "stock_media_max_per_page": 80,
-            "default_request_timeout_sec": 15,
-            "default_retry_attempts": 3,
-            "default_retry_delay_sec": 5,
         },
         "text_processing": {
             "script_chars_per_second_estimate": 15,
