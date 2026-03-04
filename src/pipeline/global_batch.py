@@ -759,8 +759,10 @@ class GlobalPipelineOrchestrator:
     async def _execute_scraping_phase(self) -> ScrapingPhaseSummary:
         """Execute scraping phase and return summary.
 
-        Invokes Amazon scraper with configured product IDs and keywords,
-        tracks statistics, and generates phase summary.
+        Uses a two-phase approach to avoid launching a separate Chrome process
+        per keyword:
+          1. Batch browser phase: one Chrome session scrapes ALL inputs
+          2. Per-keyword post-processing: download media, validate, apply limits
 
         Returns
         -------
@@ -801,7 +803,6 @@ class GlobalPipelineOrchestrator:
             profile_uses_videos=profile_uses_videos,
         )
 
-        # Set products_per_keyword as the per-input limit
         scraper.amazon_config["max_products"] = self.config.products_per_keyword
 
         # Track statistics
@@ -812,54 +813,78 @@ class GlobalPipelineOrchestrator:
         total_images = 0
         total_videos = 0
 
-        # Process each input until max_products reached
+        # --- Phase 1: batch browser scrape (one Chrome for all inputs) ---
+        logger.info("Phase 1: batch browser scrape (%d inputs)", total_inputs)
+        try:
+            batch_results = scraper.scrape_batch_browser(
+                all_inputs, search_params=self.config.scraper_filters
+            )
+        except Exception as e:
+            logger.error("Batch browser scrape failed: %s", e)
+            if self.config.fail_fast:
+                raise
+            batch_results = []
+
+        # Build a lookup so we can iterate in original order
+        results_by_input: dict[str, list[dict]] = {}
+        for entry in batch_results:
+            results_by_input[entry["input"]] = entry.get("products", [])
+
+        # --- Phase 2: per-keyword post-processing ---
+        logger.info("Phase 2: media download and validation")
         for idx, input_item in enumerate(all_inputs, 1):
-            # Check if global limit reached
             if len(successful_products) >= self.config.max_products:
                 logger.info(
-                    f"✅ Reached max_products limit ({self.config.max_products}). "
+                    f"Reached max_products limit ({self.config.max_products}). "
                     f"Stopping with {len(all_inputs) - idx + 1} inputs remaining."
                 )
                 break
 
-            # Calculate remaining slots
             remaining = self.config.max_products - len(successful_products)
             per_input_limit = min(self.config.products_per_keyword, remaining)
             scraper.amazon_config["max_products"] = per_input_limit
 
             collected = f"{len(successful_products)}/{self.config.max_products}"
             logger.info(
-                f"[{idx}/{total_inputs}] Scraping: {input_item} "
+                f"[{idx}/{total_inputs}] Processing: {input_item} "
                 f"(limit: {per_input_limit}, collected: {collected})"
             )
 
+            raw_products = results_by_input.get(input_item, [])
+            if not raw_products:
+                inputs_failed += 1
+                failed_inputs.append(input_item)
+                logger.warning(f"✗ [{idx}/{total_inputs}] No data for {input_item}")
+                if self.config.fail_fast:
+                    logger.error("Fail-fast enabled, stopping scraping phase")
+                    break
+                continue
+
             try:
-                # Call scraper with single input
-                products = scraper.scrape_products(
-                    keywords=[input_item], search_params=self.config.scraper_filters
+                products = scraper.process_raw_products(
+                    raw_products,
+                    target_download_count=per_input_limit,
                 )
 
                 if products:
                     inputs_processed += 1
-                    # Track successful product IDs (ASINs)
                     for product in products:
                         if hasattr(product, "asin") and product.asin:
                             successful_products.append(product.asin)
-                        # Count media for this product
                         if hasattr(product, "images") and product.images:
                             total_images += len(product.images)
                         if hasattr(product, "videos") and product.videos:
                             total_videos += len(product.videos)
-                    product_count = len(products)
                     logger.info(
-                        f"✓ [{idx}/{total_inputs}] Found {product_count} "
+                        f"✓ [{idx}/{total_inputs}] Found {len(products)} "
                         f"product(s) for {input_item}"
                     )
                 else:
                     inputs_failed += 1
                     failed_inputs.append(input_item)
-                    logger.warning(f"✗ [{idx}/{total_inputs}] No data for {input_item}")
-
+                    logger.warning(
+                        f"✗ [{idx}/{total_inputs}] No valid products for {input_item}"
+                    )
                     if self.config.fail_fast:
                         logger.error("Fail-fast enabled, stopping scraping phase")
                         break
@@ -868,9 +893,8 @@ class GlobalPipelineOrchestrator:
                 inputs_failed += 1
                 failed_inputs.append(input_item)
                 logger.error(
-                    f"✗ [{idx}/{total_inputs}] Failed to scrape {input_item}: {e}"
+                    f"✗ [{idx}/{total_inputs}] Failed to process {input_item}: {e}"
                 )
-
                 if self.config.fail_fast:
                     logger.error("Fail-fast enabled, stopping scraping phase")
                     raise

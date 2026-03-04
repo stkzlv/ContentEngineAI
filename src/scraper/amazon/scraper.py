@@ -23,7 +23,10 @@ from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
 from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
-from .browser_functions import create_dynamic_browser_function
+from .browser_functions import (
+    create_batch_browser_function,
+    create_dynamic_browser_function,
+)
 from .config import CONFIG, get_default_search_parameters, get_output_path
 from .constants import (
     DEFAULT_MAX_BATCH_SIZE,
@@ -912,6 +915,48 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
         return final_products
+
+    def scrape_batch_browser(
+        self,
+        inputs: list[str],
+        search_params: SearchParameters | None = None,
+    ) -> list[dict]:
+        """Scrape multiple inputs in a single Chrome session (browser phase only).
+
+        Returns raw product dicts per input. No media downloads or validation
+        happens here; call process_raw_products() on each result set afterwards.
+
+        Returns list of dicts: [{"input": str, "products": list[dict]}]
+        """
+        items = []
+        for inp in inputs:
+            items.append(
+                {
+                    "keyword": inp,
+                    "is_asin": self._is_asin(inp),
+                    "is_url": self._is_url(inp),
+                    "search_params": search_params,
+                    "debug_mode": self.debug_mode,
+                    "debug_options": self.debug_options,
+                    "max_products": self.amazon_config.get("max_products", 5),
+                    "page": 1,
+                }
+            )
+
+        batch_func = create_batch_browser_function(self.debug_mode)
+        raw_results = batch_func({"items": items})
+        return raw_results if raw_results else []
+
+    def process_raw_products(
+        self,
+        raw_products: list[dict],
+        target_download_count: int | None = None,
+        filter_validated: bool = True,
+    ) -> list[ProductData]:
+        """Download media and validate a set of raw products from browser scraping."""
+        if raw_products:
+            self._orchestrate_media_downloads(raw_products, target_download_count)
+        return self._validate_and_convert_products(raw_products, filter_validated)
 
     def scrape_products(
         self, keywords: list[str], search_params: BaseSearchParameters | None = None

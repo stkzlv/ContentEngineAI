@@ -122,14 +122,19 @@ async def test_scraping_phase_success(orchestrator, mock_product_data):
     with patch(
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
-        # Set up mock scraper
+        # Set up mock scraper (two-phase approach)
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
-            [mock_product_data[0]],  # First product
-            [mock_product_data[1]],  # Second product
-        ]
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
+
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0ABC123", "products": [{"fake": True}]},
+            {"input": "B0DEF456", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.side_effect = [
+            [mock_product_data[0]],
+            [mock_product_data[1]],
+        ]
 
         # Execute scraping phase
         summary = await orchestrator._execute_scraping_phase()
@@ -150,7 +155,14 @@ async def test_scraping_phase_partial_failure(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0ABC123", "products": [{"fake": True}]},
+            {"input": "B0DEF456", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.side_effect = [
             [
                 ProductData(
                     asin="B0ABC123",
@@ -162,8 +174,6 @@ async def test_scraping_phase_partial_failure(orchestrator):
             ],  # Success
             RuntimeError("Scraping failed"),  # Failure
         ]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
 
         summary = await orchestrator._execute_scraping_phase()
 
@@ -183,9 +193,9 @@ async def test_scraping_phase_with_fail_fast(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = RuntimeError("Scraping failed")
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
+        mock_scraper.scrape_batch_browser.side_effect = RuntimeError("Scraping failed")
 
         with pytest.raises(RuntimeError):
             await orchestrator._execute_scraping_phase()
@@ -200,9 +210,9 @@ async def test_scraping_phase_with_exception(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = ValueError("Invalid ASIN")
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
+        mock_scraper.scrape_batch_browser.side_effect = ValueError("Invalid ASIN")
 
         with pytest.raises(ValueError):
             await orchestrator._execute_scraping_phase()
@@ -541,14 +551,18 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),
     ):
-        # Mock scraping phase - orchestrator has 2 product_ids in config
+        # Mock scraping phase (two-phase approach)
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
-            [mock_product_data],  # First product
-            [mock_product_data],  # Second product
-        ]
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0ABC123", "products": [{"fake": True}]},
+            {"input": "B0DEF456", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.side_effect = [
+            [mock_product_data],
+            [mock_product_data],
+        ]
 
         # Mock handoff phase
         mock_discover.return_value = [(Path("outputs/B0ABC123"), mock_product_data)]
@@ -593,7 +607,13 @@ async def test_pipeline_with_no_ready_products(orchestrator, mock_video_config):
         patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
     ):
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0ABC123", "products": [{"fake": True}]},
+            {"input": "B0DEF456", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.side_effect = [
             [
                 ProductData(
                     asin="B0ABC123",
@@ -613,8 +633,6 @@ async def test_pipeline_with_no_ready_products(orchestrator, mock_video_config):
                 )
             ],
         ]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
         mock_discover.return_value = []  # No ready products
 
         summary = await orchestrator.run_pipeline()

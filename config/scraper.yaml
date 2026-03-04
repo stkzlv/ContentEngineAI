@@ -434,7 +434,6 @@ batch:
     - "smart pet feeder"
     - "laser projection virtual keyboard"
     - "solar backpack"
-    - "water-from-air gadget"
     - "smart mirror"
     - "drone with follow me mode camera"
     - "gesture control flying orb light"
@@ -442,7 +441,6 @@ batch:
     - "smart scent diffusers"
     - "levitating bluetooth speaker"
     - "magnetic floating light bulb"
-    - "kinetic desk toy"
     - "retro game console"
 
   # Stop entire batch on first failure (default: false, continue processing)

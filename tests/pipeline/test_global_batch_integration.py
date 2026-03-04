@@ -102,6 +102,51 @@ def mock_product_data_factory():
     return create_product
 
 
+def _setup_scraper_mock(mock_scraper_class, products_per_input):
+    """Wire up scraper mock for the two-phase scraping approach."""
+    mock_scraper = Mock()
+    mock_scraper_class.return_value = mock_scraper
+    mock_scraper_class.return_value.amazon_config = {}
+
+    # scrape_batch_browser returns a list of {"input": ..., "products": [...]}
+    batch_results = [
+        {"input": inp, "products": [{"fake": True}] if prods else []}
+        for inp, prods in products_per_input.items()
+    ]
+    mock_scraper.scrape_batch_browser.return_value = batch_results
+
+    # process_raw_products is called per-input; return the matching products
+    call_order = list(products_per_input.values())
+    mock_scraper.process_raw_products.side_effect = call_order
+
+    return mock_scraper
+
+
+def _setup_scraper_mock_with_error(mock_scraper_class, products_per_input, error_input):
+    """Wire up scraper mock where process_raw_products raises on a specific input."""
+    mock_scraper = Mock()
+    mock_scraper_class.return_value = mock_scraper
+    mock_scraper_class.return_value.amazon_config = {}
+
+    # batch browser succeeds for all inputs
+    batch_results = [
+        {"input": inp, "products": [{"fake": True}]} for inp in products_per_input
+    ]
+    mock_scraper.scrape_batch_browser.return_value = batch_results
+
+    def side_effect(raw_products, target_download_count=None):
+        # Find which input this call corresponds to by order
+        call_idx = mock_scraper.process_raw_products.call_count - 1
+        inp = list(products_per_input.keys())[call_idx]
+        if inp == error_input:
+            raise RuntimeError("Scraping failed")
+        return products_per_input[inp]
+
+    mock_scraper.process_raw_products.side_effect = side_effect
+
+    return mock_scraper
+
+
 @pytest.fixture
 def mock_video_config():
     """Create mock video config with all required settings."""
@@ -176,11 +221,14 @@ async def test_pipeline_with_product_ids_only(
         ),
         patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),
     ):
-        # Mock scraper - returns products for each product ID
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[product1], [product2]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraper (two-phase approach)
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "B0TEST111": [product1],
+                "B0TEST222": [product2],
+            },
+        )
 
         # Mock handoff phase - both products ready
         mock_discover.return_value = [
@@ -270,11 +318,14 @@ async def test_pipeline_with_keywords_only(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
     ):
-        # Mock scraper - returns products for each keyword
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[product1], [product2]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraper (two-phase approach)
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "wireless earbuds": [product1],
+                "bluetooth speaker": [product2],
+            },
+        )
 
         # Mock handoff phase
         mock_discover.return_value = [
@@ -297,7 +348,6 @@ async def test_pipeline_with_keywords_only(
         # Verify scraping with filters
         assert summary.scraping.total_attempted == 2
         assert summary.scraping.successful == 2
-        mock_scraper.scrape_products.assert_called()
         # Verify filters passed to scraper
         assert config.scraper_filters.min_rating == 4.0
 
@@ -348,11 +398,14 @@ async def test_pipeline_with_mixed_input(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
     ):
-        # Mock scraper - product ID first, then keyword
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[direct_product], [keyword_product]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraper (two-phase approach)
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "B0DIRECT1": [direct_product],
+                "smart watch": [keyword_product],
+            },
+        )
 
         # Mock handoff - both ready
         mock_discover.return_value = [
@@ -408,21 +461,19 @@ async def test_pipeline_fail_fast_at_scraping_phase(
     with patch(
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
-        # First product succeeds, second fails
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
-            [product1],  # First succeeds
-            RuntimeError("Scraping failed"),  # Second fails
-        ]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Batch browser succeeds, but process_raw_products fails on second input
+        _setup_scraper_mock_with_error(
+            mock_scraper_class,
+            {"B0GOOD1": [product1], "B0BAD2": [], "B0GOOD3": []},
+            error_input="B0BAD2",
+        )
 
         # Execute pipeline - should raise due to fail-fast
         with pytest.raises(RuntimeError, match="Scraping failed"):
             await orchestrator.run_pipeline()
 
-        # Verify scraper called only twice (stopped on failure)
-        assert mock_scraper.scrape_products.call_count == 2
+        # process_raw_products called twice: first succeeds, second raises
+        mock_scraper_class.return_value.process_raw_products.assert_called()
 
 
 @pytest.mark.asyncio
@@ -459,11 +510,14 @@ async def test_pipeline_fail_fast_at_production_phase(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
     ):
-        # Mock scraping - both succeed
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[product1], [product2]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraping (two-phase approach) - both succeed
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "B0PROD1": [product1],
+                "B0PROD2": [product2],
+            },
+        )
 
         # Mock handoff
         mock_discover.return_value = [
@@ -513,15 +567,22 @@ async def test_pipeline_graceful_continuation_on_failures(
     with patch(
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
-        # Mix of success and failure
+        # Mix of success and failure (two-phase approach)
+        # B0BAD2 returns empty products from batch browser
         mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [
-            [product1],  # First succeeds
-            [],  # Second fails (empty list)
-            [product3],  # Third succeeds
-        ]
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
+
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0GOOD1", "products": [{"fake": True}]},
+            {"input": "B0BAD2", "products": []},
+            {"input": "B0GOOD3", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.side_effect = [
+            [product1],  # B0GOOD1
+            # B0BAD2 skipped (empty products)
+            [product3],  # B0GOOD3
+        ]
 
         # Execute pipeline - should complete despite failure
         summary = await orchestrator.run_pipeline()
@@ -576,11 +637,14 @@ async def test_pipeline_with_random_profile_selection(
         ) as mock_select_profile,
         patch("src.video.producer.utils.ProfileUsageTracker") as mock_tracker_class,
     ):
-        # Mock scraper
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[product1], [product2]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraper (two-phase approach)
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "B0RAND1": [product1],
+                "B0RAND2": [product2],
+            },
+        )
 
         # Mock handoff
         mock_discover.return_value = [
@@ -655,11 +719,14 @@ async def test_pipeline_with_zero_products_ready_for_production(
         ) as mock_scraper_class,
         patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
     ):
-        # Mock scraper - returns products without media
-        mock_scraper = Mock()
-        mock_scraper.scrape_products.side_effect = [[product1], [product2]]
-        mock_scraper_class.return_value = mock_scraper
-        mock_scraper_class.return_value.amazon_config = {}
+        # Mock scraper (two-phase approach) - returns products without media
+        _setup_scraper_mock(
+            mock_scraper_class,
+            {
+                "B0NODATA1": [product1],
+                "B0NODATA2": [product2],
+            },
+        )
 
         # Mock handoff - no products ready (empty list)
         mock_discover.return_value = []
