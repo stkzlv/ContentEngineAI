@@ -953,10 +953,13 @@ class BotasaurusAmazonScraper(BaseScraper):
         target_download_count: int | None = None,
         filter_validated: bool = True,
     ) -> list[ProductData]:
-        """Download media and validate a set of raw products from browser scraping."""
+        """Download media, validate, and save products from browser scraping."""
         if raw_products:
             self._orchestrate_media_downloads(raw_products, target_download_count)
-        return self._validate_and_convert_products(raw_products, filter_validated)
+        products = self._validate_and_convert_products(raw_products, filter_validated)
+        if products:
+            self._save_products(products)
+        return products
 
     def scrape_products(
         self, keywords: list[str], search_params: BaseSearchParameters | None = None
