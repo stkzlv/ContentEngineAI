@@ -99,6 +99,15 @@ class TestFormatPrompt:
 
         assert "Test & <Product> 'Special'" in result
 
+    def test_format_prompt_rejects_price_placeholder(
+        self, sample_product_data: ProductData
+    ):
+        """PRICE was removed to avoid stale pricing in videos."""
+        template = "Buy {FULL_PRODUCT_NAME} for only {PRICE}!"
+
+        with pytest.raises(ValueError, match="Missing placeholder"):
+            format_prompt(template, sample_product_data, "General audience")
+
 
 class TestSaveDebugPrompt:
     """Test debug prompt saving functionality."""
