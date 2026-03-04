@@ -721,17 +721,20 @@ def load_global_batch_config(
                 yaml_config = loaded["global_batch"]
 
     # Apply 3-tier precedence: CLI > YAML > defaults
-    # Product IDs
-    product_ids = (
-        getattr(cli_args, "product_ids", None)
-        or yaml_config.get("product_ids", [])
-        or []
-    )
+    # When ANY CLI input is provided (product_ids or keywords), treat CLI as
+    # the complete input set. Don't mix CLI product_ids with YAML keywords
+    # or vice versa. This prevents e.g. --product-ids B0ABC from also
+    # picking up 28 YAML keywords.
+    cli_product_ids = getattr(cli_args, "product_ids", None)
+    cli_keywords = getattr(cli_args, "keywords", None)
+    cli_has_inputs = cli_product_ids or cli_keywords
 
-    # Keywords
-    keywords = (
-        getattr(cli_args, "keywords", None) or yaml_config.get("keywords", []) or []
-    )
+    if cli_has_inputs:
+        product_ids = cli_product_ids or []
+        keywords = cli_keywords or []
+    else:
+        product_ids = yaml_config.get("product_ids", []) or []
+        keywords = yaml_config.get("keywords", []) or []
 
     # Max products (global cap across all keywords)
     max_products = (

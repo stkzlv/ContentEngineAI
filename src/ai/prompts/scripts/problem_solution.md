@@ -20,11 +20,10 @@ End with a casual CTA: follow, like, link in bio, or share. One line, not a whol
 - Refer to the product by a short natural name, not the full official title.
 - The problem should feel real to the target audience listed below. Don't pick a generic complaint; pick something specific to how they'd actually use this product.
 - Sound like a real person. Mix short and longer sentences. Contractions are good. Don't be overly dramatic in the agitation, just honest.
-- If the price strengthens the "solution" angle, mention it. Otherwise leave it out.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

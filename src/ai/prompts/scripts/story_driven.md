@@ -21,11 +21,10 @@ End with a CTA: follow for more, link in bio, drop a like, share with someone. Q
 - The story should feel plausible for someone in the target audience. Match the tone and situation to who'd actually buy this.
 - Don't make the story too polished or cinematic. Real stories meander a little, have small details that don't matter but make it feel true.
 - Sound conversational. Contractions, fragments, natural rhythm. Not scripted, not rehearsed.
-- Include price only if it fits the story (e.g., "it was like thirty bucks so I figured why not").
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

@@ -699,32 +699,29 @@ def scrape_amazon_products_browser_impl(
     return products
 
 
-def create_dynamic_browser_function(debug_mode=False):
-    """Create browser function with current DEBUG_MODE settings"""
-    DEBUG_MODE = debug_mode
+def _build_browser_config(debug_mode=False):
+    """Build Botasaurus browser config dict.
 
-    # Get browser config, with fallback if not initialized
+    Shared by both single-keyword and batch browser functions so Chrome
+    options stay consistent.
+    """
     try:
         current_config = _BROWSER_CONFIG.copy() if _BROWSER_CONFIG else {}
     except Exception:
         current_config = {}
 
-    # Debug mode automatically enables browser visibility
-    force_real_browser = DEBUG_MODE
+    force_real_browser = debug_mode
 
     if force_real_browser:
-        # User explicitly wants real browser window - force it immediately
         current_config["enable_xvfb_virtual_display"] = False
-        os.environ["DISPLAY"] = ":0"  # Force main display
+        os.environ["DISPLAY"] = ":0"
 
-        # Auto-detect multi-monitor setup and calculate optimal position
         logger.info("🔍 Auto-discovering multi-monitor setup...")
         monitors = detect_monitors()
         browser_x, browser_y, browser_width, browser_height = (
             get_optimal_browser_position(monitors)
         )
 
-        # Log monitor discovery results
         logger.info("🖥️ Detected %d monitor(s)", len(monitors))
         for i, monitor in enumerate(monitors):
             primary_str = " (PRIMARY)" if monitor.get("primary") else ""
@@ -746,49 +743,38 @@ def create_dynamic_browser_function(debug_mode=False):
             browser_height,
         )
 
-        # Configure Chrome arguments with optimal positioning and stable flags
         chrome_args = current_config.get("add_arguments", [])
         chrome_args.extend(
             [
-                # Window positioning and display
-                "--start-maximized",  # Primary maximization flag
-                "--disable-extensions",  # Prevent extensions from interfering
-                # with window size
-                "--disable-plugins",  # Prevent plugins from affecting window behavior
-                f"--window-size={browser_width},{browser_height}",  # Explicit size
-                f"--window-position={browser_x},{browser_y}",  # Position on primary
-                "--new-window",  # Force new window instead of tab
-                "--force-device-scale-factor=1",  # Prevent scaling issues
-                # Stability and performance (official flags)
-                "--disable-dev-shm-usage",  # Prevent /dev/shm issues
-                "--disable-features=VizDisplayCompositor",  # Improve window
-                # positioning reliability
-                # User experience
-                "--no-default-browser-check",  # Prevent default browser popup
-                "--no-first-run",  # Skip first-run setup
-                "--disable-infobars",  # Disable notification bars
-                # Development and debugging
-                "--remote-debugging-port=0",  # Enable debugging
-                "--enable-logging",  # Enable Chrome logging
-                "--v=1",  # Verbose logging
+                "--start-maximized",
+                "--disable-extensions",
+                "--disable-plugins",
+                f"--window-size={browser_width},{browser_height}",
+                f"--window-position={browser_x},{browser_y}",
+                "--new-window",
+                "--force-device-scale-factor=1",
+                "--disable-dev-shm-usage",
+                "--disable-features=VizDisplayCompositor",
+                "--no-default-browser-check",
+                "--no-first-run",
+                "--disable-infobars",
+                "--remote-debugging-port=0",
+                "--enable-logging",
+                "--v=1",
             ]
         )
         current_config["add_arguments"] = chrome_args
 
-        # Override config settings for browser visibility mode
         current_config.update(
             {
-                "block_images": False,  # Don't block images in debug/visible
-                # browser mode
-                "cache": False,  # Disable cache for fresh data in debug mode
-                "max_retry": 1,  # Fewer retries for faster feedback in debug mode
-                "window_size": (browser_width, browser_height),  # Set explicit
-                # window size for Botasaurus
+                "block_images": False,
+                "cache": False,
+                "max_retry": 1,
+                "window_size": (browser_width, browser_height),
             }
         )
 
-        # Force environment to use main display
-        os.environ["DISPLAY"] = ":0.0"  # Use the full display specification
+        os.environ["DISPLAY"] = ":0.0"
 
         logger.info(
             "👁️ Debug mode enabled - browser window will be visible on your screen"
@@ -796,19 +782,18 @@ def create_dynamic_browser_function(debug_mode=False):
         logger.info("🖥️ Using display: %s", os.environ.get("DISPLAY"))
         logger.info("🔧 Virtual display disabled: enable_xvfb_virtual_display=False")
         logger.info(
-            "🖼️ Maximized positioning: --window-position=%d,%d" " --window-size=%d,%d",
+            "🖼️ Maximized positioning: --window-position=%d,%d --window-size=%d,%d",
             browser_x,
             browser_y,
             browser_width,
             browser_height,
         )
 
-    # Detect environment for better debugging
     is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER", False)
     is_ci = os.environ.get("CI", False)
     has_display = os.environ.get("DISPLAY") is not None
 
-    if DEBUG_MODE:
+    if debug_mode:
         logger.info("🔍 Environment detection:")
         logger.info("   • Platform: %s", platform.system())
         logger.info("   • Is Docker: %s", is_docker)
@@ -816,31 +801,20 @@ def create_dynamic_browser_function(debug_mode=False):
         logger.info("   • Has DISPLAY: %s", has_display)
         logger.info("   • DISPLAY value: %s", os.environ.get("DISPLAY", "Not set"))
 
-    # Force update debug-related settings with current DEBUG_MODE
     current_config.update(
         {
-            # CRITICAL: Headless disabled - Botasaurus bug (StopIteration)
-            # See: https://github.com/omkarcloud/botasaurus/issues
-            "headless": False,  # Always run with visible browser or Xvfb
-            # Keep browser open on crash in debug mode
-            "close_on_crash": not DEBUG_MODE,
-            # CRITICAL: Disable reuse - causes StopIteration in headless
-            "reuse_driver": False,  # Always create fresh browser
-            "create_driver": True,  # Force driver creation
+            "headless": False,
+            "close_on_crash": not debug_mode,
+            "reuse_driver": False,
+            "create_driver": True,
         }
     )
 
-    # Add custom output configuration to direct outputs to our outputs/ directory
     output_config = get_browser_config_for_outputs()
     current_config.update(output_config)
 
-    # NOTE: Botasaurus manages its own output directory structure by design.
-    # We use custom output functions instead of trying to override the output directory.
-
-    # Add timeout configuration to prevent hanging (via Chrome args)
     chrome_args = current_config.get("add_arguments", [])
     if not any("--timeout" in arg for arg in chrome_args):
-        # Get timeouts from configuration
         global_settings = CONFIG.get("global_settings", {})
         browser_config = global_settings.get("browser_config", {})
         page_timeout = browser_config.get("page_load_timeout_ms", 60000)
@@ -854,16 +828,19 @@ def create_dynamic_browser_function(debug_mode=False):
         )
     current_config["add_arguments"] = chrome_args
 
-    # Create the browser function with current configuration
+    return current_config
+
+
+def create_dynamic_browser_function(debug_mode=False):
+    """Create browser function with current DEBUG_MODE settings"""
+    DEBUG_MODE = debug_mode
+    current_config = _build_browser_config(debug_mode)
+
     @browser(**current_config)
     def scrape_amazon_products_browser(
         driver: Driver, data: dict[str, Any]
     ) -> list[dict[str, Any]]:
         try:
-            # Note: Botasaurus Driver uses explicit waits, not implicit waits
-            # All element selection methods (select, find, wait_for) accept timeout
-            # parameters
-            # Default timeout is 10 seconds for most operations
             if DEBUG_MODE:
                 logger.debug(
                     "🔧 Using Botasaurus explicit wait pattern "
@@ -877,10 +854,43 @@ def create_dynamic_browser_function(debug_mode=False):
                 import traceback
 
                 logger.debug(traceback.format_exc())
-            # Return empty list on timeout/error to prevent hanging
             return []
 
     return scrape_amazon_products_browser
+
+
+def create_batch_browser_function(debug_mode=False):
+    """Create a browser function that scrapes multiple inputs in one Chrome session.
+
+    Each input is scraped sequentially within the same browser, avoiding the
+    ~15s Chrome startup overhead per keyword that the single-keyword function has.
+    """
+    current_config = _build_browser_config(debug_mode)
+
+    @browser(**current_config)
+    def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
+        items = data.get("items", [])
+        results = []
+        for i, item in enumerate(items):
+            input_label = item.get("keyword", f"item-{i}")
+            try:
+                logger.info(
+                    "[batch %d/%d] Scraping: %s", i + 1, len(items), input_label
+                )
+                products = scrape_amazon_products_browser_impl(driver, item)
+                results.append({"input": input_label, "products": products or []})
+            except Exception as e:
+                logger.error(
+                    "[batch %d/%d] Failed for %s: %s",
+                    i + 1,
+                    len(items),
+                    input_label,
+                    e,
+                )
+                results.append({"input": input_label, "products": [], "error": str(e)})
+        return results
+
+    return scrape_batch
 
 
 def scrape_single_product(

@@ -16,11 +16,10 @@ Close with a short call to action: follow for more, drop a like, check the link 
 - Refer to the product by a short natural name, not the full official title. If it's "Sony WH-1000XM5 Wireless Noise Canceling Headphones", just say "the XM5s" or "these headphones."
 - Sound like a real person talking to a friend. Vary sentence length. Use contractions. Sentence fragments are fine.
 - Don't start with a question AND end with a question. Pick one or the other.
-- If the price is notable (good deal, surprisingly affordable), work it in. If it's unremarkable, skip it.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

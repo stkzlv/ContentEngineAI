@@ -19,11 +19,10 @@ After stacking 4-6 benefits, land on one final statement that ties it together. 
 - Prioritize rhythm. Read it out loud in your head. If two sentences in a row have the same structure, rewrite one.
 - Don't start more than two consecutive sentences with "It" or the product name. Vary how you introduce each benefit.
 - Energy comes from brevity, not exclamation marks. Don't use exclamation marks at all.
-- Work in the price if it lands well as one of the rapid-fire points. If it disrupts the flow, skip it.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}
