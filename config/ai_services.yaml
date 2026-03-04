@@ -13,7 +13,7 @@ llm_settings:
 
   # Models to try (in priority order)
   models:
-    - "gemini-2.5-flash-lite"
+    - "gemini-2.0-flash"
 
   # Gemini doesn't need free model discovery or fallback
   auto_select_free_model: false
