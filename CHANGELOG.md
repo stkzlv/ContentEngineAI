@@ -5,6 +5,23 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] - 2026-03-04
+
+### Added
+- `--clean` flag for global batch pipeline to remove product directories before running
+- `scrape-lowpri` and `produce-lowpri` Makefile targets for resource-limited scraping/producing
+
+### Changed
+- Switch default Gemini model from `gemini-2.0-flash` to `gemini-2.5-flash-lite`
+- Fix `max_tokens` Pydantic default (4096 to 600) to match ai_services.yaml
+- Fix `pipeline_timeout_sec` fallback (300 to 900) to match core.yaml
+
+### Removed
+- Unused `optimization_settings` section from performance.yaml (background_processing, connection_pooling, async_io, caching)
+- Unused `ApiSettings` fields (default_request_timeout_sec, default_retry_attempts, default_retry_delay_sec)
+- Unused URL shortener config (fallback_providers, bitly, tinyurl sections)
+- Stale keywords from scraper.yaml batch config
+
 ## [0.31.0] - 2026-03-03
 
 ### Changed

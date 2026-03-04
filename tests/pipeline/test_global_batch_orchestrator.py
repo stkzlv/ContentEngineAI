@@ -43,6 +43,7 @@ def base_config():
         platforms=None,
         schedule_time=None,
         fail_fast_publish=False,
+        clean=False,
     )
 
 
@@ -83,7 +84,7 @@ def mock_video_config():
     from types import SimpleNamespace
 
     return SimpleNamespace(
-        pipeline_timeout_sec=300,
+        pipeline_timeout_sec=900,
         llm_settings=SimpleNamespace(api_key_env_var=None),
         stock_media_settings=SimpleNamespace(pexels_api_key_env_var=None),
         audio_settings=SimpleNamespace(

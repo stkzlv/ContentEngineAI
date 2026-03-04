@@ -938,7 +938,7 @@ async def step_download_music(ctx: PipelineContext):
                 from src.config_manager import get_config_value
 
                 mmap_threshold = get_config_value(
-                    "optimization_settings.memory.mmap_threshold_bytes", 1048576
+                    "memory.mmap_threshold_bytes", 1048576
                 )
                 if is_file_suitable_for_mmap(local_path, min_size=mmap_threshold):
                     logger.debug(

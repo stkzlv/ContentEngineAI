@@ -362,6 +362,9 @@ class GlobalBatchConfig:
     # Dry-run configuration
     dry_run: bool = False
 
+    # Clean outputs before run
+    clean: bool = False
+
     # Output format configuration
     output_format: str = "text"  # "text" or "json"
 
@@ -821,6 +824,9 @@ def load_global_batch_config(
     # Dry-run configuration
     dry_run = getattr(cli_args, "dry_run", False)
 
+    # Clean outputs before run
+    clean = getattr(cli_args, "clean", False)
+
     # Output format configuration
     output_format = getattr(cli_args, "output_format", None) or "text"
 
@@ -846,6 +852,7 @@ def load_global_batch_config(
         script_template=script_template,
         resume=resume,
         dry_run=dry_run,
+        clean=clean,
         output_format=output_format,
     )
 

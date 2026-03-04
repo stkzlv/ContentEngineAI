@@ -266,7 +266,7 @@ class UnifiedConfigManager:
         fallback_config = {
             "debug_mode": True,
             "global_output_directory": "outputs",
-            "pipeline_timeout_sec": 300,
+            "pipeline_timeout_sec": 900,
             "audio_settings": {
                 "bitrate": "192k",
                 "sample_rate": 48000,

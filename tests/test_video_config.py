@@ -317,7 +317,7 @@ class TestLLMSettings:
         )
 
         assert settings.target_audience == "General audience"
-        assert settings.max_tokens == 4096
+        assert settings.max_tokens == 600
         assert settings.temperature == 0.7
         assert settings.timeout_seconds == 60
 

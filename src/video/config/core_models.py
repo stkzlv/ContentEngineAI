@@ -164,9 +164,6 @@ class ApiSettings(BaseModel):
     stock_media_concurrent_downloads: int = Field(5)
     stock_media_search_multiplier: int = Field(2)
     stock_media_max_per_page: int = Field(80)
-    default_request_timeout_sec: int = Field(15)
-    default_retry_attempts: int = Field(3)
-    default_retry_delay_sec: int = Field(5)
     download_timeout_sec: int = Field(30)  # Configurable via YAML
     download_retry_attempts: int = Field(3)  # Configurable via YAML
     download_retry_min_wait_sec: int = Field(1)  # Configurable via YAML
@@ -326,9 +323,6 @@ class URLShortenerSettings(BaseModel):
 
     enabled: bool = Field(True, description="Enable URL shortening feature")
     provider: str = Field("picsee", description="Primary URL shortening provider")
-    fallback_providers: list[str] = Field(
-        default_factory=list, description="Fallback providers to try if primary fails"
-    )
 
     # API configuration
     api_timeout_sec: int = Field(30, description="Request timeout in seconds")
@@ -349,34 +343,12 @@ class URLShortenerSettings(BaseModel):
         100, description="Maximum URLs per Picsee bulk request"
     )
 
-    # Bitly-specific configuration (placeholder for future implementation)
-    bitly_api_key_env_var: str = Field(
-        "BITLY_API_KEY", description="Environment variable for Bitly API key"
-    )
-    bitly_custom_domain: str | None = Field(
-        None, description="Optional custom domain for Bitly"
-    )
-
-    # TinyURL-specific configuration (placeholder for future implementation)
-    tinyurl_api_key_env_var: str = Field(
-        "TINYURL_API_KEY", description="Environment variable for TinyURL API key"
-    )
-
     # Integration settings
     shorten_on_scrape: bool = Field(
         True, description="Automatically shorten affiliate links during scraping"
     )
-    include_in_descriptions: bool = Field(
-        True, description="Include shortened links in video descriptions"
-    )
     fallback_to_original: bool = Field(
         True, description="Use original URL if shortening fails"
-    )
-    enable_caching: bool = Field(
-        True, description="Cache shortened URLs to avoid re-shortening"
-    )
-    cache_ttl_hours: int = Field(
-        168, description="Cache TTL in hours (default: 7 days)"
     )
 
 
