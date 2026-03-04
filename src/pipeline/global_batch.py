@@ -224,6 +224,14 @@ Examples:
         ),
     )
     common_group.add_argument(
+        "--clean",
+        action="store_true",
+        help=(
+            "Remove product directories from outputs before running. "
+            "With --product-ids, removes only those products."
+        ),
+    )
+    common_group.add_argument(
         "--output-format",
         choices=["text", "json"],
         default="text",
@@ -1766,6 +1774,27 @@ async def main():
         logger.info(f"Fail-fast: {config.fail_fast}")
         logger.info(f"Resume mode: {config.resume}")
         logger.info(f"Dry-run mode: {config.dry_run}")
+
+        # Handle clean mode
+        if config.clean:
+            import re
+            import shutil
+
+            asin_pattern = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
+            outputs = config.outputs_dir
+
+            if outputs.exists():
+                if config.product_ids:
+                    for pid in config.product_ids:
+                        prod_dir = outputs / pid
+                        if prod_dir.is_dir():
+                            shutil.rmtree(prod_dir)
+                            logger.info("Cleaned product directory: %s", prod_dir)
+                else:
+                    for item in outputs.iterdir():
+                        if item.is_dir() and asin_pattern.match(item.name):
+                            shutil.rmtree(item)
+                            logger.info("Cleaned product directory: %s", item)
 
         # Handle dry-run mode
         if config.dry_run:

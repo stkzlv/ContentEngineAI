@@ -18,7 +18,7 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri
+	batch batch-lowpri scrape-lowpri produce-lowpri
 
 # Default target
 help:
@@ -90,7 +90,9 @@ help:
 	@echo "$(YELLOW)Scraping Commands:$(NC)"
 	@echo "  scrape-test        - Run test scrape with Botasaurus"
 	@echo "  scrape-advanced    - Run advanced search scrape"
+	@echo "  scrape-lowpri      - Run scraper with reduced priority"
 	@echo "  produce-video      - Generate video from scraped data"
+	@echo "  produce-lowpri     - Run producer with reduced priority"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
 	@echo "  lint-verbose  - Show detailed linting output"
@@ -434,6 +436,34 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			poetry run python -m src.pipeline.global_batch $(ARGS); \
+	fi
+
+scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			poetry run python -m src.scraper.amazon.scraper $(ARGS); \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			poetry run python -m src.scraper.amazon.scraper $(ARGS); \
+	fi
+
+produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			poetry run python -m src.video.producer $(ARGS); \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			poetry run python -m src.video.producer $(ARGS); \
 	fi
 
 # Video production commands

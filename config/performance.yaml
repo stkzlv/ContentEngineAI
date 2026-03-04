@@ -30,49 +30,15 @@ ffmpeg_settings:
   validation_timeout_sec: 10
   
 # ============================================================================
-# OPTIMIZATION SETTINGS
+# MEMORY OPTIMIZATION
 # ============================================================================
-optimization_settings:
-  # Background processing settings
-  background_processing:
-    enabled: true
-    max_workers: 4
-    queue_size: 100
-    
-  # Connection pooling
-  connection_pooling:
-    enabled: true
-    max_connections: 20
-    connection_timeout: 30
-    
-  # Async I/O settings
-  async_io:
-    enabled: true
-    chunk_size: 8192
-    max_concurrent: 10
-    
-  # Caching configuration
-  caching:
-    enabled: true
-    ttl_seconds: 3600  # 1 hour
-    max_size_mb: 100
-    
-  # Memory optimization
-  memory:
-    # Garbage collection settings
-    gc_threshold: 0.8
-    max_memory_mb: 2048
-
-    # Image processing memory limits
-    max_image_size_mb: 50
-    image_processing_workers: 2
-
-    # Memory-mapped I/O threshold (bytes)
-    # Files larger than this use memory-mapped I/O for ~2-3x faster copying
-    # Files smaller use standard copy methods (lower overhead)
-    # 1,048,576 bytes = 1 MB (1024 * 1024)
-    # Typical values: 1MB (default), 512KB for SSDs, 4MB for HDDs
-    mmap_threshold_bytes: 1048576
+memory:
+  # Memory-mapped I/O threshold (bytes)
+  # Files larger than this use memory-mapped I/O for ~2-3x faster copying
+  # Files smaller use standard copy methods (lower overhead)
+  # 1,048,576 bytes = 1 MB (1024 * 1024)
+  # Typical values: 1MB (default), 512KB for SSDs, 4MB for HDDs
+  mmap_threshold_bytes: 1048576
 
 # ============================================================================
 # API SETTINGS
@@ -90,40 +56,13 @@ api_settings:
   tts:
     request_timeout_sec: 60
     retry_attempts: 2
-    chunk_size_chars: 4000
-    
+
   # ---- Stock media API settings ----
   stock_media:
     concurrent_downloads: 5
     search_multiplier: 2
     max_per_page: 80
     request_timeout_sec: 30
-    
-  # ---- General API settings ----
-  general:
-    default_request_timeout_sec: 15
-    default_retry_attempts: 3
-    default_retry_delay_sec: 5
-    
-    # Rate limiting
-    rate_limit:
-      enabled: true
-      requests_per_minute: 60
-      burst_limit: 10
-      
-  # ---- Download settings ----
-  downloads:
-    timeout_sec: 30
-    retry_attempts: 3
-    retry_min_wait_sec: 2
-    retry_max_wait_sec: 10
-    
-    # Concurrent download limits
-    max_concurrent_downloads: 5
-    chunk_size_bytes: 1048576  # 1MB
-    
-    # File size limits
-    max_file_size_mb: 50
 
 # ============================================================================
 # CIRCUIT BREAKER SETTINGS
