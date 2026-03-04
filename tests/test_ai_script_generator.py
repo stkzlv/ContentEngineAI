@@ -92,12 +92,12 @@ class TestFormatPrompt:
 
     def test_format_prompt_special_characters(self, sample_product_data: ProductData):
         """Test prompt formatting with special characters."""
-        template = "Script for {FULL_PRODUCT_NAME} with price {PRICE}"
-        sample_product_data.price = "$99.99 & Free Shipping!"
+        sample_product_data.title = "Test & <Product> 'Special'"
+        template = "Script for {FULL_PRODUCT_NAME}"
 
         result = format_prompt(template, sample_product_data, "General audience")
 
-        assert "$99.99 & Free Shipping!" in result
+        assert "Test & <Product> 'Special'" in result
 
 
 class TestSaveDebugPrompt:

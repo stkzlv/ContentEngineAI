@@ -27,4 +27,3 @@ Close with your honest snap verdict. One sentence on whether it lived up to the 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

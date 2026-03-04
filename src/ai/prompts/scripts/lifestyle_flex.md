@@ -21,11 +21,10 @@ Close with a line about how this small addition made a real difference in your d
 - Avoid aspirational fluff. "Living my best life" territory is off limits. Stay concrete: real places, real times, real activities.
 - The product shouldn't be the main character. The routine is. The product just makes it better.
 - Contractions, casual phrasing, sentence fragments all welcome. Talk like you're explaining your setup to a friend.
-- Price is optional. Mention it only if affordability is part of why it fits your life.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

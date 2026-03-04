@@ -19,11 +19,10 @@ Wrap up by reinforcing the verdict (this is the one worth buying) and end with a
 - Never name competing brands or products. Say "the other ones", "everything else I tried", etc.
 - Sound like someone who's genuinely frustrated with bad purchases and relieved to find a good one. Not angry, just honest.
 - Mix sentence lengths. Contractions are fine. Let it sound like you're venting to a friend, not reading a review.
-- Mention the price if it adds to the comparison angle (e.g., "and it costs less than half of what I returned"). Skip it if it doesn't strengthen the point.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

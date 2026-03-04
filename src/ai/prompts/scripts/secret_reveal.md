@@ -19,11 +19,10 @@ Wrap up with a short CTA. Follow for more finds like this, link in bio, like if 
 - Don't make the "secret" angle feel forced. If the product is a common item, the secret can be about a specific feature or use case people overlook, not about the product's existence.
 - Sound like someone who genuinely found something good and wants to share it. Not like an infomercial host.
 - Use contractions. Vary sentence length. Be specific, not vague.
-- Mention price only if it strengthens the "hidden gem" angle (e.g., "and it's under fifty dollars" when competing products cost more).
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

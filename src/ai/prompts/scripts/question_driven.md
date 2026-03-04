@@ -20,11 +20,10 @@ Close with a short statement that ties the answers together, then a casual CTA: 
 - Don't ask yes/no questions. Ask questions that make the viewer think for a second.
 - Answers should be specific, not vague. Connect directly to product features from the description below.
 - Keep the overall tone curious and confident, like someone who figured something out and wants to share.
-- Mention the price if it works as an answer to a "how much does it cost" type question. Otherwise leave it out.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

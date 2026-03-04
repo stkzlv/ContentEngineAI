@@ -86,6 +86,8 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
     - {PRODUCT_DESCRIPTION}: The product description
     - {AUDIENCE}: The target audience for the video
 
+    Price is intentionally excluded to avoid stale/incorrect pricing in videos.
+
     Args:
     ----
         template: The prompt template string
@@ -106,7 +108,6 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
             FULL_PRODUCT_NAME=product.title or "Product",
             PRODUCT_DESCRIPTION=product.description or "No description available",
             AUDIENCE=audience,
-            PRICE=product.price or "Price not available",
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
@@ -596,6 +597,14 @@ async def generate_script(
         raise ScriptGenerationError("No models available to generate script.")
 
     logger.info(f"Order of models to attempt: {models_to_try}")
+
+    if debug_mode:
+        logger.debug(
+            "Product fields: title=%s, price=%s, asin=%s",
+            product.title,
+            product.price,
+            getattr(product, "asin", None),
+        )
 
     template_path = select_script_template(settings, product_id)
     template_name = template_path.stem

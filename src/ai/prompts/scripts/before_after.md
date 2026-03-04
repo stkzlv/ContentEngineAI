@@ -21,11 +21,10 @@ Close with a short CTA: follow, link in bio, like, or share. Keep it natural.
 - The "before" should be something the target audience actually experienced, not a made-up worst case.
 - The "after" should be grounded in real product features, not exaggerated claims.
 - Sound conversational. Use contractions. Vary your rhythm. A short punchy sentence after a longer one keeps things moving.
-- Work in the price if it adds to the transformation story (e.g., "and it was only thirty bucks"). Skip it if it doesn't fit naturally.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

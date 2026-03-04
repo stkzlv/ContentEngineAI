@@ -22,11 +22,10 @@ Close with a clear call to action. Ask them to follow for more, drop a like, sha
 - Inject personality. Avoid a robotic or overly formal tone. But don't force humor or quirks either.
 - Tailor the tone to the target audience without explicitly naming who the audience is.
 - The script should provide genuine value, not just hype. The viewer should walk away knowing something useful about the product.
-- If the price is a selling point, work it in. If it's unremarkable, skip it.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}

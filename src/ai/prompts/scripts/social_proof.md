@@ -20,11 +20,10 @@ End by reinforcing the social proof angle. Something like "If you've been on the
 - Don't make it sound like an infomercial. The tone is someone sharing something they noticed is trending, not a salesperson citing statistics.
 - Sound like a real person who got curious because other people wouldn't stop talking about it. Casual, slightly impressed.
 - Contractions and sentence fragments are fine. Vary your rhythm.
-- Mention the price if it strengthens the "no wonder everyone's buying it" angle. Skip if it doesn't add anything.
+- Do not mention the product price.
 
 ## Product Data
 
 - **Product name:** {FULL_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
-- **Price:** {PRICE}
