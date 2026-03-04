@@ -57,6 +57,15 @@ make batch-lowpri ARGS="--keywords 'wireless earbuds' --max-products 10 --min-pr
 # Global batch pipeline (skip publishing)
 make batch-lowpri ARGS="--keywords 'smart watch' --skip-publish --debug"
 
+# Global batch pipeline (clean stale outputs before run)
+make batch-lowpri ARGS="--product-ids B0ASIN1 --clean --debug"
+
+# Scraping only (low priority)
+make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
+
+# Video production only (low priority)
+make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
+
 # Tune resource limits if needed (defaults: MEM_LIMIT=8G, NICE_LEVEL=10)
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
 

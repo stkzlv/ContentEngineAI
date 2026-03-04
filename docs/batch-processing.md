@@ -401,7 +401,29 @@ global_batch:
   debug: false
 ```
 
-**Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`) are CLI-only and not supported in YAML configuration.
+#### Clean Before Run
+
+Remove stale product directories before starting a fresh run:
+
+```bash
+# Clean specific products
+poetry run python -m src.pipeline.global_batch \
+  --product-ids B0BTYCRJSS B0D6GZF3T4 \
+  --profile slideshow_images1 \
+  --clean \
+  --debug
+
+# Clean all product directories (ASIN-pattern dirs only)
+poetry run python -m src.pipeline.global_batch \
+  --keywords "wireless earbuds" \
+  --profile slideshow_images1 \
+  --clean \
+  --debug
+```
+
+With `--product-ids`, only those product dirs are removed. Without it, all ASIN-matching directories under outputs/ are cleaned. Non-product directories (logs/, coverage/) are preserved.
+
+**Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 
 **Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling
@@ -519,16 +541,23 @@ Total Pipeline Duration: 158.2s
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
 - **Error Resilience**: Graceful failure handling with optional fail-fast mode per phase
 - **Low-Priority Mode**: `make batch-lowpri` runs with reduced CPU, I/O, and memory priority
+- **Pre-Run Cleanup**: `--clean` removes stale product directories before starting
 
 ### Low-Priority Batch Mode
 
-For long-running batch jobs on shared or resource-constrained machines, use `make batch-lowpri` instead of `make batch`. It wraps the pipeline with `nice`, `ionice`, and `systemd-run` memory limits:
+For long-running batch jobs on shared or resource-constrained machines, use low-priority Makefile targets. They wrap commands with `nice`, `ionice`, and `systemd-run` memory limits:
 
 ```bash
-# Run with default limits (nice=10, ionice=best-effort/4, mem=4G)
+# Full pipeline (scrape + produce + publish)
 make batch-lowpri ARGS="--keywords 'wireless earbuds' --profile slideshow_images1 --debug"
 
-# Override resource limits
+# Scraping only
+make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
+
+# Video production only
+make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
+
+# Override resource limits (defaults: MEM_LIMIT=8G, NICE_LEVEL=10)
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
 ```
 
