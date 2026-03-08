@@ -3,20 +3,14 @@ r"""CLI interface for Late.dev publisher.
 Provides command-line access to publish videos to social media platforms via Late.dev.
 
 Usage:
-    # List connected accounts
-    python -m src.publisher.late list-accounts --debug
+    # Publish single product (auto-schedules to next slot)
+    python -m src.publisher.late single B0ABC123 --debug
 
-    # Publish single video immediately to multiple platforms
-    python -m src.publisher.late single --video outputs/B0ABC123/video_sequential.mp4 \\
-        --platform youtube --platform tiktok --immediate
+    # Schedule all videos to calendar slots
+    python -m src.publisher.late schedule --debug
 
-    # Schedule single video for later
-    python -m src.publisher.late single --video outputs/B0ABC123/video_sequential.mp4 \\
-        --platform youtube --schedule "2025-01-20 14:00:00"
-
-    # Batch publish all videos in outputs directory
-    python -m src.publisher.late batch --platform youtube --platform tiktok \\
-        --platform instagram --immediate --debug
+    # Publish all videos immediately
+    python -m src.publisher.late schedule --immediate --debug
 """
 
 import argparse
@@ -421,102 +415,6 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         sys.exit(1)
 
 
-async def cmd_batch(args: argparse.Namespace, config, session: aiohttp.ClientSession):
-    """Execute batch publish command.
-
-    Args:
-    ----
-        args: Parsed command-line arguments
-        config: PublisherConfig instance
-        session: aiohttp ClientSession
-
-    """
-    logger.info("=" * 80)
-    logger.info("BATCH PUBLISHING MODE")
-    logger.info("=" * 80)
-    logger.info("Target platforms: %s", [p.value for p in args.platforms])
-    logger.info("Outputs directory: %s", args.outputs_dir)
-    logger.info(
-        "Stagger delay: %d-%ds", config.stagger_delay_min, config.stagger_delay_max
-    )
-    logger.info("Fail-fast: %s", args.fail_fast)
-
-    publisher = _create_publisher_from_config(config, session)
-
-    try:
-        # Authenticate
-        is_authenticated = await publisher.authenticate()
-        if not is_authenticated:
-            logger.error("Authentication failed - check your API key")
-            sys.exit(1)
-
-        # Create batch publisher
-        batch_publisher = BatchPublisher(
-            publisher=publisher,
-            outputs_dir=args.outputs_dir,
-            platforms=args.platforms,
-            stagger_delay_min=config.stagger_delay_min,
-            stagger_delay_max=config.stagger_delay_max,
-            fail_fast=args.fail_fast,
-            retry_failed=getattr(args, "retry_failed", False),
-        )
-
-        # Execute batch
-        summary = await batch_publisher.publish_batch()
-
-        # Automatic cleanup if enabled
-        if (
-            config.cleanup_config.enabled
-            and not args.no_cleanup
-            and summary.successful > 0
-        ):
-            logger.info("=" * 80)
-            logger.info(
-                "Running automatic cleanup for successfully published products..."
-            )
-
-            try:
-                cleanup_mgr = CleanupManager(
-                    outputs_dir=args.outputs_dir,
-                    config=config.cleanup_config,
-                    publisher=publisher,
-                )
-
-                cleanup_summary = await cleanup_mgr.cleanup_all(
-                    platforms=args.platforms,
-                    dry_run=False,
-                )
-
-                logger.info("✓ Cleanup complete")
-                logger.info("  Products cleaned: %d", cleanup_summary["cleaned"])
-                logger.info("  Products skipped: %d", cleanup_summary["skipped"])
-                logger.info(
-                    "  Total disk space freed: %s",
-                    format_bytes(cleanup_summary["disk_freed"]),
-                )
-
-            except Exception as cleanup_error:
-                logger.warning(
-                    "Cleanup failed but batch publish was successful: %s",
-                    cleanup_error,
-                )
-
-        elif args.no_cleanup:
-            logger.info("Cleanup disabled via --no-cleanup flag")
-        elif summary.successful == 0:
-            logger.debug("No successful publishes - skipping cleanup")
-        else:
-            logger.debug("Cleanup not configured in config file")
-
-        # Exit with error code if any failures
-        if summary.failed > 0:
-            sys.exit(1)
-
-    except Exception as e:
-        logger.error("Batch publishing failed: %s", e, exc_info=args.debug)
-        sys.exit(1)
-
-
 async def cmd_calendar(
     args: argparse.Namespace, config, session: aiohttp.ClientSession
 ):
@@ -586,7 +484,11 @@ async def cmd_calendar(
 async def cmd_schedule_auto(
     args: argparse.Namespace, config, session: aiohttp.ClientSession
 ):
-    """Execute schedule auto command.
+    """Execute schedule command (calendar slots or immediate).
+
+    Handles both scheduled and immediate publishing. When --immediate is set,
+    delegates to BatchPublisher for direct publishing with stagger delays.
+    Otherwise uses ScheduleManager to assign calendar slots.
 
     Args:
     ----
@@ -595,69 +497,21 @@ async def cmd_schedule_auto(
         session: aiohttp ClientSession
 
     """
+    immediate = getattr(args, "immediate", False)
+    mode = "IMMEDIATE PUBLISH" if immediate else "AUTO-SCHEDULING"
+
     logger.info("=" * 80)
-    logger.info("AUTO-SCHEDULING MODE")
+    logger.info("%s MODE", mode)
     logger.info("=" * 80)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
     logger.info("Outputs directory: %s", args.outputs_dir)
-    if args.dry_run:
+    if getattr(args, "dry_run", False) and not immediate:
         logger.info("DRY RUN MODE - No actual scheduling will occur")
 
-    # Scan for videos in outputs directory
-    logger.info("Scanning %s for videos...", args.outputs_dir)
-    video_paths = []
-
-    for product_dir in args.outputs_dir.iterdir():
-        if not product_dir.is_dir():
-            continue
-
-        # Look for video files matching pattern video_*.mp4
-        for video_file in product_dir.glob("video_*.mp4"):
-            video_paths.append(video_file)
-
-    if not video_paths:
-        logger.warning("No video files found in %s", args.outputs_dir)
-        return
-
-    logger.info("Found %d video(s)", len(video_paths))
-
-    # Filter out already published videos (unless --force)
-    if args.force:
-        logger.info("Force mode - including already published videos")
-        unpublished_videos = video_paths
-    else:
-        logger.info("Filtering already published videos...")
-        unpublished_videos = []
-
-        for video_path in video_paths:
-            product_id = video_path.parent.name
-
-            already_published = all(
-                is_already_published(product_id, platform.value, args.outputs_dir)
-                for platform in args.platforms
-            )
-
-            if not already_published:
-                unpublished_videos.append(video_path)
-            else:
-                logger.debug(
-                    "Skipping %s - already published to all target platforms",
-                    product_id,
-                )
-
-        if not unpublished_videos:
-            logger.info("No unpublished videos to schedule")
-            return
-
-    logger.info(
-        "Found %d unpublished video(s) ready for scheduling", len(unpublished_videos)
-    )
-
-    # Create publisher
+    # Create publisher and authenticate
     publisher = _create_publisher_from_config(config, session)
 
     try:
-        # Authenticate
         is_authenticated = await publisher.authenticate()
         if not is_authenticated:
             logger.error("Authentication failed - check your API key")
@@ -665,21 +519,24 @@ async def cmd_schedule_auto(
 
         logger.info("Authentication successful")
 
-        # Create schedule manager
+        # Immediate mode: delegate to BatchPublisher
+        if immediate:
+            await _run_immediate_batch(args, config, publisher)
+            return
+
+        # Scheduled mode: scan, filter, and assign calendar slots
+        unpublished_videos = _scan_and_filter_videos(args)
+        if not unpublished_videos:
+            return
+
         schedule_mgr = ScheduleManager(config=config.schedule_config)
-
-        # Auto-schedule videos
-        logger.info("Auto-scheduling videos to calendar slots...")
-        logger.info("-" * 80)
-
-        # Determine cleanup config
         cleanup_config = None if args.no_cleanup else config.cleanup_config
 
         summary = await schedule_mgr.auto_schedule(
             videos=unpublished_videos,
             platforms=args.platforms,
             publisher=publisher,
-            start_slot=0,  # Start from first slot
+            start_slot=0,
             dry_run=args.dry_run,
             cleanup_config=cleanup_config,
             outputs_dir=args.outputs_dir,
@@ -687,9 +544,8 @@ async def cmd_schedule_auto(
             force=getattr(args, "force", False),
         )
 
-        # Display summary
         logger.info("=" * 80)
-        logger.info("AUTO-SCHEDULING SUMMARY")
+        logger.info("SCHEDULING SUMMARY")
         logger.info("=" * 80)
         logger.info("Total videos processed: %d", len(unpublished_videos))
         logger.info("Successfully scheduled: %d", summary["scheduled"])
@@ -705,12 +561,137 @@ async def cmd_schedule_auto(
                 "run without --dry-run to schedule"
             )
 
-        # Exit with error if any failures
         if summary["failed"] > 0:
             sys.exit(1)
 
     except Exception as e:
-        logger.error("Auto-scheduling failed: %s", e, exc_info=args.debug)
+        logger.error("Publishing failed: %s", e, exc_info=args.debug)
+        sys.exit(1)
+
+
+def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
+    """Scan outputs dir for videos, optionally filtering published ones.
+
+    Args:
+    ----
+        args: Parsed CLI args (needs outputs_dir, force, platforms)
+
+    Returns:
+    -------
+        List of video file paths to process
+
+    """
+    logger.info("Scanning %s for videos...", args.outputs_dir)
+    video_paths = []
+
+    for product_dir in args.outputs_dir.iterdir():
+        if not product_dir.is_dir():
+            continue
+        for video_file in product_dir.glob("video_*.mp4"):
+            video_paths.append(video_file)
+
+    if not video_paths:
+        logger.warning("No video files found in %s", args.outputs_dir)
+        return []
+
+    logger.info("Found %d video(s)", len(video_paths))
+
+    if getattr(args, "force", False):
+        logger.info("Force mode - including already published videos")
+        return video_paths
+
+    logger.info("Filtering already published videos...")
+    unpublished = []
+
+    for video_path in video_paths:
+        product_id = video_path.parent.name
+
+        already_published = all(
+            is_already_published(product_id, platform.value, args.outputs_dir)
+            for platform in args.platforms
+        )
+
+        if not already_published:
+            unpublished.append(video_path)
+        else:
+            logger.debug(
+                "Skipping %s - already published to all target platforms",
+                product_id,
+            )
+
+    if not unpublished:
+        logger.info("No unpublished videos to process")
+        return []
+
+    logger.info("Found %d unpublished video(s) ready to process", len(unpublished))
+    return unpublished
+
+
+async def _run_immediate_batch(
+    args: argparse.Namespace,
+    config,
+    publisher,
+) -> None:
+    """Run immediate batch publishing via BatchPublisher.
+
+    Args:
+    ----
+        args: Parsed CLI args
+        config: PublisherConfig instance
+        publisher: Authenticated publisher instance
+
+    """
+    batch_publisher = BatchPublisher(
+        publisher=publisher,
+        outputs_dir=args.outputs_dir,
+        platforms=args.platforms,
+        stagger_delay_min=config.stagger_delay_min,
+        stagger_delay_max=config.stagger_delay_max,
+        fail_fast=getattr(args, "fail_fast", False),
+        retry_failed=getattr(args, "retry_failed", False),
+    )
+
+    summary = await batch_publisher.publish_batch()
+
+    # Automatic cleanup if enabled
+    if config.cleanup_config.enabled and not args.no_cleanup and summary.successful > 0:
+        logger.info("=" * 80)
+        logger.info("Running automatic cleanup for successfully published products...")
+
+        try:
+            cleanup_mgr = CleanupManager(
+                outputs_dir=args.outputs_dir,
+                config=config.cleanup_config,
+                publisher=publisher,
+            )
+
+            cleanup_summary = await cleanup_mgr.cleanup_all(
+                platforms=args.platforms,
+                dry_run=False,
+            )
+
+            logger.info("Cleanup complete")
+            logger.info("  Products cleaned: %d", cleanup_summary["cleaned"])
+            logger.info("  Products skipped: %d", cleanup_summary["skipped"])
+            logger.info(
+                "  Total disk space freed: %s",
+                format_bytes(cleanup_summary["disk_freed"]),
+            )
+
+        except Exception as cleanup_error:
+            logger.warning(
+                "Cleanup failed but publishing was successful: %s",
+                cleanup_error,
+            )
+
+    elif args.no_cleanup:
+        logger.info("Cleanup disabled via --no-cleanup flag")
+    elif summary.successful == 0:
+        logger.debug("No successful publishes - skipping cleanup")
+    else:
+        logger.debug("Cleanup not configured in config file")
+
+    if summary.failed > 0:
         sys.exit(1)
 
 
@@ -889,20 +870,23 @@ async def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # List connected accounts
-  python -m src.publisher.late list-accounts --debug
+  # Publish single product (auto-schedules to next available slot)
+  python -m src.publisher.late single B0ABC123 --debug
 
-  # Publish single video immediately
-  python -m src.publisher.late single --video outputs/B0ABC123/video.mp4 \\
-      --platform youtube --platform tiktok --immediate
+  # Publish to specific platforms
+  python -m src.publisher.late single B0ABC123 --platform youtube --platform tiktok
 
-  # Schedule single video
-  python -m src.publisher.late single --video outputs/B0ABC123/video.mp4 \\
-      --platform youtube --schedule "2025-01-20 14:00:00"
+  # Schedule all unpublished videos to calendar slots
+  python -m src.publisher.late schedule --dry-run --debug
 
-  # Batch publish all videos
-  python -m src.publisher.late batch --platform youtube --platform tiktok \\
-      --immediate --debug
+  # Force-schedule already published products
+  python -m src.publisher.late schedule --force --debug
+
+  # Publish all videos immediately (no scheduling)
+  python -m src.publisher.late schedule --immediate --debug
+
+  # Retry failed items only
+  python -m src.publisher.late schedule --immediate --retry-failed --debug
 
   # Use specific account (multi-account mode)
   python -m src.publisher.late single B0ABC123 --account secondary
@@ -934,7 +918,7 @@ Examples:
     # single command
     single_parser = subparsers.add_parser(
         "single",
-        help="Publish a single video by product ID (auto-discovers video and schedule)",
+        help="Publish a single product (auto-discovers video, schedules to next slot)",
     )
     single_parser.add_argument(
         "product_id",
@@ -946,13 +930,16 @@ Examples:
         action="append",
         dest="platforms",
         choices=["youtube", "tiktok", "instagram", "facebook", "twitter", "linkedin"],
-        help="Target platform(s) - defaults to all 3 if not specified",
+        help="Target platform(s) (default: youtube, tiktok, instagram)",
     )
     single_parser.add_argument(
         "--schedule",
         type=str,
         metavar="DATETIME",
-        help="Schedule for later (format: '2025-01-20 14:00:00') - RECOMMENDED",
+        help=(
+            "Schedule for specific time (format: 'YYYY-MM-DD HH:MM:SS'). "
+            "Without this, uses next available calendar slot"
+        ),
     )
     single_parser.add_argument(
         "--immediate",
@@ -967,7 +954,7 @@ Examples:
     single_parser.add_argument(
         "--no-cleanup",
         action="store_true",
-        help="Disable automatic cleanup after successful publish",
+        help="Disable automatic cleanup after publish (default: cleanup enabled)",
     )
     single_parser.add_argument(
         "--link-in-bio",
@@ -1001,8 +988,10 @@ Examples:
     )
     calendar_parser.add_argument(
         "action",
+        nargs="?",
+        default="list",
         choices=["list"],
-        help="Calendar action to perform",
+        help="Calendar action (default: list)",
     )
     calendar_parser.add_argument(
         "--platform",
@@ -1030,25 +1019,32 @@ Examples:
     # schedule command
     schedule_parser = subparsers.add_parser(
         "schedule",
-        help="Auto-schedule videos to calendar slots",
+        help="Publish all videos (scheduled to calendar slots or immediately)",
     )
     schedule_parser.add_argument(
         "action",
+        nargs="?",
+        default="auto",
         choices=["auto"],
-        help="Schedule action to perform",
+        help="Schedule action (default: auto)",
     )
     schedule_parser.add_argument(
         "--platform",
         action="append",
         dest="platforms",
         choices=["youtube", "tiktok", "instagram", "facebook", "twitter", "linkedin"],
-        help="Target platform(s) to schedule for - can be specified multiple times",
+        help="Target platform(s) (default: youtube, tiktok, instagram)",
     )
     schedule_parser.add_argument(
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
-        help="Directory to scan for videos (default: outputs)",
+        help="Directory to scan for videos (default: outputs/)",
+    )
+    schedule_parser.add_argument(
+        "--immediate",
+        action="store_true",
+        help="Publish immediately instead of scheduling to calendar slots",
     )
     schedule_parser.add_argument(
         "--dry-run",
@@ -1058,17 +1054,27 @@ Examples:
     schedule_parser.add_argument(
         "--no-cleanup",
         action="store_true",
-        help="Disable automatic cleanup after successful scheduling",
+        help="Disable automatic cleanup after publishing (default: cleanup enabled)",
     )
     schedule_parser.add_argument(
         "--auto-resolve",
         action="store_true",
-        help="Automatically resolve conflicts by using first available alternative",
+        help="Automatically resolve slot conflicts by using first available",
     )
     schedule_parser.add_argument(
         "--force",
         action="store_true",
-        help="Schedule even if already published to target platforms",
+        help="Include already published products",
+    )
+    schedule_parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Stop on first failure",
+    )
+    schedule_parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Only retry previously failed items from the retry queue",
     )
     schedule_parser.add_argument(
         "--debug",
@@ -1096,13 +1102,13 @@ Examples:
         action="append",
         dest="platforms",
         choices=["youtube", "tiktok", "instagram", "facebook", "twitter", "linkedin"],
-        help="Target platform(s) - can be specified multiple times",
+        help="Target platform(s) (default: all platforms)",
     )
     cleanup_parser.add_argument(
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
-        help="Directory to scan for products (default: outputs)",
+        help="Directory to scan for products (default: outputs/)",
     )
     cleanup_parser.add_argument(
         "--dry-run",
@@ -1115,51 +1121,6 @@ Examples:
         help="Required for --all mode to prevent accidents",
     )
     cleanup_parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging",
-    )
-
-    # batch command
-    batch_parser = subparsers.add_parser(
-        "batch",
-        help="Batch publish all videos in outputs directory",
-    )
-    batch_parser.add_argument(
-        "--platform",
-        action="append",
-        dest="platforms",
-        choices=["youtube", "tiktok", "instagram", "facebook", "twitter", "linkedin"],
-        required=True,
-        help="Target platform(s) - can be specified multiple times",
-    )
-    batch_parser.add_argument(
-        "--outputs-dir",
-        type=Path,
-        default=Path("outputs"),
-        help="Directory to scan for videos (default: outputs)",
-    )
-    batch_parser.add_argument(
-        "--immediate",
-        action="store_true",
-        help="Publish immediately (only immediate publishing supported in batch mode)",
-    )
-    batch_parser.add_argument(
-        "--fail-fast",
-        action="store_true",
-        help="Stop batch processing on first failure",
-    )
-    batch_parser.add_argument(
-        "--retry-failed",
-        action="store_true",
-        help="Only retry previously failed items from the retry queue",
-    )
-    batch_parser.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        help="Disable automatic cleanup after successful publish",
-    )
-    batch_parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging",
@@ -1216,11 +1177,11 @@ Examples:
         pass
 
     elif args.command == "schedule":
-        # Convert platform strings to Platform enums
+        # Convert platform strings to Platform enums, default to all 3
         if args.platforms:
             args.platforms = [Platform[p.upper()] for p in args.platforms]
         else:
-            parser.error("schedule auto requires at least one --platform")
+            args.platforms = list(DEFAULT_PLATFORMS)
 
     elif args.command == "cleanup":
         # Platform conversion handled in cmd_cleanup for better defaults
@@ -1242,16 +1203,6 @@ Examples:
         # Initialize force if not set
         if not hasattr(args, "force"):
             args.force = False
-
-    elif args.command == "batch":
-        if not args.immediate:
-            parser.error(
-                "Batch mode requires --immediate "
-                "(scheduled publishing not supported in batch mode)"
-            )
-
-        # Convert platform strings to Platform enums (use [] for name lookup)
-        args.platforms = [Platform[p.upper()] for p in args.platforms]
 
     # Load .env
     project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -1306,8 +1257,6 @@ Examples:
             await cmd_list_accounts(args, config, session)
         elif args.command == "single":
             await cmd_single(args, config, session)
-        elif args.command == "batch":
-            await cmd_batch(args, config, session)
         elif args.command == "calendar":
             await cmd_calendar(args, config, session)
         elif args.command == "schedule":
