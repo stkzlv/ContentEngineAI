@@ -532,6 +532,7 @@ class ScheduleManager:
         cleanup_config: CleanupConfig | None = None,
         outputs_dir: Path | None = None,
         auto_resolve: bool = False,
+        force: bool = False,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -550,6 +551,7 @@ class ScheduleManager:
             outputs_dir: Base outputs directory for cleanup (required if cleanup
                 is enabled)
             auto_resolve: Automatically resolve conflicts using first alternative
+            force: Skip already-published check and schedule regardless
 
         Returns:
         -------
@@ -689,19 +691,20 @@ class ScheduleManager:
                 logger.debug("Processing video: %s", product_id)
 
                 # Check if already published to ANY of the specified platforms
-                already_published = []
-                for platform in platforms:
-                    if is_already_published(product_id, platform.value):
-                        already_published.append(platform.value)
+                if not force:
+                    already_published = []
+                    for platform in platforms:
+                        if is_already_published(product_id, platform.value):
+                            already_published.append(platform.value)
 
-                if already_published:
-                    logger.info(
-                        "Skipping %s: already published to %s",
-                        product_id,
-                        ", ".join(already_published),
-                    )
-                    skipped_count += 1
-                    continue
+                    if already_published:
+                        logger.info(
+                            "Skipping %s: already published to %s",
+                            product_id,
+                            ", ".join(already_published),
+                        )
+                        skipped_count += 1
+                        continue
 
                 # Find next available slot (skip occupied slots from API)
                 try:

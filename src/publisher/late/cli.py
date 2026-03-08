@@ -621,29 +621,33 @@ async def cmd_schedule_auto(
 
     logger.info("Found %d video(s)", len(video_paths))
 
-    # Filter out already published videos
-    logger.info("Filtering already published videos...")
-    unpublished_videos = []
+    # Filter out already published videos (unless --force)
+    if args.force:
+        logger.info("Force mode - including already published videos")
+        unpublished_videos = video_paths
+    else:
+        logger.info("Filtering already published videos...")
+        unpublished_videos = []
 
-    for video_path in video_paths:
-        product_id = video_path.parent.name
+        for video_path in video_paths:
+            product_id = video_path.parent.name
 
-        # Check if already published to ALL target platforms
-        already_published = all(
-            is_already_published(product_id, platform.value, args.outputs_dir)
-            for platform in args.platforms
-        )
-
-        if not already_published:
-            unpublished_videos.append(video_path)
-        else:
-            logger.debug(
-                "Skipping %s - already published to all target platforms", product_id
+            already_published = all(
+                is_already_published(product_id, platform.value, args.outputs_dir)
+                for platform in args.platforms
             )
 
-    if not unpublished_videos:
-        logger.info("No unpublished videos to schedule")
-        return
+            if not already_published:
+                unpublished_videos.append(video_path)
+            else:
+                logger.debug(
+                    "Skipping %s - already published to all target platforms",
+                    product_id,
+                )
+
+        if not unpublished_videos:
+            logger.info("No unpublished videos to schedule")
+            return
 
     logger.info(
         "Found %d unpublished video(s) ready for scheduling", len(unpublished_videos)
@@ -680,6 +684,7 @@ async def cmd_schedule_auto(
             cleanup_config=cleanup_config,
             outputs_dir=args.outputs_dir,
             auto_resolve=getattr(args, "auto_resolve", False),
+            force=getattr(args, "force", False),
         )
 
         # Display summary
@@ -1059,6 +1064,11 @@ Examples:
         "--auto-resolve",
         action="store_true",
         help="Automatically resolve conflicts by using first available alternative",
+    )
+    schedule_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Schedule even if already published to target platforms",
     )
     schedule_parser.add_argument(
         "--debug",
