@@ -2,7 +2,7 @@
 
 Tests batch publishing operations including:
 - Batch video discovery and publishing
-- Cleanup integration with batch mode
+- Cleanup integration with immediate mode (schedule --immediate)
 - --no-cleanup flag behavior
 - Error handling and failure isolation
 """
@@ -365,10 +365,10 @@ class TestBatchSummary:
 
 
 class TestCleanupIntegration:
-    """Test cleanup integration with batch publishing.
+    """Test cleanup integration with immediate publishing.
 
-    These tests verify that cleanup runs correctly after batch publishing
-    when enabled, and respects the --no-cleanup flag.
+    These tests verify that cleanup runs correctly after immediate publishing
+    (schedule --immediate) when enabled, and respects the --no-cleanup flag.
     """
 
     @pytest.fixture
@@ -383,7 +383,6 @@ class TestCleanupIntegration:
         config.stagger_delay_min = 0
         config.stagger_delay_max = 0
 
-        # Cleanup config - enabled by default
         config.cleanup_config = MagicMock()
         config.cleanup_config.enabled = True
         config.cleanup_config.verify_before_delete = True
@@ -394,11 +393,12 @@ class TestCleanupIntegration:
 
     @pytest.fixture
     def mock_args(self, outputs_dir):
-        """Create mock args for batch command."""
+        """Create mock args for immediate publish."""
         args = MagicMock()
         args.platforms = [Platform.YOUTUBE]
         args.outputs_dir = outputs_dir
         args.fail_fast = False
+        args.retry_failed = False
         args.no_cleanup = False
         args.debug = False
         return args
@@ -407,10 +407,7 @@ class TestCleanupIntegration:
     async def test_cleanup_runs_after_successful_batch(
         self, mock_publisher, mock_config, mock_args, outputs_dir
     ):
-        """Test that cleanup runs after successful batch publish when enabled."""
-        mock_session = AsyncMock()
-
-        # Create mock summary with successful publishes
+        """Test that cleanup runs after successful immediate publish."""
         mock_summary = BatchPublishSummary(
             total_videos=3,
             successful=3,
@@ -419,11 +416,9 @@ class TestCleanupIntegration:
         )
 
         with (
-            patch("src.publisher.late.cli.create_publisher") as mock_create,
             patch("src.publisher.late.cli.BatchPublisher") as mock_batch_class,
             patch("src.publisher.late.cli.CleanupManager") as mock_cleanup_class,
         ):
-            mock_create.return_value = mock_publisher
             mock_batch_instance = AsyncMock()
             mock_batch_instance.publish_batch = AsyncMock(return_value=mock_summary)
             mock_batch_class.return_value = mock_batch_instance
@@ -434,14 +429,11 @@ class TestCleanupIntegration:
             )
             mock_cleanup_class.return_value = mock_cleanup_instance
 
-            # Import cmd_batch here to avoid circular imports
-            from src.publisher.late.cli import cmd_batch
+            from src.publisher.late.cli import _run_immediate_batch
 
-            # Run batch command
             with contextlib.suppress(SystemExit):
-                await cmd_batch(mock_args, mock_config, mock_session)
+                await _run_immediate_batch(mock_args, mock_config, mock_publisher)
 
-            # Verify cleanup was called
             mock_cleanup_class.assert_called_once()
             mock_cleanup_instance.cleanup_all.assert_called_once()
 
@@ -451,7 +443,6 @@ class TestCleanupIntegration:
     ):
         """Test that --no-cleanup flag prevents cleanup from running."""
         mock_args.no_cleanup = True
-        mock_session = AsyncMock()
 
         mock_summary = BatchPublishSummary(
             total_videos=3,
@@ -461,21 +452,18 @@ class TestCleanupIntegration:
         )
 
         with (
-            patch("src.publisher.late.cli.create_publisher") as mock_create,
             patch("src.publisher.late.cli.BatchPublisher") as mock_batch_class,
             patch("src.publisher.late.cli.CleanupManager") as mock_cleanup_class,
         ):
-            mock_create.return_value = mock_publisher
             mock_batch_instance = AsyncMock()
             mock_batch_instance.publish_batch = AsyncMock(return_value=mock_summary)
             mock_batch_class.return_value = mock_batch_instance
 
-            from src.publisher.late.cli import cmd_batch
+            from src.publisher.late.cli import _run_immediate_batch
 
             with contextlib.suppress(SystemExit):
-                await cmd_batch(mock_args, mock_config, mock_session)
+                await _run_immediate_batch(mock_args, mock_config, mock_publisher)
 
-            # Verify cleanup was NOT called
             mock_cleanup_class.assert_not_called()
 
     @pytest.mark.asyncio
@@ -484,7 +472,6 @@ class TestCleanupIntegration:
     ):
         """Test that cleanup is skipped when disabled in config."""
         mock_config.cleanup_config.enabled = False
-        mock_session = AsyncMock()
 
         mock_summary = BatchPublishSummary(
             total_videos=3,
@@ -494,21 +481,18 @@ class TestCleanupIntegration:
         )
 
         with (
-            patch("src.publisher.late.cli.create_publisher") as mock_create,
             patch("src.publisher.late.cli.BatchPublisher") as mock_batch_class,
             patch("src.publisher.late.cli.CleanupManager") as mock_cleanup_class,
         ):
-            mock_create.return_value = mock_publisher
             mock_batch_instance = AsyncMock()
             mock_batch_instance.publish_batch = AsyncMock(return_value=mock_summary)
             mock_batch_class.return_value = mock_batch_instance
 
-            from src.publisher.late.cli import cmd_batch
+            from src.publisher.late.cli import _run_immediate_batch
 
             with contextlib.suppress(SystemExit):
-                await cmd_batch(mock_args, mock_config, mock_session)
+                await _run_immediate_batch(mock_args, mock_config, mock_publisher)
 
-            # Verify cleanup was NOT called
             mock_cleanup_class.assert_not_called()
 
     @pytest.mark.asyncio
@@ -516,9 +500,6 @@ class TestCleanupIntegration:
         self, mock_publisher, mock_config, mock_args, outputs_dir
     ):
         """Test that cleanup is skipped when no publishes succeeded."""
-        mock_session = AsyncMock()
-
-        # All publishes failed
         mock_summary = BatchPublishSummary(
             total_videos=3,
             successful=0,
@@ -527,30 +508,25 @@ class TestCleanupIntegration:
         )
 
         with (
-            patch("src.publisher.late.cli.create_publisher") as mock_create,
             patch("src.publisher.late.cli.BatchPublisher") as mock_batch_class,
             patch("src.publisher.late.cli.CleanupManager") as mock_cleanup_class,
         ):
-            mock_create.return_value = mock_publisher
             mock_batch_instance = AsyncMock()
             mock_batch_instance.publish_batch = AsyncMock(return_value=mock_summary)
             mock_batch_class.return_value = mock_batch_instance
 
-            from src.publisher.late.cli import cmd_batch
+            from src.publisher.late.cli import _run_immediate_batch
 
             with contextlib.suppress(SystemExit):
-                await cmd_batch(mock_args, mock_config, mock_session)
+                await _run_immediate_batch(mock_args, mock_config, mock_publisher)
 
-            # Verify cleanup was NOT called (no successful publishes)
             mock_cleanup_class.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_cleanup_failure_does_not_fail_batch(
         self, mock_publisher, mock_config, mock_args, outputs_dir
     ):
-        """Test that cleanup failure doesn't fail the entire batch operation."""
-        mock_session = AsyncMock()
-
+        """Test that cleanup failure doesn't fail the publish operation."""
         mock_summary = BatchPublishSummary(
             total_videos=3,
             successful=3,
@@ -559,33 +535,26 @@ class TestCleanupIntegration:
         )
 
         with (
-            patch("src.publisher.late.cli.create_publisher") as mock_create,
             patch("src.publisher.late.cli.BatchPublisher") as mock_batch_class,
             patch("src.publisher.late.cli.CleanupManager") as mock_cleanup_class,
             patch("src.publisher.late.cli.logger") as mock_logger,
         ):
-            mock_create.return_value = mock_publisher
             mock_batch_instance = AsyncMock()
             mock_batch_instance.publish_batch = AsyncMock(return_value=mock_summary)
             mock_batch_class.return_value = mock_batch_instance
 
-            # Make cleanup fail
             mock_cleanup_instance = AsyncMock()
             mock_cleanup_instance.cleanup_all = AsyncMock(
                 side_effect=Exception("Cleanup failed")
             )
             mock_cleanup_class.return_value = mock_cleanup_instance
 
-            from src.publisher.late.cli import cmd_batch
+            from src.publisher.late.cli import _run_immediate_batch
 
-            # Should not raise - cleanup failure is logged but doesn't fail batch
             with contextlib.suppress(SystemExit):
-                await cmd_batch(mock_args, mock_config, mock_session)
+                await _run_immediate_batch(mock_args, mock_config, mock_publisher)
 
-            # Verify cleanup was attempted
             mock_cleanup_instance.cleanup_all.assert_called_once()
-
-            # Verify warning was logged
             mock_logger.warning.assert_called()
 
 
