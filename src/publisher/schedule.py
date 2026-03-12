@@ -893,7 +893,9 @@ class ScheduleManager:
 
                             if meta:
                                 desc = meta.get("description", "")
-                                hashtags = meta.get("hashtags", [])
+                                hashtags = list(meta.get("hashtags", []))
+                                if product_id and product_id not in hashtags:
+                                    hashtags.append(product_id)
                                 if hashtags:
                                     hashtag_str = " ".join(
                                         f"#{t}" if not t.startswith("#") else t
