@@ -57,6 +57,7 @@ def _create_publisher_from_config(config, session: aiohttp.ClientSession):
         timeout=config.timeout,
         max_retries=config.max_retries,
         tiktok_settings=config.tiktok_settings,
+        first_comment_config=config.first_comment_config,
     )
 
 

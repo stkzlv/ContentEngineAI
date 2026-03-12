@@ -25,7 +25,7 @@ from src.publisher.base import (
     ValidationError,
 )
 from src.publisher.constants import SDK_LIST_PAGE_SIZE
-from src.publisher.models import TikTokContentSettings
+from src.publisher.models import FirstCommentConfig, TikTokContentSettings
 from src.publisher.registry import register_publisher
 from src.video.config.constants import (
     DEFAULT_EXPONENTIAL_BACKOFF_BASE,
@@ -67,6 +67,7 @@ class LatePublisher(BasePublisher):
         timeout: float = 120.0,  # Configurable via publisher.yaml
         max_retries: int = 3,  # Configurable via publisher.yaml
         tiktok_settings: TikTokContentSettings | None = None,
+        first_comment_config: FirstCommentConfig | None = None,
     ):
         """Initialize Late.dev publisher client.
 
@@ -78,6 +79,7 @@ class LatePublisher(BasePublisher):
             timeout: Request timeout in seconds (default: 120.0)
             max_retries: Maximum retry attempts for transient failures (default: 3)
             tiktok_settings: TikTok content disclosure settings (optional)
+            first_comment_config: First-comment config for affiliate links (optional)
 
         Raises:
         ------
@@ -109,6 +111,7 @@ class LatePublisher(BasePublisher):
         self.timeout = timeout
         self.max_retries = max_retries
         self.tiktok_settings = tiktok_settings or TikTokContentSettings()
+        self.first_comment_config = first_comment_config or FirstCommentConfig()
 
         # Initialize Late SDK client
         try:
@@ -937,6 +940,17 @@ class LatePublisher(BasePublisher):
                     platform_entry["platformSpecificData"] = {
                         "tiktokSettings": self.tiktok_settings.to_sdk_dict()
                     }
+
+                # Attach first comment via platformSpecificData
+                first_comment = pc.get("first_comment")
+                if first_comment and platform_name != "tiktok":
+                    raw_psd = platform_entry.get("platformSpecificData")
+                    if isinstance(raw_psd, dict):
+                        raw_psd["firstComment"] = first_comment
+                    else:
+                        platform_entry["platformSpecificData"] = {
+                            "firstComment": first_comment,
+                        }
 
             # Add TikTok settings even without platform-specific content
             if (

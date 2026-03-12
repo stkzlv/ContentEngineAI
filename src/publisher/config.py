@@ -18,6 +18,7 @@ from src.publisher.models import (
     DEFAULT_PLATFORMS,
     AccountConfig,
     CleanupConfig,
+    FirstCommentConfig,
     LinkInBioConfig,
     Platform,
     PublisherConfig,
@@ -295,11 +296,26 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     else:
         result["tiktok_settings"] = TikTokContentSettings()
 
+    # Parse first_comment config
+    first_comment_section = result.get("first_comment", {})
+    if first_comment_section:
+        try:
+            result["first_comment_config"] = FirstCommentConfig(**first_comment_section)
+            logger.debug("Parsed first_comment config: %s", first_comment_section)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse first_comment config: %s, using defaults", e
+            )
+            result["first_comment_config"] = FirstCommentConfig()
+    else:
+        result["first_comment_config"] = FirstCommentConfig()
+
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
     result.pop("link_in_bio", None)
+    result.pop("first_comment", None)
     # Keep use_platform_specific_content for PublisherConfig (don't pop)
 
     return result
@@ -640,6 +656,7 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "cleanup_config": CleanupConfig(),
         "link_in_bio_config": LinkInBioConfig(),
         "tiktok_settings": TikTokContentSettings(),
+        "first_comment_config": FirstCommentConfig(),
     }
 
     for key, default_value in defaults.items():
