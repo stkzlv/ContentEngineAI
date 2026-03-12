@@ -96,6 +96,7 @@ class TestBuildFirstComment:
         (product_dir / "data.json").write_text(json.dumps(data))
 
         result = build_first_comment(enabled_config, "youtube", "B0LONG", tmp_path)
+        assert result is not None
         assert "https://amzn.to/long" in result
 
     def test_data_json_as_list(self, enabled_config, tmp_path):
@@ -106,6 +107,7 @@ class TestBuildFirstComment:
         (product_dir / "data.json").write_text(json.dumps(data))
 
         result = build_first_comment(enabled_config, "youtube", "B0LIST", tmp_path)
+        assert result is not None
         assert "https://amzn.to/first" in result
 
     def test_invalid_json_returns_none(self, enabled_config, tmp_path):
@@ -155,6 +157,7 @@ class TestMoveHashtagsToComment:
         result = build_first_comment(
             config, "instagram", "B0HASH", tmp_path, metadata=metadata
         )
+        assert result is not None
         assert "#earbuds" in result
         assert "#tech" in result
         assert "https://amzn.to/h" in result
@@ -183,6 +186,7 @@ class TestMoveHashtagsToComment:
             config, "youtube", "B0YT", tmp_path, metadata=metadata
         )
         # Hashtags only moved for instagram, so {hashtags} is empty string
+        assert result is not None
         assert "#tech" not in result
 
     def test_hashtags_not_double_prefixed(self, tmp_path):
@@ -209,6 +213,7 @@ class TestMoveHashtagsToComment:
         result = build_first_comment(
             config, "instagram", "B0DUP", tmp_path, metadata=metadata
         )
+        assert result is not None
         assert "#already" in result
         assert "#nohash" in result
         assert "##already" not in result
