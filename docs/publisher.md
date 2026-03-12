@@ -23,6 +23,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Link-in-Bio Integration](#-link-in-bio-integration)
+- [First Comment](#-first-comment)
 - [Published Products Registry](#-published-products-registry)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
@@ -36,7 +37,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **🌐 Multi-Platform Publishing**: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
 - **📅 Auto-Scheduling**: Automatically finds first available unoccupied slot in recurring schedule
 - **📆 Calendar Management**: View and filter all scheduled posts by platform, date, and status
-- **🔄 Batch Publishing**: Upload multiple videos with automatic rate limiting
+- **🔄 Batch Publishing**: Upload multiple videos via `schedule --immediate` with rate limiting
 - **🔁 Retry Queue**: Resume failed batch items without reprocessing successes
 - **📡 Webhooks**: Real-time status updates without polling
 - **🗑️ Auto-Cleanup**: Automatically remove published products from outputs directory
@@ -45,6 +46,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **🔁 Retry Logic**: Exponential backoff for rate limits and network errors
 - **✅ Progress Tracking**: Real-time upload progress with callbacks
 - **🔗 Link-in-Bio**: Auto-add affiliate links to bio page after publishing (Lnk.Bio, etc.)
+- **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
 ---
@@ -73,9 +75,9 @@ poetry run python -m src.publisher.late single B0BTYCRJSS \
   --platform youtube --platform tiktok --immediate --debug
 
 # 6. Batch publish all videos in outputs directory
-poetry run python -m src.publisher.late batch \
+poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube --platform tiktok --platform instagram \
-  --immediate --debug
+  --debug
 ```
 
 ---
@@ -177,8 +179,7 @@ Quick reference for all publisher commands and options.
 |---------|-------------|---------|
 | `list-accounts` | List connected social accounts | `python -m src.publisher.late list-accounts` |
 | `single` | Publish single video by product ID | `python -m src.publisher.late single B0ABC123 --immediate` |
-| `batch` | Batch publish all videos | `python -m src.publisher.late batch --platform youtube --immediate` |
-| `schedule` | Auto-schedule to calendar slots | `python -m src.publisher.late schedule auto` |
+| `schedule` | Auto-schedule or batch publish videos | `python -m src.publisher.late schedule --debug` |
 | `calendar` | View scheduled posts | `python -m src.publisher.late calendar list` |
 | `cleanup` | Remove published products | `python -m src.publisher.late cleanup --all --confirm` |
 | `delete` | Delete a post from Late.dev | `python -m src.publisher.late delete POST_ID` |
@@ -204,33 +205,35 @@ python -m src.publisher.late single <product_id> [options]
 | `--schedule DATETIME` | No | Schedule for later (format: `2025-01-20 14:00:00`) |
 | `--force` | No | Force republish even if already published |
 | `--no-cleanup` | No | Disable automatic cleanup after success |
+| `--platform-specific` | No | Create separate posts per platform with optimized metadata |
+| `--link-in-bio` | No | Enable link-in-bio update (overrides config) |
+| `--no-link-in-bio` | No | Disable link-in-bio update (overrides config) |
 
 *If neither `--immediate` nor `--schedule` is provided, auto-discovers next available slot from recurring schedule.
 
-### Command: `batch`
+### Command: `batch` (Removed)
+
+The `batch` command has been consolidated into `schedule`. Use `schedule --immediate` instead:
 
 ```
-python -m src.publisher.late batch [options]
+# Old: python -m src.publisher.late batch --platform youtube --immediate
+# New: python -m src.publisher.late schedule --immediate --platform youtube
 ```
 
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--platform PLATFORM` | Yes | Target platform (can repeat for multiple) |
-| `--immediate` | Yes | Publish immediately (only mode for batch) |
-| `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
-| `--fail-fast` | No | Stop on first failure |
-| `--retry-failed` | No | Only retry failed items from queue |
-| `--no-cleanup` | No | Disable automatic cleanup after success |
+All batch options (`--fail-fast`, `--outputs-dir`, `--no-cleanup`, `--retry-failed`) work with `schedule --immediate`.
 
 ### Command: `schedule`
 
 ```
-python -m src.publisher.late schedule auto [options]
+python -m src.publisher.late schedule [auto] [options]
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--platform PLATFORM` | Yes | Target platform (can repeat for multiple) |
+| `--platform PLATFORM` | No | Target platform, can repeat (defaults to youtube, tiktok, instagram) |
+| `--immediate` | No | Publish immediately (replaces old batch command) |
+| `--force` | No | Bypass already-published checks |
+| `--fail-fast` | No | Stop on first failure (immediate mode) |
 | `--outputs-dir PATH` | No | Directory to scan (default: `outputs`) |
 | `--dry-run` | No | Preview without making changes |
 | `--auto-resolve` | No | Auto-resolve conflicts with first alternative |
@@ -292,7 +295,7 @@ python -m src.publisher.late registry --rebuild --outputs-dir outputs
 
 ## 💻 CLI Usage
 
-The publisher provides three main commands: `list-accounts`, `single`, and `batch`.
+The publisher provides three main commands: `list-accounts`, `single`, and `schedule`.
 
 ### Command: `list-accounts`
 
@@ -380,73 +383,30 @@ If no metadata is found, it uses a basic content template.
 
 ---
 
-### Command: `batch`
+### Command: `schedule` (Batch Mode)
 
-Publish all videos in the outputs directory to specified platforms.
+Publish all videos immediately using `schedule --immediate`:
 
 ```bash
-poetry run python -m src.publisher.late batch \
-  --platform <platform> \
-  [--platform <platform2> ...] \
-  --immediate \
+poetry run python -m src.publisher.late schedule --immediate \
+  [--platform <platform> ...] \
   [--outputs-dir <path>] \
   [--fail-fast] \
   [--debug]
 ```
 
-**Required Arguments:**
-- `--platform <name>`: Target platform (can be specified multiple times)
-- `--immediate`: Publish immediately (scheduled publishing not supported in batch mode)
-
-**Optional Arguments:**
-- `--outputs-dir <path>`: Directory to scan for videos (default: `outputs`)
-- `--fail-fast`: Stop processing on first failure (default: continue processing)
-- `--debug`: Enable verbose debug logging
-
 **Examples:**
 
 ```bash
-# Batch publish all videos to YouTube and TikTok
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok \
-  --immediate --debug
+# Batch publish all videos to all platforms
+poetry run python -m src.publisher.late schedule --immediate --debug
 
-# Publish to all platforms with fail-fast
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok --platform instagram \
-  --immediate --fail-fast --debug
+# Publish to specific platforms with fail-fast
+poetry run python -m src.publisher.late schedule --immediate \
+  --platform youtube --platform tiktok --fail-fast --debug
 
-# Specify custom outputs directory
-poetry run python -m src.publisher.late batch \
-  --platform youtube \
-  --outputs-dir /path/to/custom/outputs \
-  --immediate
-```
-
-**Batch Behavior:**
-
-- Scans `outputs` directory for product folders
-- Finds videos matching pattern: `video_*_sequential.mp4` or `video_*_slideshow.mp4`
-- Loads metadata for each product from `metadata_<platform>.json`
-- **Default: single post per product for all platforms** (unified mode)
-  - Example: 10 products × 3 platforms = 10 posts total (one per product)
-  - Use `--platform-specific` for separate posts per platform (30 posts total)
-- Staggers uploads with random delays (30-60s by default) to avoid rate limits
-- Skips products without videos or metadata (continues processing unless `--fail-fast`)
-- Reports summary statistics at completion
-
-**Batch Summary Output:**
-
-```
-================================================================================
-BATCH PUBLISHING SUMMARY
-================================================================================
-Total products: 10
-✅ Successful: 8
-❌ Failed: 2
-⏭️  Skipped: 0
-⏱️  Duration: 8m 45s
-================================================================================
+# Force re-publish already-published products
+poetry run python -m src.publisher.late schedule --immediate --force --debug
 ```
 
 ---
@@ -577,7 +537,7 @@ The publisher automatically loads platform-specific metadata generated by the vi
 
 The publisher supports two publishing modes controlled by `use_platform_specific_content` in `publisher.yaml` or the `--platform-specific` CLI flag:
 
-**Unified mode** (default, `use_platform_specific_content: false`): Creates **one post per product** published to all platforms simultaneously. Uses a single API call with unified metadata.
+**Unified mode** (default, `use_platform_specific_content: false`): Creates **one post per product** published to all platforms simultaneously. Uses a single API call with unified metadata. Even though the post is shared, each platform still gets its own `platformSpecificData` block (YouTube title, TikTok disclosure settings, first comment text, etc.), so per-platform behavior works in both modes.
 
 ```bash
 # 1 post published to all 3 platforms (same content)
@@ -728,9 +688,8 @@ By default, batch publishing continues even if individual uploads fail. Use `--f
 
 ```bash
 # Stop on first error
-poetry run python -m src.publisher.late batch \
+poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube \
-  --immediate \
   --fail-fast
 ```
 
@@ -786,16 +745,13 @@ When a batch publish fails for some products:
 
 ```bash
 # Normal batch publish (failures automatically queued)
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok \
-  --immediate --debug
+poetry run python -m src.publisher.late schedule --immediate \
+  --platform youtube --platform tiktok --debug
 
 # Retry only failed items
-poetry run python -m src.publisher.late batch \
+poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube --platform tiktok \
-  --immediate \
-  --retry-failed \
-  --debug
+  --retry-failed --debug
 ```
 
 **Retry Mode Behavior:**
@@ -1199,11 +1155,9 @@ poetry run python -m src.publisher.late single B0ABC \
   --no-cleanup
 
 # Disable cleanup for batch publish
-poetry run python -m src.publisher.late batch \
+poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube --platform tiktok \
-  --immediate \
-  --no-cleanup \
-  --debug
+  --no-cleanup --debug
 ```
 
 </details>
@@ -1397,6 +1351,54 @@ class BaseLinkInBioProvider(ABC):
 ```
 
 Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager()`.
+
+</details>
+
+---
+
+## 💬 First Comment
+
+Post affiliate links as the first comment instead of embedding them in captions. Meta's algorithm deprioritizes posts with outbound links in descriptions, so moving them to a comment keeps captions clean and avoids the penalty.
+
+Supported on YouTube and Instagram. TikTok is skipped (Late API doesn't support `firstComment`).
+
+<details>
+<summary><strong>Configuration</strong></summary>
+
+**YAML** (`config/publisher.yaml`):
+
+```yaml
+first_comment:
+  enabled: true
+  move_hashtags_to_comment: false  # Move Instagram hashtags to comment too
+  platforms:
+    youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
+    instagram: "{product_title}\n🔗 Link in bio!"
+```
+
+**Template placeholders:**
+
+| Placeholder | Source |
+|-------------|--------|
+| `{affiliate_link}` | `shortened_affiliate_link` or `affiliate_link` from data.json |
+| `{product_title}` | `title` from data.json |
+| `{hashtags}` | Hashtags from metadata (only when `move_hashtags_to_comment: true`, Instagram only) |
+
+</details>
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+1. After metadata is loaded, `build_first_comment()` renders the platform template with product data from `outputs/<product_id>/data.json`
+2. Each platform gets its own rendered comment based on its template in `first_comment.platforms`
+3. The rendered comments are passed via `platform_contents` to `publisher.publish()`
+4. Late API receives each as `firstComment` inside that platform's `platformSpecificData`
+5. If data.json is missing or has no affiliate link, the comment is silently skipped (warning logged)
+6. TikTok entries are always skipped regardless of config
+
+This works in both publishing modes. In unified mode (default), one post goes to all platforms, but each platform entry still carries its own `platformSpecificData` with a different `firstComment`. YouTube might get a subscribe CTA while Instagram gets just the link. In platform-specific mode, each platform is a separate post and the behavior is the same.
+
+The feature is additive: post descriptions stay as-is, the first comment is extra.
 
 </details>
 
@@ -1931,15 +1933,15 @@ poetry run python -m src.publisher.late single B0ABC123 --account brand_b --imme
 
 ```bash
 # Run batch publish (some may fail)
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok --immediate --debug
+poetry run python -m src.publisher.late schedule --immediate \
+  --platform youtube --platform tiktok --debug
 
 # Check what failed
 poetry run python -m src.publisher.late calendar list --status failed
 
 # Retry only failed items
-poetry run python -m src.publisher.late batch \
-  --platform youtube --platform tiktok --immediate --retry-failed --debug
+poetry run python -m src.publisher.late schedule --immediate \
+  --platform youtube --platform tiktok --retry-failed --debug
 ```
 
 ### Workflow 5: Fix Failed TikTok Posts (Disclosure Error)

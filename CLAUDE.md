@@ -6,16 +6,22 @@ ContentEngineAI is an AI-powered video production pipeline for e-commerce platfo
 
 ## Session Start
 
-At the very beginning of a new session, verify the correct Python venv is active:
+At the very beginning of every session, run this check:
 ```bash
-echo $VIRTUAL_ENV  # should contain "ContentEngineAI"
+pyenv version && python3 --version && which python3
 ```
 
-The project uses a **pyenv virtualenv** (not poetry-managed). If wrong venv is active:
+Expected output:
+- pyenv version: `ContentEngineAI` (set by `.python-version`)
+- Python: `3.12.x`
+- Path: pyenv shim (`~/.pyenv/shims/python3`)
+
+The project uses a **pyenv virtualenv**. The `.python-version` file auto-activates it via pyenv shims. No manual activation, `PYENV_VIRTUAL_ENV` prefixes, or `PATH` overrides needed. Just use `python3`, `pytest`, `ruff` directly.
+
+If pyenv version shows something else, fix with:
 ```bash
-deactivate 2>/dev/null; pyenv activate ContentEngineAI
+pyenv activate ContentEngineAI
 ```
-Or source directly: `source "$(pyenv prefix ContentEngineAI)/bin/activate"`
 
 ## Essential Commands
 

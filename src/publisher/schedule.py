@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.publisher.base import PublishError
+from src.publisher.first_comment import build_first_comment
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -217,8 +218,7 @@ class ScheduleManager:
         # Validate slot_index
         if slot_index < 0 or slot_index >= len(slots):
             raise ValueError(
-                "slot_index must be between 0 and %d, got %d"
-                % (len(slots) - 1, slot_index)
+                f"slot_index must be between 0 and {len(slots) - 1}, got {slot_index}"
             )
 
         # Calculate next occurrence for each slot starting from slot_index
@@ -532,6 +532,7 @@ class ScheduleManager:
         cleanup_config: CleanupConfig | None = None,
         outputs_dir: Path | None = None,
         auto_resolve: bool = False,
+        force: bool = False,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -550,6 +551,7 @@ class ScheduleManager:
             outputs_dir: Base outputs directory for cleanup (required if cleanup
                 is enabled)
             auto_resolve: Automatically resolve conflicts using first alternative
+            force: Skip already-published check and schedule regardless
 
         Returns:
         -------
@@ -689,19 +691,20 @@ class ScheduleManager:
                 logger.debug("Processing video: %s", product_id)
 
                 # Check if already published to ANY of the specified platforms
-                already_published = []
-                for platform in platforms:
-                    if is_already_published(product_id, platform.value):
-                        already_published.append(platform.value)
+                if not force:
+                    already_published = []
+                    for platform in platforms:
+                        if is_already_published(product_id, platform.value):
+                            already_published.append(platform.value)
 
-                if already_published:
-                    logger.info(
-                        "Skipping %s: already published to %s",
-                        product_id,
-                        ", ".join(already_published),
-                    )
-                    skipped_count += 1
-                    continue
+                    if already_published:
+                        logger.info(
+                            "Skipping %s: already published to %s",
+                            product_id,
+                            ", ".join(already_published),
+                        )
+                        skipped_count += 1
+                        continue
 
                 # Find next available slot (skip occupied slots from API)
                 try:
@@ -738,8 +741,7 @@ class ScheduleManager:
 
                     if attempts >= max_attempts:
                         raise ValueError(
-                            "Could not find available slot after %d attempts"
-                            % max_attempts
+                            f"No available slot after {max_attempts} attempts"
                         )
 
                 except (ValueError, KeyError) as e:
@@ -891,7 +893,9 @@ class ScheduleManager:
 
                             if meta:
                                 desc = meta.get("description", "")
-                                hashtags = meta.get("hashtags", [])
+                                hashtags = list(meta.get("hashtags", []))
+                                if product_id and product_id not in hashtags:
+                                    hashtags.append(product_id)
                                 if hashtags:
                                     hashtag_str = " ".join(
                                         f"#{t}" if not t.startswith("#") else t
@@ -921,6 +925,21 @@ class ScheduleManager:
                                     platform_contents[p.value] = {
                                         "content": f"Product video for {product_id}"
                                     }
+
+                        # Inject first comments into platform_contents
+                        fc_config = getattr(publisher, "first_comment_config", None)
+                        if fc_config and fc_config.enabled and outputs_dir:
+                            for p in platforms:
+                                comment = build_first_comment(
+                                    fc_config,
+                                    p.value,
+                                    product_id,
+                                    outputs_dir,
+                                )
+                                if comment:
+                                    platform_contents.setdefault(p.value, {})[
+                                        "first_comment"
+                                    ] = comment
 
                         if self.config.use_platform_specific_content:
                             # Platform-specific mode: Create separate posts per platform

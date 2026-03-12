@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from src.publisher.first_comment import build_first_comment
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import Platform
 
@@ -14,6 +15,36 @@ if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
+
+
+def _build_platform_contents_with_comments(
+    publisher: BasePublisher,
+    platforms: list[dict[str, str]],
+    product_id: str,
+    outputs_dir: Path,
+    metadata_by_platform: dict[str, Any] | None = None,
+) -> dict[str, dict[str, str]] | None:
+    """Build platform_contents dict with first comments injected.
+
+    Returns None if no first comments were generated (caller can skip
+    platform_contents entirely).
+    """
+    fc_config = getattr(publisher, "first_comment_config", None)
+    if not fc_config or not fc_config.enabled:
+        return None
+
+    platform_contents: dict[str, dict[str, str]] = {}
+
+    for p_info in platforms:
+        platform_name = p_info["platform"]
+        meta = metadata_by_platform.get(platform_name) if metadata_by_platform else None
+        comment = build_first_comment(
+            fc_config, platform_name, product_id, outputs_dir, metadata=meta
+        )
+        if comment:
+            platform_contents[platform_name] = {"first_comment": comment}
+
+    return platform_contents if platform_contents else None
 
 
 async def publish_product(
@@ -84,11 +115,21 @@ async def _publish_unified(
     content = metadata.format_content()
     logger.info("Publishing to %d platform(s) in single post...", len(platforms))
 
+    # Build first comments for each platform
+    platform_contents = _build_platform_contents_with_comments(
+        publisher,
+        platforms,
+        product_id,
+        outputs_dir,
+        metadata_by_platform={p["platform"]: metadata for p in platforms},
+    )
+
     result = await publisher.publish(
         media_id=media_id,
         platforms=platforms,
         content=content,
         scheduled_time=schedule_time,
+        platform_contents=platform_contents,
     )
 
     return [{"result": result, "platform": "all"}]
@@ -128,6 +169,15 @@ async def _publish_platform_specific(
 
         content = metadata.format_content()
 
+        # Build first comment for this platform
+        platform_contents = _build_platform_contents_with_comments(
+            publisher,
+            [p_info],
+            product_id,
+            outputs_dir,
+            metadata_by_platform={platform_name: metadata},
+        )
+
         logger.info("Publishing to %s (platform-specific post)...", platform_name)
 
         result = await publisher.publish(
@@ -135,6 +185,7 @@ async def _publish_platform_specific(
             platforms=[p_info],
             content=content,
             scheduled_time=schedule_time,
+            platform_contents=platform_contents,
         )
 
         results.append({"result": result, "platform": platform_name})

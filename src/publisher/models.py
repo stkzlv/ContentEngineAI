@@ -362,6 +362,9 @@ class PublisherConfig:
     tiktok_settings: "TikTokContentSettings" = field(
         default_factory=lambda: TikTokContentSettings()
     )
+    first_comment_config: "FirstCommentConfig" = field(
+        default_factory=lambda: FirstCommentConfig()
+    )
     use_platform_specific_content: bool = False
 
     def __post_init__(self):
@@ -1014,3 +1017,24 @@ class TikTokContentSettings:
             "mediaType": "video",
             "commercialContentType": self.commercial_content_type,
         }
+
+
+@dataclass
+class FirstCommentConfig:
+    """Configuration for first-comment publishing on supported platforms.
+
+    Moves affiliate links out of post captions into the first comment,
+    avoiding algorithm penalties for outbound links in descriptions.
+
+    Attributes
+    ----------
+        enabled: Enable first-comment publishing
+        platforms: Map of platform name to comment template string.
+            Placeholders: {affiliate_link}, {hashtags}, {product_title}
+        move_hashtags_to_comment: Move hashtags from caption to comment
+
+    """
+
+    enabled: bool = False
+    platforms: dict[str, str] = field(default_factory=dict)
+    move_hashtags_to_comment: bool = False

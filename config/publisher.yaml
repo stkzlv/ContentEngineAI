@@ -248,6 +248,20 @@ cleanup:
 # Automatically add product affiliate links to a link-in-bio page
 # after successful video publication. Provider-agnostic design.
 
+# ============================================================================
+# FIRST COMMENT CONFIGURATION
+# ============================================================================
+# Post affiliate links as first comment instead of embedding in captions.
+# Supported by YouTube and Instagram (TikTok skipped, not supported by Late API).
+# Keeps captions clean, avoids algorithm penalties for outbound links.
+
+first_comment:
+  enabled: true
+  move_hashtags_to_comment: false
+  platforms:
+    youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
+    instagram: "{product_title}\n🔗 Link in bio!"
+
 link_in_bio:
   # Enable/disable link-in-bio updates after publishing
   enabled: true

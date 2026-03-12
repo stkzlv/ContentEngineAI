@@ -261,7 +261,24 @@ High-level requirements for ContentEngineAI.
 - Immediate or future publish times with timezone support
 - Recurring schedule slots (e.g., "Monday 9am, Wednesday 2pm")
 - Auto-scheduling to first available slot
-- Batch scheduling of multiple videos
+- Batch scheduling of multiple videos via `schedule` command (with `--immediate` for direct publishing)
+- Dry-run mode to preview schedule assignments without publishing
+
+### First Comment
+- Post affiliate links as the first comment instead of embedding them in captions
+- Avoids algorithm penalties on platforms that deprioritize posts with outbound links in descriptions
+- Supported on YouTube and Instagram; TikTok always skipped (not supported by scheduling API)
+- Per-platform templates with placeholders: affiliate link, product title, hashtags
+- Prefers shortened affiliate link, falls back to full link
+- Optional hashtag migration: move Instagram hashtags from caption to first comment
+- Non-blocking: missing data or affiliate link silently skipped (warning logged)
+- Works in both unified and platform-specific publishing modes (each platform gets its own comment via per-platform data)
+- Disabled by default, toggled via config
+
+### Duplicate Publish Protection
+- Tracks previously published products per platform
+- Warns and skips duplicates by default
+- `--force` flag to override and republish
 
 ### Post-Publication Cleanup
 - Remove published product directories after confirmation

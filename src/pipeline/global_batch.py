@@ -1388,10 +1388,22 @@ class GlobalPipelineOrchestrator:
                 f"vercel_token={'set' if vercel_token else 'NOT SET'}"
             )
 
+            # Parse first_comment config from YAML
+            from src.publisher.models import FirstCommentConfig
+
+            fc_section = publisher_config.get("first_comment", {})
+            try:
+                first_comment_config = (
+                    FirstCommentConfig(**fc_section) if fc_section else None
+                )
+            except (ValueError, TypeError):
+                first_comment_config = None
+
             publisher = create_publisher(
                 provider=PublisherProvider.LATE,
                 api_key=api_key,
                 vercel_token=vercel_token,
+                first_comment_config=first_comment_config,
             )
 
             # Authenticate
