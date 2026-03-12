@@ -5,6 +5,17 @@ All notable changes to ContentEngineAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- First comment support: post affiliate links as first comment on YouTube and Instagram instead of in captions. Configured via `first_comment` section in `publisher.yaml`
+- `--force` flag for `schedule` command to bypass already-published checks
+
+### Changed
+- Consolidate `batch` command into `schedule --immediate`. Old `batch` CLI is removed
+- `schedule` and `calendar` subcommands (`auto`/`list`) are now optional with defaults
+- Default `--platform` to youtube/tiktok/instagram across all commands
+
 ## [0.32.1] - 2026-03-04
 
 ### Fixed

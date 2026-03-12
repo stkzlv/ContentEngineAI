@@ -1168,9 +1168,9 @@ class LatePublisher(BasePublisher):
                     p.get("platform", "").lower() == "tiktok" for p in platforms
                 )
                 if has_tiktok:
-                    post_data["tiktok_settings"] = (
-                        self.tiktok_settings.to_top_level_dict()
-                    )
+                    post_data[
+                        "tiktok_settings"
+                    ] = self.tiktok_settings.to_top_level_dict()
 
                 if scheduled_time:
                     # Convert to UTC ISO format for API
