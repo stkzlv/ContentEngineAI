@@ -426,7 +426,6 @@ batch:
     - "robot toy"
     - "smart bicycle helmet"
     - "compact power station"
-    - "smart posture corrector"
     - "smart luggage tracker"
     - "laser projection virtual keyboard"
     - "solar backpack"
@@ -435,7 +434,6 @@ batch:
     - "3D pen"
     - "smart scent diffusers"
     - "levitating bluetooth speaker"
-    - "magnetic floating light bulb"
     - "retro game console"
 
   # Stop entire batch on first failure (default: false, continue processing)

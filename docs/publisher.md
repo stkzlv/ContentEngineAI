@@ -205,6 +205,9 @@ python -m src.publisher.late single <product_id> [options]
 | `--schedule DATETIME` | No | Schedule for later (format: `2025-01-20 14:00:00`) |
 | `--force` | No | Force republish even if already published |
 | `--no-cleanup` | No | Disable automatic cleanup after success |
+| `--platform-specific` | No | Create separate posts per platform with optimized metadata |
+| `--link-in-bio` | No | Enable link-in-bio update (overrides config) |
+| `--no-link-in-bio` | No | Disable link-in-bio update (overrides config) |
 
 *If neither `--immediate` nor `--schedule` is provided, auto-discovers next available slot from recurring schedule.
 
@@ -1370,7 +1373,7 @@ first_comment:
   move_hashtags_to_comment: false  # Move Instagram hashtags to comment too
   platforms:
     youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
-    instagram: "{affiliate_link}"
+    instagram: "{product_title}\n🔗 Link in bio!"
 ```
 
 **Template placeholders:**

@@ -260,7 +260,7 @@ first_comment:
   move_hashtags_to_comment: false
   platforms:
     youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
-    instagram: "{affiliate_link}"
+    instagram: "{product_title}\n🔗 Link in bio!"
 
 link_in_bio:
   # Enable/disable link-in-bio updates after publishing
