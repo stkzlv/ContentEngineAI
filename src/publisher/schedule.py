@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.publisher.base import PublishError
+from src.publisher.first_comment import build_first_comment
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -217,8 +218,7 @@ class ScheduleManager:
         # Validate slot_index
         if slot_index < 0 or slot_index >= len(slots):
             raise ValueError(
-                "slot_index must be between 0 and %d, got %d"
-                % (len(slots) - 1, slot_index)
+                f"slot_index must be between 0 and {len(slots) - 1}, got {slot_index}"
             )
 
         # Calculate next occurrence for each slot starting from slot_index
@@ -741,8 +741,7 @@ class ScheduleManager:
 
                     if attempts >= max_attempts:
                         raise ValueError(
-                            "Could not find available slot after %d attempts"
-                            % max_attempts
+                            f"No available slot after {max_attempts} attempts"
                         )
 
                 except (ValueError, KeyError) as e:
@@ -924,6 +923,21 @@ class ScheduleManager:
                                     platform_contents[p.value] = {
                                         "content": f"Product video for {product_id}"
                                     }
+
+                        # Inject first comments into platform_contents
+                        fc_config = getattr(publisher, "first_comment_config", None)
+                        if fc_config and fc_config.enabled and outputs_dir:
+                            for p in platforms:
+                                comment = build_first_comment(
+                                    fc_config,
+                                    p.value,
+                                    product_id,
+                                    outputs_dir,
+                                )
+                                if comment:
+                                    platform_contents.setdefault(p.value, {})[
+                                        "first_comment"
+                                    ] = comment
 
                         if self.config.use_platform_specific_content:
                             # Platform-specific mode: Create separate posts per platform
