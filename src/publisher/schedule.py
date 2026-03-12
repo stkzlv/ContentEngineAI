@@ -989,9 +989,9 @@ class ScheduleManager:
                                         p_name == "youtube"
                                         and "title" in platform_contents.get(p_name, {})
                                     ):
-                                        unified_platform_contents[p_name][
-                                            "title"
-                                        ] = platform_contents[p_name]["title"]
+                                        unified_platform_contents[p_name]["title"] = (
+                                            platform_contents[p_name]["title"]
+                                        )
 
                             result = await publisher.publish(
                                 media_id=media_id,
