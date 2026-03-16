@@ -5,16 +5,15 @@ import asyncio
 import json
 import logging
 import random
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from src.ai.description_generator import generate_description as generate_ai_description
 from src.ai.script_generator import generate_script as generate_ai_script
-from src.audio.freesound_client import FreesoundClient
+from src.audio.manager import AudioManager
+from src.audio.registry import create_audio_provider
 from src.utils import ensure_dirs_exist
-from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
@@ -869,103 +868,25 @@ async def step_download_music(ctx: PipelineContext):
 
         vo_duration = ctx.voiceover_duration
         logger.info("Required music duration is at least %.2f seconds.", vo_duration)
-        music_info = None
 
-        if ctx.secrets.get(ctx.config.audio_settings.freesound_api_key_env_var):
-            fs_client = FreesoundClient(**ctx.secrets)
-            duration_filter = (
-                f"duration:[{int(vo_duration)} TO "
-                f"{ctx.config.audio_settings.freesound_max_search_duration_sec}]"
-            )
-            tracks = await fs_client.search_music(
-                query=ctx.config.audio_settings.freesound_search_query,
-                filters=duration_filter,
-                max_results=ctx.config.audio_settings.freesound_max_results,
-                timeout_sec=ctx.config.audio_settings.freesound_api_timeout_sec,
-            )
-            if not tracks:
-                logger.warning(
-                    "Dynamic duration search yielded no results. "
-                    "Falling back to general search."
-                )
-                tracks = await fs_client.search_music(
-                    query=ctx.config.audio_settings.freesound_search_query,
-                    filters=ctx.config.audio_settings.freesound_filters,
-                    max_results=ctx.config.audio_settings.freesound_max_results,
-                    timeout_sec=ctx.config.audio_settings.freesound_api_timeout_sec,
-                )
-            if tracks:
-                for track in sorted(tracks, key=lambda t: t.duration):
-                    if track.duration >= vo_duration:
-                        logger.info(
-                            f"Found suitable track: '{track.name}' "
-                            f"(Duration: {track.duration}s)"
-                        )
-                        try:
-                            _, music_info = await fs_client.download_full_sound_oauth2(
-                                track.id, ctx.run_paths["assets_dir"], ctx.session
-                            ) or (None, None)
-                            if not music_info:
-                                (
-                                    _,
-                                    music_info,
-                                ) = await fs_client.download_sound_preview_with_api_key(
-                                    track, ctx.run_paths["assets_dir"], ctx.session
-                                ) or (
-                                    None,
-                                    None,
-                                )
-                            if music_info:
-                                break
-                        except (RuntimeError, OSError, TimeoutError) as e:
-                            logger.warning("Failed to download from Freesound: %s", e)
-                            # Continue to try next track, will fall back to local if
-                            # all fail
+        providers = _build_audio_providers(ctx.config, ctx.secrets)
+        manager = AudioManager(
+            providers=providers,
+            local_paths=[
+                p
+                for p in ctx.config.audio_settings.background_music_paths
+                if p.exists()
+            ],
+        )
 
-        if not music_info and ctx.config.audio_settings.background_music_paths:
-            local_path = random.choice(  # noqa: S311
-                [
-                    p
-                    for p in ctx.config.audio_settings.background_music_paths
-                    if p.exists()
-                ]
-            )
-            if local_path:
-                ensure_dirs_exist(ctx.run_paths["assets_dir"])
-                dest_path = ctx.run_paths["assets_dir"] / local_path.name
-
-                # Use memory-mapped I/O for large files, fallback to shutil.copy
-                from src.config_manager import get_config_value
-
-                mmap_threshold = get_config_value(
-                    "memory.mmap_threshold_bytes", 1048576
-                )
-                if is_file_suitable_for_mmap(local_path, min_size=mmap_threshold):
-                    logger.debug(
-                        f"Using memory-mapped copy for large file: {local_path.name}"
-                    )
-                    copy_success = copy_file_mmap(local_path, dest_path)
-                    if not copy_success:
-                        logger.warning(
-                            "Memory-mapped copy failed, falling back to standard copy"
-                        )
-                        shutil.copy(local_path, dest_path)
-                else:
-                    logger.debug(
-                        f"Using standard copy for small file: {local_path.name}"
-                    )
-                    shutil.copy(local_path, dest_path)
-                # Generate complete attribution metadata per R6 (Requirement 6)
-                music_info = {
-                    "source": "Local",
-                    "type": "Music",
-                    "path": str(dest_path),
-                    "name": local_path.stem,
-                    "author": "Unknown",
-                    "license": "Local File",
-                    "url": "",
-                    "id": "",
-                }
+        music_info = await manager.find_music(
+            query=ctx.config.audio_settings.freesound_search_query,
+            min_duration=vo_duration,
+            max_duration=ctx.config.audio_settings.freesound_max_search_duration_sec,
+            max_results=ctx.config.audio_settings.freesound_max_results,
+            output_dir=ctx.run_paths["assets_dir"],
+            session=ctx.session,
+        )
 
         if music_info:
             if isinstance(music_info.get("path"), Path):
@@ -975,10 +896,54 @@ async def step_download_music(ctx: PipelineContext):
                 json.dumps(music_info, indent=2), encoding="utf-8"
             )
             logger.info(
-                f"Music info saved. Selected track: {music_info.get('name', 'N/A')}"
+                "Music info saved. Selected track: %s",
+                music_info.get("name", "N/A"),
             )
         else:
             logger.warning("No background music could be found from any source.")
+
+
+def _build_audio_providers(config: Any, secrets: dict[str, str]) -> list:
+    """Build audio provider instances from config.
+
+    If audio_providers is configured, uses that list. Otherwise falls back
+    to creating a single FreesoundProvider from legacy freesound_* fields.
+    """
+    from src.audio.base import BaseAudioProvider
+
+    providers: list[BaseAudioProvider] = []
+    audio_settings = config.audio_settings
+    provider_configs = getattr(audio_settings, "audio_providers", [])
+
+    if provider_configs:
+        for pc in provider_configs:
+            if not pc.enabled:
+                continue
+            try:
+                provider = create_audio_provider(
+                    pc.name,
+                    config=config,
+                    secrets=secrets,
+                    settings=pc.settings,
+                )
+                providers.append(provider)
+                logger.info("Audio provider loaded: %s", pc.name)
+            except ValueError as exc:
+                logger.warning("Skipping audio provider '%s': %s", pc.name, exc)
+    else:
+        # Legacy mode: auto-create FreesoundProvider from freesound_* fields
+        try:
+            provider = create_audio_provider(
+                "freesound",
+                config=config,
+                secrets=secrets,
+            )
+            providers.append(provider)
+            logger.info("Audio provider loaded: freesound (legacy config)")
+        except ValueError:
+            pass
+
+    return providers
 
 
 async def step_assemble_video(ctx: PipelineContext):

@@ -3,6 +3,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -20,11 +21,20 @@ from src.video.config.constants import (
 logger = logging.getLogger(__name__)
 
 
+class AudioProviderConfig(BaseModel):
+    """Config for a single audio provider instance."""
+
+    name: str
+    enabled: bool = True
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
 class AudioSettings(BaseModel):
     music_volume_db: float
     voiceover_volume_db: float
     audio_mix_duration: str = Field("longest")
     background_music_paths: list[Path]
+    audio_providers: list[AudioProviderConfig] = Field(default_factory=list)
     freesound_api_key_env_var: str
     freesound_client_id_env_var: str = Field("FREESOUND_CLIENT_ID")
     freesound_client_secret_env_var: str = Field("FREESOUND_CLIENT_SECRET")  # noqa: S106

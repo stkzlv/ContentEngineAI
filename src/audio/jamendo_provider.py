@@ -1,0 +1,186 @@
+"""Jamendo Music API provider (https://developer.jamendo.com/v3.0)."""
+
+import logging
+from pathlib import Path
+from typing import Any
+
+import aiohttp
+
+from src.utils import ensure_dirs_exist, sanitize_filename
+from src.utils.circuit_breaker import CircuitBreaker
+
+from .base import AudioTrack, BaseAudioProvider
+from .registry import AudioProvider, register_audio_provider
+
+logger = logging.getLogger(__name__)
+
+JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
+
+# Separate circuit breaker for Jamendo
+jamendo_circuit_breaker = CircuitBreaker(
+    name="jamendo",
+    failure_threshold=3,
+    timeout=60,
+)
+
+
+@register_audio_provider(AudioProvider.JAMENDO)
+class JamendoProvider(BaseAudioProvider):
+    """Jamendo Music API provider with Creative Commons licensed tracks."""
+
+    def __init__(
+        self,
+        secrets: dict[str, str] | None = None,
+        settings: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        secrets = secrets or {}
+        settings = settings or {}
+        env_var = settings.get("client_id_env_var", "JAMENDO_CLIENT_ID")
+        self._client_id: str | None = secrets.get(env_var)
+        self._timeout_sec: int = settings.get("api_timeout_sec", 10)
+        self._download_timeout_sec: int = settings.get("download_timeout_sec", 60)
+
+        if self._client_id:
+            logger.debug("Jamendo provider configured with client_id")
+        else:
+            logger.debug("Jamendo client_id not found in env var '%s'", env_var)
+
+    @property
+    def provider_name(self) -> str:
+        return "jamendo"
+
+    async def search(
+        self,
+        query: str,
+        min_duration: float,
+        max_duration: float,
+        max_results: int,
+        session: aiohttp.ClientSession,
+    ) -> list[AudioTrack]:
+        if not self._client_id:
+            logger.debug("Jamendo client_id not configured, skipping")
+            return []
+
+        if jamendo_circuit_breaker.is_open:
+            logger.warning("Jamendo circuit breaker is open, skipping")
+            return []
+
+        params = {
+            "client_id": self._client_id,
+            "format": "json",
+            "search": query,
+            "duration_between": f"{int(min_duration)}_{int(max_duration)}",
+            "vocalinstrumental": "instrumental",
+            "order": "popularity_month_desc",
+            "limit": str(min(max_results, 200)),
+            "audiodlformat": "mp32",
+            "include": "musicinfo",
+        }
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=self._timeout_sec)
+            async with session.get(  # type: ignore[attr-defined]
+                f"{JAMENDO_API_BASE}/tracks/",
+                params=params,
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    logger.warning(
+                        "Jamendo search returned %d: %s",
+                        resp.status,
+                        body[:200],
+                    )
+                    jamendo_circuit_breaker._on_failure(Exception("API error"))
+                    return []
+
+                data = await resp.json()
+                jamendo_circuit_breaker._on_success()
+
+        except (TimeoutError, aiohttp.ClientError) as exc:
+            logger.warning("Jamendo search failed: %s", exc)
+            jamendo_circuit_breaker._on_failure(Exception("API error"))
+            return []
+
+        results = data.get("results", [])
+        logger.info("Jamendo search: %d tracks (query='%s')", len(results), query)
+
+        return [
+            AudioTrack(
+                id=str(r["id"]),
+                name=r.get("name", "Unknown"),
+                duration=float(r.get("duration", 0)),
+                author=r.get("artist_name", "Unknown"),
+                license=r.get("license_ccurl", "Creative Commons"),
+                url=r.get("shareurl", ""),
+                provider_data=r,
+            )
+            for r in results
+        ]
+
+    async def download(
+        self,
+        track: AudioTrack,
+        output_dir: Path,
+        session: aiohttp.ClientSession,
+    ) -> tuple[Path, dict[str, Any]] | None:
+        raw = track.provider_data or {}
+
+        # Prefer audiodownload if allowed, fall back to stream URL
+        download_url = None
+        if raw.get("audiodownload_allowed", False) and raw.get("audiodownload"):
+            download_url = raw["audiodownload"]
+        elif raw.get("audio"):
+            download_url = raw["audio"]
+
+        if not download_url:
+            logger.warning("No download URL for Jamendo track '%s'", track.name)
+            return None
+
+        ensure_dirs_exist(output_dir)
+        filename = f"{sanitize_filename(track.name)}.mp3"
+        file_path = output_dir / filename
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=self._download_timeout_sec)
+            async with session.get(  # type: ignore[attr-defined]
+                download_url,
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    logger.warning(
+                        "Jamendo download returned %d for '%s'",
+                        resp.status,
+                        track.name,
+                    )
+                    return None
+
+                with open(file_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(65536):
+                        f.write(chunk)
+
+        except (TimeoutError, aiohttp.ClientError, OSError) as exc:
+            logger.warning("Jamendo download failed for '%s': %s", track.name, exc)
+            if file_path.exists():
+                file_path.unlink()
+            return None
+
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            logger.warning("Jamendo download empty for '%s'", track.name)
+            return None
+
+        size_mb = file_path.stat().st_size / 1024 / 1024
+        logger.info("Jamendo download: %s (%.2f MB)", filename, size_mb)
+
+        attribution = {
+            "source": "Jamendo",
+            "type": "Music",
+            "path": str(file_path),
+            "name": track.name,
+            "author": track.author,
+            "license": track.license,
+            "url": track.url,
+            "id": track.id,
+        }
+        return file_path, attribution

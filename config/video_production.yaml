@@ -193,12 +193,26 @@ audio_settings:
   music_fade_out_duration: 3.0
 
   # Background music file paths (local fallbacks)
-  # Used when Freesound API unavailable or no suitable tracks found
+  # Used when all API providers fail or are unavailable
   # Supports MP3, WAV, AAC formats - randomly selected from list
   background_music_paths:
     - "static/background-music-calm-soft-334182.mp3"
     - "static/background-music-happy-333014.mp3"
     - "static/background-music-upbeat-energetic-333016.mp3"
+
+  # ============================================================================
+  # AUDIO PROVIDER CHAIN
+  # ============================================================================
+  # Providers are tried in order. First successful download wins.
+  # If all providers fail, falls back to local background_music_paths above.
+  # Each provider needs its API key set in .env (see env var names below).
+  audio_providers:
+    - name: "jamendo"
+      enabled: true
+      settings:
+        client_id_env_var: "JAMENDO_CLIENT_ID"
+    - name: "freesound"
+      enabled: true
 
   # ============================================================================
   # FREESOUND CONFIGURATION (Creative Commons Music API)
