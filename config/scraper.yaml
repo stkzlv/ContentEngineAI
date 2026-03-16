@@ -331,6 +331,10 @@ global_settings:
     # Affects: Memory usage, request size, pagination behavior
     max_batch_size: 15
 
+    # Maximum additional pages to try per keyword when products fail validation
+    # Used by global batch pipeline to retry with next search result pages
+    max_retry_pages: 5
+
   # ---- Browser Configuration ----
   # Controls browser window behavior and scraping timeouts
   browser_config:

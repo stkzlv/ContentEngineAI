@@ -866,6 +866,51 @@ class GlobalPipelineOrchestrator:
                     target_download_count=per_input_limit,
                 )
 
+                # Retry with additional search pages if not enough
+                # validated products (keywords only, not ASINs/URLs)
+                is_keyword = not scraper._is_asin(input_item) and not scraper._is_url(
+                    input_item
+                )
+                if is_keyword and len(products) < per_input_limit:
+                    from src.scraper.amazon.config import CONFIG as SCRAPER_CONFIG
+
+                    batch_cfg = SCRAPER_CONFIG.get(
+                        "global_settings",
+                        {},
+                    ).get("batch_processing", {})
+                    max_retry_pages = batch_cfg.get("max_retry_pages", 5)
+                    page = 2
+                    while len(products) < per_input_limit and page <= max_retry_pages:
+                        remaining = per_input_limit - len(products)
+                        logger.info(
+                            "Retrying %s page %d (%d/%d validated)",
+                            input_item,
+                            page,
+                            len(products),
+                            per_input_limit,
+                        )
+                        extra_results = scraper.scrape_batch_browser(
+                            [input_item],
+                            search_params=self.config.scraper_filters,
+                            start_page=page,
+                        )
+                        extra_raw = []
+                        for entry in extra_results:
+                            extra_raw.extend(entry.get("products", []))
+                        if not extra_raw:
+                            logger.info(
+                                "No more results for %s on page %d",
+                                input_item,
+                                page,
+                            )
+                            break
+                        extra_products = scraper.process_raw_products(
+                            extra_raw,
+                            target_download_count=remaining,
+                        )
+                        products.extend(extra_products)
+                        page += 1
+
                 if products:
                     inputs_processed += 1
                     for product in products:

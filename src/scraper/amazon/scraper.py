@@ -920,6 +920,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         self,
         inputs: list[str],
         search_params: SearchParameters | None = None,
+        start_page: int = 1,
     ) -> list[dict]:
         """Scrape multiple inputs in a single Chrome session (browser phase only).
 
@@ -939,7 +940,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     "debug_mode": self.debug_mode,
                     "debug_options": self.debug_options,
                     "max_products": self.amazon_config.get("max_products", 5),
-                    "page": 1,
+                    "page": start_page,
                 }
             )
 
