@@ -16,6 +16,7 @@ from .registry import AudioProvider, register_audio_provider
 logger = logging.getLogger(__name__)
 
 JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
+JAMENDO_MAX_RESULTS = 200  # Jamendo API hard limit
 DOWNLOAD_CHUNK_SIZE = 65536
 
 # Separate circuit breaker for Jamendo
@@ -87,7 +88,7 @@ class JamendoProvider(BaseAudioProvider):
             "duration_between": f"{int(min_duration)}_{int(max_duration)}",
             "vocalinstrumental": "instrumental",
             "order": "popularity_month_desc",
-            "limit": str(min(max_results, 200)),
+            "limit": str(min(max_results, JAMENDO_MAX_RESULTS)),
             "audiodlformat": "mp32",
             "include": "musicinfo",
         }
