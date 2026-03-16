@@ -101,6 +101,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Error Handling**: Specific exceptions (never bare `except Exception`), structured logging
 - **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings
 - **Configuration**: Centralized in `src/video/config/` (Pydantic models)
+- **Secrets wiring**: When adding new env vars (API keys, credentials) to any module, verify they're included in the secrets dict in BOTH `src/pipeline/global_batch.py` AND `src/video/producer/cli.py`. These are the two entry points that pass secrets to the pipeline. Missing a key means the feature works in tests but silently falls back in production runs. The audio provider `audio_providers[].settings` env vars are read dynamically; other modules use hardcoded lists.
 
 ### Audio Module Notes
 
