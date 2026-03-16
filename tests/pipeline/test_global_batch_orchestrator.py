@@ -92,6 +92,7 @@ def mock_video_config():
             freesound_client_id_env_var=None,
             freesound_client_secret_env_var=None,
             freesound_refresh_token_env_var=None,
+            audio_providers=[],
         ),
     )
 
