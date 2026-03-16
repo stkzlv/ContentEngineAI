@@ -211,7 +211,7 @@ audio_settings:
       enabled: true
       settings:
         client_id_env_var: "JAMENDO_CLIENT_ID"
-        api_timeout_sec: 10
+        api_timeout_sec: 15
         download_timeout_sec: 60
         # Search mode: "fuzzytags" (OR match, more results), "tags" (AND match,
         # stricter), "search" (free text across names/artists/tags)
@@ -283,12 +283,11 @@ audio_settings:
   # API request timeout (seconds)
   # Covers: Search operations, token refresh, metadata retrieval
   # Increase if experiencing frequent timeouts on slow connections
-  freesound_api_timeout_sec: 30
+  freesound_api_timeout_sec: 15
 
   # Download timeout (seconds)
   # Covers: Preview downloads (API key) and full downloads (OAuth2)
-  # Increase for slow connections or large files (30s typical for previews)
-  freesound_download_timeout_sec: 300
+  freesound_download_timeout_sec: 60
 
   # --- OAuth2 Token Management ---
   # Token expiration time (seconds)

@@ -41,7 +41,7 @@ class JamendoProvider(BaseAudioProvider):
         settings = settings or {}
         env_var = settings.get("client_id_env_var", "JAMENDO_CLIENT_ID")
         self._client_id: str | None = secrets.get(env_var)
-        self._timeout_sec: int = settings.get("api_timeout_sec", 10)
+        self._timeout_sec: int = settings.get("api_timeout_sec", 15)
         self._download_timeout_sec: int = settings.get("download_timeout_sec", 60)
         # Search mode: "fuzzytags" (default, OR match with relevance),
         # "tags" (AND match), or "search" (free text)

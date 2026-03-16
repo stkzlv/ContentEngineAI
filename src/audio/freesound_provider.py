@@ -12,8 +12,8 @@ from .registry import AudioProvider, register_audio_provider
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_API_TIMEOUT_SEC = 30
-DEFAULT_DOWNLOAD_TIMEOUT_SEC = 300
+DEFAULT_API_TIMEOUT_SEC = 15
+DEFAULT_DOWNLOAD_TIMEOUT_SEC = 60
 
 
 @register_audio_provider(AudioProvider.FREESOUND)
