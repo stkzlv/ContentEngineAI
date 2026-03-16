@@ -12,6 +12,9 @@ from .registry import AudioProvider, register_audio_provider
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_API_TIMEOUT_SEC = 10
+DEFAULT_DOWNLOAD_TIMEOUT_SEC = 60
+
 
 @register_audio_provider(AudioProvider.FREESOUND)
 class FreesoundProvider(BaseAudioProvider):
@@ -48,9 +51,13 @@ class FreesoundProvider(BaseAudioProvider):
             logger.debug("Freesound API key not configured, skipping search")
             return []
 
-        timeout = 10
+        timeout = DEFAULT_API_TIMEOUT_SEC
         if self._audio_settings:
-            timeout = getattr(self._audio_settings, "freesound_api_timeout_sec", 10)
+            timeout = getattr(
+                self._audio_settings,
+                "freesound_api_timeout_sec",
+                DEFAULT_API_TIMEOUT_SEC,
+            )
 
         duration_filter = f"duration:[{int(min_duration)} TO {int(max_duration)}]"
         tracks = await self._client.search_music(
@@ -102,12 +109,12 @@ class FreesoundProvider(BaseAudioProvider):
         if sound is None:
             return None
 
-        timeout = 60
+        timeout = DEFAULT_DOWNLOAD_TIMEOUT_SEC
         if self._audio_settings:
             timeout = getattr(
                 self._audio_settings,
                 "freesound_download_timeout_sec",
-                60,
+                DEFAULT_DOWNLOAD_TIMEOUT_SEC,
             )
 
         # Try OAuth2 full download first

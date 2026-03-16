@@ -16,6 +16,7 @@ from .registry import AudioProvider, register_audio_provider
 logger = logging.getLogger(__name__)
 
 JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
+DOWNLOAD_CHUNK_SIZE = 65536
 
 # Separate circuit breaker for Jamendo
 jamendo_circuit_breaker = CircuitBreaker(
@@ -112,7 +113,7 @@ class JamendoProvider(BaseAudioProvider):
                         resp.status,
                         body[:200],
                     )
-                    jamendo_circuit_breaker._on_failure(Exception("API error"))
+                    jamendo_circuit_breaker.record_failure(Exception("API error"))
                     return []
 
                 data = await resp.json()
@@ -122,14 +123,14 @@ class JamendoProvider(BaseAudioProvider):
                 if api_status == "error":
                     error_msg = data.get("headers", {}).get("error_message", "")
                     logger.warning("Jamendo API error: %s", error_msg)
-                    jamendo_circuit_breaker._on_failure(Exception(error_msg))
+                    jamendo_circuit_breaker.record_failure(Exception(error_msg))
                     return []
 
-                jamendo_circuit_breaker._on_success()
+                jamendo_circuit_breaker.record_success()
 
         except (TimeoutError, aiohttp.ClientError) as exc:
             logger.warning("Jamendo search failed: %s", exc)
-            jamendo_circuit_breaker._on_failure(Exception("API error"))
+            jamendo_circuit_breaker.record_failure(Exception("API error"))
             return []
 
         results = data.get("results", [])
@@ -186,7 +187,7 @@ class JamendoProvider(BaseAudioProvider):
                     return None
 
                 with open(file_path, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(65536):
+                    async for chunk in resp.content.iter_chunked(DOWNLOAD_CHUNK_SIZE):
                         f.write(chunk)
 
         except (TimeoutError, aiohttp.ClientError, OSError) as exc:

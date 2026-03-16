@@ -58,7 +58,12 @@ class AudioManager:
                     "Circuit breaker open for %s, skipping",
                     provider.provider_name,
                 )
-            except Exception as exc:
+            except (
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                aiohttp.ClientError,
+            ) as exc:
                 logger.warning(
                     "Provider %s failed: %s",
                     provider.provider_name,
