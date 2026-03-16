@@ -214,6 +214,14 @@ audio_settings:
         # Search mode: "fuzzytags" (OR match, more results), "tags" (AND match,
         # stricter), "search" (free text across names/artists/tags)
         search_mode: "fuzzytags"
+        # One query is picked randomly per product for variety.
+        # Use + to combine tags (fuzzytags=OR, tags=AND).
+        search_queries:
+          - "upbeat energetic"
+          - "happy positive"
+          - "corporate background"
+          - "modern electronic"
+          - "motivational inspiring"
     - name: "freesound"
       enabled: true
 

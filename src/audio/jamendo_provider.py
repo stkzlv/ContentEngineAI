@@ -1,6 +1,7 @@
 """Jamendo Music API provider (https://developer.jamendo.com/v3.0)."""
 
 import logging
+import random
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,8 @@ class JamendoProvider(BaseAudioProvider):
         # Search mode: "fuzzytags" (default, OR match with relevance),
         # "tags" (AND match), or "search" (free text)
         self._search_mode: str = settings.get("search_mode", "fuzzytags")
+        # Optional list of queries; one picked randomly per search for variety
+        self._search_queries: list[str] = settings.get("search_queries", [])
 
         if self._client_id:
             logger.debug("Jamendo provider configured with client_id")
@@ -68,6 +71,11 @@ class JamendoProvider(BaseAudioProvider):
         if jamendo_circuit_breaker.is_open:
             logger.warning("Jamendo circuit breaker is open, skipping")
             return []
+
+        # Pick from configured queries if available, otherwise use the passed query
+        if self._search_queries:
+            query = random.choice(self._search_queries)  # noqa: S311
+            logger.info("Jamendo query (random): '%s'", query)
 
         # Convert space-separated query to + delimited for tags/fuzzytags
         tag_query = query.replace(" ", "+")
