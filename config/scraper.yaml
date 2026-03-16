@@ -423,18 +423,37 @@ batch:
     - "portable charger"
     - "wallet finder"
     - "car charger"
-    - "robot toy"
     - "smart bicycle helmet"
     - "compact power station"
     - "smart luggage tracker"
     - "laser projection virtual keyboard"
     - "solar backpack"
     - "smart mirror"
-    - "drone with follow me mode camera"
+    - "drone with camera"
     - "3D pen"
-    - "smart scent diffusers"
     - "levitating bluetooth speaker"
     - "retro game console"
+    - "smart watch"
+    - "wireless earbuds"
+    - "fitness tracker band"
+    - "smart plug"
+    - "smart light bulb"
+    - "robot vacuum"
+    - "smart doorbell camera"
+    - "wireless charging pad"
+    - "solar power bank"
+    - "USB C hub"
+    - "bluetooth speaker"
+    - "noise cancelling earbuds"
+    - "bone conduction headphones"
+    - "action camera"
+    - "phone gimbal stabilizer"
+    - "portable monitor"
+    - "mechanical keyboard"
+    - "bluetooth tracker"
+    - "LED strip lights"
+    - "digital picture frame"
+    - "portable espresso maker"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure
@@ -486,7 +505,7 @@ scrapers:
     default_search_parameters:
       # Price filtering (in USD, set to null to disable)
       min_price: 20              # Minimum price filter (e.g., 10.99)
-      max_price: 150             # Maximum price filter (e.g., 99.99)
+      max_price: 250             # Maximum price filter (e.g., 99.99)
 
       # Quality filtering (1-5 stars, set to null to disable)
       min_rating: 4              # Minimum rating filter (e.g., 4 for 4+ stars)
