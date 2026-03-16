@@ -284,6 +284,8 @@ make test-cov      # Run tests with coverage report
 - **CLI args**: `--input-file FILE` (one URL/ASIN per line), `--batch-size N` (process in chunks), `--output-dir DIR` (override output directory).
 - **Botasaurus output dir override**: Botasaurus framework callbacks don't accept custom parameters. Use module-level `set_output_dir()` in `botasaurus_output.py` before running the scraper. The `_effective_dir()` helper resolves: explicit param > module override > None (config default).
 - **Variable initialization in browser_functions.py**: Variables used after `if is_url / elif is_asin / else` branching (like `count_products_with_media`, `products_with_media_count`, `max_products`) must be initialized **before** the branch, not inside one branch.
+- **Two scraping code paths**: The standalone scraper CLI uses `scrape_products_unified()` which has a cycling loop (`_scrape_until_validated_count_reached`). The global batch uses `scrape_batch_browser()` + `process_raw_products()` with its own page retry loop in `global_batch.py`. Changes to validation logic must be tested through both paths.
+- **Page retry**: Global batch retries with additional search pages when products fail media validation (`max_retry_pages` in scraper YAML). Only applies to keyword searches, not ASINs/URLs.
 
 ## Available MCP Servers
 
