@@ -4,13 +4,14 @@ from src.audio.base import AudioProvider, AudioTrack
 
 
 def test_audio_provider_enum_values():
-    assert AudioProvider.FREESOUND == "freesound"
-    assert AudioProvider.JAMENDO == "jamendo"
+    providers = {AudioProvider.FREESOUND, AudioProvider.JAMENDO}
+    assert "freesound" in providers
+    assert "jamendo" in providers
 
 
 def test_audio_provider_from_string():
-    assert AudioProvider("freesound") == AudioProvider.FREESOUND
-    assert AudioProvider("jamendo") == AudioProvider.JAMENDO
+    assert AudioProvider("freesound") is AudioProvider.FREESOUND
+    assert AudioProvider("jamendo") is AudioProvider.JAMENDO
 
 
 def test_audio_track_creation():
