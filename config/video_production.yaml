@@ -211,6 +211,9 @@ audio_settings:
       enabled: true
       settings:
         client_id_env_var: "JAMENDO_CLIENT_ID"
+        # Search mode: "fuzzytags" (OR match, more results), "tags" (AND match,
+        # stricter), "search" (free text across names/artists/tags)
+        search_mode: "fuzzytags"
     - name: "freesound"
       enabled: true
 

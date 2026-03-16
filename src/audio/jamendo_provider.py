@@ -40,6 +40,9 @@ class JamendoProvider(BaseAudioProvider):
         self._client_id: str | None = secrets.get(env_var)
         self._timeout_sec: int = settings.get("api_timeout_sec", 10)
         self._download_timeout_sec: int = settings.get("download_timeout_sec", 60)
+        # Search mode: "fuzzytags" (default, OR match with relevance),
+        # "tags" (AND match), or "search" (free text)
+        self._search_mode: str = settings.get("search_mode", "fuzzytags")
 
         if self._client_id:
             logger.debug("Jamendo provider configured with client_id")
@@ -66,10 +69,12 @@ class JamendoProvider(BaseAudioProvider):
             logger.warning("Jamendo circuit breaker is open, skipping")
             return []
 
-        params = {
+        # Convert space-separated query to + delimited for tags/fuzzytags
+        tag_query = query.replace(" ", "+")
+
+        params: dict[str, str] = {
             "client_id": self._client_id,
             "format": "json",
-            "search": query,
             "duration_between": f"{int(min_duration)}_{int(max_duration)}",
             "vocalinstrumental": "instrumental",
             "order": "popularity_month_desc",
@@ -77,6 +82,13 @@ class JamendoProvider(BaseAudioProvider):
             "audiodlformat": "mp32",
             "include": "musicinfo",
         }
+
+        if self._search_mode == "tags":
+            params["tags"] = tag_query
+        elif self._search_mode == "search":
+            params["search"] = query
+        else:
+            params["fuzzytags"] = tag_query
 
         try:
             timeout = aiohttp.ClientTimeout(total=self._timeout_sec)
