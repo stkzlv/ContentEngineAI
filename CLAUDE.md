@@ -102,6 +102,16 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings
 - **Configuration**: Centralized in `src/video/config/` (Pydantic models)
 
+### Audio Module Notes
+
+- **Provider platform**: `src/audio/` uses `BaseAudioProvider` ABC + `AudioProviderRegistry` + `AudioManager` chain pattern (same as publisher module)
+- **Adding a provider**: create `src/audio/new_provider.py` with `@register_audio_provider` decorator, add enum value to `AudioProvider`, import in `__init__.py`, enable in YAML
+- **Provider chain**: configured via `audio_providers` list in `video_production.yaml`. Tried in order, first successful download wins, local files are last resort
+- **Jamendo**: uses `client_id` auth only (no OAuth2), `fuzzytags` search for genre/mood matching, random query selection from configured pool
+- **Freesound**: `FreesoundProvider` wraps existing `FreesoundClient` (don't modify the 728-line client directly). OAuth2 for full quality, API key for previews
+- **Config patterns**: Jamendo uses `audio_providers[].settings` dict, Freesound uses legacy `freesound_*` fields on `AudioSettings`. Both work, new providers should use the `settings` dict pattern
+- **CircuitBreaker**: use public `record_success()`/`record_failure()` methods, not private `_on_success()`/`_on_failure()`
+
 ### Video Module Notes
 
 - **Profile settings**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` (not dicts). Access via `.video_settings.field` and `.subtitle_settings.field`. Use `.model_dump()` when downstream functions need dicts.

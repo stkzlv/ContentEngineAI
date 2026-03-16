@@ -209,12 +209,24 @@ High-level requirements for ContentEngineAI.
 - Profile metadata recorded in pipeline output
 
 ### Stock Background Music
-- Multi-platform music client (Freesound primary)
-- Dynamic duration matching to voiceover
-- OAuth2 for full quality, API key for previews
-- Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture, no manual steps
-- Fallback to local stock files if online sources fail
-- Proper attribution and license tracking
+- Pluggable audio provider platform: `BaseAudioProvider` ABC with registry and factory pattern
+- Provider chain tries each configured source in order, falls back to local files
+- Default chain: Jamendo (primary) -> Freesound (fallback) -> local stock files
+- Dynamic duration matching to voiceover length
+- Per-provider circuit breakers for resilience
+- Proper attribution and license tracking (source, author, license URL, track ID)
+
+#### Jamendo Provider
+- Jamendo Music API v3.0 with `client_id` authentication (no OAuth2 needed)
+- `fuzzytags` search mode for genre/mood matching (OR relevance), configurable to `tags` (AND) or `search` (free text)
+- Configurable search query pool with random selection per product for music variety
+- Prefers `audiodownload` URL, falls back to stream URL if download not allowed
+
+#### Freesound Provider
+- Wraps existing FreesoundClient behind `BaseAudioProvider` interface
+- OAuth2 for full quality downloads, API key for preview fallback
+- Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture
+- Duration filter search with general filter fallback
 
 ### Batch Mode
 - Automatic product discovery from outputs directory

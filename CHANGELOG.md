@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Audio provider platform: pluggable system for background music sourcing with `BaseAudioProvider` ABC, registry, and `AudioManager` chain
+- Jamendo Music API provider (CC-licensed tracks, fuzzytags search, configurable queries)
+- `audio_providers` config list in `video_production.yaml` for provider chain ordering
+- 45 audio tests across 6 test files (base, registry, freesound provider, jamendo provider, manager)
+- Public `record_success()`/`record_failure()` methods on `CircuitBreaker`
+
+### Changed
+- `step_download_music()` refactored from ~100 lines of inline Freesound logic to ~15 lines using AudioManager
+- Default audio provider chain: Jamendo (primary) -> Freesound (fallback) -> local files
+- Audio timeouts aligned to 15s search / 60s download across all providers
+- FreesoundClient wrapped as `FreesoundProvider` adapter (client code untouched)
+
 ## [0.33.0] - 2026-03-12
 
 ### Added
