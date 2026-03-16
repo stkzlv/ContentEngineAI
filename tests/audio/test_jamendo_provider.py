@@ -201,3 +201,62 @@ async def test_download_no_url(provider, temp_dir):
     async with aiohttp.ClientSession() as session:
         result = await provider.download(track, temp_dir, session)
         assert result is None
+
+
+@pytest.mark.asyncio
+async def test_search_circuit_breaker_open(provider, mock_aioresponses):
+    """Skip search when circuit breaker is open."""
+    # Trip the breaker by recording failures
+    for _ in range(3):
+        jamendo_circuit_breaker.record_failure()
+
+    async with aiohttp.ClientSession() as session:
+        tracks = await provider.search("query", 60, 300, 10, session)
+        assert tracks == []
+
+
+@pytest.mark.asyncio
+async def test_search_uses_random_query(mock_aioresponses):
+    """search_queries config picks randomly, ignoring the passed query."""
+    provider = JamendoProvider(
+        secrets={"JAMENDO_CLIENT_ID": "test_client_id"},
+        settings={"search_queries": ["rock", "jazz"]},
+    )
+    mock_aioresponses.get(
+        JAMENDO_TRACKS_PATTERN,
+        payload={"headers": {"status": "success"}, "results": []},
+        status=200,
+        repeat=True,
+    )
+
+    async with aiohttp.ClientSession() as session:
+        await provider.search("ignored", 60, 300, 5, session)
+        # Verify the request was made (random query used, not "ignored")
+        assert len(mock_aioresponses.requests) > 0
+
+
+@pytest.mark.asyncio
+async def test_download_http_error(provider, mock_aioresponses, temp_dir):
+    from src.audio.base import AudioTrack
+
+    track = AudioTrack(
+        id="222",
+        name="Error Track",
+        duration=90.0,
+        author="Artist",
+        license="CC0",
+        url="",
+        provider_data={
+            "audiodownload_allowed": True,
+            "audiodownload": "https://prod-1.storage.jamendo.com/download/track/222/mp32/",
+        },
+    )
+
+    mock_aioresponses.get(
+        "https://prod-1.storage.jamendo.com/download/track/222/mp32/",
+        status=403,
+    )
+
+    async with aiohttp.ClientSession() as session:
+        result = await provider.download(track, temp_dir, session)
+        assert result is None

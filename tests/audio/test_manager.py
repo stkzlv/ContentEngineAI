@@ -7,6 +7,7 @@ import pytest
 
 from src.audio.base import AudioTrack, BaseAudioProvider
 from src.audio.manager import AudioManager
+from src.utils.circuit_breaker import CircuitBreakerError
 
 
 class FakeProvider(BaseAudioProvider):
@@ -167,3 +168,48 @@ async def test_empty_search_tries_next(sample_track, sample_attribution, temp_di
     session = MagicMock()
     result = await manager.find_music("query", 60, 300, 10, temp_dir, session)
     assert result is not None
+
+
+class CircuitBreakerProvider(BaseAudioProvider):
+    """Provider that raises CircuitBreakerError."""
+
+    @property
+    def provider_name(self):
+        return "broken"
+
+    async def search(self, query, min_duration, max_duration, max_results, session):
+        raise CircuitBreakerError("circuit open")
+
+    async def download(self, track, output_dir, session):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_skips_to_next(
+    sample_track, sample_attribution, temp_dir
+):
+    path = Path(sample_attribution["path"])
+    broken = CircuitBreakerProvider()
+    working = FakeProvider(
+        "working",
+        tracks=[sample_track],
+        download_result=(path, sample_attribution),
+    )
+    manager = AudioManager(providers=[broken, working])
+
+    session = MagicMock()
+    result = await manager.find_music("query", 60, 300, 10, temp_dir, session)
+    assert result is not None
+    assert result["source"] == "TestProvider"
+
+
+@pytest.mark.asyncio
+async def test_local_fallback_nonexistent_paths(temp_dir):
+    """Local paths that don't exist are filtered out."""
+    manager = AudioManager(
+        providers=[],
+        local_paths=[Path("/nonexistent/file.mp3")],
+    )
+    session = MagicMock()
+    result = await manager.find_music("query", 60, 300, 10, temp_dir, session)
+    assert result is None
