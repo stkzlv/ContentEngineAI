@@ -178,7 +178,7 @@ audio_settings:
   # Output format is controlled by output_audio_codec and output_audio_bitrate below
 
   # Volume levels (dB)
-  music_volume_db: -24.0
+  music_volume_db: -20.0
   voiceover_volume_db: 3.0
 
   # Audio mixing settings
