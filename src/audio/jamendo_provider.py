@@ -96,6 +96,15 @@ class JamendoProvider(BaseAudioProvider):
                     return []
 
                 data = await resp.json()
+
+                # Jamendo returns 200 with error status for bad requests
+                api_status = data.get("headers", {}).get("status")
+                if api_status == "error":
+                    error_msg = data.get("headers", {}).get("error_message", "")
+                    logger.warning("Jamendo API error: %s", error_msg)
+                    jamendo_circuit_breaker._on_failure(Exception(error_msg))
+                    return []
+
                 jamendo_circuit_breaker._on_success()
 
         except (TimeoutError, aiohttp.ClientError) as exc:

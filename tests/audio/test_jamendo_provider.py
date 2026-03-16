@@ -83,6 +83,27 @@ async def test_search_api_error(provider, mock_aioresponses):
 
 
 @pytest.mark.asyncio
+async def test_search_api_error_in_body(provider, mock_aioresponses):
+    """Jamendo can return 200 with error status in JSON body."""
+    mock_aioresponses.get(
+        JAMENDO_TRACKS_PATTERN,
+        payload={
+            "headers": {
+                "status": "error",
+                "code": 5,
+                "error_message": "Invalid client_id",
+            },
+            "results": [],
+        },
+        status=200,
+    )
+
+    async with aiohttp.ClientSession() as session:
+        tracks = await provider.search("query", 60, 300, 10, session)
+        assert tracks == []
+
+
+@pytest.mark.asyncio
 async def test_search_timeout(provider, mock_aioresponses):
     mock_aioresponses.get(
         JAMENDO_TRACKS_PATTERN,
