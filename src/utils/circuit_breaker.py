@@ -161,6 +161,14 @@ class CircuitBreaker:
             # Unexpected exception - let it propagate without affecting circuit
             raise
 
+    def record_success(self) -> None:
+        """Record a successful call (public API for manual tracking)."""
+        self._on_success()
+
+    def record_failure(self, error: Exception | None = None) -> None:
+        """Record a failed call (public API for manual tracking)."""
+        self._on_failure(error or Exception("recorded failure"))
+
     def _on_success(self):
         """Handle successful function execution."""
         self.successful_calls += 1

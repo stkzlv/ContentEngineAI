@@ -366,18 +366,11 @@ class FreesoundClient:
             "refresh_token": self.oauth_refresh_token,
         }
 
-        # Load retry configuration from config or use defaults
-        if self.config and hasattr(self.config, "audio_settings"):
-            retry_config = self.config.audio_settings.get("freesound_token_refresh", {})
-            max_retries = retry_config.get("max_retries", 2)
-            timeout_sec = retry_config.get("timeout_sec", 5)
-            backoff_base = retry_config.get("backoff_base_delay_sec", 0.5)
-            backoff_mult = retry_config.get("backoff_multiplier", 2.0)
-        else:
-            max_retries = 2
-            timeout_sec = 5
-            backoff_base = 0.5
-            backoff_mult = 2.0
+        # Token refresh retry defaults
+        max_retries = 2
+        timeout_sec = 5
+        backoff_base = 0.5
+        backoff_mult = 2.0
 
         for attempt in range(max_retries):
             try:
@@ -556,16 +549,10 @@ class FreesoundClient:
         download_url = f"https://freesound.org/apiv2/sounds/{sound_id}/download/"
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        # Load download retry configuration from config or use defaults
-        if self.config and hasattr(self.config, "audio_settings"):
-            download_config = self.config.audio_settings.get("freesound_download", {})
-            max_retries = download_config.get("max_retries", 2)
-            backoff_base = download_config.get("backoff_base_delay_sec", 1.0)
-            backoff_mult = download_config.get("backoff_multiplier", 2.0)
-        else:
-            max_retries = 2
-            backoff_base = 1.0
-            backoff_mult = 2.0
+        # Download retry defaults
+        max_retries = 2
+        backoff_base = 1.0
+        backoff_mult = 2.0
 
         for attempt in range(max_retries):
             try:

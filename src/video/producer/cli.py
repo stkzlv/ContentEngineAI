@@ -616,6 +616,12 @@ async def main():
             config.audio_settings.freesound_client_secret_env_var,
             config.audio_settings.freesound_refresh_token_env_var,
         ]
+        # Add env vars from audio provider configs
+        for ap in config.audio_settings.audio_providers:
+            for key in ("client_id_env_var", "api_key_env_var"):
+                env_var = ap.settings.get(key)
+                if env_var and env_var not in secret_names:
+                    secret_names.append(env_var)
         if config.llm_settings.fallback_provider:
             secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
         secrets = {

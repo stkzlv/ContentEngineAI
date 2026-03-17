@@ -178,7 +178,7 @@ audio_settings:
   # Output format is controlled by output_audio_codec and output_audio_bitrate below
 
   # Volume levels (dB)
-  music_volume_db: -24.0
+  music_volume_db: -20.0
   voiceover_volume_db: 3.0
 
   # Audio mixing settings
@@ -193,12 +193,39 @@ audio_settings:
   music_fade_out_duration: 3.0
 
   # Background music file paths (local fallbacks)
-  # Used when Freesound API unavailable or no suitable tracks found
+  # Used when all API providers fail or are unavailable
   # Supports MP3, WAV, AAC formats - randomly selected from list
   background_music_paths:
     - "static/background-music-calm-soft-334182.mp3"
     - "static/background-music-happy-333014.mp3"
     - "static/background-music-upbeat-energetic-333016.mp3"
+
+  # ============================================================================
+  # AUDIO PROVIDER CHAIN
+  # ============================================================================
+  # Providers are tried in order. First successful download wins.
+  # If all providers fail, falls back to local background_music_paths above.
+  # Each provider needs its API key set in .env (see env var names below).
+  audio_providers:
+    - name: "jamendo"
+      enabled: true
+      settings:
+        client_id_env_var: "JAMENDO_CLIENT_ID"
+        api_timeout_sec: 15
+        download_timeout_sec: 60
+        # Search mode: "fuzzytags" (OR match, more results), "tags" (AND match,
+        # stricter), "search" (free text across names/artists/tags)
+        search_mode: "fuzzytags"
+        # One query is picked randomly per product for variety.
+        # Use + to combine tags (fuzzytags=OR, tags=AND).
+        search_queries:
+          - "upbeat energetic"
+          - "happy positive"
+          - "corporate background"
+          - "modern electronic"
+          - "motivational inspiring"
+    - name: "freesound"
+      enabled: true
 
   # ============================================================================
   # FREESOUND CONFIGURATION (Creative Commons Music API)
@@ -256,12 +283,11 @@ audio_settings:
   # API request timeout (seconds)
   # Covers: Search operations, token refresh, metadata retrieval
   # Increase if experiencing frequent timeouts on slow connections
-  freesound_api_timeout_sec: 30
+  freesound_api_timeout_sec: 15
 
   # Download timeout (seconds)
   # Covers: Preview downloads (API key) and full downloads (OAuth2)
-  # Increase for slow connections or large files (30s typical for previews)
-  freesound_download_timeout_sec: 300
+  freesound_download_timeout_sec: 60
 
   # --- OAuth2 Token Management ---
   # Token expiration time (seconds)

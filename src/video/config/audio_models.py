@@ -3,6 +3,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -20,11 +21,20 @@ from src.video.config.constants import (
 logger = logging.getLogger(__name__)
 
 
+class AudioProviderConfig(BaseModel):
+    """Config for a single audio provider instance."""
+
+    name: str
+    enabled: bool = True
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
 class AudioSettings(BaseModel):
     music_volume_db: float
     voiceover_volume_db: float
     audio_mix_duration: str = Field("longest")
     background_music_paths: list[Path]
+    audio_providers: list[AudioProviderConfig] = Field(default_factory=list)
     freesound_api_key_env_var: str
     freesound_client_id_env_var: str = Field("FREESOUND_CLIENT_ID")
     freesound_client_secret_env_var: str = Field("FREESOUND_CLIENT_SECRET")  # noqa: S106
@@ -34,8 +44,8 @@ class AudioSettings(BaseModel):
     freesound_filters: str
     freesound_max_results: int
     freesound_max_search_duration_sec: int = Field(9999)
-    freesound_api_timeout_sec: int = Field(10)  # Configurable via YAML
-    freesound_download_timeout_sec: int = Field(60)  # Configurable via YAML
+    freesound_api_timeout_sec: int = Field(15)
+    freesound_download_timeout_sec: int = Field(60)
     freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC)
     freesound_token_refresh_buffer_sec: int = Field(FREESOUND_TOKEN_REFRESH_BUFFER_SEC)
     freesound_download_chunk_size: int = Field(FREESOUND_DOWNLOAD_CHUNK_SIZE)

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-03-17
+
+### Added
+- Audio provider platform: pluggable system for background music sourcing with `BaseAudioProvider` ABC, registry, and `AudioManager` chain
+- Jamendo Music API provider (CC-licensed tracks, fuzzytags search, configurable queries with random selection)
+- Global batch page retry: when products fail media validation, scraper tries next search result pages (configurable `max_retry_pages`)
+- `audio_providers` config list in `video_production.yaml` for provider chain ordering
+- Public `record_success()`/`record_failure()` methods on `CircuitBreaker`
+- 47 new tests (audio provider platform + page retry)
+- 23 trending electronics keywords added to scraper batch config
+
+### Changed
+- `step_download_music()` refactored from ~100 lines of inline Freesound logic to ~15 lines using AudioManager
+- Default audio provider chain: Jamendo (primary) -> Freesound (fallback) -> local files
+- Audio timeouts aligned to 15s search / 60s download across all providers
+- FreesoundClient wrapped as `FreesoundProvider` adapter (client code untouched)
+- Background music volume raised from -24 dB to -20 dB
+- Audio provider env vars dynamically read from config (no more hardcoded secret names)
+
+### Fixed
+- `FreesoundClient` crash: `AudioSettings.get()` called on Pydantic model instead of dict
+- Security CI failing: `setuptools<81` not pinned on cache-hit path (same fix as CI workflow)
+
 ## [0.33.0] - 2026-03-12
 
 ### Added

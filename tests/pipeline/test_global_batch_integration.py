@@ -16,7 +16,7 @@ Run with: pytest tests/pipeline/test_global_batch_integration.py -v
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 import yaml
@@ -159,6 +159,7 @@ def mock_video_config():
             freesound_client_id_env_var=None,
             freesound_client_secret_env_var=None,
             freesound_refresh_token_env_var=None,
+            audio_providers=[],
         ),
     )
 
@@ -741,3 +742,121 @@ async def test_pipeline_with_zero_products_ready_for_production(
         assert summary.production.total_attempted == 0
         assert summary.production.successful == 0
         assert summary.end_to_end_success == 0
+
+
+# ============================================================================
+# INTEGRATION TESTS - PAGE RETRY ON VALIDATION FAILURE
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_pipeline_retries_next_page_on_validation_failure(
+    temp_outputs_dir, mock_product_data_factory, mock_video_config
+):
+    """When page 1 products fail validation, retry with page 2."""
+    config = GlobalBatchConfig(
+        product_ids=[],
+        keywords=["smart watch"],
+        max_products=10,
+        products_per_keyword=1,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        fail_fast=False,
+        outputs_dir=temp_outputs_dir,
+        debug=False,
+    )
+
+    product = mock_product_data_factory("B0RETRY1")
+
+    with (
+        patch(
+            "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
+        ) as mock_scraper_class,
+        patch(
+            "src.pipeline.global_batch.load_video_config_modular"
+        ) as mock_load_config,
+        patch(
+            "src.video.producer.orchestration.create_video_for_product"
+        ) as mock_producer,
+    ):
+        mock_load_config.return_value = mock_video_config
+        mock_producer.return_value = MagicMock(success=False, error_message="skipped")
+
+        mock_scraper = Mock()
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+
+        # Page 1: products found but all fail validation
+        mock_scraper.scrape_batch_browser.side_effect = [
+            [{"input": "smart watch", "products": [{"fake": True}]}],  # page 1
+            [{"input": "smart watch", "products": [{"fake": True}]}],  # page 2 retry
+        ]
+        # _is_asin and _is_url return False for keywords
+        mock_scraper._is_asin.return_value = False
+        mock_scraper._is_url.return_value = False
+
+        # First call returns empty (validation fail), second returns product
+        mock_scraper.process_raw_products.side_effect = [
+            [],  # page 1 all rejected
+            [product],  # page 2 succeeds
+        ]
+
+        # Mock SCRAPER_CONFIG for max_retry_pages
+        with patch(
+            "src.scraper.amazon.config.CONFIG",
+            {"global_settings": {"batch_processing": {"max_retry_pages": 5}}},
+        ):
+            orchestrator = GlobalPipelineOrchestrator(config)
+            summary = await orchestrator.run_pipeline()
+
+        # Should have retried and found the product on page 2
+        assert summary.scraping.successful == 1
+        assert mock_scraper.scrape_batch_browser.call_count == 2
+        # Second call should use start_page=2
+        second_call = mock_scraper.scrape_batch_browser.call_args_list[1]
+        assert second_call.kwargs.get("start_page") == 2
+
+
+@pytest.mark.asyncio
+async def test_pipeline_skips_retry_for_asin_inputs(
+    temp_outputs_dir, mock_product_data_factory, mock_video_config
+):
+    """ASINs should not trigger page retry (single product, no pagination)."""
+    config = GlobalBatchConfig(
+        product_ids=["B0NOPAGES"],
+        keywords=[],
+        max_products=10,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        fail_fast=False,
+        outputs_dir=temp_outputs_dir,
+        debug=False,
+    )
+
+    with (
+        patch(
+            "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
+        ) as mock_scraper_class,
+        patch(
+            "src.pipeline.global_batch.load_video_config_modular"
+        ) as mock_load_config,
+    ):
+        mock_load_config.return_value = mock_video_config
+
+        mock_scraper = Mock()
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "B0NOPAGES", "products": [{"fake": True}]},
+        ]
+        mock_scraper._is_asin.return_value = True
+        mock_scraper._is_url.return_value = False
+        mock_scraper.process_raw_products.return_value = []  # validation fails
+
+        orchestrator = GlobalPipelineOrchestrator(config)
+        summary = await orchestrator.run_pipeline()
+
+        # Should NOT retry - only 1 call to scrape_batch_browser
+        assert mock_scraper.scrape_batch_browser.call_count == 1
+        assert summary.scraping.failed == 1

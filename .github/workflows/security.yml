@@ -42,7 +42,10 @@ jobs:
 
     - name: Install project
       if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
-      run: poetry install --no-interaction
+      run: |
+        poetry run pip install "setuptools<81" wheel
+        poetry run pip install --no-build-isolation openai-whisper==20240930
+        poetry install --no-interaction
 
     - name: Run Bandit security scan
       run: poetry run bandit -r src/ -f json -o bandit-report.json || true
