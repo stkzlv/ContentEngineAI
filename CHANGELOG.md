@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-03-17
+
 ### Added
 - Audio provider platform: pluggable system for background music sourcing with `BaseAudioProvider` ABC, registry, and `AudioManager` chain
 - Jamendo Music API provider (CC-licensed tracks, fuzzytags search, configurable queries with random selection)
