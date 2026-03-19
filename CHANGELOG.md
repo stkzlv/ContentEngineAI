@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.1] - 2026-03-19
+
+### Security
+- Bump cryptography 45.0.7 → 46.0.5 (CVE-2026-26007: binary EC curve private key leak)
+- Bump pillow 11.3.0 → 12.1.1 (OOB write with invalid tile extents)
+- Bump werkzeug 3.1.5 → 3.1.6 (Windows `safe_join` device name bypass)
+
+### Dependencies
+- Bump nltk 3.9.1 → 3.9.2
+
 ## [0.34.0] - 2026-03-17
 
 ### Added
