@@ -280,7 +280,7 @@ def verify_image_file(
         }
 
         if "format" in validation_data:
-            format_name = validation_data["format"]
+            format_name = str(validation_data["format"])
             if format_name in expected_extensions and not any(
                 str(file_path).lower().endswith(ext)
                 for ext in expected_extensions[format_name]
