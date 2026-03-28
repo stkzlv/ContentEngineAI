@@ -151,11 +151,12 @@ class TestTwoPartSubtitles:
 
             y_pos = int(pos_match.group(2))
 
-            # Should be near top: margin * height = 0.005 * 1920 ≈ 9.6 pixels
-            expected_y = int(0.005 * 1920)
+            # Without visual_bounds, falls back to margin. Safe zone clamps
+            # to min_y (0.104 * 1920 = 199px) since margin 0.005 is below it.
+            safe_zone_min_y_px = int(0.104 * 1920)
             assert (
-                abs(y_pos - expected_y) < 20
-            ), f"Without visual_bounds, y should be near {expected_y}, got {y_pos}"
+                abs(y_pos - safe_zone_min_y_px) < 20
+            ), f"Without visual_bounds, y should be near safe zone min {safe_zone_min_y_px}, got {y_pos}"
 
     def test_flat_config_settings_extraction(
         self, mock_video_config, basic_subtitle_settings
@@ -333,9 +334,9 @@ class TestTwoPartSubtitles:
                 abs(y_with - expected_y_with) < 10
             ), f"Y with bounds should be above content: {y_with} vs {expected_y_with}"
 
-            # WITHOUT visual_bounds: Y = margin * height (fallback to top margin)
-            # = 0.005 * 1920 = 9.6 pixels
-            expected_y_without = int(0.005 * 1920)
+            # WITHOUT visual_bounds: falls back to margin, clamped by safe zone
+            # min_y (0.104 * 1920 = 199px)
+            expected_y_without = int(0.104 * 1920)
             assert (
                 abs(y_without - expected_y_without) < 20
-            ), f"Y without bounds should be at margin: {y_without} vs {expected_y_without}"
+            ), f"Y without bounds should be at safe zone min: {y_without} vs {expected_y_without}"
