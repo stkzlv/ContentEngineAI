@@ -693,7 +693,11 @@ class UnifiedSubtitleGenerator:
             ensure_dirs_exist(output_path.parent)
 
             # Calculate position
-            position = calculate_position(self.config, self.frame_size, visual_bounds)
+            position = calculate_position(
+                self.config,
+                self.frame_size,
+                visual_bounds,
+            )
             font_size = get_font_size(self.config, self.frame_size[1])
 
             # DEBUG: Log position calculation

@@ -23,6 +23,14 @@ If pyenv version shows something else, fix with:
 pyenv activate ContentEngineAI
 ```
 
+## Logs
+
+Pipeline logs are in `outputs/logs/`:
+- `global_pipeline.log` — batch pipeline (scrape + produce + publish)
+- `scraper.log` — standalone scraper runs
+- `producer.log` — standalone video production
+- `publisher.log` — standalone publishing
+
 ## Essential Commands
 
 ```bash

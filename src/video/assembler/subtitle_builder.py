@@ -198,7 +198,11 @@ class SubtitleGraphBuilder:
                         unified_config, geom, settings_dict
                     )
 
-                    x_pos_expr = f"w*{position.x} - text_w/2"
+                    sz = self._get_safe_zone()
+                    x_pos_expr = (
+                        f"min(w*{sz.max_x}-text_w,"
+                        f"max(w*{sz.min_x},w*{position.x}-text_w/2))"
+                    )
                     y_pos_expr = f"h*{position.y}"
 
                     back_color = settings_dict.get("back_color", "&H80000000")
@@ -389,6 +393,7 @@ class SubtitleGraphBuilder:
                         upper_unified,
                         self.config.video_settings.resolution,
                         visual_bounds,
+                        safe_zone=self._get_safe_zone(),
                     )
 
                     base_font_size = self.config.video_settings.resolution[
@@ -398,7 +403,11 @@ class SubtitleGraphBuilder:
                         "font_size_scale", 0.7
                     )
 
-                    x_pos_expr = f"w*{position.x} - text_w/2"
+                    sz = self._get_safe_zone()
+                    x_pos_expr = (
+                        f"min(w*{sz.max_x}-text_w,"
+                        f"max(w*{sz.min_x},w*{position.x}-text_w/2))"
+                    )
                     y_pos_expr = f"h*{position.y}"
 
                     drawtext_filter = (
@@ -558,9 +567,14 @@ class SubtitleGraphBuilder:
                                     lower_unified,
                                     self.config.video_settings.resolution,
                                     visual_bounds,
+                                    safe_zone=self._get_safe_zone(),
                                 )
 
-                                x_pos_expr = f"w*{position.x} - text_w/2"
+                                sz = self._get_safe_zone()
+                                x_pos_expr = (
+                                    f"min(w*{sz.max_x}-text_w,"
+                                    f"max(w*{sz.min_x},w*{position.x}-text_w/2))"
+                                )
                                 y_pos_expr = f"h*{position.y}"
 
                                 output_stream = f"[v_lower_{drawtext_count + 1}]"
@@ -678,7 +692,7 @@ class SubtitleGraphBuilder:
                 return original_ass_path
 
             content_aware_events = []
-            frame_height = self.config.video_settings.resolution[1]
+            frame_width, frame_height = self.config.video_settings.resolution
 
             for event_line in events_lines:
                 parts = event_line.split(",", 9)
@@ -723,15 +737,21 @@ class SubtitleGraphBuilder:
                         font_offset = font_size * font_offset_multiplier
                         subtitle_y = int(content_bottom + spacing_px - font_offset)
 
-                    max_safe_y = self._get_max_safe_y()
-                    max_y = int(frame_height * max_safe_y)
-                    subtitle_y = min(subtitle_y, max_y)
+                    from src.video.subtitle_positioning import clamp_to_safe_zone
+
+                    sz = self._get_safe_zone()
+                    subtitle_x = geom.rendered_x + geom.rendered_w // 2
+                    subtitle_x, subtitle_y = clamp_to_safe_zone(
+                        subtitle_x,
+                        subtitle_y,
+                        frame_width,
+                        frame_height,
+                        sz,
+                    )
 
                     # Update text with positioning
                     text_content = parts[9]
                     text_content = re.sub(r"\\pos\([^)]+\)", "", text_content)
-
-                    subtitle_x = geom.rendered_x + geom.rendered_w // 2
 
                     if text_content.startswith("{") and "}" in text_content:
                         effect_end = text_content.find("}") + 1
@@ -842,12 +862,9 @@ class SubtitleGraphBuilder:
                             font_size = float(style_parts[2])
                     break
 
-            min_safe_y = (
-                self.config.text_rendering.min_safe_y_position
-                if self.config.text_rendering
-                else 0.05
-            )
-            min_y = int(frame_height * min_safe_y)
+            from src.video.subtitle_positioning import clamp_to_safe_zone
+
+            sz = self._get_safe_zone()
 
             content_aware_events = []
 
@@ -895,10 +912,14 @@ class SubtitleGraphBuilder:
                     # Alignment 5 = center, so \pos y is text center.
                     # Place text bottom at: content_top - effective_gap
                     subtitle_y = int(content_top - effective_gap - font_size / 2)
-                    subtitle_y = max(subtitle_y, min_y)
-
-                    # Center X on content
                     subtitle_x = geom.rendered_x + geom.rendered_w // 2
+                    subtitle_x, subtitle_y = clamp_to_safe_zone(
+                        subtitle_x,
+                        subtitle_y,
+                        frame_width,
+                        frame_height,
+                        sz,
+                    )
 
                     # Format times back to ASS
                     start_str = self._format_ass_time_str(clip_start)
@@ -1013,9 +1034,10 @@ class SubtitleGraphBuilder:
                 unified_config,
                 self.config.video_settings.resolution,
                 visual_bounds,
+                safe_zone=self._get_safe_zone(),
             )
         except Exception as e:
-            logger.warning(f"Position calculation failed, using fallback: {e}")
+            logger.warning("Position calculation failed, using fallback: %s", e)
             position = Position(x=0.5, y=0.8)
 
         return position
@@ -1038,8 +1060,10 @@ class SubtitleGraphBuilder:
             return self.config.text_rendering.content_aware_font_offset_multiplier
         return 5.5  # Default fallback
 
-    def _get_max_safe_y(self) -> float:
-        """Get max safe Y position from config."""
+    def _get_safe_zone(self):
+        """Get platform safe zone from config."""
+        from src.video.config.core_models import PlatformSafeZone
+
         if self.config.text_rendering:
-            return self.config.text_rendering.max_safe_y_position
-        return 0.95  # Default fallback
+            return self.config.text_rendering.safe_zone
+        return PlatformSafeZone()

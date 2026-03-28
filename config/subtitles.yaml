@@ -467,26 +467,23 @@ text_rendering:
   # Minimum subtitle duration (seconds)
   min_subtitle_duration_sec: 0.4
 
+  # ---- PLATFORM SAFE ZONE ----
+  # Boundaries to avoid platform UI overlays (TikTok, YouTube Shorts, Reels)
+  # Values are fractions of frame dimensions. See docs/platform-safe-zones.md
+  # Per-profile overrides available via subtitle_safe_zone_* fields
+  safe_zone:
+    min_x: 0.046    # Left: 50px on 1080w
+    max_x: 0.778    # Right: 840px on 1080w (TikTok buttons)
+    min_y: 0.104    # Top: 200px on 1920h (YouTube Shorts header)
+    max_y: 0.75     # Bottom: 1440px on 1920h (TikTok overlay)
+
   # ---- SAFE POSITIONING BOUNDARIES ----
-  # Position constraints to keep subtitles within visible frame area
-  # Values are fractions of frame height/width (0.0-1.0)
-
-  # Minimum Y position (prevents subtitles going above 5% of frame)
-  min_safe_y_position: 0.05
-
-  # Maximum Y position (allows subtitles near bottom of frame)
-  # Maximum Y position for subtitles as fraction of frame height
-  # Set to 0.90 to allow subtitles higher in frame with content-aware positioning
-  max_safe_y_position: 0.90
-
-  # Center horizontal position (50% of frame width)
+  # Legacy position constraints (prefer safe_zone above)
+  min_safe_y_position: 0.104
+  max_safe_y_position: 0.75
   center_position_fraction: 0.5
-
-  # Left alignment position (10% from left edge)
-  left_position_fraction: 0.1
-
-  # Right alignment position (10% from right edge)
-  right_position_fraction: 0.9
+  left_position_fraction: 0.046
+  right_position_fraction: 0.778
 
   # ---- FONT SIZE CALCULATION ----
   # Parameters for calculating font size from frame dimensions
