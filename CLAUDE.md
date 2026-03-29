@@ -62,6 +62,10 @@ poetry run python -m src.video.producer --batch --random-profile --debug
 # Batch video production (random from specific pool)
 poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 video_sequential --debug
 
+# Batch video production (specific products only)
+poetry run python -m src.video.producer --batch --random-profile --product-ids B0ASIN1 B0ASIN2 --debug
+make produce-lowpri ARGS="--batch --random-profile --product-ids B0ASIN1 B0ASIN2 --debug" MEM_LIMIT=6G
+
 # Global batch pipeline (always use make batch-lowpri for batch runs)
 make batch-lowpri ARGS="--product-ids B0ASIN1 B0ASIN2 --profile slideshow_images1 --debug"
 

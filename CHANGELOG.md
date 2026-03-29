@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Platform-aware subtitle safe zones for TikTok, YouTube Shorts, and Instagram Reels (PlatformSafeZone config, per-profile overrides)
+- `--product-ids` filter for producer batch mode
+- Audio module summary logging
+- Voice profiles: soft_intimate, calm_confident, gentle_storyteller
+- Gemini voice catalog reference in docs/tts-voice-profiles.md
+- Platform safe zone reference in docs/platform-safe-zones.md
+
+### Changed
+- Subtitle positioning enforces safe zone on all anchor types and X axis, both ASS and SRT
+- Removed YAML re-read from calculate_position() hot path
+- Voice profiles rebalanced toward calm delivery (replaced energetic_pitch)
+- Script templates toned down (challenge_dare, unboxing_reaction, rapid_fire, curiosity_hook)
+- Background music queries switched to ambient/chill, volume lowered -20dB to -24dB
+- Module summaries unified to consistent format with product IDs, no emojis
+
 ## [0.34.1] - 2026-03-19
 
 ### Security
