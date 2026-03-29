@@ -28,7 +28,7 @@ High-level requirements for ContentEngineAI.
 ### Logging & Monitoring
 - Global debug mode across all components
 - Progress tracking with `[N/total]` format for batch operations
-- Summary reports at end of each pipeline phase
+- **Unified module summaries**: each module (scraper, producer, publisher, audio) logs a summary at the end of its work with consistent format, key counts, product IDs, and duration. No emojis in logs.
 
 ### Documentation Standards
 - Required root files: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, CHANGELOG.md, LICENSE
@@ -164,7 +164,8 @@ High-level requirements for ContentEngineAI.
 - **Anchors**: top, center, bottom, above-content, below-content
 - **Margin** from anchor edge (default 4%)
 - **Horizontal alignment**: left, center (default), right
-- Content-aware positioning relative to actual media bounds, with safe zone (95% of frame)
+- Content-aware positioning relative to actual media bounds
+- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays (buttons, captions, nav bars). Applies to both ASS and SRT (drawtext) formats. Per-profile overrides supported.
 - **Font size**: scales with resolution (range 4-16% of frame height)
 - **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
 - **Dynamic repositioning**: both upper and lower subtitles repositioned per visual segment using actual assembler geometry (handles mixed-media profiles where video and images have different bounds)
@@ -193,6 +194,7 @@ High-level requirements for ContentEngineAI.
 
 ### Script Templates
 - Multiple prompt templates with different styles (curiosity hook, problem-solution, storytelling, comparison, etc.)
+- Templates target calm, conversational delivery. No high-energy, hype, or clickbait phrasing.
 - Deterministic template selection per product for batch consistency
 - Configurable template pool to restrict which styles get used
 - CLI override to force a specific template
@@ -201,7 +203,8 @@ High-level requirements for ContentEngineAI.
 ### TTS Voice Profiles
 - Named voice presets with style direction, voice preferences, and text markup
 - Multiple TTS providers with automatic fallback
-- Style-directed speech (tone, energy, pacing)
+- Style-directed speech (tone, energy, pacing). Profiles favor calm, confident delivery over high-energy pitch.
+- Speaking rate and pitch tunable per profile. Rates near 1.0 (natural pace), avoid stacking slow rate + low pitch + "slow" style prompt.
 - Inline markup rules for pause insertion at sentence boundaries
 - Deterministic profile selection per product for reproducibility
 - Configurable profile pool to restrict selection
@@ -230,6 +233,7 @@ High-level requirements for ContentEngineAI.
 
 ### Batch Mode
 - Automatic product discovery from outputs directory
+- Filter to specific product IDs with `--product-ids`
 - Random or fixed profile selection
 - Inter-product delays for rate limiting
 - Comprehensive summary reporting

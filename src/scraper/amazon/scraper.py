@@ -1873,38 +1873,40 @@ def main():
             summary = total_summary
 
             # Display final summary
-            logger.info("=" * 60)
-            logger.info("✅ BATCH SCRAPING COMPLETED")
-            logger.info("=" * 60)
-            logger.info("📊 Total Attempted: %d", summary.total_attempted)
-            logger.info("   • Product IDs: %d", summary.product_ids_attempted)
-            logger.info("   • Keywords: %d", summary.keywords_attempted)
-            logger.info("✅ Successful: %d", summary.successful)
-            logger.error("❌ Failed: %d", summary.failed)
+            logger.info("--- SCRAPER SUMMARY ---")
+            logger.info(
+                "Products: %d attempted, %d successful, %d failed",
+                summary.total_attempted,
+                summary.successful,
+                summary.failed,
+            )
+            if summary.successful_products:
+                logger.info("Successful: %s", ", ".join(summary.successful_products))
             if summary.failed_products:
-                logger.error(
-                    "   Failed Products: %s",
-                    ", ".join(summary.failed_products),
-                )
-            logger.info("📷 Media Statistics:")
-            for key, value in summary.media_stats.items():
-                logger.info("   • %s: %s", key, value)
-            logger.debug("⏱️  Duration: %.2f seconds", summary.duration_sec)
-            logger.info("=" * 60)
+                logger.info("Failed: %s", ", ".join(summary.failed_products))
+            images = summary.media_stats.get("total_images", 0)
+            videos = summary.media_stats.get("total_videos", 0)
+            logger.info("Images: %d, Videos: %d", images, videos)
+            logger.info("Duration: %.1fs", summary.duration_sec)
+            logger.info("---")
 
         # Single-product mode: use existing scraper.scrape_products()
         else:
             products = scraper.scrape_products(args.keywords, search_params)
 
+            logger.info("--- SCRAPER SUMMARY ---")
             if products:
-                logger.info("✅ Scraping successful!")
-                logger.info("📊 Products scraped: %d", len(products))
-                logger.info("🏷️  Keywords: %s", ", ".join(args.keywords))
+                logger.info(
+                    "Products: %d scraped for keywords: %s",
+                    len(products),
+                    ", ".join(args.keywords),
+                )
             else:
-                logger.error("❌ No products scraped")
+                logger.info("Products: 0 scraped")
+            logger.info("---")
 
     except Exception as e:
-        logger.error("💥 Scraper failed: %s", e)
+        logger.error("Scraper failed: %s", e)
         if args.debug:
             import traceback
 

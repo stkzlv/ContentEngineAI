@@ -92,7 +92,7 @@ help:
 	@echo "  scrape-advanced    - Run advanced search scrape"
 	@echo "  scrape-lowpri      - Run scraper with reduced priority"
 	@echo "  produce-video      - Generate video from scraped data"
-	@echo "  produce-lowpri     - Run producer with reduced priority"
+	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
 	@echo "  lint-verbose  - Show detailed linting output"

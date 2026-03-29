@@ -296,6 +296,15 @@ async def main():
         ),
     )
     parser.add_argument(
+        "--product-ids",
+        nargs="+",
+        type=str,
+        help=(
+            "Filter batch processing to specific product IDs (ASINs). "
+            "Only products matching these IDs will be processed. Requires --batch."
+        ),
+    )
+    parser.add_argument(
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
@@ -650,6 +659,25 @@ async def main():
                 logger.error(f"No valid products found in {outputs_path}")
                 sys.exit(1)
 
+            # Filter by product IDs if specified
+            if args.product_ids:
+                id_set = set(args.product_ids)
+                discovered_products = [
+                    (d, p) for d, p in discovered_products if d.name in id_set
+                ]
+                if not discovered_products:
+                    logger.error(
+                        "None of the specified product IDs found in %s: %s",
+                        outputs_path,
+                        args.product_ids,
+                    )
+                    sys.exit(1)
+                logger.info(
+                    "Filtered to %d product(s): %s",
+                    len(discovered_products),
+                    [d.name for d, _ in discovered_products],
+                )
+
             # Create products list with directory info for batch processing
             products_list = list(discovered_products)
             profile_name = args.batch_profile
@@ -891,36 +919,38 @@ async def main():
         print(batch_summary.to_json())
     else:
         # Standard text summary
-        logger.info("\n--- Run Summary ---")
-        if args.batch:
-            if args.random_profile:
-                logger.info("Batch Processing Summary (Random Profile Selection)")
-            else:
-                logger.info(f"Batch Processing Summary (Profile: {profile_name})")
+        logger.info("--- PRODUCER SUMMARY ---")
+        logger.info(
+            "Products: %d attempted, %d successful, %d failed, %d skipped",
+            batch_summary.total_attempted,
+            batch_summary.succeeded_count,
+            batch_summary.failed_count,
+            batch_summary.skipped_count,
+        )
 
-        logger.info(f"Total Products Attempted: {batch_summary.total_attempted}")
-        logger.info(f"Succeeded: {batch_summary.succeeded_count}")
-        logger.info(f"Failed: {batch_summary.failed_count}")
-        logger.info(f"Skipped: {batch_summary.skipped_count}")
+        success_ids = [r.id for r in batch_summary.results if r.status == "SUCCESS"]
+        if success_ids:
+            logger.info("Successful: %s", ", ".join(success_ids))
 
         skipped_ids = [r.id for r in batch_summary.results if r.status == "SKIPPED"]
         if skipped_ids:
-            logger.info(
-                f"Skipped products (insufficient media): {', '.join(skipped_ids)}"
-            )
+            logger.info("Skipped (insufficient media): %s", ", ".join(skipped_ids))
 
         failed_results = [r for r in batch_summary.results if r.status == "FAILED"]
         if failed_results:
-            logger.info("Failed products:")
             for r in failed_results:
-                logger.info(f"  - {r.id}: {r.error}")
+                logger.info("Failed: %s (%s)", r.id, r.error)
 
-        logger.info(f"Total Duration: {batch_summary.total_duration_sec:.2f}s")
-        logger.info(f"Average Duration: {batch_summary.average_duration_sec:.2f}s/item")
-
-        # Profile usage statistics (only for random profile mode)
         if args.batch and args.random_profile and profile_tracker:
-            logger.info("\n" + profile_tracker.format_summary())
+            dist = profile_tracker.format_summary()
+            logger.info("Profiles: %s", dist)
+
+        logger.info(
+            "Duration: %.1fs (avg %.1fs/product)",
+            batch_summary.total_duration_sec,
+            batch_summary.average_duration_sec,
+        )
+        logger.info("---")
 
     if args.step:
         logger.info(f"NOTE: Run was limited to debug step '{args.step}'.")

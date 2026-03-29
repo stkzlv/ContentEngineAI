@@ -545,16 +545,17 @@ async def cmd_schedule_auto(
             force=getattr(args, "force", False),
         )
 
-        logger.info("=" * 80)
-        logger.info("SCHEDULING SUMMARY")
-        logger.info("=" * 80)
-        logger.info("Total videos processed: %d", len(unpublished_videos))
-        logger.info("Successfully scheduled: %d", summary["scheduled"])
-        logger.info("Skipped (already scheduled): %d", summary["skipped"])
-        logger.info("Failed: %d", summary["failed"])
+        logger.info("--- PUBLISHER SUMMARY ---")
+        logger.info(
+            "Products: %d attempted, %d scheduled, %d failed, %d skipped",
+            len(unpublished_videos),
+            summary["scheduled"],
+            summary["failed"],
+            summary["skipped"],
+        )
         if summary.get("conflicts_resolved", 0) > 0:
             logger.info("Conflicts auto-resolved: %d", summary["conflicts_resolved"])
-        logger.info("=" * 80)
+        logger.info("---")
 
         if args.dry_run:
             logger.info(
@@ -805,15 +806,14 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             )
 
             # Display summary
-            logger.info("=" * 80)
-            logger.info("CLEANUP SUMMARY")
-            logger.info("=" * 80)
-            logger.info("Products cleaned: %d", summary["cleaned"])
-            logger.info("Products skipped: %d", summary["skipped"])
+            logger.info("--- CLEANUP SUMMARY ---")
             logger.info(
-                "Total disk space freed: %s", format_bytes(summary["disk_freed"])
+                "Products: %d cleaned, %d skipped, %s freed",
+                summary["cleaned"],
+                summary["skipped"],
+                format_bytes(summary["disk_freed"]),
             )
-            logger.info("=" * 80)
+            logger.info("---")
 
             if args.dry_run:
                 logger.info(
