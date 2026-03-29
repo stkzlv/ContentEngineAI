@@ -55,7 +55,6 @@ FULL_OPACITY_THRESHOLD = 0.99
 # WHISPER STT TECHNICAL DEFAULTS (reasonable defaults for subtitle readability)
 # =============================================================================
 DEFAULT_WHISPER_MODEL_DIR = "~/.cache/whisper_models"
-WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE = 0.5
 
 # =============================================================================
 # VIDEO ASSEMBLER TECHNICAL CONSTANTS
@@ -90,13 +89,6 @@ SUBTITLE_RIGHT_POSITION_FRACTION = SAFE_ZONE_MAX_X
 SUBTITLE_BASE_FONT_SIZE_PERCENT = 0.04
 SUBTITLE_MIN_FONT_SIZE = 16  # Minimum readable size
 SUBTITLE_MAX_FONT_SIZE = 100  # Maximum practical size
-
-# =============================================================================
-# IMAGE QUALITY DETECTION THRESHOLDS (technical quality standards)
-# =============================================================================
-MIN_HIGH_RES_IMAGE_DIMENSION = 1500  # Minimum for "high resolution" classification
-MIN_HIGH_RES_IMAGE_FILE_SIZE = 10000  # Bytes - filters out placeholder images
-VERY_HIGH_RES_IMAGE_DIMENSION = 2000  # Premium quality threshold
 
 # =============================================================================
 # MATHEMATICAL CONSTANTS

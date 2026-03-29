@@ -17,11 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Subtitle positioning enforces safe zone on all anchor types and X axis, both ASS and SRT
+- Unified SRT/drawtext line splitting to use same word count + char limit rules as ASS
+- Subtitle width capped against safe zone boundaries
 - Removed YAML re-read from calculate_position() hot path
 - Voice profiles rebalanced toward calm delivery (replaced energetic_pitch)
 - Script templates toned down (challenge_dare, unboxing_reaction, rapid_fire, curiosity_hook)
 - Background music queries switched to ambient/chill, volume lowered -20dB to -24dB
 - Module summaries unified to consistent format with product IDs, no emojis
+
+### Removed
+- Dead constants from video config: MIN_HIGH_RES_IMAGE_*, WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE
 
 ## [0.34.1] - 2026-03-19
 

@@ -7,7 +7,6 @@ with content-aware positioning, dual-line support, and ASS file generation.
 import contextlib
 import logging
 import re
-import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -53,6 +52,34 @@ class SubtitleGraphBuilder:
         if self.profile_settings:
             return self.profile_settings.subtitle_settings.model_dump()
         return dict(self.config.subtitle_settings)
+
+    @staticmethod
+    def _wrap_subtitle_text(text: str, settings_dict: dict) -> str:
+        """Wrap subtitle text using word count and character limits.
+
+        Same rules as ASS segmentation for consistent line breaks
+        across both ASS and SRT/drawtext formats.
+        """
+        max_words = settings_dict.get("max_words_per_line", 3)
+        max_chars = settings_dict.get("max_line_length", 38)
+        words = text.split()
+        lines: list[str] = []
+        current: list[str] = []
+
+        for word in words:
+            potential = " ".join([*current, word])
+            if current and (
+                (max_words > 0 and len(current) >= max_words)
+                or len(potential) > max_chars
+            ):
+                lines.append(" ".join(current))
+                current = [word]
+            else:
+                current.append(word)
+
+        if current:
+            lines.append(" ".join(current))
+        return "\n".join(lines)
 
     def _resolve_font_path(self, font_name: str) -> Path | None:
         """Resolve font name to path using SubtitleStyler."""
@@ -170,25 +197,10 @@ class SubtitleGraphBuilder:
                 if overlap_start < overlap_end:
                     geom = geometries[i]
 
-                    # Calculate text wrapping
+                    wrapped_text = self._wrap_subtitle_text(sub.text, settings_dict)
                     font_size_pixels = self.config.video_settings.resolution[
                         1
                     ] * settings_dict.get("font_size_percent", 0.04)
-                    avg_char_width = font_size_pixels * settings_dict.get(
-                        "font_width_to_height_ratio", 0.5
-                    )
-                    max_chars = (
-                        int(geom.rendered_w / avg_char_width)
-                        if avg_char_width > 0
-                        else self.config.video_settings.default_max_chars_per_line
-                    )
-
-                    wrapper = textwrap.TextWrapper(
-                        width=max_chars,
-                        break_long_words=True,
-                        replace_whitespace=False,
-                    )
-                    wrapped_text = "\n".join(wrapper.wrap(sub.text))
 
                     sub_text_file = temp_sub_dir / f"sub_text_{drawtext_count}.txt"
                     sub_text_file.write_text(wrapped_text, encoding="utf-8")
@@ -490,28 +502,13 @@ class SubtitleGraphBuilder:
                             if overlap_start < overlap_end:
                                 geom = geometries[i]
 
-                                # Calculate text wrapping
+                                wrapped_text = self._wrap_subtitle_text(
+                                    sub.text, lower_settings
+                                )
                                 font_size_pixels = (
                                     self.config.video_settings.resolution[1]
                                     * lower_settings.get("font_size_percent", 0.04)
                                 )
-                                avg_char_width = font_size_pixels * lower_settings.get(
-                                    "font_width_to_height_ratio", 0.5
-                                )
-                                max_chars = (
-                                    int(geom.rendered_w / avg_char_width)
-                                    if avg_char_width > 0
-                                    else (
-                                        self.config.video_settings.default_max_chars_per_line
-                                    )
-                                )
-
-                                wrapper = textwrap.TextWrapper(
-                                    width=max_chars,
-                                    break_long_words=True,
-                                    replace_whitespace=False,
-                                )
-                                wrapped_text = "\n".join(wrapper.wrap(sub.text))
 
                                 sub_text_file = (
                                     temp_sub_dir / f"lower_text_{drawtext_count}.txt"
