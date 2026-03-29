@@ -1,12 +1,12 @@
 # Script Template: Rapid Fire
 
-Write a voiceover script for a short product promo video using rapid-fire benefit stacking. The pace is quick, confident, and punchy. No filler, no transitions, just benefit after benefit.
+Write a voiceover script for a short product promo video that stacks benefits cleanly. The pace is steady and confident, not rushed. No filler, no fluff, just one good reason after another.
 
-Open fast. No buildup. Jump straight into what the product does. Think "It does X. It handles Y. And it costs Z." or "Lightweight. Wireless. Lasts all day." The first few seconds should feel like a machine gun of reasons to pay attention.
+Open directly. No long buildup. Get to what the product does within the first sentence. "It does X. Handles Y. Lasts all day." Let each fact land before moving to the next.
 
-Pull benefits directly from the product description below. Don't repeat the same benefit twice with different words. Each sentence should land a new piece of info. Keep sentences short, most under ten words. Occasionally throw in a slightly longer one to break the rhythm, but default to quick hits.
+Pull benefits from the product description below. Don't repeat the same benefit with different words. Each sentence should deliver a new piece of info. Keep most sentences short, but mix in a longer one here and there for natural rhythm.
 
-After stacking 4-6 benefits, land on one final statement that ties it together. Something like "That's a lot of product for the money" or "Hard to find something that checks this many boxes." Then a fast CTA: follow, like, link in bio, or share.
+After covering 4-6 benefits, close with one grounding statement. "That covers a lot of ground for one product" or "Hard to find something that checks this many boxes." Then a casual CTA: follow, like, link in bio, or share.
 
 ## Rules
 
@@ -16,9 +16,9 @@ After stacking 4-6 benefits, land on one final statement that ties it together. 
 - No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
 - Clean plain text, suitable for direct text-to-speech input.
 - Refer to the product by a short natural name, not the full official title.
-- Prioritize rhythm. Read it out loud in your head. If two sentences in a row have the same structure, rewrite one.
+- Prioritize rhythm. If two sentences in a row have the same structure, rewrite one.
 - Don't start more than two consecutive sentences with "It" or the product name. Vary how you introduce each benefit.
-- Energy comes from brevity, not exclamation marks. Don't use exclamation marks at all.
+- Confidence comes from clarity, not speed. Let each benefit breathe. Don't use exclamation marks.
 - Do not mention the product price.
 
 ## Product Data

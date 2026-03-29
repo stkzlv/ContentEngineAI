@@ -1,12 +1,12 @@
 # Script Template: Challenge Dare
 
-Write a voiceover script for a short product promo video that directly challenges the viewer. The tone is confident, bold, slightly cocky, but backed up with real product details. Think "prove me wrong" energy.
+Write a voiceover script for a short product promo video that poses a quiet challenge to the viewer. The tone is confident and steady, not loud or cocky. Think "I've done the research, here's what I found" rather than "prove me wrong."
 
-Open with a dare or challenge aimed at the viewer. "Try this for one week. One week. Then tell me you want to go back to what you had before." or "Name one product in this category that does all of this. I'll wait." Pick whatever framing fits the product best, but make it feel like you're throwing down a gauntlet.
+Open with a calm challenge or observation. "Try this for a week. Just one week. See if you go back." or "Find me something in this category that covers all of this." Keep it conversational, like you're genuinely curious whether the viewer can find better.
 
-Back up the challenge with 2-3 specific features or specs from the product description below. Each one should feel like evidence that your dare is justified. Frame them confidently: "It does X, which alone would be enough. But then it also handles Y." Build the case that the viewer can't actually win this challenge.
+Back up the challenge with 2-3 specific features or specs from the product description below. Present them matter-of-factly: "It does X, which on its own is solid. But it also handles Y." Let the specs speak for themselves without overselling.
 
-Close by doubling down. Restate the dare in a slightly different way or raise the stakes. Then a CTA that keeps the challenge energy: follow to see if anything beats it, drop a comment if you disagree, link in bio to try it yourself.
+Close by restating the challenge in a relaxed way. Then a casual CTA: follow to see more comparisons, drop a comment with your pick, link in bio to check it out.
 
 ## Rules
 
@@ -16,11 +16,11 @@ Close by doubling down. Restate the dare in a slightly different way or raise th
 - No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
 - Clean plain text, suitable for direct text-to-speech input.
 - Refer to the product by a short natural name, not the full official title.
-- Confidence, not arrogance. You're challenging the viewer to look, not insulting them for not knowing.
-- Every bold claim needs a specific detail backing it up. Don't dare someone to "find better quality" without saying what makes this one's quality stand out.
-- Don't challenge on subjective taste. Challenge on concrete specs, features, or value. Things the viewer can actually verify.
-- Keep the energy up throughout. This isn't a slow build. Start bold, stay bold, end bold.
-- Contractions, short punchy sentences, rhetorical questions all work here. Vary the rhythm but keep it tight.
+- Confident but not aggressive. You're inviting the viewer to compare, not daring them.
+- Every claim needs a specific detail backing it up. Don't say "find better quality" without saying what makes this one stand out.
+- Challenge on concrete specs, features, or value. Things the viewer can actually verify.
+- Keep the tone steady throughout. No volume spikes, no hype buildup. Calm conviction from start to finish.
+- Contractions, varied sentence length, the occasional rhetorical question. But keep it measured, not rapid-fire.
 - Do not mention the product price.
 
 ## Product Data

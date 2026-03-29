@@ -312,11 +312,12 @@ tts_config:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
         - { pattern: '!\s+', insert_after: '[short pause] ' }
 
-    energetic_pitch:
+    soft_intimate:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
-      style_prompt: "Speak with high energy and excitement, like a product reviewer who genuinely loves what they found."
-      speaking_rate: 1.1
+      style_prompt: "Speak softly and slowly, like a late-night product reviewer. Warm, intimate, unhurried. Low energy, no excitement spikes."
+      speaking_rate: 0.93
+      pitch: -1.5
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[pause] ' }
 
@@ -325,6 +326,22 @@ tts_config:
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak calmly and authoritatively, like a trusted tech reviewer giving honest advice."
       speaking_rate: 0.95
+
+    calm_confident:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak calmly and confidently. Relaxed pace, warm but grounded. Not a whisper, just steady and low-energy. Like a trusted friend recommending something over coffee."
+      speaking_rate: 0.97
+      pitch: -1.0
+
+    gentle_storyteller:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak gently, like narrating a story before bedtime. Soft voice, natural pauses between sentences, no rush at all."
+      speaking_rate: 0.96
+      pitch: -1.0
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[long pause] ' }
 
     chirp3_natural:
       provider: google_cloud
