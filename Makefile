@@ -18,7 +18,7 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri scrape-lowpri produce-lowpri
+	batch batch-lowpri scrape-lowpri produce-lowpri publish publish-lowpri
 
 # Default target
 help:
@@ -93,6 +93,8 @@ help:
 	@echo "  scrape-lowpri      - Run scraper with reduced priority"
 	@echo "  produce-video      - Generate video from scraped data"
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
+	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
+	@echo "  publish-lowpri     - Same but with reduced priority"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
 	@echo "  lint-verbose  - Show detailed linting output"
@@ -464,6 +466,23 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			poetry run python -m src.video.producer $(ARGS); \
+	fi
+
+publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single B0ASIN1 --debug")
+	poetry run python -m src.publisher.late $(ARGS)
+
+publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			poetry run python -m src.publisher.late $(ARGS); \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			poetry run python -m src.publisher.late $(ARGS); \
 	fi
 
 # Video production commands

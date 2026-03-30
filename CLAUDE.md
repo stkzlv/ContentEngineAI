@@ -89,6 +89,11 @@ make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=1
 
 # Publish single product (auto-schedules to next slot)
 poetry run python -m src.publisher.late single B0ASIN1 --debug
+make publish ARGS="single B0ASIN1 --debug"
+
+# Schedule all unpublished products
+make publish ARGS="schedule --debug"
+make publish-lowpri ARGS="schedule --debug" MEM_LIMIT=6G NICE_LEVEL=15
 
 # Publish to specific platforms
 poetry run python -m src.publisher.late single B0ASIN1 --platform youtube --platform tiktok --debug
