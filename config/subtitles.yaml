@@ -275,7 +275,7 @@ tts_config:
     api_timeout_sec: 60
     api_max_retries: 2
     api_retry_delay_sec: 5
-    last_word_buffer_sec: 0.3
+    last_word_buffer_sec: 0.5
 
   # Coqui TTS Settings (Local/Offline Processing)
   # Pros: Free, no API costs, works offline, privacy-friendly
@@ -307,24 +307,40 @@ tts_config:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak in a warm, friendly, conversational tone. Sound natural and enthusiastic about the product."
-      speaking_rate: 1.05
+      speaking_rate: 1.10
+      pitch: 1.0
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
         - { pattern: '!\s+', insert_after: '[short pause] ' }
 
-    energetic_pitch:
+    soft_intimate:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
-      style_prompt: "Speak with high energy and excitement, like a product reviewer who genuinely loves what they found."
-      speaking_rate: 1.1
+      style_prompt: "Speak softly, like a late-night product reviewer. Warm and intimate, but keep a natural pace."
+      speaking_rate: 1.05
       markup_rules:
-        - { pattern: '\.\s+', insert_after: '[pause] ' }
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
 
     calm_authority:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak calmly and authoritatively, like a trusted tech reviewer giving honest advice."
-      speaking_rate: 0.95
+      speaking_rate: 1.10
+      pitch: 1.0
+
+    calm_confident:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak calmly and confidently. Warm but grounded. Like a trusted friend recommending something over coffee."
+      speaking_rate: 1.10
+
+    gentle_storyteller:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak gently, like telling a friend about something you found. Soft voice, natural pacing."
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
 
     chirp3_natural:
       provider: google_cloud
@@ -467,26 +483,23 @@ text_rendering:
   # Minimum subtitle duration (seconds)
   min_subtitle_duration_sec: 0.4
 
+  # ---- PLATFORM SAFE ZONE ----
+  # Boundaries to avoid platform UI overlays (TikTok, YouTube Shorts, Reels)
+  # Values are fractions of frame dimensions. See docs/platform-safe-zones.md
+  # Per-profile overrides available via subtitle_safe_zone_* fields
+  safe_zone:
+    min_x: 0.046    # Left: 50px on 1080w
+    max_x: 0.778    # Right: 840px on 1080w (TikTok buttons)
+    min_y: 0.104    # Top: 200px on 1920h (YouTube Shorts header)
+    max_y: 0.75     # Bottom: 1440px on 1920h (TikTok overlay)
+
   # ---- SAFE POSITIONING BOUNDARIES ----
-  # Position constraints to keep subtitles within visible frame area
-  # Values are fractions of frame height/width (0.0-1.0)
-
-  # Minimum Y position (prevents subtitles going above 5% of frame)
-  min_safe_y_position: 0.05
-
-  # Maximum Y position (allows subtitles near bottom of frame)
-  # Maximum Y position for subtitles as fraction of frame height
-  # Set to 0.90 to allow subtitles higher in frame with content-aware positioning
-  max_safe_y_position: 0.90
-
-  # Center horizontal position (50% of frame width)
+  # Legacy position constraints (prefer safe_zone above)
+  min_safe_y_position: 0.104
+  max_safe_y_position: 0.75
   center_position_fraction: 0.5
-
-  # Left alignment position (10% from left edge)
-  left_position_fraction: 0.1
-
-  # Right alignment position (10% from right edge)
-  right_position_fraction: 0.9
+  left_position_fraction: 0.046
+  right_position_fraction: 0.778
 
   # ---- FONT SIZE CALCULATION ----
   # Parameters for calculating font size from frame dimensions

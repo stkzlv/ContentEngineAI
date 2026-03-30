@@ -51,6 +51,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Scraper](docs/scraper.md) | Product data extraction from Amazon |
 | [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
 | [TTS Voice Profiles](docs/tts-voice-profiles.md) | Voice presets, providers, and style direction |
+| [Platform Safe Zones](docs/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
 | [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
 | [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
 | [Architecture](docs/architecture.md) | System design and module overview |

@@ -18,19 +18,12 @@ tts_config:
   voice_profiles_enabled: true   # false to skip profiles entirely
 
   voice_profiles:
-    warm_conversational:
-      provider: gemini
-      gemini_model_name: "gemini-2.5-flash-tts"
-      style_prompt: "Speak in a warm, friendly, conversational tone."
-      speaking_rate: 1.05
-      markup_rules:
-        - { pattern: '\.\s+', insert_after: '[short pause] ' }
-
-    chirp3_natural:
-      provider: google_cloud
-      voice_criteria:
-        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
-        - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
+    warm_conversational:    # friendly, rate 1.10, pitch +1, ~165 WPM
+    soft_intimate:          # soft reviewer, rate 1.05, ~155 WPM
+    calm_authority:         # trusted reviewer, rate 1.10, pitch +1, ~165 WPM
+    calm_confident:         # relaxed friend, rate 1.10, ~165 WPM
+    gentle_storyteller:     # soft narration, rate 1.05, ~155 WPM
+    chirp3_natural:         # Google Cloud Chirp3, neutral baseline
 
   voice_profile_pool: []  # empty = use all profiles
 ```
@@ -116,6 +109,54 @@ The Gemini API free tier is tempting, but it uses a different SDK (`google-genai
 At our scale the Vertex AI cost is negligible (~$0.05/month for 100 videos). Keeping the same client avoids maintaining two auth paths and two SDK integrations.
 
 To use Gemini TTS: enable Vertex AI API (`aiplatform.googleapis.com`) in the GCP project.
+
+## Gemini voice catalog
+
+Gemini 2.5 Flash TTS has 30 voices. Google doesn't publish gender labels, so test empirically.
+
+**Best for calm/ASMR delivery:**
+
+| Voice | Descriptor | Notes |
+|-------|-----------|-------|
+| Achernar | Soft | Top pick for ASMR |
+| Enceladus | Breathy | Intimate feel |
+| Vindemiatrix | Gentle | Soothing, low energy |
+| Sulafat | Warm | Good all-rounder |
+| Algieba | Smooth | Polished calm |
+| Despina | Smooth | Similar to Algieba |
+
+**Neutral/moderate:**
+
+| Voice | Descriptor |
+|-------|-----------|
+| Schedar | Even |
+| Gacrux | Mature |
+| Sadaltager | Knowledgeable |
+| Rasalgethi | Informative |
+| Charon | Informative |
+| Iapetus | Clear |
+
+**Too energetic for product reviews:**
+
+Puck, Zephyr, Fenrir, Leda, Sadachbia, Laomedeia, Autonoe (all bright/upbeat/excitable).
+
+**Too assertive:** Kore, Orus, Alnilam, Pulcherrima (firm/forward).
+
+## Style prompt tips
+
+The `style_prompt` field is a natural language instruction passed as the Gemini `SynthesisInput.prompt`. It's the primary lever for tone control.
+
+**Keep prompts concise** (2-3 sentences). Over-specifying can make the output worse.
+
+**Parameters that stack with style_prompt:**
+
+| Field | Range | Effect |
+|-------|-------|--------|
+| `speaking_rate` | 0.25-4.0 | Speed. 0.85-0.93 for calm. |
+| `pitch` | -20.0 to 20.0 | Semitones. -1.0 to -3.0 adds warmth. |
+| `volume_gain_db` | -96.0 to 16.0 | Global only, not per-profile. |
+
+**Markup tags** Gemini understands: `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`. Injected via `markup_rules` regex patterns. Stripped automatically when falling back to Google Cloud TTS.
 
 ## Setup
 

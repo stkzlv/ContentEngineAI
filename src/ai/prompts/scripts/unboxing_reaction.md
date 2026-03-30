@@ -1,12 +1,12 @@
 # Script Template: Unboxing Reaction
 
-Write a voiceover script for a short product promo video. The narrator just received the product and is sharing raw first impressions as they discover it. Think "I just got this in the mail and..." energy.
+Write a voiceover script for a short product promo video. The narrator just received the product and is sharing quiet first impressions as they look it over. Think "I just got this and here's what I'm noticing" rather than unboxing hype.
 
-Open with the moment of receiving or opening the product. Not a formal review, just genuine reactions. "Okay so this just showed up" or "I've been waiting for this to arrive" or something that puts the viewer in the moment with you.
+Open with a low-key moment of receiving the product. "So this just arrived" or "Been curious about this one for a while." Put the viewer in the moment without fanfare.
 
-As you go through the product, react to specific features pulled from the description below. Each reaction should feel like a real-time discovery, not a rehearsed talking point. "Wait, it actually does that?" or "This is way lighter than I expected." Let the reactions build from mild interest to genuine surprise. Don't front-load the excitement.
+As you go through the product, react to specific features from the description below. Keep reactions genuine but understated. "Huh, it actually does that" or "Lighter than I expected." Let observations build naturally from first glance to closer look. No need to escalate to excitement.
 
-Close with your honest snap verdict. One sentence on whether it lived up to the wait. Then a casual CTA: follow, like, link in bio, or share with someone who'd want this.
+Close with an honest first take. One calm sentence on whether it seems worth it. Then a casual CTA: follow, like, link in bio, or share with someone who'd want this.
 
 ## Rules
 
@@ -16,10 +16,10 @@ Close with your honest snap verdict. One sentence on whether it lived up to the 
 - No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
 - Clean plain text, suitable for direct text-to-speech input.
 - Refer to the product by a short natural name, not the full official title.
-- The reactions should feel spontaneous, not scripted. Use pauses, self-corrections, trailing thoughts. Real people don't speak in complete sentences when they're excited.
-- Don't oversell. If a feature is just "fine," it's okay to say so before landing on the things that genuinely impress.
-- Avoid describing actions you're taking ("now I'm opening the box"). Focus on what you think and feel, not what your hands are doing.
-- Contractions, fragments, mid-thought pivots all welcome. This is the least polished template on purpose.
+- Reactions should feel spontaneous but low-key. Pauses, trailing thoughts, quiet observations. Like thinking out loud, not performing.
+- Don't oversell. If a feature is just "fine," say so. Understated appreciation lands better than forced excitement.
+- Avoid describing actions ("now I'm opening the box"). Focus on what you notice and think.
+- Contractions, fragments, mid-thought pivots are welcome. Keep the tone relaxed and unhurried throughout.
 - Price mention is optional. Work it in only if the value surprises you.
 
 ## Product Data

@@ -55,7 +55,6 @@ FULL_OPACITY_THRESHOLD = 0.99
 # WHISPER STT TECHNICAL DEFAULTS (reasonable defaults for subtitle readability)
 # =============================================================================
 DEFAULT_WHISPER_MODEL_DIR = "~/.cache/whisper_models"
-WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE = 0.5
 
 # =============================================================================
 # VIDEO ASSEMBLER TECHNICAL CONSTANTS
@@ -71,23 +70,25 @@ FREESOUND_TOKEN_REFRESH_BUFFER_SEC = 60  # Buffer before expiry to refresh
 FREESOUND_DOWNLOAD_CHUNK_SIZE = 8192 * 4  # Network buffer size
 
 # =============================================================================
+# PLATFORM SAFE ZONE BOUNDARIES (cross-platform worst case on 1080x1920)
+# See docs/platform-safe-zones.md for per-platform breakdown
+# =============================================================================
+SAFE_ZONE_MIN_X = 0.046  # Left: 50px on 1080w (all platforms similar)
+SAFE_ZONE_MAX_X = 0.778  # Right: 840px on 1080w (TikTok engagement buttons)
+SAFE_ZONE_MIN_Y = 0.104  # Top: 200px on 1920h (YouTube Shorts header)
+SAFE_ZONE_MAX_Y = 0.75  # Bottom: 1440px on 1920h (TikTok overlay)
+
+# =============================================================================
 # SUBTITLE POSITIONING TECHNICAL CONSTANTS (coordinate system standards)
 # =============================================================================
 SUBTITLE_FALLBACK_SPACING_PERCENT = 0.02
-SUBTITLE_MAX_SAFE_Y_POSITION = 0.95  # Keep subtitles in safe area
+SUBTITLE_MAX_SAFE_Y_POSITION = SAFE_ZONE_MAX_Y
 SUBTITLE_CENTER_POSITION_FRACTION = 0.5
-SUBTITLE_LEFT_POSITION_FRACTION = 0.1
-SUBTITLE_RIGHT_POSITION_FRACTION = 0.9
+SUBTITLE_LEFT_POSITION_FRACTION = SAFE_ZONE_MIN_X
+SUBTITLE_RIGHT_POSITION_FRACTION = SAFE_ZONE_MAX_X
 SUBTITLE_BASE_FONT_SIZE_PERCENT = 0.04
 SUBTITLE_MIN_FONT_SIZE = 16  # Minimum readable size
 SUBTITLE_MAX_FONT_SIZE = 100  # Maximum practical size
-
-# =============================================================================
-# IMAGE QUALITY DETECTION THRESHOLDS (technical quality standards)
-# =============================================================================
-MIN_HIGH_RES_IMAGE_DIMENSION = 1500  # Minimum for "high resolution" classification
-MIN_HIGH_RES_IMAGE_FILE_SIZE = 10000  # Bytes - filters out placeholder images
-VERY_HIGH_RES_IMAGE_DIMENSION = 2000  # Premium quality threshold
 
 # =============================================================================
 # MATHEMATICAL CONSTANTS

@@ -307,6 +307,20 @@ class VideoProfile(BaseModel):
         None, description="Override text alignment: left, center, right"
     )
 
+    # Platform safe zone overrides (per-profile, fractions of frame)
+    subtitle_safe_zone_min_x: float | None = Field(
+        None, description="Override left safe zone boundary"
+    )
+    subtitle_safe_zone_max_x: float | None = Field(
+        None, description="Override right safe zone boundary"
+    )
+    subtitle_safe_zone_min_y: float | None = Field(
+        None, description="Override top safe zone boundary"
+    )
+    subtitle_safe_zone_max_y: float | None = Field(
+        None, description="Override bottom safe zone boundary"
+    )
+
     # Advanced subtitle styling overrides
     subtitle_font_name: str | None = Field(
         None, description="Override subtitle font family"

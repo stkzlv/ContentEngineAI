@@ -576,12 +576,12 @@ audio_processing:
 
   # Silence detection threshold in decibels
   # Lower values = more sensitive (detects quieter silence)
-  # -40dB catches most background silence while preserving speech
+  # -50dB preserves quiet speech endings and trailing consonants
   # Range: -60 (very sensitive) to -20 (only very quiet silence)
-  silence_threshold_db: -40
+  silence_threshold_db: -50
 
   # Minimum duration to consider as silence (seconds)
   # Prevents removing very brief pauses between words
-  # 0.1s = 100ms is optimal for natural speech cadence
-  silence_min_duration_sec: 0.1
+  # 0.3s prevents trimming the TTS last_word_buffer (0.5s)
+  silence_min_duration_sec: 0.3
 

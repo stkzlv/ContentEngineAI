@@ -554,12 +554,19 @@ class UnifiedSubtitleGenerator:
             if word_count_check or char_check:
                 should_break = True
 
-            # 3. Width constraint (frame-based or image-based)
+            # 3. Width constraint (frame-based, safe zone, or image-based)
             if not should_break:
                 font_size = get_font_size(self.config, self.frame_size[1])
                 max_width = int(
                     self.frame_size[0] * self.config.max_subtitle_width_fraction
                 )
+
+                # Cap against safe zone width
+                from src.video.config.core_models import PlatformSafeZone
+
+                sz = PlatformSafeZone()
+                safe_zone_width = int(self.frame_size[0] * (sz.max_x - sz.min_x))
+                max_width = min(max_width, safe_zone_width)
 
                 # Use stricter constraint: image width or frame-based max
                 if visual_bounds is not None and visual_bounds.width > 0:
@@ -693,7 +700,11 @@ class UnifiedSubtitleGenerator:
             ensure_dirs_exist(output_path.parent)
 
             # Calculate position
-            position = calculate_position(self.config, self.frame_size, visual_bounds)
+            position = calculate_position(
+                self.config,
+                self.frame_size,
+                visual_bounds,
+            )
             font_size = get_font_size(self.config, self.frame_size[1])
 
             # DEBUG: Log position calculation

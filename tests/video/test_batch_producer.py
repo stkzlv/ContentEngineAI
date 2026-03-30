@@ -117,6 +117,7 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
     mock_args.step = None
     mock_args.output_format = "text"
     mock_args.product_index = None
+    mock_args.product_ids = None
     mock_args.products_file = None
     mock_args.profile = None
     mock_args.profile_pool = None

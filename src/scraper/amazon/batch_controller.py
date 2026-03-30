@@ -366,6 +366,7 @@ class BatchController:
         """
         successful = sum(1 for r in results if r.success)
         failed = sum(1 for r in results if not r.success)
+        successful_products = [r.product_id for r in results if r.success]
         failed_products = [r.product_id for r in results if not r.success]
 
         # Calculate media statistics
@@ -401,6 +402,7 @@ class BatchController:
             keywords_attempted=keywords_count,
             successful=successful,
             failed=failed,
+            successful_products=successful_products,
             failed_products=failed_products,
             media_stats=media_stats,
             duration_sec=round(duration_sec, duration_places),

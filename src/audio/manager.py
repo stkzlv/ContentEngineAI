@@ -3,6 +3,7 @@
 import logging
 import random
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,11 @@ class AudioManager:
 
         Returns attribution dict or None if nothing found.
         """
+        t0 = time.monotonic()
+        tried_providers: list[str] = []
+
         for provider in self._providers:
+            tried_providers.append(provider.provider_name)
             try:
                 result = await self._try_provider(
                     provider,
@@ -52,6 +57,9 @@ class AudioManager:
                     session,
                 )
                 if result:
+                    self._log_summary(
+                        result, query, tried_providers, time.monotonic() - t0
+                    )
                     return result
             except CircuitBreakerError:
                 logger.warning(
@@ -70,7 +78,35 @@ class AudioManager:
                     exc,
                 )
 
-        return self._try_local_fallback(output_dir)
+        fallback = self._try_local_fallback(output_dir)
+        if fallback:
+            tried_providers.append("local")
+        self._log_summary(fallback, query, tried_providers, time.monotonic() - t0)
+        return fallback
+
+    @staticmethod
+    def _log_summary(
+        result: dict[str, Any] | None,
+        query: str,
+        tried: list[str],
+        elapsed: float,
+    ) -> None:
+        logger.info("--- AUDIO SUMMARY ---")
+        if result:
+            logger.info(
+                "Provider: %s (query: %s)",
+                result.get("source", "unknown"),
+                query,
+            )
+            logger.info(
+                "Track: %s by %s",
+                result.get("name", "unknown"),
+                result.get("author", "unknown"),
+            )
+        else:
+            logger.info("Result: no track found (tried: %s)", ", ".join(tried))
+        logger.info("Duration: %.1fs", elapsed)
+        logger.info("---")
 
     async def _try_provider(
         self,
@@ -96,9 +132,17 @@ class AudioManager:
             )
             return None
 
-        for track in sorted(tracks, key=lambda t: t.duration):
-            if track.duration < min_duration:
-                continue
+        eligible = [t for t in tracks if t.duration >= min_duration]
+        if not eligible:
+            logger.info(
+                "No tracks from %s meet min duration %.0fs",
+                provider.provider_name,
+                min_duration,
+            )
+            return None
+        random.shuffle(eligible)
+
+        for track in eligible:
             logger.info(
                 "Trying track '%s' (%.0fs) from %s",
                 track.name,

@@ -217,6 +217,7 @@ class BatchSummary:
     keywords_attempted: int  # Keywords attempted
     successful: int  # Successfully scraped
     failed: int  # Failed scrapes
+    successful_products: list[str]  # ASINs of successful products
     failed_products: list[str]  # ASINs of failed products
     media_stats: dict[str, int | float]  # Media collection statistics
     duration_sec: float  # Total batch duration

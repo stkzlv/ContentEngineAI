@@ -27,6 +27,10 @@ from src.video.config.constants import (
     FALLBACK_FONT_ALTERNATIVES,
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
+    SAFE_ZONE_MAX_X,
+    SAFE_ZONE_MAX_Y,
+    SAFE_ZONE_MIN_X,
+    SAFE_ZONE_MIN_Y,
 )
 from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
@@ -199,8 +203,33 @@ class FilesystemSettings(BaseModel):
     supported_audio_extensions: list[str] = Field([".wav", ".mp3", ".aac", ".flac"])
 
 
+class PlatformSafeZone(BaseModel):
+    """Safe zone boundaries to avoid platform UI overlays (fractions of frame).
+
+    Default values represent the cross-platform worst case for TikTok,
+    YouTube Shorts, and Instagram Reels on a 1080x1920 frame.
+    See docs/platform-safe-zones.md for per-platform breakdown.
+    """
+
+    min_x: float = Field(
+        default=SAFE_ZONE_MIN_X, description="Left boundary (fraction of width)"
+    )
+    max_x: float = Field(
+        default=SAFE_ZONE_MAX_X, description="Right boundary (fraction of width)"
+    )
+    min_y: float = Field(
+        default=SAFE_ZONE_MIN_Y, description="Top boundary (fraction of height)"
+    )
+    max_y: float = Field(
+        default=SAFE_ZONE_MAX_Y, description="Bottom boundary (fraction of height)"
+    )
+
+
 class TextRenderingSettings(BaseModel):
     """Configuration for text rendering and character width estimation."""
+
+    # Platform safe zone
+    safe_zone: PlatformSafeZone = Field(default_factory=PlatformSafeZone)
 
     # Character width factors
     narrow_char_width_factor: float = Field(
@@ -230,19 +259,21 @@ class TextRenderingSettings(BaseModel):
         0.4, description="Minimum subtitle duration in seconds"
     )
 
-    # Safe positioning boundaries
+    # Safe positioning boundaries (kept for backward compat, prefer safe_zone)
     min_safe_y_position: float = Field(
-        0.05, description="Minimum safe Y position as fraction of frame height"
+        default=SAFE_ZONE_MIN_Y,
+        description="Minimum safe Y position as fraction of frame height",
     )
     max_safe_y_position: float = Field(
-        0.95, description="Maximum safe Y position as fraction of frame height"
+        default=SAFE_ZONE_MAX_Y,
+        description="Maximum safe Y position as fraction of frame height",
     )
     center_position_fraction: float = Field(0.5, description="Center position fraction")
     left_position_fraction: float = Field(
-        0.1, description="Left alignment position fraction"
+        default=SAFE_ZONE_MIN_X, description="Left alignment position fraction"
     )
     right_position_fraction: float = Field(
-        0.9, description="Right alignment position fraction"
+        default=SAFE_ZONE_MAX_X, description="Right alignment position fraction"
     )
 
     # Font size boundaries

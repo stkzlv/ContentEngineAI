@@ -529,7 +529,7 @@ def create_static_upper_subtitle(
             position = calculate_position(
                 unified_config,
                 frame_size,
-                visual_bounds,  # Pass visual bounds for content-aware positioning
+                visual_bounds,
             )
             font_size = get_font_size(unified_config, frame_size[1])
 

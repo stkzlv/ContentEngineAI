@@ -15,13 +15,10 @@ from pydantic import BaseModel, Field
 from src.video.config.constants import (
     SUBTITLE_BASE_FONT_SIZE_PERCENT,
     SUBTITLE_CENTER_POSITION_FRACTION,
-    SUBTITLE_FALLBACK_SPACING_PERCENT,
-    SUBTITLE_LEFT_POSITION_FRACTION,
     SUBTITLE_MAX_FONT_SIZE,
-    SUBTITLE_MAX_SAFE_Y_POSITION,
     SUBTITLE_MIN_FONT_SIZE,
-    SUBTITLE_RIGHT_POSITION_FRACTION,
 )
+from src.video.config.core_models import PlatformSafeZone
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +59,20 @@ class VisualBounds:
     y: float
     width: float
     height: float
+
+
+def clamp_to_safe_zone(
+    x: int,
+    y: int,
+    frame_width: int,
+    frame_height: int,
+    safe_zone: PlatformSafeZone | None = None,
+) -> tuple[int, int]:
+    """Clamp pixel coordinates to platform safe zone boundaries."""
+    sz = safe_zone or PlatformSafeZone()
+    clamped_x = max(int(frame_width * sz.min_x), min(x, int(frame_width * sz.max_x)))
+    clamped_y = max(int(frame_height * sz.min_y), min(y, int(frame_height * sz.max_y)))
+    return clamped_x, clamped_y
 
 
 class UnifiedSubtitleConfig(BaseModel):
@@ -314,6 +325,7 @@ def calculate_position(
     config: UnifiedSubtitleConfig,
     frame_size: tuple[int, int],
     visual_bounds: VisualBounds | None = None,
+    safe_zone: PlatformSafeZone | None = None,
 ) -> Position:
     """Calculate final subtitle position based on configuration.
 
@@ -322,57 +334,33 @@ def calculate_position(
         config: Unified subtitle configuration
         frame_size: Video frame dimensions (width, height)
         visual_bounds: Optional bounds of visual content for relative positioning
+        safe_zone: Platform safe zone boundaries for UI avoidance
 
     Returns:
     -------
         Position with x, y coordinates as fractions (0.0-1.0)
 
     """
-    # Load text rendering settings from config
-    from pathlib import Path
-
-    import yaml
-
-    text_rendering_config = {}
-    config_path = Path("config/subtitles.yaml")
-    if config_path.exists():
-        with open(config_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            text_rendering_config = data.get("text_rendering", {})
-
-    max_safe_y = text_rendering_config.get(
-        "max_safe_y_position", SUBTITLE_MAX_SAFE_Y_POSITION
-    )
-    center_fraction = text_rendering_config.get(
-        "center_position_fraction", SUBTITLE_CENTER_POSITION_FRACTION
-    )
-    left_fraction = text_rendering_config.get(
-        "left_position_fraction", SUBTITLE_LEFT_POSITION_FRACTION
-    )
-    right_fraction = text_rendering_config.get(
-        "right_position_fraction", SUBTITLE_RIGHT_POSITION_FRACTION
-    )
-
+    sz = safe_zone or PlatformSafeZone()
     frame_width, frame_height = frame_size
 
-    # Use custom position if specified
+    # Clamp custom position to safe zone
     if config.custom_position:
-        return config.custom_position
+        return Position(
+            x=max(sz.min_x, min(config.custom_position.x, sz.max_x)),
+            y=max(sz.min_y, min(config.custom_position.y, sz.max_y)),
+        )
 
-    # Calculate base position from anchor
+    # Calculate base Y from anchor
     if config.anchor == PositionAnchor.TOP:
-        base_y = config.margin
+        base_y = max(sz.min_y, config.margin)
     elif config.anchor == PositionAnchor.CENTER:
-        base_y = center_fraction
+        base_y = SUBTITLE_CENTER_POSITION_FRACTION
     elif config.anchor == PositionAnchor.BOTTOM:
-        base_y = 1.0 - config.margin
+        base_y = min(sz.max_y, 1.0 - config.margin)
     elif config.anchor == PositionAnchor.ABOVE_CONTENT:
         if config.content_aware and visual_bounds:
-            # Position above visual content with margin gap
-            # visual_bounds.y is the top edge of content, subtract margin for gap
             base_y = visual_bounds.y - config.margin
-            # Ensure we don't go above safe top margin
-            base_y = max(SUBTITLE_FALLBACK_SPACING_PERCENT, base_y)
             logger.debug(
                 "ABOVE_CONTENT: visual_bounds.y=%.4f, margin=%.4f, "
                 "base_y=%.4f (Y=%dpx)",
@@ -382,8 +370,6 @@ def calculate_position(
                 int(base_y * frame_height),
             )
         else:
-            # Fallback: Use top positioning when content_aware is disabled
-            # or visual_bounds is not available
             base_y = config.margin
             logger.debug(
                 "ABOVE_CONTENT fallback: content_aware=%s, "
@@ -392,23 +378,25 @@ def calculate_position(
                 visual_bounds,
                 base_y,
             )
+        base_y = max(sz.min_y, base_y)
     elif config.anchor == PositionAnchor.BELOW_CONTENT:
         if config.content_aware and visual_bounds:
-            base_y = min(
-                max_safe_y, visual_bounds.y + visual_bounds.height + config.margin
-            )
+            base_y = visual_bounds.y + visual_bounds.height + config.margin
         else:
-            # Fallback: Use bottom positioning with margin when
-            # content_aware is disabled. Position from bottom using margin.
             base_y = 1.0 - config.margin
+        base_y = min(sz.max_y, base_y)
 
-    # Calculate horizontal position based on alignment
+    # Clamp Y to safe zone
+    base_y = max(sz.min_y, min(base_y, sz.max_y))
+
+    # Calculate horizontal position from alignment, clamped to safe zone
     if config.horizontal_alignment == "left":
-        base_x = left_fraction
+        base_x = sz.min_x
     elif config.horizontal_alignment == "right":
-        base_x = right_fraction
+        base_x = sz.max_x
     else:  # center
-        base_x = center_fraction
+        base_x = SUBTITLE_CENTER_POSITION_FRACTION
+    base_x = max(sz.min_x, min(base_x, sz.max_x))
 
     return Position(x=base_x, y=base_y)
 
@@ -431,35 +419,10 @@ def get_font_size(
         Font size in pixels
 
     """
-    # Load text rendering settings from config if not provided
     if base_size_percent is None:
-        from pathlib import Path
-
-        import yaml
-
-        config_path = Path("config/subtitles.yaml")
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-                text_rendering = data.get("text_rendering", {})
-                base_size_percent = float(
-                    text_rendering.get(
-                        "base_font_size_percent", SUBTITLE_BASE_FONT_SIZE_PERCENT
-                    )
-                )
-                min_font = int(
-                    text_rendering.get("min_font_size", SUBTITLE_MIN_FONT_SIZE)
-                )
-                max_font = int(
-                    text_rendering.get("max_font_size", SUBTITLE_MAX_FONT_SIZE)
-                )
-        else:
-            base_size_percent = SUBTITLE_BASE_FONT_SIZE_PERCENT
-            min_font = SUBTITLE_MIN_FONT_SIZE
-            max_font = SUBTITLE_MAX_FONT_SIZE
-    else:
-        min_font = SUBTITLE_MIN_FONT_SIZE
-        max_font = SUBTITLE_MAX_FONT_SIZE
+        base_size_percent = SUBTITLE_BASE_FONT_SIZE_PERCENT
+    min_font = SUBTITLE_MIN_FONT_SIZE
+    max_font = SUBTITLE_MAX_FONT_SIZE
 
     base_size = int(frame_height * base_size_percent)
     scaled_size = int(base_size * config.font_size_scale)
