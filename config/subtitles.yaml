@@ -307,7 +307,8 @@ tts_config:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak in a warm, friendly, conversational tone. Sound natural and enthusiastic about the product."
-      speaking_rate: 1.05
+      speaking_rate: 1.10
+      pitch: 1.0
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
         - { pattern: '!\s+', insert_after: '[short pause] ' }
@@ -316,7 +317,7 @@ tts_config:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak softly, like a late-night product reviewer. Warm and intimate, but keep a natural pace."
-      speaking_rate: 0.97
+      speaking_rate: 1.05
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
 
@@ -324,19 +325,20 @@ tts_config:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak calmly and authoritatively, like a trusted tech reviewer giving honest advice."
-      speaking_rate: 1.0
+      speaking_rate: 1.10
+      pitch: 1.0
 
     calm_confident:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak calmly and confidently. Warm but grounded. Like a trusted friend recommending something over coffee."
-      speaking_rate: 1.0
+      speaking_rate: 1.10
 
     gentle_storyteller:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak gently, like telling a friend about something you found. Soft voice, natural pacing."
-      speaking_rate: 0.98
+      speaking_rate: 1.05
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
 

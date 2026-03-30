@@ -132,9 +132,17 @@ class AudioManager:
             )
             return None
 
-        for track in sorted(tracks, key=lambda t: t.duration):
-            if track.duration < min_duration:
-                continue
+        eligible = [t for t in tracks if t.duration >= min_duration]
+        if not eligible:
+            logger.info(
+                "No tracks from %s meet min duration %.0fs",
+                provider.provider_name,
+                min_duration,
+            )
+            return None
+        random.shuffle(eligible)
+
+        for track in eligible:
             logger.info(
                 "Trying track '%s' (%.0fs) from %s",
                 track.name,

@@ -18,11 +18,11 @@ tts_config:
   voice_profiles_enabled: true   # false to skip profiles entirely
 
   voice_profiles:
-    warm_conversational:    # moderate energy, friendly, rate 1.05
-    soft_intimate:          # ASMR-like, breathy, rate 0.93, pitch -1.5
-    calm_authority:         # trusted reviewer, rate 0.95
-    calm_confident:         # relaxed friend, rate 0.97, pitch -1.0
-    gentle_storyteller:     # soft narration, rate 0.96, pitch -1.0
+    warm_conversational:    # friendly, rate 1.10, pitch +1, ~165 WPM
+    soft_intimate:          # soft reviewer, rate 1.05, ~155 WPM
+    calm_authority:         # trusted reviewer, rate 1.10, pitch +1, ~165 WPM
+    calm_confident:         # relaxed friend, rate 1.10, ~165 WPM
+    gentle_storyteller:     # soft narration, rate 1.05, ~155 WPM
     chirp3_natural:         # Google Cloud Chirp3, neutral baseline
 
   voice_profile_pool: []  # empty = use all profiles

@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified SRT/drawtext line splitting to use same word count + char limit rules as ASS
 - Subtitle width capped against safe zone boundaries
 - Removed YAML re-read from calculate_position() hot path
-- Voice profiles rebalanced toward calm delivery (replaced energetic_pitch)
+- Voice profiles tuned to 1.05-1.10 speaking rate (~155-170 WPM) for short-form video retention
+- Background music track selection randomized (was always picking shortest eligible track)
 - Script templates toned down (challenge_dare, unboxing_reaction, rapid_fire, curiosity_hook)
 - Background music queries switched to ambient/chill, volume lowered -20dB to -24dB
 - Module summaries unified to consistent format with product IDs, no emojis
