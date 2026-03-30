@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-03-30
+
 ### Added
 - Platform-aware subtitle safe zones for TikTok, YouTube Shorts, and Instagram Reels (PlatformSafeZone config, per-profile overrides)
 - `--product-ids` filter for producer batch mode
