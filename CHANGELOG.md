@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Platform-aware subtitle safe zones for TikTok, YouTube Shorts, and Instagram Reels (PlatformSafeZone config, per-profile overrides)
 - `--product-ids` filter for producer batch mode
+- `publish` and `publish-lowpri` Makefile targets
 - Audio module summary logging
 - Voice profiles: soft_intimate, calm_confident, gentle_storyteller
 - Gemini voice catalog reference in docs/tts-voice-profiles.md
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Script templates toned down (challenge_dare, unboxing_reaction, rapid_fire, curiosity_hook)
 - Background music queries switched to ambient/chill, volume lowered -20dB to -24dB
 - Module summaries unified to consistent format with product IDs, no emojis
+- Base profile excluded from random selection pool
 
 ### Removed
 - Dead constants from video config: MIN_HIGH_RES_IMAGE_*, WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE
