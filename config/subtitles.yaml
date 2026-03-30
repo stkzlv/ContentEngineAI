@@ -275,7 +275,7 @@ tts_config:
     api_timeout_sec: 60
     api_max_retries: 2
     api_retry_delay_sec: 5
-    last_word_buffer_sec: 0.3
+    last_word_buffer_sec: 0.5
 
   # Coqui TTS Settings (Local/Offline Processing)
   # Pros: Free, no API costs, works offline, privacy-friendly

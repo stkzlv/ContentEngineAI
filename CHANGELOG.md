@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Background music queries switched to ambient/chill, volume lowered -20dB to -24dB
 - Module summaries unified to consistent format with product IDs, no emojis
 - Base profile excluded from random selection pool
+- Silence trimmer threshold relaxed (-40dB to -50dB) and min duration raised (0.1s to 0.3s) to prevent last-word cutoff
+- TTS last_word_buffer raised from 0.3s to 0.5s
+
+### Fixed
+- Scraper no longer creates `unknown_product/` directory for products without ASIN
 
 ### Removed
 - Dead constants from video config: MIN_HIGH_RES_IMAGE_*, WHISPER_WORD_LEVEL_TIMING_MIN_CONFIDENCE

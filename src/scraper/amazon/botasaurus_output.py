@@ -5,6 +5,7 @@ to ensure all scraped data, screenshots, debug files, and cache are saved
 to our standardized outputs/ directory structure.
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,8 @@ from ...utils.outputs_paths import (
     get_outputs_root,
     get_product_directory,
 )
+
+logger = logging.getLogger(__name__)
 
 # Module-level output directory override. When set, all output functions
 # use this instead of the config default ("outputs").
@@ -84,7 +87,10 @@ def write_scraped_data_output(
                 product["platform"] = "amazon"
 
             # Get product-specific directory
-            product_id = product.get("asin") or product.get("id") or "unknown_product"
+            product_id = product.get("asin") or product.get("id")
+            if not product_id:
+                logger.warning("Skipping product with no ASIN or ID")
+                continue
             product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
 
             try:
@@ -97,20 +103,7 @@ def write_scraped_data_output(
             except Exception as e:
                 print(f"❌ Failed to save product data for {product_id}: {e}")
     else:
-        # Fallback for non-list results
-        product_id = "unknown_product"
-        product_dir = get_product_output_dir(product_id, custom_dir=output_dir)
-
-        import json
-        import os
-
-        try:
-            output_file = product_dir / "data.json"
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump([result], f, indent=4, ensure_ascii=False)
-            print(f"📄 Saved scraped data: {output_file}")
-        except Exception as e:
-            print(f"❌ Failed to save fallback product data: {e}")
+        logger.warning("Scraper returned non-list result, skipping save")
 
 
 def write_download_cache_output(data: Any, result: dict[str, Any]) -> None:
