@@ -1046,4 +1046,12 @@ batch:
   #
   # Note: This is only used when --random-profile is enabled.
   # When using --batch-profile, this setting is ignored.
-  profile_pool: []
+  profile_pool:
+    - slideshow_images1
+    - slideshow_images2
+    - slideshow_images3
+    - slideshow_images4
+    - product_video_sequential
+    - product_video_single
+    - product_video_mixed
+    - product_video_primary
