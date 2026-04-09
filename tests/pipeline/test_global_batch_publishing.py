@@ -263,6 +263,91 @@ async def test_auto_scheduling_falls_back_to_immediate_when_all_slots_occupied(
         # Scheduled time should be None when all slots occupied
 
 
+@pytest.mark.asyncio
+async def test_auto_scheduling_assigns_unique_slots_per_product(
+    temp_outputs_dir, mock_publisher_config, mock_video_config
+):
+    """Test that batch scheduling gives each product a different slot.
+
+    Regression test: previously all products in a batch got the same
+    schedule_time because the slot was computed once before the loop.
+    """
+    config = GlobalBatchConfig(
+        product_ids=["B0TEST1", "B0TEST2"],
+        keywords=[],
+        max_products=2,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        outputs_dir=temp_outputs_dir,
+        skip_publish=False,
+        platforms=["youtube"],
+    )
+
+    # Create two product directories with videos
+    for pid in ["B0TEST1", "B0TEST2"]:
+        pdir = temp_outputs_dir / pid
+        pdir.mkdir(parents=True)
+        (pdir / "video.mp4").write_text("fake video")
+        (pdir / "metadata.json").write_text('{"title": "Test", "description": "Test"}')
+
+    orchestrator = GlobalPipelineOrchestrator(config)
+
+    # No occupied slots - both products should get consecutive slots
+    with (
+        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch.dict(
+            "os.environ",
+            {
+                "LATE_API_KEY": "test_key",
+                "LATE_VERCEL_TOKEN": "test_vercel_token",
+            },
+        ),
+        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch(
+            "src.publisher.publish_modes.load_platform_metadata"
+        ) as mock_load_metadata,
+    ):
+        # Temp publisher for slot checking (returns no occupied slots)
+        temp_publisher = AsyncMock()
+        temp_publisher.authenticate = AsyncMock()
+        temp_publisher.list_posts = AsyncMock(return_value=[])
+
+        # Main publisher for actual publishing
+        main_publisher = AsyncMock()
+        main_publisher.authenticate = AsyncMock()
+        main_publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "youtube", "account_id": "acc1"}]
+        )
+        main_publisher.upload_media = AsyncMock(return_value="media_123")
+        main_publisher.publish = AsyncMock()
+
+        mock_create_publisher.side_effect = [temp_publisher, main_publisher]
+
+        mock_metadata = Mock()
+        mock_metadata.format_content = Mock(return_value="Test content")
+        mock_load_metadata.return_value = mock_metadata
+
+        produced_videos = [
+            (temp_outputs_dir / "B0TEST1" / "video.mp4", "B0TEST1"),
+            (temp_outputs_dir / "B0TEST2" / "video.mp4", "B0TEST2"),
+        ]
+        await orchestrator._execute_publishing_phase(produced_videos)
+
+        # Both products should have been published
+        assert main_publisher.publish.call_count == 2
+
+        # Extract scheduled times from both publish calls
+        times = []
+        for call in main_publisher.publish.call_args_list:
+            times.append(call[1]["scheduled_time"])
+
+        # The two scheduled times must be different
+        assert times[0] != times[1], (
+            f"Both products got the same slot: {times[0]}. "
+            "Each product should get a unique slot."
+        )
+
+
 # ============================================================================
 # CLEANUP TESTS
 # ============================================================================

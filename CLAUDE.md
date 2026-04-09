@@ -278,9 +278,10 @@ make test-cov      # Run tests with coverage report
 
 ## Publisher Module Notes
 
+- **Zernio (formerly Late)**: The platform rebranded from Late to Zernio. API is identical, old `getlate.dev` endpoints redirect. Our codebase still uses the old `late-sdk` package, `LATE_API_KEY` env var, and `src/publisher/late/` directory structure. Planned migration: switch to `zernio-sdk`, rename env var to `ZERNIO_API_KEY`, update imports. Both old and new SDK packages work during a 6-month grace period. No rush, but should be done eventually.
 - **TikTok content disclosure**: Posts **must** include `commercial_content_type: "brand_organic"` and `is_brand_organic_post: true` in `tiktokSettings`. Without these, TikTok rejects with "Commercial content disclosure is enabled but no option selected". The fix is in `src/publisher/late/client.py` — settings are sent both per-platform (`platformSpecificData.tiktokSettings`) and at top-level (`tiktok_settings`).
-- **Fixing failed TikTok posts**: Use Late SDK `posts.aupdate()` to set correct `tiktokSettings` per-platform, then the platform status resets from `failed` → `pending` and auto-publishes. No need to call `retry()` — the update triggers re-publish automatically. Calling `retry()` after that gives 409 "Post is currently publishing".
-- **Late SDK post methods**: `create`, `get`, `update`, `delete`, `retry`, `list` (+ async variants `acreate`, etc.)
+- **Fixing failed TikTok posts**: Use Zernio SDK `posts.aupdate()` to set correct `tiktokSettings` per-platform, then the platform status resets from `failed` → `pending` and auto-publishes. No need to call `retry()` — the update triggers re-publish automatically. Calling `retry()` after that gives 409 "Post is currently publishing".
+- **Zernio SDK post methods**: `create`, `get`, `update`, `delete`, `retry`, `list` (+ async variants `acreate`, etc.)
 - **Publishing modes**: Unified (default) = 1 post to all platforms; platform-specific (`--platform-specific` or `use_platform_specific_content: true`) = 1 post per platform with optimized metadata. Shared helper: `src/publisher/publish_modes.py`.
 - **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
 - **`.env` file**: Auto-loaded by the CLI via `load_dotenv()`. No manual sourcing needed.
