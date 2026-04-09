@@ -1248,8 +1248,13 @@ class GlobalPipelineOrchestrator:
         # 1. Explicit CLI/YAML schedule_time (highest priority)
         # 2. Auto-schedule via recurring_schedule if immediate_publish=false
         # 3. Publish immediately (scheduled_time=None)
+        #
+        # For auto-schedule with multiple products, each product gets its
+        # own slot. The scheduling context is prepared here, and
+        # _find_next_schedule_slot() is called per-product in the loop.
 
         schedule_time = None
+        auto_schedule_ctx: dict | None = None
 
         # Priority 1: Explicit schedule time from CLI or YAML
         schedule_time_str = self.config.schedule_time or publisher_config.get(
@@ -1276,7 +1281,7 @@ class GlobalPipelineOrchestrator:
                 from src.publisher.models import RecurringSlot
                 from src.publisher.schedule import ScheduleManager
 
-                logger.info("Auto-scheduling: Finding next available slot...")
+                logger.info("Auto-scheduling: preparing slot context...")
 
                 # Parse recurring slots from config
                 slots_config = recurring_config.get("slots", [])
@@ -1304,16 +1309,12 @@ class GlobalPipelineOrchestrator:
                             schedule_path=self.config.outputs_dir / "schedule.json"
                         )
 
-                        # Find next available UNOCCUPIED slot
                         from datetime import UTC
-
-                        now = datetime.now(UTC)
 
                         # Fetch existing posts to check occupied slots
                         logger.debug("Checking occupied slots via API...")
                         occupied_slot_times: set[datetime] = set()
 
-                        # Initialize publisher to query existing posts
                         api_key = os.getenv("LATE_API_KEY")
                         vercel_token = os.getenv("LATE_VERCEL_TOKEN")
                         if api_key:
@@ -1328,22 +1329,18 @@ class GlobalPipelineOrchestrator:
                             )
 
                             try:
-                                # Authenticate to access API
                                 await temp_publisher.authenticate()
 
-                                # Fetch all posts (scheduled + published)
                                 api_posts = await temp_publisher.list_posts()
                                 logger.debug(
                                     f"Found {len(api_posts)} existing posts on API"
                                 )
 
-                                # Build set of occupied slot times
                                 for api_post in api_posts:
                                     scheduled_time = api_post.get("scheduledFor")
                                     if not scheduled_time:
                                         continue
 
-                                    # Parse scheduled time
                                     if isinstance(scheduled_time, str):
                                         time_str = scheduled_time.replace("+00:00", "")
                                         scheduled_dt = datetime.fromisoformat(time_str)
@@ -1354,7 +1351,6 @@ class GlobalPipelineOrchestrator:
                                     else:
                                         scheduled_dt = scheduled_time
 
-                                    # Normalize to slot precision (minute)
                                     slot_time = scheduled_dt.replace(
                                         second=0, microsecond=0
                                     )
@@ -1366,42 +1362,12 @@ class GlobalPipelineOrchestrator:
                             except Exception as e:
                                 logger.warning(f"Failed to fetch occupied slots: {e}")
 
-                        # Find next unoccupied slot
-                        max_attempts = len(slots) * 8  # Check up to 8 weeks ahead
-                        slot_index = 0
-
-                        for _attempt in range(max_attempts):
-                            next_slot_time, slot_index = schedule_manager.get_next_slot(
-                                slots, after=now, slot_index=slot_index
-                            )
-
-                            # Normalize to slot precision for comparison
-                            normalized_slot = next_slot_time.replace(
-                                second=0, microsecond=0
-                            )
-
-                            if normalized_slot not in occupied_slot_times:
-                                # Found unoccupied slot
-                                schedule_time = next_slot_time
-                                logger.info(
-                                    f"Auto-scheduled to slot #{slot_index}: "
-                                    f"{schedule_time.strftime(
-                                        '%A, %Y-%m-%d %H:%M:%S %Z'
-                                    )}"
-                                )
-                                break
-                            else:
-                                logger.debug(
-                                    f"Slot #{slot_index} occupied, trying next slot..."
-                                )
-                                # Move to next slot for next iteration
-                                now = next_slot_time
-                                slot_index = (slot_index + 1) % len(slots)
-                        else:
-                            logger.warning(
-                                "All slots occupied for next 8 weeks. "
-                                "Publishing immediately."
-                            )
+                        # Store context for per-product slot finding
+                        auto_schedule_ctx = {
+                            "slots": slots,
+                            "schedule_manager": schedule_manager,
+                            "occupied_slot_times": occupied_slot_times,
+                        }
 
                     except Exception as e:
                         logger.warning(
@@ -1530,6 +1496,48 @@ class GlobalPipelineOrchestrator:
                 if not pub_platforms:
                     raise ValueError("No valid platform accounts found")
 
+                # Find per-product schedule slot if auto-scheduling
+                product_schedule_time = schedule_time
+                if auto_schedule_ctx is not None:
+                    from datetime import UTC
+
+                    ctx_slots = auto_schedule_ctx["slots"]
+                    ctx_mgr = auto_schedule_ctx["schedule_manager"]
+                    ctx_occupied = auto_schedule_ctx["occupied_slot_times"]
+
+                    now = datetime.now(UTC)
+                    max_attempts = len(ctx_slots) * 8
+                    slot_index = 0
+
+                    for _attempt in range(max_attempts):
+                        next_slot_time, slot_index = ctx_mgr.get_next_slot(
+                            ctx_slots, after=now, slot_index=slot_index
+                        )
+                        normalized_slot = next_slot_time.replace(
+                            second=0, microsecond=0
+                        )
+                        if normalized_slot not in ctx_occupied:
+                            product_schedule_time = next_slot_time
+                            ctx_occupied.add(normalized_slot)
+                            logger.info(
+                                f"Auto-scheduled {product_id} to slot "
+                                f"#{slot_index}: "
+                                f"{next_slot_time.strftime(
+                                    '%A, %Y-%m-%d %H:%M:%S %Z'
+                                )}"
+                            )
+                            break
+                        else:
+                            logger.debug(f"Slot #{slot_index} occupied, trying next...")
+                            now = next_slot_time
+                            slot_index = (slot_index + 1) % len(ctx_slots)
+                    else:
+                        logger.warning(
+                            f"All slots occupied for {product_id}. "
+                            "Publishing immediately."
+                        )
+                        product_schedule_time = None
+
                 # Publish (unified or platform-specific mode)
                 from src.publisher.publish_modes import publish_product
 
@@ -1545,7 +1553,7 @@ class GlobalPipelineOrchestrator:
                     platforms=pub_platforms,
                     outputs_dir=self.config.outputs_dir,
                     platform_specific=platform_specific,
-                    schedule_time=schedule_time,
+                    schedule_time=product_schedule_time,
                 )
 
                 # Process results and record publish
