@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Batch pipeline scheduling all products to the same time slot instead of assigning unique slots per product
+
 ## [0.35.0] - 2026-03-30
 
 ### Added

@@ -304,6 +304,10 @@ make test-cov      # Run tests with coverage report
 - **Two scraping code paths**: The standalone scraper CLI uses `scrape_products_unified()` which has a cycling loop (`_scrape_until_validated_count_reached`). The global batch uses `scrape_batch_browser()` + `process_raw_products()` with its own page retry loop in `global_batch.py`. Changes to validation logic must be tested through both paths.
 - **Page retry**: Global batch retries with additional search pages when products fail media validation (`max_retry_pages` in scraper YAML). Only applies to keyword searches, not ASINs/URLs.
 
+## Module/Batch Alignment Rule
+
+**CRITICAL**: Standalone module CLIs (publisher, scraper, producer) and `global_batch.py` often have parallel implementations of the same logic (scheduling, validation, retry, cleanup). When fixing or adding behavior in one path, **proactively check the other path** for the same issue or missing feature. Don't wait for it to break separately. The batch pipeline re-implements logic from standalone modules rather than calling them, so drift is common and silent.
+
 ## Available MCP Servers
 
 The project has access to these MCP servers for enhanced development capabilities:
