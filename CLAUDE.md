@@ -162,6 +162,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Module/Batch Alignment Rule applied**: the four CLI flags (`--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`) live on BOTH `src/video/producer/cli.py` AND `src/pipeline/global_batch.py`. Same names, same choices, same dotted override keys (`subtitle_settings.subtitle_engine`, `subtitle_settings.pycaps.*`). Grep both files when touching either.
 - **3-level merge supports nested dotted keys**: `VideoConfig.get_profile_merged_settings()` understands `subtitle_settings.pycaps.<field>` and folds them into the nested `PycapsSettings` model. The same path works in `cli_overrides` dicts.
 - **Pycaps upstream is alpha (0.2.1)**: pinned in `pyproject.toml` to a specific git SHA. Upgrade deliberately. If upstream stalls, fork to `ContentEngineAI/pycaps`.
+- **Follow-up work**: tracked in `docs/pycaps-followups.md` — AI word tagging via the Gemini key (top priority), mypy pin cleanup, two-part subtitles + pycaps hybrid, CSS renderer CI integration test. Read before starting any pycaps follow-up task.
 
 ## Session Continuity
 

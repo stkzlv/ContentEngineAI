@@ -251,3 +251,4 @@ seconds on this hardware.
 - [Configuration system overview](./configuration.md)
 - [Architecture: subtitle pipeline](./architecture.md)
 - [Development workflow](./development.md)
+- [Pycaps follow-up work](./pycaps-followups.md) — AI word tagging, two-part hybrid, CI integration test
