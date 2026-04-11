@@ -9,6 +9,7 @@ from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
 )
+from src.video.config.subtitle_models import PycapsSettings
 
 
 class CTADetectionSettings(BaseModel):
@@ -428,11 +429,66 @@ class VideoProfile(BaseModel):
         None, description="Override lower subtitle margin as fraction (0.0-0.5)"
     )
 
+    # ---- PER-PROFILE PYCAPS SUBTITLE ENGINE SETTINGS ----
+    # Opt-in animated captions. See src/video/config/subtitle_models.py
+    # PycapsSettings for semantics. Non-null values override the global
+    # subtitle_settings.pycaps block during profile merge.
+    subtitle_engine: Literal["ffmpeg", "pycaps"] | None = Field(
+        None,
+        description=(
+            "Override subtitle rendering engine for this profile. "
+            "'ffmpeg' = existing SRT/ASS path. 'pycaps' = burn animated "
+            "CSS captions post-assembly."
+        ),
+    )
+    pycaps_template: str | None = Field(
+        None,
+        description=(
+            "Override pycaps fixed template name (word-focus, hype, minimalist, etc.)"
+        ),
+    )
+    pycaps_template_pool: list[str] | None = Field(
+        None,
+        description="Override pycaps template pool for deterministic per-product pick",
+    )
+    pycaps_renderer: Literal["css", "pictex"] | None = Field(
+        None,
+        description="Override pycaps renderer: css (Chromium) or pictex (browserless)",
+    )
+    pycaps_max_width_ratio: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Override pycaps max caption width as fraction of frame",
+    )
+    pycaps_vertical_align: Literal["top", "center", "bottom"] | None = Field(
+        None, description="Override pycaps vertical anchor"
+    )
+    pycaps_vertical_align_offset: float | None = Field(
+        None,
+        ge=-1.0,
+        le=1.0,
+        description=(
+            "Override the derived offset from VisualBounds with a manual value"
+        ),
+    )
+    pycaps_fallback_policy: Literal["warn_and_skip", "raise"] | None = Field(
+        None, description="Override pycaps failure policy"
+    )
+
 
 class MergedSubtitleSettings(BaseModel):
     """Merged subtitle settings (global + profile overrides)."""
 
     model_config = ConfigDict(extra="allow")
+
+    # Rendering engine selector. "ffmpeg" (default) uses the existing
+    # SRT/ASS + libass pipeline. "pycaps" burns animated captions via the
+    # pycaps library as a post-assembly step. See docs/pycaps-subtitles.md.
+    subtitle_engine: Literal["ffmpeg", "pycaps"] = "ffmpeg"
+
+    # Nested settings consumed only when subtitle_engine == "pycaps".
+    pycaps: PycapsSettings | None = None
 
     # Core positioning
     anchor: str = "bottom"
