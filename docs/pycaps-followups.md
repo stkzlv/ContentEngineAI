@@ -362,18 +362,290 @@ complains.
 
 ---
 
+---
+
+## 5. Whisper timing post-processing
+
+**Priority**: high — affects BOTH engines, biggest single readability win.
+
+**Status**: not started. Raw Whisper timings flow straight from
+`stt_functions.py` to the subtitle generators without any smoothing.
+
+### Context
+
+Vanilla OpenAI Whisper rounds word timestamps to whole seconds by default
+(see [openai/whisper#435](https://github.com/openai/whisper/discussions/435)),
+which produces flicker and uneven segment durations in karaoke-style
+captions. Best-practice research
+([docs/subtitle-best-practices.md](subtitle-best-practices.md) section 5)
+specifies four post-processing rules that should be applied to every STT
+result before handing it to either engine:
+
+1. Clamp minimum word duration to **120 ms** — shorter words flash imperceptibly
+2. Merge inter-word gaps under **80 ms** into the preceding word
+3. Hold the last word of each segment **+200 ms** after audio end
+4. Lead audio by **40 ms** so the word appears just before it's spoken
+
+This benefits the existing FFmpeg/ASS karaoke path, the new pycaps path,
+and any future rendering backends — it's a pure transform on the word
+timings list.
+
+### Acceptance criteria
+
+- [ ] New module `src/video/subtitle_timing_smoother.py` with a single
+  public function `smooth_word_timings(timings, config)` that applies
+  the four rules
+- [ ] Called from `src/video/subtitle_utils.py::create_unified_subtitles`
+  after STT returns, before the generator runs — affects BOTH engines
+- [ ] Config fields on `MergedSubtitleSettings`: `timing_min_word_sec`,
+  `timing_gap_merge_sec`, `timing_hold_last_sec`, `timing_lead_sec`,
+  all with the defaults above
+- [ ] Unit tests: empty input, single word, short gaps, normal sentence,
+  segment boundary hold
+- [ ] Before/after fixture: same voiceover, same transcript, verify
+  timing deltas are within the expected ranges
+
+### Implementation sketch
+
+```python
+# src/video/subtitle_timing_smoother.py
+def smooth_word_timings(
+    timings: list[dict[str, Any]],
+    min_word_sec: float = 0.12,
+    gap_merge_sec: float = 0.08,
+    hold_last_sec: float = 0.20,
+    lead_sec: float = 0.04,
+) -> list[dict[str, Any]]:
+    """Apply best-practice smoothing to raw STT word timings."""
+    if not timings:
+        return timings
+    out = [dict(t) for t in timings]
+    # Rule 4: lead
+    for t in out:
+        t["start_time"] = max(0.0, t["start_time"] - lead_sec)
+    # Rule 2: merge short gaps into the preceding word
+    for i in range(1, len(out)):
+        gap = out[i]["start_time"] - out[i - 1]["end_time"]
+        if 0 <= gap < gap_merge_sec:
+            out[i - 1]["end_time"] = out[i]["start_time"]
+    # Rule 1: clamp minimum word duration
+    for t in out:
+        dur = t["end_time"] - t["start_time"]
+        if dur < min_word_sec:
+            t["end_time"] = t["start_time"] + min_word_sec
+    # Rule 3: hold last word of each segment (detect via gaps > 0.4s)
+    # ... implementation detail
+    return out
+```
+
+### Risks and gotchas
+
+- The `generate_subtitles_with_whisper` function returns a flat list
+  `[{"word", "start_time", "end_time"}, ...]`. The raw-dict path used
+  by pycaps (`result_w["segments"][*]["words"]`) has a different shape.
+  Either (a) smooth at the flat-list layer and re-serialise the raw
+  dict from smoothed timings, or (b) smooth the raw dict directly and
+  re-extract the flat list. Option (b) is cleaner because it preserves
+  segment boundaries needed for rule 3.
+- **Don't smooth twice.** Wire it as the single entry point in
+  `create_unified_subtitles` and make sure neither the pycaps branch
+  nor the ffmpeg branch re-smooth.
+
+### Effort
+
+1 day. Simple logic, but needs tests and two config integration points.
+
+---
+
+## 6. WhisperX (or whisper-timestamped) upgrade
+
+**Priority**: medium — quality bump, follows #5.
+
+**Status**: not started. Current `stt_functions.py` uses vanilla
+`openai-whisper`.
+
+### Context
+
+Even with timing post-processing (#5), vanilla Whisper's word-level
+timestamps are imprecise because the model wasn't trained for
+word-boundary accuracy. Two viable upgrades:
+
+- **WhisperX** ([m-bain/whisperX](https://github.com/m-bain/whisperX)) —
+  adds wav2vec2 forced alignment on top of Whisper output. Most accurate,
+  drop-in replacement for `whisper.transcribe()`. Adds a second model
+  download (~360 MB for the wav2vec2 alignment model).
+- **whisper-timestamped** ([linto-ai/whisper-timestamped](https://github.com/linto-ai/whisper-timestamped)) —
+  uses DTW on cross-attention weights. Works with existing Whisper
+  models, slightly less accurate than WhisperX but no extra download.
+
+### Acceptance criteria
+
+- [ ] New config field `whisper_settings.timestamp_method` with values
+  `vanilla | whisperx | timestamped` (default: `vanilla` for backward compat)
+- [ ] Conditional import in `stt_functions.py`, fall through to vanilla
+  if the optional dependency isn't installed
+- [ ] Optional Poetry group `whisperx` (similar pattern to pycaps)
+- [ ] Docs in `docs/subtitle-best-practices.md` section 5 updated with
+  install instructions
+
+### Risks and gotchas
+
+- WhisperX has a heavier dependency chain (torch, pyannote, faster-whisper)
+- Both alternatives emit slightly different output shapes — the raw dict
+  structure for pycaps' `whisper_json` format needs verification with
+  the actual library output
+- **Don't break the existing flat-list extractor** (`_extract_word_timings`
+  in `stt_functions.py`) — the smoother from #5 depends on it
+
+### Effort
+
+2 days. Mostly plumbing and testing across both engine paths.
+
+---
+
+## 7. Fix serif + low-contrast entries in font/color managers
+
+**Priority**: low — cosmetic but violates the best-practice rules.
+
+**Status**: not started. `src/video/font_color_manager.py` ships fonts
+and color pairs that fail the research.
+
+### Context
+
+The curated font pool (`FontFamily` enum) includes `DMSerifDisplay-Regular` —
+a serif, non-bold font. Best practice is strict on bold sans-serif.
+
+The color pairs (`ColorPair` enum) include three amateur palettes:
+- `VIBRANT` (light blue + dark red) — low contrast, doesn't meet WCAG AA
+- `WARM` (orange + dark green) — amateur, uncommon in production captions
+- `MODERN` (pink + purple) — amateur, low contrast
+
+The surviving good pairs are `CLASSIC` (white + black, 21:1) and
+`HIGH_CONTRAST` (yellow + dark blue — yellow is fine, outline should be
+black).
+
+### Acceptance criteria
+
+- [ ] Remove `DM_SERIF` from `FontFamily`, or rename the enum entry and
+  replace with another bold sans-serif (Inter Black? Anton?)
+- [ ] Remove or replace `VIBRANT`, `WARM`, `MODERN` color pairs. Suggested
+  replacements: `NEON_GREEN` (`#00FF4C` on black), `BRAND_YELLOW`
+  (`#FFEB00` on black)
+- [ ] Fix `HIGH_CONTRAST` outline from dark blue to black
+- [ ] Update tests in `tests/video/` that reference the removed entries
+- [ ] Deprecation path: if anyone's YAML still references the removed
+  pair names, fall back to `CLASSIC` with a warning
+
+### Effort
+
+Half a day.
+
+---
+
+## 8. Drop `movement` effect from ASS presets
+
+**Priority**: low — anti-pattern per research but harmless.
+
+**Status**: partially done. YAML preset `animated` was switched from
+`movement` to `karaoke` in the best-practices alignment commit. The
+effect itself still exists in the code at
+`src/video/unified_subtitle_generator.py` and can be re-enabled by
+user YAML. Proper fix is to remove the effect implementation.
+
+### Acceptance criteria
+
+- [ ] Remove `movement` from the effect dispatch table
+- [ ] Remove `movement_distance_pixels` field from `SubtitleEffectsSettings`
+- [ ] Deprecation: if YAML still sets `effects: ["movement"]`, log a
+  warning and fall back to `fade`
+- [ ] Update unit tests that reference `movement`
+
+### Effort
+
+1-2 hours.
+
+---
+
+## 9. Custom `contentengine_benefit` pycaps template
+
+**Priority**: medium — ships the research-backed starter recipe as a
+first-class project template.
+
+**Status**: not started.
+
+### Context
+
+The research in [docs/subtitle-best-practices.md](subtitle-best-practices.md)
+section 9 specifies an exact starter recipe: Montserrat Black 72px,
+white + black stroke, yellow active-word highlight, scale pop at 1.10,
+fade+slide entrance over 160ms, ease-out-quint, no exit, 3-5 words per
+line, single emoji per 8-word segment, derived positioning.
+
+This is close to pycaps' `word-focus` preset but not identical. Shipping
+our own template lets us bake in ContentEngineAI's brand voice and the
+content-aware positioning that the existing integration computes at
+runtime.
+
+### Acceptance criteria
+
+- [ ] New template dir `pycaps-templates/contentengine_benefit/` with
+  `pycaps.template.json`, `style.css`, and `resources/` containing
+  Montserrat Black TTF
+- [ ] Loadable via `pycaps_template: "contentengine_benefit"` in
+  profile config
+- [ ] Font ships in `resources/` so headless Chromium renders correctly
+  without system font dependencies
+- [ ] Smoke test renders the 30s fixture with this template and compares
+  visual output via a screenshot assertion
+- [ ] Added to the default `template_pool` in
+  `config/subtitles.yaml::subtitle_settings.pycaps.template_pool`
+
+### Risks and gotchas
+
+- Pycaps template loader resolves paths relative to the `pycaps.template.json`
+  file. Make sure font path is `./resources/Montserrat-Black.ttf` not
+  an absolute path.
+- Verify TikTok/Reels safe zone via the derived offset at render time.
+- Emoji injection requires the AI tagging follow-up (#1) — without it,
+  the template can still hand-tag via regex for common benefit words
+  ("free", "save", "deal", "new") or skip emoji entirely in v1.
+
+### Effort
+
+1-2 days. Font embedding + CSS tuning is the time sink.
+
+---
+
 ## Notes on prioritisation
 
 If you're picking one of these up and wondering where to start:
 
 - **Want to ship user-visible value**: do #1 (AI word tagging). It's the
   feature that sells the engine.
+- **Want the biggest readability win for the smallest code change**:
+  do #5 (timing smoothing). Affects BOTH engines.
 - **Want a fast win**: do #2 (mypy pin). 30 minutes, unblocks future
-  dep bumps.
+  dep bumps. Or #8 (drop `movement` effect), 1-2 hours.
 - **Want to reduce open risk**: do #3 (two-part hybrid). Fixes the one
   thing the initial integration explicitly regresses.
+- **Want to ship the starter recipe as a template**: do #9 (custom
+  pycaps template). Requires #1 for full emoji support but can ship
+  without it.
+- **Want the quality ceiling**: do #6 (WhisperX upgrade). Follows #5.
+- **Want clean-up**: do #7 (fix font/color managers) after research
+  alignment is shipped.
 - **Want to keep CI honest**: do #4 (Chromium integration test). Safety
   net, not a feature.
 
-Order #1 → #2 → #3 → #4 is the most useful sequence. Nothing here is
-blocked on anything else, so they can be picked up in parallel.
+Suggested order: **#5 → #1 → #9 → #6 → #7 → #3 → #2 → #8 → #4**.
+
+- #5 is foundational — all other rendering improvements depend on clean
+  timings
+- #1 enables #9 (emoji injection in the template)
+- #9 is the single most visible user-facing output
+- #3, #4, #7, #8 are hygiene/safety and can slot in at any point
+- #6 is the quality ceiling that makes everything else look better
+
+Nothing here is blocked on anything else, so items can be picked up in
+parallel. Items #5, #6, and #7 all benefit both engines — don't treat
+them as pycaps-specific just because they're tracked in this doc.

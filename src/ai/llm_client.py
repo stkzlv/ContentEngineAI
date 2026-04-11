@@ -8,7 +8,7 @@ import asyncio
 import logging
 
 import aiohttp
-from google import genai  # type: ignore[attr-defined]
+from google import genai  # type: ignore[import-untyped]
 
 from src.video.config.llm_settings import LLMSettings
 
