@@ -58,12 +58,24 @@ poetry run python -m src.video.producer --batch --random-profile \
 
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `--subtitle-format` | Format: `srt` (default) or `ass` | `--subtitle-format ass` |
-| `--preset` | Style preset | `--preset animated` |
+| `--subtitle-engine` | Rendering engine: `ffmpeg` (default) or `pycaps` | `--subtitle-engine pycaps` |
+| `--subtitle-format` | Format: `srt` (default) or `ass` (ffmpeg engine only) | `--subtitle-format ass` |
+| `--preset` | Style preset (ffmpeg engine only) | `--preset animated` |
 | `--subtitle-anchor` | Vertical position | `--subtitle-anchor bottom` |
 | `--subtitle-margin` | Margin as frame fraction (0.0-0.5) | `--subtitle-margin 0.05` |
 | `--content-aware` | Enable content-aware positioning | `--content-aware` |
 | `--no-content-aware` | Disable content-aware positioning | `--no-content-aware` |
+
+### Pycaps Engine Options
+
+Only consumed when `--subtitle-engine pycaps`. See [docs/pycaps-subtitles.md](pycaps-subtitles.md)
+for install and config details.
+
+| Argument | Description | Example |
+|----------|-------------|---------|
+| `--pycaps-template` | Fixed template name | `--pycaps-template hype` |
+| `--pycaps-template-pool` | Pool for deterministic per-product selection | `--pycaps-template-pool word-focus hype vibrant` |
+| `--pycaps-renderer` | Renderer backend: `css` (default, Chromium) or `pictex` (browserless) | `--pycaps-renderer pictex` |
 
 ### ASS Effect Options
 

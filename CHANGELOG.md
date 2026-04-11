@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - Unreleased
+
+### Added
+- Optional `pycaps` subtitle rendering engine as a second path alongside the existing FFmpeg + SRT/ASS pipeline
+- `subtitle_engine` selector (`ffmpeg` default, `pycaps` opt-in) plumbed through the 3-level config system: YAML → profile overrides → CLI flags
+- New `burn_pycaps_subtitles` pipeline step that runs post-assembly and short-circuits when the engine is `ffmpeg`
+- CLI flags on producer and global batch: `--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`
+- `PycapsSettings` Pydantic model with template pool, renderer (css|pictex), layout, fallback policy
+- Deterministic per-product template selection using the existing md5 hash pattern
+- Content-aware positioning: caption layout offset derived from `VisualBounds` so captions land below the product image
+- Whisper transcript artifact (`whisper_transcript.json`) saved unconditionally in pycaps mode for downstream consumption
+- Unit tests covering template selection, transcript round-trip, config merge, and graceful fallback when pycaps is absent
+- Integration test running the real `PycapsRenderer` against a 30s fixture using the browserless Pictex path
+- Optional Poetry group `pycaps` pinning the library to a validated git commit; enable with `poetry install --with pycaps`
+- `docs/pycaps-subtitles.md` with install, config, limitations, and template reference
+
+### Changed
+- `generate_subtitles_with_whisper` accepts an optional `transcript_out_path` so the raw Whisper dict can be persisted for pycaps
+- `create_unified_subtitles` branches on `subtitle_engine` and skips SRT/ASS emission when the engine is pycaps
+- Two-part subtitles (upper URL + lower voiceover) are automatically disabled with a warning when pycaps is selected — single-line captions only in v1
+
 ## [0.35.1] - 2026-04-09
 
 ### Fixed

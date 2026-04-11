@@ -148,6 +148,21 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **LLM config fields**: `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec`, and `script_validation` (min_chars, min_words) all live on `LLMSettings`. Don't hardcode these in generator code
 - **`.env` safety**: `update_env_file()` in `freesound_client.py` only updates existing keys, never adds new lines
 
+### Pycaps Subtitle Engine Notes
+
+- **Opt-in only**: `subtitle_settings.subtitle_engine` defaults to `"ffmpeg"`. Flip to `"pycaps"` in YAML, per-profile, or via `--subtitle-engine pycaps` to enable animated captions. Default install does NOT pull pycaps — run `poetry install --with pycaps` (+ `poetry run playwright install chromium` for the CSS renderer).
+- **Whisper transcript is a literal drop-in**: the raw `result_w` dict from `stt_functions.py:118` is exactly pycaps' `whisper_json` format. `generate_subtitles_with_whisper(..., transcript_out_path=...)` serialises it unconditionally when set (NOT gated by `debug_mode` — pycaps production runs need the file).
+- **Post-assembly burn step**: `step_burn_pycaps_subtitles` runs after `assemble_video` and short-circuits when `engine != "pycaps"`, so it's safe to always include in the pipeline graph. Uses `asyncio.to_thread` because pycaps is sync.
+- **Content-aware offset formula**: `offset = (bounds.y + bounds.height + 0.02) - 0.95`, clamped to `[-0.9, 0]`. Matches pycaps' `LayoutUtils.get_vertical_alignment_position` bottom-anchor formula so captions land in the whitespace below the product image. See `src/video/pycaps_engine/renderer.py::layout_from_visual_bounds`
+- **Template selection**: deterministic md5 hash `md5(product_id + ":pycaps_template")[0:8] % len(pool)`. Empty pool falls back to `template_name`. Same pattern as font/colour/script-template selection
+- **Two-part incompatibility**: when engine=pycaps, `step_generate_subtitles` warns and disables `two_part_subtitles_enabled` for that run. Single-line only in v1. The upper URL is NOT rendered.
+- **Benchmark numbers** (30s 1080x1920 portrait, 40-word transcript, CSS renderer): word-focus 0.70x realtime, hype 0.79x, minimalist 0.67x. Peak RSS ~420 MB per render. CSS is faster than pictex on production-length clips.
+- **Font randomization**: the project's `subtitle_randomize_fonts` doesn't affect pycaps — templates ship their own `@font-face` in `resources/`. Custom fonts go into a template directory, not into the global font pool.
+- **Fallback policy**: `warn_and_skip` (default) catches pycaps errors, logs a warning, and keeps the FFmpeg-assembled video untouched so the pipeline keeps producing. `raise` aborts. Matches the Gemini→OpenRouter LLM fallback pattern.
+- **Module/Batch Alignment Rule applied**: the four CLI flags (`--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`) live on BOTH `src/video/producer/cli.py` AND `src/pipeline/global_batch.py`. Same names, same choices, same dotted override keys (`subtitle_settings.subtitle_engine`, `subtitle_settings.pycaps.*`). Grep both files when touching either.
+- **3-level merge supports nested dotted keys**: `VideoConfig.get_profile_merged_settings()` understands `subtitle_settings.pycaps.<field>` and folds them into the nested `PycapsSettings` model. The same path works in `cli_overrides` dicts.
+- **Pycaps upstream is alpha (0.2.1)**: pinned in `pyproject.toml` to a specific git SHA. Upgrade deliberately. If upstream stalls, fork to `ContentEngineAI/pycaps`.
+
 ## Session Continuity
 
 After every context compaction (session continuation), run `/github-workflow` to check CI status and catch any issues from the previous session. This is non-optional.

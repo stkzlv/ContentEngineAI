@@ -4,12 +4,71 @@
 # Complete subtitle system including ASS effects, positioning, and styling
 # This config controls how subtitles are generated, positioned, and rendered
 # in the final video output.
+#
+# ---- SUBTITLE ENGINE SELECTOR ----
+# Two engines are available:
+#   - "ffmpeg" (default): existing SRT/ASS path. Captions are burned by
+#     FFmpeg's subtitles/drawtext filter via libass. Supports two-part
+#     (upper URL + lower voiceover) subtitles and karaoke effects.
+#   - "pycaps": animated CSS-styled captions burned post-assembly by the
+#     pycaps library. TikTok/Reels look with word-level pop/fade/zoom
+#     effects. Single-line only — two-part is disabled when pycaps is
+#     selected. Requires the optional poetry group; see
+#     docs/pycaps-subtitles.md.
+#
+# Select the engine per-profile by adding `subtitle_engine: pycaps` to a
+# profile's subtitle_settings, or per-run via --subtitle-engine. The
+# pycaps sub-block below only applies when engine == "pycaps".
+#
+# pycaps:
+#   template_name: "word-focus"
+#   template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
+#   renderer: "css"            # css (Chromium) or pictex (browserless)
+#   max_width_ratio: 0.85
+#   max_number_of_lines: 2
+#   vertical_align: "bottom"
+#   fallback_policy: "warn_and_skip"
 
 subtitle_settings:
   # ---- GLOBAL ENABLE/DISABLE ----
   # Master switch for subtitle generation and embedding
   # When false, no subtitles will be added to videos
   enabled: true
+
+  # ---- SUBTITLE ENGINE ----
+  # See header comment block for the full engine comparison.
+  # Default "ffmpeg" preserves the existing SRT/ASS behaviour.
+  subtitle_engine: "ffmpeg"
+
+  # ---- PYCAPS ENGINE SUB-SETTINGS ----
+  # Only consumed when subtitle_engine == "pycaps". Per-profile overrides
+  # in video_production.yaml (pycaps_template, pycaps_renderer, etc.)
+  # beat these globals, and CLI flags beat the profile layer.
+  pycaps:
+    # Fixed template name. Used when template_pool is empty or single-entry.
+    template_name: "word-focus"
+
+    # Pool for deterministic per-product template selection (md5 keyed).
+    template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
+
+    # css = Playwright + Chromium. Full CSS fidelity, ~400 MB peak RSS,
+    #       ~0.7x realtime on a 30s clip. Benchmark winner.
+    # pictex = browserless Skia. Lighter install, limited CSS features.
+    renderer: "css"
+
+    # Max caption width as a fraction of frame width.
+    max_width_ratio: 0.85
+
+    # Max lines per caption segment.
+    max_number_of_lines: 2
+
+    # Base vertical anchor. The burn step derives a runtime offset from
+    # VisualBounds so captions land below the product image.
+    vertical_align: "bottom"
+
+    # On render failure: "warn_and_skip" (keep the FFmpeg-assembled video)
+    # or "raise" (abort the pipeline).
+    fallback_policy: "warn_and_skip"
 
   # ---- UNIFIED POSITIONING SYSTEM ----
   # Content-aware positioning that automatically adapts to visual layout
