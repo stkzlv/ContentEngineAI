@@ -14,7 +14,8 @@ large fraction of viewers they *are* the content.
 **Related docs**: [pycaps-subtitles.md](pycaps-subtitles.md) (pycaps engine
 reference), [platform-safe-zones.md](platform-safe-zones.md) (TikTok /
 Shorts / Reels safe zones), [pycaps-followups.md](pycaps-followups.md)
-(open work items).
+(open work items), [subtitle-config-cleanup.md](subtitle-config-cleanup.md)
+(config system audit and refactoring plan).
 
 ---
 
