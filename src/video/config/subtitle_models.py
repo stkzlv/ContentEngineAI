@@ -148,12 +148,14 @@ class PycapsSettings(BaseModel):
         ),
     )
     max_width_ratio: float = Field(
-        0.85,
+        0.80,
         ge=0.0,
         le=1.0,
         description=(
             "Maximum line width as a fraction of frame width, handed to pycaps "
-            "SubtitleLayoutOptions."
+            "SubtitleLayoutOptions. 0.80 matches the best-practice recipe in "
+            "docs/subtitle-best-practices.md — leaves ~90px margin on each "
+            "side of a 1080-wide frame, inside all three platform safe zones."
         ),
     )
     max_number_of_lines: int = Field(
