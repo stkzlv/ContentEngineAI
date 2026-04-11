@@ -179,6 +179,43 @@ Examples:
         metavar="NAME",
         help="Override script template for all products (name without .md).",
     )
+    producer_group.add_argument(
+        "--subtitle-engine",
+        choices=["ffmpeg", "pycaps"],
+        help=(
+            "Subtitle rendering engine. 'ffmpeg' (default) = SRT/ASS via "
+            "libass. 'pycaps' = animated captions burned post-assembly. "
+            "Install the optional group first: "
+            "`poetry install --with pycaps`."
+        ),
+    )
+    producer_group.add_argument(
+        "--pycaps-template",
+        type=str,
+        metavar="NAME",
+        help=(
+            "Pycaps template name (e.g. word-focus, hype, minimalist). "
+            "Overrides template_pool selection."
+        ),
+    )
+    producer_group.add_argument(
+        "--pycaps-template-pool",
+        nargs="+",
+        type=str,
+        metavar="NAME",
+        help=(
+            "Pool of pycaps templates for deterministic per-product selection. "
+            "Example: --pycaps-template-pool word-focus hype vibrant"
+        ),
+    )
+    producer_group.add_argument(
+        "--pycaps-renderer",
+        choices=["css", "pictex"],
+        help=(
+            "Pycaps renderer backend. 'css' = Playwright+Chromium (default). "
+            "'pictex' = browserless Skia path (lighter, no Chromium dep)."
+        ),
+    )
 
     # Common arguments
     common_group = parser.add_argument_group("Common Options")
@@ -329,13 +366,31 @@ class GlobalPipelineOrchestrator:
         """Save current pipeline state to disk."""
         save_pipeline_state(self.state, self.config.outputs_dir)
 
-    def _build_cli_overrides(self) -> dict[str, str] | None:
-        """Build CLI overrides dict from pipeline config."""
-        overrides: dict[str, str] = {}
+    def _build_cli_overrides(self) -> dict[str, Any] | None:
+        """Build CLI overrides dict from pipeline config.
+
+        Keys here must match the dotted override keys consumed by
+        ``VideoConfig.get_profile_merged_settings`` — keep this in sync with
+        ``src.video.producer.cli._build_cli_overrides`` per the
+        Module/Batch Alignment Rule in CLAUDE.md.
+        """
+        overrides: dict[str, Any] = {}
         if self.config.voice_profile:
             overrides["voice_profile"] = self.config.voice_profile
         if self.config.script_template:
             overrides["script_template"] = self.config.script_template
+        if self.config.subtitle_engine:
+            overrides["subtitle_settings.subtitle_engine"] = self.config.subtitle_engine
+        if self.config.pycaps_template:
+            overrides["subtitle_settings.pycaps.template_name"] = (
+                self.config.pycaps_template
+            )
+        if self.config.pycaps_template_pool:
+            overrides["subtitle_settings.pycaps.template_pool"] = (
+                self.config.pycaps_template_pool
+            )
+        if self.config.pycaps_renderer:
+            overrides["subtitle_settings.pycaps.renderer"] = self.config.pycaps_renderer
         return overrides or None
 
     def _resolve_profile_uses_videos(self) -> bool | None:

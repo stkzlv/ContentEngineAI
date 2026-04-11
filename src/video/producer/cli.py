@@ -158,6 +158,16 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if args.preset:
         overrides["subtitle_settings.style_preset"] = args.preset
 
+    # Pycaps subtitle engine overrides (highest precedence)
+    if getattr(args, "subtitle_engine", None):
+        overrides["subtitle_settings.subtitle_engine"] = args.subtitle_engine
+    if getattr(args, "pycaps_template", None):
+        overrides["subtitle_settings.pycaps.template_name"] = args.pycaps_template
+    if getattr(args, "pycaps_template_pool", None):
+        overrides["subtitle_settings.pycaps.template_pool"] = args.pycaps_template_pool
+    if getattr(args, "pycaps_renderer", None):
+        overrides["subtitle_settings.pycaps.renderer"] = args.pycaps_renderer
+
     # Positioning
     if args.subtitle_anchor:
         overrides["subtitle_settings.anchor"] = args.subtitle_anchor
@@ -337,6 +347,41 @@ async def main():
         "--subtitle-format",
         choices=["srt", "ass"],
         help="Subtitle format: srt (default) or ass (with animations).",
+    )
+    parser.add_argument(
+        "--subtitle-engine",
+        choices=["ffmpeg", "pycaps"],
+        help=(
+            "Subtitle rendering engine. 'ffmpeg' (default) uses SRT/ASS "
+            "burned via libass. 'pycaps' runs the pycaps library as a "
+            "post-assembly step for animated TikTok-style captions. See "
+            "docs/pycaps-subtitles.md for install."
+        ),
+    )
+    parser.add_argument(
+        "--pycaps-template",
+        type=str,
+        help=(
+            "Pycaps template name (e.g. word-focus, hype, minimalist). "
+            "Overrides template_pool selection."
+        ),
+    )
+    parser.add_argument(
+        "--pycaps-template-pool",
+        nargs="+",
+        type=str,
+        help=(
+            "Pool of pycaps templates for deterministic per-product selection. "
+            "Example: --pycaps-template-pool word-focus hype vibrant"
+        ),
+    )
+    parser.add_argument(
+        "--pycaps-renderer",
+        choices=["css", "pictex"],
+        help=(
+            "Pycaps renderer backend. 'css' = Playwright+Chromium (default). "
+            "'pictex' = browserless Skia path (lighter, no Chromium dep)."
+        ),
     )
     parser.add_argument(
         "--ass-karaoke",
