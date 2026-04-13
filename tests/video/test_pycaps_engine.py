@@ -196,7 +196,8 @@ class TestPycapsRendererFallback:
 
 class TestMergeLayoutWithTemplate:
     """Test that merge_layout_with_template preserves the template's positioning
-    by default and only overrides when the user explicitly sets an offset."""
+    by default and only overrides when the user explicitly sets an offset.
+    """
 
     pycaps = pytest.importorskip(
         "pycaps",
@@ -262,9 +263,7 @@ class TestMergeLayoutWithTemplate:
         from src.video.pycaps_engine import merge_layout_with_template
 
         template_layout = SubtitleLayoutOptions(max_number_of_lines=3)
-        settings = PycapsSettings(
-            vertical_align_offset=None, max_number_of_lines=2
-        )
+        settings = PycapsSettings(vertical_align_offset=None, max_number_of_lines=2)
 
         result = merge_layout_with_template(template_layout, settings)
         assert result.max_number_of_lines == 2
@@ -272,7 +271,8 @@ class TestMergeLayoutWithTemplate:
 
 class TestCreateUnifiedConfigDefaults:
     """Verify the duration/width fallback chain in create_unified_config_from_settings
-    works correctly after the bug 3.1 fix."""
+    works correctly after the bug 3.1 fix.
+    """
 
     def test_max_subtitle_duration_key_used_as_fallback(self):
         from src.video.subtitle_positioning import create_unified_config_from_settings
@@ -288,23 +288,25 @@ class TestCreateUnifiedConfigDefaults:
 
         settings = {"max_duration": 1.5, "max_subtitle_duration": 2.5}
         config = create_unified_config_from_settings(settings)
-        assert config.max_duration == 1.5  # max_duration wins over max_subtitle_duration
+        assert (
+            config.max_duration == 1.5
+        )  # max_duration wins over max_subtitle_duration
 
     def test_hardcoded_defaults_match_best_practices(self):
         from src.video.subtitle_positioning import create_unified_config_from_settings
 
         config = create_unified_config_from_settings({})
-        assert config.max_duration == 2.5   # best practice, was 4.5 before fix
-        assert config.min_duration == 0.6   # best practice, was 0.4 before fix
+        assert config.max_duration == 2.5  # best practice, was 4.5 before fix
+        assert config.min_duration == 0.6  # best practice, was 0.4 before fix
         assert config.max_subtitle_width_fraction == 0.80  # was 0.67
         assert config.max_words_per_line == 3  # was 2
 
     def test_all_profiles_reach_runtime_with_correct_values(self):
         """End-to-end check that YAML → merge → UnifiedSubtitleConfig
-        produces best-practice values for every profile."""
-        from src.video.subtitle_positioning import create_unified_config_from_settings
-
+        produces best-practice values for every profile.
+        """
         import src.video.config as cfg_mod
+        from src.video.subtitle_positioning import create_unified_config_from_settings
 
         cfg = cfg_mod.config
         for name in cfg.video_profiles:
@@ -314,12 +316,10 @@ class TestCreateUnifiedConfigDefaults:
             )
             assert uc.max_duration == 2.5, f"{name}: max_duration={uc.max_duration}"
             assert uc.min_duration == 0.6, f"{name}: min_duration={uc.min_duration}"
-            assert uc.max_subtitle_width_fraction >= 0.75, (
-                f"{name}: width={uc.max_subtitle_width_fraction}"
-            )
-            assert uc.max_words_per_line >= 3, (
-                f"{name}: wpl={uc.max_words_per_line}"
-            )
+            assert (
+                uc.max_subtitle_width_fraction >= 0.75
+            ), f"{name}: width={uc.max_subtitle_width_fraction}"
+            assert uc.max_words_per_line >= 3, f"{name}: wpl={uc.max_words_per_line}"
 
 
 class TestConfigMergePycapsLayer:

@@ -169,7 +169,7 @@ ignore_missing_imports = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google.cloud", "google.api_core", "google.auth", "google.genai", "google.genai.*", "aiofiles", "whisper", "pexelsapi.*", "pysrt", "TTS.*", "late", "late.*", "pycaps", "pycaps.*"]
+module = ["botasaurus.*", "botasaurus.task", "bota.*", "botasaurus_driver.*", "botasaurus_requests.*", "coqui_tts", "pexels_api_py", "freesound_api", "google", "google.*", "aiofiles", "whisper", "pexelsapi.*", "pysrt", "TTS.*", "late", "late.*", "pycaps", "pycaps.*"]
 ignore_missing_imports = true
 ignore_errors = true
 
@@ -190,7 +190,7 @@ module = "tests.*"
 disable_error_code = ["call-arg", "arg-type", "import-untyped", "attr-defined"]
 
 [[tool.mypy.overrides]]
-module = ["src.scraper.amazon.scraper", "src.video.stt_functions"]
+module = ["src.scraper.amazon.scraper", "src.video.stt_functions", "src.ai.llm_client"]
 disable_error_code = ["import-untyped"]
 
 # Bandit security scanner configuration
