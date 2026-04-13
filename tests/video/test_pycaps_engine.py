@@ -194,6 +194,134 @@ class TestPycapsRendererFallback:
         assert result.renderer_used == "css"
 
 
+class TestMergeLayoutWithTemplate:
+    """Test that merge_layout_with_template preserves the template's positioning
+    by default and only overrides when the user explicitly sets an offset."""
+
+    pycaps = pytest.importorskip(
+        "pycaps",
+        reason="pycaps optional group is not installed",
+    )
+
+    def test_template_alignment_preserved_when_offset_is_none(self):
+        from pycaps.layout import (
+            SubtitleLayoutOptions,
+            VerticalAlignment,
+            VerticalAlignmentType,
+        )
+
+        from src.video.pycaps_engine import merge_layout_with_template
+
+        template_layout = SubtitleLayoutOptions(
+            vertical_align=VerticalAlignment(
+                align=VerticalAlignmentType.CENTER, offset=0.0
+            ),
+            max_width_ratio=0.75,
+            max_number_of_lines=2,
+        )
+        settings = PycapsSettings(vertical_align_offset=None, max_width_ratio=0.80)
+
+        result = merge_layout_with_template(template_layout, settings)
+        # Template's center alignment should be preserved
+        assert result.vertical_align.align == VerticalAlignmentType.CENTER
+        assert result.vertical_align.offset == 0.0
+        # But our width override should apply
+        assert result.max_width_ratio == 0.80
+
+    def test_alignment_overridden_when_offset_is_set(self):
+        from pycaps.layout import (
+            SubtitleLayoutOptions,
+            VerticalAlignment,
+            VerticalAlignmentType,
+        )
+
+        from src.video.pycaps_engine import merge_layout_with_template
+
+        template_layout = SubtitleLayoutOptions(
+            vertical_align=VerticalAlignment(
+                align=VerticalAlignmentType.CENTER, offset=0.0
+            ),
+            max_width_ratio=0.75,
+            max_number_of_lines=2,
+        )
+        settings = PycapsSettings(
+            vertical_align="bottom",
+            vertical_align_offset=-0.20,
+            max_width_ratio=0.80,
+        )
+
+        result = merge_layout_with_template(template_layout, settings)
+        # Our bottom alignment should override the template's center
+        assert result.vertical_align.align == VerticalAlignmentType.BOTTOM
+        assert result.vertical_align.offset == pytest.approx(-0.20)
+        assert result.max_width_ratio == 0.80
+
+    def test_max_lines_always_overridden(self):
+        from pycaps.layout import SubtitleLayoutOptions
+
+        from src.video.pycaps_engine import merge_layout_with_template
+
+        template_layout = SubtitleLayoutOptions(max_number_of_lines=3)
+        settings = PycapsSettings(
+            vertical_align_offset=None, max_number_of_lines=2
+        )
+
+        result = merge_layout_with_template(template_layout, settings)
+        assert result.max_number_of_lines == 2
+
+
+class TestCreateUnifiedConfigDefaults:
+    """Verify the duration/width fallback chain in create_unified_config_from_settings
+    works correctly after the bug 3.1 fix."""
+
+    def test_max_subtitle_duration_key_used_as_fallback(self):
+        from src.video.subtitle_positioning import create_unified_config_from_settings
+
+        # MergedSubtitleSettings.model_dump() produces max_subtitle_duration, not max_duration
+        settings = {"max_subtitle_duration": 2.5, "min_subtitle_duration": 0.6}
+        config = create_unified_config_from_settings(settings)
+        assert config.max_duration == 2.5
+        assert config.min_duration == 0.6
+
+    def test_max_duration_key_takes_priority(self):
+        from src.video.subtitle_positioning import create_unified_config_from_settings
+
+        settings = {"max_duration": 1.5, "max_subtitle_duration": 2.5}
+        config = create_unified_config_from_settings(settings)
+        assert config.max_duration == 1.5  # max_duration wins over max_subtitle_duration
+
+    def test_hardcoded_defaults_match_best_practices(self):
+        from src.video.subtitle_positioning import create_unified_config_from_settings
+
+        config = create_unified_config_from_settings({})
+        assert config.max_duration == 2.5   # best practice, was 4.5 before fix
+        assert config.min_duration == 0.6   # best practice, was 0.4 before fix
+        assert config.max_subtitle_width_fraction == 0.80  # was 0.67
+        assert config.max_words_per_line == 3  # was 2
+
+    def test_all_profiles_reach_runtime_with_correct_values(self):
+        """End-to-end check that YAML → merge → UnifiedSubtitleConfig
+        produces best-practice values for every profile."""
+        from src.video.subtitle_positioning import create_unified_config_from_settings
+
+        import src.video.config as cfg_mod
+
+        cfg = cfg_mod.config
+        for name in cfg.video_profiles:
+            merged = cfg.get_profile_merged_settings(name)
+            uc = create_unified_config_from_settings(
+                merged.subtitle_settings.model_dump()
+            )
+            assert uc.max_duration == 2.5, f"{name}: max_duration={uc.max_duration}"
+            assert uc.min_duration == 0.6, f"{name}: min_duration={uc.min_duration}"
+            assert uc.max_subtitle_width_fraction >= 0.75, (
+                f"{name}: width={uc.max_subtitle_width_fraction}"
+            )
+            assert uc.max_words_per_line >= 3, (
+                f"{name}: wpl={uc.max_words_per_line}"
+            )
+
+
 class TestConfigMergePycapsLayer:
     """The 3-level config merge must honour CLI and profile overrides."""
 
