@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.36.0] - Unreleased
+## [0.36.0] - 2026-04-13
 
 ### Added
 - Optional `pycaps` subtitle rendering engine as a second path alongside the existing FFmpeg + SRT/ASS pipeline
