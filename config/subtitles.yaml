@@ -75,9 +75,12 @@ subtitle_settings:
     # for short-form — 3+ becomes a wall of text.
     max_number_of_lines: 2
 
-    # Base vertical anchor. The burn step derives a runtime offset from
-    # VisualBounds so captions land below the product image.
+    # Vertical positioning. "bottom" anchor + offset -0.20 places captions
+    # at ~75% of frame height, matching the platform safe zone bottom
+    # boundary (TikTok overlay starts at 75%). Tweak the offset to move
+    # captions up (more negative) or down (closer to 0).
     vertical_align: "bottom"
+    vertical_align_offset: -0.20
 
     # On render failure: "warn_and_skip" (keep the FFmpeg-assembled video)
     # or "raise" (abort the pipeline).

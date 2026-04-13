@@ -167,14 +167,15 @@ class PycapsSettings(BaseModel):
         "bottom",
         description="Base anchor for caption block. Default 'bottom'.",
     )
-    vertical_align_offset: float | None = Field(
-        None,
+    vertical_align_offset: float = Field(
+        -0.20,
         ge=-1.0,
         le=1.0,
         description=(
-            "Manual override for pycaps vertical_align offset (-1.0..1.0). "
-            "When None, the burn step derives the offset from VisualBounds so "
-            "captions land in the whitespace below the product image."
+            "Vertical offset from the anchor (-1.0..1.0). With bottom anchor "
+            "the formula is y = h * (offset + 0.95) - text_height. "
+            "-0.20 places captions at ~75% of frame height, matching the "
+            "platform safe zone bottom boundary (TikTok overlay starts at 75%)."
         ),
     )
     fallback_policy: Literal["warn_and_skip", "raise"] = Field(
