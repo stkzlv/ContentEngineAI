@@ -21,23 +21,22 @@ This document exists to:
 
 ## TL;DR
 
-Three pre-existing runtime bugs (high priority), four high-value refactors
-(big simplification for modest effort), and ~20 dead fields/keys to delete.
+One bug fixed, two remaining. Four high-value refactors, ~20 dead fields.
 
-| # | Work item | Kind | Impact | Effort |
+| # | Work item | Kind | Status | Effort |
 |---|---|---|---|---|
-| 1 | Fix duration key namespace at `create_unified_config_from_settings` boundary | **Bug** | High (profile overrides silently ignored) | 30 min |
-| 2 | `UnifiedSubtitleGenerator` reads `config.text_rendering.safe_zone` instead of constructing defaults | **Bug** | Medium (width clamp ignores YAML) | 15 min |
-| 3 | Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map | **Bug** | Low (feature dead by omission) | 15 min |
-| 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model, pass it through without dict round-trip | **Refactor** | High (removes the translation layer where bugs hide) | 1-2 days |
-| 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Medium (clearer hierarchy, less maintenance) | 0.5 day |
-| 6 | Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()` | **Refactor** | Medium (removes CWD-dependent side channel) | 0.5 day |
-| 7 | Move font and color pools from Python enums to YAML | **Refactor** | Low-medium (makes customization declarative) | 1 day |
-| 8 | Delete ~20 dead YAML keys and Pydantic fields | **Cleanup** | Low (reduces cognitive load) | 1 hour |
-| 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Low (once style_presets is authoritative) | 1 hour |
-| 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Low (readability) | 1 hour |
+| 1 | ~~Fix duration key namespace + width fraction passthrough~~ | ~~Bug~~ | **FIXED** (commit `c385df1`) | ~~30 min~~ |
+| 2 | `UnifiedSubtitleGenerator` constructs fresh `PlatformSafeZone()` instead of reading config | **Bug** | Open | 15 min |
+| 3 | Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map | **Bug** | Open | 15 min |
+| 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
+| 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Open | 0.5 day |
+| 6 | Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()` | **Refactor** | Open | 0.5 day |
+| 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
+| 8 | Delete ~20 dead YAML keys and Pydantic fields | **Cleanup** | Open | 1 hour |
+| 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (gated on #6) | 1 hour |
+| 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
-Total effort if all done: roughly 4-5 days of work across all items.
+Remaining effort: roughly 4 days if everything open is done.
 
 ---
 
@@ -147,43 +146,27 @@ The boxed complexity is real. Every arrow is a place a bug can hide.
 
 ## 3. Confirmed bugs (fix first)
 
-### 3.1 Duration key namespace — profile overrides silently ignored
+### 3.1 Duration key namespace + width fraction passthrough — FIXED
 
-**Where**:
-- `src/video/subtitle_positioning.py:482` — `create_unified_config_from_settings`
-- `src/video/config/core_models.py:734-735` — `_collect_overrides` field_map
+**Status**: fixed in commit `c385df1` on `feature/pycaps-subtitle-engine`.
 
-**The path**:
-```python
-# In core_models.py:734, profile override mapping:
-"subtitle_max_duration": "max_subtitle_duration",   # ─┐
-"subtitle_min_duration": "min_subtitle_duration",   # ─┤ merges into MergedSubtitleSettings
-                                                    #   under these names
-# In subtitle_positioning.py:482-483:
-max_duration=settings.get("max_duration", 4.5),     # ─┐ reads a DIFFERENT name
-min_duration=settings.get("min_duration", 0.4),     # ─┘ always returns the default
-```
+Three sub-issues were resolved together:
 
-**Empirically** (from my end-to-end trace earlier):
-```
-MergedSubtitleSettings.max_subtitle_duration = 2.5   ← profile override lands here
-UnifiedSubtitleConfig.max_duration           = 4.5   ← generator reads default, not the override
-```
+1. **`_build_subtitle_base`** now reads `max_duration` as a fallback alongside
+   `max_subtitle_duration` / `max_subtitle_duration_sec`. Hardcoded fallbacks
+   updated from 4.5/0.4 to 2.5/0.6. Same for `min_duration`.
 
-**Fix**: change the reads in `create_unified_config_from_settings` to look
-for both names:
-```python
-max_duration=settings.get("max_subtitle_duration", settings.get("max_duration", 4.5)),
-min_duration=settings.get("min_subtitle_duration", settings.get("min_duration", 0.4)),
-```
+2. **`_build_subtitle_base`** now passes `max_subtitle_width_fraction` into
+   the merged dict (it was missing entirely, so profiles without an explicit
+   override got the Pydantic default 0.67 instead of the YAML global 0.80).
 
-Or better, fix the root cause: have `MergedSubtitleSettings` use the same
-canonical field names as `UnifiedSubtitleConfig` (`max_duration` / `min_duration`).
-This implies updating the `_collect_overrides` field_map too.
+3. **`create_unified_config_from_settings`** now reads `max_subtitle_duration`
+   as a fallback for `max_duration`, and updated all hardcoded fallback
+   defaults to match the best-practice recipe (width 0.80, words/line 3,
+   duration 2.5/0.6).
 
-**Why it matters**: my recent "align with best practices" commit updated
-profile `subtitle_max_duration: 2.5` across 8 profiles. **None of those
-changes took effect at runtime** until this bug is fixed.
+**Verification**: all 9 profiles confirmed passing best-practice checks after
+the fix.
 
 ### 3.2 `UnifiedSubtitleGenerator` constructs its own safe zone
 
@@ -776,11 +759,11 @@ pragmatic choices:
 
 ## 8. Suggested order of operations
 
-Nothing here is urgent. If someone picks this up, this is the order
-that minimizes risk and maximizes early wins:
+Bug 3.1 (duration + width) is fixed. Remaining work, in order:
 
-1. **Fix bugs 3.1, 3.2, 3.3** (30 min total). Unblocks the alignment
-   work that's already landed. Surgical, testable.
+1. ~~**Fix bugs 3.1, 3.2, 3.3**~~ — 3.1 done. **Fix bugs 3.2, 3.3**
+   (15 min each). The generator's hardcoded safe zone and the orphaned
+   profile safe_zone fields.
 2. **Delete dead fields (§5.1, §5.2, §5.3)** (1 hour). Pure subtraction,
    no behaviour change. Good confidence builder.
 3. **Move `style_presets` into Pydantic (§4.4)** (0.5 day). Removes
@@ -792,17 +775,16 @@ that minimizes risk and maximizes early wins:
    item #7 from `pycaps-followups.md` (remove bad palettes).
 6. **Collapse the two Pydantic models (§4.1)** (1-2 days). The biggest
    refactor; do it last when the surrounding surface area is already
-   clean. Include the flat → nested profile override migration (§4.3)
+   clean. Include the flat to nested profile override migration (§4.3)
    as part of the same PR.
 7. **Rename canonical keys (§6)** (1 hour). After §4.1 this is a small
    YAML-only rename sweep.
-8. **Delete the legacy block (§5.5)** (1-2 hours). Gated on §4.4 — once
+8. **Delete the legacy block (§5.5)** (1-2 hours). Gated on §4.4: once
    style presets are authoritative, the legacy fields become pure
    duplicates.
 
-Step 1 (bug fixes) can be done today as part of the current PR if
-desired. Steps 2-8 should be separate PRs, one per numbered item, to
-keep reviews tractable.
+Steps 2-8 should be separate PRs, one per numbered item, to keep
+reviews tractable.
 
 ---
 
@@ -839,29 +821,52 @@ A few tempting directions that would make things worse:
 
 ## 10. Appendix — the bug trace, for reference
 
-The empirical proof of bug 3.1, reproduced here so future readers don't
-have to re-run it:
+### Bug 3.1 (duration + width) — BEFORE the fix
 
-```bash
-$ poetry run python -c "
-import src.video.config as cfg_mod
-cfg = cfg_mod.config
-ss = cfg.subtitle_settings
-print('YAML max_duration:', ss.get('max_duration'))
-merged = cfg.get_profile_merged_settings('slideshow_images1')
-print('Merged model max_subtitle_duration:', merged.subtitle_settings.max_subtitle_duration)
-dump = merged.subtitle_settings.model_dump()
-from src.video.subtitle_positioning import create_unified_config_from_settings
-uc = create_unified_config_from_settings(dump)
-print('Runtime max_duration:', uc.max_duration)
-"
+```
 YAML max_duration: 2.5
 Merged model max_subtitle_duration: 2.5   ← profile override reached this layer
-Runtime max_duration: 4.5                  ← override LOST at the model→dict→UnifiedSubtitleConfig boundary
+Runtime max_duration: 4.5                  ← LOST at the model→dict→UnifiedSubtitleConfig boundary
 ```
 
-The profile override lands correctly in `MergedSubtitleSettings` but
-`create_unified_config_from_settings(dump)` reads `settings.get("max_duration", 4.5)`
-which doesn't match the `max_subtitle_duration` key name. The 4.5 default
-shadows the override. Every profile in the project currently hits this
-fall-through.
+### Bug 3.1 — AFTER the fix (commit c385df1)
+
+```
+YAML max_duration: 2.5
+Merged model max_subtitle_duration: 2.5
+Runtime max_duration: 2.5                  ← now reaches the generator correctly
+```
+
+Verified all 9 profiles pass the best-practice checks:
+
+```
+✓ base: OK
+✓ product_video_mixed: OK
+✓ product_video_primary: OK
+✓ product_video_sequential: OK
+✓ product_video_single: OK
+✓ slideshow_images1: OK
+✓ slideshow_images2: OK
+✓ slideshow_images3: OK
+✓ slideshow_images4: OK
+```
+
+### Verification one-liner (reusable for future audits)
+
+```bash
+poetry run python -c "
+import src.video.config as cfg_mod
+cfg = cfg_mod.config
+from src.video.subtitle_positioning import create_unified_config_from_settings
+for name in cfg.video_profiles:
+    m = cfg.get_profile_merged_settings(name)
+    uc = create_unified_config_from_settings(m.subtitle_settings.model_dump())
+    issues = []
+    if uc.max_duration != 2.5: issues.append(f'max_dur={uc.max_duration}')
+    if uc.min_duration != 0.6: issues.append(f'min_dur={uc.min_duration}')
+    if uc.max_subtitle_width_fraction < 0.75: issues.append(f'width={uc.max_subtitle_width_fraction}')
+    if uc.max_words_per_line < 3: issues.append(f'wpl={uc.max_words_per_line}')
+    tag = '✗' if issues else '✓'
+    print(f'{tag} {name}: {\"  \".join(issues) if issues else \"OK\"}')
+"
+```
