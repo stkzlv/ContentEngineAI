@@ -7,11 +7,13 @@ High-level requirements for ContentEngineAI.
 ## Global Requirements
 
 ### Configuration System
-- **Three-tier precedence**: CLI arguments > Environment variables > YAML files
+- **Three-tier precedence**: CLI arguments > Profile overrides > YAML defaults
 - CLI arguments override only when **explicitly provided** by the user (use `default=None` in argparse, not hardcoded defaults)
-- Environment variables (`.env`) store secrets only—never committed
-- YAML files (`config/`) store application settings—safe to commit
+- Environment variables (`.env`) store secrets only, never committed
+- YAML files (`config/`) store application settings, safe to commit
+- Nested dotted CLI overrides for sub-models (e.g., `subtitle_settings.pycaps.template_name`)
 - Validate all configuration at startup with clear error messages
+- Both producer CLI and global batch pipeline must expose identical override flags (Module/Batch Alignment Rule)
 
 ### Security
 - Store API keys and secrets in `.env` file only
@@ -161,19 +163,44 @@ High-level requirements for ContentEngineAI.
 - Match final duration to voiceover (±1 second tolerance)
 
 ### Subtitles
+
+**Two rendering engines** selectable per-profile or per-run:
+- **FFmpeg engine** (default): SRT (drawtext) or ASS (libass) burned during assembly. Supports two-part mode, karaoke, and all positioning anchors.
+- **Pycaps engine** (opt-in): CSS-styled animated captions burned post-assembly via the pycaps library. Word-by-word karaoke, per-word CSS animations, template-driven styling. Single-line only (two-part not supported). Requires optional Poetry group install.
+
+**Positioning:**
 - **Anchors**: top, center, bottom, above-content, below-content
 - **Margin** from anchor edge (default 4%)
 - **Horizontal alignment**: left, center (default), right
 - Content-aware positioning relative to actual media bounds
-- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays (buttons, captions, nav bars). Applies to both ASS and SRT (drawtext) formats. Per-profile overrides supported.
-- **Font size**: scales with resolution (range 4-16% of frame height)
-- **Two-part mode**: upper (static URL/link) + lower (voiceover transcription)
-- **Dynamic repositioning**: both upper and lower subtitles repositioned per visual segment using actual assembler geometry (handles mixed-media profiles where video and images have different bounds)
-- **CTA detection**: auto-detects call-to-action phrases in voiceover for styling emphasis
-- Style presets: minimal, modern, bold, animated, random
-- **ASS effects**: fade, scale_pulse, rotation_bounce, glow, typewriter, karaoke, movement
-- One effect applied per video (deterministic by product ID)
-- Deterministic randomization seeded by product ID
+- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. Cross-platform union: top 220px, bottom 480px, left/right 90px on 1080x1920.
+- Pycaps default position: bottom of safe zone (~75% of frame). Template's own alignment preserved unless explicitly overridden.
+
+**Text formatting (best-practice aligned):**
+- **Font**: bold sans-serif weight 700+ (Montserrat Black default)
+- **Font size**: 7.5% of frame height (~144px on 1920)
+- **Color**: white fill, opaque black outline (3-4px), no background box
+- **Max 3 words per line**, max 2 lines, max 80% frame width
+- **Segment duration**: 2.5s max, 0.6s min (~170 WPM reading speed)
+- Terminal punctuation stripped in karaoke mode
+
+**Two-part mode** (FFmpeg engine only):
+- Upper line: static URL/link, positioned above content
+- Lower line: voiceover-synced transcription, positioned below content
+- Dynamic repositioning per visual segment using assembler geometry
+- CTA detection for styling emphasis on call-to-action phrases
+
+**Style presets**: minimal, modern (default), bold, animated, random
+- **Research-backed effects**: karaoke (word-by-word highlight), fade, typewriter
+- One effect per video, deterministic by product ID
+- Font and color randomization from curated pools
+
+**Pycaps engine specifics:**
+- 10+ built-in templates: word-focus, hype, minimalist, vibrant, explosive, etc.
+- Deterministic template selection per product from a configurable pool
+- CSS renderer (Playwright + Chromium, default) or Pictex renderer (browserless Skia)
+- Fallback policy: warn-and-skip (keep FFmpeg video) or raise (abort pipeline)
+- Render speed: ~0.7x realtime on CSS path, ~420 MB peak RSS
 
 ### Profile System
 - **Precedence**: CLI > Profile > Global defaults
