@@ -499,7 +499,7 @@ scrapers:
     keywords: ["keyboard"]
 
     # Maximum number of products to scrape per keyword/search
-    max_products: 150
+    max_products: 1
 
     # Amazon Associates affiliate tag for monetization
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var

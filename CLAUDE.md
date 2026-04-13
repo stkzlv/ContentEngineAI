@@ -164,6 +164,13 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Pycaps upstream is alpha (0.2.1)**: pinned in `pyproject.toml` to a specific git SHA. Upgrade deliberately. If upstream stalls, fork to `ContentEngineAI/pycaps`.
 - **Follow-up work**: tracked in `docs/pycaps-followups.md` — AI word tagging via the Gemini key (top priority), mypy pin cleanup, two-part subtitles + pycaps hybrid, CSS renderer CI integration test. Read before starting any pycaps follow-up task.
 
+### CI/CD Gotchas (mypy version drift)
+
+- **mypy error codes differ between versions.** CI installs mypy from `poetry.lock`; local dev may have a different version from `pip install` overrides. The `google` namespace package triggers `attr-defined` on mypy 1.15 but `import-untyped` on 1.19. Never use inline `# type: ignore[specific-code]` for cross-version issues. Use a module-level override in `pyproject.toml` with BOTH codes: `disable_error_code = ["import-untyped", "attr-defined"]`.
+- **Always run `poetry run mypy .` (whole project), not `mypy src/`.** CI runs `mypy .` which scans 267 files including tests. `mypy src/` only checks 144. The difference can hide errors.
+- **Before pushing, run the exact CI commands** from `.github/workflows/ci.yml`: `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy .`. Don't substitute with `make lint` or `mypy src/` — they can diverge.
+- **`warn_unused_ignores = true`** is enabled. Bare `# type: ignore` works but module-level overrides in `pyproject.toml` are cleaner because they survive mypy version changes without unused-ignore noise.
+
 ## Session Continuity
 
 After every context compaction (session continuation), run `/github-workflow` to check CI status and catch any issues from the previous session. This is non-optional.

@@ -67,6 +67,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Testing](docs/testing.md) | Test framework and coverage |
 | [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
 | [Requirements](docs/requirements.md) | Project requirements and specs |
+| [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 
