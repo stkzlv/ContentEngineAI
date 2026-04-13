@@ -56,7 +56,7 @@ async def _call_openrouter(
         "temperature": settings.temperature,
     }
 
-    if session is None or session.closed:  # type: ignore[attr-defined]
+    if session is None or session.closed:
         logger.warning("Session is closed during API call, getting new session")
         from src.utils.connection_pool import get_http_session
 

@@ -190,8 +190,12 @@ module = "tests.*"
 disable_error_code = ["call-arg", "arg-type", "import-untyped", "attr-defined"]
 
 [[tool.mypy.overrides]]
-module = ["src.scraper.amazon.scraper", "src.video.stt_functions", "src.ai.llm_client"]
+module = ["src.scraper.amazon.scraper", "src.video.stt_functions"]
 disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "src.ai.llm_client"
+disable_error_code = ["import-untyped", "attr-defined"]
 
 # Bandit security scanner configuration
 [tool.bandit]
