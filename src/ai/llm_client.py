@@ -8,7 +8,7 @@ import asyncio
 import logging
 
 import aiohttp
-from google import genai  # type: ignore[attr-defined]
+from google import genai
 
 from src.video.config.llm_settings import LLMSettings
 
@@ -56,7 +56,7 @@ async def _call_openrouter(
         "temperature": settings.temperature,
     }
 
-    if session is None or session.closed:  # type: ignore[attr-defined]
+    if session is None or session.closed:
         logger.warning("Session is closed during API call, getting new session")
         from src.utils.connection_pool import get_http_session
 

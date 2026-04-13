@@ -32,6 +32,7 @@ from src.video.producer.context import (
 )
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
+    STEP_BURN_PYCAPS_SUBTITLES,
     STEP_CREATE_VOICEOVER,
     STEP_DOWNLOAD_MUSIC,
     STEP_GATHER_VISUALS,
@@ -48,6 +49,7 @@ from src.video.producer.state import (
 )
 from src.video.producer.steps import (
     step_assemble_video,
+    step_burn_pycaps_subtitles,
     step_create_voiceover,
     step_download_music,
     step_gather_visuals,
@@ -127,6 +129,15 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
         "assemble_video",
         lambda ctx: step_assemble_video(ctx),
         {"generate_subtitles", "download_music"},
+    )
+
+    # Pycaps engine: post-assembly burn-in. Short-circuits at runtime when
+    # the profile's subtitle_engine is not "pycaps", so adding it
+    # unconditionally is safe — no extra cost in the default ffmpeg path.
+    pipeline.add_step(
+        "burn_pycaps_subtitles",
+        lambda ctx: step_burn_pycaps_subtitles(ctx),
+        {"assemble_video"},
     )
 
     # Skip already completed steps

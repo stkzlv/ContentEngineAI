@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-04-13
+
+### Added
+- Optional `pycaps` subtitle rendering engine as a second path alongside the existing FFmpeg + SRT/ASS pipeline
+- `subtitle_engine` selector (`ffmpeg` default, `pycaps` opt-in) plumbed through the 3-level config system: YAML → profile overrides → CLI flags
+- New `burn_pycaps_subtitles` pipeline step that runs post-assembly and short-circuits when the engine is `ffmpeg`
+- CLI flags on producer and global batch: `--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`
+- `PycapsSettings` Pydantic model with template pool, renderer (css|pictex), layout, fallback policy
+- Deterministic per-product template selection using the existing md5 hash pattern
+- Content-aware positioning: caption layout offset derived from `VisualBounds` so captions land below the product image
+- Whisper transcript artifact (`whisper_transcript.json`) saved unconditionally in pycaps mode for downstream consumption
+- Unit tests covering template selection, transcript round-trip, config merge, and graceful fallback when pycaps is absent
+- Integration test running the real `PycapsRenderer` against a 30s fixture using the browserless Pictex path
+- Optional Poetry group `pycaps` pinning the library to a validated git commit; enable with `poetry install --with pycaps`
+- `docs/pycaps-subtitles.md` with install, config, limitations, and template reference
+
+- Subtitle best-practices reference (`docs/subtitle-best-practices.md`) covering typography, color, animation, layout, timing, and platform safe zones for TikTok/Shorts/Reels
+- Subtitle config cleanup plan (`docs/subtitle-config-cleanup.md`) cataloging dead code, pre-existing bugs, and simplification opportunities
+- Follow-up tracker (`docs/pycaps-followups.md`) with 9 ranked items: AI word tagging, timing smoothing, WhisperX, custom template, and more
+- Inter Black, Anton, and Bebas Neue fonts added to `static/fonts/` per best-practice research
+- Tests for layout merge (template-preserved vs override) and duration/width fallback chain (22 total pycaps tests, up from 15)
+
+### Changed
+- `generate_subtitles_with_whisper` accepts an optional `transcript_out_path` so the raw Whisper dict can be persisted for pycaps
+- `create_unified_subtitles` branches on `subtitle_engine` and skips SRT/ASS emission when the engine is pycaps
+- Two-part subtitles (upper URL + lower voiceover) are automatically disabled with a warning when pycaps is selected (single-line captions only in v1)
+- Pycaps layout merge preserves the template's own vertical_align (e.g. center) instead of replacing it with bottom; only overrides when `vertical_align_offset` is explicitly set
+- Pycaps default `vertical_align_offset: -0.20` positions captions at the bottom of the platform safe zone (~75% of frame)
+- Default `max_duration` 4.5 -> 2.5, `min_duration` 0.4 -> 0.6 across all profiles (best-practice reading speed)
+- Default `max_subtitle_width_fraction` 0.67 -> 0.80 (safe zone fit)
+- Default `max_words_per_line` 2 -> 3 across all profiles
+- Style presets aligned: thicker outlines, no background boxes, `movement` effect replaced with `karaoke`, `random` pool narrowed to 3 proven effects
+- Legacy font_size_percent 0.20 -> 0.075, outline_color alpha byte fixed, fallback_y_position 0.80 -> 0.55
+
+### Fixed
+- Duration key namespace bug: `max_duration` YAML key and `subtitle_max_duration` profile overrides were silently ignored at the `UnifiedSubtitleConfig` boundary (fell through to 4.5/0.4 defaults). Both `_build_subtitle_base` and `create_unified_config_from_settings` now handle all three key names.
+- `max_subtitle_width_fraction` was missing from `_build_subtitle_base`, causing profiles without explicit overrides to get the Pydantic default (0.67) instead of the YAML global (0.80)
+- mypy `attr-defined` vs `import-untyped` version drift for `from google import genai` resolved via module-level `pyproject.toml` override
+
 ## [0.35.1] - 2026-04-09
 
 ### Fixed

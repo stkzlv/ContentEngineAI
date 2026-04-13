@@ -51,6 +51,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Scraper](docs/scraper.md) | Product data extraction from Amazon |
 | [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
 | [TTS Voice Profiles](docs/tts-voice-profiles.md) | Voice presets, providers, and style direction |
+| [Pycaps Subtitles](docs/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
 | [Platform Safe Zones](docs/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
 | [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
 | [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
@@ -66,6 +67,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Testing](docs/testing.md) | Test framework and coverage |
 | [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
 | [Requirements](docs/requirements.md) | Project requirements and specs |
+| [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 

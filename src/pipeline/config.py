@@ -356,6 +356,12 @@ class GlobalBatchConfig:
     # Script template override
     script_template: str | None = None
 
+    # Pycaps subtitle engine overrides (all optional; None = inherit from YAML)
+    subtitle_engine: str | None = None
+    pycaps_template: str | None = None
+    pycaps_template_pool: list[str] | None = None
+    pycaps_renderer: str | None = None
+
     # Resume configuration
     resume: bool = False
 
@@ -821,6 +827,20 @@ def load_global_batch_config(
         "script_template"
     )
 
+    # Pycaps subtitle engine overrides
+    subtitle_engine = getattr(cli_args, "subtitle_engine", None) or yaml_config.get(
+        "subtitle_engine"
+    )
+    pycaps_template = getattr(cli_args, "pycaps_template", None) or yaml_config.get(
+        "pycaps_template"
+    )
+    pycaps_template_pool = getattr(
+        cli_args, "pycaps_template_pool", None
+    ) or yaml_config.get("pycaps_template_pool")
+    pycaps_renderer = getattr(cli_args, "pycaps_renderer", None) or yaml_config.get(
+        "pycaps_renderer"
+    )
+
     # Resume configuration
     resume = getattr(cli_args, "resume", False)
 
@@ -853,6 +873,10 @@ def load_global_batch_config(
         platform_specific_content=platform_specific_content,
         voice_profile=voice_profile,
         script_template=script_template,
+        subtitle_engine=subtitle_engine,
+        pycaps_template=pycaps_template,
+        pycaps_template_pool=pycaps_template_pool,
+        pycaps_renderer=pycaps_renderer,
         resume=resume,
         dry_run=dry_run,
         clean=clean,

@@ -11,6 +11,19 @@ This guide provides detailed information for developers working on ContentEngine
 poetry install --with dev && make install-dev
 ```
 
+### Optional: pycaps subtitle engine
+
+The `pycaps` subtitle engine is an optional, opt-in feature. The default
+install skips it to keep the dependency footprint small. Enable it locally
+when you want to work on or test the animated caption path:
+
+```bash
+poetry install --with pycaps
+poetry run playwright install chromium   # CSS renderer (default). Skip for pictex-only.
+```
+
+See [docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full reference.
+
 ## Code Quality Standards
 
 **📖 Complete guide**: [Linting](linting.md) • [Testing](testing.md)

@@ -103,3 +103,86 @@ class SubtitleSegmentationSettings(BaseModel):
     fallback_segment_duration_sec: float = Field(
         2.5, description="Fallback segment duration in seconds"
     )
+
+
+class PycapsSettings(BaseModel):
+    """Configuration for the pycaps subtitle rendering engine.
+
+    pycaps (https://github.com/francozanardi/pycaps) burns CSS-styled animated
+    captions onto a pre-assembled video. Only consumed when
+    ``MergedSubtitleSettings.subtitle_engine == "pycaps"``.
+
+    See ``docs/pycaps-subtitles.md`` for field-by-field guidance and template
+    screenshots.
+    """
+
+    template_name: str = Field(
+        "word-focus",
+        description=(
+            "Fixed pycaps preset template name. Used when template_pool is empty "
+            "or has one entry. Known presets: classic, default, explosive, fast, "
+            "hype, line-focus, minimalist, neo-minimal, retro-gaming, vibrant, "
+            "word-focus."
+        ),
+    )
+    template_pool: list[str] = Field(
+        default_factory=lambda: [
+            "word-focus",
+            "hype",
+            "minimalist",
+            "vibrant",
+        ],
+        description=(
+            "Pool for deterministic per-product template selection (md5-keyed "
+            "on product_id). Empty list disables selection and always uses "
+            "template_name."
+        ),
+    )
+    renderer: Literal["css", "pictex"] = Field(
+        "css",
+        description=(
+            "css = Playwright + Chromium (full CSS fidelity, ~400 MB RAM "
+            "per render, ~0.7x realtime). "
+            "pictex = browser-free Skia path (fewer CSS features, no Chromium "
+            "dep). Default css matches benchmark winner."
+        ),
+    )
+    max_width_ratio: float = Field(
+        0.80,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Maximum line width as a fraction of frame width, handed to pycaps "
+            "SubtitleLayoutOptions. 0.80 matches the best-practice recipe in "
+            "docs/subtitle-best-practices.md — leaves ~90px margin on each "
+            "side of a 1080-wide frame, inside all three platform safe zones."
+        ),
+    )
+    max_number_of_lines: int = Field(
+        2,
+        ge=1,
+        description="Max lines per caption segment, passed to pycaps.",
+    )
+    vertical_align: Literal["top", "center", "bottom"] = Field(
+        "bottom",
+        description="Base anchor for caption block. Default 'bottom'.",
+    )
+    vertical_align_offset: float | None = Field(
+        -0.20,
+        ge=-1.0,
+        le=1.0,
+        description=(
+            "Vertical offset from the anchor (-1.0..1.0). With bottom anchor "
+            "the formula is y = h * (offset + 0.95) - text_height. "
+            "-0.20 places captions at ~75% of frame height, matching the "
+            "platform safe zone bottom boundary (TikTok overlay starts at 75%). "
+            "Set to null to let the pycaps template's own positioning win."
+        ),
+    )
+    fallback_policy: Literal["warn_and_skip", "raise"] = Field(
+        "warn_and_skip",
+        description=(
+            "'warn_and_skip' = on pycaps failure, log warning and keep the "
+            "FFmpeg-assembled video untouched. 'raise' = abort the pipeline."
+        ),
+    )

@@ -23,6 +23,7 @@ STEP_CREATE_VOICEOVER = "create_voiceover"
 STEP_GENERATE_SUBTITLES = "generate_subtitles"
 STEP_DOWNLOAD_MUSIC = "download_music"
 STEP_ASSEMBLE_VIDEO = "assemble_video"
+STEP_BURN_PYCAPS_SUBTITLES = "burn_pycaps_subtitles"
 
 VALID_STEPS = [
     STEP_GATHER_VISUALS,
@@ -32,6 +33,7 @@ VALID_STEPS = [
     STEP_GENERATE_SUBTITLES,
     STEP_DOWNLOAD_MUSIC,
     STEP_ASSEMBLE_VIDEO,
+    STEP_BURN_PYCAPS_SUBTITLES,
 ]
 
 
@@ -92,6 +94,9 @@ def _clean_producer_files(
         product_root / "metadata_tiktok.json",  # optimized mode
         product_root / "metadata_instagram.json",  # optimized mode
         product_root / "UPLOAD_INSTRUCTIONS.txt",  # optimized mode instructions
+        # Pycaps engine artifacts
+        temp_dir / "whisper_transcript.json",
+        temp_dir / "pycaps_metadata.json",
     ]
 
     # Clean all video files with any profile name (video_*_{product_id}_*.mp4)
@@ -156,6 +161,9 @@ def get_video_run_paths(
             "visual_dir": paths["visual_dir"],  # New visual assets directory
             "ffmpeg_log": paths["ffmpeg_log"],  # FFmpeg command log
             "performance": paths["performance"],  # Performance metrics file
+            # Pycaps engine artifacts
+            "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
+            "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",
         }
     )
 
@@ -246,11 +254,23 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         artifacts["voiceover_file"] = ctx.run_paths["voiceover_file"]
         artifacts["voiceover_duration_file"] = ctx.run_paths["voiceover_duration_file"]
     elif step_name == STEP_GENERATE_SUBTITLES:
-        artifacts["subtitle_file"] = ctx.run_paths["subtitle_file"]
+        # Either subtitle_file (ffmpeg engine) or whisper_transcript_file (pycaps).
+        # Both are recorded when present so state verification succeeds on rerun.
+        subtitle_file = ctx.run_paths["subtitle_file"]
+        if subtitle_file.exists():
+            artifacts["subtitle_file"] = subtitle_file
+        transcript_file = ctx.run_paths.get("whisper_transcript_file")
+        if transcript_file is not None and transcript_file.exists():
+            artifacts["whisper_transcript_file"] = transcript_file
     elif step_name == STEP_DOWNLOAD_MUSIC:
         artifacts["music_info_file"] = ctx.run_paths["music_info_file"]
     elif step_name == STEP_ASSEMBLE_VIDEO:
         artifacts["final_video_output"] = ctx.run_paths["final_video_output"]
+    elif step_name == STEP_BURN_PYCAPS_SUBTITLES:
+        artifacts["final_video_output"] = ctx.run_paths["final_video_output"]
+        pycaps_meta = ctx.run_paths.get("pycaps_metadata_file")
+        if pycaps_meta is not None and pycaps_meta.exists():
+            artifacts["pycaps_metadata_file"] = pycaps_meta
 
     step_state: dict[str, Any] = {
         "status": "done",
@@ -262,6 +282,9 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # Include TTS metadata if available (saved by step_create_voiceover)
     if step_name == STEP_CREATE_VOICEOVER and ctx.state.get("tts_metadata"):
         step_state["tts_metadata"] = ctx.state["tts_metadata"]
+    # Include pycaps metadata (saved by step_burn_pycaps_subtitles)
+    if step_name == STEP_BURN_PYCAPS_SUBTITLES and ctx.state.get("pycaps_metadata"):
+        step_state["pycaps_metadata"] = ctx.state["pycaps_metadata"]
 
     ctx.state[step_name] = step_state
     logger.debug(f"Updated state for completed step: {step_name}")

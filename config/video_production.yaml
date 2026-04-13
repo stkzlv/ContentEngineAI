@@ -469,12 +469,12 @@ video_profiles:
     subtitle_randomize_colors: false               # SRT doesn't support color changes
     subtitle_randomize_effects: false              # No effects in SRT format
 
-    # Text formatting overrides
+    # Text formatting overrides — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 38                   # Max characters per line
-    subtitle_max_words_per_line: 2                 # 2 words per line
-    subtitle_max_subtitle_width_fraction: 0.67     # Max 2/3 of frame width
-    subtitle_max_duration: 4.5                     # Max duration in seconds
-    subtitle_min_duration: 0.4                     # Min duration in seconds
+    subtitle_max_words_per_line: 3                 # 3 words per line (was 2)
+    subtitle_max_subtitle_width_fraction: 0.80     # Up from 0.67 (80% of frame)
+    subtitle_max_duration: 2.5                     # Down from 4.5 (best practice)
+    subtitle_min_duration: 0.6                     # Up from 0.4 (flashing floor)
 
   # Slideshow with images profile (variant 2)
   slideshow_images2:
@@ -502,12 +502,12 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: false
 
-    # Text formatting overrides
-    subtitle_max_line_length: 24               # Max characters per line
-    subtitle_max_words_per_line: 2             # Max words per line (0 to disable)
-    subtitle_max_subtitle_width_fraction: 0.85 # Max width as fraction of frame (0.0-1.0)
-    subtitle_max_duration: 4.0                 # Max duration in seconds
-    subtitle_min_duration: 0.5                 # Min duration in seconds
+    # Text formatting overrides — aligned with docs/subtitle-best-practices.md
+    subtitle_max_line_length: 30               # Was 24 (too tight, single-word lines)
+    subtitle_max_words_per_line: 3             # Was 2 — 3 is the sweet spot
+    subtitle_max_subtitle_width_fraction: 0.80 # Was 0.85 — match recipe
+    subtitle_max_duration: 2.5                 # Was 4.0 — best practice
+    subtitle_min_duration: 0.6                 # Was 0.5 — flashing floor
 
     # Advanced: Manual font/color selection (optional)
     # subtitle_font_name: "Poppins"            # Override specific font
@@ -559,12 +559,12 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
 
-    # Text formatting
+    # Text formatting — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 30
-    subtitle_max_words_per_line: 2
-    subtitle_max_subtitle_width_fraction: 0.75
-    subtitle_max_duration: 4.0
-    subtitle_min_duration: 0.5
+    subtitle_max_words_per_line: 3           # Was 2
+    subtitle_max_subtitle_width_fraction: 0.80
+    subtitle_max_duration: 2.5               # Was 4.0
+    subtitle_min_duration: 0.6               # Was 0.5
 
   # Slideshow with images profile (variant 4 - CTA-synchronized dual subtitles)
   slideshow_images4:
@@ -609,12 +609,12 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
 
-    # Text formatting
+    # Text formatting — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 30
-    subtitle_max_words_per_line: 2
-    subtitle_max_subtitle_width_fraction: 0.75
-    subtitle_max_duration: 4.0
-    subtitle_min_duration: 0.5
+    subtitle_max_words_per_line: 3           # Was 2
+    subtitle_max_subtitle_width_fraction: 0.80
+    subtitle_max_duration: 2.5               # Was 4.0
+    subtitle_min_duration: 0.6               # Was 0.5
 
   # ========================================================================
   # VIDEO ASSEMBLY PROFILES
@@ -678,7 +678,7 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
     subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 2
+    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
 
   # Single best video - loop longest video to fill duration
   product_video_single:
@@ -735,7 +735,7 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
     subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 2
+    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
 
   # Mixed media - interleave videos and images throughout
   product_video_mixed:
@@ -793,7 +793,7 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
     subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 2
+    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
 
   # Video-first fallback - prioritize all videos, then images
   product_video_primary:
@@ -851,7 +851,7 @@ video_profiles:
     subtitle_randomize_colors: true
     subtitle_randomize_effects: true
     subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 2
+    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
 
 # ============================================================================
 # CTA DETECTION SETTINGS

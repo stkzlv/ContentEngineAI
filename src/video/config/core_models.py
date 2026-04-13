@@ -760,6 +760,37 @@ class VideoConfig(BaseModel):
         subtitle_data.update(subtitle_overrides)
         if profile.subtitle_positioning:
             subtitle_data.update(profile.subtitle_positioning)
+
+        # Engine + nested pycaps profile overrides. Flat VideoProfile fields
+        # (pycaps_template, pycaps_renderer, ...) fold into the nested
+        # subtitle_data["pycaps"] dict so Pydantic can build PycapsSettings.
+        if profile.subtitle_engine is not None:
+            subtitle_data["subtitle_engine"] = profile.subtitle_engine
+        pycaps_profile_overrides: dict[str, Any] = {}
+        profile_pycaps_field_map = {
+            "pycaps_template": "template_name",
+            "pycaps_template_pool": "template_pool",
+            "pycaps_renderer": "renderer",
+            "pycaps_max_width_ratio": "max_width_ratio",
+            "pycaps_vertical_align": "vertical_align",
+            "pycaps_vertical_align_offset": "vertical_align_offset",
+            "pycaps_fallback_policy": "fallback_policy",
+        }
+        for profile_field, pycaps_field in profile_pycaps_field_map.items():
+            value = getattr(profile, profile_field, None)
+            if value is not None:
+                pycaps_profile_overrides[pycaps_field] = value
+        if pycaps_profile_overrides:
+            base_pycaps = subtitle_data.get("pycaps") or {}
+            if not isinstance(base_pycaps, dict):
+                base_pycaps = (
+                    base_pycaps.model_dump()
+                    if hasattr(base_pycaps, "model_dump")
+                    else dict(base_pycaps)
+                )
+            base_pycaps.update(pycaps_profile_overrides)
+            subtitle_data["pycaps"] = base_pycaps
+
         merged_subtitle = MergedSubtitleSettings(**subtitle_data)
 
         # --- Profile info ---
@@ -779,6 +810,7 @@ class VideoConfig(BaseModel):
         if cli_overrides:
             video_updates: dict[str, Any] = {}
             subtitle_updates: dict[str, Any] = {}
+            pycaps_updates: dict[str, Any] = {}
             for key, value in cli_overrides.items():
                 parts = key.split(".")
                 if len(parts) == 2:
@@ -787,10 +819,29 @@ class VideoConfig(BaseModel):
                         video_updates[field] = value
                     elif section == "subtitle_settings":
                         subtitle_updates[field] = value
+                elif (
+                    len(parts) == 3
+                    and parts[0] == "subtitle_settings"
+                    and parts[1] == "pycaps"
+                ):
+                    pycaps_updates[parts[2]] = value
             if video_updates:
                 merged_video = merged_video.model_copy(update=video_updates)
             if subtitle_updates:
                 merged_subtitle = merged_subtitle.model_copy(update=subtitle_updates)
+            if pycaps_updates:
+                # Merge into the nested PycapsSettings. Create an empty one
+                # with defaults if no YAML/profile value existed yet. All
+                # PycapsSettings fields have defaults, so mypy's call-arg
+                # warning is a false positive from the missing pydantic
+                # plugin.
+                from src.video.config.subtitle_models import PycapsSettings
+
+                base = merged_subtitle.pycaps or PycapsSettings()  # type: ignore[call-arg]
+                merged_pycaps = base.model_copy(update=pycaps_updates)
+                merged_subtitle = merged_subtitle.model_copy(
+                    update={"pycaps": merged_pycaps}
+                )
 
         return MergedProfileSettings(
             video_settings=merged_video,
@@ -831,13 +882,16 @@ class VideoConfig(BaseModel):
             "randomize_effects": ss["randomize_effects"],
             "max_line_length": ss["max_line_length"],
             "max_words_per_line": ss["max_words_per_line"],
+            "max_subtitle_width_fraction": ss.get("max_subtitle_width_fraction", 0.80),
             "max_subtitle_duration": (
                 ss.get("max_subtitle_duration")
-                or ss.get("max_subtitle_duration_sec", 4.5)
+                or ss.get("max_duration")
+                or ss.get("max_subtitle_duration_sec", 2.5)
             ),
             "min_subtitle_duration": (
                 ss.get("min_subtitle_duration")
-                or ss.get("min_subtitle_duration_sec", 0.4)
+                or ss.get("min_duration")
+                or ss.get("min_subtitle_duration_sec", 0.6)
             ),
             "enabled": ss["enabled"],
             "font_directory": ss["font_directory"],
@@ -883,6 +937,9 @@ class VideoConfig(BaseModel):
             "two_part_subtitles_lower_enabled": lower.get("enabled", True),
             "two_part_subtitles_lower_anchor": lower.get("anchor", "below_content"),
             "two_part_subtitles_lower_margin": lower.get("margin", 0.05),
+            # Pycaps engine selector + nested sub-settings (YAML layer)
+            "subtitle_engine": ss.get("subtitle_engine", "ffmpeg"),
+            "pycaps": ss.get("pycaps"),
         }
 
     def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:

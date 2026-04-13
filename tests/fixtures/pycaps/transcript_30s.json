@@ -1,0 +1,78 @@
+{
+  "language": "en",
+  "text": "These wireless earbuds deliver crystal clear sound and all day comfort. The battery lasts twelve hours on a single charge. Noise cancellation blocks out the outside world instantly. Tap the link below to grab yours today before they sell out.",
+  "segments": [
+    {
+      "id": 0,
+      "start": 0.0,
+      "end": 5.5,
+      "text": "These wireless earbuds deliver crystal clear sound and all day comfort.",
+      "words": [
+        {"word": "These",    "start": 0.00, "end": 0.40},
+        {"word": "wireless", "start": 0.40, "end": 1.00},
+        {"word": "earbuds",  "start": 1.00, "end": 1.70},
+        {"word": "deliver",  "start": 1.70, "end": 2.30},
+        {"word": "crystal",  "start": 2.30, "end": 2.90},
+        {"word": "clear",    "start": 2.90, "end": 3.40},
+        {"word": "sound",    "start": 3.40, "end": 4.00},
+        {"word": "and",      "start": 4.00, "end": 4.25},
+        {"word": "all",      "start": 4.25, "end": 4.55},
+        {"word": "day",      "start": 4.55, "end": 4.90},
+        {"word": "comfort.", "start": 4.90, "end": 5.50}
+      ]
+    },
+    {
+      "id": 1,
+      "start": 6.0,
+      "end": 11.2,
+      "text": "The battery lasts twelve hours on a single charge.",
+      "words": [
+        {"word": "The",     "start": 6.00, "end": 6.20},
+        {"word": "battery", "start": 6.20, "end": 6.90},
+        {"word": "lasts",   "start": 6.90, "end": 7.40},
+        {"word": "twelve",  "start": 7.40, "end": 8.00},
+        {"word": "hours",   "start": 8.00, "end": 8.60},
+        {"word": "on",      "start": 8.60, "end": 8.85},
+        {"word": "a",       "start": 8.85, "end": 9.00},
+        {"word": "single",  "start": 9.00, "end": 9.65},
+        {"word": "charge.", "start": 9.65, "end": 11.20}
+      ]
+    },
+    {
+      "id": 2,
+      "start": 12.0,
+      "end": 18.5,
+      "text": "Noise cancellation blocks out the outside world instantly.",
+      "words": [
+        {"word": "Noise",         "start": 12.00, "end": 12.55},
+        {"word": "cancellation",  "start": 12.55, "end": 13.50},
+        {"word": "blocks",        "start": 13.50, "end": 14.05},
+        {"word": "out",           "start": 14.05, "end": 14.40},
+        {"word": "the",           "start": 14.40, "end": 14.60},
+        {"word": "outside",       "start": 14.60, "end": 15.30},
+        {"word": "world",         "start": 15.30, "end": 15.95},
+        {"word": "instantly.",    "start": 15.95, "end": 18.50}
+      ]
+    },
+    {
+      "id": 3,
+      "start": 19.2,
+      "end": 28.8,
+      "text": "Tap the link below to grab yours today before they sell out.",
+      "words": [
+        {"word": "Tap",     "start": 19.20, "end": 19.60},
+        {"word": "the",     "start": 19.60, "end": 19.85},
+        {"word": "link",    "start": 19.85, "end": 20.40},
+        {"word": "below",   "start": 20.40, "end": 21.00},
+        {"word": "to",      "start": 21.00, "end": 21.20},
+        {"word": "grab",    "start": 21.20, "end": 21.75},
+        {"word": "yours",   "start": 21.75, "end": 22.40},
+        {"word": "today",   "start": 22.40, "end": 23.05},
+        {"word": "before",  "start": 23.05, "end": 23.70},
+        {"word": "they",    "start": 23.70, "end": 24.05},
+        {"word": "sell",    "start": 24.05, "end": 24.55},
+        {"word": "out.",    "start": 24.55, "end": 28.80}
+      ]
+    }
+  ]
+}

@@ -638,6 +638,7 @@ async def create_unified_subtitles(
     temp_dir: Path | None = None,
     product_id: str | None = None,
     visual_bounds: Any | None = None,
+    transcript_out_path: Path | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -661,6 +662,9 @@ async def create_unified_subtitles(
         temp_dir: Optional temp directory for debug files (defaults to output parent)
         product_id: Product ID for randomization (if applicable)
         visual_bounds: Optional visual content boundaries for subtitle positioning
+        transcript_out_path: Target path for the raw Whisper transcript when
+            ``subtitle_settings["subtitle_engine"] == "pycaps"``. Ignored in
+            the default ffmpeg engine.
 
     Returns:
     -------
@@ -668,8 +672,22 @@ async def create_unified_subtitles(
 
     """
     # Determine output format and path
+    subtitle_engine = subtitle_settings.get("subtitle_engine", "ffmpeg")
     subtitle_format = subtitle_settings.get("subtitle_format", "srt")
-    if subtitle_format == "ass":
+    if subtitle_engine == "pycaps":
+        # In pycaps mode we only need the raw Whisper transcript artifact.
+        # No SRT/ASS file is emitted; the assembler runs with subtitle_path=None
+        # and the new burn step consumes the transcript post-assembly.
+        output_path = transcript_out_path or output_srt_path.with_name(
+            "whisper_transcript.json"
+        )
+        format_type = "whisper_json"
+        logger.info(
+            "Generating Whisper transcript for pycaps engine: %s -> %s",
+            audio_path.name,
+            output_path.name,
+        )
+    elif subtitle_format == "ass":
         output_path = output_srt_path.with_suffix(".ass")
         format_type = "ass"
         logger.info(
@@ -700,12 +718,18 @@ async def create_unified_subtitles(
     if whisper_stt_settings and whisper_stt_settings.enabled and WHISPER_AVAILABLE:
         logger.info("Using Whisper for STT and word timings.")
         try:
+            # In pycaps mode, write the raw Whisper result dict to the
+            # transcript path so the burn_pycaps_subtitles step can consume it.
+            whisper_transcript_target = (
+                output_path if subtitle_engine == "pycaps" else None
+            )
             stt_timings = await generate_subtitles_with_whisper(
                 audio_path,
                 temp_dir or output_path.parent,
                 whisper_stt_settings,
                 script,
                 debug_mode,
+                transcript_out_path=whisper_transcript_target,
             )
             if stt_timings:
                 logger.info(
@@ -755,6 +779,20 @@ async def create_unified_subtitles(
             )
     elif google_stt_settings and google_stt_settings.enabled:
         logger.warning("Google Cloud STT configured but library not available.")
+
+    # Pycaps engine: short-circuit after Whisper. The burn step consumes the
+    # transcript artifact; we do NOT emit an SRT/ASS file. Google Cloud STT
+    # fallback does not run here because its output shape doesn't match
+    # pycaps' whisper_json format.
+    if subtitle_engine == "pycaps":
+        if output_path.exists():
+            logger.info("Pycaps transcript artifact ready: %s", output_path)
+            return output_path
+        logger.error(
+            "Pycaps mode selected but Whisper did not produce a transcript at %s",
+            output_path,
+        )
+        return None
 
     # Generate subtitles using unified system
     try:

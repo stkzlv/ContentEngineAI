@@ -61,6 +61,7 @@ async def generate_subtitles_with_whisper(
     whisper_settings: WhisperSettings,
     script: str | None = None,
     debug_mode: bool = False,
+    transcript_out_path: Path | None = None,
 ) -> list[dict[str, Any]] | None:
     """Generate subtitle timing data using Whisper STT.
 
@@ -71,6 +72,10 @@ async def generate_subtitles_with_whisper(
         whisper_settings: Whisper-specific settings
         script: Optional script text for improved accuracy
         debug_mode: Enable debug output and file creation
+        transcript_out_path: Optional path to save the raw Whisper result
+            dict in ``whisper_json`` format. Used by the pycaps subtitle
+            engine to consume word-level timings as the transcript source.
+            Written unconditionally when set (not gated by ``debug_mode``).
 
     Returns:
     -------
@@ -178,6 +183,22 @@ async def generate_subtitles_with_whisper(
             _save_whisper_debug_files(
                 debug_file_dir, audio_path, result_w, word_list_whisper, script
             )
+
+        # Save raw Whisper dict for pycaps consumption when requested. This is
+        # intentionally independent of debug_mode so production runs of the
+        # pycaps engine always get a transcript artifact.
+        if transcript_out_path is not None:
+            try:
+                from src.video.pycaps_engine import save_whisper_transcript
+
+                save_whisper_transcript(result_w, transcript_out_path)
+            except Exception as e:  # noqa: BLE001
+                logger.error(
+                    "Failed to save Whisper transcript for pycaps at %s: %s",
+                    transcript_out_path,
+                    e,
+                    exc_info=debug_mode,
+                )
 
         return word_list_whisper
     except Exception as e:

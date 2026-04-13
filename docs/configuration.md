@@ -51,6 +51,39 @@ poetry run python -m src.video.producer \
 
 **Result**: Subtitle anchor will be `top` (CLI wins over all).
 
+**Example: Subtitle engine selector (`ffmpeg` vs `pycaps`)**
+
+The same 3-level precedence applies to the subtitle engine. Default stays
+`ffmpeg` for backward compatibility.
+
+```yaml
+# config/subtitles.yaml
+subtitle_settings:
+  subtitle_engine: "ffmpeg"
+  pycaps:
+    template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
+    renderer: "css"
+```
+
+```yaml
+# config/video_production.yaml — per-profile override
+profiles:
+  slideshow_images1:
+    subtitle_engine: "pycaps"                  # beats YAML default
+    pycaps_template_pool: ["hype", "vibrant"]  # profile-level override
+```
+
+```bash
+# CLI override (highest)
+poetry run python -m src.video.producer outputs/B0ASIN123/data.json \
+    slideshow_images1 --subtitle-engine pycaps --pycaps-renderer pictex
+```
+
+Nested CLI overrides use dotted keys internally
+(`subtitle_settings.pycaps.template_name`). See
+[docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full pycaps config
+reference and install instructions.
+
 **Complete CLI Override Example:**
 
 ```bash

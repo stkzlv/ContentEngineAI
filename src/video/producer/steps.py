@@ -804,8 +804,47 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
 
-        # Check if two-part subtitle system is enabled
+        # Subtitle engine dispatch: "pycaps" path skips SRT/ASS emission, saves
+        # a raw Whisper transcript for the downstream burn step, and disables
+        # two-part (upper+lower) which is FFmpeg-only in this iteration.
+        subtitle_engine = subtitle_settings.subtitle_engine
         two_part_enabled = subtitle_settings.two_part_subtitles_enabled
+
+        if subtitle_engine == "pycaps":
+            if two_part_enabled:
+                logger.warning(
+                    "Two-part subtitles are not supported in pycaps mode. "
+                    "Disabling two-part for this run; re-enable by switching "
+                    "subtitle_engine back to 'ffmpeg'."
+                )
+                two_part_enabled = False
+
+            subtitle_dict = subtitle_settings.model_dump()
+            transcript_path = ctx.run_paths["whisper_transcript_file"]
+            result_path = await create_unified_subtitles(
+                voiceover_path,
+                ctx.run_paths["subtitle_file"],
+                subtitle_dict,
+                ctx.config.whisper_settings,
+                ctx.config.google_cloud_stt_settings,
+                ctx.secrets,
+                ctx.script,
+                ctx.voiceover_duration,
+                ctx.debug_mode,
+                ctx.config,
+                Path(ctx.run_paths["run_root"])
+                / ctx.config.output_structure.product_subdirs.temp,
+                product_id,
+                transcript_out_path=transcript_path,
+            )
+            if not result_path or not result_path.exists():
+                raise PipelineError(
+                    "Pycaps transcript generation failed (no whisper_json " "produced)."
+                )
+            logger.info("Pycaps transcript ready: %s", result_path.name)
+            ctx.state.setdefault("generate_subtitles", {})["engine"] = "pycaps"
+            return
+
         logger.debug("two_part_subtitles_enabled=%s", two_part_enabled)
 
         if two_part_enabled:
@@ -1043,3 +1082,150 @@ async def step_assemble_video(ctx: PipelineContext):
     if not results["success"]:
         logger.warning("Verification for %s reported issues.", final_video_path.name)
     logger.info("Video successfully created: %s", final_video_path)
+
+
+@register_artifact_loader("burn_pycaps_subtitles")
+def _load_artifacts_burn_pycaps_subtitles(ctx: PipelineContext) -> None:
+    """Load artifacts from completed burn_pycaps_subtitles step (no-op)."""
+    pass
+
+
+async def step_burn_pycaps_subtitles(ctx: PipelineContext):
+    """Burn pycaps animated captions onto the assembled video.
+
+    Runs after ``assemble_video``. Short-circuits when the profile's
+    ``subtitle_engine`` is not ``"pycaps"``. On pycaps failure the behaviour
+    depends on ``pycaps.fallback_policy``: ``warn_and_skip`` keeps the
+    FFmpeg-assembled video intact, while ``raise`` aborts the pipeline.
+    """
+    merged_profile_settings = ctx.config.get_profile_merged_settings(
+        ctx.profile_name, ctx.cli_overrides
+    )
+    subtitle_settings = merged_profile_settings.subtitle_settings
+
+    if subtitle_settings.subtitle_engine != "pycaps":
+        logger.debug(
+            "Skipping burn_pycaps_subtitles (subtitle_engine=%s)",
+            subtitle_settings.subtitle_engine,
+        )
+        return
+
+    pycaps_settings = subtitle_settings.pycaps
+    if pycaps_settings is None:
+        # Engine is pycaps but no sub-settings object — construct defaults.
+        # All PycapsSettings fields have defaults; mypy warns because the
+        # pydantic plugin isn't configured for this project.
+        from src.video.config.subtitle_models import PycapsSettings
+
+        pycaps_settings = PycapsSettings()  # type: ignore[call-arg]
+
+    async with performance_monitor.measure_step(
+        "burn_pycaps_subtitles",
+        pycaps_renderer=pycaps_settings.renderer,
+        pycaps_template_pool_size=len(pycaps_settings.template_pool or []),
+    ):
+        logger.info("Executing step: BURN_PYCAPS_SUBTITLES")
+
+        transcript_path = ctx.run_paths.get("whisper_transcript_file")
+        final_video_path = ctx.run_paths["final_video_output"]
+
+        if transcript_path is None or not transcript_path.exists():
+            msg = (
+                f"Pycaps mode requested but whisper transcript is missing at "
+                f"{transcript_path}. Did generate_subtitles run in pycaps mode?"
+            )
+            if pycaps_settings.fallback_policy == "raise":
+                raise PipelineError(msg)
+            logger.warning("%s Skipping pycaps burn.", msg)
+            return
+
+        if not final_video_path.exists():
+            msg = (
+                f"Assembled video not found at {final_video_path}, cannot "
+                f"burn pycaps captions."
+            )
+            if pycaps_settings.fallback_policy == "raise":
+                raise PipelineError(msg)
+            logger.warning("%s Skipping pycaps burn.", msg)
+            return
+
+        # Reuse the two-part helper's visual bounds calculation even though
+        # two-part is disabled in pycaps mode. The helper is standalone.
+        from src.video.producer.two_part_subtitles import TwoPartSubtitleHandler
+
+        bounds_handler = TwoPartSubtitleHandler(
+            ctx=ctx, merged_profile_settings=merged_profile_settings
+        )
+        visual_bounds = bounds_handler.calculate_visual_bounds()
+
+        # Derive product id and output target.
+        from src.utils import sanitize_filename
+
+        product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
+        burned_output = final_video_path.with_name(
+            final_video_path.stem + "_pycaps.mp4"
+        )
+
+        # Run the renderer in a worker thread — the library itself is sync.
+        from src.video.pycaps_engine import (
+            PycapsRenderer,
+            PycapsUnavailableError,
+        )
+
+        renderer = PycapsRenderer()
+        try:
+            result = await asyncio.to_thread(
+                renderer.render,
+                final_video_path,
+                transcript_path,
+                burned_output,
+                product_id,
+                visual_bounds,
+                pycaps_settings,
+            )
+        except PycapsUnavailableError as e:
+            msg = (
+                f"pycaps library is not installed: {e}. Install with "
+                f"`poetry install --with pycaps`."
+            )
+            if pycaps_settings.fallback_policy == "raise":
+                raise PipelineError(msg) from e
+            logger.warning(msg + " Skipping burn; keeping FFmpeg output.")
+            return
+
+        if not result.success:
+            msg = (
+                f"pycaps render failed: {result.error}. "
+                f"template={result.template_used}, renderer={result.renderer_used}"
+            )
+            if pycaps_settings.fallback_policy == "raise":
+                raise PipelineError(msg)
+            logger.warning("%s Keeping FFmpeg-assembled video.", msg)
+            return
+
+        # Swap the burned output over the original final video atomically.
+        # Path.replace is atomic on POSIX when source and dest are on the
+        # same filesystem.
+        burned_output.replace(final_video_path)
+        logger.info(
+            "Replaced %s with pycaps-burned video "
+            "(template=%s, renderer=%s, wall=%.2fs, peak=%.0f MB)",
+            final_video_path.name,
+            result.template_used,
+            result.renderer_used,
+            result.wall_time_sec,
+            result.peak_rss_mb,
+        )
+
+        # Save per-run metadata for audit / pipeline_state.json.
+        metadata_path = ctx.run_paths.get("pycaps_metadata_file")
+        if metadata_path is not None:
+            metadata = {
+                "engine": "pycaps",
+                "template": result.template_used,
+                "renderer": result.renderer_used,
+                "wall_time_sec": round(result.wall_time_sec, 3),
+                "peak_rss_mb": round(result.peak_rss_mb, 1),
+            }
+            metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+            ctx.state["pycaps_metadata"] = metadata

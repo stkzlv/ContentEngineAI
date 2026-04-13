@@ -477,10 +477,14 @@ def create_unified_config_from_settings(
         margin=settings.get("margin", 0.1),
         font_size_scale=settings.get("font_size_scale", 1.0),
         max_line_length=settings.get("max_line_length", 38),
-        max_words_per_line=settings.get("max_words_per_line", 2),
-        max_subtitle_width_fraction=settings.get("max_subtitle_width_fraction", 0.67),
-        max_duration=settings.get("max_duration", 4.5),
-        min_duration=settings.get("min_duration", 0.4),
+        max_words_per_line=settings.get("max_words_per_line", 3),
+        max_subtitle_width_fraction=settings.get("max_subtitle_width_fraction", 0.80),
+        max_duration=settings.get(
+            "max_duration", settings.get("max_subtitle_duration", 2.5)
+        ),
+        min_duration=settings.get(
+            "min_duration", settings.get("min_subtitle_duration", 0.6)
+        ),
         randomize_fonts=settings.get("randomize_fonts", False),
         randomize_colors=settings.get("randomize_colors", False),
         randomize_effects=settings.get("randomize_effects", False),
