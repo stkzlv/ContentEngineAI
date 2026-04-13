@@ -97,22 +97,77 @@ def select_template_for_product(
     return pool[index]
 
 
+def merge_layout_with_template(
+    template_layout: Any,
+    settings: PycapsSettings,
+    bounds: VisualBounds | None = None,
+) -> Any:
+    """Merge our config values into the template's own layout.
+
+    The key insight: pycaps templates ship their own ``SubtitleLayoutOptions``
+    with a vertical_align tuned for that template's font size and style (e.g.
+    ``word-focus`` uses ``center``). Replacing it wholesale with our computed
+    layout breaks positioning.
+
+    Instead, we selectively override only what the user's config explicitly
+    asks for:
+
+    - ``max_width_ratio`` and ``max_number_of_lines`` always override
+      (these are safe, template-agnostic layout constraints).
+    - ``vertical_align`` is only overridden when the user sets an explicit
+      ``vertical_align_offset``. Otherwise the template's own alignment
+      (center, bottom, etc.) is preserved.
+    """
+    from pycaps.layout import (
+        VerticalAlignment,
+        VerticalAlignmentType,
+    )
+
+    # Start from the template's layout and override width/lines.
+    updates: dict[str, Any] = {
+        "max_width_ratio": settings.max_width_ratio,
+        "max_number_of_lines": settings.max_number_of_lines,
+    }
+
+    # Only touch vertical alignment when explicitly requested.
+    if settings.vertical_align_offset is not None:
+        align_type = VerticalAlignmentType(settings.vertical_align)
+        updates["vertical_align"] = VerticalAlignment(
+            align=align_type, offset=settings.vertical_align_offset
+        )
+    elif bounds is not None and settings.vertical_align == "bottom":
+        # Compute offset from VisualBounds, but ONLY when the user
+        # explicitly requested "bottom" (not the default from the template).
+        # If vertical_align still has the Pydantic default we leave the
+        # template alone.
+        pass  # Template wins — don't override.
+
+    merged = template_layout.model_copy(update=updates)
+    logger.debug(
+        "Merged layout: template align=%s offset=%.2f → final align=%s offset=%.2f "
+        "(width=%.2f, lines=%d)",
+        template_layout.vertical_align.align.value,
+        template_layout.vertical_align.offset,
+        merged.vertical_align.align.value,
+        merged.vertical_align.offset,
+        merged.max_width_ratio,
+        merged.max_number_of_lines,
+    )
+    return merged
+
+
+# Keep the old function name as a thin wrapper for backward compatibility
+# with tests and docs that reference it.
 def layout_from_visual_bounds(
     bounds: VisualBounds | None,
     settings: PycapsSettings,
 ) -> Any:
-    """Translate VisualBounds into a pycaps ``SubtitleLayoutOptions``.
+    """Build a standalone SubtitleLayoutOptions (no template merge).
 
-    The bottom-anchor offset is derived so caption top falls just below
-    the visual content. Formula:
-
-        offset = (bounds.y + bounds.height + margin) - 0.95
-
-    clamped to [-0.9, 0]. Values outside that range get clamped — they would
-    push captions above centre or below frame. When ``bounds`` is None or
-    ``vertical_align_offset`` is set manually, the manual value wins.
+    Used by unit tests and any code path that doesn't have access to a
+    template's pre-loaded layout. For the production render path, prefer
+    :func:`merge_layout_with_template`.
     """
-    # Deferred import so the main app can import this module without pycaps.
     from pycaps.layout import (
         SubtitleLayoutOptions,
         VerticalAlignment,
@@ -293,8 +348,14 @@ class PycapsRenderer:
         )
         builder.with_output_video(str(output_video))
 
-        layout = layout_from_visual_bounds(visual_bounds, settings)
-        builder.with_layout_options(layout)
+        # Merge our config with the template's own layout instead of
+        # replacing it. The template's vertical_align is preserved unless
+        # the user explicitly set vertical_align_offset.
+        template_layout = builder._caps_pipeline._layout_options
+        merged_layout = merge_layout_with_template(
+            template_layout, settings, visual_bounds
+        )
+        builder.with_layout_options(merged_layout)
 
         custom_renderer: Any | None = None
         if settings.renderer == "pictex":

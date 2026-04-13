@@ -16,6 +16,7 @@ from src.video.pycaps_engine.renderer import (
     PycapsRenderResult,
     PycapsUnavailableError,
     layout_from_visual_bounds,
+    merge_layout_with_template,
     select_template_for_product,
 )
 from src.video.pycaps_engine.transcript_adapter import (
@@ -29,6 +30,7 @@ __all__ = [
     "PycapsUnavailableError",
     "layout_from_visual_bounds",
     "load_whisper_transcript",
+    "merge_layout_with_template",
     "save_whisper_transcript",
     "select_template_for_product",
 ]
