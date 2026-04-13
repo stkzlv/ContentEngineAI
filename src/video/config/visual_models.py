@@ -510,7 +510,7 @@ class MergedSubtitleSettings(BaseModel):
     max_words_per_line: int = 3
     max_subtitle_duration: float = 4.5
     min_subtitle_duration: float = 0.4
-    max_subtitle_width_fraction: float = 0.67
+    max_subtitle_width_fraction: float = 0.80
 
     # Advanced
     enabled: bool = True

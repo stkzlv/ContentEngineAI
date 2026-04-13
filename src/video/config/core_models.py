@@ -882,13 +882,16 @@ class VideoConfig(BaseModel):
             "randomize_effects": ss["randomize_effects"],
             "max_line_length": ss["max_line_length"],
             "max_words_per_line": ss["max_words_per_line"],
+            "max_subtitle_width_fraction": ss.get("max_subtitle_width_fraction", 0.80),
             "max_subtitle_duration": (
                 ss.get("max_subtitle_duration")
-                or ss.get("max_subtitle_duration_sec", 4.5)
+                or ss.get("max_duration")
+                or ss.get("max_subtitle_duration_sec", 2.5)
             ),
             "min_subtitle_duration": (
                 ss.get("min_subtitle_duration")
-                or ss.get("min_subtitle_duration_sec", 0.4)
+                or ss.get("min_duration")
+                or ss.get("min_subtitle_duration_sec", 0.6)
             ),
             "enabled": ss["enabled"],
             "font_directory": ss["font_directory"],
