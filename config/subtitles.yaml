@@ -66,13 +66,12 @@ subtitle_settings:
     # pictex = browserless Skia. Lighter install, limited CSS features.
     renderer: "css"
 
-    # Max caption width as a fraction of frame width.
-    # 0.65 keeps captions inside the TikTok safe zone (right boundary at
-    # 0.778) even with uppercase bold fonts. Was 0.80 which looked fine
-    # for the FFmpeg path but spanned edge-to-edge on pycaps templates
-    # because CSS font scaling + uppercase inflate the rendered width
-    # beyond what max_width_ratio alone constrains.
-    max_width_ratio: 0.65
+    # Max caption width as a fraction of frame width. This is the
+    # user-facing knob; the actual value passed to pycaps is clamped
+    # to the platform safe zone at render time so captions never
+    # extend into TikTok/Shorts/Reels UI overlay zones regardless
+    # of what's set here.
+    max_width_ratio: 0.80
 
     # Max lines per caption segment. 2 lines is the universal best practice
     # for short-form — 3+ becomes a wall of text.

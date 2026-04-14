@@ -97,10 +97,30 @@ def select_template_for_product(
     return pool[index]
 
 
+def _safe_zone_max_width(safe_zone: Any) -> float | None:
+    """Compute the maximum width ratio that keeps centered text inside the safe zone.
+
+    For center-aligned text the constraint is:
+    ``max_width = 2 * min(0.5 - min_x, max_x - 0.5)``
+
+    Returns None when no safe zone is provided or when the safe zone is
+    wider than the frame (no clamping needed).
+    """
+    if safe_zone is None:
+        return None
+    min_x = getattr(safe_zone, "min_x", 0.0)
+    max_x = getattr(safe_zone, "max_x", 1.0)
+    limit = 2.0 * min(0.5 - min_x, max_x - 0.5)
+    if limit >= 1.0:
+        return None
+    return max(0.1, limit)  # floor at 10% to avoid degenerate layouts
+
+
 def merge_layout_with_template(
     template_layout: Any,
     settings: PycapsSettings,
     bounds: VisualBounds | None = None,
+    safe_zone: Any = None,
 ) -> Any:
     """Merge our config values into the template's own layout.
 
@@ -114,6 +134,8 @@ def merge_layout_with_template(
 
     - ``max_width_ratio`` and ``max_number_of_lines`` always override
       (these are safe, template-agnostic layout constraints).
+    - ``max_width_ratio`` is clamped to the platform safe zone when provided
+      so captions never extend into TikTok/Shorts/Reels UI overlay zones.
     - ``vertical_align`` is only overridden when the user sets an explicit
       ``vertical_align_offset``. Otherwise the template's own alignment
       (center, bottom, etc.) is preserved.
@@ -123,9 +145,20 @@ def merge_layout_with_template(
         VerticalAlignmentType,
     )
 
+    # Clamp max_width_ratio to safe zone boundaries.
+    width_ratio = settings.max_width_ratio
+    sz_limit = _safe_zone_max_width(safe_zone)
+    if sz_limit is not None and width_ratio > sz_limit:
+        logger.debug(
+            "Clamping max_width_ratio from %.2f to %.2f (safe zone)",
+            width_ratio,
+            sz_limit,
+        )
+        width_ratio = sz_limit
+
     # Start from the template's layout and override width/lines.
     updates: dict[str, Any] = {
-        "max_width_ratio": settings.max_width_ratio,
+        "max_width_ratio": width_ratio,
         "max_number_of_lines": settings.max_number_of_lines,
     }
 
@@ -207,6 +240,7 @@ class PycapsRenderer:
         product_id: str,
         visual_bounds: VisualBounds | None,
         settings: PycapsSettings,
+        safe_zone: Any = None,
     ) -> PycapsRenderResult:
         """Burn pycaps captions onto ``input_video`` and write ``output_video``.
 
@@ -223,6 +257,8 @@ class PycapsRenderer:
                 the layout offset is computed to place captions below the
                 content. When None, pycaps defaults apply.
             settings: Typed pycaps settings from the merged profile.
+            safe_zone: Optional ``PlatformSafeZone`` for clamping caption
+                width to avoid platform UI overlays.
 
         Returns:
         -------
@@ -246,6 +282,7 @@ class PycapsRenderer:
                 template_name=template_used,
                 visual_bounds=visual_bounds,
                 settings=settings,
+                safe_zone=safe_zone,
             )
         except ImportError as e:
             raise PycapsUnavailableError(
@@ -330,6 +367,7 @@ class PycapsRenderer:
         template_name: str,
         visual_bounds: VisualBounds | None,
         settings: PycapsSettings,
+        safe_zone: Any = None,
     ) -> tuple[Any, Any | None]:
         """Construct the ``CapsPipelineBuilder`` and apply layout + renderer.
 
@@ -353,7 +391,7 @@ class PycapsRenderer:
         # the user explicitly set vertical_align_offset.
         template_layout = builder._caps_pipeline._layout_options
         merged_layout = merge_layout_with_template(
-            template_layout, settings, visual_bounds
+            template_layout, settings, visual_bounds, safe_zone=safe_zone
         )
         builder.with_layout_options(merged_layout)
 

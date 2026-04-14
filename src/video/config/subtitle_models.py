@@ -148,15 +148,14 @@ class PycapsSettings(BaseModel):
         ),
     )
     max_width_ratio: float = Field(
-        0.65,
+        0.80,
         ge=0.0,
         le=1.0,
         description=(
             "Maximum line width as a fraction of frame width, handed to pycaps "
-            "SubtitleLayoutOptions. 0.65 keeps captions inside the TikTok safe "
-            "zone even with uppercase bold fonts. The CSS renderer scales fonts "
-            "relative to video width, so 0.80 (the FFmpeg best-practice target) "
-            "produces edge-to-edge captions on pycaps templates."
+            "SubtitleLayoutOptions. The actual value is clamped at render time "
+            "to the platform safe zone so captions never extend into UI "
+            "overlay zones regardless of what's set here."
         ),
     )
     max_number_of_lines: int = Field(
