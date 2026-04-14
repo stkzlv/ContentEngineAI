@@ -368,8 +368,7 @@ complains.
 
 **Priority**: high — affects BOTH engines, biggest single readability win.
 
-**Status**: not started. Raw Whisper timings flow straight from
-`stt_functions.py` to the subtitle generators without any smoothing.
+**Status**: **DONE** (PR #64, branch `feature/whisper-timing-smoothing`).
 
 ### Context
 
@@ -392,68 +391,35 @@ timings list.
 
 ### Acceptance criteria
 
-- [ ] New module `src/video/subtitle_timing_smoother.py` with a single
-  public function `smooth_word_timings(timings, config)` that applies
-  the four rules
-- [ ] Called from `src/video/subtitle_utils.py::create_unified_subtitles`
-  after STT returns, before the generator runs — affects BOTH engines
-- [ ] Config fields on `MergedSubtitleSettings`: `timing_min_word_sec`,
-  `timing_gap_merge_sec`, `timing_hold_last_sec`, `timing_lead_sec`,
-  all with the defaults above
-- [ ] Unit tests: empty input, single word, short gaps, normal sentence,
-  segment boundary hold
+- [x] New module `src/video/subtitle_timing_smoother.py` with two public
+  functions: `smooth_word_timings` (flat list for FFmpeg) and
+  `smooth_whisper_result_dict` (raw Whisper dict for pycaps)
+- [x] Called from `stt_functions.py::generate_subtitles_with_whisper`
+  after `_extract_word_timings`, before `save_whisper_transcript` —
+  single call site serves both engines
+- [x] Config in `config/subtitles.yaml` under `timing_smoothing` section
+  (nested dict, not flat Pydantic fields). Passed through to smoother
+  via `create_unified_subtitles` → `generate_subtitles_with_whisper`
+- [x] 18 unit tests: empty input, single word, short gaps, segment
+  boundary hold, gap merge, lead clamp, combined rules, custom params,
+  input immutability, Whisper dict path
 - [ ] Before/after fixture: same voiceover, same transcript, verify
   timing deltas are within the expected ranges
 
-### Implementation sketch
+### Implementation notes (what was actually built)
 
-```python
-# src/video/subtitle_timing_smoother.py
-def smooth_word_timings(
-    timings: list[dict[str, Any]],
-    min_word_sec: float = 0.12,
-    gap_merge_sec: float = 0.08,
-    hold_last_sec: float = 0.20,
-    lead_sec: float = 0.04,
-) -> list[dict[str, Any]]:
-    """Apply best-practice smoothing to raw STT word timings."""
-    if not timings:
-        return timings
-    out = [dict(t) for t in timings]
-    # Rule 4: lead
-    for t in out:
-        t["start_time"] = max(0.0, t["start_time"] - lead_sec)
-    # Rule 2: merge short gaps into the preceding word
-    for i in range(1, len(out)):
-        gap = out[i]["start_time"] - out[i - 1]["end_time"]
-        if 0 <= gap < gap_merge_sec:
-            out[i - 1]["end_time"] = out[i]["start_time"]
-    # Rule 1: clamp minimum word duration
-    for t in out:
-        dur = t["end_time"] - t["start_time"]
-        if dur < min_word_sec:
-            t["end_time"] = t["start_time"] + min_word_sec
-    # Rule 3: hold last word of each segment (detect via gaps > 0.4s)
-    # ... implementation detail
-    return out
-```
+Two public functions instead of one — the flat list and raw Whisper dict
+have different key names (`start_time`/`end_time` vs `start`/`end`), so
+smoothing both from a single call site in `generate_subtitles_with_whisper`
+was cleaner than trying to unify the shapes.
 
-### Risks and gotchas
+Config flows as a nested `timing_smoothing` dict from YAML through to the
+smoother kwargs. No flat Pydantic fields on `MergedSubtitleSettings` — the
+config audit caught that as dead code and they were removed.
 
-- The `generate_subtitles_with_whisper` function returns a flat list
-  `[{"word", "start_time", "end_time"}, ...]`. The raw-dict path used
-  by pycaps (`result_w["segments"][*]["words"]`) has a different shape.
-  Either (a) smooth at the flat-list layer and re-serialise the raw
-  dict from smoothed timings, or (b) smooth the raw dict directly and
-  re-extract the flat list. Option (b) is cleaner because it preserves
-  segment boundaries needed for rule 3.
-- **Don't smooth twice.** Wire it as the single entry point in
-  `create_unified_subtitles` and make sure neither the pycaps branch
-  nor the ffmpeg branch re-smooth.
-
-### Effort
-
-1 day. Simple logic, but needs tests and two config integration points.
+The before/after fixture test is still open — the unit tests cover the
+logic exhaustively, but a visual comparison on a real voiceover would
+confirm the perceptual improvement.
 
 ---
 
@@ -622,8 +588,8 @@ If you're picking one of these up and wondering where to start:
 
 - **Want to ship user-visible value**: do #1 (AI word tagging). It's the
   feature that sells the engine.
-- **Want the biggest readability win for the smallest code change**:
-  do #5 (timing smoothing). Affects BOTH engines.
+- ~~**Want the biggest readability win for the smallest code change**:
+  do #5 (timing smoothing). Affects BOTH engines.~~ **DONE** (PR #64).
 - **Want a fast win**: do #2 (mypy pin). 30 minutes, unblocks future
   dep bumps. Or #8 (drop `movement` effect), 1-2 hours.
 - **Want to reduce open risk**: do #3 (two-part hybrid). Fixes the one
@@ -637,15 +603,15 @@ If you're picking one of these up and wondering where to start:
 - **Want to keep CI honest**: do #4 (Chromium integration test). Safety
   net, not a feature.
 
-Suggested order: **#5 → #1 → #9 → #6 → #7 → #3 → #2 → #8 → #4**.
+Suggested order: **#1 → #9 → #6 → #7 → #3 → #2 → #8 → #4**.
 
-- #5 is foundational — all other rendering improvements depend on clean
-  timings
+- ~~#5 is foundational~~ — **DONE** (PR #64). Clean timings are now in
+  place for all downstream work
 - #1 enables #9 (emoji injection in the template)
 - #9 is the single most visible user-facing output
 - #3, #4, #7, #8 are hygiene/safety and can slot in at any point
 - #6 is the quality ceiling that makes everything else look better
 
 Nothing here is blocked on anything else, so items can be picked up in
-parallel. Items #5, #6, and #7 all benefit both engines — don't treat
-them as pycaps-specific just because they're tracked in this doc.
+parallel. Items #6 and #7 benefit both engines — don't treat them as
+pycaps-specific just because they're tracked in this doc.
