@@ -538,13 +538,6 @@ class MergedSubtitleSettings(BaseModel):
     selected_font: str | None = None
     selected_color_pair: str | None = None
 
-    # Timing smoother (post-processes raw Whisper word timestamps)
-    timing_smoothing_enabled: bool = True
-    timing_min_word_sec: float = 0.12
-    timing_gap_merge_sec: float = 0.08
-    timing_hold_last_sec: float = 0.20
-    timing_lead_sec: float = 0.04
-
     # Two-part subtitle system (flat keys)
     two_part_subtitles_enabled: bool = False
     two_part_subtitles_upper_enabled: bool = True
