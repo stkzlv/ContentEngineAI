@@ -1172,6 +1172,11 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
             PycapsUnavailableError,
         )
 
+        # Extract safe zone from subtitle settings (flows via extra="allow"
+        # from _build_subtitle_base). Clamps pycaps max_width_ratio so
+        # captions stay inside platform UI overlay boundaries.
+        safe_zone = getattr(subtitle_settings, "safe_zone", None)
+
         renderer = PycapsRenderer()
         try:
             result = await asyncio.to_thread(
@@ -1182,6 +1187,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 product_id,
                 visual_bounds,
                 pycaps_settings,
+                safe_zone=safe_zone,
             )
         except PycapsUnavailableError as e:
             msg = (

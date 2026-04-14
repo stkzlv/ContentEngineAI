@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-04-14
+
+### Fixed
+- `UnifiedSubtitleGenerator` now reads safe zone from config instead of hardcoded `PlatformSafeZone()` defaults
+- Profile-level `subtitle_safe_zone_*` overrides are now wired through to the subtitle generator
+- Pycaps `max_width_ratio` is dynamically clamped to the platform safe zone at render time so captions stay inside TikTok/Shorts/Reels UI overlay boundaries regardless of template or font
+
 ## [0.37.0] - 2026-04-14
 
 ### Added

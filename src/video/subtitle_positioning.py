@@ -133,6 +133,13 @@ class UnifiedSubtitleConfig(BaseModel):
         None, description="Override color pair selection"
     )
 
+    # Platform safe zone (read from config.text_rendering.safe_zone, with
+    # optional per-profile overrides via subtitle_safe_zone_* fields)
+    safe_zone: PlatformSafeZone = Field(
+        default_factory=PlatformSafeZone,
+        description="Platform UI overlay avoidance boundaries",
+    )
+
     # Advanced positioning (optional fine-tuning)
     custom_position: Position | None = Field(
         None, description="Custom position override (x,y as 0.0-1.0 fractions)"
@@ -470,6 +477,15 @@ def create_unified_config_from_settings(
         logger.warning(f"Invalid style_preset '{preset_str}', using 'modern'")
         style_preset = StylePreset.MODERN
 
+    # Build safe zone from settings if present, otherwise use defaults
+    safe_zone_data = settings.get("safe_zone")
+    if isinstance(safe_zone_data, dict):
+        safe_zone = PlatformSafeZone(**safe_zone_data)
+    elif isinstance(safe_zone_data, PlatformSafeZone):
+        safe_zone = safe_zone_data
+    else:
+        safe_zone = PlatformSafeZone()
+
     return UnifiedSubtitleConfig(
         anchor=anchor,
         content_aware=settings.get("content_aware", True),
@@ -492,4 +508,5 @@ def create_unified_config_from_settings(
         selected_color_pair=settings.get("selected_color_pair"),
         custom_position=settings.get("custom_position"),
         horizontal_alignment=settings.get("horizontal_alignment", "center"),
+        safe_zone=safe_zone,
     )

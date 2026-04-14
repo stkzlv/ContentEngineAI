@@ -21,13 +21,13 @@ This document exists to:
 
 ## TL;DR
 
-One bug fixed, two remaining. Four high-value refactors, ~20 dead fields.
+All bugs fixed. Four high-value refactors, ~20 dead fields.
 
 | # | Work item | Kind | Status | Effort |
 |---|---|---|---|---|
 | 1 | ~~Fix duration key namespace + width fraction passthrough~~ | ~~Bug~~ | **FIXED** (commit `c385df1`) | ~~30 min~~ |
-| 2 | `UnifiedSubtitleGenerator` constructs fresh `PlatformSafeZone()` instead of reading config | **Bug** | Open | 15 min |
-| 3 | Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map | **Bug** | Open | 15 min |
+| 2 | ~~`UnifiedSubtitleGenerator` constructs fresh `PlatformSafeZone()` instead of reading config~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
+| 3 | ~~Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
 | 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
 | 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Open | 0.5 day |
 | 6 | Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()` | **Refactor** | Open | 0.5 day |
@@ -36,7 +36,7 @@ One bug fixed, two remaining. Four high-value refactors, ~20 dead fields.
 | 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (gated on #6) | 1 hour |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
-Remaining effort: roughly 4 days if everything open is done.
+Remaining effort: roughly 3.5 days if everything open is done.
 
 ---
 
@@ -168,7 +168,9 @@ Three sub-issues were resolved together:
 **Verification**: all 9 profiles confirmed passing best-practice checks after
 the fix.
 
-### 3.2 `UnifiedSubtitleGenerator` constructs its own safe zone
+### 3.2 `UnifiedSubtitleGenerator` constructs its own safe zone — FIXED
+
+**Status**: fixed in PR #65 on `bugfix/safe-zone-config-passthrough`.
 
 **Where**: `src/video/unified_subtitle_generator.py:565-569`
 
@@ -187,7 +189,9 @@ alongside `config`, or have it read from a shared singleton. The
 subtitle_builder already has a `_get_safe_zone()` helper that does the
 right thing — extract it and reuse.
 
-### 3.3 Profile-level safe zone overrides are dead
+### 3.3 Profile-level safe zone overrides are dead — FIXED
+
+**Status**: fixed in PR #65 on `bugfix/safe-zone-config-passthrough`.
 
 **Where**: `src/video/config/visual_models.py:312-321`
 

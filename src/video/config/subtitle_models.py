@@ -153,9 +153,9 @@ class PycapsSettings(BaseModel):
         le=1.0,
         description=(
             "Maximum line width as a fraction of frame width, handed to pycaps "
-            "SubtitleLayoutOptions. 0.80 matches the best-practice recipe in "
-            "docs/subtitle-best-practices.md — leaves ~90px margin on each "
-            "side of a 1080-wide frame, inside all three platform safe zones."
+            "SubtitleLayoutOptions. The actual value is clamped at render time "
+            "to the platform safe zone so captions never extend into UI "
+            "overlay zones regardless of what's set here."
         ),
     )
     max_number_of_lines: int = Field(
