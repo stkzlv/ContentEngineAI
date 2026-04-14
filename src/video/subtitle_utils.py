@@ -730,9 +730,7 @@ async def create_unified_subtitles(
                 script,
                 debug_mode,
                 transcript_out_path=whisper_transcript_target,
-                timing_smoothing_config=subtitle_settings.get(
-                    "timing_smoothing"
-                ),
+                timing_smoothing_config=subtitle_settings.get("timing_smoothing"),
             )
             if stt_timings:
                 logger.info(
