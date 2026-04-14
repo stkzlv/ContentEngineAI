@@ -761,6 +761,20 @@ class VideoConfig(BaseModel):
         if profile.subtitle_positioning:
             subtitle_data.update(profile.subtitle_positioning)
 
+        # Apply per-profile safe zone overrides (subtitle_safe_zone_* fields).
+        # Build a PlatformSafeZone with profile values overriding the global.
+        sz_overrides: dict[str, float] = {}
+        for attr in ("min_x", "max_x", "min_y", "max_y"):
+            val = getattr(profile, f"subtitle_safe_zone_{attr}", None)
+            if val is not None:
+                sz_overrides[attr] = val
+        if sz_overrides:
+            base_sz = subtitle_data.get("safe_zone")
+            if isinstance(base_sz, PlatformSafeZone):
+                subtitle_data["safe_zone"] = base_sz.model_copy(update=sz_overrides)
+            else:
+                subtitle_data["safe_zone"] = PlatformSafeZone(**sz_overrides)
+
         # Engine + nested pycaps profile overrides. Flat VideoProfile fields
         # (pycaps_template, pycaps_renderer, ...) fold into the nested
         # subtitle_data["pycaps"] dict so Pydantic can build PycapsSettings.
@@ -940,6 +954,10 @@ class VideoConfig(BaseModel):
             # Pycaps engine selector + nested sub-settings (YAML layer)
             "subtitle_engine": ss.get("subtitle_engine", "ffmpeg"),
             "pycaps": ss.get("pycaps"),
+            # Safe zone from text_rendering config (global YAML layer)
+            "safe_zone": (
+                self.text_rendering.safe_zone if self.text_rendering else None
+            ),
         }
 
     def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:

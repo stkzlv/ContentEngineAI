@@ -561,10 +561,8 @@ class UnifiedSubtitleGenerator:
                     self.frame_size[0] * self.config.max_subtitle_width_fraction
                 )
 
-                # Cap against safe zone width
-                from src.video.config.core_models import PlatformSafeZone
-
-                sz = PlatformSafeZone()
+                # Cap against safe zone width (reads from config, not hardcoded)
+                sz = self.config.safe_zone
                 safe_zone_width = int(self.frame_size[0] * (sz.max_x - sz.min_x))
                 max_width = min(max_width, safe_zone_width)
 
