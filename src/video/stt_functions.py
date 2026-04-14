@@ -62,6 +62,7 @@ async def generate_subtitles_with_whisper(
     script: str | None = None,
     debug_mode: bool = False,
     transcript_out_path: Path | None = None,
+    timing_smoothing_config: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]] | None:
     """Generate subtitle timing data using Whisper STT.
 
@@ -76,6 +77,11 @@ async def generate_subtitles_with_whisper(
             dict in ``whisper_json`` format. Used by the pycaps subtitle
             engine to consume word-level timings as the transcript source.
             Written unconditionally when set (not gated by ``debug_mode``).
+        timing_smoothing_config: Optional dict with timing smoother params
+            (``enabled``, ``min_word_sec``, ``gap_merge_sec``,
+            ``hold_last_sec``, ``lead_sec``). When ``None`` or
+            ``enabled=True`` (the default), smoothing runs with
+            best-practice defaults.
 
     Returns:
     -------
@@ -164,6 +170,30 @@ async def generate_subtitles_with_whisper(
             logger.warning("Whisper provided no usable word timings.")
             return None
         logger.info(f"Extracted {len(word_list_whisper)} word timings from Whisper.")
+
+        # Apply timing smoothing to fix Whisper's coarse word timestamps.
+        # Smooth both the flat list (for FFmpeg) and the raw dict (for pycaps).
+        ts_cfg = timing_smoothing_config or {}
+        if ts_cfg.get("enabled", True):
+            from src.video.subtitle_timing_smoother import (
+                smooth_whisper_result_dict,
+                smooth_word_timings,
+            )
+
+            smoother_kwargs = {
+                k: ts_cfg[k]
+                for k in (
+                    "min_word_sec",
+                    "gap_merge_sec",
+                    "hold_last_sec",
+                    "lead_sec",
+                )
+                if k in ts_cfg
+            }
+            word_list_whisper = smooth_word_timings(
+                word_list_whisper, **smoother_kwargs
+            )
+            result_w = smooth_whisper_result_dict(result_w, **smoother_kwargs)
 
         # Check if Whisper debug files should be created
         create_whisper_debug = debug_mode

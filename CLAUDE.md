@@ -147,6 +147,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **LLM provider fallback**: Gemini is primary, OpenRouter is automatic fallback. Configured via `llm_settings.fallback_provider` in `ai_services.yaml` (self-referencing `LLMSettings`). Both `global_batch.py` and `cli.py` must include fallback provider's API key env var in the secrets dict. Shared dispatch in `src/ai/llm_client.py`
 - **LLM config fields**: `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec`, and `script_validation` (min_chars, min_words) all live on `LLMSettings`. Don't hardcode these in generator code
 - **`.env` safety**: `update_env_file()` in `freesound_client.py` only updates existing keys, never adds new lines
+- **Timing smoother**: `src/video/subtitle_timing_smoother.py` post-processes raw Whisper word timestamps before either engine. Four rules: min duration 120ms, gap merge 80ms, segment-end hold +200ms, audio lead 40ms. Wired in `generate_subtitles_with_whisper` (single call site for both engines). Config: `subtitle_settings.timing_smoothing` nested dict in YAML, flows through `extra="allow"` on `MergedSubtitleSettings`. No flat Pydantic fields — the nested dict is passed directly to smoother kwargs.
 
 ### Pycaps Subtitle Engine Notes
 
@@ -198,12 +199,14 @@ After every context compaction (session continuation), run `/github-workflow` to
 - **CRITICAL: NEVER include `Co-Authored-By` trailers, author attributions, or any mention of Claude Code / AI tools / assistants**
 - Keep messages short and simple
 - Explain what and why, not how
+- Don't reference internal follow-up/todo docs (`docs/pycaps-followups.md`, `docs/subtitle-config-cleanup.md`, etc.) in commit messages. These are temporary working docs that may be removed or restructured.
 
 **Pull Request Descriptions**:
 - **CRITICAL: NEVER mention authors, Claude Code, AI tools, or assistants in PR titles or descriptions**
 - Keep descriptions short and simple
 - Use PR template if available in `.github/`
 - Focus on what changed, why it changed, and how to test
+- Don't reference internal follow-up/todo tracker docs in PR descriptions. Describe the change on its own terms.
 
 ## Development Workflow (GitHub Flow)
 
