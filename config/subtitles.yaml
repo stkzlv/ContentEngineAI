@@ -86,6 +86,26 @@ subtitle_settings:
     # or "raise" (abort the pipeline).
     fallback_policy: "warn_and_skip"
 
+  # ---- TIMING SMOOTHER ----
+  # Post-processes raw Whisper word timestamps before they reach either
+  # the FFmpeg or pycaps subtitle engine. Fixes flickering, short-word
+  # flashes, and uneven segment durations from vanilla Whisper.
+  # See docs/subtitle-best-practices.md section 5 for the research.
+  timing_smoothing:
+    enabled: true
+    # Rule 1: minimum word duration (seconds). Words shorter than this
+    # are extended so they don't flash imperceptibly.
+    min_word_sec: 0.12
+    # Rule 2: inter-word gaps shorter than this (seconds) are absorbed
+    # into the preceding word to eliminate micro-flicker.
+    gap_merge_sec: 0.08
+    # Rule 3: extra hold time (seconds) added to the last word of each
+    # detected segment, so the caption lingers after speech ends.
+    hold_last_sec: 0.20
+    # Rule 4: lead time (seconds). Each word appears this far ahead of
+    # its audio onset so the viewer reads it just before hearing it.
+    lead_sec: 0.04
+
   # ---- UNIFIED POSITIONING SYSTEM ----
   # Content-aware positioning that automatically adapts to visual layout
   # This system ensures subtitles don't overlap with images/videos
