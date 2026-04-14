@@ -273,3 +273,33 @@ class TestSmoothWhisperResultDict:
         )
         w = result["segments"][0]["words"][0]
         assert w["end"] == pytest.approx(1.12)
+
+    def test_segment_with_no_words_skipped(self):
+        """Segments without a 'words' list are left untouched."""
+        raw = {
+            "language": "en",
+            "text": "test",
+            "segments": [
+                {"id": 0, "start": 0.0, "end": 1.0, "text": "Hello"},
+            ],
+        }
+        result = smooth_whisper_result_dict(raw)
+        # Segment is preserved, no crash
+        assert len(result["segments"]) == 1
+        assert "words" not in result["segments"][0]
+
+    def test_gap_merge_in_dict(self):
+        """Short inter-word gaps inside a segment are merged."""
+        raw_words = [
+            {"word": "Hello", "start": 1.00, "end": 1.30},
+            {"word": "world", "start": 1.35, "end": 1.80},  # 50ms gap
+        ]
+        result = smooth_whisper_result_dict(
+            _make_whisper_dict([raw_words]),
+            gap_merge_sec=0.08,
+            lead_sec=0.0,
+            hold_last_sec=0.0,
+        )
+        words = result["segments"][0]["words"]
+        # Gap of 50ms < 80ms threshold → merged
+        assert words[0]["end"] == pytest.approx(words[1]["start"])
