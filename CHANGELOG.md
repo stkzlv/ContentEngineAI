@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `UnifiedSubtitleGenerator` now reads safe zone from config instead of hardcoded `PlatformSafeZone()` defaults
+- Profile-level `subtitle_safe_zone_*` overrides are now wired through to the subtitle generator
+
 ## [0.37.0] - 2026-04-14
 
 ### Added
