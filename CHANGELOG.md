@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-04-14
+
 ### Added
 - Whisper timing post-processing (`src/video/subtitle_timing_smoother.py`) that fixes coarse word timestamps before they reach either subtitle engine
 - Four smoothing rules: minimum word duration (120ms), gap merge (80ms), segment-end hold (+200ms), audio lead (40ms)
