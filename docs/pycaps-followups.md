@@ -165,7 +165,7 @@ docs + one demonstration template.
 
 **Priority**: medium — pure hygiene, doesn't affect users.
 
-**Status**: pinned as a workaround in v0.36.0 (`mypy >=1.10.1,<1.20`).
+**Status**: **DONE** (PR #66, branch `chore/unpin-mypy`).
 
 ### Context
 
@@ -183,13 +183,11 @@ is cleaned up.
 
 ### Acceptance criteria
 
-- [ ] `src/publisher/schedule.py` type-checks cleanly under mypy 1.20+
-- [ ] Mypy pin in `pyproject.toml` reverts to `^1.10.1` (or bumps to a
-  newer floor if other deps make sense)
-- [ ] `poetry lock` regenerated and `poetry run mypy src/` passes on a
-  fresh venv
-- [ ] No functional changes to schedule.py — only type annotations and
-  narrowing
+- [x] `src/publisher/schedule.py` type-checks cleanly under mypy 1.20+
+- [x] Mypy pin in `pyproject.toml` reverted to `^1.10.1` (resolves to 1.20.1)
+- [x] `poetry lock` regenerated and `poetry run mypy .` passes
+- [x] No functional changes to schedule.py — only a type annotation on
+  `platform_contents: dict[str, dict[str, Any]]`
 
 ### Implementation sketch
 
@@ -590,8 +588,8 @@ If you're picking one of these up and wondering where to start:
   feature that sells the engine.
 - ~~**Want the biggest readability win for the smallest code change**:
   do #5 (timing smoothing). Affects BOTH engines.~~ **DONE** (PR #64).
-- **Want a fast win**: do #2 (mypy pin). 30 minutes, unblocks future
-  dep bumps. Or #8 (drop `movement` effect), 1-2 hours.
+- ~~**Want a fast win**: do #2 (mypy pin).~~ **DONE** (PR #66).
+  Or #8 (drop `movement` effect), 1-2 hours.
 - **Want to reduce open risk**: do #3 (two-part hybrid). Fixes the one
   thing the initial integration explicitly regresses.
 - **Want to ship the starter recipe as a template**: do #9 (custom
@@ -603,7 +601,7 @@ If you're picking one of these up and wondering where to start:
 - **Want to keep CI honest**: do #4 (Chromium integration test). Safety
   net, not a feature.
 
-Suggested order: **#1 → #9 → #6 → #7 → #3 → #2 → #8 → #4**.
+Suggested order: **#1 → #9 → #6 → #7 → #3 → #8 → #4**.
 
 - ~~#5 is foundational~~ — **DONE** (PR #64). Clean timings are now in
   place for all downstream work
