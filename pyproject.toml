@@ -7,6 +7,11 @@ license = "MIT"
 readme = "README.md"
 packages = [{ include = "src", from = "." }]
 
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 pyyaml = "^6.0.1"
@@ -23,6 +28,7 @@ aiofiles = "^24.1.0" # Ensure version matches latest confirmed
 google-auth = "^2.29.0" # Added explicitly for Google Cloud auth dependency
 google-api-core = "^2.18.0" # Added explicitly for Google Cloud core dependency
 openai-whisper = "^20240930"
+torch = { version = "^2.0", source = "pytorch-cpu" }
 google-cloud-speech = "^2.32.0"
 pysrt = "^1.1.2"
 botasaurus = "^4.0.88"
