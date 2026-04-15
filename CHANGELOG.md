@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.2] - 2026-04-15
+
 ### Changed
 - mypy unpinned from `<1.20` to `^1.10.1` (now resolves to 1.20.1)
 - torch pinned to CPU-only build via explicit PyTorch index source
