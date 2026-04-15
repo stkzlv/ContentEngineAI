@@ -9,7 +9,7 @@ import logging
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.publisher.base import PublishError
 from src.publisher.first_comment import build_first_comment
@@ -866,8 +866,10 @@ class ScheduleManager:
                         # Upload video first (publisher needs media_id)
                         media_id = await publisher.upload_media(video)
 
-                        # Build per-platform content from metadata files
-                        platform_contents = {}
+                        # Build per-platform content from metadata files.
+                        # Explicit str keys so mypy doesn't infer Literal[...] from
+                        # Platform enum values used as keys below.
+                        platform_contents: dict[str, dict[str, Any]] = {}
 
                         # Try unified metadata.json first
                         unified_meta_path = video.parent / "metadata.json"

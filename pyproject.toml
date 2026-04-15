@@ -1,11 +1,16 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.37.1"
+version = "0.37.2"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [{ include = "src", from = "." }]
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
@@ -23,6 +28,7 @@ aiofiles = "^24.1.0" # Ensure version matches latest confirmed
 google-auth = "^2.29.0" # Added explicitly for Google Cloud auth dependency
 google-api-core = "^2.18.0" # Added explicitly for Google Cloud core dependency
 openai-whisper = "^20240930"
+torch = { version = "^2.0", source = "pytorch-cpu" }
 google-cloud-speech = "^2.32.0"
 pysrt = "^1.1.2"
 botasaurus = "^4.0.88"
@@ -43,10 +49,7 @@ pytest-timeout = "^2.3.1"
 aioresponses = "^0.7.6"
 httpx = "^0.27.0"
 ruff = "^0.5.0"
-# Pinned below 1.20 because newer mypy tightens dict[Literal[...], ...] typing
-# which surfaces latent issues in src/publisher/schedule.py. Unrelated to the
-# pycaps work — untangle as a separate PR.
-mypy = ">=1.10.1,<1.20"
+mypy = "^1.10.1"
 pre-commit = "^3.7.1"
 types-PyYAML = "^6.0.12"
 types-aiobotocore = "^2.22.0"
