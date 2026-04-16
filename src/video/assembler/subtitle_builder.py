@@ -170,6 +170,7 @@ class SubtitleGraphBuilder:
                 preset=unified_config.style_preset,
                 config=unified_config,
                 product_id=self.product_id,
+                video_config=self.config,
             )
             font_name = style_config.get("font_name", "Arial")
             font_color = style_config.get("font_color", "&H00FFFFFF")
@@ -333,6 +334,7 @@ class SubtitleGraphBuilder:
                         preset=style_preset,
                         config=upper_unified,
                         product_id=self.product_id,
+                        video_config=self.config,
                     )
                     font_name = style_config.get("font_name", "Arial")
                     font_color = style_config.get("font_color", "&H00FFFFFF")
@@ -479,6 +481,7 @@ class SubtitleGraphBuilder:
                         preset=lower_unified.style_preset,
                         config=lower_unified,
                         product_id=self.product_id,
+                        video_config=self.config,
                     )
                     font_name = style_config.get("font_name", "Arial")
                     font_color = style_config.get("font_color", "&H00FFFFFF")

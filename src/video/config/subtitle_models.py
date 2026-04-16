@@ -94,6 +94,21 @@ class SubtitleSegmentationSettings(BaseModel):
     )
 
 
+class StylePresetConfig(BaseModel):
+    """Typed configuration for a single subtitle style preset."""
+
+    description: str = ""
+    font_name: str = "Montserrat"
+    font_color: str = "&H00FFFFFF"
+    outline_color: str = "&H00000000"
+    background_color: str | None = None
+    bold: bool = True
+    outline_thickness: int = 2
+    shadow: bool = True
+    effects: list[str] = Field(default_factory=list)
+    font_width_to_height_ratio: float = 0.5
+
+
 class PycapsSettings(BaseModel):
     """Configuration for the pycaps subtitle rendering engine.
 

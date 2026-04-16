@@ -142,10 +142,11 @@ class TestSubtitlePositioning:
         assert size_scaled == 80
 
     def test_get_style_config_fallback(self):
-        # Test fallback when yaml missing
+        # Test fallback when yaml missing and no video_config
         with patch("pathlib.Path.exists", return_value=False):
             style = get_style_config(StylePreset.MINIMAL)
-            assert style["font_name"] == "Arial"
+            # Inline last-resort defaults use Montserrat (modern preset)
+            assert style["font_name"] == "Montserrat"
 
             style_modern = get_style_config(StylePreset.MODERN)
             assert "karaoke" in style_modern["effects"]

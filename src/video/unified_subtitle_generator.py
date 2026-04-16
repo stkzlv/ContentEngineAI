@@ -39,6 +39,7 @@ class UnifiedSubtitleGenerator:
         config: UnifiedSubtitleConfig,
         frame_size: tuple[int, int],
         product_id: str | None = None,
+        video_config: Any = None,
     ):
         """Initialize the unified subtitle generator.
 
@@ -47,13 +48,17 @@ class UnifiedSubtitleGenerator:
             config: Unified subtitle configuration
             frame_size: Video frame dimensions (width, height)
             product_id: Product identifier for randomization seeding
+            video_config: VideoConfig with validated style_presets
 
         """
         self.config = config
         self.frame_size = frame_size
         self.product_id = product_id
         self.style_config = get_style_config(
-            config.style_preset, config=config, product_id=product_id
+            config.style_preset,
+            config=config,
+            product_id=product_id,
+            video_config=video_config,
         )
         # Pre-select colors once per producer run to ensure consistency
         self._selected_colors = self._select_colors()

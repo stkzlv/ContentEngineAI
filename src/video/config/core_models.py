@@ -34,6 +34,7 @@ from src.video.config.constants import (
 )
 from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
+    StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
 )
@@ -571,6 +572,44 @@ class VideoConfig(BaseModel):
     subtitle_effects: SubtitleEffectsSettings | None = Field(None)
     text_rendering: TextRenderingSettings | None = Field(None)
     subtitle_segmentation: SubtitleSegmentationSettings | None = Field(None)
+    style_presets: dict[str, StylePresetConfig] = Field(
+        default_factory=lambda: {
+            "minimal": StylePresetConfig(
+                description="Clean, simple styling with no effects",
+                font_name="Montserrat",
+                outline_thickness=2,
+                shadow=False,
+            ),
+            "modern": StylePresetConfig(
+                description="Bold sans-serif with karaoke highlighting",
+                font_name="Montserrat",
+                outline_thickness=3,
+                shadow=True,
+                effects=["karaoke"],
+            ),
+            "bold": StylePresetConfig(
+                description="High-impact bold styling with strong outline",
+                font_name="Gabarito",
+                outline_thickness=4,
+                shadow=True,
+                effects=["fade"],
+            ),
+            "animated": StylePresetConfig(
+                description="Karaoke with subtitle motion for playful tones",
+                font_name="Gabarito",
+                outline_thickness=3,
+                shadow=True,
+                effects=["karaoke"],
+            ),
+            "random": StylePresetConfig(
+                description="Randomized bold sans-serif with per-video effect",
+                font_name="Montserrat",
+                outline_thickness=3,
+                shadow=True,
+                effects=["karaoke", "fade", "typewriter"],
+            ),
+        }
+    )
     scraper_timing: ScraperTimingSettings | None = Field(None)
     media_validation: MediaValidationSettings | None = Field(None)
     llm_validation: LLMValidationSettings | None = Field(None)

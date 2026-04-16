@@ -153,6 +153,7 @@ def get_style_config(
     preset: StylePreset,
     config: UnifiedSubtitleConfig | None = None,
     product_id: str | None = None,
+    video_config: Any = None,
 ) -> dict[str, Any]:
     """Get style configuration for a given preset with optional randomization.
 
@@ -161,105 +162,61 @@ def get_style_config(
         preset: Base style preset to use
         config: Unified subtitle configuration with randomization settings
         product_id: Product identifier for consistent randomization seeding
+        video_config: VideoConfig with validated style_presets (preferred path)
 
     Returns:
     -------
         Dictionary of style parameters for subtitle generation
 
     """
-    # Load preset from configuration file
-    from pathlib import Path
-
-    import yaml
-
-    subtitles_config_path = Path("config/subtitles.yaml")
-    style_presets = {}
-    try:
-        if subtitles_config_path.exists():
-            with open(subtitles_config_path, encoding="utf-8") as f:
-                subtitles_data = yaml.safe_load(f)
-                style_presets = subtitles_data.get("style_presets", {})
-    except Exception as e:
-        logger.warning(f"Could not load style presets from config: {e}")
-
-    # Map StylePreset enum to config key
     preset_key = preset.value if isinstance(preset, StylePreset) else preset
 
-    # Get base configuration from YAML or fallback to hardcoded
-    if preset_key in style_presets:
-        base_config = style_presets[preset_key].copy()
-        # Remove description if present
-        base_config.pop("description", None)
-    else:
-        # Fallback to hardcoded presets for backward compatibility
-        fallback_configs: dict[str, dict[str, Any]] = {
-            "minimal": {
-                "font_name": "Arial",
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&H00000000",
-                "background_color": None,
-                "bold": False,
-                "outline_thickness": 1,
-                "shadow": False,
-                "effects": [],
-                "font_width_to_height_ratio": 0.5,
-            },
-            "modern": {
-                "font_name": "Montserrat",
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&H00000000",
-                "background_color": "&H99000000",
-                "bold": True,
-                "outline_thickness": 2,
-                "shadow": True,
-                "effects": ["karaoke"],
-                "font_width_to_height_ratio": 0.5,
-            },
-            "bold": {
-                "font_name": "Gabarito",
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&H00000000",
-                "background_color": "&HCC000000",
-                "bold": True,
-                "outline_thickness": 3,
-                "shadow": True,
-                "effects": ["fade"],
-                "font_width_to_height_ratio": 0.5,
-            },
-            "animated": {
-                "font_name": "Gabarito",
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&H00000000",
-                "background_color": "&H99000000",
-                "bold": True,
-                "outline_thickness": 2,
-                "shadow": True,
-                "effects": ["movement"],
-                "font_width_to_height_ratio": 0.5,
-            },
-            "random": {
-                "font_name": "Impact",
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&H00000000",
-                "background_color": "&H99000000",
-                "bold": True,
-                "outline_thickness": 2,
-                "shadow": True,
-                "effects": [
-                    "fade",
-                    "scale_pulse",
-                    "rotation_bounce",
-                    "glow",
-                    "typewriter",
-                    "karaoke",
-                    "movement",
-                ],
-                "font_width_to_height_ratio": 0.5,
-            },
+    base_config: dict[str, Any] | None = None
+
+    # Preferred path: typed config, no YAML re-read, no CWD dependency.
+    if video_config is not None:
+        presets = getattr(video_config, "style_presets", None)
+        if isinstance(presets, dict):
+            preset_obj = presets.get(preset_key) or presets.get("modern")
+            if preset_obj is not None and hasattr(preset_obj, "model_dump"):
+                base_config = preset_obj.model_dump(exclude={"description"})
+
+    # Legacy path: re-read YAML for callers that don't have VideoConfig yet.
+    if base_config is None:
+        from pathlib import Path
+
+        import yaml
+
+        subtitles_config_path = Path("config/subtitles.yaml")
+        style_presets: dict[str, Any] = {}
+        try:
+            if subtitles_config_path.exists():
+                with open(subtitles_config_path, encoding="utf-8") as f:
+                    subtitles_data = yaml.safe_load(f)
+                    style_presets = subtitles_data.get("style_presets", {})
+        except Exception as e:
+            logger.warning("Could not load style presets from config: %s", e)
+
+        if preset_key in style_presets:
+            base_config = style_presets[preset_key].copy()
+            base_config.pop("description", None)
+        elif "modern" in style_presets:
+            base_config = style_presets["modern"].copy()
+            base_config.pop("description", None)
+
+    # Absolute last resort: inline modern defaults.
+    if base_config is None:
+        base_config = {
+            "font_name": "Montserrat",
+            "font_color": "&H00FFFFFF",
+            "outline_color": "&H00000000",
+            "background_color": None,
+            "bold": True,
+            "outline_thickness": 3,
+            "shadow": True,
+            "effects": ["karaoke"],
+            "font_width_to_height_ratio": 0.5,
         }
-        base_config = fallback_configs.get(
-            preset_key, fallback_configs["modern"]
-        ).copy()
 
     # Handle RANDOM preset - force randomization and select one random effect
     if preset == StylePreset.RANDOM and product_id:
