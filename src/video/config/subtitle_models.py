@@ -168,10 +168,12 @@ class PycapsSettings(BaseModel):
             "Set to null to let the pycaps template's own positioning win."
         ),
     )
-    fallback_policy: Literal["warn_and_skip", "raise"] = Field(
-        "warn_and_skip",
+    fallback_policy: Literal["raise", "fallback_ffmpeg", "warn_and_skip"] = Field(
+        "raise",
         description=(
-            "'warn_and_skip' = on pycaps failure, log warning and keep the "
-            "FFmpeg-assembled video untouched. 'raise' = abort the pipeline."
+            "'raise' (default) = abort the pipeline if pycaps is unavailable "
+            "or fails.  'fallback_ffmpeg' = fall back to the FFmpeg subtitle "
+            "engine for this run.  'warn_and_skip' = log a warning and keep "
+            "the video without subtitles (not recommended)."
         ),
     )

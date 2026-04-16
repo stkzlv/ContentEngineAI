@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.5] - 2026-04-16
+
+### Fixed
+- Pipeline no longer silently produces subtitleless videos when `subtitle_engine=pycaps` but pycaps isn't installed
+
+### Changed
+- `pycaps.fallback_policy` default changed from `warn_and_skip` to `raise`
+- New `fallback_ffmpeg` policy option falls back to the FFmpeg subtitle engine when pycaps is unavailable
+
 ## [0.37.4] - 2026-04-16
 
 ### Dependencies

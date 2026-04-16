@@ -810,6 +810,38 @@ async def step_generate_subtitles(ctx: PipelineContext):
         subtitle_engine = subtitle_settings.subtitle_engine
         two_part_enabled = subtitle_settings.two_part_subtitles_enabled
 
+        # Early availability check: if pycaps is requested but not installed,
+        # apply fallback_policy before committing to the pycaps-only path.
+        if subtitle_engine == "pycaps":
+            from src.video.pycaps_engine import is_pycaps_available
+
+            if not is_pycaps_available():
+                pycaps_cfg = subtitle_settings.pycaps
+                if pycaps_cfg is None:
+                    from src.video.config.subtitle_models import PycapsSettings
+
+                    pycaps_cfg = PycapsSettings()  # type: ignore[call-arg]
+                policy = pycaps_cfg.fallback_policy
+                if policy == "fallback_ffmpeg":
+                    logger.warning(
+                        "pycaps is not installed, falling back to ffmpeg "
+                        "subtitle engine (fallback_policy='fallback_ffmpeg'). "
+                        "Install with `poetry install --with pycaps`."
+                    )
+                    subtitle_engine = "ffmpeg"
+                elif policy == "warn_and_skip":
+                    logger.warning(
+                        "pycaps is not installed and fallback_policy='warn_and_skip'. "
+                        "No subtitles will be generated for this run."
+                    )
+                    return
+                else:
+                    raise PipelineError(
+                        "subtitle_engine is 'pycaps' but pycaps is not installed. "
+                        "Install with `poetry install --with pycaps` or set "
+                        "pycaps.fallback_policy to 'fallback_ffmpeg'."
+                    )
+
         if subtitle_engine == "pycaps":
             if two_part_enabled:
                 logger.warning(
@@ -1194,7 +1226,9 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"pycaps library is not installed: {e}. Install with "
                 f"`poetry install --with pycaps`."
             )
-            if pycaps_settings.fallback_policy == "raise":
+            if pycaps_settings.fallback_policy in ("raise", "fallback_ffmpeg"):
+                # fallback_ffmpeg should have been caught earlier in
+                # step_generate_subtitles; if we got here, something is wrong.
                 raise PipelineError(msg) from e
             logger.warning(msg + " Skipping burn; keeping FFmpeg output.")
             return
