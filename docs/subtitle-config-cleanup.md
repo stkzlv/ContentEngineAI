@@ -597,10 +597,12 @@ loaders over these lists. The md5-keyed random selection stays the same.
 
 ---
 
-## 5. Dead code to delete
+## 5. Dead code to delete — DONE
 
-These YAML keys and Pydantic fields have no runtime consumers. Deleting
-them reduces the surface area by ~25% with zero functional impact.
+**Status**: all dead fields in §5.1, §5.2, §5.3 deleted. Test fixtures updated.
+
+These YAML keys and Pydantic fields had no runtime consumers. Deleting
+them reduced the surface area by ~25% with zero functional impact.
 
 ### 5.1 Dead keys in `subtitle_settings`
 
