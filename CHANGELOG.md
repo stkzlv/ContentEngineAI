@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-04-16
+
+### Changed
+- Style presets loaded via Pydantic `StylePresetConfig` model on `VideoConfig` instead of re-reading YAML from disk on every render call
+- Deleted drifted hardcoded Python fallback presets (wrong fonts, anti-pattern effects)
+
 ## [0.37.5] - 2026-04-16
 
 ### Fixed

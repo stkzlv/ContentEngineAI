@@ -30,10 +30,10 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 3 | ~~Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
 | 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
 | 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Open | 0.5 day |
-| 6 | Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()` | **Refactor** | Open | 0.5 day |
+| 6 | ~~Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()`~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
 | 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
-| 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (gated on #6) | 1 hour |
+| 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (unblocked) | 1 hour |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
 Remaining effort: roughly 3 days if everything open is done.

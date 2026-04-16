@@ -313,7 +313,9 @@ def create_static_upper_subtitle(
             frame_size = video_config.video_settings.resolution
 
         # Initialize unified generator
-        generator = UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
+        generator = UnifiedSubtitleGenerator(
+            unified_config, frame_size, product_id, video_config=video_config
+        )
 
         # Determine timing based on use_full_duration setting
         cta_windows: list[tuple[float, float]] | None = None
@@ -709,7 +711,9 @@ async def create_unified_subtitles(
         frame_size = video_config.video_settings.resolution
 
     # Initialize unified generator (fixes karaoke color issue)
-    generator = UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
+    generator = UnifiedSubtitleGenerator(
+        unified_config, frame_size, product_id, video_config=video_config
+    )
 
     # Try to get STT timings (Whisper first, then Google Cloud STT)
     stt_timings = None
