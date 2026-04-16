@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.4] - 2026-04-16
+
+### Dependencies
+- Bump `black` from 25.12.0 to 26.3.1
+
 ## [0.37.3] - 2026-04-16
 
 ### Removed

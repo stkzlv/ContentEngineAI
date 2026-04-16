@@ -302,6 +302,18 @@ make test-cov      # Run tests with coverage report
 
 **Note**: Do not manually create GitHub releases - CI handles this when tags are pushed
 
+### Dependency Updates (Dependabot)
+
+Dependabot PRs are batched into patch releases per `docs/versioning.md`:
+
+1. Dependabot PRs stay open until the next patch release cycle
+2. At release time: `gh pr checkout <PR>`, rebase onto main, install deps, run full test suite
+3. Bump version in `pyproject.toml`, add a "Dependencies" section in CHANGELOG
+4. Commit version bump on the Dependabot branch, force-push (rebase changed history), squash-merge
+5. Tag and push from main as usual
+
+Security-critical updates can trigger an immediate patch release without waiting.
+
 ## Publisher Module Notes
 
 - **Zernio (formerly Late)**: The platform rebranded from Late to Zernio. API is identical, old `getlate.dev` endpoints redirect. Our codebase still uses the old `late-sdk` package, `LATE_API_KEY` env var, and `src/publisher/late/` directory structure. Planned migration: switch to `zernio-sdk`, rename env var to `ZERNIO_API_KEY`, update imports. Both old and new SDK packages work during a 6-month grace period. No rush, but should be done eventually.
