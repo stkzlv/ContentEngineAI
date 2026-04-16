@@ -296,14 +296,14 @@ test = ["pytest (>=8.4.2)", "pytest-cov (>=7.0.0)"]
 
 [[package]]
 name = "authlib"
-version = "1.6.10"
+version = "1.6.11"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "authlib-1.6.10-py2.py3-none-any.whl", hash = "sha256:aa639b43292554539924a3b4aaa9e81cd67ab64d3e28b22428c61f1200240287"},
-    {file = "authlib-1.6.10.tar.gz", hash = "sha256:856a4f54d6ef3361ca6bb6d14a27e8b88f8097cca795fb428ffe13720e2ecde6"},
+    {file = "authlib-1.6.11-py2.py3-none-any.whl", hash = "sha256:c8687a9a26451c51a34a06fa17bb97cb15bba46a6a626755e2d7f50da8bff3e3"},
+    {file = "authlib-1.6.11.tar.gz", hash = "sha256:64db35b9b01aeccb4715a6c9a6613a06f2bd7be2ab9d2eb89edd1dfc7580a38f"},
 ]
 
 [package.dependencies]
@@ -4069,7 +4069,7 @@ version = "2.4.4"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.11"
-groups = ["main", "pycaps"]
+groups = ["main", "dev", "pycaps"]
 files = [
     {file = "numpy-2.4.4-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:f983334aea213c99992053ede6168500e5f086ce74fbc4acc3f2b00f5762e9db"},
     {file = "numpy-2.4.4-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:72944b19f2324114e9dc86a159787333b77874143efcf89a5167ef83cfee8af0"},
@@ -4250,20 +4250,20 @@ requests = "*"
 
 [[package]]
 name = "pictex"
-version = "2.3.0"
+version = "2.1.0"
 description = "A Python library for efficient image generation using CSS Flexbox."
 optional = false
 python-versions = ">=3.9"
 groups = ["pycaps"]
 files = [
-    {file = "pictex-2.3.0-py3-none-any.whl", hash = "sha256:cbc66f75a12be0db76c303e000a6caee7fc722e535dec80530da7c0c13cb860d"},
-    {file = "pictex-2.3.0.tar.gz", hash = "sha256:2805a0731efcca2eecafcfe1b4fea8e17dbb3dbdbe3c39a3cada50be42f796f2"},
+    {file = "pictex-2.1.0-py3-none-any.whl", hash = "sha256:03a9bf86e355f0aedff6348194f3c3e175946ca68df11ef78ba46d1baa29e108"},
+    {file = "pictex-2.1.0.tar.gz", hash = "sha256:7fcae319632c9aa784dc835768072f2d8f26ca0ad99fd7ab081eda214241351b"},
 ]
 
 [package.dependencies]
 python-bidi = "*"
 regex = "*"
-skia-python = "==138.*"
+skia-python = "*"
 stretchable = ">=0.3.0"
 uharfbuzz = "*"
 
@@ -4708,7 +4708,7 @@ version = "3.0.3"
 description = "Seamless operability between C++11 and Python"
 optional = false
 python-versions = ">=3.8"
-groups = ["pycaps"]
+groups = ["dev", "pycaps"]
 files = [
     {file = "pybind11-3.0.3-py3-none-any.whl", hash = "sha256:fb5f8e4a64946b4dcc0451c83a8c384f803bc0a62dd1ba02f199e97dbc9aad4c"},
     {file = "pybind11-3.0.3.tar.gz", hash = "sha256:00471cdb816882c484708bc5dde80815c8c11cea540ab2cc6410f5ddea434755"},
@@ -6002,45 +6002,51 @@ files = [
 
 [[package]]
 name = "skia-python"
-version = "138.0"
+version = "144.0.post1"
 description = "Skia python binding"
 optional = false
 python-versions = "*"
-groups = ["pycaps"]
+groups = ["dev", "pycaps"]
 files = [
-    {file = "skia_python-138.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:a8bcf4f8d6ea08bdf718ed257f9a9c722f643223f9b93230fd4c15ac5c82029f"},
-    {file = "skia_python-138.0-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:1b7f24a5b306f57d75b8733658189dd61ce9114a84b5d119b3b1fb09cbc991cb"},
-    {file = "skia_python-138.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:2c4164013355bcf255651ac8a0ca519fd6095b6e58fa5e7a057919bec158411d"},
-    {file = "skia_python-138.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:63a7f9dc8d5fdda969f35d7f8f3a774029093468a9c06771ccce9ab967b275ca"},
-    {file = "skia_python-138.0-cp310-cp310-win_amd64.whl", hash = "sha256:740104424e9c94a70a767adcdbfa2bce131c93a82fa00a50432406dc04bac7e8"},
-    {file = "skia_python-138.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:6e369105b2811b6c32d7f15624202609deeb428164ee395c715df01221c847f5"},
-    {file = "skia_python-138.0-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:55a2ae437d1c6dc46d9bbc2e3e0b4b5642022dcebc0634591ae1c8acea52a413"},
-    {file = "skia_python-138.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:e67c9bcac953fbeb31b38474a4e566371e5719d4e27032686359cbe602819af8"},
-    {file = "skia_python-138.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:4e9fb097849604e290be28a6b4cc29cb0079b0233e599c2f6b2ec635e47169d2"},
-    {file = "skia_python-138.0-cp311-cp311-win_amd64.whl", hash = "sha256:df5a0dd52e1038423f2e1c03677cba5ea974d215adec10763dd855f4a6ca0cfc"},
-    {file = "skia_python-138.0-cp311-cp311-win_arm64.whl", hash = "sha256:054ca430003d52468974cf69d98719e61f188630709a3706a868efc16e817970"},
-    {file = "skia_python-138.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6b83d7b8101038ab0fcb920b1a91c872615e45b0ac19fe0c66b55d3ad0d61970"},
-    {file = "skia_python-138.0-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:f22060f513b2fc258b4269e631128ca68889107bc4aa65255119f3d9c1c32993"},
-    {file = "skia_python-138.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:02b0c2146d25f45224c2c156dd8b859e89265ee5894c3fa8f456c6c41b27122d"},
-    {file = "skia_python-138.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:fb9e980a61defcb6ca19d73c97ea23d1aea633a82e9d1dead6ed259c3856baaf"},
-    {file = "skia_python-138.0-cp312-cp312-win_amd64.whl", hash = "sha256:625bb95dc225ea2257f1d1f7b0aee203290b91d909c8f5feaa7cd428f13bce22"},
-    {file = "skia_python-138.0-cp312-cp312-win_arm64.whl", hash = "sha256:e495143edba2a7cdf59e83723f00c9a247e5baeda4981fc6587803ed46c5ed2a"},
-    {file = "skia_python-138.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:1433b5a0bd4ca1c1d050541f54c25d27d55a129894dbd827d4e440697090ff83"},
-    {file = "skia_python-138.0-cp313-cp313-macosx_11_0_x86_64.whl", hash = "sha256:3f053128aa6344fa991c2485f29f40bda77b5f46467a43e778a34ec8f5b3615a"},
-    {file = "skia_python-138.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:878212d9576d065a45fd143c57d412bc0496c6594ecfcd9cc2cd93b4fd943cb4"},
-    {file = "skia_python-138.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:a6b3e58756a9fa8af3714edc05aeafc7922090f5a276c4be11337f252921dbe8"},
-    {file = "skia_python-138.0-cp313-cp313-win_amd64.whl", hash = "sha256:f2d596d5807fafef6bc43440f4df28f71db189f9e2cfb8613224713916837e3c"},
-    {file = "skia_python-138.0-cp313-cp313-win_arm64.whl", hash = "sha256:20285bf4ee41da754b842c80076fc4a240cb3801f4a1cbbb50b26a5dca1ebc39"},
-    {file = "skia_python-138.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:ff8dcb98b19e85d565c1d0accf8919e4b8a35d2a121d2d6f1c21fea655c85884"},
-    {file = "skia_python-138.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:ff3e692214b27490e38caf6ed123d82d2ff762da4561473a5a34fab1cb5dcd14"},
-    {file = "skia_python-138.0-cp38-cp38-manylinux_2_28_aarch64.whl", hash = "sha256:db3388f4e6e8f63c9e2b6cb0add0c2e483cbed783558b10eb7d94540f75db9b6"},
-    {file = "skia_python-138.0-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:1dd9306b2025e296ad1d0e2c3038e3221ade1d48dfd0a20ce926f8116603b909"},
-    {file = "skia_python-138.0-cp38-cp38-win_amd64.whl", hash = "sha256:9ae5de84629dba4c751b334a8c43b04e9b7fe2a65df26992770648aa5e131b0c"},
-    {file = "skia_python-138.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:736e6618f246444bff2ff73b9efe8fd7159d9048c85ecdffb23290702a5c9099"},
-    {file = "skia_python-138.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:ab438dfe40d1be3da6fdd94890862781dc4e545a0bfa169a8e9dcc25f3bb0afd"},
-    {file = "skia_python-138.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:2f5d842930d1e385aa7911e0705d4751d8e4aa550389baf88d40673672f180b1"},
-    {file = "skia_python-138.0-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:d17ad82d6094f9c7bfc25b6525e1080bf3715abcc848be042c786b365f51a48c"},
-    {file = "skia_python-138.0-cp39-cp39-win_amd64.whl", hash = "sha256:0f6136827a269a4a5294d92919bc6fad008da7d7e74256666d81506f863a6ff9"},
+    {file = "skia_python-144.0.post1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:761da7cefbd1a77805ef663dea450dd96216346ca28aad55214179a502708ebd"},
+    {file = "skia_python-144.0.post1-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:c348d211c96acda73d8368be95dda5e59691d1ed15b174d7960bac95498f1d0e"},
+    {file = "skia_python-144.0.post1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:f456143930b049c87c18d9b10972cee174a6a2ffc7d4dbeffd601728d8c229ba"},
+    {file = "skia_python-144.0.post1-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:fc868197620069eafbff14686687b961a730e34401f0204fac733735c85268c2"},
+    {file = "skia_python-144.0.post1-cp310-cp310-win_amd64.whl", hash = "sha256:3b6fbe794644e2062280b4821fbb096c496a7baafe61b0fca4c9fca6fb055861"},
+    {file = "skia_python-144.0.post1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:39385f0e168cbfdf1ce6cbadbb81d8623115eec8a9dd4334f079f14042d24289"},
+    {file = "skia_python-144.0.post1-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:6f1336cc593701506c6481b9ddf614f8a60d7fcf06fbd114fe0b6bb0be4f3007"},
+    {file = "skia_python-144.0.post1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:c0946aad36689cc3a23a64f96636b77665f277c16de0fb0236d1258a2057c2e9"},
+    {file = "skia_python-144.0.post1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:ef9e6a1cb7b7dfcfb46c8fe92e5b5a450a52f724c26edc3549dc3b449af61d38"},
+    {file = "skia_python-144.0.post1-cp311-cp311-win_amd64.whl", hash = "sha256:ef3859744d5746e348c22ae11775b6b59ce3b9af775185092c4f699a05f5d09d"},
+    {file = "skia_python-144.0.post1-cp311-cp311-win_arm64.whl", hash = "sha256:611b26f5615cc1e1f88789c14d0dbd9720838274891494b74ce55b4fbfd431dd"},
+    {file = "skia_python-144.0.post1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f7ff90f955886474d36e0ae665d20d7960e8cb254e51aa8435ceff26a4f6bd85"},
+    {file = "skia_python-144.0.post1-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:015d7e2d0fcfe8b01019c7c75ecdc01c32a792f486e1789233ea75df084cde1a"},
+    {file = "skia_python-144.0.post1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:27071b72c768140ba61326a1666d018ba9b78011e4c7dababdd1d39dbcef4a60"},
+    {file = "skia_python-144.0.post1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:7b1b27362786ed4928a027d92259993abf1e18440c76313a92e6b82f86ef2f4f"},
+    {file = "skia_python-144.0.post1-cp312-cp312-win_amd64.whl", hash = "sha256:765a49a80c25b0593689e73beb17de03b79b364b55cf0969e00fe85ba2b14fcd"},
+    {file = "skia_python-144.0.post1-cp312-cp312-win_arm64.whl", hash = "sha256:720c47044c776bab361f1b9f7446120ceb3e2250fde838e2d2e879513368167d"},
+    {file = "skia_python-144.0.post1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:2a2a8761b88781a4c1c34ed9ac6f2c088ad598c34c5b6ac1ab06686cca440fa3"},
+    {file = "skia_python-144.0.post1-cp313-cp313-macosx_11_0_x86_64.whl", hash = "sha256:d7b22a2d64c700671c86f68cfedbc5bbbdcf9a46cb07be4cbc9df1abc69cb864"},
+    {file = "skia_python-144.0.post1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:de157127641697d4e57c10b56080203888dbe699c4ac0df296948c237d196029"},
+    {file = "skia_python-144.0.post1-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:41c90495b3a83865ae3370c43b0d8c7e829200ada2f481725241728cdc8fc589"},
+    {file = "skia_python-144.0.post1-cp313-cp313-win_amd64.whl", hash = "sha256:40761c38935dbcb64e4f3b2934d7fa989e4982065799f945a47984f7a6c24e47"},
+    {file = "skia_python-144.0.post1-cp313-cp313-win_arm64.whl", hash = "sha256:5a960898db654ab8d214df377af5c8f5a4916f04a366c4826a51eafd08b88141"},
+    {file = "skia_python-144.0.post1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:d41c4171705be0331a94a26acc09a3aa1e81dc33485c187db3dad2ca4fc6c3f8"},
+    {file = "skia_python-144.0.post1-cp314-cp314-macosx_11_0_x86_64.whl", hash = "sha256:5ba9c9053b4b0d9bc43c6ef869c154122b8758a8c7c43a694224d2c742a743ef"},
+    {file = "skia_python-144.0.post1-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:4fa63a253ddf2613efa4ae805e26a55aa37957687cfccca4d92e1301e076b642"},
+    {file = "skia_python-144.0.post1-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:87eba8fc15f0ecbd0e76c4a0ab153dc0bb14cab89e4c3df720a2f700d99e185f"},
+    {file = "skia_python-144.0.post1-cp314-cp314-win_amd64.whl", hash = "sha256:f2b23d0cb7c91edcb95d61a569c336b873739faf1aea428e23429a735e27be82"},
+    {file = "skia_python-144.0.post1-cp314-cp314-win_arm64.whl", hash = "sha256:e1fe2f016c5b9fa2b854fd2c41294985b4291170a674c8f3aa1b7bb519004512"},
+    {file = "skia_python-144.0.post1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:dfe2a439ccf7526ccdb3eac60bf80e60e5379296002c95cdcae82c3ef59e6641"},
+    {file = "skia_python-144.0.post1-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:26d72312bc9e061c4c5da832d2f55cd0df864bdb1fe48bc537afe000f0760162"},
+    {file = "skia_python-144.0.post1-cp38-cp38-manylinux_2_28_aarch64.whl", hash = "sha256:32d27a8ef84c283bb7826e817a2795d5bd6280cc7cd49bc22e2dd4ab94bf3d5d"},
+    {file = "skia_python-144.0.post1-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:4f330d9bde9b41d67be20538271ccf47323e898e994f30391ef8910b655fb7bd"},
+    {file = "skia_python-144.0.post1-cp38-cp38-win_amd64.whl", hash = "sha256:e1e0a1900635c282bb064f5cc572079359c18facd3be23f66ad1faeaeede6086"},
+    {file = "skia_python-144.0.post1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:c53f3b53b4188fe26d445ddbcb55f9848851948ac41ba60f9eb8a816622f263d"},
+    {file = "skia_python-144.0.post1-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:74b08726c4a8d760e99f6932fb41f1b6ef554b1f7f55b5818e079d1a7d8d4701"},
+    {file = "skia_python-144.0.post1-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:0de4c30713a51f5f22c0bd7845e3d99d357353f9215ade6dbcb78c9f40753c10"},
+    {file = "skia_python-144.0.post1-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:4c8be26e860f2ba8c54fd32a69e18ccc6fa7d5a181e9840200ac7fa4f2aae651"},
+    {file = "skia_python-144.0.post1-cp39-cp39-win_amd64.whl", hash = "sha256:e9ffc6a10e8efbe49efc9b88a6280948bbd6fbf8e228444f1770f8ff296fb55e"},
 ]
 
 [package.dependencies]
