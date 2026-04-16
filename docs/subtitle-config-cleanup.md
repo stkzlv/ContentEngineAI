@@ -32,11 +32,11 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Open | 0.5 day |
 | 6 | Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()` | **Refactor** | Open | 0.5 day |
 | 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
-| 8 | Delete ~20 dead YAML keys and Pydantic fields | **Cleanup** | Open | 1 hour |
+| 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (gated on #6) | 1 hour |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
-Remaining effort: roughly 3.5 days if everything open is done.
+Remaining effort: roughly 3 days if everything open is done.
 
 ---
 
@@ -597,10 +597,12 @@ loaders over these lists. The md5-keyed random selection stays the same.
 
 ---
 
-## 5. Dead code to delete
+## 5. Dead code to delete — DONE
 
-These YAML keys and Pydantic fields have no runtime consumers. Deleting
-them reduces the surface area by ~25% with zero functional impact.
+**Status**: all dead fields in §5.1, §5.2, §5.3 deleted. Test fixtures updated.
+
+These YAML keys and Pydantic fields had no runtime consumers. Deleting
+them reduced the surface area by ~25% with zero functional impact.
 
 ### 5.1 Dead keys in `subtitle_settings`
 

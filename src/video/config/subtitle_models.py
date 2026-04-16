@@ -88,17 +88,6 @@ class SubtitleEffectsSettings(BaseModel):
 class SubtitleSegmentationSettings(BaseModel):
     """Configuration for subtitle segmentation and text processing logic."""
 
-    # Word count thresholds
-    min_words_for_sentence_break: int = Field(
-        3, description="Minimum words required for sentence break"
-    )
-    min_words_natural_break: int = Field(
-        3, description="Minimum words for natural break"
-    )
-    min_words_duration_limit: int = Field(
-        3, description="Minimum words for duration limit break"
-    )
-
     # Fallback duration
     fallback_segment_duration_sec: float = Field(
         2.5, description="Fallback segment duration in seconds"
