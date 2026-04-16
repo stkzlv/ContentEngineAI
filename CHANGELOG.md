@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.5] - 2026-04-16
+
 ### Fixed
 - Pipeline no longer silently produces subtitleless videos when `subtitle_engine=pycaps` but pycaps isn't installed
 
