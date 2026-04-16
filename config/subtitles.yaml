@@ -219,35 +219,6 @@ subtitle_settings:
   # Effects are defined per style preset below
   randomize_effects: true
 
-  # ---- ADVANCED POSITIONING SETTINGS ----
-  # Fine-tune subtitle positioning calculations
-  # Used by: src/video/assembler.py content-aware positioning (lines 2819-2831)
-
-  # Subtitle space multiplier
-  # Controls how much vertical space is reserved relative to font height
-  # Multiplied by font size to calculate subtitle vertical spacing
-  # Higher values = more space reserved for subtitle rendering
-  subtitle_space_multiplier: 1.3
-
-  # Default subtitle reserved space (as fraction of frame height)
-  # Used when content-aware positioning is disabled
-  # Example: 0.15 = reserve bottom 15% of frame for subtitles
-  default_subtitle_reserved_space_percent: 0.15
-
-  # Font offset multiplier for content-aware positioning (landscape videos)
-  # In landscape mode, subtitles positioned using: image_bottom + spacing - (font_size * multiplier)
-  # This creates tight spacing between content and subtitles
-  # Note: Portrait videos use simpler addition formula (no offset needed)
-  content_aware_font_offset_multiplier: 5.5
-
-  # Fallback Y position when content-aware positioning fails
-  # Position as fraction of frame height (0.55 = 55% down from top)
-  # Best practice target: 0.55 — roughly center-biased, survives TikTok's
-  # bottom UI overlay (~480px eats the lower 25% of a 1920 frame) and
-  # Instagram Reels' sticker zone. Lower-third (0.80) gets clipped.
-  # See docs/subtitle-best-practices.md section 3 (Layout and positioning).
-  fallback_y_position: 0.55
-
   # ---- OUTPUT FORMAT ----
   # Subtitle file format: "srt" or "ass"
   subtitle_format: "ass"
@@ -324,10 +295,6 @@ subtitle_settings:
 
   # Quality thresholds
   subtitle_similarity_threshold: 0.70
-  subtitle_overlap_threshold: 65.0
-  word_timestamp_pause_threshold: 0.4
-  subtitle_split_on_punctuation: true
-  punctuation_marks: [".", "!", "?", ";", ":", ","]
 
 # ============================================================================
 # TEXT-TO-SPEECH CONFIGURATION
@@ -572,30 +539,6 @@ text_rendering:
   # Relative to average character width
   space_char_width_factor: 0.3
 
-  # ---- LAYOUT DEFAULTS ----
-  # Default values used when not specified in subtitle_settings
-
-  # Default margin for legacy compatibility
-  # Used as fallback when margin not specified
-  default_margin_fraction: 0.1
-
-  # Default font size scale for legacy compatibility
-  default_font_size_scale: 1.0
-
-  # Maximum characters per line for text wrapping fallback
-  # Used when pixel-based calculation isn't available
-  # Note: subtitle_settings.max_line_length is preferred
-  max_chars_per_line: 38
-
-  # ---- TIMING CONSTRAINTS ----
-  # Duration limits for subtitle segments (duplicates removed in favor of subtitle_settings)
-
-  # Maximum subtitle duration (seconds)
-  max_subtitle_duration_sec: 4.5
-
-  # Minimum subtitle duration (seconds)
-  min_subtitle_duration_sec: 0.4
-
   # ---- PLATFORM SAFE ZONE ----
   # Boundaries to avoid platform UI overlays (TikTok, YouTube Shorts, Reels)
   # Values are fractions of frame dimensions. See docs/platform-safe-zones.md
@@ -605,27 +548,6 @@ text_rendering:
     max_x: 0.778    # Right: 840px on 1080w (TikTok buttons)
     min_y: 0.104    # Top: 200px on 1920h (YouTube Shorts header)
     max_y: 0.75     # Bottom: 1440px on 1920h (TikTok overlay)
-
-  # ---- SAFE POSITIONING BOUNDARIES ----
-  # Legacy position constraints (prefer safe_zone above)
-  min_safe_y_position: 0.104
-  max_safe_y_position: 0.75
-  center_position_fraction: 0.5
-  left_position_fraction: 0.046
-  right_position_fraction: 0.778
-
-  # ---- FONT SIZE CALCULATION ----
-  # Parameters for calculating font size from frame dimensions
-
-  # Base font size as percentage of frame height
-  # 0.04 = 4% of frame height (e.g., 77px for 1920px height)
-  base_font_size_percent: 0.04
-
-  # Minimum font size in pixels (enforced even if calculation goes lower)
-  min_font_size: 16
-
-  # Maximum font size in pixels (enforced even if calculation goes higher)
-  max_font_size: 100
 
 # ============================================================================
 # SUBTITLE STYLE PRESETS
@@ -730,24 +652,6 @@ style_presets:
 # These settings work with TTS word timestamps to create natural breaks
 
 subtitle_segmentation:
-  # ---- WORD COUNT THRESHOLDS ----
-  # Minimum number of words required for different types of subtitle breaks
-  # These prevent overly short subtitle segments
-
-  # Minimum words needed to break at sentence boundaries (period, exclamation, question mark)
-  # If segment has fewer words, it won't break even at punctuation
-  # Prevents: "Hi." appearing as separate subtitle
-  min_words_for_sentence_break: 3
-
-  # Minimum words needed for natural pause breaks (comma, semicolon, colon)
-  # Prevents breaking at every comma in short phrases
-  # Example: "Yes, indeed" stays together (only 2 words)
-  min_words_natural_break: 3
-
-  # Minimum words needed before considering duration-based splitting
-  # Prevents very short segments from being split due to timing alone
-  min_words_duration_limit: 3
-
   # ---- FALLBACK TIMING ----
   # Default segment duration when TTS timing is unavailable
 

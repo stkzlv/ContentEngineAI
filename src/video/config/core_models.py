@@ -242,47 +242,6 @@ class TextRenderingSettings(BaseModel):
         0.3, description="Width factor for space characters"
     )
 
-    # Text layout parameters
-    default_margin_fraction: float = Field(
-        0.1, description="Default margin fraction for positioning"
-    )
-    default_font_size_scale: float = Field(
-        1.0, description="Default font size scale factor"
-    )
-    max_chars_per_line: int = Field(38, description="Maximum characters per line")
-
-    # Subtitle duration limits
-    max_subtitle_duration_sec: float = Field(
-        4.5, description="Maximum subtitle duration in seconds"
-    )
-    min_subtitle_duration_sec: float = Field(
-        0.4, description="Minimum subtitle duration in seconds"
-    )
-
-    # Safe positioning boundaries (kept for backward compat, prefer safe_zone)
-    min_safe_y_position: float = Field(
-        default=SAFE_ZONE_MIN_Y,
-        description="Minimum safe Y position as fraction of frame height",
-    )
-    max_safe_y_position: float = Field(
-        default=SAFE_ZONE_MAX_Y,
-        description="Maximum safe Y position as fraction of frame height",
-    )
-    center_position_fraction: float = Field(0.5, description="Center position fraction")
-    left_position_fraction: float = Field(
-        default=SAFE_ZONE_MIN_X, description="Left alignment position fraction"
-    )
-    right_position_fraction: float = Field(
-        default=SAFE_ZONE_MAX_X, description="Right alignment position fraction"
-    )
-
-    # Font size boundaries
-    base_font_size_percent: float = Field(
-        0.04, description="Base font size as percentage of frame height"
-    )
-    min_font_size: int = Field(16, description="Minimum font size in pixels")
-    max_font_size: int = Field(100, description="Maximum font size in pixels")
-
     # Content-aware positioning
     content_aware_font_offset_multiplier: float = Field(
         5.5,
