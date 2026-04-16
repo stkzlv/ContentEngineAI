@@ -27,7 +27,7 @@
 #   max_width_ratio: 0.85
 #   max_number_of_lines: 2
 #   vertical_align: "bottom"
-#   fallback_policy: "warn_and_skip"
+#   fallback_policy: "raise"
 
 subtitle_settings:
   # ---- GLOBAL ENABLE/DISABLE ----
@@ -86,7 +86,7 @@ subtitle_settings:
 
     # On render failure: "warn_and_skip" (keep the FFmpeg-assembled video)
     # or "raise" (abort the pipeline).
-    fallback_policy: "warn_and_skip"
+    fallback_policy: "raise"
 
   # ---- TIMING SMOOTHER ----
   # Post-processes raw Whisper word timestamps before they reach either

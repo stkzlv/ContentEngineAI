@@ -28,9 +28,20 @@ __all__ = [
     "PycapsRenderer",
     "PycapsRenderResult",
     "PycapsUnavailableError",
+    "is_pycaps_available",
     "layout_from_visual_bounds",
     "load_whisper_transcript",
     "merge_layout_with_template",
     "save_whisper_transcript",
     "select_template_for_product",
 ]
+
+
+def is_pycaps_available() -> bool:
+    """Check whether the pycaps library can be imported."""
+    try:
+        import pycaps  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
