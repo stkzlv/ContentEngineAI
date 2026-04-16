@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.3] - 2026-04-16
+
 ### Removed
 - 24 dead subtitle config fields: 8 from `subtitle_settings` YAML, 13 from `TextRenderingSettings`, 3 from `SubtitleSegmentationSettings`
 
