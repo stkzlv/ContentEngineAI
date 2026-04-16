@@ -86,7 +86,7 @@ etc.) to mirror the other profile override naming.
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
 | `vertical_align_offset` | float \| null | null | Manual override for the derived offset. Range: -1.0 to 1.0. |
-| `fallback_policy` | `warn_and_skip` \| `raise` | `warn_and_skip` | On render failure: keep the FFmpeg video (warn) or abort the pipeline (raise). |
+| `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable/fails. `fallback_ffmpeg` = switch to FFmpeg engine. `warn_and_skip` = no subtitles (not recommended). |
 
 ### CLI override dotted keys
 
@@ -198,14 +198,16 @@ Switch with `--pycaps-renderer pictex`.
 
 ## Failure handling
 
-Two policies, configured via `subtitle_settings.pycaps.fallback_policy`:
+Three policies, configured via `subtitle_settings.pycaps.fallback_policy`:
 
-- `warn_and_skip` (default): pycaps errors are caught, logged as warnings,
-  and the FFmpeg-assembled video is kept as the final output. The pipeline
-  continues normally. Good for production batch runs where you want the
-  pipeline to keep producing videos even if one template breaks.
-- `raise`: any pycaps error aborts the pipeline with `PipelineError`. Good
-  for development and CI when you want test runs to surface failures.
+- `raise` (default): abort the pipeline if pycaps is unavailable or a render
+  fails. Prevents silently producing videos without subtitles.
+- `fallback_ffmpeg`: if pycaps isn't installed, fall back to the FFmpeg
+  subtitle engine for that run. The availability check runs early in
+  `step_generate_subtitles`, before committing to the pycaps-only code path.
+  Good for environments where pycaps may not always be installed.
+- `warn_and_skip`: log a warning and keep the video without subtitles. Not
+  recommended for production since it silently produces subtitleless output.
 
 Common failure modes:
 
