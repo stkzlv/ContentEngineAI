@@ -877,7 +877,10 @@ async def step_generate_subtitles(ctx: PipelineContext):
             ctx.state.setdefault("generate_subtitles", {})["engine"] = "pycaps"
             return
 
-        logger.debug("two_part_subtitles.enabled=%s", two_part_enabled)
+        logger.debug(
+            "two_part_subtitles_enabled=%s (now two_part_subtitles.enabled)",
+            two_part_enabled,
+        )
 
         if two_part_enabled:
             logger.info("Two-part subtitle system enabled, generating dual subtitles")
