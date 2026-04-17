@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.2] - 2026-04-17
+
 ### Fixed
 - Coqui TTS provider disabled on CPU-only installs because `torchaudio` was pulled from the default PyPI index (CUDA 13 wheel), failing at import with `libcudart.so.13: cannot open shared object file`. Pinned `torchaudio` to the `pytorch-cpu` source, matching `torch`.
 
