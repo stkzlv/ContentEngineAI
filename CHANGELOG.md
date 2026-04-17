@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-04-17
+
+### Fixed
+- `AttributeError: 'Platform5' object has no attribute 'lower'` during `python -m src.publisher.late single`. `get_accounts()` now unwraps the `Platform5` enum returned by the Late SDK to its string value, so downstream callers (CLI, batch, schedule) that treat `acc["platform"]` as a lowercase string work correctly.
+
 ## [0.38.0] - 2026-04-16
 
 ### Changed
