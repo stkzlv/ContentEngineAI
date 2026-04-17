@@ -600,7 +600,6 @@ subtitle_settings:
       enabled: true
       anchor: "below_content"
       margin: 0.05
-      custom_style: null               # Uses main subtitle_settings
 ```
 
 **Use Cases:**
