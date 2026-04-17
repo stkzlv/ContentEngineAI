@@ -274,6 +274,49 @@ poetry run pytest -vv --tb=long
 
 </details>
 
+## Step-by-step pipeline smoke test
+
+Before a release, or after a refactor that touched the scraper, producer, or publisher surfaces, it's worth running the full pipeline end-to-end against a single product and stopping between phases to eyeball the outputs. This is slower than `make batch-lowpri` in one shot, but catches regressions the automated suite doesn't: Whisper transcript drift, subtitle positioning on a new product, publish-side SDK changes.
+
+The three `*-lowpri` make targets map one-to-one to the batch phases. Pick a keyword at random from `global_batch.keywords` in `config/pipeline.yaml`. Different product categories stress different code paths (image count, video availability, description length). Then:
+
+```bash
+# 1. Scrape
+make scrape-lowpri ARGS="--keywords 'mini projector' --debug" \
+  MEM_LIMIT=4G NICE_LEVEL=19
+
+# 2. Produce (replace ASIN with what scrape found)
+make produce-lowpri ARGS="--batch --random-profile --product-ids B0ASIN123 --clean --debug" \
+  MEM_LIMIT=4G NICE_LEVEL=19
+
+# 3. Publish
+make publish-lowpri ARGS="single B0ASIN123 --debug" \
+  MEM_LIMIT=4G NICE_LEVEL=19
+```
+
+`MEM_LIMIT=4G` is tighter than the `make batch-lowpri` default (`6G`) on purpose. Whisper STT peaks near 2.3 GB on a 40-word transcript, so 4 GB leaves room but not much. If a memory regression pushes Whisper over the cap, it fails loudly instead of hiding.
+
+### What to check between phases
+
+After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, an affiliate link, and a Picsee shortened URL. Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
+
+After **produce**: `ffprobe` the output video.
+
+```bash
+ffprobe -v error \
+  -show_entries format=duration,size,bit_rate \
+  -show_entries stream=width,height,codec_name \
+  -of default=nw=1 outputs/<ASIN>/video_<ASIN>_<profile>.mp4
+```
+
+Codec should be `h264 + aac`, resolution `1080×1920`, duration within a second of the voiceover length. The producer log calls out any warnings worth a closer look: `Duration mismatch`, `Subtitle content similarity to script is low`, threshold breaches for a particular step.
+
+After **publish**: the Late SDK returns a post ID and a per-platform status map. All three platforms (TikTok, YouTube, Instagram) should show `scheduled`. The publisher cleanup step removes the product directory once the Late API confirms the scheduled state, so `outputs/<ASIN>/` disappears when this phase finishes cleanly.
+
+### Why not just `make batch-lowpri`
+
+The one-shot target runs the same phases back-to-back without pausing. When everything works it's fine. When something goes wrong in produce, you've already lost the scrape state (the directory will still exist, but you've burned the scraper's Amazon session and might get throttled re-running). Going step by step means a failed phase leaves the earlier artifacts intact for inspection.
+
 ## Continuous Integration
 
 Tests run automatically on:
