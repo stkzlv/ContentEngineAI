@@ -808,7 +808,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # a raw Whisper transcript for the downstream burn step, and disables
         # two-part (upper+lower) which is FFmpeg-only in this iteration.
         subtitle_engine = subtitle_settings.subtitle_engine
-        two_part_enabled = subtitle_settings.two_part_subtitles_enabled
+        two_part_enabled = subtitle_settings.two_part_subtitles.enabled
 
         # Early availability check: if pycaps is requested but not installed,
         # apply fallback_policy before committing to the pycaps-only path.
@@ -892,7 +892,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
             lower_path, upper_path = await handler.generate(voiceover_path, product_id)
 
             lower_failed = not lower_path or not lower_path.exists()
-            if handler.config.lower_enabled and lower_failed:
+            if handler.config.lower_line.enabled and lower_failed:
                 raise PipelineError("Lower subtitle generation failed.")
 
             if upper_path:

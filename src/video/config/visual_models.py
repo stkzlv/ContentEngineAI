@@ -9,7 +9,7 @@ from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
 )
-from src.video.config.subtitle_models import PycapsSettings
+from src.video.config.subtitle_models import PycapsSettings, TwoPartSubtitleSettings
 
 
 class CTADetectionSettings(BaseModel):
@@ -364,56 +364,15 @@ class VideoProfile(BaseModel):
     )
 
     # ---- TWO-PART SUBTITLE SYSTEM ----
-    # Per-profile overrides for two-part subtitle system
-    two_part_subtitles_enabled: bool | None = Field(
-        None, description="Override two-part subtitle system enabled/disabled"
-    )
-    two_part_subtitles_upper_enabled: bool | None = Field(
-        None, description="Override upper subtitle line enabled/disabled"
-    )
-    two_part_subtitles_upper_source_field: str | None = Field(
+    # Profile-level nested override. Merges (deep, per-field) onto the global
+    # subtitle_settings.two_part_subtitles block during get_profile_merged_settings.
+    # Shape matches TwoPartSubtitleSettings (enabled + upper_line + lower_line).
+    two_part_subtitles: dict[str, Any] | None = Field(
         None,
         description=(
-            "Override field name to use for upper subtitle "
-            "(e.g. 'shortened_affiliate_link')"
+            "Nested override for two_part_subtitles. Partial dict merged onto "
+            "the global block; missing keys inherit the global value."
         ),
-    )
-    two_part_subtitles_upper_custom_url: str | None = Field(
-        None,
-        description=(
-            "Override with custom URL to display in upper subtitle "
-            "(overrides source_field when set)"
-        ),
-    )
-    two_part_subtitles_upper_anchor: str | None = Field(
-        None, description="Override upper subtitle anchor: top, above_content, etc."
-    )
-    two_part_subtitles_upper_margin: float | None = Field(
-        None, description="Override upper subtitle margin as fraction (0.0-0.5)"
-    )
-    two_part_subtitles_upper_font_size_scale: float | None = Field(
-        None, description="Override upper subtitle font size scale (0.5-2.0)"
-    )
-    two_part_subtitles_upper_style_preset: str | None = Field(
-        None, description="Override upper subtitle style preset: minimal, modern, bold"
-    )
-    two_part_subtitles_upper_use_full_duration: bool | None = Field(
-        None, description="Override upper subtitle to display for full video duration"
-    )
-    two_part_subtitles_upper_randomize_effects: bool | None = Field(
-        None, description="Override upper subtitle effect randomization"
-    )
-    two_part_subtitles_upper_prefix_replace: str | None = Field(
-        None, description="Replace URL prefix (e.g., 'https://' → 'Product: ')"
-    )
-    two_part_subtitles_lower_enabled: bool | None = Field(
-        None, description="Override lower subtitle line enabled/disabled"
-    )
-    two_part_subtitles_lower_anchor: str | None = Field(
-        None, description="Override lower subtitle anchor: bottom, below_content, etc."
-    )
-    two_part_subtitles_lower_margin: float | None = Field(
-        None, description="Override lower subtitle margin as fraction (0.0-0.5)"
     )
 
     # ---- PER-PROFILE PYCAPS SUBTITLE ENGINE SETTINGS ----
@@ -516,21 +475,10 @@ class MergedSubtitleSettings(BaseModel):
     selected_font: str | None = None
     selected_color_pair: str | None = None
 
-    # Two-part subtitle system (flat keys)
-    two_part_subtitles_enabled: bool = False
-    two_part_subtitles_upper_enabled: bool = True
-    two_part_subtitles_upper_source_field: str = "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: str | None = None
-    two_part_subtitles_upper_anchor: str = "above_content"
-    two_part_subtitles_upper_margin: float = 0.08
-    two_part_subtitles_upper_font_size_scale: float = 0.75
-    two_part_subtitles_upper_style_preset: str = "minimal"
-    two_part_subtitles_upper_use_full_duration: bool = True
-    two_part_subtitles_upper_randomize_effects: bool = False
-    two_part_subtitles_upper_prefix_replace: str | None = None
-    two_part_subtitles_lower_enabled: bool = True
-    two_part_subtitles_lower_anchor: str = "below_content"
-    two_part_subtitles_lower_margin: float = 0.05
+    # Two-part subtitle system (upper static line + lower voiceover line)
+    two_part_subtitles: TwoPartSubtitleSettings = Field(
+        default_factory=TwoPartSubtitleSettings
+    )
 
 
 class ProfileInfo(BaseModel):

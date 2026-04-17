@@ -141,11 +141,10 @@ class TestMergedProfileSettings:
         """Two-part subtitle fields have correct defaults when not configured."""
         merged = mock_config.get_profile_merged_settings("test_profile")
 
-        assert merged.subtitle_settings.two_part_subtitles_enabled is False
-        assert merged.subtitle_settings.two_part_subtitles_upper_enabled is True
-        assert (
-            merged.subtitle_settings.two_part_subtitles_lower_anchor == "below_content"
-        )
+        two_part = merged.subtitle_settings.two_part_subtitles
+        assert two_part.enabled is False
+        assert two_part.upper_line.enabled is True
+        assert two_part.lower_line.anchor == "below_content"
 
 
 @pytest.mark.unit

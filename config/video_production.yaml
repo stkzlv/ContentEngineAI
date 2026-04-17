@@ -527,21 +527,23 @@ video_profiles:
     image_top_position_percent: 0.12
 
     # Two-part subtitle system configuration
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var  # Business URL (overrides source_field)
-    two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.04
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"     # Can be: minimal, modern, bold, animated
-    two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
-    two_part_subtitles_upper_randomize_effects: false    # Can enable for randomized effects
-    two_part_subtitles_upper_prefix_replace: "Product: " # Replace URL prefix (e.g., "https://" → "Product: ")
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "bottom"            # Position at screen bottom
-    two_part_subtitles_lower_margin: 0.04
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.04
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false   # Display ONLY during CTA moments
+        randomize_effects: false
+        prefix_replace: "Product: "  # "https://" → "Product: "
+      lower_line:
+        enabled: true
+        anchor: "bottom"
+        margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
@@ -576,21 +578,23 @@ video_profiles:
     image_top_position_percent: 0.20       # Position images in upper-middle area
 
     # Two-part subtitle system configuration
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var  # Custom business URL (overrides source_field)
-    two_part_subtitles_upper_anchor: "above_content"     # Position above the image
-    two_part_subtitles_upper_margin: 0.03     # Gap above image (3% = ~58px)
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"     # Minimal style for non-distraction
-    two_part_subtitles_upper_use_full_duration: false    # Display ONLY during CTA moments
-    two_part_subtitles_upper_randomize_effects: false
-    two_part_subtitles_upper_prefix_replace: ""          # Keep full URL visible
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "below_content"     # Position below images
-    two_part_subtitles_lower_margin: 0.04
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.03   # Gap above image (3% = ~58px)
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false   # Display ONLY during CTA moments
+        randomize_effects: false
+        prefix_replace: ""         # Keep full URL visible
+      lower_line:
+        enabled: true
+        anchor: "below_content"
+        margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
     subtitle_format: "ass"
@@ -646,21 +650,23 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-    two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"
-    two_part_subtitles_upper_use_full_duration: false
-    two_part_subtitles_upper_randomize_effects: false
-    two_part_subtitles_upper_prefix_replace: ""
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.04
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false
+        randomize_effects: false
+        prefix_replace: ""
+      lower_line:
+        enabled: true
+        anchor: "below_content"
+        margin: 0.04
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
@@ -703,21 +709,23 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-    two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"
-    two_part_subtitles_upper_use_full_duration: false
-    two_part_subtitles_upper_randomize_effects: false
-    two_part_subtitles_upper_prefix_replace: ""
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.04
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false
+        randomize_effects: false
+        prefix_replace: ""
+      lower_line:
+        enabled: true
+        anchor: "below_content"
+        margin: 0.04
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
@@ -761,21 +769,23 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-    two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"
-    two_part_subtitles_upper_use_full_duration: false
-    two_part_subtitles_upper_randomize_effects: false
-    two_part_subtitles_upper_prefix_replace: ""
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.04                    # Gap below content (4% spacing)
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.04
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false
+        randomize_effects: false
+        prefix_replace: ""
+      lower_line:
+        enabled: true
+        anchor: "below_content"
+        margin: 0.04
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"
@@ -819,21 +829,23 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles_enabled: true
-    two_part_subtitles_upper_enabled: true
-    two_part_subtitles_upper_source_field: "shortened_affiliate_link"
-    two_part_subtitles_upper_custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-    two_part_subtitles_upper_anchor: "above_content"
-    two_part_subtitles_upper_margin: 0.04                    # Gap above content (4% spacing)
-    two_part_subtitles_upper_font_size_scale: 0.7
-    two_part_subtitles_upper_style_preset: "minimal"
-    two_part_subtitles_upper_use_full_duration: false
-    two_part_subtitles_upper_randomize_effects: false
-    two_part_subtitles_upper_prefix_replace: ""
-
-    two_part_subtitles_lower_enabled: true
-    two_part_subtitles_lower_anchor: "below_content"
-    two_part_subtitles_lower_margin: 0.05                    # Gap below content (3% spacing)
+    two_part_subtitles:
+      enabled: true
+      upper_line:
+        enabled: true
+        source_field: "shortened_affiliate_link"
+        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
+        anchor: "above_content"
+        margin: 0.04
+        font_size_scale: 0.7
+        style_preset: "minimal"
+        use_full_duration: false
+        randomize_effects: false
+        prefix_replace: ""
+      lower_line:
+        enabled: true
+        anchor: "below_content"
+        margin: 0.05
 
     # Subtitle configuration - ASS format
     subtitle_format: "ass"

@@ -109,6 +109,60 @@ class StylePresetConfig(BaseModel):
     font_width_to_height_ratio: float = 0.5
 
 
+class TwoPartSubtitleUpperLine(BaseModel):
+    """Upper line (static product info) of the two-part subtitle system."""
+
+    enabled: bool = True
+    source_field: str = Field(
+        "shortened_affiliate_link",
+        description="ProductData field name whose value is shown on the upper line.",
+    )
+    custom_url: str | None = Field(
+        None,
+        description=(
+            "Literal URL to display instead of source_field. "
+            "Env var SUBTITLE_BUSINESS_URL takes precedence over this."
+        ),
+    )
+    anchor: str = "above_content"
+    margin: float = Field(0.08, description="Gap as fraction of frame height (0.0-0.5)")
+    font_size_scale: float = Field(
+        0.75, description="Scale vs main subtitles (0.5-2.0)"
+    )
+    style_preset: str = Field(
+        "minimal", description="Preset name for upper line styling"
+    )
+    use_full_duration: bool = Field(
+        True,
+        description="If true, upper line shows for full video; else only during CTA",
+    )
+    randomize_effects: bool = False
+    prefix_replace: str | None = Field(
+        None,
+        description='Replace URL scheme prefix (e.g. "https://" → "Product: ")',
+    )
+
+
+class TwoPartSubtitleLowerLine(BaseModel):
+    """Lower line (voiceover-synced) of the two-part subtitle system."""
+
+    enabled: bool = True
+    anchor: str = "below_content"
+    margin: float = Field(0.05, description="Gap as fraction of frame height (0.0-0.5)")
+
+
+class TwoPartSubtitleSettings(BaseModel):
+    """Dual-line subtitle system: upper (static info) + lower (voiceover)."""
+
+    enabled: bool = False
+    upper_line: TwoPartSubtitleUpperLine = Field(
+        default_factory=lambda: TwoPartSubtitleUpperLine()  # type: ignore[call-arg]
+    )
+    lower_line: TwoPartSubtitleLowerLine = Field(
+        default_factory=lambda: TwoPartSubtitleLowerLine()  # type: ignore[call-arg]
+    )
+
+
 class PycapsSettings(BaseModel):
     """Configuration for the pycaps subtitle rendering engine.
 

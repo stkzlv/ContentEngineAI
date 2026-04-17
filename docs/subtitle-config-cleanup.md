@@ -29,7 +29,7 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 2 | ~~`UnifiedSubtitleGenerator` constructs fresh `PlatformSafeZone()` instead of reading config~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
 | 3 | ~~Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
 | 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
-| 5 | Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields | **Refactor** | Open | 0.5 day |
+| 5 | ~~Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 6 | ~~Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()`~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
 | 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
@@ -300,9 +300,22 @@ errors at startup instead of being silently dropped at runtime.
 
 **Effort**: 1-2 days. The translation shim is the time sink.
 
-### 4.2 Nest `two_part_subtitles` as a typed sub-model
+### 4.2 Nest `two_part_subtitles` as a typed sub-model — DONE
 
-**Current**: 14 flat fields on `MergedSubtitleSettings` (`two_part_subtitles_enabled`,
+**Status**: shipped. `TwoPartSubtitleSettings` / `TwoPartSubtitleUpperLine` /
+`TwoPartSubtitleLowerLine` live in `src/video/config/subtitle_models.py` and
+are exposed as `MergedSubtitleSettings.two_part_subtitles`. `_build_subtitle_base`
+passes the YAML dict through unchanged; `_collect_overrides` lost its 14 flat
+entries; `TwoPartSubtitleHandler._parse_config()` is now two lines. Profile
+overrides use a single nested `VideoProfile.two_part_subtitles: dict | None`
+field that deep-merges onto the global block via a new `_deep_merge` helper
+in `core_models.py`. The six profiles in `config/video_production.yaml` with
+two-part overrides were migrated to the nested shape. Dead YAML fields
+`upper_line.custom_style` and `upper_line.url_shortener` were dropped.
+
+**Historical notes** (original design sketch):
+
+14 flat fields on `MergedSubtitleSettings` (`two_part_subtitles_enabled`,
 `two_part_subtitles_upper_enabled`, `two_part_subtitles_upper_source_field`, ...)
 plus 14 matching flat nullable overrides on `VideoProfile` plus 14 entries
 in `_collect_overrides`'s field_map plus a runtime reassembly in

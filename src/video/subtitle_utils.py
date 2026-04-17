@@ -277,35 +277,12 @@ def create_static_upper_subtitle(
 
     """
     try:
-        # Extract upper line configuration (flat keys from profile settings)
-        use_full_duration = subtitle_settings.get(
-            "two_part_subtitles_upper_use_full_duration", False
-        )
-        randomize_effects = subtitle_settings.get(
-            "two_part_subtitles_upper_randomize_effects", False
-        )
-
-        # Create unified config for upper line using profile settings
-        # Profile settings use flat keys like two_part_subtitles_upper_anchor
-        upper_subtitle_settings = subtitle_settings.copy()
-
-        # Use flat profile settings if available, otherwise fallback to nested config
-        upper_subtitle_settings["anchor"] = subtitle_settings.get(
-            "two_part_subtitles_upper_anchor", "above_content"
-        )
-        upper_subtitle_settings["margin"] = subtitle_settings.get(
-            "two_part_subtitles_upper_margin", 0.04
-        )
-        upper_subtitle_settings["font_size_scale"] = subtitle_settings.get(
-            "two_part_subtitles_upper_font_size_scale", 0.7
-        )
-        upper_subtitle_settings["style_preset"] = subtitle_settings.get(
-            "two_part_subtitles_upper_style_preset", "minimal"
-        )
-        upper_subtitle_settings["randomize_effects"] = randomize_effects
-
-        # Create unified configuration from settings
-        unified_config = create_unified_config_from_settings(upper_subtitle_settings)
+        # Caller (TwoPartSubtitleHandler.generate_upper_subtitle) has already
+        # folded upper-line values into subtitle_settings (anchor, margin,
+        # font_size_scale, style_preset, randomize_effects) plus a private
+        # key _upper_use_full_duration controlling CTA-only vs full display.
+        use_full_duration = subtitle_settings.get("_upper_use_full_duration", False)
+        unified_config = create_unified_config_from_settings(subtitle_settings)
 
         # Get frame size from video config
         frame_size = (1080, 1920)  # Default
@@ -610,8 +587,7 @@ def create_static_upper_subtitle(
         if result.success and result.path and result.path.exists():
             logger.info(
                 f"Successfully generated static upper subtitle "
-                f"({format_type.upper()}): {result.path} "
-                f"(randomize_effects={randomize_effects})"
+                f"({format_type.upper()}): {result.path}"
             )
             return result.path
         else:
