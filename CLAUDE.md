@@ -171,6 +171,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Always run `poetry run mypy .` (whole project), not `mypy src/`.** CI runs `mypy .` which scans 267 files including tests. `mypy src/` only checks 144. The difference can hide errors.
 - **Before pushing, run the exact CI commands** from `.github/workflows/ci.yml`: `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy .`. Don't substitute with `make lint` or `mypy src/` — they can diverge.
 - **`warn_unused_ignores = true`** is enabled. Bare `# type: ignore` works but module-level overrides in `pyproject.toml` are cleaner because they survive mypy version changes without unused-ignore noise.
+- **Poetry explicit source pins don't cascade to transitive deps.** `torch` is pinned to `pytorch-cpu` (`source = "pytorch-cpu"`), but `torchaudio` pulled transitively by `coqui-tts` still resolves from the default PyPI index (CUDA wheel), failing at import on CPU boxes with `libcudart.so.13: cannot open shared object file`. Fix: pin `torchaudio` explicitly to the same source. Any PyTorch-ecosystem package used at runtime needs its own source entry — don't assume `torch`'s pin propagates.
 
 ## Session Continuity
 
