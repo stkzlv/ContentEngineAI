@@ -19,6 +19,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_MODERN_PRESET_DEFAULTS: dict = {
+    "font_name": "Montserrat",
+    "font_color": "&H00FFFFFF",
+    "outline_color": "&H00000000",
+    "background_color": None,
+    "bold": True,
+    "outline_thickness": 3,
+    "shadow": True,
+    "effects": ["karaoke"],
+    "font_width_to_height_ratio": 0.5,
+}
+
 
 class SubtitleGraphBuilder:
     """Build FFmpeg subtitle filter graphs with positioning."""
@@ -172,14 +184,13 @@ class SubtitleGraphBuilder:
                 product_id=self.product_id,
                 video_config=self.config,
             )
-            font_name = style_config.get("font_name", "Arial")
-            font_color = style_config.get("font_color", "&H00FFFFFF")
-            outline_color = style_config.get("outline_color", "&H00000000")
         except Exception as e:
-            logger.warning(f"Failed to get style config, using fallback: {e}")
-            font_name = settings_dict.get("font_name", "Arial")
-            font_color = settings_dict.get("font_color", "&H00FFFFFF")
-            outline_color = settings_dict.get("outline_color", "&H00000000")
+            logger.warning(f"Failed to get style config, using modern defaults: {e}")
+            style_config = _MODERN_PRESET_DEFAULTS.copy()
+
+        font_name = style_config.get("font_name", "Montserrat")
+        font_color = style_config.get("font_color", "&H00FFFFFF")
+        outline_color = style_config.get("outline_color", "&H00000000")
 
         font_path = self._resolve_font_path(font_name)
         if not font_path:
@@ -218,7 +229,7 @@ class SubtitleGraphBuilder:
                     )
                     y_pos_expr = f"h*{position.y}"
 
-                    back_color = settings_dict.get("back_color", "&H80000000")
+                    back_color = style_config.get("background_color") or "&H80000000"
                     back_color_ffmpeg = self.styler.convert_ass_color_to_ffmpeg(
                         back_color
                     )
@@ -234,7 +245,7 @@ class SubtitleGraphBuilder:
                         f"fontsize={font_size_pixels}:"
                         f"fontcolor='"
                         f"{self.styler.convert_ass_color_to_ffmpeg(font_color)}':"
-                        f"borderw={settings_dict.get('outline_thickness', 2)}:"
+                        f"borderw={style_config.get('outline_thickness', 2)}:"
                         f"bordercolor='"
                         f"{self.styler.convert_ass_color_to_ffmpeg(outline_color)}':"
                         f"box=1:boxcolor='{back_color_ffmpeg}'"
@@ -330,20 +341,22 @@ class SubtitleGraphBuilder:
 
                 try:
                     upper_unified = UnifiedSubtitleConfig(**upper_settings)
-                    style_config = get_style_config(
+                    upper_style_config = get_style_config(
                         preset=style_preset,
                         config=upper_unified,
                         product_id=self.product_id,
                         video_config=self.config,
                     )
-                    font_name = style_config.get("font_name", "Arial")
-                    font_color = style_config.get("font_color", "&H00FFFFFF")
-                    outline_color = style_config.get("outline_color", "&H00000000")
                 except Exception as e:
-                    logger.warning(f"Failed to get upper line style config: {e}")
-                    font_name = "Arial"
-                    font_color = "&H00FFFFFF"
-                    outline_color = "&H00000000"
+                    logger.warning(
+                        f"Failed to get upper line style config, "
+                        f"using minimal defaults: {e}"
+                    )
+                    upper_style_config = _MODERN_PRESET_DEFAULTS.copy()
+
+                font_name = upper_style_config.get("font_name", "Montserrat")
+                font_color = upper_style_config.get("font_color", "&H00FFFFFF")
+                outline_color = upper_style_config.get("outline_color", "&H00000000")
 
                 font_path = self._resolve_font_path(font_name)
                 if font_path:
@@ -431,7 +444,7 @@ class SubtitleGraphBuilder:
                         f"fontsize={upper_font_size}:"
                         f"fontcolor='"
                         f"{self.styler.convert_ass_color_to_ffmpeg(font_color)}':"
-                        f"borderw={upper_settings.get('outline_thickness', 1)}:"
+                        f"borderw={upper_style_config.get('outline_thickness', 2)}:"
                         f"bordercolor='"
                         f"{self.styler.convert_ass_color_to_ffmpeg(outline_color)}':"
                         f"x='{x_pos_expr}':y='{y_pos_expr}'"
@@ -477,20 +490,22 @@ class SubtitleGraphBuilder:
 
                 try:
                     lower_unified = UnifiedSubtitleConfig(**lower_settings)
-                    style_config = get_style_config(
+                    lower_style_config = get_style_config(
                         preset=lower_unified.style_preset,
                         config=lower_unified,
                         product_id=self.product_id,
                         video_config=self.config,
                     )
-                    font_name = style_config.get("font_name", "Arial")
-                    font_color = style_config.get("font_color", "&H00FFFFFF")
-                    outline_color = style_config.get("outline_color", "&H00000000")
                 except Exception as e:
-                    logger.warning(f"Failed to get lower line style config: {e}")
-                    font_name = lower_settings.get("font_name", "Arial")
-                    font_color = lower_settings.get("font_color", "&H00FFFFFF")
-                    outline_color = lower_settings.get("outline_color", "&H00000000")
+                    logger.warning(
+                        f"Failed to get lower line style config, "
+                        f"using modern defaults: {e}"
+                    )
+                    lower_style_config = _MODERN_PRESET_DEFAULTS.copy()
+
+                font_name = lower_style_config.get("font_name", "Montserrat")
+                font_color = lower_style_config.get("font_color", "&H00FFFFFF")
+                outline_color = lower_style_config.get("outline_color", "&H00000000")
 
                 font_path = self._resolve_font_path(font_name)
                 if font_path:
@@ -585,7 +600,8 @@ class SubtitleGraphBuilder:
                                     outline_color
                                 )
                                 back_col = self.styler.convert_ass_color_to_ffmpeg(
-                                    lower_settings.get("back_color", "&H80000000")
+                                    lower_style_config.get("background_color")
+                                    or "&H80000000"
                                 )
                                 drawtext_filter = (
                                     f"{current_stream}drawtext="
@@ -594,7 +610,7 @@ class SubtitleGraphBuilder:
                                     f"fontsize={font_size_pixels}:"
                                     f"fontcolor='{fc}':"
                                     f"borderw="
-                                    f"{lower_settings.get('outline_thickness', 2)}:"
+                                    f"{lower_style_config.get('outline_thickness', 2)}:"
                                     f"bordercolor='{bc}':"
                                     f"box=1:boxcolor='{back_col}':"
                                     f"boxborderw="

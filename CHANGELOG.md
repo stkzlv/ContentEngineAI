@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-04-17
+
+### Removed
+- Legacy Compatibility Settings block in `subtitle_settings`: `font_name`, `font_color`, `outline_color`, `back_color`, `bold`, `outline_thickness`, `shadow`, `font_width_to_height_ratio`. Style presets are now the single source of truth for these
+- CLI flags `--subtitle-font`, `--subtitle-font-color`, `--subtitle-outline-color`, `--subtitle-background-color` (edit the style preset instead)
+- `VideoProfile` fields `subtitle_font_name`, `subtitle_font_color`, `subtitle_outline_color`, `subtitle_background_color`
+- `SUBTITLE_FONT`, `SUBTITLE_FONT_COLOR`, `SUBTITLE_OUTLINE_COLOR`, `SUBTITLE_BACKGROUND_COLOR` env var mappings
+
+### Changed
+- Drawtext/SRT path in `SubtitleGraphBuilder` routes all styling (font, colors, outline, background) through the active style preset. On preset lookup failure, falls back to hardcoded modern defaults
+
 ## [0.38.2] - 2026-04-17
 
 ### Fixed

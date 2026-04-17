@@ -27,14 +27,7 @@ class TestTwoPartSubtitles:
         """Create basic subtitle settings with flat two-part config."""
         return {
             "subtitle_format": "ass",
-            "font_name": "DMSerifDisplay-Regular",
             "font_size_percent": 0.03,
-            "font_color": "&H0000FFFF",
-            "outline_color": "&H00800000",
-            "back_color": "&H80000000",
-            "bold": False,
-            "outline_thickness": 1,
-            "shadow": 0,
             "horizontal_alignment": "center",
             "margin": 0.05,
             "anchor": "below_content",
@@ -258,7 +251,6 @@ class TestTwoPartSubtitles:
             # Minimal settings without two-part config
             minimal_settings = {
                 "subtitle_format": "ass",
-                "font_name": "Arial",
                 "font_size_percent": 0.03,
                 "margin": 0.05,
             }
