@@ -183,9 +183,10 @@ Switch with `--pycaps-renderer pictex`.
 ## Limitations (v1)
 
 - **Single-line captions only.** Two-part (upper URL + lower voiceover) is
-  FFmpeg-only. When a profile has `two_part_subtitles_enabled: true` and you
-  flip the engine to pycaps, the producer logs a warning and disables the
-  two-part system for that run. The upper URL is not rendered.
+  FFmpeg-only. When a profile has `two_part_subtitles_enabled: true` (now
+  `two_part_subtitles.enabled: true` under the nested block) and you flip the
+  engine to pycaps, the producer logs a warning and disables the two-part
+  system for that run. The upper URL is not rendered.
 - **Font randomization doesn't apply.** The `subtitle_randomize_fonts` setting
   only affects the FFmpeg path. Pycaps templates ship their own `@font-face`
   declarations via their `resources/` directory.

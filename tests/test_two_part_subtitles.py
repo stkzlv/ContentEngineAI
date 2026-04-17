@@ -24,20 +24,23 @@ class TestTwoPartSubtitles:
 
     @pytest.fixture
     def basic_subtitle_settings(self):
-        """Create basic subtitle settings with flat two-part config."""
+        """Create basic subtitle settings.
+
+        The caller (TwoPartSubtitleHandler.generate_upper_subtitle) folds
+        upper-line values into subtitle_settings before passing it to
+        create_static_upper_subtitle, so tests pass the already-folded shape:
+        anchor/margin/font_size_scale/style_preset reflect the upper line.
+        """
         return {
             "subtitle_format": "ass",
             "font_size_percent": 0.03,
             "horizontal_alignment": "center",
-            "margin": 0.05,
-            "anchor": "below_content",
+            "anchor": "above_content",
+            "margin": 0.005,
+            "font_size_scale": 0.8,
+            "style_preset": "minimal",
             "content_aware": True,
             "randomize_effects": False,
-            # Flat two-part subtitle settings
-            "two_part_subtitles_upper_anchor": "above_content",
-            "two_part_subtitles_upper_margin": 0.005,
-            "two_part_subtitles_upper_font_size_scale": 0.8,
-            "two_part_subtitles_upper_style_preset": "minimal",
         }
 
     def test_create_static_upper_subtitle_basic(
@@ -151,17 +154,18 @@ class TestTwoPartSubtitles:
                 abs(y_pos - safe_zone_min_y_px) < 20
             ), f"Without visual_bounds, y should be near safe zone min {safe_zone_min_y_px}, got {y_pos}"
 
-    def test_flat_config_settings_extraction(
+    def test_upper_settings_are_applied(
         self, mock_video_config, basic_subtitle_settings
     ):
-        """Test that flat two-part config settings are extracted correctly."""
+        """Test that folded upper-line settings are honoured by the helper."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "upper.ass"
 
-            # Modify flat settings
+            # Caller folds upper-line values into the dict; vary them here
+            # to confirm the helper reads them via the now-canonical keys.
             settings = basic_subtitle_settings.copy()
-            settings["two_part_subtitles_upper_margin"] = 0.01
-            settings["two_part_subtitles_upper_font_size_scale"] = 0.9
+            settings["margin"] = 0.01
+            settings["font_size_scale"] = 0.9
 
             result = create_static_upper_subtitle(
                 text="Test text",

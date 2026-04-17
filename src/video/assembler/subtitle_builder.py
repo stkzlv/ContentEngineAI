@@ -862,9 +862,13 @@ class SubtitleGraphBuilder:
 
             frame_width, frame_height = self.config.video_settings.resolution
 
-            # Get upper line margin from settings
+            # Get upper line margin from settings (nested two_part_subtitles block)
             settings_dict = self._get_effective_subtitle_settings()
-            upper_margin = settings_dict.get("two_part_subtitles_upper_margin", 0.04)
+            upper_margin = (
+                settings_dict.get("two_part_subtitles", {})
+                .get("upper_line", {})
+                .get("margin", 0.04)
+            )
             spacing_px = upper_margin * frame_height
 
             # Parse actual font size from ASS Style line (much more accurate

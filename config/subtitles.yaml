@@ -239,8 +239,6 @@ subtitle_settings:
       source_field: "product_url"
       # Custom URL to display instead of source_field (optional, overrides source_field when set)
       custom_url: null
-      # URL shortening method: "default" (built-in), "bitly", "tinyurl", or null (no shortening)
-      url_shortener: "default"
       # Position anchor for upper line
       anchor: "above_content"
       # Spacing from content as fraction of frame height (0.0-0.5)
@@ -250,8 +248,6 @@ subtitle_settings:
       font_size_scale: 0.7
       # Style preset for upper line (minimal, modern, bold, animated, random)
       style_preset: "minimal"
-      # Custom styling (optional, overrides preset)
-      custom_style: null
 
     # Lower line configuration (voiceover subtitles)
     lower_line:
@@ -261,8 +257,6 @@ subtitle_settings:
       # Spacing from content as fraction of frame height (0.0-0.5)
       # 0.04 = 4% of frame height spacing (~77px gap from content)
       margin: 0.04
-      # Uses standard subtitle_settings for styling when custom_style is null
-      custom_style: null
 
   # ---- SUBTITLE INFRASTRUCTURE ----
   # Low-level settings the rendering pipeline needs outside of style presets.

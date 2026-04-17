@@ -6,10 +6,10 @@ production with content-aware positioning.
 """
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from src.video.config.subtitle_models import TwoPartSubtitleSettings
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
     DEFAULT_VIDEO_TOP_POSITION,
@@ -22,17 +22,6 @@ if TYPE_CHECKING:
     from src.video.subtitle_positioning import VisualBounds
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class TwoPartConfig:
-    """Parsed two-part subtitle configuration."""
-
-    enabled: bool
-    upper_enabled: bool
-    upper_config: dict[str, Any]
-    lower_enabled: bool
-    lower_config: dict[str, Any]
 
 
 class TwoPartSubtitleHandler:
@@ -58,35 +47,9 @@ class TwoPartSubtitleHandler:
         """
         self.ctx = ctx
         self.merged_profile_settings = merged_profile_settings
-        self.config = self._parse_config()
-
-    def _parse_config(self) -> TwoPartConfig:
-        """Parse two-part config from typed subtitle settings model."""
-        ss = self.merged_profile_settings.subtitle_settings
-
-        upper_config = {
-            "enabled": ss.two_part_subtitles_upper_enabled,
-            "source_field": ss.two_part_subtitles_upper_source_field,
-            "anchor": ss.two_part_subtitles_upper_anchor,
-            "margin": ss.two_part_subtitles_upper_margin,
-            "font_size_scale": ss.two_part_subtitles_upper_font_size_scale,
-            "style_preset": ss.two_part_subtitles_upper_style_preset,
-            "use_full_duration": ss.two_part_subtitles_upper_use_full_duration,
-            "randomize_effects": ss.two_part_subtitles_upper_randomize_effects,
-        }
-
-        lower_config = {
-            "enabled": ss.two_part_subtitles_lower_enabled,
-            "anchor": ss.two_part_subtitles_lower_anchor,
-            "margin": ss.two_part_subtitles_lower_margin,
-        }
-
-        return TwoPartConfig(
-            enabled=True,
-            upper_enabled=ss.two_part_subtitles_upper_enabled,
-            upper_config=upper_config,
-            lower_enabled=ss.two_part_subtitles_lower_enabled,
-            lower_config=lower_config,
+        self.config: TwoPartSubtitleSettings = (
+            merged_profile_settings.subtitle_settings.two_part_subtitles
+            or TwoPartSubtitleSettings()
         )
 
     def calculate_visual_bounds(self) -> "VisualBounds":
@@ -316,19 +279,17 @@ class TwoPartSubtitleHandler:
         """Get text for upper subtitle from product data or custom URL."""
         import os
 
+        upper = self.config.upper_line
         # Check env var first, then config
-        ss = self.merged_profile_settings.subtitle_settings
         custom_url: str | None = os.environ.get("SUBTITLE_BUSINESS_URL") or (
-            ss.two_part_subtitles_upper_custom_url
+            upper.custom_url
         )
         if custom_url:
             logger.info("Using custom URL for upper subtitle: %s", custom_url)
             return custom_url
 
         # Get from product data
-        source_field = self.config.upper_config.get(
-            "source_field", "shortened_affiliate_link"
-        )
+        source_field = upper.source_field
         product_data_dict = self.ctx.product.__dict__
         upper_text: str = str(product_data_dict.get(source_field, "") or "")
 
@@ -352,7 +313,7 @@ class TwoPartSubtitleHandler:
             return None
 
         # Apply URL prefix replacement if configured
-        prefix_replace = ss.two_part_subtitles_upper_prefix_replace
+        prefix_replace = upper.prefix_replace
         if prefix_replace:
             if upper_text.startswith("https://"):
                 upper_text = prefix_replace + upper_text[8:]
@@ -380,21 +341,17 @@ class TwoPartSubtitleHandler:
             Path to generated subtitle file, or None if disabled/failed.
 
         """
-        if not self.config.lower_enabled:
+        if not self.config.lower_line.enabled:
             return None
 
         from src.video.subtitle_utils import create_unified_subtitles
 
+        lower = self.config.lower_line
         lower_subtitle_settings = (
             self.merged_profile_settings.subtitle_settings.model_dump()
         )
-        lower_subtitle_settings["anchor"] = self.config.lower_config.get(
-            "anchor", "below_content"
-        )
-        lower_subtitle_settings["margin"] = self.config.lower_config.get("margin", 0.04)
-
-        if self.config.lower_config.get("custom_style"):
-            lower_subtitle_settings.update(self.config.lower_config["custom_style"])
+        lower_subtitle_settings["anchor"] = lower.anchor
+        lower_subtitle_settings["margin"] = lower.margin
 
         lower_path = await create_unified_subtitles(
             voiceover_path,
@@ -437,7 +394,7 @@ class TwoPartSubtitleHandler:
             Path to generated subtitle file, or None if disabled/failed.
 
         """
-        if not self.config.upper_enabled:
+        if not self.config.upper_line.enabled:
             return None
 
         from src.video.subtitle_utils import create_static_upper_subtitle
@@ -446,9 +403,19 @@ class TwoPartSubtitleHandler:
         if not upper_text:
             return None
 
-        logger.debug("Upper subtitle enabled: %s", self.config.upper_enabled)
+        upper = self.config.upper_line
+        logger.debug("Upper subtitle enabled: %s", upper.enabled)
 
+        # Fold upper-line specific settings into the base dict so the downstream
+        # helper doesn't need to know about the nested two-part block shape.
         subtitle_dict = self.merged_profile_settings.subtitle_settings.model_dump()
+        subtitle_dict["anchor"] = upper.anchor
+        subtitle_dict["margin"] = upper.margin
+        subtitle_dict["font_size_scale"] = upper.font_size_scale
+        subtitle_dict["style_preset"] = upper.style_preset
+        subtitle_dict["randomize_effects"] = upper.randomize_effects
+        subtitle_dict["_upper_use_full_duration"] = upper.use_full_duration
+
         subtitle_format = subtitle_dict.get("subtitle_format", "srt")
         upper_output_path = self.ctx.run_paths["subtitle_file"].with_name(
             f"subtitle_upper.{subtitle_format}"

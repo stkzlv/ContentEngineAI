@@ -3,6 +3,7 @@
 import pytest
 
 from src.video.config import VideoConfig, VideoProfile, load_video_config
+from src.video.config.core_models import _deep_merge
 from src.video.config.visual_models import (
     MergedProfileSettings,
     MergedSubtitleSettings,
@@ -141,11 +142,10 @@ class TestMergedProfileSettings:
         """Two-part subtitle fields have correct defaults when not configured."""
         merged = mock_config.get_profile_merged_settings("test_profile")
 
-        assert merged.subtitle_settings.two_part_subtitles_enabled is False
-        assert merged.subtitle_settings.two_part_subtitles_upper_enabled is True
-        assert (
-            merged.subtitle_settings.two_part_subtitles_lower_anchor == "below_content"
-        )
+        two_part = merged.subtitle_settings.two_part_subtitles
+        assert two_part.enabled is False
+        assert two_part.upper_line.enabled is True
+        assert two_part.lower_line.anchor == "below_content"
 
 
 @pytest.mark.unit
@@ -379,3 +379,88 @@ class TestArgparseDefaultBehavior:
 
         args = parser.parse_args([])
         assert args.randomize_fonts is None
+
+
+@pytest.mark.unit
+class TestDeepMerge:
+    """Test the _deep_merge helper used for nested profile overrides."""
+
+    def test_empty_override_returns_base_copy(self):
+        base = {"a": 1, "nested": {"x": 1}}
+        result = _deep_merge(base, {})
+        assert result == base
+        # Must be a copy, not the same object
+        assert result is not base
+
+    def test_flat_scalar_override_replaces(self):
+        base = {"a": 1, "b": 2}
+        override = {"b": 99}
+        assert _deep_merge(base, override) == {"a": 1, "b": 99}
+
+    def test_nested_dict_merges_recursively(self):
+        base = {"upper": {"enabled": True, "anchor": "above_content", "margin": 0.08}}
+        override = {"upper": {"margin": 0.04}}
+        result = _deep_merge(base, override)
+        assert result == {
+            "upper": {"enabled": True, "anchor": "above_content", "margin": 0.04}
+        }
+
+    def test_list_value_replaces_not_merges(self):
+        # Lists should replace wholesale, not concatenate
+        base = {"effects": ["karaoke", "fade"]}
+        override = {"effects": ["typewriter"]}
+        assert _deep_merge(base, override) == {"effects": ["typewriter"]}
+
+    def test_new_keys_added(self):
+        base = {"a": 1}
+        override = {"b": 2, "c": {"d": 3}}
+        assert _deep_merge(base, override) == {"a": 1, "b": 2, "c": {"d": 3}}
+
+    def test_base_not_mutated(self):
+        base = {"nested": {"x": 1}}
+        override = {"nested": {"x": 99}}
+        _deep_merge(base, override)
+        assert base == {"nested": {"x": 1}}, "base must not be mutated"
+
+
+@pytest.mark.unit
+class TestTwoPartProfileOverride:
+    """Profile-level two_part_subtitles overrides deep-merge onto the global."""
+
+    def test_profile_two_part_override_deep_merges(self, mock_config: VideoConfig):
+        """A partial two_part_subtitles dict on the profile preserves globals."""
+        profile = VideoProfile(
+            description="Two-part override profile",
+            use_scraped_images=True,
+            use_scraped_videos=False,
+            two_part_subtitles={
+                "enabled": True,
+                "upper_line": {"margin": 0.02, "style_preset": "bold"},
+            },
+        )
+        mock_config.video_profiles["two_part_override"] = profile
+
+        merged = mock_config.get_profile_merged_settings("two_part_override")
+        tp = merged.subtitle_settings.two_part_subtitles
+
+        # Overridden fields take the profile value
+        assert tp.enabled is True
+        assert tp.upper_line.margin == 0.02
+        assert tp.upper_line.style_preset == "bold"
+        # Non-overridden upper_line fields keep global defaults
+        assert tp.upper_line.anchor == "above_content"
+        assert tp.upper_line.source_field == "shortened_affiliate_link"
+        # Lower line block untouched
+        assert tp.lower_line.enabled is True
+        assert tp.lower_line.anchor == "below_content"
+
+    def test_profile_without_two_part_override_uses_global(
+        self, mock_config: VideoConfig
+    ):
+        """Profiles without the override inherit the global two_part_subtitles."""
+        merged = mock_config.get_profile_merged_settings("test_profile")
+        tp = merged.subtitle_settings.two_part_subtitles
+        # Global default from YAML: enabled=false, upper/lower defaults
+        assert tp.enabled is False
+        assert tp.upper_line.enabled is True
+        assert tp.lower_line.anchor == "below_content"

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-04-17
+
+### Changed
+- Two-part subtitle settings are now a nested Pydantic model (`TwoPartSubtitleSettings` with `upper_line` + `lower_line` sub-models) instead of 14 flat `two_part_subtitles_*` fields. YAML already used the nested shape; the Python layer finally matches.
+- Profile-level overrides use a single nested `two_part_subtitles` dict on `VideoProfile` that deep-merges onto the global block. Profiles only need to specify fields that differ from the global default.
+- **Breaking**: profile YAML with flat `two_part_subtitles_*` keys must migrate to the nested `two_part_subtitles` block with `upper_line` / `lower_line` sub-blocks. The six profiles shipped in `config/video_production.yaml` are already migrated; external overrides need the same rewrite. See the release PR for an example.
+
+### Removed
+- 14 flat `two_part_subtitles_*` fields from `MergedSubtitleSettings` and `VideoProfile` (replaced by the nested model above).
+- Dead fields `two_part_subtitles.upper_line.custom_style` and `two_part_subtitles.upper_line.url_shortener` in YAML (were never reachable due to flattening; the URL shortener path lives under `config/url_shortener.yaml`).
+
+### Added
+- Step-by-step pipeline smoke-test recipe in `docs/testing.md` (scrape-lowpri → produce-lowpri → publish-lowpri with tightened resource limits).
+
 ## [0.39.0] - 2026-04-17
 
 ### Removed

@@ -54,6 +54,23 @@ from src.video.config.visual_models import (
 logger = logging.getLogger(__name__)
 
 
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge ``override`` onto a copy of ``base``.
+
+    Dicts merge key-by-key; non-dict values on either side replace the
+    corresponding base entry entirely. Used for nested profile overrides
+    (e.g. ``two_part_subtitles``) where a profile should only need to
+    specify the fields that differ from the global block.
+    """
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 class DescriptionSettings(BaseModel):
     """Configuration settings for AI-generated video descriptions.
 
@@ -729,26 +746,6 @@ class VideoConfig(BaseModel):
                 "subtitle_min_duration": "min_subtitle_duration",
                 "subtitle_selected_font": "selected_font",
                 "subtitle_selected_color_pair": "selected_color_pair",
-                # Two-part subtitle fields (same name on both sides)
-                **{
-                    f: f
-                    for f in (
-                        "two_part_subtitles_enabled",
-                        "two_part_subtitles_upper_enabled",
-                        "two_part_subtitles_upper_source_field",
-                        "two_part_subtitles_upper_custom_url",
-                        "two_part_subtitles_upper_anchor",
-                        "two_part_subtitles_upper_margin",
-                        "two_part_subtitles_upper_font_size_scale",
-                        "two_part_subtitles_upper_style_preset",
-                        "two_part_subtitles_upper_use_full_duration",
-                        "two_part_subtitles_upper_randomize_effects",
-                        "two_part_subtitles_upper_prefix_replace",
-                        "two_part_subtitles_lower_enabled",
-                        "two_part_subtitles_lower_anchor",
-                        "two_part_subtitles_lower_margin",
-                    )
-                },
             },
         )
         subtitle_data.update(subtitle_overrides)
@@ -798,6 +795,16 @@ class VideoConfig(BaseModel):
                 )
             base_pycaps.update(pycaps_profile_overrides)
             subtitle_data["pycaps"] = base_pycaps
+
+        # Two-part subtitles profile override: nested dict, deep-merged onto
+        # the global block so profiles only need to specify fields that differ.
+        if profile.two_part_subtitles:
+            base_two_part = subtitle_data.get("two_part_subtitles") or {}
+            if not isinstance(base_two_part, dict):
+                base_two_part = dict(base_two_part)
+            subtitle_data["two_part_subtitles"] = _deep_merge(
+                base_two_part, profile.two_part_subtitles
+            )
 
         merged_subtitle = MergedSubtitleSettings(**subtitle_data)
 
@@ -872,9 +879,6 @@ class VideoConfig(BaseModel):
     def _build_subtitle_base(self) -> dict[str, Any]:
         """Build base subtitle settings dict from global YAML config."""
         ss = self.subtitle_settings
-        two_part = ss.get("two_part_subtitles", {})
-        upper = two_part.get("upper_line", {})
-        lower = two_part.get("lower_line", {})
 
         return {
             "anchor": ss["anchor"],
@@ -913,30 +917,9 @@ class VideoConfig(BaseModel):
             "save_srt_with_video": ss.get("save_srt_with_video", True),
             "subtitle_format": ss.get("subtitle_format", "srt"),
             "script_paths": ss.get("script_paths", []),
-            # Flatten two-part subtitle nested structure
-            "two_part_subtitles_enabled": two_part.get("enabled", False),
-            "two_part_subtitles_upper_enabled": upper.get("enabled", True),
-            "two_part_subtitles_upper_source_field": upper.get(
-                "source_field", "shortened_affiliate_link"
-            ),
-            "two_part_subtitles_upper_custom_url": upper.get("custom_url"),
-            "two_part_subtitles_upper_anchor": upper.get("anchor", "above_content"),
-            "two_part_subtitles_upper_margin": upper.get("margin", 0.08),
-            "two_part_subtitles_upper_font_size_scale": upper.get(
-                "font_size_scale", 0.75
-            ),
-            "two_part_subtitles_upper_style_preset": upper.get(
-                "style_preset", "minimal"
-            ),
-            "two_part_subtitles_upper_use_full_duration": upper.get(
-                "use_full_duration", True
-            ),
-            "two_part_subtitles_upper_randomize_effects": upper.get(
-                "randomize_effects", False
-            ),
-            "two_part_subtitles_lower_enabled": lower.get("enabled", True),
-            "two_part_subtitles_lower_anchor": lower.get("anchor", "below_content"),
-            "two_part_subtitles_lower_margin": lower.get("margin", 0.05),
+            # Two-part subtitles nested block (passed through as YAML dict;
+            # Pydantic validates the shape when building TwoPartSubtitleSettings).
+            "two_part_subtitles": ss.get("two_part_subtitles", {}),
             # Pycaps engine selector + nested sub-settings (YAML layer)
             "subtitle_engine": ss.get("subtitle_engine", "ffmpeg"),
             "pycaps": ss.get("pycaps"),
