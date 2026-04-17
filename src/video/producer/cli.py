@@ -218,16 +218,6 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
             args.subtitle_randomize_effects
         )
 
-    # Advanced styling
-    if args.subtitle_font:
-        overrides["subtitle_settings.font_name"] = args.subtitle_font
-    if args.subtitle_font_color:
-        overrides["subtitle_settings.font_color"] = args.subtitle_font_color
-    if args.subtitle_outline_color:
-        overrides["subtitle_settings.outline_color"] = args.subtitle_outline_color
-    if args.subtitle_background_color:
-        overrides["subtitle_settings.background_color"] = args.subtitle_background_color
-
     # Image positioning
     if hasattr(args, "image_width_percent") and args.image_width_percent is not None:
         overrides["video_settings.image_width_percent"] = args.image_width_percent
@@ -506,24 +496,6 @@ async def main():
         dest="subtitle_randomize_effects",
         default=None,
         help="Disable effect randomization.",
-    )
-
-    # Advanced subtitle styling (colors and fonts)
-    parser.add_argument(
-        "--subtitle-font",
-        help="Override subtitle font family.",
-    )
-    parser.add_argument(
-        "--subtitle-font-color",
-        help="Override subtitle text color (ASS format: &H00RRGGBB).",
-    )
-    parser.add_argument(
-        "--subtitle-outline-color",
-        help="Override subtitle outline color (ASS format: &H00RRGGBB).",
-    )
-    parser.add_argument(
-        "--subtitle-background-color",
-        help="Override subtitle background color (ASS format: &H00RRGGBB).",
     )
 
     # Image positioning arguments

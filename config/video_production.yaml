@@ -509,13 +509,9 @@ video_profiles:
     subtitle_max_duration: 2.5                 # Was 4.0 — best practice
     subtitle_min_duration: 0.6                 # Was 0.5 — flashing floor
 
-    # Advanced: Manual font/color selection (optional)
-    # subtitle_font_name: "Poppins"            # Override specific font
-    # subtitle_font_color: "&H00FFFFFF"        # ASS format: &H00BBGGRR
-    # subtitle_outline_color: "&H00000000"     # ASS format: &H00BBGGRR
-    # subtitle_background_color: "&H00000000"  # ASS format: &H00BBGGRR
-    # subtitle_selected_font: "Montserrat"     # Bypass randomization
-    # subtitle_selected_color_pair: "white_black" # Specific color pair
+    # Manual selection overrides (bypass randomization, optional)
+    # subtitle_selected_font: "Montserrat"     # Force a specific font
+    # subtitle_selected_color_pair: "white_black" # Force a specific color pair
 
   # Slideshow with images profile (variant 3 - dual subtitles)
   slideshow_images3:

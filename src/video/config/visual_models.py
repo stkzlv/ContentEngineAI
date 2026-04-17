@@ -322,19 +322,6 @@ class VideoProfile(BaseModel):
         None, description="Override bottom safe zone boundary"
     )
 
-    # Advanced subtitle styling overrides
-    subtitle_font_name: str | None = Field(
-        None, description="Override subtitle font family"
-    )
-    subtitle_font_color: str | None = Field(
-        None, description="Override subtitle text color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_outline_color: str | None = Field(
-        None, description="Override subtitle outline color (ASS format: &H00RRGGBB)"
-    )
-    subtitle_background_color: str | None = Field(
-        None, description="Override subtitle background color (ASS format: &H00RRGGBB)"
-    )
     subtitle_randomize_fonts: bool | None = Field(
         None, description="Override font randomization setting"
     )
@@ -498,11 +485,6 @@ class MergedSubtitleSettings(BaseModel):
     font_size_scale: float = 1.0
     horizontal_alignment: str = "center"
 
-    # Font and color
-    font_name: str = "Arial"
-    font_color: str = "&H00FFFFFF"
-    outline_color: str = "&H00000000"
-    back_color: str | None = None
     randomize_effects: bool = False
 
     # Text formatting
@@ -512,11 +494,10 @@ class MergedSubtitleSettings(BaseModel):
     min_subtitle_duration: float = 0.4
     max_subtitle_width_fraction: float = 0.80
 
-    # Advanced
+    # Infrastructure (not preset-owned)
     enabled: bool = True
     font_directory: str = "static/fonts"
     font_size_percent: float = 0.05
-    font_width_to_height_ratio: float = 0.5
 
     # Randomization
     randomize_fonts: bool = False
@@ -530,9 +511,6 @@ class MergedSubtitleSettings(BaseModel):
     save_srt_with_video: bool = True
     subtitle_format: str = "srt"
     script_paths: list[Any] = Field(default_factory=list)
-    bold: bool = False
-    outline_thickness: int = 2
-    shadow: int = 0
 
     # Manual overrides
     selected_font: str | None = None

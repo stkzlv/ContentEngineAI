@@ -88,10 +88,7 @@ for install and config details.
 
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `--subtitle-font` | Font family | `--subtitle-font "Arial Black"` |
-| `--subtitle-font-color` | Text color (ASS format) | `--subtitle-font-color "&H00FFFFFF"` |
-| `--subtitle-outline-color` | Outline color | `--subtitle-outline-color "&H00000000"` |
-| `--subtitle-background-color` | Background color | `--subtitle-background-color "&H80000000"` |
+| `--subtitle-style-preset` | Style preset (minimal, modern, bold, animated, random) | `--subtitle-style-preset bold` |
 | `--font-size-scale` | Font size multiplier (0.5-2.0) | `--font-size-scale 1.2` |
 | `--subtitle-alignment` | Horizontal alignment | `--subtitle-alignment center` |
 | `--max-line-length` | Max characters per line | `--max-line-length 25` |

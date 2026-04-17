@@ -89,7 +89,7 @@ class TestSubtitleSettingsDict:
         assert isinstance(subtitle_settings, dict)
         assert "enabled" in subtitle_settings
         assert "anchor" in subtitle_settings
-        assert "font_name" in subtitle_settings
+        assert "font_directory" in subtitle_settings
 
     def test_subtitle_settings_dict_values(self, mock_config: VideoConfig):
         """Test subtitle settings dict contains expected values."""
@@ -97,7 +97,6 @@ class TestSubtitleSettingsDict:
 
         assert subtitle_settings["enabled"] is True
         assert subtitle_settings["anchor"] == "bottom"
-        assert subtitle_settings["font_name"] == "Arial"
         # font_directory is resolved to absolute path during config loading
         assert "static/fonts" in subtitle_settings["font_directory"]
 
@@ -442,12 +441,8 @@ class TestVideoConfig:
                 "anchor": "bottom",
                 "margin": 0.05,
                 "content_aware": False,
-                "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
-                "font_width_to_height_ratio": 0.5,
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&HFF000000",
                 "use_random_font": False,
                 "use_random_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
@@ -464,9 +459,6 @@ class TestVideoConfig:
                 "max_line_length": 38,
                 "min_subtitle_duration": 0.4,
                 "subtitle_similarity_threshold": 0.70,
-                "bold": True,
-                "outline_thickness": 1,
-                "shadow": True,
             },
             "whisper_settings": {
                 "enabled": True,
@@ -662,12 +654,8 @@ class TestLoadVideoConfig:
                 "anchor": "bottom",
                 "margin": 0.05,
                 "content_aware": False,
-                "font_name": "Arial",
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
-                "font_width_to_height_ratio": 0.5,
-                "font_color": "&H00FFFFFF",
-                "outline_color": "&HFF000000",
                 "use_random_font": False,
                 "use_random_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
@@ -684,9 +672,6 @@ class TestLoadVideoConfig:
                 "max_line_length": 38,
                 "min_subtitle_duration": 0.4,
                 "subtitle_similarity_threshold": 0.70,
-                "bold": True,
-                "outline_thickness": 1,
-                "shadow": True,
             },
             "whisper_settings": {
                 "enabled": True,

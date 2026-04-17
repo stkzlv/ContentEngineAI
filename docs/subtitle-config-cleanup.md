@@ -33,7 +33,7 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 6 | ~~Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()`~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
 | 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
-| 9 | Remove the "Legacy Compatibility Settings" block in `subtitle_settings` | **Cleanup** | Open (unblocked) | 1 hour |
+| 9 | ~~Remove the "Legacy Compatibility Settings" block in `subtitle_settings`~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
 Remaining effort: roughly 3 days if everything open is done.
@@ -699,28 +699,35 @@ to be removed. After that removal, these fields become dead:
 That's 11 of 24 fields gone. Keep karaoke_*, fade_duration_ms,
 typewriter_char_reveal_max_sec, typewriter_min_timing_ms.
 
-### 5.5 The "Legacy Compatibility Settings" block
+### 5.5 The "Legacy Compatibility Settings" block — DONE
 
-`subtitle_settings.font_directory`, `font_name`, `font_size_percent`,
-`font_width_to_height_ratio`, `font_color`, `outline_color`, `back_color`,
-`bold`, `outline_thickness`, `shadow` form a "legacy" block (commented as
-such in YAML:254). They duplicate fields that also live in every style
-preset.
+**Status**: the 8 preset-duplicate fields have been removed.
 
-The duplication is load-bearing: the drawtext/SRT path in
-`SubtitleGraphBuilder.build_subtitle_graph` reads the legacy fields
-directly as fallbacks when a style preset doesn't cover them. Deleting
-them breaks the drawtext path.
+The block mixed three concerns. Resolved as follows:
 
-**Fix**: have style presets be the single source of truth. The legacy
-block's only role is "what to use when no preset is active", which is
-really just "the default preset". Merge the legacy block into the `modern`
-preset definition and delete the legacy block.
+- **Preset-duplicates deleted**: `font_name`, `font_color`, `outline_color`,
+  `back_color`, `bold`, `outline_thickness`, `shadow`,
+  `font_width_to_height_ratio` no longer live in YAML,
+  `MergedSubtitleSettings`, `_build_subtitle_base`, or `_collect_overrides`.
+  Style presets are now the single source of truth.
+- **Infrastructure kept**: `font_directory` and `font_size_percent` stay
+  under `subtitle_settings` because they're load-bearing for the rendering
+  pipeline (font resolution, drawtext pixel size) and are not
+  preset-owned. The YAML section is now labelled "SUBTITLE INFRASTRUCTURE".
+- **Drawtext path rewired**: `SubtitleGraphBuilder` reads styling from the
+  active `style_config` (from `get_style_config()`) in all three drawtext
+  branches. On preset lookup failure, falls back to hardcoded modern
+  defaults via a module-level `_MODERN_PRESET_DEFAULTS` constant — no more
+  reads of legacy fields from `settings_dict`.
+- **CLI/profile overrides dropped**: `--subtitle-font`,
+  `--subtitle-font-color`, `--subtitle-outline-color`,
+  `--subtitle-background-color`, the matching `VideoProfile` fields, and
+  the `SUBTITLE_FONT*` env var mappings are gone. Users who want custom
+  styling edit or add a `style_preset`.
 
-**Effort**: 1-2 hours. The risk is subtle interactions with randomization:
-`font_color_manager` overrides presets' font_color at runtime, and the
-override path currently writes into the merged settings dict. This needs
-a careful pass.
+`font_color_manager`'s randomization is unchanged: it writes into the
+preset-derived dict returned by `get_style_config()`, which consumers already
+read from.
 
 ---
 

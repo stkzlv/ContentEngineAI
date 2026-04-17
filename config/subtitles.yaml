@@ -264,31 +264,12 @@ subtitle_settings:
       # Uses standard subtitle_settings for styling when custom_style is null
       custom_style: null
 
-  # ---- LEGACY COMPATIBILITY SETTINGS ----
-  # These feed the drawtext-based SRT path plus a few fallback code paths.
-  # Tuned to match the best-practice recipe in docs/subtitle-best-practices.md
-  # so profiles that fall through to these values still look reasonable.
+  # ---- SUBTITLE INFRASTRUCTURE ----
+  # Low-level settings the rendering pipeline needs outside of style presets.
+  # Style (font name, colors, outline, shadow, bold) is preset-owned — see
+  # the style_presets section at the bottom of this file.
   font_directory: "static/fonts"
-  font_name: "Montserrat"               # Bold sans-serif, research-backed default
   font_size_percent: 0.075              # ~144px at 1920 frame height (~7.5%)
-  font_width_to_height_ratio: 0.55
-
-  # Color settings — white fill + opaque black outline, no background box.
-  # Background boxes compete with product imagery; skip unless the profile
-  # explicitly needs one (noisy backgrounds).
-  font_color: "&H00FFFFFF"              # White text
-  outline_color: "&H00000000"           # Opaque black (was &HFF000000, which
-                                         # set alpha to fully transparent —
-                                         # bug masked by preset colors).
-  back_color: null                       # No background box by default
-
-  # Visual styling
-  bold: true
-  outline_thickness: 3                  # Thicker stroke — best practice is
-                                         # 8-10% of font size. At 144px that's
-                                         # ~13px, but libass caps visually
-                                         # around 3-4 for cleanliness.
-  shadow: true
 
   # Script fallback paths
   script_paths: ["info/script.txt"]

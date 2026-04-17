@@ -123,7 +123,8 @@ class TestMergedProfileSettings:
 
         assert merged.subtitle_settings.anchor == "bottom"
         assert merged.subtitle_settings.margin == 0.05
-        assert merged.subtitle_settings.font_name == "Arial"
+        # font_directory resolved to absolute path during config loading
+        assert merged.subtitle_settings.font_directory.endswith("static/fonts")
         assert merged.subtitle_settings.max_line_length == 38
         assert merged.subtitle_settings.enabled is True
 
@@ -134,7 +135,7 @@ class TestMergedProfileSettings:
 
         assert isinstance(dumped, dict)
         assert dumped["anchor"] == "bottom"
-        assert dumped["font_name"] == "Arial"
+        assert dumped["font_directory"].endswith("static/fonts")
 
     def test_two_part_subtitle_defaults(self, mock_config: VideoConfig):
         """Two-part subtitle fields have correct defaults when not configured."""

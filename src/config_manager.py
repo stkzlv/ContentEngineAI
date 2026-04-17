@@ -191,11 +191,6 @@ class UnifiedConfigManager:
             "SUBTITLE_MAX_WORDS_PER_LINE": ["subtitle_settings.max_words_per_line"],
             "SUBTITLE_MAX_DURATION": ["subtitle_settings.max_duration"],
             "SUBTITLE_MIN_DURATION": ["subtitle_settings.min_duration"],
-            # Advanced subtitle styling
-            "SUBTITLE_FONT": ["subtitle_settings.font_name"],
-            "SUBTITLE_FONT_COLOR": ["subtitle_settings.font_color"],
-            "SUBTITLE_OUTLINE_COLOR": ["subtitle_settings.outline_color"],
-            "SUBTITLE_BACKGROUND_COLOR": ["subtitle_settings.background_color"],
         }
 
         for env_var, config_paths in env_mappings.items():
