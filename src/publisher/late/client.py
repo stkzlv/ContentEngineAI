@@ -523,9 +523,14 @@ class LatePublisher(BasePublisher):
             for account in accounts_list:
                 # Handle both dict and object responses
                 if hasattr(account, "platform"):
-                    # Pydantic model or object
+                    # Pydantic model or object. Late SDK returns platform as
+                    # a Platform5 enum; unwrap to its string value so callers
+                    # get a plain "instagram"/"tiktok"/"youtube" string.
+                    platform = getattr(account, "platform", "unknown")
+                    if hasattr(platform, "value"):
+                        platform = platform.value
                     account_dict = {
-                        "platform": getattr(account, "platform", "unknown"),
+                        "platform": platform,
                         "username": getattr(account, "username", "")
                         or getattr(account, "handle", ""),
                         "account_id": getattr(account, "field_id", "")
