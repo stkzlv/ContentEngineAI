@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking**: Unified the historical `MergedSubtitleSettings` (config side, `extra="allow"`) and `UnifiedSubtitleConfig` (runtime side) into a single strict `SubtitleSettings` model. The dict round-trip translator that used to bridge them is gone, eliminating the silent-drop class of bugs (e.g. profile overrides whose value got lost at the model→dict boundary). Canonical field names land here too: `max_duration` / `min_duration` replace `max_subtitle_duration` / `min_subtitle_duration`.
+- **Breaking**: Profile overrides on `VideoProfile` use a single nested `subtitle_settings: PartialSubtitleSettings | None` block. The 30+ flat `subtitle_*` / `pycaps_*` / `two_part_subtitles_*` fields are gone. A migration shim accepts the legacy shape with a `DeprecationWarning` for one release.
+- `SubtitleSettings` is strict (`extra="forbid"`); YAML typos throw `ValidationError` at load time instead of being silently dropped at runtime. `SubtitleSettings.from_legacy_dict()` translates the historical names and drops underscore-prefixed runtime side-channel keys.
+- `PlatformSafeZone`, `PositionAnchor`, `StylePreset`, and `Position` moved into `src/video/config/subtitle_models.py`. Old import paths still work via re-exports.
+
+### Removed
+- `MergedSubtitleSettings`, `UnifiedSubtitleConfig`, and `create_unified_config_from_settings` are gone. Callers now construct `SubtitleSettings` directly or via `from_legacy_dict`.
+- The `_collect_overrides` field_map for subtitle settings (~20 entries) and the per-profile pycaps/safe_zone/two_part folding code in `get_profile_merged_settings`. Replaced by `partial.merge_into(base)` in three lines.
+
+### Added
+- `PartialSubtitleSettings.merge_into(base)` deep-merges non-None overrides; nested models (`pycaps`, `two_part_subtitles`, `safe_zone`) merge per-field rather than being replaced wholesale.
+
 ## [0.41.0] - 2026-04-18
 
 ### Changed

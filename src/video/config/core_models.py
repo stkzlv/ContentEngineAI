@@ -769,93 +769,16 @@ class VideoConfig(BaseModel):
                 )
         merged_video = self.video_settings.model_copy(update=video_overrides)
 
-        # --- Subtitle settings: YAML dict + flattening + profile overrides ---
-        subtitle_data = self._build_subtitle_base()
-        subtitle_overrides = self._collect_overrides(
-            profile,
-            {
-                "subtitle_anchor": "anchor",
-                "subtitle_margin": "margin",
-                "subtitle_content_aware": "content_aware",
-                "subtitle_style_preset": "style_preset",
-                "subtitle_font_size_scale": "font_size_scale",
-                "subtitle_horizontal_alignment": "horizontal_alignment",
-                "subtitle_randomize_fonts": "randomize_fonts",
-                "subtitle_randomize_colors": "randomize_colors",
-                "subtitle_randomize_effects": "randomize_effects",
-                "subtitle_max_line_length": "max_line_length",
-                "subtitle_max_words_per_line": "max_words_per_line",
-                "subtitle_max_subtitle_width_fraction": "max_subtitle_width_fraction",
-                "subtitle_max_duration": "max_subtitle_duration",
-                "subtitle_min_duration": "min_subtitle_duration",
-                "subtitle_selected_font": "selected_font",
-                "subtitle_selected_color_pair": "selected_color_pair",
-            },
-        )
-        subtitle_data.update(subtitle_overrides)
-        if profile.subtitle_positioning:
-            subtitle_data.update(profile.subtitle_positioning)
-
-        # Apply per-profile safe zone overrides (subtitle_safe_zone_* fields).
-        # Build a PlatformSafeZone with profile values overriding the global.
-        sz_overrides: dict[str, float] = {}
-        for attr in ("min_x", "max_x", "min_y", "max_y"):
-            val = getattr(profile, f"subtitle_safe_zone_{attr}", None)
-            if val is not None:
-                sz_overrides[attr] = val
-        if sz_overrides:
-            base_sz = subtitle_data.get("safe_zone")
-            if isinstance(base_sz, PlatformSafeZone):
-                subtitle_data["safe_zone"] = base_sz.model_copy(update=sz_overrides)
-            else:
-                subtitle_data["safe_zone"] = PlatformSafeZone(**sz_overrides)
-
-        # Engine + nested pycaps profile overrides. Flat VideoProfile fields
-        # (pycaps_template, pycaps_renderer, ...) fold into the nested
-        # subtitle_data["pycaps"] dict so Pydantic can build PycapsSettings.
-        if profile.subtitle_engine is not None:
-            subtitle_data["subtitle_engine"] = profile.subtitle_engine
-        pycaps_profile_overrides: dict[str, Any] = {}
-        profile_pycaps_field_map = {
-            "pycaps_template": "template_name",
-            "pycaps_template_pool": "template_pool",
-            "pycaps_renderer": "renderer",
-            "pycaps_max_width_ratio": "max_width_ratio",
-            "pycaps_vertical_align": "vertical_align",
-            "pycaps_vertical_align_offset": "vertical_align_offset",
-            "pycaps_fallback_policy": "fallback_policy",
-        }
-        for profile_field, pycaps_field in profile_pycaps_field_map.items():
-            value = getattr(profile, profile_field, None)
-            if value is not None:
-                pycaps_profile_overrides[pycaps_field] = value
-        if pycaps_profile_overrides:
-            base_pycaps = subtitle_data.get("pycaps") or {}
-            if not isinstance(base_pycaps, dict):
-                base_pycaps = (
-                    base_pycaps.model_dump()
-                    if hasattr(base_pycaps, "model_dump")
-                    else dict(base_pycaps)
-                )
-            base_pycaps.update(pycaps_profile_overrides)
-            subtitle_data["pycaps"] = base_pycaps
-
-        # Two-part subtitles profile override: nested dict, deep-merged onto
-        # the global block so profiles only need to specify fields that differ.
-        if profile.two_part_subtitles:
-            base_two_part = subtitle_data.get("two_part_subtitles") or {}
-            if not isinstance(base_two_part, dict):
-                base_two_part = dict(base_two_part)
-            subtitle_data["two_part_subtitles"] = _deep_merge(
-                base_two_part, profile.two_part_subtitles
-            )
-
-        # Build the unified SubtitleSettings. from_legacy_dict handles the
-        # historical renames (max_subtitle_duration → max_duration, etc.) and
-        # drops runtime-only underscore keys so strict validation passes.
+        # --- Subtitle settings: YAML dict -> SubtitleSettings, then deep-merge
+        # the profile's nested subtitle_settings PartialSubtitleSettings on top.
         from src.video.config.subtitle_models import SubtitleSettings
 
+        subtitle_data = self._build_subtitle_base()
+        if profile.subtitle_positioning:
+            subtitle_data.update(profile.subtitle_positioning)
         merged_subtitle = SubtitleSettings.from_legacy_dict(subtitle_data)
+        if profile.subtitle_settings is not None:
+            merged_subtitle = profile.subtitle_settings.merge_into(merged_subtitle)
 
         # --- Profile info ---
         profile_info = ProfileInfo(
