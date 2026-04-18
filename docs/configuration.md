@@ -1703,10 +1703,6 @@ These enhance functionality but are not required for basic operation.
 | `SUBTITLE_MAX_WORDS_PER_LINE` | int | 8 | Maximum words per line (0 to disable) |
 | `SUBTITLE_MAX_DURATION` | float | 5.0 | Maximum subtitle duration (seconds) |
 | `SUBTITLE_MIN_DURATION` | float | 1.0 | Minimum subtitle duration (seconds) |
-| `SUBTITLE_FONT` | string | Montserrat | Font family name |
-| `SUBTITLE_FONT_COLOR` | string | &H00FFFFFF | Font color in ASS format |
-| `SUBTITLE_OUTLINE_COLOR` | string | &H00000000 | Outline color in ASS format |
-| `SUBTITLE_BACKGROUND_COLOR` | string | &H00000000 | Background color in ASS format |
 | `SUBTITLE_RANDOMIZE_FONTS` | bool | false | Enable random font selection |
 | `SUBTITLE_RANDOMIZE_COLORS` | bool | false | Enable random color selection |
 | `SUBTITLE_RANDOMIZE_EFFECTS` | bool | false | Enable random effect selection |
@@ -1904,20 +1900,33 @@ tts_config:
 
 ### Custom Subtitle Styling
 
+Styling (font, colors, outline, shadow, effects) is owned by style presets.
+Add or override an entry under the top-level `style_presets` block:
+
+```yaml
+style_presets:
+  brand:
+    description: "Brand-colored preset"
+    font_name: "Montserrat"
+    font_color: "&H000035FF"         # ASS &HAABBGGRR (orange)
+    outline_color: "&H00FFFFFF"      # White outline
+    background_color: null           # No background box
+    bold: true
+    outline_thickness: 3
+    shadow: true
+    effects: ["karaoke"]
+    font_width_to_height_ratio: 0.5
+```
+
+Then select the preset in `subtitle_settings` (and tune layout knobs at
+the same level — colors stay in the preset):
+
 ```yaml
 subtitle_settings:
-  # Brand colors
-  font_color: "#FF6B35"              # Brand orange
-  outline_color: "#FFFFFF"           # White outline
-  back_color: "#00000000"            # No background
-  
-  # Custom positioning
-  alignment: "center"                # Center alignment
-  margin_v_percent: 20               # Higher position
-  
-  # Custom segmentation
-  max_line_length: 30                # Shorter lines
-  split_on_punctuation: false        # Don't split on punctuation
+  style_preset: "brand"
+  horizontal_alignment: "center"
+  margin: 0.1                        # Fraction of frame height
+  max_line_length: 30
 ```
 
 ## Configuration Validation

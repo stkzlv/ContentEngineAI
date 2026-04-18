@@ -234,8 +234,7 @@ right answer is a hybrid rendering path.
 
 ### Acceptance criteria
 
-- [ ] A profile with both `two_part_subtitles_enabled: true` (now
-  `two_part_subtitles.enabled: true` under the nested block) and
+- [ ] A profile with both `two_part_subtitles.enabled: true` and
   `subtitle_engine: pycaps` produces a video with:
   - Upper static URL subtitle rendered via the existing FFmpeg ASS path
   - Lower animated pycaps captions rendered via the burn step

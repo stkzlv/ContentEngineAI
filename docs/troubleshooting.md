@@ -358,19 +358,23 @@ for voice in voices.voices[:5]:
 2. **Timing Issues:**
    ```yaml
    subtitle_settings:
-     max_subtitle_duration_sec: 5    # Shorter segments
-     pause_threshold_sec: 0.5        # More sensitive pause detection
-     split_on_punctuation: true      # Natural breaks
+     max_subtitle_duration: 2.5     # Shorter segments (seconds)
+     min_subtitle_duration: 0.6     # Floor so short words stay readable
+     max_words_per_line: 3          # Denser line breaks
    ```
 
 3. **Readability Issues:**
    ```yaml
    subtitle_settings:
-     font_size_percent: 5            # Larger font
-     font_color: "#FFFFFF"           # High contrast
-     back_color: "#000000AA"         # Semi-transparent background
-     margin_v_percent: 15            # More space from bottom
+     font_size_percent: 0.08        # Larger font (fraction of frame height)
+     margin: 0.12                   # More space from anchor
+     style_preset: "bold"           # High-contrast preset (colors owned by preset)
    ```
+
+   Colors, outline, and font family are owned by the active `style_preset`.
+   Edit or add an entry under the top-level `style_presets` block in
+   `config/subtitles.yaml` to change them — there are no longer flat
+   `font_color` / `back_color` keys on `subtitle_settings`.
 
 ### Video Assembly Issues
 

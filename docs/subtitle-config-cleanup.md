@@ -21,7 +21,9 @@ This document exists to:
 
 ## TL;DR
 
-All bugs fixed. Four high-value refactors, ~20 dead fields.
+All bugs fixed. Dead fields deleted, legacy block gone. Two refactors
+still open: §4.1 (collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig`)
+and §6 (rename canonical keys, gated on §4.1).
 
 | # | Work item | Kind | Status | Effort |
 |---|---|---|---|---|
@@ -36,7 +38,7 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 9 | ~~Remove the "Legacy Compatibility Settings" block in `subtitle_settings`~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
 
-Remaining effort: roughly 3 days if everything open is done.
+Remaining effort: roughly 1-2 days if §4.1 and §6 are both done.
 
 ---
 
@@ -463,7 +465,19 @@ migrated (ideally in one commit).
 
 **Effort**: 1 day including the migration shim.
 
-### 4.4 Move `style_presets` into the Pydantic config layer
+### 4.4 Move `style_presets` into the Pydantic config layer — DONE
+
+**Status**: shipped. `StylePresetConfig` lives in
+`src/video/config/subtitle_models.py`; `VideoConfig.style_presets:
+dict[str, StylePresetConfig]` on `core_models.py:592` holds the validated
+presets with hardcoded Python defaults as `default_factory`.
+`get_style_config()` prefers the typed path when a `VideoConfig` is
+threaded through. One loose end: the legacy YAML re-read at
+`subtitle_positioning.py:184-205` is still present as a fallback for
+call sites that don't pass `video_config`. Worth deleting
+opportunistically but not blocking.
+
+**Historical notes** (original design sketch):
 
 **Current**: `get_style_config()` in `subtitle_positioning.py:168` does:
 ```python
@@ -805,11 +819,9 @@ Bug 3.1 (duration + width) is fixed. Remaining work, in order:
    profile safe_zone fields.
 2. **Delete dead fields (§5.1, §5.2, §5.3)** (1 hour). Pure subtraction,
    no behaviour change. Good confidence builder.
-3. **Move `style_presets` into Pydantic (§4.4)** (0.5 day). Removes
-   the CWD-dependent side channel and the hardcoded Python fallback.
-4. **Nest `two_part_subtitles` (§4.2)** (0.5 day). Independent of the
-   big refactor, already has a clean shape in YAML, just needs the
-   Pydantic layer to catch up.
+3. ~~**Move `style_presets` into Pydantic (§4.4)**~~ — done (legacy YAML
+   re-read remains as a fallback; worth deleting opportunistically).
+4. ~~**Nest `two_part_subtitles` (§4.2)**~~ — done.
 5. ~~**Move font/color pools to YAML (§4.5)**~~ — done.
 6. **Collapse the two Pydantic models (§4.1)** (1-2 days). The biggest
    refactor; do it last when the surrounding surface area is already
