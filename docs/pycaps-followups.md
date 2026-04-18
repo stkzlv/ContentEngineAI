@@ -412,8 +412,10 @@ smoothing both from a single call site in `generate_subtitles_with_whisper`
 was cleaner than trying to unify the shapes.
 
 Config flows as a nested `timing_smoothing` dict from YAML through to the
-smoother kwargs. No flat Pydantic fields on `MergedSubtitleSettings` — the
-config audit caught that as dead code and they were removed.
+smoother kwargs. The flat per-knob fields that used to ride through the
+old `extra="allow"` accumulator are gone; `timing_smoothing` is now a
+typed field on the unified `SubtitleSettings`, kept loose-typed because
+the smoother itself owns the kwargs schema.
 
 The before/after fixture test is still open — the unit tests cover the
 logic exhaustively, but a visual comparison on a real voiceover would

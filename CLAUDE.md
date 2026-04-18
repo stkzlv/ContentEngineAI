@@ -133,6 +133,8 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 ### Video Module Notes
 
 - **Profile settings**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` (not dicts). Access via `.video_settings.field` and `.subtitle_settings.field`. Use `.model_dump()` when downstream functions need dicts.
+- **Subtitle config model**: `SubtitleSettings` (in `src/video/config/subtitle_models.py`) is the single source of truth — both the config-layer merge output and runtime generator input. Strict (`extra="forbid"`); YAML typos throw at load. `from_legacy_dict()` translates renames (`max_subtitle_duration` → `max_duration`, `min_subtitle_duration` → `min_duration`) and drops underscore-prefixed runtime side-channel keys.
+- **Subtitle profile overrides**: `VideoProfile.subtitle_settings: PartialSubtitleSettings | None` is a single nested block; `partial.merge_into(base)` deep-merges (nested sub-models like `pycaps`, `two_part_subtitles`, `safe_zone` merge per-field). The `@model_validator(mode="before")` shim on `VideoProfile` migrates legacy flat keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) to the nested block at load with a `DeprecationWarning` for one release.
 - **Video centering**: Use `video_vertical_align: center` in profile config. Setting `video_top_position_percent: 0.0` puts video at top, not center. The `center` value triggers FFmpeg's `(oh-ih)/2` pad expression.
 - **Subtitle positioning**: For centered images with mixed aspect ratios (landscape + portrait), use AVERAGE `video_top` across all images to balance positioning
 - **Visual bounds**: Calculated from actual image dimensions, not frame dimensions

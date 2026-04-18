@@ -1526,8 +1526,9 @@ video_profiles:
     # Profile-Specific Image Settings
     image_width_percent: 0.85         # 85% frame width for product focus
 
-    # Profile-Specific Subtitle Settings
-    subtitle_randomize_effects: true  # Enable effect randomization
+    # Profile-Specific Subtitle Settings (nested override block)
+    subtitle_settings:
+      randomize_effects: true         # Enable effect randomization
 
   slideshow_images2:
     description: "Alternative slideshow with different styling"
@@ -1541,50 +1542,60 @@ video_profiles:
     image_width_percent: 0.80         # 80% frame width
     image_top_position_percent: 0.15  # Position 15% from top
 
-    # Subtitle positioning
-    subtitle_anchor: "below_content"  # Position below images
-    subtitle_margin: 0.08             # 8% gap below content
-    subtitle_content_aware: true      # Dynamic positioning
-    subtitle_horizontal_alignment: "center"
-
-    # Subtitle styling
-    subtitle_style_preset: "minimal"  # Clean minimal style
-    subtitle_font_size_scale: 0.9     # 10% smaller font
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: false
-
-    # Text formatting
-    subtitle_max_line_length: 28
-    subtitle_max_words_per_line: 3
-    subtitle_max_subtitle_width_fraction: 0.85
-    subtitle_max_duration: 4.0
-    subtitle_min_duration: 0.5
+    # Subtitle overrides — single nested block, only fields that differ from
+    # the global subtitle_settings need to be set. Nested sub-blocks (pycaps,
+    # two_part_subtitles, safe_zone) deep-merge per-field.
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.08
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "minimal"
+      font_size_scale: 0.9
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: false
+      max_line_length: 28
+      max_words_per_line: 3
+      max_subtitle_width_fraction: 0.85
+      max_duration: 2.5
+      min_duration: 0.6
 ```
 
 **Available Per-Profile Overrides:**
 
 ```yaml
-# Image Settings (all optional)
+# Image Settings (all optional, top-level on the profile)
 image_width_percent: 0.85            # Override global image width
 image_top_position_percent: 0.15     # Override global image position
 preserve_aspect_ratio: true          # Override aspect ratio setting
 
-# Subtitle Settings (all optional)
-subtitle_anchor: "below_content"     # Override positioning anchor
-subtitle_margin: 0.08                # Override margin from anchor
-subtitle_content_aware: true         # Override content-aware positioning
-subtitle_style_preset: "modern"     # Override style preset (minimal, modern, bold, animated, random)
-subtitle_font_size_scale: 1.1        # Override font size scaling
-subtitle_max_line_length: 35         # Override line length limit
-subtitle_max_words_per_line: 3       # Override max words per line
-subtitle_max_subtitle_width_fraction: 0.85  # Override max subtitle width
-subtitle_max_duration: 4.5           # Override max subtitle duration
-subtitle_min_duration: 0.4           # Override min subtitle duration
-subtitle_horizontal_alignment: "center"
-subtitle_randomize_fonts: false      # Override font randomization
-subtitle_randomize_colors: false     # Override color randomization
-subtitle_randomize_effects: false    # Override effect randomization
+# Subtitle Settings — single nested block. Any field on the global
+# subtitle_settings can be overridden here; unset fields inherit from global.
+subtitle_settings:
+  anchor: "below_content"            # top, center, bottom, above_content, below_content
+  margin: 0.08                       # Margin as fraction of frame height (0.0-0.5)
+  content_aware: true
+  horizontal_alignment: "center"     # left, center, right
+  style_preset: "modern"             # minimal, modern, bold, animated, random
+  font_size_scale: 1.1               # 0.5-2.0
+  max_line_length: 35
+  max_words_per_line: 3
+  max_subtitle_width_fraction: 0.85
+  max_duration: 2.5                  # Canonical name (was max_subtitle_duration)
+  min_duration: 0.6                  # Canonical name (was min_subtitle_duration)
+  randomize_fonts: false
+  randomize_colors: false
+  randomize_effects: false
+  pycaps:                            # Nested pycaps overrides (deep-merged)
+    template_name: "hype"
+    renderer: "css"
+  two_part_subtitles:                # Nested two-part overrides (deep-merged)
+    enabled: true
+    upper_line:
+      style_preset: "minimal"
+  safe_zone:                         # Nested safe-zone overrides (deep-merged)
+    max_y: 0.65                      # Tighter bottom for ad-heavy clips
 ```
 
 **Key Features:**
