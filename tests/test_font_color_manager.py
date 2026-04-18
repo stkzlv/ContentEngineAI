@@ -253,3 +253,116 @@ class TestRandomizationEngine:
         assert info["colors"]["total"] == 3
         assert isinstance(info["fonts"]["families"], list)
         assert isinstance(info["colors"]["pairs"], list)
+
+
+@pytest.mark.unit
+class TestFontAvailabilityFallbacks:
+    """Cover the disk-availability failure paths and the system_fallback chain."""
+
+    @pytest.fixture
+    def pool(self) -> list[FontPoolEntry]:
+        return [
+            FontPoolEntry(
+                name="Ghost",
+                file="Ghost-Bold.ttf",
+                ffmpeg_name="Ghost-Bold",
+                system_fallback="Helvetica",
+            ),
+        ]
+
+    def test_verify_returns_false_for_missing_file(self, pool, tmp_path):
+        manager = FontManager(font_pool=pool, static_fonts_dir=str(tmp_path))
+        assert manager.verify_font_availability("Ghost") is False
+
+    def test_verify_returns_false_for_unknown_name(self, pool, tmp_path):
+        manager = FontManager(font_pool=pool, static_fonts_dir=str(tmp_path))
+        assert manager.verify_font_availability("NotInPool") is False
+
+    def test_get_available_fonts_falls_back_to_full_pool_when_none_on_disk(
+        self, pool, tmp_path, caplog
+    ):
+        manager = FontManager(font_pool=pool, static_fonts_dir=str(tmp_path))
+        with caplog.at_level("ERROR"):
+            available = manager.get_available_fonts()
+        assert available == ["Ghost"]
+        assert any("No font files available" in rec.message for rec in caplog.records)
+
+    def test_generate_randomized_style_uses_system_fallback_when_file_missing(
+        self, pool, tmp_path
+    ):
+        from types import SimpleNamespace
+
+        config = SimpleNamespace(
+            font_pool=pool,
+            color_pool=[
+                ColorPoolEntry(
+                    name="classic",
+                    display_name="Classic",
+                    font_color="&H00FFFFFF",
+                    outline_color="&H00000000",
+                    description="White on black",
+                ),
+            ],
+            subtitle_settings={"font_directory": str(tmp_path)},
+        )
+        engine = RandomizationEngine(video_config=config)
+        result = engine.generate_randomized_style(
+            product_id="missing-file-test",
+            enable_font_randomization=True,
+            base_style={"font_name": "Arial"},
+        )
+        # Verification fails → system_fallback wins, no font_path attached
+        assert result["font_name"] == "Helvetica"
+        assert "font_path" not in result
+
+
+@pytest.mark.unit
+class TestRandomizationEngineDefaultsAndConfigShapes:
+    """Cover the default-loading paths and the object-style subtitle_settings branch."""
+
+    def test_constructed_without_video_config_loads_global_defaults(self):
+        # Falls through to _load_default_pools, which reads the global VideoConfig.
+        engine = RandomizationEngine()
+        info = engine.get_system_info()
+        assert info["fonts"]["total"] >= 1
+        assert info["colors"]["total"] >= 1
+
+    def test_font_manager_constructed_with_no_args_uses_defaults(self):
+        manager = FontManager()
+        # Pool from global YAML — at least one entry.
+        assert len(manager.get_available_fonts()) >= 1
+
+    def test_color_manager_constructed_with_no_args_uses_defaults(self):
+        manager = ColorManager()
+        # Pool from global YAML — at least one entry.
+        assert len(manager.get_available_color_pairs()) >= 1
+
+    def test_engine_reads_font_directory_from_attribute_style_config(self, tmp_path):
+        from types import SimpleNamespace
+
+        # subtitle_settings is an object with .font_directory, not a dict.
+        # This mirrors what MergedSubtitleSettings looks like at runtime.
+        ss_object = SimpleNamespace(font_directory=str(tmp_path))
+        config = SimpleNamespace(
+            font_pool=[
+                FontPoolEntry(
+                    name="X",
+                    file="X.ttf",
+                    ffmpeg_name="X",
+                    system_fallback="Arial",
+                ),
+            ],
+            color_pool=[
+                ColorPoolEntry(
+                    name="classic",
+                    display_name="Classic",
+                    font_color="&H00FFFFFF",
+                    outline_color="&H00000000",
+                    description="",
+                ),
+            ],
+            subtitle_settings=ss_object,
+        )
+        engine = RandomizationEngine(video_config=config)
+        # Confirms the attribute branch ran by checking the resolved fonts dir.
+        assert str(engine.font_manager.fonts_dir) == str(tmp_path)
