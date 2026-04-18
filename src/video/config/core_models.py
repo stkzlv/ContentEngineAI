@@ -34,6 +34,8 @@ from src.video.config.constants import (
 )
 from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
+    ColorPoolEntry,
+    FontPoolEntry,
     StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
@@ -532,6 +534,70 @@ class OptimizationSettings(BaseModel):
     cache_key_max_length: int = Field(16)
 
 
+def _default_font_pool() -> list[FontPoolEntry]:
+    """Curated bold sans-serif font pool. Serif fonts excluded by design."""
+    return [
+        FontPoolEntry(
+            name="Montserrat",
+            file="Montserrat-Bold.ttf",
+            ffmpeg_name="Montserrat-Bold",
+            system_fallback="Arial",
+        ),
+        FontPoolEntry(
+            name="Poppins",
+            file="Poppins-Bold.ttf",
+            ffmpeg_name="Poppins-Bold",
+            system_fallback="Arial",
+        ),
+        FontPoolEntry(
+            name="Gabarito",
+            file="Gabarito-Bold.ttf",
+            ffmpeg_name="Gabarito-Bold",
+            system_fallback="Arial",
+        ),
+        FontPoolEntry(
+            name="Rubik",
+            file="Rubik-Bold.ttf",
+            ffmpeg_name="Rubik-Bold",
+            system_fallback="Arial",
+        ),
+    ]
+
+
+def _default_color_pool() -> list[ColorPoolEntry]:
+    """Curated high-contrast color pool. WCAG AA-compliant pairs only."""
+    return [
+        ColorPoolEntry(
+            name="classic",
+            display_name="Classic",
+            font_color="&H00FFFFFF",
+            outline_color="&H00000000",
+            description="White on black stroke (21:1 contrast, WCAG AAA)",
+        ),
+        ColorPoolEntry(
+            name="high_contrast",
+            display_name="High Contrast",
+            font_color="&H0000FFFF",
+            outline_color="&H00000000",
+            description="Yellow on black stroke - high visibility",
+        ),
+        ColorPoolEntry(
+            name="neon_green",
+            display_name="Neon Green",
+            font_color="&H004CFF00",
+            outline_color="&H00000000",
+            description="Bright green on black - high-energy highlight",
+        ),
+        ColorPoolEntry(
+            name="brand_yellow",
+            display_name="Brand Yellow",
+            font_color="&H0000EBFF",
+            outline_color="&H00000000",
+            description="Saturated yellow on black - highest-converting per Submagic",
+        ),
+    ]
+
+
 class VideoConfig(BaseModel):
     global_output_directory: str = Field("outputs")
     output_structure: OutputStructure = Field(
@@ -627,6 +693,8 @@ class VideoConfig(BaseModel):
             ),
         }
     )
+    font_pool: list[FontPoolEntry] = Field(default_factory=_default_font_pool)
+    color_pool: list[ColorPoolEntry] = Field(default_factory=_default_color_pool)
     scraper_timing: ScraperTimingSettings | None = Field(None)
     media_validation: MediaValidationSettings | None = Field(None)
     llm_validation: LLMValidationSettings | None = Field(None)

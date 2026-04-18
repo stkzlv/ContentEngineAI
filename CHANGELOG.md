@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-04-18
+
+### Changed
+- Font and color randomization pools moved from Python enums to YAML. `font_pool` and `color_pool` live under top-level keys in `config/subtitles.yaml` and bind to `FontPoolEntry` / `ColorPoolEntry` Pydantic models on `VideoConfig`. Adding a font or palette no longer requires editing Python.
+- `FontManager.select_random_font()` and `ColorManager.select_random_color_pair()` return string identifiers instead of enum members. Determinism (md5-keyed per product_id) is unchanged.
+- `RandomizationEngine(__init__)` now takes a `video_config` argument so it can read the user's pools instead of the bundled defaults.
+
+### Removed
+- **Breaking**: `FontFamily` and `ColorPair` Python enums in `src/video/font_color_manager.py`. Pool membership is data, not code. Callers that imported these symbols must switch to string lookups.
+- Amateur color palettes `vibrant`, `warm`, `modern` (low contrast, fail WCAG AA). Replaced by `neon_green` and `brand_yellow` — both on a black outline for readability.
+- Serif font `DM_SERIF` from the default pool. The pool is bold sans-serif only, per the readability research.
+- `high_contrast` outline switched from dark blue to black for the same reason.
+
+### Added
+- Backwards-compatibility shim: old pair names (`vibrant`, `warm`, `modern`) and the old serif font silently fall back to `classic` / the first available font with a warning, so existing profile YAML keeps loading.
+
 ## [0.40.0] - 2026-04-17
 
 ### Changed

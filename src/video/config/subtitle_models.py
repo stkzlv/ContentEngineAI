@@ -109,6 +109,43 @@ class StylePresetConfig(BaseModel):
     font_width_to_height_ratio: float = 0.5
 
 
+class FontPoolEntry(BaseModel):
+    """One entry in the curated font randomization pool.
+
+    Pools live in `config/subtitles.yaml` under `font_pool` and feed
+    `FontManager`. Each entry maps a display name to a TTF file under
+    `subtitle_settings.font_directory` plus a system fallback.
+    """
+
+    name: str = Field(..., description="Display name (e.g. 'Montserrat')")
+    file: str = Field(
+        ..., description="Filename under font_directory (e.g. 'Montserrat-Bold.ttf')"
+    )
+    ffmpeg_name: str = Field(
+        ..., description="FFmpeg/ASS font family identifier (e.g. 'Montserrat-Bold')"
+    )
+    system_fallback: str = Field(
+        "Arial", description="Fallback font family when file is unavailable"
+    )
+
+
+class ColorPoolEntry(BaseModel):
+    """One coordinated text + outline color pair in the randomization pool.
+
+    Colors are in ASS hex format `&HAABBGGRR`. See
+    `docs/subtitle-best-practices.md` for the contrast research that drives
+    pool curation.
+    """
+
+    name: str = Field(..., description="Lookup key (e.g. 'classic', 'high_contrast')")
+    display_name: str = Field("", description="Human-friendly label used in logs")
+    font_color: str = Field(..., description="Text fill in ASS &HAABBGGRR format")
+    outline_color: str = Field(
+        ..., description="Outline stroke in ASS &HAABBGGRR format"
+    )
+    description: str = Field("", description="Why this pair is in the pool")
+
+
 class TwoPartSubtitleUpperLine(BaseModel):
     """Upper line (static product info) of the two-part subtitle system."""
 

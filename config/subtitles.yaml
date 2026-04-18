@@ -525,6 +525,69 @@ text_rendering:
     max_y: 0.75     # Bottom: 1440px on 1920h (TikTok overlay)
 
 # ============================================================================
+# FONT RANDOMIZATION POOL
+# ============================================================================
+# Curated bold sans-serif fonts used when subtitle_settings.randomize_fonts
+# is true. Selection is deterministic per product_id (md5-keyed).
+# Files live under subtitle_settings.font_directory.
+#
+# Constraints (see docs/subtitle-best-practices.md):
+# - Bold weight only — thin fonts lose readability on mobile
+# - Sans-serif only — serif breaks down at small sizes on busy backgrounds
+# - System fallback covers the case where the TTF is missing on disk
+
+font_pool:
+  - name: Montserrat
+    file: Montserrat-Bold.ttf
+    ffmpeg_name: Montserrat-Bold
+    system_fallback: Arial
+  - name: Poppins
+    file: Poppins-Bold.ttf
+    ffmpeg_name: Poppins-Bold
+    system_fallback: Arial
+  - name: Gabarito
+    file: Gabarito-Bold.ttf
+    ffmpeg_name: Gabarito-Bold
+    system_fallback: Arial
+  - name: Rubik
+    file: Rubik-Bold.ttf
+    ffmpeg_name: Rubik-Bold
+    system_fallback: Arial
+
+# ============================================================================
+# COLOR PAIR RANDOMIZATION POOL
+# ============================================================================
+# Coordinated text + outline color pairs used when
+# subtitle_settings.randomize_colors is true. Selection is deterministic
+# per product_id (md5-keyed). All values use ASS hex format &HAABBGGRR.
+#
+# Pool curated for WCAG AA contrast and high conversion rate per the
+# Submagic caption corpus. Black outline on every entry — colored outlines
+# (dark blue, dark green, purple) drag readability down.
+
+color_pool:
+  - name: classic
+    display_name: Classic
+    font_color: "&H00FFFFFF"     # White
+    outline_color: "&H00000000"  # Black
+    description: "White on black stroke (21:1 contrast, WCAG AAA)"
+  - name: high_contrast
+    display_name: High Contrast
+    font_color: "&H0000FFFF"     # Yellow (#FFFF00)
+    outline_color: "&H00000000"  # Black
+    description: "Yellow on black stroke - high visibility"
+  - name: neon_green
+    display_name: Neon Green
+    font_color: "&H004CFF00"     # Neon green (#00FF4C)
+    outline_color: "&H00000000"  # Black
+    description: "Bright green on black - high-energy highlight"
+  - name: brand_yellow
+    display_name: Brand Yellow
+    font_color: "&H0000EBFF"     # Saturated yellow (#FFEB00)
+    outline_color: "&H00000000"  # Black
+    description: "Saturated yellow on black - highest-converting per Submagic"
+
+# ============================================================================
 # SUBTITLE STYLE PRESETS
 # ============================================================================
 # Predefined style configurations combining fonts, colors, and effects
