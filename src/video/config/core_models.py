@@ -27,19 +27,18 @@ from src.video.config.constants import (
     FALLBACK_FONT_ALTERNATIVES,
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
-    SAFE_ZONE_MAX_X,
-    SAFE_ZONE_MAX_Y,
-    SAFE_ZONE_MIN_X,
-    SAFE_ZONE_MIN_Y,
 )
 from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
     ColorPoolEntry,
     FontPoolEntry,
+    PlatformSafeZone,  # re-exported here for backward compat with existing imports
     StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
 )
+
+__all_reexported__ = ["PlatformSafeZone"]
 from src.video.config.visual_models import (
     CTADetectionSettings,
     MediaSettings,
@@ -221,28 +220,6 @@ class FilesystemSettings(BaseModel):
         [".mp4", ".avi", ".mov", ".mkv", ".webm"]
     )
     supported_audio_extensions: list[str] = Field([".wav", ".mp3", ".aac", ".flac"])
-
-
-class PlatformSafeZone(BaseModel):
-    """Safe zone boundaries to avoid platform UI overlays (fractions of frame).
-
-    Default values represent the cross-platform worst case for TikTok,
-    YouTube Shorts, and Instagram Reels on a 1080x1920 frame.
-    See docs/platform-safe-zones.md for per-platform breakdown.
-    """
-
-    min_x: float = Field(
-        default=SAFE_ZONE_MIN_X, description="Left boundary (fraction of width)"
-    )
-    max_x: float = Field(
-        default=SAFE_ZONE_MAX_X, description="Right boundary (fraction of width)"
-    )
-    min_y: float = Field(
-        default=SAFE_ZONE_MIN_Y, description="Top boundary (fraction of height)"
-    )
-    max_y: float = Field(
-        default=SAFE_ZONE_MAX_Y, description="Bottom boundary (fraction of height)"
-    )
 
 
 class TextRenderingSettings(BaseModel):

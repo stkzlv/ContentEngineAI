@@ -1,14 +1,77 @@
 # src/video/config/subtitle_models.py
-"""Subtitle configuration models for effects and segmentation."""
+"""Subtitle configuration models.
 
+Holds the leaf types used across the subtitle pipeline: effect tuning,
+segmentation, style presets, font/color pools, two-part / pycaps blocks,
+the platform safe zone, and the unified ``SubtitleSettings`` model that
+both the config layer and the runtime generator share.
+"""
+
+import logging
+from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.video.config.constants import (
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
+    SAFE_ZONE_MAX_X,
+    SAFE_ZONE_MAX_Y,
+    SAFE_ZONE_MIN_X,
+    SAFE_ZONE_MIN_Y,
 )
+
+logger = logging.getLogger(__name__)
+
+
+class PositionAnchor(str, Enum):
+    """Anchor points for subtitle positioning."""
+
+    TOP = "top"
+    CENTER = "center"
+    BOTTOM = "bottom"
+    ABOVE_CONTENT = "above_content"
+    BELOW_CONTENT = "below_content"
+
+
+class StylePreset(str, Enum):
+    """Predefined subtitle style presets."""
+
+    MINIMAL = "minimal"
+    MODERN = "modern"
+    BOLD = "bold"
+    ANIMATED = "animated"
+    RANDOM = "random"
+
+
+class Position(BaseModel):
+    """Pixel-fraction position used for manual subtitle placement overrides."""
+
+    x: float = Field(..., ge=0.0, le=1.0)
+    y: float = Field(..., ge=0.0, le=1.0)
+
+
+class PlatformSafeZone(BaseModel):
+    """Safe zone boundaries to avoid platform UI overlays (fractions of frame).
+
+    Default values represent the cross-platform worst case for TikTok,
+    YouTube Shorts, and Instagram Reels on a 1080x1920 frame.
+    See docs/platform-safe-zones.md for per-platform breakdown.
+    """
+
+    min_x: float = Field(
+        default=SAFE_ZONE_MIN_X, description="Left boundary (fraction of width)"
+    )
+    max_x: float = Field(
+        default=SAFE_ZONE_MAX_X, description="Right boundary (fraction of width)"
+    )
+    min_y: float = Field(
+        default=SAFE_ZONE_MIN_Y, description="Top boundary (fraction of height)"
+    )
+    max_y: float = Field(
+        default=SAFE_ZONE_MAX_Y, description="Bottom boundary (fraction of height)"
+    )
 
 
 class SubtitleEffectsSettings(BaseModel):
@@ -283,3 +346,194 @@ class PycapsSettings(BaseModel):
             "the video without subtitles (not recommended)."
         ),
     )
+
+
+# ============================================================================
+# Unified subtitle settings model
+# ============================================================================
+# Single source of truth for both the config-layer merge output and the runtime
+# generator input. Replaces the historical pair MergedSubtitleSettings (config
+# side, extra="allow") and UnifiedSubtitleConfig (runtime side, strict). The
+# round-trip through dict.get(...) between the two models was the hiding place
+# for silent-drop bugs like the one tracked in subtitle-config-cleanup.md §3.1.
+#
+# Canonical names (max_duration / min_duration, two_part) — old names like
+# max_subtitle_duration and two_part_subtitles are translated by
+# from_legacy_dict() so existing YAML keeps loading.
+
+# YAML keys that ``from_legacy_dict`` either renames or drops outright.
+# Each entry: legacy key -> canonical key (or None to drop with a warning).
+_LEGACY_RENAMES: dict[str, str] = {
+    "max_subtitle_duration": "max_duration",
+    "min_subtitle_duration": "min_duration",
+    "two_part_subtitles": "two_part",
+}
+
+# Keys that have no consumer on SubtitleSettings and used to live on
+# MergedSubtitleSettings via extra="allow". Dropped silently.
+_LEGACY_DROPS: frozenset[str] = frozenset(
+    {
+        "available_fonts",
+        "available_color_combinations",
+    }
+)
+
+
+class SubtitleSettings(BaseModel):
+    """Unified subtitle configuration shared by config and runtime layers."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # ---- Engine + format ----
+    enabled: bool = True
+    subtitle_engine: Literal["ffmpeg", "pycaps"] = "ffmpeg"
+    subtitle_format: Literal["srt", "ass"] = "srt"
+
+    # ---- Positioning ----
+    anchor: PositionAnchor = PositionAnchor.BOTTOM
+    margin: float = Field(0.1, ge=0.0, le=0.5)
+    content_aware: bool = True
+    horizontal_alignment: Literal["left", "center", "right"] = "center"
+    safe_zone: PlatformSafeZone = Field(default_factory=PlatformSafeZone)
+    custom_position: Position | None = None
+
+    # ---- Style ----
+    style_preset: StylePreset = StylePreset.MODERN
+    font_size_scale: float = Field(1.0, ge=0.5, le=2.0)
+
+    # ---- Text formatting (canonical names) ----
+    max_line_length: int = Field(38, ge=1)
+    max_words_per_line: int = Field(3, ge=0)
+    max_subtitle_width_fraction: float = Field(0.80, ge=0.0, le=1.0)
+    max_duration: float = Field(2.5, gt=0)
+    min_duration: float = Field(0.6, gt=0)
+
+    # ---- Infrastructure (load-bearing for the rendering pipeline) ----
+    font_directory: str = "static/fonts"
+    font_size_percent: float = Field(0.075, ge=0.0, le=1.0)
+
+    # ---- Randomization ----
+    randomize_fonts: bool = False
+    randomize_colors: bool = False
+    randomize_effects: bool = False
+    selected_font: str | None = None
+    selected_color_pair: str | None = None
+
+    # ---- Output ----
+    temp_subtitle_dir: str = "temp"
+    temp_subtitle_filename: str = "captions.srt"
+    save_srt_with_video: bool = True
+    script_paths: list[str] = Field(default_factory=list)
+
+    # ---- Nested ----
+    pycaps: PycapsSettings | None = None
+    two_part: TwoPartSubtitleSettings = Field(default_factory=TwoPartSubtitleSettings)
+
+    @classmethod
+    def from_legacy_dict(cls, data: dict[str, Any]) -> "SubtitleSettings":
+        """Translate a MergedSubtitleSettings dump (or raw merged YAML dict)
+        into a SubtitleSettings instance.
+
+        Handles renames from the legacy field names (`max_subtitle_duration`
+        → `max_duration`, etc.) and silently drops keys that no longer exist
+        on the unified model (the old `extra="allow"` accumulators).
+        Unknown keys not in the rename or drop lists raise a ValidationError
+        thanks to ``extra="forbid"``.
+        """
+        translated: dict[str, Any] = {}
+        for key, value in data.items():
+            if key in _LEGACY_DROPS:
+                continue
+            if key in _LEGACY_RENAMES:
+                canonical = _LEGACY_RENAMES[key]
+                if canonical in translated:
+                    # Canonical name already present in the input; legacy
+                    # name should not override it.
+                    continue
+                translated[canonical] = value
+            else:
+                translated[key] = value
+        return cls(**translated)
+
+
+class PartialSubtitleSettings(BaseModel):
+    """All-optional variant of SubtitleSettings used by VideoProfile overrides.
+
+    Every field defaults to ``None``; ``merge_into(base)`` deep-merges only
+    the non-None fields onto a base ``SubtitleSettings``. Nested models
+    (``pycaps``, ``two_part``, ``safe_zone``) merge recursively so a profile
+    can tweak a single nested field without restating the whole block.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool | None = None
+    subtitle_engine: Literal["ffmpeg", "pycaps"] | None = None
+    subtitle_format: Literal["srt", "ass"] | None = None
+    anchor: PositionAnchor | None = None
+    margin: float | None = None
+    content_aware: bool | None = None
+    horizontal_alignment: Literal["left", "center", "right"] | None = None
+    safe_zone: dict[str, Any] | None = None
+    custom_position: dict[str, Any] | None = None
+    style_preset: StylePreset | None = None
+    font_size_scale: float | None = None
+    max_line_length: int | None = None
+    max_words_per_line: int | None = None
+    max_subtitle_width_fraction: float | None = None
+    max_duration: float | None = None
+    min_duration: float | None = None
+    font_directory: str | None = None
+    font_size_percent: float | None = None
+    randomize_fonts: bool | None = None
+    randomize_colors: bool | None = None
+    randomize_effects: bool | None = None
+    selected_font: str | None = None
+    selected_color_pair: str | None = None
+    temp_subtitle_dir: str | None = None
+    temp_subtitle_filename: str | None = None
+    save_srt_with_video: bool | None = None
+    script_paths: list[str] | None = None
+    pycaps: dict[str, Any] | None = None
+    two_part: dict[str, Any] | None = None
+
+    def merge_into(self, base: SubtitleSettings) -> SubtitleSettings:
+        """Return a copy of base with non-None partial fields applied.
+
+        Nested model fields (pycaps, two_part, safe_zone) are dict-typed on
+        the partial side; we deep-merge them onto the base nested model and
+        re-validate via ``model_copy``.
+        """
+        updates: dict[str, Any] = {}
+        for field_name in self.__class__.model_fields:
+            override = getattr(self, field_name)
+            if override is None:
+                continue
+            if field_name == "pycaps":
+                base_pycaps = base.pycaps.model_dump() if base.pycaps else {}
+                merged = _deep_merge_dicts(base_pycaps, override)
+                updates["pycaps"] = PycapsSettings(**merged)
+            elif field_name == "two_part":
+                base_two_part = base.two_part.model_dump()
+                merged = _deep_merge_dicts(base_two_part, override)
+                updates["two_part"] = TwoPartSubtitleSettings(**merged)
+            elif field_name == "safe_zone":
+                base_safe_zone = base.safe_zone.model_dump()
+                merged = _deep_merge_dicts(base_safe_zone, override)
+                updates["safe_zone"] = PlatformSafeZone(**merged)
+            elif field_name == "custom_position":
+                updates["custom_position"] = Position(**override)
+            else:
+                updates[field_name] = override
+        return base.model_copy(update=updates)
+
+
+def _deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursive dict merge: override wins for scalars; dicts merge per-key."""
+    out = dict(base)
+    for key, value in override.items():
+        if key in out and isinstance(out[key], dict) and isinstance(value, dict):
+            out[key] = _deep_merge_dicts(out[key], value)
+        else:
+            out[key] = value
+    return out

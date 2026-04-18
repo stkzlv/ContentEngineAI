@@ -7,7 +7,6 @@ that replaces the complex multi-mode system with a single flexible configuration
 import contextlib
 import logging
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -18,37 +17,18 @@ from src.video.config.constants import (
     SUBTITLE_MAX_FONT_SIZE,
     SUBTITLE_MIN_FONT_SIZE,
 )
-from src.video.config.core_models import PlatformSafeZone
+
+# Re-exports of leaf types that moved into subtitle_models. Kept here so
+# existing imports (`from src.video.subtitle_positioning import PositionAnchor`)
+# keep working without rippling through the codebase.
+from src.video.config.subtitle_models import (  # noqa: F401
+    PlatformSafeZone,
+    Position,
+    PositionAnchor,
+    StylePreset,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class PositionAnchor(str, Enum):
-    """Anchor points for subtitle positioning."""
-
-    TOP = "top"
-    CENTER = "center"
-    BOTTOM = "bottom"
-    ABOVE_CONTENT = "above_content"  # Position above visual content
-    BELOW_CONTENT = "below_content"  # Position below visual content
-
-
-class StylePreset(str, Enum):
-    """Predefined subtitle style presets."""
-
-    MINIMAL = "minimal"  # Clean, simple styling
-    MODERN = "modern"  # Contemporary look with effects
-    BOLD = "bold"  # High contrast, bold styling
-    ANIMATED = "animated"  # Full animations and dynamic effects
-    RANDOM = "random"  # Random styling with one random effect
-
-
-@dataclass
-class Position:
-    """Simple position coordinates."""
-
-    x: float  # Horizontal position (0.0-1.0 as fraction of width)
-    y: float  # Vertical position (0.0-1.0 as fraction of height)
 
 
 @dataclass

@@ -54,9 +54,15 @@ from src.video.config.llm_settings import LLMSettings  # noqa: F401
 from src.video.config.subtitle_models import (  # noqa: F401
     ColorPoolEntry,
     FontPoolEntry,
+    PartialSubtitleSettings,
+    PlatformSafeZone,
+    Position,
+    PositionAnchor,
+    StylePreset,
     StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
+    SubtitleSettings,
 )
 
 # Re-export visual models
@@ -101,9 +107,15 @@ __all__ = [
     # Subtitle models
     "ColorPoolEntry",
     "FontPoolEntry",
+    "PartialSubtitleSettings",
+    "PlatformSafeZone",
+    "Position",
+    "PositionAnchor",
+    "StylePreset",
     "StylePresetConfig",
     "SubtitleEffectsSettings",
     "SubtitleSegmentationSettings",
+    "SubtitleSettings",
     # Core models
     "ApiSettings",
     "AttributionSettings",
