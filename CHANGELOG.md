@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-04-18
+
 ### Changed
 - **Breaking**: Unified the historical `MergedSubtitleSettings` (config side, `extra="allow"`) and `UnifiedSubtitleConfig` (runtime side) into a single strict `SubtitleSettings` model. The dict round-trip translator that used to bridge them is gone, eliminating the silent-drop class of bugs (e.g. profile overrides whose value got lost at the model→dict boundary). Canonical field names land here too: `max_duration` / `min_duration` replace `max_subtitle_duration` / `min_subtitle_duration`.
 - **Breaking**: Profile overrides on `VideoProfile` use a single nested `subtitle_settings: PartialSubtitleSettings | None` block. The 30+ flat `subtitle_*` / `pycaps_*` / `two_part_subtitles_*` fields are gone. A migration shim accepts the legacy shape with a `DeprecationWarning` for one release.
