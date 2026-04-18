@@ -76,3 +76,9 @@ cache/
 
 # Claude Code config (contains credentials)
 .claude.json
+
+# Claude Code per-user / runtime state. .claude/settings.json (team config)
+# should be committed if/when it exists; the entries below are personal or
+# runtime-only and never go in git.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

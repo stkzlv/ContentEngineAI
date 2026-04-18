@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from src.video.config import VideoConfig
+from src.video.config.subtitle_models import SubtitleSettings
 from src.video.subtitle_positioning import (
     PositionAnchor,
     StylePreset,
-    create_unified_config_from_settings,
 )
 
 logger = logging.getLogger(__name__)
@@ -396,7 +396,7 @@ class VideoConfigValidator:
                 if hasattr(subtitle_settings, "__dict__")
                 else subtitle_settings
             )
-            unified_config = create_unified_config_from_settings(settings_dict)
+            unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
 
             # Validate anchor value
             if hasattr(unified_config, "anchor"):

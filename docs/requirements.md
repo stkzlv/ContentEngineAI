@@ -173,7 +173,7 @@ High-level requirements for ContentEngineAI.
 - **Margin** from anchor edge (default 4%)
 - **Horizontal alignment**: left, center (default), right
 - Content-aware positioning relative to actual media bounds
-- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. Cross-platform union: top 220px, bottom 480px, left/right 90px on 1080x1920. Configurable globally in YAML and per-profile via `subtitle_safe_zone_*` overrides.
+- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. Cross-platform union: top 220px, bottom 480px, left/right 90px on 1080x1920. Configurable globally in YAML and per-profile via the nested `subtitle_settings.safe_zone` block (only the boundaries that differ need to be set).
 - Both engines enforce the safe zone: FFmpeg clamps subtitle width to safe zone boundaries, pycaps dynamically clamps `max_width_ratio` so centered text never extends past the right-side boundary (TikTok buttons). The clamping is automatic — no manual tuning needed per template.
 - Pycaps default position: bottom of safe zone (~75% of frame). Template's own alignment preserved unless explicitly overridden.
 
@@ -206,6 +206,9 @@ High-level requirements for ContentEngineAI.
 ### Profile System
 - **Precedence**: CLI > Profile > Global defaults
 - All visual, subtitle, and video settings configurable per profile
+- Subtitle overrides use a single nested `subtitle_settings` block on each profile; only fields that differ from the global value need to be set, and nested sub-blocks (`pycaps`, `two_part_subtitles`, `safe_zone`) deep-merge per-field rather than being replaced wholesale
+- Strict validation: unknown keys in subtitle YAML or profile overrides fail at config load with a typed error, instead of being silently dropped at render time
+- Legacy flat per-profile keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) still load with a deprecation warning during one-release migration window
 - Typed Pydantic models for merged settings
 - Deterministic random profile selection per product
 

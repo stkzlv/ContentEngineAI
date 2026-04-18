@@ -1,15 +1,65 @@
 # src/video/config/visual_models.py
 """Visual configuration models for video, images, and media settings."""
 
+import logging
+import warnings
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
 )
-from src.video.config.subtitle_models import PycapsSettings, TwoPartSubtitleSettings
+from src.video.config.subtitle_models import (
+    PartialSubtitleSettings,
+    SubtitleSettings,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# Legacy flat field names on VideoProfile (subtitle_*/pycaps_*/two_part_*)
+# mapped to their nested PartialSubtitleSettings field path. Used by the
+# @model_validator on VideoProfile to migrate profile YAML at load time.
+# The values are tuples: (path, value_transform). Path is dotted so
+# "pycaps.template_name" lands inside the nested pycaps dict.
+_LEGACY_FLAT_TO_NESTED: dict[str, str] = {
+    "subtitle_anchor": "anchor",
+    "subtitle_margin": "margin",
+    "subtitle_content_aware": "content_aware",
+    "subtitle_style_preset": "style_preset",
+    "subtitle_font_size_scale": "font_size_scale",
+    "subtitle_horizontal_alignment": "horizontal_alignment",
+    "subtitle_randomize_fonts": "randomize_fonts",
+    "subtitle_randomize_colors": "randomize_colors",
+    "subtitle_randomize_effects": "randomize_effects",
+    "subtitle_max_line_length": "max_line_length",
+    "subtitle_max_words_per_line": "max_words_per_line",
+    "subtitle_max_subtitle_width_fraction": "max_subtitle_width_fraction",
+    "subtitle_max_duration": "max_duration",
+    "subtitle_min_duration": "min_duration",
+    "subtitle_selected_font": "selected_font",
+    "subtitle_selected_color_pair": "selected_color_pair",
+    "subtitle_engine": "subtitle_engine",
+}
+
+_LEGACY_SAFE_ZONE_FIELDS = (
+    "subtitle_safe_zone_min_x",
+    "subtitle_safe_zone_max_x",
+    "subtitle_safe_zone_min_y",
+    "subtitle_safe_zone_max_y",
+)
+
+_LEGACY_PYCAPS_FIELDS: dict[str, str] = {
+    "pycaps_template": "template_name",
+    "pycaps_template_pool": "template_pool",
+    "pycaps_renderer": "renderer",
+    "pycaps_max_width_ratio": "max_width_ratio",
+    "pycaps_vertical_align": "vertical_align",
+    "pycaps_vertical_align_offset": "vertical_align_offset",
+    "pycaps_fallback_policy": "fallback_policy",
+}
 
 
 class CTADetectionSettings(BaseModel):
@@ -282,203 +332,83 @@ class VideoProfile(BaseModel):
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
-    # Complete unified subtitle configuration overrides
-    subtitle_anchor: str | None = Field(
+    # Single nested override block. Replaces the historical 30+ flat
+    # subtitle_*/pycaps_*/two_part_subtitles_* fields. Profile YAML written
+    # in the legacy flat shape is migrated at load time by the
+    # _migrate_legacy_subtitle_keys validator below.
+    subtitle_settings: PartialSubtitleSettings | None = Field(
         None,
         description=(
-            "Override subtitle anchor: top, center, bottom, "
-            "above_content, below_content"
-        ),
-    )
-    subtitle_margin: float | None = Field(
-        None,
-        description="Override subtitle margin as fraction of frame height (0.0-0.5)",
-    )
-    subtitle_content_aware: bool | None = Field(
-        None, description="Override content-aware positioning setting"
-    )
-    subtitle_style_preset: str | None = Field(
-        None,
-        description="Override style preset: minimal, modern, bold, random",
-    )
-    subtitle_font_size_scale: float | None = Field(
-        None, description="Override font size scale factor (0.5-2.0)"
-    )
-    subtitle_horizontal_alignment: str | None = Field(
-        None, description="Override text alignment: left, center, right"
-    )
-
-    # Platform safe zone overrides (per-profile, fractions of frame)
-    subtitle_safe_zone_min_x: float | None = Field(
-        None, description="Override left safe zone boundary"
-    )
-    subtitle_safe_zone_max_x: float | None = Field(
-        None, description="Override right safe zone boundary"
-    )
-    subtitle_safe_zone_min_y: float | None = Field(
-        None, description="Override top safe zone boundary"
-    )
-    subtitle_safe_zone_max_y: float | None = Field(
-        None, description="Override bottom safe zone boundary"
-    )
-
-    subtitle_randomize_fonts: bool | None = Field(
-        None, description="Override font randomization setting"
-    )
-    subtitle_randomize_colors: bool | None = Field(
-        None, description="Override color randomization setting"
-    )
-    subtitle_randomize_effects: bool | None = Field(
-        None, description="Override effect randomization setting"
-    )
-
-    # Text formatting overrides
-    subtitle_max_line_length: int | None = Field(
-        None, description="Override maximum characters per subtitle line"
-    )
-    subtitle_max_words_per_line: int | None = Field(
-        None,
-        description=(
-            "Override maximum words per subtitle line (0 to disable word-based limit)"
-        ),
-    )
-    subtitle_max_subtitle_width_fraction: float | None = Field(
-        None,
-        description=(
-            "Override max subtitle width as fraction of frame width (0.0-1.0)"
-        ),
-    )
-    subtitle_max_duration: float | None = Field(
-        None, description="Override maximum subtitle duration in seconds"
-    )
-    subtitle_min_duration: float | None = Field(
-        None, description="Override minimum subtitle duration in seconds"
-    )
-
-    # Manual selection overrides (for testing/debugging)
-    subtitle_selected_font: str | None = Field(
-        None, description="Override with specific font (bypasses randomization)"
-    )
-    subtitle_selected_color_pair: str | None = Field(
-        None, description="Override with specific color pair name"
-    )
-
-    # ---- TWO-PART SUBTITLE SYSTEM ----
-    # Profile-level nested override. Merges (deep, per-field) onto the global
-    # subtitle_settings.two_part_subtitles block during get_profile_merged_settings.
-    # Shape matches TwoPartSubtitleSettings (enabled + upper_line + lower_line).
-    two_part_subtitles: dict[str, Any] | None = Field(
-        None,
-        description=(
-            "Nested override for two_part_subtitles. Partial dict merged onto "
-            "the global block; missing keys inherit the global value."
+            "Nested partial override for the global SubtitleSettings. Only "
+            "non-None fields apply; nested models (pycaps, two_part_subtitles, "
+            "safe_zone) deep-merge onto the base. See PartialSubtitleSettings."
         ),
     )
 
-    # ---- PER-PROFILE PYCAPS SUBTITLE ENGINE SETTINGS ----
-    # Opt-in animated captions. See src/video/config/subtitle_models.py
-    # PycapsSettings for semantics. Non-null values override the global
-    # subtitle_settings.pycaps block during profile merge.
-    subtitle_engine: Literal["ffmpeg", "pycaps"] | None = Field(
-        None,
-        description=(
-            "Override subtitle rendering engine for this profile. "
-            "'ffmpeg' = existing SRT/ASS path. 'pycaps' = burn animated "
-            "CSS captions post-assembly."
-        ),
-    )
-    pycaps_template: str | None = Field(
-        None,
-        description=(
-            "Override pycaps fixed template name (word-focus, hype, minimalist, etc.)"
-        ),
-    )
-    pycaps_template_pool: list[str] | None = Field(
-        None,
-        description="Override pycaps template pool for deterministic per-product pick",
-    )
-    pycaps_renderer: Literal["css", "pictex"] | None = Field(
-        None,
-        description="Override pycaps renderer: css (Chromium) or pictex (browserless)",
-    )
-    pycaps_max_width_ratio: float | None = Field(
-        None,
-        ge=0.0,
-        le=1.0,
-        description="Override pycaps max caption width as fraction of frame",
-    )
-    pycaps_vertical_align: Literal["top", "center", "bottom"] | None = Field(
-        None, description="Override pycaps vertical anchor"
-    )
-    pycaps_vertical_align_offset: float | None = Field(
-        None,
-        ge=-1.0,
-        le=1.0,
-        description=(
-            "Override the derived offset from VisualBounds with a manual value"
-        ),
-    )
-    pycaps_fallback_policy: Literal["warn_and_skip", "raise"] | None = Field(
-        None, description="Override pycaps failure policy"
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_subtitle_keys(cls, data: Any) -> Any:
+        """Translate legacy flat subtitle_*/pycaps_*/two_part_subtitles_* keys
+        into the nested ``subtitle_settings`` block at load time.
 
+        Kept for one release so external profile YAML doesn't break. Logs
+        a DeprecationWarning naming each migrated key. Remove after the
+        documented migration window.
+        """
+        if not isinstance(data, dict):
+            return data
 
-class MergedSubtitleSettings(BaseModel):
-    """Merged subtitle settings (global + profile overrides)."""
+        nested = dict(data.get("subtitle_settings") or {})
+        legacy_seen: list[str] = []
 
-    model_config = ConfigDict(extra="allow")
+        for legacy_key, target_field in _LEGACY_FLAT_TO_NESTED.items():
+            if legacy_key in data and data[legacy_key] is not None:
+                nested.setdefault(target_field, data[legacy_key])
+                legacy_seen.append(legacy_key)
 
-    # Rendering engine selector. "ffmpeg" (default) uses the existing
-    # SRT/ASS + libass pipeline. "pycaps" burns animated captions via the
-    # pycaps library as a post-assembly step. See docs/pycaps-subtitles.md.
-    subtitle_engine: Literal["ffmpeg", "pycaps"] = "ffmpeg"
+        safe_zone_block = dict(nested.get("safe_zone") or {})
+        for sz_key in _LEGACY_SAFE_ZONE_FIELDS:
+            if sz_key in data and data[sz_key] is not None:
+                # subtitle_safe_zone_min_x -> min_x
+                short = sz_key.removeprefix("subtitle_safe_zone_")
+                safe_zone_block.setdefault(short, data[sz_key])
+                legacy_seen.append(sz_key)
+        if safe_zone_block:
+            nested["safe_zone"] = safe_zone_block
 
-    # Nested settings consumed only when subtitle_engine == "pycaps".
-    pycaps: PycapsSettings | None = None
+        pycaps_block = dict(nested.get("pycaps") or {})
+        for pc_key, target_field in _LEGACY_PYCAPS_FIELDS.items():
+            if pc_key in data and data[pc_key] is not None:
+                pycaps_block.setdefault(target_field, data[pc_key])
+                legacy_seen.append(pc_key)
+        if pycaps_block:
+            nested["pycaps"] = pycaps_block
 
-    # Core positioning
-    anchor: str = "bottom"
-    margin: float = 0.1
-    content_aware: bool = True
-    style_preset: str = "modern"
-    font_size_scale: float = 1.0
-    horizontal_alignment: str = "center"
+        if "two_part_subtitles" in data and isinstance(
+            data["two_part_subtitles"], dict
+        ):
+            existing = nested.get("two_part_subtitles") or {}
+            nested["two_part_subtitles"] = {
+                **data["two_part_subtitles"],
+                **existing,
+            }
+            legacy_seen.append("two_part_subtitles")
 
-    randomize_effects: bool = False
+        if legacy_seen:
+            warnings.warn(
+                "VideoProfile: legacy flat subtitle keys are deprecated; "
+                "migrate to a nested 'subtitle_settings' block. Migrated "
+                f"this run: {sorted(set(legacy_seen))}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            for key in set(legacy_seen):
+                data.pop(key, None)
 
-    # Text formatting
-    max_line_length: int = 38
-    max_words_per_line: int = 3
-    max_subtitle_duration: float = 4.5
-    min_subtitle_duration: float = 0.4
-    max_subtitle_width_fraction: float = 0.80
+        if nested:
+            data["subtitle_settings"] = nested
 
-    # Infrastructure (not preset-owned)
-    enabled: bool = True
-    font_directory: str = "static/fonts"
-    font_size_percent: float = 0.05
-
-    # Randomization
-    randomize_fonts: bool = False
-    randomize_colors: bool = False
-    available_fonts: list[Any] = Field(default_factory=list)
-    available_color_combinations: list[Any] = Field(default_factory=list)
-
-    # Output
-    temp_subtitle_dir: str = "temp"
-    temp_subtitle_filename: str = "captions.srt"
-    save_srt_with_video: bool = True
-    subtitle_format: str = "srt"
-    script_paths: list[Any] = Field(default_factory=list)
-
-    # Manual overrides
-    selected_font: str | None = None
-    selected_color_pair: str | None = None
-
-    # Two-part subtitle system (upper static line + lower voiceover line)
-    two_part_subtitles: TwoPartSubtitleSettings = Field(
-        default_factory=TwoPartSubtitleSettings
-    )
+        return data
 
 
 class ProfileInfo(BaseModel):
@@ -499,7 +429,7 @@ class MergedProfileSettings(BaseModel):
     """Typed container for merged profile settings."""
 
     video_settings: "VideoSettings"
-    subtitle_settings: MergedSubtitleSettings
+    subtitle_settings: SubtitleSettings
     profile: ProfileInfo
 
 

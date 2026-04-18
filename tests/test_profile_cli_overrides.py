@@ -2,11 +2,15 @@
 
 import pytest
 
-from src.video.config import VideoConfig, VideoProfile, load_video_config
+from src.video.config import (
+    SubtitleSettings,
+    VideoConfig,
+    VideoProfile,
+    load_video_config,
+)
 from src.video.config.core_models import _deep_merge
 from src.video.config.visual_models import (
     MergedProfileSettings,
-    MergedSubtitleSettings,
     ProfileInfo,
     VideoSettings,
 )
@@ -33,7 +37,9 @@ class TestProfileSpecificSettings:
         assert profile.image_top_position_percent == 0.20
 
     def test_profile_subtitle_positioning_overrides(self, mock_config: VideoConfig):
-        """Test that profile can override subtitle positioning settings."""
+        """Test that profile can override subtitle positioning settings via the
+        nested subtitle_settings block (post-§4.3 shape).
+        """
         profile = VideoProfile(
             description="Test profile with subtitle positioning",
             use_scraped_images=True,
@@ -41,14 +47,41 @@ class TestProfileSpecificSettings:
             use_stock_images=False,
             use_stock_videos=False,
             use_dynamic_image_count=False,
-            subtitle_anchor="top",
-            subtitle_margin=0.15,
-            subtitle_content_aware=False,
+            subtitle_settings={
+                "anchor": "top",
+                "margin": 0.15,
+                "content_aware": False,
+            },
         )
 
-        assert profile.subtitle_anchor == "top"
-        assert profile.subtitle_margin == 0.15
-        assert profile.subtitle_content_aware is False
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.anchor == "top"
+        assert profile.subtitle_settings.margin == 0.15
+        assert profile.subtitle_settings.content_aware is False
+
+    def test_profile_subtitle_legacy_flat_keys_migrate(self, mock_config: VideoConfig):
+        """Legacy flat subtitle_*/pycaps_*/two_part_subtitles keys load via
+        the deprecation shim and end up in the nested subtitle_settings.
+        """
+        with pytest.warns(DeprecationWarning, match="legacy flat subtitle"):
+            profile = VideoProfile(
+                description="Legacy-style profile",
+                use_scraped_images=True,
+                subtitle_anchor="top",
+                subtitle_margin=0.15,
+                subtitle_max_duration=3.0,
+                pycaps_template="hype",
+                pycaps_renderer="css",
+            )
+
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.anchor == "top"
+        assert profile.subtitle_settings.margin == 0.15
+        assert profile.subtitle_settings.max_duration == 3.0
+        assert profile.subtitle_settings.pycaps == {
+            "template_name": "hype",
+            "renderer": "css",
+        }
 
     def test_profile_vertical_align_field(self):
         """Test video_vertical_align field on VideoProfile."""
@@ -79,7 +112,7 @@ class TestMergedProfileSettings:
 
         assert isinstance(merged, MergedProfileSettings)
         assert isinstance(merged.video_settings, VideoSettings)
-        assert isinstance(merged.subtitle_settings, MergedSubtitleSettings)
+        assert isinstance(merged.subtitle_settings, SubtitleSettings)
         assert isinstance(merged.profile, ProfileInfo)
 
     def test_profile_info_populated(self, mock_config: VideoConfig):
@@ -190,12 +223,12 @@ class TestCollectOverrides:
             description="Remap test",
             use_scraped_images=True,
             use_scraped_videos=False,
-            subtitle_anchor="top",
+            video_vertical_align="center",
         )
-        field_map = {"subtitle_anchor": "anchor"}
+        field_map = {"video_vertical_align": "image_vertical_align"}
         result = VideoConfig._collect_overrides(profile, field_map)
 
-        assert result == {"anchor": "top"}
+        assert result == {"image_vertical_align": "center"}
 
 
 @pytest.mark.unit

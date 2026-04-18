@@ -21,24 +21,31 @@ This document exists to:
 
 ## TL;DR
 
-All bugs fixed. Dead fields deleted, legacy block gone. Two refactors
-still open: §4.1 (collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig`)
-and §6 (rename canonical keys, gated on §4.1).
+All bugs fixed. Dead fields deleted, legacy block gone, models unified.
+The model collapse landed §4.1 (single `SubtitleSettings`), §4.3 (nested
+profile overrides via `PartialSubtitleSettings`), and §6 (canonical
+`max_duration` / `min_duration` names) in one PR. A migration shim still
+accepts legacy flat profile keys for one release with a `DeprecationWarning`;
+the bundled `config/video_production.yaml` profiles use the legacy shape
+and will move to the nested form in a follow-up cleanup.
 
 | # | Work item | Kind | Status | Effort |
 |---|---|---|---|---|
 | 1 | ~~Fix duration key namespace + width fraction passthrough~~ | ~~Bug~~ | **FIXED** (commit `c385df1`) | ~~30 min~~ |
 | 2 | ~~`UnifiedSubtitleGenerator` constructs fresh `PlatformSafeZone()` instead of reading config~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
 | 3 | ~~Wire profile `subtitle_safe_zone_*` overrides into `_collect_overrides` field map~~ | ~~Bug~~ | **FIXED** (PR #65) | ~~15 min~~ |
-| 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
+| 4 | ~~Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model~~ | ~~Refactor~~ | **DONE** | ~~1-2 days~~ |
 | 5 | ~~Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 6 | ~~Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()`~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 7 | ~~Move font and color pools from Python enums to YAML~~ | ~~Refactor~~ | **DONE** | ~~1 day~~ |
 | 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 9 | ~~Remove the "Legacy Compatibility Settings" block in `subtitle_settings`~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
-| 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
+| 10 | ~~Rename duplicate/confusing keys to canonical names~~ | ~~Cleanup~~ | **DONE** (with #4) | ~~1 hour~~ |
 
-Remaining effort: roughly 1-2 days if §4.1 and §6 are both done.
+Remaining work: migrate the bundled `config/video_production.yaml` profiles
+from the legacy flat `subtitle_*` / `pycaps_*` / `two_part_subtitles` keys
+to the nested `subtitle_settings` block, then drop the migration shim in
+`VideoProfile._migrate_legacy_subtitle_keys`. Roughly 1 hour mechanical.
 
 ---
 

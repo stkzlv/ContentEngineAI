@@ -7,7 +7,6 @@ that replaces the complex multi-mode system with a single flexible configuration
 import contextlib
 import logging
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -18,37 +17,19 @@ from src.video.config.constants import (
     SUBTITLE_MAX_FONT_SIZE,
     SUBTITLE_MIN_FONT_SIZE,
 )
-from src.video.config.core_models import PlatformSafeZone
+
+# Re-exports of leaf types that moved into subtitle_models. Kept here so
+# existing imports (`from src.video.subtitle_positioning import PositionAnchor`)
+# keep working without rippling through the codebase.
+from src.video.config.subtitle_models import (  # noqa: F401
+    PlatformSafeZone,
+    Position,
+    PositionAnchor,
+    StylePreset,
+    SubtitleSettings,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class PositionAnchor(str, Enum):
-    """Anchor points for subtitle positioning."""
-
-    TOP = "top"
-    CENTER = "center"
-    BOTTOM = "bottom"
-    ABOVE_CONTENT = "above_content"  # Position above visual content
-    BELOW_CONTENT = "below_content"  # Position below visual content
-
-
-class StylePreset(str, Enum):
-    """Predefined subtitle style presets."""
-
-    MINIMAL = "minimal"  # Clean, simple styling
-    MODERN = "modern"  # Contemporary look with effects
-    BOLD = "bold"  # High contrast, bold styling
-    ANIMATED = "animated"  # Full animations and dynamic effects
-    RANDOM = "random"  # Random styling with one random effect
-
-
-@dataclass
-class Position:
-    """Simple position coordinates."""
-
-    x: float  # Horizontal position (0.0-1.0 as fraction of width)
-    y: float  # Vertical position (0.0-1.0 as fraction of height)
 
 
 @dataclass
@@ -75,83 +56,9 @@ def clamp_to_safe_zone(
     return clamped_x, clamped_y
 
 
-class UnifiedSubtitleConfig(BaseModel):
-    """Simplified, unified subtitle configuration."""
-
-    # Core positioning
-    anchor: PositionAnchor = Field(
-        PositionAnchor.BOTTOM,
-        description="Where to anchor subtitles relative to frame or content",
-    )
-    margin: float = Field(
-        0.1, description="Margin as fraction of frame height (0.0-0.5)"
-    )
-    content_aware: bool = Field(
-        True, description="Adjust position based on visual content bounds"
-    )
-
-    # Visual styling
-    style_preset: StylePreset = Field(
-        StylePreset.MODERN, description="Predefined style configuration"
-    )
-    font_size_scale: float = Field(
-        1.0, description="Scale factor for font size (0.5-2.0)"
-    )
-
-    # Text formatting
-    max_line_length: int = Field(38, description="Maximum characters per subtitle line")
-    max_words_per_line: int = Field(
-        3, description="Maximum words per subtitle line (0 to disable)"
-    )
-    max_subtitle_width_fraction: float = Field(
-        0.67,
-        description=(
-            "Maximum subtitle width as fraction of frame width (e.g. 0.67 = 2/3)"
-        ),
-    )
-    max_duration: float = Field(
-        4.5, description="Maximum duration for subtitle segments (seconds)"
-    )
-    min_duration: float = Field(
-        0.4, description="Minimum duration for subtitle segments (seconds)"
-    )
-
-    # Randomization system (REQUIREMENTS.md compliance)
-    randomize_fonts: bool = Field(
-        False, description="Enable random font selection from curated collection"
-    )
-    randomize_colors: bool = Field(
-        False, description="Use random coordinated color combinations"
-    )
-    randomize_effects: bool = Field(False, description="Use random animation effects")
-
-    # Manual overrides (optional)
-    selected_font: str | None = Field(
-        None, description="Override font selection (font family name)"
-    )
-    selected_color_pair: str | None = Field(
-        None, description="Override color pair selection"
-    )
-
-    # Platform safe zone (read from config.text_rendering.safe_zone, with
-    # optional per-profile overrides via subtitle_safe_zone_* fields)
-    safe_zone: PlatformSafeZone = Field(
-        default_factory=PlatformSafeZone,
-        description="Platform UI overlay avoidance boundaries",
-    )
-
-    # Advanced positioning (optional fine-tuning)
-    custom_position: Position | None = Field(
-        None, description="Custom position override (x,y as 0.0-1.0 fractions)"
-    )
-    horizontal_alignment: str = Field(
-        "center", description="Text alignment: left, center, right"
-    )
-
-
 def get_style_config(
     preset: StylePreset,
-    config: UnifiedSubtitleConfig | None = None,
+    config: SubtitleSettings | None = None,
     product_id: str | None = None,
     video_config: Any = None,
 ) -> dict[str, Any]:
@@ -286,7 +193,7 @@ def get_style_config(
 
 
 def calculate_position(
-    config: UnifiedSubtitleConfig,
+    config: SubtitleSettings,
     frame_size: tuple[int, int],
     visual_bounds: VisualBounds | None = None,
     safe_zone: PlatformSafeZone | None = None,
@@ -366,7 +273,7 @@ def calculate_position(
 
 
 def get_font_size(
-    config: UnifiedSubtitleConfig,
+    config: SubtitleSettings,
     frame_height: int,
     base_size_percent: float | None = None,
 ) -> int:
@@ -393,77 +300,3 @@ def get_font_size(
 
     # Ensure reasonable bounds from config
     return max(min_font, min(max_font, scaled_size))
-
-
-def create_unified_config_from_settings(
-    settings: dict[str, Any],
-) -> UnifiedSubtitleConfig:
-    """Create UnifiedSubtitleConfig from settings dictionary.
-
-    Args:
-    ----
-        settings: Dictionary containing subtitle configuration parameters
-
-    Returns:
-    -------
-        UnifiedSubtitleConfig instance with validated parameters
-
-    """
-    # DEBUG: Log all available keys and specific values
-    logger.debug(
-        f"create_unified_config_from_settings received keys: {settings.keys()}"
-    )
-    max_words = settings.get("max_words_per_line", "KEY_NOT_FOUND")
-    logger.debug(f"  max_words_per_line value: {max_words}")
-    logger.debug(f"  margin value: {settings.get('margin', 'KEY_NOT_FOUND')}")
-    logger.debug(f"  anchor value: {settings.get('anchor', 'KEY_NOT_FOUND')}")
-
-    # Extract anchor with validation
-    anchor_str = settings.get("anchor", "bottom")
-    try:
-        anchor = PositionAnchor(anchor_str)
-    except ValueError:
-        logger.warning(f"Invalid anchor '{anchor_str}', using 'bottom'")
-        anchor = PositionAnchor.BOTTOM
-
-    # Extract style preset with validation
-    preset_str = settings.get("style_preset", "modern")
-    try:
-        style_preset = StylePreset(preset_str)
-    except ValueError:
-        logger.warning(f"Invalid style_preset '{preset_str}', using 'modern'")
-        style_preset = StylePreset.MODERN
-
-    # Build safe zone from settings if present, otherwise use defaults
-    safe_zone_data = settings.get("safe_zone")
-    if isinstance(safe_zone_data, dict):
-        safe_zone = PlatformSafeZone(**safe_zone_data)
-    elif isinstance(safe_zone_data, PlatformSafeZone):
-        safe_zone = safe_zone_data
-    else:
-        safe_zone = PlatformSafeZone()
-
-    return UnifiedSubtitleConfig(
-        anchor=anchor,
-        content_aware=settings.get("content_aware", True),
-        style_preset=style_preset,
-        margin=settings.get("margin", 0.1),
-        font_size_scale=settings.get("font_size_scale", 1.0),
-        max_line_length=settings.get("max_line_length", 38),
-        max_words_per_line=settings.get("max_words_per_line", 3),
-        max_subtitle_width_fraction=settings.get("max_subtitle_width_fraction", 0.80),
-        max_duration=settings.get(
-            "max_duration", settings.get("max_subtitle_duration", 2.5)
-        ),
-        min_duration=settings.get(
-            "min_duration", settings.get("min_subtitle_duration", 0.6)
-        ),
-        randomize_fonts=settings.get("randomize_fonts", False),
-        randomize_colors=settings.get("randomize_colors", False),
-        randomize_effects=settings.get("randomize_effects", False),
-        selected_font=settings.get("selected_font"),
-        selected_color_pair=settings.get("selected_color_pair"),
-        custom_position=settings.get("custom_position"),
-        horizontal_alignment=settings.get("horizontal_alignment", "center"),
-        safe_zone=safe_zone,
-    )

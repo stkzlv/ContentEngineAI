@@ -4,10 +4,10 @@ import re
 
 import pytest
 
+from src.video.config.subtitle_models import SubtitleSettings
 from src.video.subtitle_positioning import (
     Position,
     StylePreset,
-    UnifiedSubtitleConfig,
 )
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
 
@@ -15,7 +15,7 @@ from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
 @pytest.fixture
 def minimal_config():
     """Create a minimal preset config with no effects."""
-    return UnifiedSubtitleConfig(
+    return SubtitleSettings(
         style_preset=StylePreset.MINIMAL,
         anchor="bottom",
         margin=0.1,
@@ -29,7 +29,7 @@ def minimal_config():
 @pytest.fixture
 def animated_config():
     """Create an animated preset config with effects enabled."""
-    return UnifiedSubtitleConfig(
+    return SubtitleSettings(
         style_preset=StylePreset.ANIMATED,
         anchor="bottom",
         margin=0.1,
@@ -44,7 +44,7 @@ def animated_config():
 @pytest.fixture
 def random_config():
     """Create a random preset config for effect randomization."""
-    return UnifiedSubtitleConfig(
+    return SubtitleSettings(
         style_preset=StylePreset.RANDOM,
         anchor="bottom",
         margin=0.1,
@@ -59,7 +59,7 @@ def random_config():
 @pytest.fixture
 def modern_config():
     """Create a modern preset config with karaoke effect."""
-    return UnifiedSubtitleConfig(
+    return SubtitleSettings(
         style_preset=StylePreset.MODERN,
         anchor="bottom",
         margin=0.1,
@@ -73,7 +73,7 @@ def modern_config():
 @pytest.fixture
 def bold_config():
     """Create a bold preset config with fade effect."""
-    return UnifiedSubtitleConfig(
+    return SubtitleSettings(
         style_preset=StylePreset.BOLD,
         anchor="bottom",
         margin=0.1,

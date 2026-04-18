@@ -14,8 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.video.config.subtitle_models import PycapsSettings
-from src.video.config.visual_models import MergedSubtitleSettings
+from src.video.config.subtitle_models import PycapsSettings, SubtitleSettings
 from src.video.pycaps_engine import (
     PycapsRenderer,
     PycapsRenderResult,
@@ -270,32 +269,32 @@ class TestMergeLayoutWithTemplate:
 
 
 class TestCreateUnifiedConfigDefaults:
-    """Verify the duration/width fallback chain in create_unified_config_from_settings
+    """Verify the duration/width fallback chain in SubtitleSettings.from_legacy_dict
     works correctly after the bug 3.1 fix.
     """
 
     def test_max_subtitle_duration_key_used_as_fallback(self):
-        from src.video.subtitle_positioning import create_unified_config_from_settings
+        from src.video.config.subtitle_models import SubtitleSettings
 
-        # MergedSubtitleSettings.model_dump() produces max_subtitle_duration, not max_duration
+        # SubtitleSettings.model_dump() produces max_subtitle_duration, not max_duration
         settings = {"max_subtitle_duration": 2.5, "min_subtitle_duration": 0.6}
-        config = create_unified_config_from_settings(settings)
+        config = SubtitleSettings.from_legacy_dict(settings)
         assert config.max_duration == 2.5
         assert config.min_duration == 0.6
 
     def test_max_duration_key_takes_priority(self):
-        from src.video.subtitle_positioning import create_unified_config_from_settings
+        from src.video.config.subtitle_models import SubtitleSettings
 
         settings = {"max_duration": 1.5, "max_subtitle_duration": 2.5}
-        config = create_unified_config_from_settings(settings)
+        config = SubtitleSettings.from_legacy_dict(settings)
         assert (
             config.max_duration == 1.5
         )  # max_duration wins over max_subtitle_duration
 
     def test_hardcoded_defaults_match_best_practices(self):
-        from src.video.subtitle_positioning import create_unified_config_from_settings
+        from src.video.config.subtitle_models import SubtitleSettings
 
-        config = create_unified_config_from_settings({})
+        config = SubtitleSettings.from_legacy_dict({})
         assert config.max_duration == 2.5  # best practice, was 4.5 before fix
         assert config.min_duration == 0.6  # best practice, was 0.4 before fix
         assert config.max_subtitle_width_fraction == 0.80  # was 0.67
@@ -306,12 +305,12 @@ class TestCreateUnifiedConfigDefaults:
         produces best-practice values for every profile.
         """
         import src.video.config as cfg_mod
-        from src.video.subtitle_positioning import create_unified_config_from_settings
+        from src.video.config.subtitle_models import SubtitleSettings
 
         cfg = cfg_mod.config
         for name in cfg.video_profiles:
             merged = cfg.get_profile_merged_settings(name)
-            uc = create_unified_config_from_settings(
+            uc = SubtitleSettings.from_legacy_dict(
                 merged.subtitle_settings.model_dump()
             )
             assert uc.max_duration == 2.5, f"{name}: max_duration={uc.max_duration}"
@@ -358,12 +357,12 @@ class TestConfigMergePycapsLayer:
         ]
 
     def test_default_engine_is_ffmpeg(self):
-        settings = MergedSubtitleSettings()
+        settings = SubtitleSettings()
         assert settings.subtitle_engine == "ffmpeg"
         assert settings.pycaps is None
 
     def test_pycaps_settings_in_dict_form_constructs_model(self):
-        settings = MergedSubtitleSettings(
+        settings = SubtitleSettings(
             subtitle_engine="pycaps",
             pycaps={"template_name": "vibrant", "renderer": "pictex"},
         )

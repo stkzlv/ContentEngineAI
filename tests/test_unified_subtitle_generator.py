@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.video.config.subtitle_models import SubtitleSettings
 from src.video.subtitle_positioning import (
     PositionAnchor,
     StylePreset,
-    UnifiedSubtitleConfig,
     VisualBounds,
 )
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
@@ -21,7 +21,7 @@ class TestUnifiedSubtitleGenerator:
     @pytest.fixture
     def sample_config(self):
         """Create a sample unified subtitle configuration."""
-        return UnifiedSubtitleConfig(
+        return SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
             content_aware=False,
@@ -208,7 +208,7 @@ class TestUnifiedSubtitleGenerator:
             "font_width_to_height_ratio": 0.5,
         }
 
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
             content_aware=False,
@@ -232,7 +232,7 @@ class TestUnifiedSubtitleGenerator:
         that overwrote RandomizationEngine colors with hardcoded black outlines.
         """
         # Create config with specific style colors
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
             content_aware=False,
@@ -324,7 +324,7 @@ class TestUnifiedSubtitleGenerator:
 
     def test_word_count_limit(self):
         """Test subtitle segmentation with word count limit."""
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
             content_aware=False,
@@ -348,7 +348,7 @@ class TestUnifiedSubtitleGenerator:
 
     def test_width_constraint(self):
         """Test subtitle width constraint based on frame width."""
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
             margin=0.1,
             content_aware=False,

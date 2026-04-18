@@ -129,10 +129,10 @@ class SubtitleGraphBuilder:
 
         settings_dict = self._get_effective_subtitle_settings()
 
-        from src.video.subtitle_positioning import UnifiedSubtitleConfig
+        from src.video.config.subtitle_models import SubtitleSettings
 
         try:
-            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             use_content_aware = unified_config.content_aware
         except Exception as e:
             logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
@@ -177,7 +177,7 @@ class SubtitleGraphBuilder:
         from src.video.subtitle_positioning import get_style_config
 
         try:
-            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             style_config = get_style_config(
                 preset=unified_config.style_preset,
                 config=unified_config,
@@ -294,10 +294,10 @@ class SubtitleGraphBuilder:
 
         settings_dict = self._get_effective_subtitle_settings()
 
-        from src.video.subtitle_positioning import UnifiedSubtitleConfig
+        from src.video.config.subtitle_models import SubtitleSettings
 
         try:
-            unified_config = UnifiedSubtitleConfig(**settings_dict)
+            unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             use_content_aware = unified_config.content_aware
         except Exception as e:
             logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
@@ -340,7 +340,7 @@ class SubtitleGraphBuilder:
                 )
 
                 try:
-                    upper_unified = UnifiedSubtitleConfig(**upper_settings)
+                    upper_unified = SubtitleSettings.from_legacy_dict(upper_settings)
                     upper_style_config = get_style_config(
                         preset=style_preset,
                         config=upper_unified,
@@ -489,7 +489,7 @@ class SubtitleGraphBuilder:
                 from src.video.subtitle_positioning import get_style_config
 
                 try:
-                    lower_unified = UnifiedSubtitleConfig(**lower_settings)
+                    lower_unified = SubtitleSettings.from_legacy_dict(lower_settings)
                     lower_style_config = get_style_config(
                         preset=lower_unified.style_preset,
                         config=lower_unified,
@@ -690,13 +690,11 @@ class SubtitleGraphBuilder:
 
             settings_dict = self._get_effective_subtitle_settings()
 
-            from src.video.subtitle_positioning import (
-                PositionAnchor,
-                UnifiedSubtitleConfig,
-            )
+            from src.video.config.subtitle_models import SubtitleSettings
+            from src.video.subtitle_positioning import PositionAnchor
 
             try:
-                unified_config = UnifiedSubtitleConfig(**settings_dict)
+                unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             except Exception as e:
                 logger.warning(f"Failed to parse unified subtitle config: {e}")
                 return original_ass_path

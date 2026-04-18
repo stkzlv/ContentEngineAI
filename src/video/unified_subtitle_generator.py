@@ -15,10 +15,10 @@ import pysrt
 
 from src.utils import ensure_dirs_exist
 from src.video.config import config
+from src.video.config.subtitle_models import SubtitleSettings
 from src.video.result_types import SubtitleResult
 from src.video.subtitle_positioning import (
     Position,
-    UnifiedSubtitleConfig,
     VisualBounds,
     calculate_position,
     get_font_size,
@@ -36,7 +36,7 @@ class UnifiedSubtitleGenerator:
 
     def __init__(
         self,
-        config: UnifiedSubtitleConfig,
+        config: SubtitleSettings,
         frame_size: tuple[int, int],
         product_id: str | None = None,
         video_config: Any = None,
@@ -45,7 +45,8 @@ class UnifiedSubtitleGenerator:
 
         Args:
         ----
-            config: Unified subtitle configuration
+            config: Unified SubtitleSettings used for positioning, text layout,
+                and randomization control.
             frame_size: Video frame dimensions (width, height)
             product_id: Product identifier for randomization seeding
             video_config: VideoConfig with validated style_presets

@@ -358,8 +358,8 @@ for voice in voices.voices[:5]:
 2. **Timing Issues:**
    ```yaml
    subtitle_settings:
-     max_subtitle_duration: 2.5     # Shorter segments (seconds)
-     min_subtitle_duration: 0.6     # Floor so short words stay readable
+     max_duration: 2.5              # Shorter segments (seconds)
+     min_duration: 0.6              # Floor so short words stay readable
      max_words_per_line: 3          # Denser line breaks
    ```
 
