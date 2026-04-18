@@ -44,8 +44,8 @@ class TestSubtitleSettingsDefaults:
 
     def test_two_part_nested_default(self):
         s = SubtitleSettings()
-        assert isinstance(s.two_part, TwoPartSubtitleSettings)
-        assert s.two_part.enabled is False
+        assert isinstance(s.two_part_subtitles, TwoPartSubtitleSettings)
+        assert s.two_part_subtitles.enabled is False
 
 
 @pytest.mark.unit
@@ -72,7 +72,7 @@ class TestFromLegacyDict:
 
     def test_two_part_rename(self):
         s = SubtitleSettings.from_legacy_dict({"two_part_subtitles": {"enabled": True}})
-        assert s.two_part.enabled is True
+        assert s.two_part_subtitles.enabled is True
 
     def test_canonical_wins_over_legacy_when_both_present(self):
         s = SubtitleSettings.from_legacy_dict(
@@ -94,16 +94,18 @@ class TestFromLegacyDict:
         with pytest.raises(ValidationError):
             SubtitleSettings.from_legacy_dict({"not_a_real_field": "x"})
 
-    def test_merged_subtitle_settings_dump_round_trips(self):
-        """A dump from the existing MergedSubtitleSettings code path loads."""
-        from src.video.config.visual_models import MergedSubtitleSettings
-
-        merged = MergedSubtitleSettings()
-        dump = merged.model_dump()
-        s = SubtitleSettings.from_legacy_dict(dump)
-        # Canonical names won from the translation
-        assert isinstance(s.max_duration, float)
-        assert isinstance(s.min_duration, float)
+    def test_legacy_dump_with_old_field_names_round_trips(self):
+        """A dict with legacy field names loads via the rename translator."""
+        legacy_dump = {
+            "max_subtitle_duration": 4.5,
+            "min_subtitle_duration": 0.4,
+            "max_words_per_line": 3,
+            "available_fonts": ["Arial"],  # historical extra="allow" key, dropped
+        }
+        s = SubtitleSettings.from_legacy_dict(legacy_dump)
+        assert s.max_duration == 4.5
+        assert s.min_duration == 0.4
+        assert s.max_words_per_line == 3
 
 
 @pytest.mark.unit
@@ -168,13 +170,19 @@ class TestPartialSubtitleSettingsMergeInto:
     def test_two_part_nested_merge_preserves_unspecified(self):
         base = SubtitleSettings()
         partial = PartialSubtitleSettings(
-            two_part={"enabled": True, "upper_line": {"style_preset": "minimal"}}
+            two_part_subtitles={
+                "enabled": True,
+                "upper_line": {"style_preset": "minimal"},
+            }
         )
         merged = partial.merge_into(base)
-        assert merged.two_part.enabled is True
-        assert merged.two_part.upper_line.style_preset == "minimal"
+        assert merged.two_part_subtitles.enabled is True
+        assert merged.two_part_subtitles.upper_line.style_preset == "minimal"
         # Unspecified upper_line fields preserved from base default
-        assert merged.two_part.upper_line.source_field == "shortened_affiliate_link"
+        assert (
+            merged.two_part_subtitles.upper_line.source_field
+            == "shortened_affiliate_link"
+        )
 
     def test_safe_zone_nested_merge(self):
         base = SubtitleSettings()

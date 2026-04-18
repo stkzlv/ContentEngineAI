@@ -13,6 +13,7 @@ import pysrt
 
 from src.utils import ensure_dirs_exist
 from src.video.config import GoogleCloudSTTSettings, WhisperSettings
+from src.video.config.subtitle_models import SubtitleSettings
 from src.video.result_types import SubtitleResult
 from src.video.stt_functions import (
     GOOGLE_CLOUD_STT_AVAILABLE,
@@ -20,7 +21,6 @@ from src.video.stt_functions import (
     generate_subtitles_with_whisper,
     transcribe_with_google_cloud_stt,
 )
-from src.video.subtitle_positioning import create_unified_config_from_settings
 from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
 
 logger = logging.getLogger(__name__)
@@ -282,7 +282,7 @@ def create_static_upper_subtitle(
         # font_size_scale, style_preset, randomize_effects) plus a private
         # key _upper_use_full_duration controlling CTA-only vs full display.
         use_full_duration = subtitle_settings.get("_upper_use_full_duration", False)
-        unified_config = create_unified_config_from_settings(subtitle_settings)
+        unified_config = SubtitleSettings.from_legacy_dict(subtitle_settings)
 
         # Get frame size from video config
         frame_size = (1080, 1920)  # Default
@@ -679,7 +679,7 @@ async def create_unified_subtitles(
         )
 
     # Create unified configuration from subtitle settings dict
-    unified_config = create_unified_config_from_settings(subtitle_settings)
+    unified_config = SubtitleSettings.from_legacy_dict(subtitle_settings)
 
     # Get frame size from video config
     frame_size = (1080, 1920)  # Default

@@ -44,7 +44,6 @@ from src.video.config.visual_models import (
     MediaSettings,
     MediaValidationSettings,
     MergedProfileSettings,
-    MergedSubtitleSettings,
     ProfileInfo,
     StockMediaSettings,
     VideoProcessingSettings,
@@ -851,7 +850,12 @@ class VideoConfig(BaseModel):
                 base_two_part, profile.two_part_subtitles
             )
 
-        merged_subtitle = MergedSubtitleSettings(**subtitle_data)
+        # Build the unified SubtitleSettings. from_legacy_dict handles the
+        # historical renames (max_subtitle_duration → max_duration, etc.) and
+        # drops runtime-only underscore keys so strict validation passes.
+        from src.video.config.subtitle_models import SubtitleSettings
+
+        merged_subtitle = SubtitleSettings.from_legacy_dict(subtitle_data)
 
         # --- Profile info ---
         profile_info = ProfileInfo(
@@ -925,7 +929,7 @@ class VideoConfig(BaseModel):
         """Build base subtitle settings dict from global YAML config."""
         ss = self.subtitle_settings
 
-        return {
+        base: dict[str, Any] = {
             "anchor": ss["anchor"],
             "margin": ss["margin"],
             "content_aware": ss["content_aware"],
@@ -968,11 +972,12 @@ class VideoConfig(BaseModel):
             # Pycaps engine selector + nested sub-settings (YAML layer)
             "subtitle_engine": ss.get("subtitle_engine", "ffmpeg"),
             "pycaps": ss.get("pycaps"),
-            # Safe zone from text_rendering config (global YAML layer)
-            "safe_zone": (
-                self.text_rendering.safe_zone if self.text_rendering else None
-            ),
         }
+        # Safe zone only included when the global text_rendering block defined
+        # one — otherwise SubtitleSettings uses its own PlatformSafeZone default.
+        if self.text_rendering is not None:
+            base["safe_zone"] = self.text_rendering.safe_zone
+        return base
 
     def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:
         """Generate all paths for a product using simplified product-oriented structure.

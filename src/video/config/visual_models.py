@@ -3,13 +3,13 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
 )
-from src.video.config.subtitle_models import PycapsSettings, TwoPartSubtitleSettings
+from src.video.config.subtitle_models import SubtitleSettings
 
 
 class CTADetectionSettings(BaseModel):
@@ -423,64 +423,6 @@ class VideoProfile(BaseModel):
     )
 
 
-class MergedSubtitleSettings(BaseModel):
-    """Merged subtitle settings (global + profile overrides)."""
-
-    model_config = ConfigDict(extra="allow")
-
-    # Rendering engine selector. "ffmpeg" (default) uses the existing
-    # SRT/ASS + libass pipeline. "pycaps" burns animated captions via the
-    # pycaps library as a post-assembly step. See docs/pycaps-subtitles.md.
-    subtitle_engine: Literal["ffmpeg", "pycaps"] = "ffmpeg"
-
-    # Nested settings consumed only when subtitle_engine == "pycaps".
-    pycaps: PycapsSettings | None = None
-
-    # Core positioning
-    anchor: str = "bottom"
-    margin: float = 0.1
-    content_aware: bool = True
-    style_preset: str = "modern"
-    font_size_scale: float = 1.0
-    horizontal_alignment: str = "center"
-
-    randomize_effects: bool = False
-
-    # Text formatting
-    max_line_length: int = 38
-    max_words_per_line: int = 3
-    max_subtitle_duration: float = 4.5
-    min_subtitle_duration: float = 0.4
-    max_subtitle_width_fraction: float = 0.80
-
-    # Infrastructure (not preset-owned)
-    enabled: bool = True
-    font_directory: str = "static/fonts"
-    font_size_percent: float = 0.05
-
-    # Randomization
-    randomize_fonts: bool = False
-    randomize_colors: bool = False
-    available_fonts: list[Any] = Field(default_factory=list)
-    available_color_combinations: list[Any] = Field(default_factory=list)
-
-    # Output
-    temp_subtitle_dir: str = "temp"
-    temp_subtitle_filename: str = "captions.srt"
-    save_srt_with_video: bool = True
-    subtitle_format: str = "srt"
-    script_paths: list[Any] = Field(default_factory=list)
-
-    # Manual overrides
-    selected_font: str | None = None
-    selected_color_pair: str | None = None
-
-    # Two-part subtitle system (upper static line + lower voiceover line)
-    two_part_subtitles: TwoPartSubtitleSettings = Field(
-        default_factory=TwoPartSubtitleSettings
-    )
-
-
 class ProfileInfo(BaseModel):
     """Profile metadata."""
 
@@ -499,7 +441,7 @@ class MergedProfileSettings(BaseModel):
     """Typed container for merged profile settings."""
 
     video_settings: "VideoSettings"
-    subtitle_settings: MergedSubtitleSettings
+    subtitle_settings: SubtitleSettings
     profile: ProfileInfo
 
 

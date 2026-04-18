@@ -3,15 +3,13 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from src.video.config.core_models import PlatformSafeZone
+from src.video.config.subtitle_models import PlatformSafeZone, SubtitleSettings
 from src.video.subtitle_positioning import (
     PositionAnchor,
     StylePreset,
-    UnifiedSubtitleConfig,
     VisualBounds,
     calculate_position,
     clamp_to_safe_zone,
-    create_unified_config_from_settings,
     get_font_size,
     get_style_config,
 )
@@ -30,7 +28,7 @@ class TestSubtitlePositioning:
         ],
     )
     def test_calculate_position_basic_anchors(self, anchor, expected_y):
-        config = UnifiedSubtitleConfig(anchor=anchor, margin=0.1, content_aware=False)
+        config = SubtitleSettings(anchor=anchor, margin=0.1, content_aware=False)
         pos = calculate_position(config, (1080, 1920), safe_zone=self._wide_sz)
         assert pos.y == pytest.approx(expected_y)
         assert pos.x == 0.5
@@ -39,21 +37,21 @@ class TestSubtitlePositioning:
         """Verify safe zone clamps TOP and BOTTOM anchors."""
         sz = PlatformSafeZone()  # default cross-platform safe zone
         top = calculate_position(
-            UnifiedSubtitleConfig(anchor=PositionAnchor.TOP, margin=0.05),
+            SubtitleSettings(anchor=PositionAnchor.TOP, margin=0.05),
             (1080, 1920),
             safe_zone=sz,
         )
         assert top.y == pytest.approx(sz.min_y)  # margin < min_y, clamped
 
         bottom = calculate_position(
-            UnifiedSubtitleConfig(anchor=PositionAnchor.BOTTOM, margin=0.05),
+            SubtitleSettings(anchor=PositionAnchor.BOTTOM, margin=0.05),
             (1080, 1920),
             safe_zone=sz,
         )
         assert bottom.y == pytest.approx(sz.max_y)  # 0.95 > max_y, clamped
 
     def test_calculate_position_above_content(self):
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.ABOVE_CONTENT, margin=0.1, content_aware=True
         )
         visual_bounds = VisualBounds(x=0.1, y=0.2, width=0.8, height=0.6)
@@ -63,7 +61,7 @@ class TestSubtitlePositioning:
         assert pos.y == 0.1
 
     def test_calculate_position_below_content(self):
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BELOW_CONTENT, margin=0.05, content_aware=True
         )
         visual_bounds = VisualBounds(x=0.1, y=0.2, width=0.8, height=0.6)
@@ -74,7 +72,7 @@ class TestSubtitlePositioning:
 
     def test_calculate_position_below_content_clamped(self):
         sz = PlatformSafeZone(min_x=0.0, max_x=1.0, min_y=0.0, max_y=0.95)
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             anchor=PositionAnchor.BELOW_CONTENT, margin=0.2, content_aware=True
         )
         visual_bounds = VisualBounds(x=0.1, y=0.2, width=0.8, height=0.7)
@@ -90,20 +88,20 @@ class TestSubtitlePositioning:
         ],
     )
     def test_horizontal_alignment(self, alignment, expected_x):
-        config = UnifiedSubtitleConfig(horizontal_alignment=alignment)
+        config = SubtitleSettings(horizontal_alignment=alignment)
         pos = calculate_position(config, (1080, 1920), safe_zone=self._wide_sz)
         assert pos.x == pytest.approx(expected_x)
 
     def test_horizontal_alignment_clamped_to_safe_zone(self):
         sz = PlatformSafeZone()
         left = calculate_position(
-            UnifiedSubtitleConfig(horizontal_alignment="left"),
+            SubtitleSettings(horizontal_alignment="left"),
             (1080, 1920),
             safe_zone=sz,
         )
         assert left.x == pytest.approx(sz.min_x)
         right = calculate_position(
-            UnifiedSubtitleConfig(horizontal_alignment="right"),
+            SubtitleSettings(horizontal_alignment="right"),
             (1080, 1920),
             safe_zone=sz,
         )
@@ -122,7 +120,7 @@ class TestSubtitlePositioning:
         from src.video.subtitle_positioning import Position
 
         sz = PlatformSafeZone(min_x=0.1, max_x=0.9, min_y=0.1, max_y=0.9)
-        config = UnifiedSubtitleConfig(
+        config = SubtitleSettings(
             custom_position=Position(x=0.0, y=1.0),
         )
         pos = calculate_position(config, (1080, 1920), safe_zone=sz)
@@ -132,12 +130,12 @@ class TestSubtitlePositioning:
     def test_get_font_size(self):
         # Default base_font_size_percent is 0.04
         # 1000 * 0.04 = 40.
-        config = UnifiedSubtitleConfig(font_size_scale=1.0)
+        config = SubtitleSettings(font_size_scale=1.0)
         size = get_font_size(config, 1000, base_size_percent=0.04)
         assert size == 40
 
         # 40 * 2.0 = 80. (within default 100 max)
-        config_scaled = UnifiedSubtitleConfig(font_size_scale=2.0)
+        config_scaled = SubtitleSettings(font_size_scale=2.0)
         size_scaled = get_font_size(config_scaled, 1000, base_size_percent=0.04)
         assert size_scaled == 80
 
@@ -163,27 +161,31 @@ class TestSubtitlePositioning:
             assert style["font_name"] == "CustomFont"
 
     def test_get_style_config_random(self):
-        config = UnifiedSubtitleConfig(style_preset=StylePreset.RANDOM)
+        config = SubtitleSettings(style_preset=StylePreset.RANDOM)
         # Random preset forces randomization
         style = get_style_config(StylePreset.RANDOM, config, "prod123")
         assert len(style["effects"]) == 1
         assert config.randomize_fonts is True
 
-    def test_create_unified_config_from_settings(self):
+    def test_from_legacy_dict_basic(self):
         settings = {
             "anchor": "top",
             "margin": 0.15,
             "style_preset": "bold",
             "font_size_scale": 1.2,
         }
-        config = create_unified_config_from_settings(settings)
+        config = SubtitleSettings.from_legacy_dict(settings)
         assert config.anchor == PositionAnchor.TOP
         assert config.margin == 0.15
-        assert config.style_preset == "bold"
+        assert config.style_preset == StylePreset.BOLD
         assert config.font_size_scale == 1.2
 
-    def test_create_unified_config_invalid_values(self):
+    def test_from_legacy_dict_invalid_values_raise(self):
+        from pydantic import ValidationError
+
+        # Strict: invalid Literal/enum values must surface as ValidationError
+        # so callers can either fix the YAML or wrap in a fallback. The old
+        # wrapper silently fell back; that masked typos in production YAML.
         settings = {"anchor": "invalid", "style_preset": "garbage"}
-        config = create_unified_config_from_settings(settings)
-        assert config.anchor == PositionAnchor.BOTTOM  # Fallback
-        assert config.style_preset == "modern"  # Fallback
+        with pytest.raises(ValidationError):
+            SubtitleSettings.from_legacy_dict(settings)

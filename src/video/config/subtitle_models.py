@@ -357,16 +357,15 @@ class PycapsSettings(BaseModel):
 # round-trip through dict.get(...) between the two models was the hiding place
 # for silent-drop bugs like the one tracked in subtitle-config-cleanup.md §3.1.
 #
-# Canonical names (max_duration / min_duration, two_part) — old names like
-# max_subtitle_duration and two_part_subtitles are translated by
-# from_legacy_dict() so existing YAML keeps loading.
+# Canonical names (max_duration, min_duration) — old names like
+# max_subtitle_duration are translated by from_legacy_dict() so existing
+# YAML keeps loading.
 
 # YAML keys that ``from_legacy_dict`` either renames or drops outright.
 # Each entry: legacy key -> canonical key (or None to drop with a warning).
 _LEGACY_RENAMES: dict[str, str] = {
     "max_subtitle_duration": "max_duration",
     "min_subtitle_duration": "min_duration",
-    "two_part_subtitles": "two_part",
 }
 
 # Keys that have no consumer on SubtitleSettings and used to live on
@@ -425,9 +424,19 @@ class SubtitleSettings(BaseModel):
     save_srt_with_video: bool = True
     script_paths: list[str] = Field(default_factory=list)
 
+    # ---- Quality ----
+    subtitle_similarity_threshold: float = Field(0.70, ge=0.0, le=1.0)
+
+    # ---- Whisper timing post-processing (see subtitle_timing_smoother.py) ----
+    # Kept as a free-form dict because the smoother reads these as kwargs;
+    # the project's smoother module owns the schema, not this model.
+    timing_smoothing: dict[str, Any] = Field(default_factory=dict)
+
     # ---- Nested ----
     pycaps: PycapsSettings | None = None
-    two_part: TwoPartSubtitleSettings = Field(default_factory=TwoPartSubtitleSettings)
+    two_part_subtitles: TwoPartSubtitleSettings = Field(
+        default_factory=TwoPartSubtitleSettings
+    )
 
     @classmethod
     def from_legacy_dict(cls, data: dict[str, Any]) -> "SubtitleSettings":
@@ -442,6 +451,11 @@ class SubtitleSettings(BaseModel):
         """
         translated: dict[str, Any] = {}
         for key, value in data.items():
+            # Underscore-prefixed keys are runtime-only side channels
+            # (for example "_upper_use_full_duration" threaded through
+            # TwoPartSubtitleHandler). They never belong in the typed model.
+            if key.startswith("_"):
+                continue
             if key in _LEGACY_DROPS:
                 continue
             if key in _LEGACY_RENAMES:
@@ -494,8 +508,10 @@ class PartialSubtitleSettings(BaseModel):
     temp_subtitle_filename: str | None = None
     save_srt_with_video: bool | None = None
     script_paths: list[str] | None = None
+    subtitle_similarity_threshold: float | None = None
+    timing_smoothing: dict[str, Any] | None = None
     pycaps: dict[str, Any] | None = None
-    two_part: dict[str, Any] | None = None
+    two_part_subtitles: dict[str, Any] | None = None
 
     def merge_into(self, base: SubtitleSettings) -> SubtitleSettings:
         """Return a copy of base with non-None partial fields applied.
@@ -513,10 +529,10 @@ class PartialSubtitleSettings(BaseModel):
                 base_pycaps = base.pycaps.model_dump() if base.pycaps else {}
                 merged = _deep_merge_dicts(base_pycaps, override)
                 updates["pycaps"] = PycapsSettings(**merged)
-            elif field_name == "two_part":
-                base_two_part = base.two_part.model_dump()
+            elif field_name == "two_part_subtitles":
+                base_two_part = base.two_part_subtitles.model_dump()
                 merged = _deep_merge_dicts(base_two_part, override)
-                updates["two_part"] = TwoPartSubtitleSettings(**merged)
+                updates["two_part_subtitles"] = TwoPartSubtitleSettings(**merged)
             elif field_name == "safe_zone":
                 base_safe_zone = base.safe_zone.model_dump()
                 merged = _deep_merge_dicts(base_safe_zone, override)

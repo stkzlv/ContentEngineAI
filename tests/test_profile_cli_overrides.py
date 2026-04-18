@@ -2,11 +2,15 @@
 
 import pytest
 
-from src.video.config import VideoConfig, VideoProfile, load_video_config
+from src.video.config import (
+    SubtitleSettings,
+    VideoConfig,
+    VideoProfile,
+    load_video_config,
+)
 from src.video.config.core_models import _deep_merge
 from src.video.config.visual_models import (
     MergedProfileSettings,
-    MergedSubtitleSettings,
     ProfileInfo,
     VideoSettings,
 )
@@ -79,7 +83,7 @@ class TestMergedProfileSettings:
 
         assert isinstance(merged, MergedProfileSettings)
         assert isinstance(merged.video_settings, VideoSettings)
-        assert isinstance(merged.subtitle_settings, MergedSubtitleSettings)
+        assert isinstance(merged.subtitle_settings, SubtitleSettings)
         assert isinstance(merged.profile, ProfileInfo)
 
     def test_profile_info_populated(self, mock_config: VideoConfig):
