@@ -31,7 +31,7 @@ All bugs fixed. Four high-value refactors, ~20 dead fields.
 | 4 | Collapse `MergedSubtitleSettings` + `UnifiedSubtitleConfig` into one typed model | **Refactor** | Open | 1-2 days |
 | 5 | ~~Nest `two_part_subtitles` as a typed sub-model instead of 14 flat fields~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
 | 6 | ~~Move `style_presets` into the Pydantic model, delete the inline YAML re-read in `get_style_config()`~~ | ~~Refactor~~ | **DONE** | ~~0.5 day~~ |
-| 7 | Move font and color pools from Python enums to YAML | **Refactor** | Open | 1 day |
+| 7 | ~~Move font and color pools from Python enums to YAML~~ | ~~Refactor~~ | **DONE** | ~~1 day~~ |
 | 8 | ~~Delete ~20 dead YAML keys and Pydantic fields~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 9 | ~~Remove the "Legacy Compatibility Settings" block in `subtitle_settings`~~ | ~~Cleanup~~ | **DONE** | ~~1 hour~~ |
 | 10 | Rename duplicate/confusing keys to canonical names | **Cleanup** | Open (gated on #4) | 1 hour |
@@ -134,8 +134,8 @@ UnifiedSubtitleGenerator(unified_config, frame_size, product_id)
        │    side channel: get_style_config() does open("config/subtitles.yaml") directly
        │    to read style_presets, ignoring the CLI/profile layers entirely
        │
-       │    side channel: FontManager / ColorManager in font_color_manager.py
-       │    hold Python enums for the font pool, ignoring YAML
+       │    (font and color pools now flow through VideoConfig.font_pool /
+       │    .color_pool — see §4.5)
        ▼
 SRT/ASS file → SubtitleGraphBuilder (assembler) → FFmpeg filter graph
 ```
@@ -535,7 +535,20 @@ def get_style_config(preset: StylePreset, config: UnifiedSubtitleConfig | None =
 render, the second biggest is forcing YAML presets through Pydantic
 validation.
 
-### 4.5 Move font and color pools from Python enums to YAML
+### 4.5 Move font and color pools from Python enums to YAML — DONE
+
+**Status**: shipped. `font_pool` and `color_pool` live as top-level YAML keys
+in `config/subtitles.yaml`, validated by `FontPoolEntry` / `ColorPoolEntry`
+Pydantic models on `VideoConfig`. The `FontFamily` and `ColorPair` enums in
+`src/video/font_color_manager.py` are gone — `FontManager` and
+`ColorManager` now load entries from the pool lists and selection methods
+return string identifiers. The default pool drops the `DM_SERIF` serif and
+the amateur `vibrant` / `warm` / `modern` palettes; in their place are
+`neon_green` and `brand_yellow`, both on a black outline (per
+`pycaps-followups.md` #7). Old pair names fall back to `classic` with a
+warning so existing profile YAML keeps loading.
+
+**Historical notes** (original design sketch):
 
 **Current**: `src/video/font_color_manager.py:22-40` hardcodes:
 ```python
@@ -797,8 +810,7 @@ Bug 3.1 (duration + width) is fixed. Remaining work, in order:
 4. **Nest `two_part_subtitles` (§4.2)** (0.5 day). Independent of the
    big refactor, already has a clean shape in YAML, just needs the
    Pydantic layer to catch up.
-5. **Move font/color pools to YAML (§4.5)** (1 day). Unblocks follow-up
-   item #7 from `pycaps-followups.md` (remove bad palettes).
+5. ~~**Move font/color pools to YAML (§4.5)**~~ — done.
 6. **Collapse the two Pydantic models (§4.1)** (1-2 days). The biggest
    refactor; do it last when the surrounding surface area is already
    clean. Include the flat to nested profile override migration (§4.3)

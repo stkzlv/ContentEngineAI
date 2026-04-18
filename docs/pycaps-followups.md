@@ -468,7 +468,19 @@ word-boundary accuracy. Two viable upgrades:
 
 ---
 
-## 7. Fix serif + low-contrast entries in font/color managers
+## 7. Fix serif + low-contrast entries in font/color managers — DONE
+
+**Status**: shipped together with the §4.5 pool refactor in
+`subtitle-config-cleanup.md`. `DM_SERIF` is out of the curated pool;
+`vibrant` / `warm` / `modern` are gone, replaced by `neon_green` and
+`brand_yellow` (both on black). `high_contrast` outline switched from
+dark blue to black. Pools live in YAML so further palette tweaks no
+longer require Python edits. Old pair names fall back to `classic` with
+a warning.
+
+**Historical notes** (original design sketch):
+
+
 
 **Priority**: low — cosmetic but violates the best-practice rules.
 

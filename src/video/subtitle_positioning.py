@@ -249,7 +249,7 @@ def get_style_config(
         try:
             from src.video.font_color_manager import RandomizationEngine
 
-            randomizer = RandomizationEngine()
+            randomizer = RandomizationEngine(video_config=video_config)
             logger.debug(
                 f"RandomizationEngine imported successfully, calling "
                 f"generate_randomized_style with fonts={config.randomize_fonts}, "

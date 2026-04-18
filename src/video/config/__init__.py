@@ -52,6 +52,9 @@ from src.video.config.llm_settings import LLMSettings  # noqa: F401
 
 # Re-export subtitle models
 from src.video.config.subtitle_models import (  # noqa: F401
+    ColorPoolEntry,
+    FontPoolEntry,
+    StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
 )
@@ -96,6 +99,9 @@ __all__ = [
     "VideoProfile",
     "VideoSettings",
     # Subtitle models
+    "ColorPoolEntry",
+    "FontPoolEntry",
+    "StylePresetConfig",
     "SubtitleEffectsSettings",
     "SubtitleSegmentationSettings",
     # Core models
