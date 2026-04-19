@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Gemini TTS occasionally truncated the final word of short sentences because the model had no cue past the terminal period. Voiceovers now append a sacrificial `[short pause]` directive before synthesis; the existing trailing-silence filter strips it post-call, so the last word of the script is reliably spoken.
+
 ## [0.42.0] - 2026-04-18
 
 ### Changed

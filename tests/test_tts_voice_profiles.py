@@ -303,6 +303,68 @@ class TestGenerateSpeechRouting:
             assert "[short pause]" not in text_arg
 
     @pytest.mark.asyncio
+    async def test_gemini_text_padded_with_tail_token(self):
+        """Gemini synthesis input should be padded with a sacrificial tail token
+        so the model doesn't truncate the final word of short sentences.
+        """
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        profile = SAMPLE_PROFILES["calm"]
+        settings = GoogleCloudTTSSettings(
+            language_code="en-US",
+            voice_selection_criteria=[
+                GoogleCloudVoiceCriteria(language_code="en-US", ssml_gender="FEMALE")
+            ],
+        )
+
+        fake_voice = MagicMock()
+        fake_voice.name = "Kore"
+        fake_voice.language_codes = ["en-US"]
+
+        fake_client = MagicMock()
+        fake_client.synthesize_speech = AsyncMock(
+            return_value=MagicMock(audio_content=b"fake-audio-bytes")
+        )
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", fake_client),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[fake_voice]),
+            ),
+            patch.object(
+                tts_module, "_filter_and_select_voice", return_value=fake_voice
+            ),
+            patch.object(tts_module, "texttospeech") as mock_tts_mod,
+            patch("aiofiles.open") as mock_aopen,
+        ):
+            mock_file = AsyncMock()
+            mock_aopen.return_value.__aenter__.return_value = mock_file
+
+            output_path = Path("/tmp/test_gemini_padding.wav")  # noqa: S108
+            try:
+                await _generate_gemini_speech(
+                    "Follow for more smart tech.",
+                    output_path,
+                    settings,
+                    profile,
+                )
+            finally:
+                output_path.unlink(missing_ok=True)
+
+            synthesis_input_calls = mock_tts_mod.SynthesisInput.call_args_list
+            assert synthesis_input_calls, "SynthesisInput was never called"
+            text_kwarg = synthesis_input_calls[0].kwargs["text"]
+            assert text_kwarg.endswith(
+                "[short pause]"
+            ), f"Expected sacrificial tail, got: {text_kwarg!r}"
+            assert "Follow for more smart tech." in text_kwarg
+
+    @pytest.mark.asyncio
     async def test_no_providers_returns_none(self):
         cfg = _make_tts_config(profiles=SAMPLE_PROFILES, pool=["chirp"])
         cfg.provider_order = []

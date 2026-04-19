@@ -493,8 +493,14 @@ async def _generate_gemini_speech(
 
     ensure_dirs_exist(output_path)
 
+    # Gemini 2.5 Flash TTS occasionally drops the last syllable/word on short
+    # final sentences because the model has no cue past the terminal period.
+    # Append a bracket directive that the model renders as silence; the
+    # post-synthesis silenceremove filter in step_create_voiceover trims it.
+    padded_text = text.rstrip() + " [short pause]"
+
     # Gemini TTS uses text + prompt (not SSML)
-    input_kwargs: dict[str, str] = {"text": text}
+    input_kwargs: dict[str, str] = {"text": padded_text}
     if profile.style_prompt:
         input_kwargs["prompt"] = profile.style_prompt
     synthesis_input = texttospeech.SynthesisInput(**input_kwargs)
