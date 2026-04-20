@@ -312,6 +312,230 @@ class TestGenerateSpeechRouting:
         assert result is None
 
 
+class TestGenerateGeminiSpeechErrors:
+    """Error-path branches of _generate_gemini_speech.
+
+    Routing-level tests mock _generate_gemini_speech wholesale. These
+    reach into the helper and exercise the catalog guards (empty Gemini
+    voice list, no matching voice) and the retry/exception handling
+    branches (GoogleAPIError, TimeoutError, DefaultCredentialsError,
+    generic exception).
+    """
+
+    @staticmethod
+    def _settings() -> GoogleCloudTTSSettings:
+        return GoogleCloudTTSSettings(
+            language_code="en-US",
+            voice_selection_criteria=[
+                GoogleCloudVoiceCriteria(language_code="en-US", ssml_gender="FEMALE")
+            ],
+            api_max_retries=1,
+            api_retry_delay_sec=0,
+            api_timeout_sec=5,
+        )
+
+    @staticmethod
+    def _profile() -> VoiceProfileConfig:
+        return SAMPLE_PROFILES["calm"]
+
+    @staticmethod
+    def _fake_voice() -> MagicMock:
+        v = MagicMock()
+        v.name = "Kore"
+        v.language_codes = ["en-US"]
+        return v
+
+    @pytest.mark.asyncio
+    async def test_empty_gemini_voice_catalog_returns_none(self, tmp_path):
+        """All voices have hyphens in their names → Gemini filter yields []."""
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        non_gemini = MagicMock()
+        non_gemini.name = "en-US-Neural2-A"
+        non_gemini.language_codes = ["en-US"]
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", MagicMock()),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[non_gemini]),
+            ),
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        assert result == (None, None)
+        assert not out_path.exists()
+
+    @pytest.mark.asyncio
+    async def test_no_matching_voice_returns_none(self, tmp_path):
+        """Gemini voice list non-empty but filter returns None."""
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", MagicMock()),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[self._fake_voice()]),
+            ),
+            patch.object(tts_module, "_filter_and_select_voice", return_value=None),
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        assert result == (None, None)
+        assert not out_path.exists()
+
+    @pytest.mark.asyncio
+    async def test_google_api_error_exhausts_retries(self, tmp_path):
+        """GoogleAPIError on every attempt → (None, None) after retries."""
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        fake_client = MagicMock()
+        fake_client.synthesize_speech = AsyncMock(
+            side_effect=tts_module.GoogleAPIError("boom")
+        )
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", fake_client),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[self._fake_voice()]),
+            ),
+            patch.object(
+                tts_module, "_filter_and_select_voice", return_value=self._fake_voice()
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        # 1 retry allowed → 2 attempts total
+        assert fake_client.synthesize_speech.call_count == 2
+        assert result == (None, None)
+        assert not out_path.exists()
+
+    @pytest.mark.asyncio
+    async def test_timeout_exhausts_retries(self, tmp_path):
+        """asyncio.wait_for timeout on every attempt → (None, None).
+
+        On Python 3.11+, TimeoutError is a subclass of OSError, so the
+        earlier `except (OSError, ...)` clause in _generate_gemini_speech
+        handles the timeout — not the explicit `except TimeoutError:`
+        block below it. This test still exercises the real retry/cleanup
+        behaviour; the TimeoutError-specific branch is effectively dead
+        code on modern Python.
+        """
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        fake_client = MagicMock()
+        fake_client.synthesize_speech = AsyncMock(side_effect=TimeoutError("slow"))
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", fake_client),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[self._fake_voice()]),
+            ),
+            patch.object(
+                tts_module, "_filter_and_select_voice", return_value=self._fake_voice()
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        assert fake_client.synthesize_speech.call_count == 2
+        assert result == (None, None)
+        assert not out_path.exists()
+
+    @pytest.mark.asyncio
+    async def test_default_credentials_error_breaks_immediately(self, tmp_path):
+        """DefaultCredentialsError is non-retryable: break after first attempt."""
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        fake_client = MagicMock()
+        fake_client.synthesize_speech = AsyncMock(
+            side_effect=tts_module.DefaultCredentialsError("no creds")
+        )
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", fake_client),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[self._fake_voice()]),
+            ),
+            patch.object(
+                tts_module, "_filter_and_select_voice", return_value=self._fake_voice()
+            ),
+            patch("asyncio.sleep", AsyncMock()) as mock_sleep,
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        # Non-retryable: exactly one attempt, no sleep
+        assert fake_client.synthesize_speech.call_count == 1
+        mock_sleep.assert_not_called()
+        assert result == (None, None)
+
+    @pytest.mark.asyncio
+    async def test_generic_exception_exhausts_retries(self, tmp_path):
+        """Catch-all Exception branch also retries up to the configured limit."""
+        from src.video import tts as tts_module
+        from src.video.tts import _generate_gemini_speech
+
+        fake_client = MagicMock()
+        fake_client.synthesize_speech = AsyncMock(
+            side_effect=RuntimeError("unexpected")
+        )
+
+        with (
+            patch.object(tts_module, "GOOGLE_CLOUD_AVAILABLE", True),
+            patch.object(tts_module, "AIOFILES_AVAILABLE", True),
+            patch.object(tts_module, "_global_google_cloud_client", fake_client),
+            patch.object(
+                tts_module,
+                "_fetch_available_voices",
+                AsyncMock(return_value=[self._fake_voice()]),
+            ),
+            patch.object(
+                tts_module, "_filter_and_select_voice", return_value=self._fake_voice()
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            out_path = tmp_path / "out.wav"
+            result = await _generate_gemini_speech(
+                "Hello.", out_path, self._settings(), self._profile()
+            )
+        assert fake_client.synthesize_speech.call_count == 2
+        assert result == (None, None)
+
+
 class TestTextMarkupRuleModel:
     """Tests for TextMarkupRule Pydantic model."""
 
