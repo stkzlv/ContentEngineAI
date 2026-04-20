@@ -330,6 +330,12 @@ for voice in voices.voices[:5]:
    - Check script has proper text formatting
    - Remove special characters that break TTS
 
+**Symptom:** Voiceover is missing the final word of the script (Whisper transcript ends mid-sentence; final MP4 duration is shorter than expected).
+
+**Cause:** `audio_processing.silence_min_duration_sec` set too high. This YAML field maps to ffmpeg `silenceremove` `start_duration`, which is the non-silence confirmation window — audio during the window is discarded, not kept. At `0.3s`, short trailing words (~0.4s) land entirely inside the window and get stripped. This is independent of which TTS provider generated the audio; synthesizing the script in isolation will produce the complete audio, confirming the pipeline's trim step is the culprit.
+
+**Fix:** Set `silence_min_duration_sec: 0.1` in `config/ai_services.yaml` under `audio_processing` (the code default). Thresholds from -20 to -60 dB all preserve the final word at this value.
+
 ### Subtitle Generation Issues
 
 **Error:** Subtitles missing, poor timing, or unreadable

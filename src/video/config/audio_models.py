@@ -193,7 +193,9 @@ class AudioProcessingSettings(BaseModel):
     )
     silence_min_duration_sec: float = Field(
         0.1,
-        description="Minimum duration in seconds to consider as silence. "
-        "Prevents removing very brief pauses between words. "
-        "0.1s = 100ms is optimal for natural speech cadence.",
+        description="ffmpeg silenceremove start_duration: the continuous "
+        "non-silence window the filter must detect before it stops trimming. "
+        "Audio during this window is DISCARDED, not kept, so larger values "
+        "trim MORE aggressively. Keep at or below 0.1s so short trailing "
+        "words (e.g. 'tips', 'tech') aren't eaten by the confirmation window.",
     )

@@ -129,6 +129,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Freesound**: `FreesoundProvider` wraps existing `FreesoundClient` (don't modify the 728-line client directly). OAuth2 for full quality, API key for previews
 - **Config patterns**: Jamendo uses `audio_providers[].settings` dict, Freesound uses legacy `freesound_*` fields on `AudioSettings`. Both work, new providers should use the `settings` dict pattern
 - **CircuitBreaker**: use public `record_success()`/`record_failure()` methods, not private `_on_success()`/`_on_failure()`
+- **`silence_min_duration_sec` is a trim-MORE knob, not a trim-LESS knob**: the field in `AudioProcessingSettings` maps to ffmpeg `silenceremove` `start_duration`, which is the continuous non-silence window the filter must detect before it stops trimming. Audio during that window is **discarded**, not kept. So larger values trim MORE aggressively, and short trailing words (under ~0.4s, e.g. "tips", "tech") get eaten if `start_duration` exceeds the word length. Keep at 0.1s or below. Lives in `config/ai_services.yaml::audio_processing`.
 
 ### Video Module Notes
 
