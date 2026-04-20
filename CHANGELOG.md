@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-04-20
+
 ### Fixed
 - Voiceovers occasionally lost the final word of short trailing sentences (e.g. "tips", "tech") because the `silenceremove` filter's `start_duration` was set to `0.3s`. The parameter is the non-silence confirmation window, not the minimum silence duration — audio inside it is discarded — so short trailing words fell entirely within the window and were stripped. Reverted the YAML override to `0.1s` and rewrote the misleading comment plus the Pydantic field description to describe the actual ffmpeg semantics.
+
+### Added
+- Unit-test coverage for `_generate_gemini_speech` error-path branches (empty voice catalog, no matching voice, `GoogleAPIError` retry, timeout retry, `DefaultCredentialsError` early break, generic exception retry).
 
 ## [0.42.0] - 2026-04-18
 
