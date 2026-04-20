@@ -580,8 +580,11 @@ audio_processing:
   # Range: -60 (very sensitive) to -20 (only very quiet silence)
   silence_threshold_db: -50
 
-  # Minimum duration to consider as silence (seconds)
-  # Prevents removing very brief pauses between words
-  # 0.3s prevents trimming the TTS last_word_buffer (0.5s)
-  silence_min_duration_sec: 0.3
+  # ffmpeg silenceremove start_duration: the confirmation window of
+  # continuous non-silence the filter must see before it stops trimming.
+  # Audio during this window is DISCARDED, not kept — so larger values
+  # trim MORE aggressively, not less. If this is longer than a short
+  # trailing word (e.g. "tips" at ~0.4s), that word is eaten by the
+  # confirmation window. Keep at 0.1s or below.
+  silence_min_duration_sec: 0.1
 
