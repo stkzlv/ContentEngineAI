@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Universal rules (banned phrases, word target, no-emoji, no-price, anti-AI-tells) live in the narrator profile rather than being repeated in each template. The 15 templates now carry only hook-specific rules; total template length drops from ~450 to 323 lines.
 - CTA enumerations dropped from all 15 templates (they used to list "follow, like, link in bio, or share"); templates now defer to the narrator profile's single-CTA rule.
 - `classic_promo` hook examples neutralized; the originals were novelty-flavored despite the template's general-purpose billing.
-- Keyword pool expanded from 37 to 57 entries with 20 additions drawn from 2026 trend research (MagSafe ecosystem, galaxy projectors, smart locks, hydroponics, projection clocks, focus tools, pet tech, travel/EDC).
+- Keyword pool expanded from 37 to 54 entries with 17 additions drawn from 2026 trend research (MagSafe ecosystem, galaxy projectors, smart locks, hydroponics, projection clocks, pet tech, travel/EDC). Brand-locked keywords that surface single-vendor results or no semantic match on Amazon were skipped.
 - Product titles and descriptions are NFKC-normalized in `format_prompt` before injection. Amazon's mathematical-alphabet bold tricks (e.g. `𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫`) fold to plain ASCII. Em dashes and en dashes in the description are replaced (em dash to ", ", en dash to "-") so the LLM doesn't mimic the source punctuation style.
 - The fully-rendered LLM prompt for each script (narrator profile + pillar preamble + template + product data) is now written to `outputs/<asin>/temp/script_prompt.txt` on every run, not only in debug mode. Useful for spot-checking what the model actually sees.
 
