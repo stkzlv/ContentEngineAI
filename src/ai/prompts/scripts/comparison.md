@@ -6,7 +6,7 @@ Open with something like "I went through five different [category] before I foun
 
 Don't name competitors or other brands. Keep it vague on what lost and specific on what won. Pick 2-3 standout features from the product description below and frame each one as the thing other products got wrong. For example, "Every other one I tried had terrible battery life. This one goes three days without charging." Each comparison should feel like a real frustration that this product solved.
 
-Wrap up by reinforcing the verdict (this is the one worth buying) and end with a quick CTA: follow, like, link in bio, or share.
+Wrap up by reinforcing the verdict (this is the one worth buying), then end with one CTA per the narrator profile.
 
 ## Rules
 
@@ -15,6 +15,7 @@ Wrap up by reinforcing the verdict (this is the one worth buying) and end with a
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

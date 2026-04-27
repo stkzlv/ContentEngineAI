@@ -8,7 +8,7 @@ Then agitate briefly. One or two sentences that twist the knife a little. Make t
 
 Pivot to the product as the fix. Pull 2-3 specific benefits from the description below and frame them as direct answers to the problem you raised. Connect each benefit back to the pain point so it doesn't feel like a random feature dump.
 
-End with a casual CTA: follow, like, link in bio, or share. One line, not a whole paragraph.
+End with one CTA per the narrator profile. One line, not a whole paragraph.
 
 ## Rules
 
@@ -17,6 +17,7 @@ End with a casual CTA: follow, like, link in bio, or share. One line, not a whol
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

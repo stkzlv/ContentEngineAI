@@ -6,7 +6,7 @@ Open with a calm challenge or observation. "Try this for a week. Just one week. 
 
 Back up the challenge with 2-3 specific features or specs from the product description below. Present them matter-of-factly: "It does X, which on its own is solid. But it also handles Y." Let the specs speak for themselves without overselling.
 
-Close by restating the challenge in a relaxed way. Then a casual CTA: follow to see more comparisons, drop a comment with your pick, link in bio to check it out.
+Close by restating the challenge in a relaxed way. End with one CTA per the narrator profile.
 
 ## Rules
 
@@ -18,6 +18,7 @@ Close by restating the challenge in a relaxed way. Then a casual CTA: follow to 
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

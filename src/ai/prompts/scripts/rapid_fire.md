@@ -6,7 +6,7 @@ Open directly. No long buildup. Get to what the product does within the first se
 
 Pull benefits from the product description below. Don't repeat the same benefit with different words. Each sentence should deliver a new piece of info. Keep most sentences short, but mix in a longer one here and there for natural rhythm.
 
-After covering 4-6 benefits, close with one grounding statement. "That covers a lot of ground for one product" or "Hard to find something that checks this many boxes." Then a casual CTA: follow, like, link in bio, or share.
+After covering 4-6 benefits, close with one grounding statement. "That covers a lot of ground for one product" or "Hard to find something that checks this many boxes." End with one CTA per the narrator profile.
 
 ## Rules
 
@@ -16,6 +16,7 @@ After covering 4-6 benefits, close with one grounding statement. "That covers a 
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

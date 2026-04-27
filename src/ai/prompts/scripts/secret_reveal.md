@@ -6,7 +6,7 @@ Open with a "secret" or "hack" framing. Something like "Okay so here's something
 
 Then reveal 2-3 features from the product description, but frame them as discoveries or little-known benefits rather than a spec sheet. Think "the thing nobody tells you is..." or "what most reviews skip over is..." Each point should feel like you're sharing something genuinely useful, not reading a product page.
 
-Wrap up with a short CTA. Follow for more finds like this, link in bio, like if this was helpful, that kind of thing.
+End with one CTA per the narrator profile.
 
 ## Rules
 
@@ -16,6 +16,7 @@ Wrap up with a short CTA. Follow for more finds like this, link in bio, like if 
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

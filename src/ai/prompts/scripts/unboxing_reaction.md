@@ -6,7 +6,7 @@ Open with a low-key moment of receiving the product. "So this just arrived" or "
 
 As you go through the product, react to specific features from the description below. Keep reactions genuine but understated. "Huh, it actually does that" or "Lighter than I expected." Let observations build naturally from first glance to closer look. No need to escalate to excitement.
 
-Close with an honest first take. One calm sentence on whether it seems worth it. Then a casual CTA: follow, like, link in bio, or share with someone who'd want this.
+Close with an honest first take. One calm sentence on whether it seems worth it. Then one CTA per the narrator profile.
 
 ## Rules
 
@@ -17,6 +17,7 @@ Close with an honest first take. One calm sentence on whether it seems worth it.
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

@@ -6,7 +6,7 @@ Open by setting a scene from daily life. Not a generic one. Pick something speci
 
 Weave in 2-3 features from the product description below, but frame them as lifestyle benefits rather than specs. Not "it has 40-hour battery life" but "I charge it on Sunday and forget about it until the next weekend." The viewer should picture themselves using it, not reading a spec sheet.
 
-Close with a line about how this small addition made a real difference in your day. Keep it grounded, not dramatic. Then a light CTA: follow, like, link in bio, or share.
+Close with a line about how this small addition made a real difference in your day. Keep it grounded, not dramatic. End with one CTA per the narrator profile.
 
 ## Rules
 
@@ -17,6 +17,7 @@ Close with a line about how this small addition made a real difference in your d
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

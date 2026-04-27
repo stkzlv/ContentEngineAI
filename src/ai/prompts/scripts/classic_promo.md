@@ -8,7 +8,7 @@ Bridge from the hook into the product naturally. Highlight 2-3 key benefits and 
 
 Position the whole thing as helpful, not salesy. You're passing along something worth knowing about, not reading ad copy. The viewer should feel like they learned something or discovered something, not like they watched a commercial.
 
-Close with a clear call to action. Ask them to follow for more, drop a like, share with someone who needs this, or check the link in bio. Keep the CTA direct but not desperate.
+End with one CTA per the narrator profile. Direct, not desperate.
 
 ## Rules
 
@@ -18,6 +18,7 @@ Close with a clear call to action. Ask them to follow for more, drop a like, sha
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

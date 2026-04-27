@@ -19,6 +19,7 @@ import hashlib
 import logging
 import random
 import re
+import unicodedata
 from pathlib import Path
 
 import aiohttp
@@ -77,14 +78,50 @@ def load_prompt_template(path: Path) -> str:
         return f.read()
 
 
+def _normalize_for_llm(text: str) -> str:
+    """Normalize text before sending to the LLM.
+
+    Amazon product titles and descriptions sometimes use mathematical-alphabet
+    Unicode codepoints for fake bold/italic styling (e.g. 𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫).
+    NFKC folds those down to plain ASCII letters, which both reduces token
+    waste and keeps the LLM from mimicking the styling in its output.
+    """
+    if not text:
+        return ""
+    return unicodedata.normalize("NFKC", text)
+
+
+def _short_product_name(full_title: str) -> str:
+    """Heuristic short alias for SEO-bloated product titles.
+
+    Cuts at the first SEO-style separator (comma, opening paren, vertical bar,
+    or hyphenated descriptor) and caps the result at the first three words.
+    Designed to give the LLM a plain "BRAND MODEL" handle without forcing it
+    to parse a 30-word Amazon listing title.
+    """
+    if not full_title:
+        return "this product"
+    cut = full_title
+    for sep in [",", " (", " | ", " - "]:
+        idx = cut.find(sep)
+        if idx > 0:
+            cut = cut[:idx]
+    short = " ".join(cut.split()[:3]).strip()
+    return short or "this product"
+
+
 def format_prompt(template: str, product: ProductData, audience: str) -> str:
     """Format the prompt template with product data and audience information.
 
     Replaces placeholders in the template with actual product data. The template
     should contain the following placeholders:
     - {FULL_PRODUCT_NAME}: The product title
+    - {SHORT_PRODUCT_NAME}: A short alias for the product (brand + model).
     - {PRODUCT_DESCRIPTION}: The product description
     - {AUDIENCE}: The target audience for the video
+
+    Product name and description are NFKC-normalized so Amazon's mathematical-
+    alphabet bold tricks don't reach the LLM.
 
     Price is intentionally excluded to avoid stale/incorrect pricing in videos.
 
@@ -103,10 +140,14 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
         ValueError: If the template contains placeholders that can't be filled
 
     """
+    full_name = _normalize_for_llm(product.title or "Product")
+    short_name = _short_product_name(full_name)
+    description = _normalize_for_llm(product.description or "No description available")
     try:
         return template.format(
-            FULL_PRODUCT_NAME=product.title or "Product",
-            PRODUCT_DESCRIPTION=product.description or "No description available",
+            FULL_PRODUCT_NAME=full_name,
+            SHORT_PRODUCT_NAME=short_name,
+            PRODUCT_DESCRIPTION=description,
             AUDIENCE=audience,
         )
     except KeyError as e:

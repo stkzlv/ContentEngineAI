@@ -8,7 +8,7 @@ Then bridge into the product discovery. How did you come across it, and what mad
 
 Weave in 2-3 product features from the description below, but embed them in the narrative. Don't pause the story to list specs. Instead of "it has 40-hour battery life", say something like "I charged it on Monday and forgot about it until Friday." Let the features live inside the experience.
 
-End with a CTA: follow for more, link in bio, drop a like, share with someone. Quick and casual.
+End with one CTA per the narrator profile. Quick and casual.
 
 ## Rules
 
@@ -18,6 +18,7 @@ End with a CTA: follow for more, link in bio, drop a like, share with someone. Q
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

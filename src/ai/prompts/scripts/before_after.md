@@ -8,7 +8,7 @@ Then flip to the "after." Show the contrast clearly. Pull 2-3 features from the 
 
 The shift from before to after should feel satisfying, like a small but real upgrade in daily life. Don't oversell it as life-changing unless the product genuinely is. Keep the transformation proportional to what the product actually does.
 
-Close with a short CTA: follow, link in bio, like, or share. Keep it natural.
+End with one CTA per the narrator profile. Keep it natural.
 
 ## Rules
 
@@ -18,6 +18,7 @@ Close with a short CTA: follow, link in bio, like, or share. Keep it natural.
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

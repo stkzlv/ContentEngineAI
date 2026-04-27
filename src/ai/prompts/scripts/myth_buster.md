@@ -6,7 +6,7 @@ Open by stating the myth directly. Something like "Everyone thinks you need to s
 
 Then dismantle it. Pull 2-3 features from the product description below and use each one as evidence that the myth doesn't hold up. Don't just say "this product is different." Show exactly how each feature contradicts the assumption. Frame it as "here's what actually matters" rather than attacking anyone who believed the myth.
 
-Close with a one-liner that reframes the category for the viewer. They should walk away thinking about the product type differently. Then a quick CTA: follow for more, drop a like, link in bio.
+Close with a one-liner that reframes the category for the viewer. They should walk away thinking about the product type differently. End with one CTA per the narrator profile.
 
 ## Rules
 
@@ -17,6 +17,7 @@ Close with a one-liner that reframes the category for the viewer. They should wa
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

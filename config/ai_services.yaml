@@ -128,20 +128,31 @@ llm_settings:
 
       Honesty: include one short trade-off or limitation. Not a knock, just real. One sentence or fragment, not a paragraph.
 
-      Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay", "honestly") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
+      Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
 
       CTA: pick one CTA, not a list. Options: "Link in bio if you want one." / "Follow for more finds like this." / "Drop a comment if you've tried it." / "Share with someone who needs this." Pick whichever fits the script.
 
       Things to avoid because they read as AI:
       - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting", "It's important to note".
-      - Empty intensifiers used as filler: "incredibly", "absolutely", "literally", "honestly" when not real emphasis.
+      - Empty intensifiers used as filler: "incredibly", "absolutely", "literally", "honestly".
       - Three parallel adjectives or three parallel short phrases in a row.
       - Paragraph structure that always ends on a tidy takeaway sentence.
       - Three consecutive sentences starting with the same word.
       - Generic summary closers: "In essence", "Ultimately", "At the end of the day".
       - Stacked hedges: "might possibly potentially".
 
-      Universal rules: write the actual spoken words only, no stage directions or camera notes. Target 30-40 seconds at normal speaking pace (roughly 75-100 words). No emojis, no hashtags, no greetings like "hey guys", no markdown in the output. Refer to the product by a short natural name, not the full official title. Plain text suitable for direct text-to-speech. Do not mention the product price. Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
+      Voice example (one short script that lands the voice end-to-end):
+
+      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal. The battery is fine, not great. About six hours under load. If you want one, link in bio.
+
+      Universal rules:
+      - Write the actual spoken words only. No stage directions or camera notes.
+      - Target 30-40 seconds at normal speaking pace (roughly 75-100 words).
+      - No emojis, no hashtags, no greetings like "hey guys", no markdown in the output.
+      - Refer to the product by the short alias provided in the product data block, not the full official title.
+      - Plain text only, suitable for direct text-to-speech.
+      - Do not mention the product price.
+      - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
     # Pillar -> preamble string prepended to the LLM prompt at runtime, after
     # the narrator profile. Templates stay pillar-agnostic; the preamble nudges
     # the LLM toward the pillar's framing angle. Empty dict disables it.

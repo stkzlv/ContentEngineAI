@@ -6,7 +6,7 @@ Open with a question that stops the viewer. Something like "What if I told you t
 
 Follow with 2-3 more questions, each one targeting a different pain point or desire from the target audience. After each question, deliver the answer in one tight sentence tied to a real feature from the product description below. The pattern is: question, answer, question, answer. Don't stack all the questions at the start and all the answers at the end.
 
-Close with a short statement that ties the answers together, then a casual CTA: follow, like, link in bio, or share.
+Close with a short statement that ties the answers together, then end with one CTA per the narrator profile.
 
 ## Rules
 
@@ -17,6 +17,7 @@ Close with a short statement that ties the answers together, then a casual CTA: 
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

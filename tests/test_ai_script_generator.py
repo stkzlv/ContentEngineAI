@@ -8,6 +8,8 @@ import pytest
 
 from src.ai.script_generator import (
     ScriptGenerationError,
+    _normalize_for_llm,
+    _short_product_name,
     format_prompt,
     generate_script,
     load_prompt_template,
@@ -107,6 +109,64 @@ class TestFormatPrompt:
 
         with pytest.raises(ValueError, match="Missing placeholder"):
             format_prompt(template, sample_product_data, "General audience")
+
+    def test_format_prompt_substitutes_short_name(
+        self, sample_product_data: ProductData
+    ):
+        """SHORT_PRODUCT_NAME placeholder is filled from the heuristic."""
+        sample_product_data.title = "Jackery Explorer 240D Power Bank, 256Wh, USB-C"
+        template = "Refer to it as: {SHORT_PRODUCT_NAME}"
+        result = format_prompt(template, sample_product_data, "General audience")
+        assert result == "Refer to it as: Jackery Explorer 240D"
+
+    def test_format_prompt_strips_unicode_bold(self, sample_product_data: ProductData):
+        """Mathematical-alphabet bold codepoints are folded to plain ASCII."""
+        sample_product_data.title = "Real Brand"
+        sample_product_data.description = "\U0001d40c\U0001d422\U0001d420\U0001d421\U0001d42d\U0001d432 Power"  # 𝐌𝐢𝐠𝐡𝐭𝐲 Power
+        template = "{PRODUCT_DESCRIPTION}"
+        result = format_prompt(template, sample_product_data, "General audience")
+        assert result == "Mighty Power"
+
+
+class TestShortProductName:
+    """Test the heuristic short-alias extraction."""
+
+    def test_cuts_at_first_comma(self):
+        full = "Jackery Explorer 240D Power Bank, 256Wh"
+        assert _short_product_name(full) == "Jackery Explorer 240D"
+
+    def test_cuts_at_open_paren(self):
+        full = "Anker Soundcore Q30 (Black Edition)"
+        assert _short_product_name(full) == "Anker Soundcore Q30"
+
+    def test_caps_at_three_words(self):
+        full = "Brand Model Suffix More Filler Filler"
+        assert _short_product_name(full) == "Brand Model Suffix"
+
+    def test_empty_input_returns_fallback(self):
+        assert _short_product_name("") == "this product"
+
+    def test_short_input_passes_through(self):
+        assert _short_product_name("Tile Mate") == "Tile Mate"
+
+
+class TestNormalizeForLlm:
+    """Test text normalization."""
+
+    def test_strips_math_alphabet_bold(self):
+        # 𝐌𝐢𝐠𝐡𝐭𝐲 maps to "Mighty" under NFKC.
+        styled = "\U0001d40c\U0001d422\U0001d420\U0001d421\U0001d42d\U0001d432"
+        assert _normalize_for_llm(styled) == "Mighty"
+
+    def test_preserves_plain_ascii(self):
+        assert _normalize_for_llm("Hello world") == "Hello world"
+
+    def test_preserves_diacritics(self):
+        # NFKC keeps composed accented characters as-is.
+        assert _normalize_for_llm("café") == "café"
+
+    def test_handles_empty(self):
+        assert _normalize_for_llm("") == ""
 
 
 class TestSaveDebugPrompt:

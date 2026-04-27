@@ -6,7 +6,7 @@ Open by establishing that this product is getting attention. Something like "The
 
 Then explain why it's popular. Pull 2-3 specific features from the product description below and frame them as the reasons people keep coming back. Don't just say "it's popular." Show what makes it worth the hype. Tie each feature to why real people would care about it, not abstract praise.
 
-End by reinforcing the social proof angle. Something like "If you've been on the fence, this is your sign" or "Join the club." Then a quick CTA: follow, like, link in bio, or share.
+End by reinforcing the social proof angle. Something like "If you've been on the fence, this is your sign" or "Join the club." Then one CTA per the narrator profile.
 
 ## Rules
 
@@ -16,6 +16,7 @@ End by reinforcing the social proof angle. Something like "If you've been on the
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

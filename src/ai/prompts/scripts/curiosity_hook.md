@@ -4,7 +4,7 @@ Write a voiceover script for a short product promo video. The hook should spark 
 
 After the hook, bridge into the product naturally. Don't just list features. Share 2-3 key benefits from the product description below, framed as things you found interesting or that surprised you. Let the viewer feel like they're learning something useful, not being sold to.
 
-Close with a short call to action: follow for more, drop a like, check the link in bio, or share with someone who'd find this useful. Keep it casual.
+Close with one short CTA per the narrator profile. Keep it casual.
 
 ## Rules
 
@@ -12,6 +12,7 @@ Close with a short call to action: follow for more, drop a like, check the link 
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}
