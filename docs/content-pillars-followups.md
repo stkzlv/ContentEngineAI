@@ -82,8 +82,29 @@ When 4 lands, append:
 
 At release time, the accumulated `[Unreleased]` section becomes the new version's notes (currently 0.42.x, so a minor bump to 0.43.0 fits since the pillar feature is additive). Move the entries to `## [0.43.0] - <date>` and start a fresh `[Unreleased]` block.
 
+## 6. Description preprocessing for prompt quality
+
+A review of the rendered prompt for B0FXB188B8 showed Amazon product descriptions still leak marketing copy patterns even after Unicode normalization and em/en dash replacement. Examples from one description:
+
+- "Engineered for ultimate portability" — banned word in a positive context.
+- "always prepared for road trips, emergencies, and beyond" — generic SEO closer.
+- "keeping all your essential tech connected wherever you go" — Amazon catch-all.
+- "What's in the Box: 1* ..." — packaging boilerplate that adds no script value.
+
+These read as AI rhythm, and the LLM may borrow the phrasing in output. Two paths:
+
+### Heuristic strip in `format_prompt`
+A regex pass that drops "What's in the Box" lines, replaces banned phrases with neutral alternatives, and trims obvious marketing closers. Risk: false positives are easy on natural-language input. The description is the only source of product detail; aggressive stripping can lose useful information.
+
+### LLM-based pre-cleaner
+A first-pass LLM call that rewrites the description into clean factual prose before the script-writing call. Better quality, doubles the per-script LLM cost, adds a failure mode (cleaner returns garbage).
+
+### Recommendation
+Don't ship either yet. The narrator-profile rule "If the description contains any banned phrase or marketing fluff, paraphrase the underlying feature in your own words" already covers the worst case (LLM quoting banned words). The softer issue is rhythm mimicry. Revisit after watching real script outputs for whether the LLM actually leaks Amazon copy or paraphrases it cleanly. If clean, skip permanently. If leaky, the heuristic strip is the cheaper first step.
+
 ## Order of operations
 
 1. 3b first: it's the largest piece and unlocks unattended balanced batches.
 2. 4 right after 3b: trivial once the product carries a pillar.
 3. Release after both land. The current state is functional only when the user passes `--pillar`; a release that ships pillars but only honors them with an explicit flag would be a half-feature.
+4. 6 is unblocked but waiting on real-script-output data to know whether it's worth the work.

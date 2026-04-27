@@ -85,10 +85,18 @@ def _normalize_for_llm(text: str) -> str:
     Unicode codepoints for fake bold/italic styling (e.g. 𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫).
     NFKC folds those down to plain ASCII letters, which both reduces token
     waste and keeps the LLM from mimicking the styling in its output.
+
+    Em dashes and en dashes are also replaced. Em dashes especially are a
+    strong AI tell in generated text, and Amazon descriptions use them
+    liberally. Em dash becomes ", " (matches the comma-pause it usually
+    represents); en dash becomes "-" (matches its range/connector use).
     """
     if not text:
         return ""
-    return unicodedata.normalize("NFKC", text)
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"\s*—\s*", ", ", text)
+    text = re.sub(r"\s*–\s*", "-", text)
+    return text
 
 
 def _short_product_name(full_title: str) -> str:

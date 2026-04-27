@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The fully-rendered LLM prompt for each script (narrator profile + pillar preamble + template + product data) is now written to `outputs/<asin>/temp/script_prompt.txt` on every run, not only in debug mode. Useful for spot-checking what the model actually sees.
 - CTA enumerations dropped from all 15 templates. Previous templates listed "follow, like, link in bio, or share" which contradicted the narrator profile's "pick one CTA, not a list." Templates now defer to the narrator profile, eliminating the conflicting instruction.
 - Universal rules in the narrator profile broken out into a bulleted list (was a 60-word run-on sentence) and a voice-example script added so the LLM has a positive imitation target rather than only a list of bans. Resolves the `honestly` double-listing where the word was both an allowed filler and a banned intensifier.
-- Product titles and descriptions are NFKC-normalized in `format_prompt` before injection into the prompt. Amazon's mathematical-alphabet bold tricks (e.g. `𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫`) fold to plain ASCII, reducing token waste and removing the AI-tell mimicry risk.
+- Product titles and descriptions are NFKC-normalized in `format_prompt` before injection into the prompt. Amazon's mathematical-alphabet bold tricks (e.g. `𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫`) fold to plain ASCII, reducing token waste and removing the AI-tell mimicry risk. Em dashes and en dashes in the description are replaced (em dash to ", ", en dash to "-") so the LLM doesn't mimic the source punctuation style in its output.
+- Narrator profile gains a paraphrase rule: when the product description contains a banned phrase or marketing fluff, the LLM is instructed to paraphrase the underlying feature in its own words rather than quoting. Catches Amazon-SEO copy that contains banned-list words ("ultimate", "must-have", etc.) before they leak into the script.
 
 ## [0.42.2] - 2026-04-27
 

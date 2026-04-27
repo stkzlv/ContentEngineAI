@@ -168,6 +168,22 @@ class TestNormalizeForLlm:
     def test_handles_empty(self):
         assert _normalize_for_llm("") == ""
 
+    def test_replaces_em_dash_with_comma(self):
+        # Em dash with no surrounding spaces (Amazon style).
+        assert _normalize_for_llm("AC-DC dual input—with 80% in one hour") == (
+            "AC-DC dual input, with 80% in one hour"
+        )
+
+    def test_replaces_em_dash_with_surrounding_spaces(self):
+        # Em dash with the prose-style surrounding spaces.
+        assert _normalize_for_llm("X — Y") == "X, Y"
+
+    def test_replaces_en_dash_with_hyphen(self):
+        # En dash in a numeric range collapses to plain hyphen.
+        assert _normalize_for_llm("operates from 5–10 minutes") == (
+            "operates from 5-10 minutes"
+        )
+
 
 class TestSaveDebugPrompt:
     """Test debug prompt saving functionality."""

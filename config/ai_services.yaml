@@ -153,6 +153,7 @@ llm_settings:
       - Plain text only, suitable for direct text-to-speech.
       - Do not mention the product price.
       - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
+      - If the product description contains any banned phrase or marketing fluff, paraphrase the underlying feature in your own words. Don't quote it.
     # Pillar -> preamble string prepended to the LLM prompt at runtime, after
     # the narrator profile. Templates stay pillar-agnostic; the preamble nudges
     # the LLM toward the pillar's framing angle. Empty dict disables it.
