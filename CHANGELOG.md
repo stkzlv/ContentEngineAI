@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.2] - 2026-04-27
+
 ### Added
 - Public roadmap (`docs/roadmap.md`) grouping planned work into Now / Next / Later horizons, with explicit 1.0.0 gates and a Shipped section backfilled from the changelog by theme.
 - Private overlay file pattern: `*.private.md` and `.business/` are gitignored, letting contributors keep notes alongside public docs without pushing them. CLAUDE.md documents the naming convention, session-start check, and public/private sync rules.
