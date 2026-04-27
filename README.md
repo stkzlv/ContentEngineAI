@@ -56,6 +56,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
 | [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
 | [Architecture](docs/architecture.md) | System design and module overview |
+| [Roadmap](docs/roadmap.md) | Planned work by horizon (Now / Next / Later) |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging tips |
 
 <details>
