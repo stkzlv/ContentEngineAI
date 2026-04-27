@@ -102,9 +102,45 @@ A first-pass LLM call that rewrites the description into clean factual prose bef
 ### Recommendation
 Don't ship either yet. The narrator-profile rule "If the description contains any banned phrase or marketing fluff, paraphrase the underlying feature in your own words" already covers the worst case (LLM quoting banned words). The softer issue is rhythm mimicry. Revisit after watching real script outputs for whether the LLM actually leaks Amazon copy or paraphrases it cleanly. If clean, skip permanently. If leaky, the heuristic strip is the cheaper first step.
 
+## 7. Honesty-rule adherence in scripts
+
+Reviews of generated scripts (B0FXB188B8 and B09P54CLDQ) show the LLM consistently skips the narrator-profile rule "Honesty: include one short trade-off or limitation." The rule sits in the channel-wide profile but scripts still come out 100% positive about the product.
+
+The rule's location is the likely cause: it's far from the active task, while each template's hook-specific rules (closer to the task) drive most of the output. LLMs anchor on the most recent instructions.
+
+### Move the rule into per-template rules
+Drop the "Honesty: ..." line from the narrator profile and add a "Include one short trade-off or limitation, one sentence max" bullet to each template's `## Rules` block. Closer to the task means higher adherence. Cost: 15 template edits, mild duplication, narrator profile gets one line shorter.
+
+### Post-generation validation
+Add a check in `script_generator.py` that scans the generated text for negative-tone markers ("but", "fine, not great", "downside is", "took longer than", etc.). If none found, retry once with a stricter prompt. Cost: the heuristic is fuzzy and the retry doubles latency on the failure path.
+
+### Recommendation
+Try the per-template move first since it's mechanical and doesn't add latency. If adherence stays low after a sample of fresh scripts, layer the validator on top.
+
+## 8. Narrator voice for metadata descriptions
+
+The narrator profile, pillar preamble, per-pillar audience, and `{SHORT_PRODUCT_NAME}` placeholder all only feed the script generator. The platform metadata generator (`description_settings` in `config/ai_services.yaml`, used for YouTube / TikTok / Instagram captions) runs its own LLM call against `src/ai/prompts/video_description.md` with no shared voice direction. Result: the video voice is careful and honest; the caption is SEO copy.
+
+Example caption from B09P54CLDQ's run:
+
+> "Upgrade your front door security with the TEEHO TE001 Keyless Entry Door Lock! Enjoy easy passcode access for family and guests, plus smart auto-lock features for peace of mind. Installation is a breeze..."
+
+"Upgrade", "Enjoy easy", "Installation is a breeze", "durable and reliable" — every Amazon SEO tic in one paragraph.
+
+### Share the narrator profile across both generators
+Refactor so the description generator also receives the narrator profile + pillar preamble + pillar audience. The description prompt template would shrink (universal rules move to the profile). Pillar preambles need slight rewording so they fit captions, not just scripts. Cost: refactor in `script_generator.py` and `description_generator.py`, plus new tests. The metadata caption ends up with the same voice as the video.
+
+### Keep generators independent, tighten the description prompt directly
+Edit `src/ai/prompts/video_description.md` with similar rules (no marketing fluff, paraphrase don't quote, banned-phrase list). Cheaper but invites drift between video and caption voice over time.
+
+### Recommendation
+The shared-profile path is the cleaner architecture and the bigger commit. Best to do this once 3b lands, so the description generator can also use the source-keyword pillar instead of a separate config knob.
+
 ## Order of operations
 
 1. 3b first: it's the largest piece and unlocks unattended balanced batches.
 2. 4 right after 3b: trivial once the product carries a pillar.
 3. Release after both land. The current state is functional only when the user passes `--pillar`; a release that ships pillars but only honors them with an explicit flag would be a half-feature.
 4. 6 is unblocked but waiting on real-script-output data to know whether it's worth the work.
+5. 7 is unblocked and small; ship it whenever a script-quality polish pass feels warranted. The per-template move should land before the post-generation validator (cheaper and may resolve the issue on its own).
+6. 8 is best done after 3b lands so the description generator can also consume the source-keyword pillar.
