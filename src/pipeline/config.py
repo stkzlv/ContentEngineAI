@@ -356,6 +356,9 @@ class GlobalBatchConfig:
     # Script template override
     script_template: str | None = None
 
+    # Content pillar override (filters template pool and adds runtime preamble)
+    pillar: str | None = None
+
     # Pycaps subtitle engine overrides (all optional; None = inherit from YAML)
     subtitle_engine: str | None = None
     pycaps_template: str | None = None
@@ -827,6 +830,9 @@ def load_global_batch_config(
         "script_template"
     )
 
+    # Content pillar override
+    pillar = getattr(cli_args, "pillar", None) or yaml_config.get("pillar")
+
     # Pycaps subtitle engine overrides
     subtitle_engine = getattr(cli_args, "subtitle_engine", None) or yaml_config.get(
         "subtitle_engine"
@@ -873,6 +879,7 @@ def load_global_batch_config(
         platform_specific_content=platform_specific_content,
         voice_profile=voice_profile,
         script_template=script_template,
+        pillar=pillar,
         subtitle_engine=subtitle_engine,
         pycaps_template=pycaps_template,
         pycaps_template_pool=pycaps_template_pool,

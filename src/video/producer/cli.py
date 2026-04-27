@@ -245,6 +245,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "script_template") and args.script_template is not None:
         overrides["script_template"] = args.script_template
 
+    # Content pillar override (drives template filter and runtime preamble)
+    if hasattr(args, "pillar") and args.pillar is not None:
+        overrides["pillar"] = args.pillar
+
     return overrides
 
 
@@ -541,6 +545,16 @@ async def main():
         "--script-template",
         type=str,
         help="Override script template (name without .md).",
+    )
+    parser.add_argument(
+        "--pillar",
+        type=str,
+        help=(
+            "Content pillar for this run (e.g. value, novelty, utility). "
+            "Filters the script template pool to templates listed under the "
+            "pillar in ai_services.yaml and prepends the pillar preamble to "
+            "the LLM prompt. Without this flag, all templates are eligible."
+        ),
     )
     parser.add_argument(
         "--output-format",

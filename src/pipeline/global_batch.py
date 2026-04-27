@@ -180,6 +180,16 @@ Examples:
         help="Override script template for all products (name without .md).",
     )
     producer_group.add_argument(
+        "--pillar",
+        type=str,
+        metavar="NAME",
+        help=(
+            "Content pillar for the run (e.g. value, novelty, utility). "
+            "Filters template pool and prepends the pillar preamble to the "
+            "LLM prompt. Without this flag, all templates are eligible."
+        ),
+    )
+    producer_group.add_argument(
         "--subtitle-engine",
         choices=["ffmpeg", "pycaps"],
         help=(
@@ -379,6 +389,8 @@ class GlobalPipelineOrchestrator:
             overrides["voice_profile"] = self.config.voice_profile
         if self.config.script_template:
             overrides["script_template"] = self.config.script_template
+        if self.config.pillar:
+            overrides["pillar"] = self.config.pillar
         if self.config.subtitle_engine:
             overrides["subtitle_settings.subtitle_engine"] = self.config.subtitle_engine
         if self.config.pycaps_template:

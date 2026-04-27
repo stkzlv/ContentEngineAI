@@ -279,6 +279,10 @@ async def create_video_for_product(
 
             await _load_pipeline_state(ctx)
 
+            # CLI --pillar wins over any pillar in saved state.
+            if cli_overrides and cli_overrides.get("pillar"):
+                ctx.state["pillar"] = cli_overrides["pillar"]
+
         if debug_step_target:
             target_index = VALID_STEPS.index(debug_step_target)
             for i in range(target_index):
