@@ -280,8 +280,8 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Names are user-defined. Users can rename, add, or remove pillars without code changes.
 
 ### Tagging
-- Every keyword declares one pillar. A keyword fitting more than one pillar can appear under each (e.g., `mini projector` as both novelty and utility).
-- Every script template under `src/ai/prompts/scripts/` declares one or more pillars via filename prefix or front-matter.
+- Keywords declare their pillar via comment markers in `config/scraper.yaml`. A keyword fitting more than one pillar can appear under each (e.g., `mini projector` as both novelty and utility).
+- Script templates are mapped to pillars via a central `pillars` dict under `script_templates` in `config/ai_services.yaml`. A template can appear under multiple pillars when its style works in more than one (e.g., `classic_promo` could land under both value and novelty).
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 
 ### Pipeline Behavior

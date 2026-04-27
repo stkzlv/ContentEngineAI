@@ -84,6 +84,29 @@ llm_settings:
     # Takes priority over random selection. Set null for random.
     # Example: "curiosity_hook"
     fixed_template: null
+    # Pillar -> list of template names. See docs/requirements.md "Content Pillars".
+    # When a run is scoped to a pillar, deterministic per-product selection picks
+    # from this list instead of the full pool. A template can fit more than one
+    # pillar; list it under each. Empty dict disables pillar filtering.
+    pillars:
+      value:
+        - classic_promo
+        - rapid_fire
+        - social_proof
+        - challenge_dare
+      novelty:
+        - curiosity_hook
+        - secret_reveal
+        - story_driven
+        - unboxing_reaction
+        - skeptic_converted
+      utility:
+        - before_after
+        - comparison
+        - lifestyle_flex
+        - myth_buster
+        - problem_solution
+        - question_driven
 
 # ============================================================================
 # TTS CONFIGURATION
