@@ -376,6 +376,7 @@ class ProductTempFiles(BaseModel):
     gathered_visuals: str = Field("gathered_visuals.json")
     music_choice: str = Field("music_choice.json")
     voiceover_duration: str = Field("voiceover_duration.txt")
+    script_prompt: str = Field("script_prompt.txt")
 
 
 class ProductSubdirs(BaseModel):
@@ -958,6 +959,7 @@ class VideoConfig(BaseModel):
             "gathered_visuals": temp_dir / temp_files.gathered_visuals,
             "music_choice": temp_dir / temp_files.music_choice,
             "voiceover_duration": temp_dir / temp_files.voiceover_duration,
+            "script_prompt": temp_dir / temp_files.script_prompt,
             # Legacy compatibility
             "project_root": product_dir,
             "working_dir": temp_dir,

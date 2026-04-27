@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The 15 script templates lose duplicated universal rules now carried by the narrator profile. Total template length dropped from ~450 lines to 323 lines.
 - `classic_promo` hook examples neutralized; the originals were novelty-flavored despite the template's general-purpose billing.
 - Keyword pool expanded from 37 to 57 entries with 20 additions drawn from 2026 trend research (MagSafe ecosystem, galaxy projectors, smart locks, hydroponics, projection clocks, focus tools, pet tech, travel/EDC).
+- The fully-rendered LLM prompt for each script (narrator profile + pillar preamble + template + product data) is now written to `outputs/<asin>/temp/script_prompt.txt` on every run, not only in debug mode. Useful for spot-checking what the model actually sees.
 
 ## [0.42.2] - 2026-04-27
 

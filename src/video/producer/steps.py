@@ -335,7 +335,10 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.config.llm_settings,
                 ctx.secrets,
                 ctx.session,
-                {"script": ctx.run_paths["script_file"]},
+                {
+                    "script": ctx.run_paths["script_file"],
+                    "formatted_prompt": ctx.run_paths["script_prompt"],
+                },
                 ctx.debug_mode,
                 ctx.config.api_settings,
                 product_id=ctx.product.asin,

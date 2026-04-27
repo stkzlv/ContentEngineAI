@@ -664,7 +664,7 @@ async def generate_script(
         settings.script_templates.pillar_preambles,
     )
 
-    if debug_mode and "formatted_prompt" in intermediate_paths:
+    if "formatted_prompt" in intermediate_paths:
         save_debug_prompt(prompt, intermediate_paths["formatted_prompt"])
 
     for model in models_to_try:
