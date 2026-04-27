@@ -355,7 +355,7 @@ class PycapsSettings(BaseModel):
 # generator input. Replaces the historical pair MergedSubtitleSettings (config
 # side, extra="allow") and UnifiedSubtitleConfig (runtime side, strict). The
 # round-trip through dict.get(...) between the two models was the hiding place
-# for silent-drop bugs like the one tracked in subtitle-config-cleanup.md §3.1.
+# for silent-drop bugs (a renamed key returns the default instead of the value).
 #
 # Canonical names (max_duration, min_duration) — old names like
 # max_subtitle_duration are translated by from_legacy_dict() so existing

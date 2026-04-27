@@ -194,7 +194,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Module/Batch Alignment Rule applied**: the four CLI flags (`--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`) live on BOTH `src/video/producer/cli.py` AND `src/pipeline/global_batch.py`. Same names, same choices, same dotted override keys (`subtitle_settings.subtitle_engine`, `subtitle_settings.pycaps.*`). Grep both files when touching either.
 - **3-level merge supports nested dotted keys**: `VideoConfig.get_profile_merged_settings()` understands `subtitle_settings.pycaps.<field>` and folds them into the nested `PycapsSettings` model. The same path works in `cli_overrides` dicts.
 - **Pycaps upstream is alpha (0.2.1)**: pinned in `pyproject.toml` to a specific git SHA. Upgrade deliberately. If upstream stalls, fork to `ContentEngineAI/pycaps`.
-- **Follow-up work**: tracked in `docs/pycaps-followups.md` — AI word tagging via the Gemini key (top priority), mypy pin cleanup, two-part subtitles + pycaps hybrid, CSS renderer CI integration test. Read before starting any pycaps follow-up task.
+- **Follow-up work**: tracked as GitHub Issues with the `pycaps` label. Top priority: AI word tagging via the Gemini key.
 
 ### CI/CD Gotchas (mypy version drift)
 
@@ -232,7 +232,7 @@ After every context compaction (session continuation), run `/github-workflow` to
 - **CRITICAL: NEVER include `Co-Authored-By` trailers, author attributions, or any mention of Claude Code / AI tools / assistants**
 - Keep messages short and simple
 - Explain what and why, not how
-- Don't reference internal follow-up/todo docs (`docs/pycaps-followups.md`, `docs/subtitle-config-cleanup.md`, etc.) in commit messages. These are temporary working docs that may be removed or restructured.
+- Track follow-up work as GitHub Issues with the `follow-up` label, not as `docs/*-followups.md` files. Issues survive renames, link cleanly from PRs, and don't bit-rot when section numbers shift.
 
 **Pull Request Descriptions**:
 - **CRITICAL: NEVER mention authors, Claude Code, AI tools, or assistants in PR titles or descriptions**

@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `pytest --cov` no longer crashes with `RuntimeError: function '_has_torch_function' already has a docstring`. The Coqui TTS dependency transitively loads torch, and torch's `overrides` module errors when reimported under coverage instrumentation. `src/video/tts.py` now checks Coqui availability via `importlib.util.find_spec("TTS")` and defers the actual `from TTS.api import TTS` to first use inside `_initialize_coqui_tts_model`. Coverage runs that don't exercise Coqui skip the torch path entirely.
 
+### Removed
+- `docs/content-pillars-followups.md`, `docs/pycaps-followups.md`, and `docs/subtitle-config-cleanup.md`. Pending follow-up work is now tracked as GitHub Issues with `follow-up` plus topic labels (`content-pillars`, `pycaps`, `subtitles`); shipped items are dropped. CLAUDE.md and other docs that linked the removed files now point at the issue tracker.
+
 ## [0.42.2] - 2026-04-27
 
 ### Added

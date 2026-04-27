@@ -658,9 +658,10 @@ style_presets:
     outline_thickness: 3               # Thicker outline (was 2)
     shadow: true                       # Drop shadow
     effects: ["karaoke"]               # Karaoke (was "movement" — anti-pattern
-                                        # per best-practice research; see
-                                        # pycaps-followups.md for the upstream
-                                        # effect removal task)
+                                        # per best-practice research; full
+                                        # removal of the effect tracked as a
+                                        # GitHub Issue with the `subtitles`
+                                        # label)
     font_width_to_height_ratio: 0.5
 
   # ---- RANDOM PRESET ----
