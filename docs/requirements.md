@@ -271,6 +271,30 @@ High-level requirements for ContentEngineAI.
 
 ---
 
+## Content Pillars
+
+Group products and scripts into a small set of named pillars (default 3). Each keyword, script template, and produced video declares one pillar so randomness operates within a focused theme instead of the whole catalog. The channel gets a through-line; variety stays inside each pillar.
+
+### Pillar Definition
+- Pillars listed in `config/scraper.yaml` as named buckets. Default labels: `value` (under-$30 staples, mass-appeal hooks), `novelty` (lesser-known or unique, "haven't seen this" hooks), `utility` (practical daily-use, problem/solution framing).
+- Names are user-defined. Users can rename, add, or remove pillars without code changes.
+
+### Tagging
+- Every keyword declares one pillar. A keyword fitting more than one pillar can appear under each (e.g., `mini projector` as both novelty and utility).
+- Every script template under `src/ai/prompts/scripts/` declares one or more pillars via filename prefix or front-matter.
+- Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
+
+### Pipeline Behavior
+- `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
+- The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
+- The chosen pillar is recorded in `pipeline_state.json` and the published-products registry so downstream analytics can segment by it.
+
+### Editorial Focus
+- Pillar choice drives hook framing and product selection. Subtitle styling and TTS voice stay global so brand voice carries across pillars.
+- A `value` video pitches the deal, a `novelty` video pitches discovery, a `utility` video frames the problem and the solution.
+
+---
+
 ## Batch Processing Module
 
 ### Global Pipeline
