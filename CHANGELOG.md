@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Content pillars system. Group products and scripts under named pillars (defaults: `value`, `novelty`, `utility`). Keyword pool grouped by pillar in `config/scraper.yaml`, script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`, and `--pillar <name>` added to both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`. The flag filters the active script-template pool and prepends a per-pillar preamble to the LLM prompt. Without the flag, all templates remain eligible.
+- Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt. Anchors voice and persona, defines the CTA pattern, lists anti-AI-tells (connector phrases, empty intensifiers, rule of three, symmetric structure), and carries the universal rules every template would otherwise repeat.
+
+### Changed
+- The 15 script templates lose duplicated universal rules now carried by the narrator profile. Total template length dropped from ~450 lines to 323 lines.
+- `classic_promo` hook examples neutralized; the originals were novelty-flavored despite the template's general-purpose billing.
+- Keyword pool expanded from 37 to 57 entries with 20 additions drawn from 2026 trend research (MagSafe ecosystem, galaxy projectors, smart locks, hydroponics, projection clocks, focus tools, pet tech, travel/EDC).
+
 ## [0.42.2] - 2026-04-27
 
 ### Added

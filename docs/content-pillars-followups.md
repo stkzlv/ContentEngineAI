@@ -67,20 +67,23 @@ The full `ctx.state` dict already serializes, so once `ctx.state["pillar"]` is s
 - Update the CSV writer's column list and the JSON schema. Backfill is fine: missing entries stay empty.
 - `registry --rebuild` should pick up pillar from each product's `data.json` (added by 3b) so existing outputs end up tagged after a rebuild.
 
-## 5. CHANGELOG and release
+## 5. CHANGELOG entries for follow-up work
 
-Once 3b and 4 land, fold the pillar feature into a single `Added` entry under `[Unreleased]` and cut a minor version bump (currently 0.42.x, so 0.43.0). The full feature is one user-visible capability; one CHANGELOG entry describing it end-to-end reads better than three separate entries.
+CHANGELOG entries land per iteration under `[Unreleased]`. The version bump itself happens at release time, after 3b and 4 are in.
 
-Suggested entry shape:
+When 3b lands, append to `[Unreleased]`:
 
-> Content pillars system. Group keyword pool, script templates, and per-product output by named content pillars (default: value, novelty, utility). Adds `--pillar` CLI flag on producer and global batch, channel-wide narrator profile, per-pillar runtime preamble, and pillar-aware template selection. Source-keyword pillar is attached to each product so unattended batches balance across pillars without the flag.
+- `Added`: source-keyword pillar attached to each product so unattended batches balance across pillars without `--pillar`.
+- `**Breaking**` (if `keyword_pillars` replaces `keywords` in `config/scraper.yaml`): note the YAML schema change in `Changed`.
 
-Mention `**Breaking**` if the YAML schema change in 3b is not backward-compat (likely the case if `keyword_pillars` replaces `keywords`).
+When 4 lands, append:
+
+- `Changed`: published-products registry rows now carry a `pillar` column.
+
+At release time, the accumulated `[Unreleased]` section becomes the new version's notes (currently 0.42.x, so a minor bump to 0.43.0 fits since the pillar feature is additive). Move the entries to `## [0.43.0] - <date>` and start a fresh `[Unreleased]` block.
 
 ## Order of operations
 
 1. 3b first: it's the largest piece and unlocks unattended balanced batches.
 2. 4 right after 3b: trivial once the product carries a pillar.
-3. 5 last: write the CHANGELOG against the full diff, then version bump and release.
-
-Don't ship 5 before 3b and 4 land. The current state is functional only when the user passes `--pillar`; a release that ships pillars but only honors them with an explicit flag would be a half-feature.
+3. Release after both land. The current state is functional only when the user passes `--pillar`; a release that ships pillars but only honors them with an explicit flag would be a half-feature.
