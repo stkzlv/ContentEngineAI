@@ -134,10 +134,13 @@ def save_debug_prompt(prompt: str, path: Path):
 def select_script_template(
     settings: LLMSettings,
     product_id: str | None = None,
+    pillar: str | None = None,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
     When script_templates is enabled, picks from the templates directory.
+    When `pillar` is given and the templates config has a pillar map entry
+    for it, the pool is narrowed to that pillar's templates before selection.
     Falls back to the single prompt_template_path when disabled.
     """
     templates_cfg = settings.script_templates
@@ -173,6 +176,19 @@ def select_script_template(
     if not pool:
         pool = all_templates
 
+    # Apply pillar filter (when pillar is provided and known)
+    if pillar and pillar in templates_cfg.pillars:
+        pillar_templates = templates_cfg.pillars[pillar]
+        narrowed = [t for t in pool if t in pillar_templates]
+        if narrowed:
+            pool = narrowed
+        else:
+            logger.warning(
+                "Pillar '%s' has no templates intersecting current pool; "
+                "using full pool",
+                pillar,
+            )
+
     # Deterministic selection using salted product ID hash
     if product_id:
         hash_hex = hashlib.md5(
@@ -186,11 +202,30 @@ def select_script_template(
         name = random.choice(pool)  # noqa: S311
 
     logger.info(
-        "Selected script template '%s' for product '%s'",
+        "Selected script template '%s' for product '%s' (pillar=%s)",
         name,
         product_id,
+        pillar,
     )
     return templates_dir / f"{name}.md"
+
+
+def apply_pillar_preamble(
+    prompt: str,
+    pillar: str | None,
+    preambles: dict[str, str],
+) -> str:
+    """Prepend the pillar preamble to the prompt when configured.
+
+    Returns the prompt unchanged if pillar is None, the pillar isn't in the
+    preamble map, or the mapped preamble is empty.
+    """
+    if not pillar:
+        return prompt
+    preamble = preambles.get(pillar)
+    if not preamble:
+        return prompt
+    return f"{preamble}\n\n{prompt}"
 
 
 async def _fetch_and_select_model(
@@ -556,6 +591,7 @@ async def generate_script(
     debug_mode: bool,
     api_settings=None,
     product_id: str | None = None,
+    pillar: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
@@ -606,13 +642,17 @@ async def generate_script(
             getattr(product, "asin", None),
         )
 
-    template_path = select_script_template(settings, product_id)
+    template_path = select_script_template(settings, product_id, pillar)
     template_name = template_path.stem
     try:
         template = load_prompt_template(template_path)
         prompt = format_prompt(template, product, settings.target_audience)
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
+
+    prompt = apply_pillar_preamble(
+        prompt, pillar, settings.script_templates.pillar_preambles
+    )
 
     if debug_mode and "formatted_prompt" in intermediate_paths:
         save_debug_prompt(prompt, intermediate_paths["formatted_prompt"])

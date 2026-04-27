@@ -93,20 +93,35 @@ llm_settings:
         - classic_promo
         - rapid_fire
         - social_proof
-        - challenge_dare
+        - myth_buster
+        - comparison
+        - skeptic_converted
       novelty:
+        - classic_promo
         - curiosity_hook
         - secret_reveal
         - story_driven
         - unboxing_reaction
         - skeptic_converted
       utility:
+        - classic_promo
         - before_after
         - comparison
         - lifestyle_flex
         - myth_buster
         - problem_solution
         - question_driven
+        - challenge_dare
+    # Pillar -> preamble string prepended to the LLM prompt at runtime.
+    # Templates stay pillar-agnostic; the preamble nudges the LLM toward the
+    # pillar's framing angle. Empty dict disables preamble injection.
+    pillar_preambles:
+      value: |-
+        Pillar context: this video runs under the value pillar. Lean into the deal-pitch angle, where the product feels accessible and packs more punch than its price suggests. If the product fits another angle better, follow the product.
+      novelty: |-
+        Pillar context: this video runs under the novelty pillar. Lean into the discovery angle, framing the product as something the viewer hasn't seen before. If the product fits another angle better, follow the product.
+      utility: |-
+        Pillar context: this video runs under the utility pillar. Lean into the problem-solving angle, where the product fixes a specific, real-world annoyance the viewer would recognize. If the product fits another angle better, follow the product.
 
 # ============================================================================
 # TTS CONFIGURATION

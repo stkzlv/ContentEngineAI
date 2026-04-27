@@ -20,6 +20,11 @@ class ScriptTemplateConfig(BaseModel):
     # MD5 selection picks from the matching list instead of the full pool.
     # Empty dict disables pillar filtering (legacy behavior).
     pillars: dict[str, list[str]] = Field(default_factory=dict)
+    # Pillar -> preamble string. When a pillar is set at runtime and the map
+    # has an entry for it, the preamble is prepended to the LLM prompt so the
+    # model leans into that pillar's framing angle. Templates themselves stay
+    # pillar-agnostic. Empty dict disables preamble injection.
+    pillar_preambles: dict[str, str] = Field(default_factory=dict)
 
 
 class ScriptValidationConfig(BaseModel):

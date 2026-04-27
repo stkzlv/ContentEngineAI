@@ -339,6 +339,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.debug_mode,
                 ctx.config.api_settings,
                 product_id=ctx.product.asin,
+                pillar=ctx.state.get("pillar"),
             )
         except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.ai.script_generator import select_script_template
+from src.ai.script_generator import apply_pillar_preamble, select_script_template
 from src.video.config.llm_settings import LLMSettings, ScriptTemplateConfig
 
 
@@ -16,6 +16,8 @@ def _make_settings(
     template_pool: list[str] | None = None,
     fixed_template: str | None = None,
     prompt_template_path: str = "src/ai/prompts/video_script.md",
+    pillars: dict[str, list[str]] | None = None,
+    pillar_preambles: dict[str, str] | None = None,
 ) -> LLMSettings:
     """Build LLMSettings with script_templates config for testing."""
     return LLMSettings(
@@ -29,6 +31,8 @@ def _make_settings(
             templates_dir=templates_dir,
             template_pool=template_pool or [],
             fixed_template=fixed_template,
+            pillars=pillars or {},
+            pillar_preambles=pillar_preambles or {},
         ),
     )
 
@@ -257,3 +261,170 @@ class TestSelectScriptTemplate:
         r2 = select_script_template(settings, "B0DK1VZBR4")
         assert r1 == r2
         assert r1.exists()
+
+
+class TestPillarFilter:
+    """Test the pillar filter inside select_script_template()."""
+
+    def test_pillar_narrows_pool_to_matching_templates(self, temp_dir: Path):
+        """When pillar is set, only templates listed under it can be picked."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma", "delta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha", "beta"], "novelty": ["gamma", "delta"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar="value")
+            selections.add(result.stem)
+
+        assert selections <= {"alpha", "beta"}
+
+    def test_pillar_none_uses_full_pool(self, temp_dir: Path):
+        """pillar=None must not narrow the pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha"]},
+        )
+
+        selections = set()
+        for i in range(50):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar=None)
+            selections.add(result.stem)
+
+        # Without pillar, all three should eventually appear
+        assert selections == {"alpha", "beta", "gamma"}
+
+    def test_unknown_pillar_uses_full_pool(self, temp_dir: Path):
+        """Pillar not present in the pillars map is ignored."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(
+                settings, f"PROD{i:04d}", pillar="not_a_real_pillar"
+            )
+            selections.add(result.stem)
+
+        assert selections == {"alpha", "beta"}
+
+    def test_pillar_with_no_pool_overlap_falls_back(self, temp_dir: Path):
+        """If pillar templates don't overlap the active pool, use the full pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            template_pool=["alpha"],
+            pillars={"value": ["beta"]},
+        )
+
+        result = select_script_template(settings, "B08TEST123", pillar="value")
+        assert result.stem == "alpha"
+
+    def test_pillar_filter_respects_template_pool(self, temp_dir: Path):
+        """Pool filter applies first; pillar filter narrows within the pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma", "delta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        # Pool restricts to alpha+beta+gamma; pillar value lists alpha+gamma+delta;
+        # intersection is alpha+gamma.
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            template_pool=["alpha", "beta", "gamma"],
+            pillars={"value": ["alpha", "gamma", "delta"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar="value")
+            selections.add(result.stem)
+
+        assert selections <= {"alpha", "gamma"}
+
+    def test_pillar_selection_is_deterministic(self, temp_dir: Path):
+        """Same product + same pillar always picks the same template."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha", "beta"]},
+        )
+
+        r1 = select_script_template(settings, "B08STABLE", pillar="value")
+        r2 = select_script_template(settings, "B08STABLE", pillar="value")
+        assert r1 == r2
+
+
+class TestApplyPillarPreamble:
+    """Test apply_pillar_preamble() helper."""
+
+    def test_prepends_preamble_when_pillar_matches(self):
+        prompt = "Write a script for the product."
+        preambles = {"value": "Pillar context: lean into deal-pitch."}
+
+        result = apply_pillar_preamble(prompt, "value", preambles)
+
+        assert result.startswith("Pillar context: lean into deal-pitch.")
+        assert result.endswith(prompt)
+        # Blank line between preamble and original prompt
+        assert "\n\n" in result
+
+    def test_no_change_when_pillar_is_none(self):
+        prompt = "original"
+        result = apply_pillar_preamble(prompt, None, {"value": "preamble"})
+        assert result == prompt
+
+    def test_no_change_when_pillar_unknown(self):
+        prompt = "original"
+        result = apply_pillar_preamble(prompt, "missing", {"value": "preamble"})
+        assert result == prompt
+
+    def test_no_change_when_preamble_empty(self):
+        prompt = "original"
+        result = apply_pillar_preamble(prompt, "value", {"value": ""})
+        assert result == prompt
+
+    def test_no_change_when_map_is_empty(self):
+        prompt = "original"
+        result = apply_pillar_preamble(prompt, "value", {})
+        assert result == prompt
+
+    def test_default_yaml_has_three_pillar_preambles(self):
+        """The shipped config has preambles for value, novelty, utility."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        preambles = cfg["llm_settings"]["script_templates"].get("pillar_preambles", {})
+        assert set(preambles) == {"value", "novelty", "utility"}
+        for v in preambles.values():
+            assert isinstance(v, str) and v.strip()
