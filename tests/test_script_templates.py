@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.ai.script_generator import apply_pillar_preamble, select_script_template
+from src.ai.script_generator import apply_prompt_preambles, select_script_template
 from src.video.config.llm_settings import LLMSettings, ScriptTemplateConfig
 
 
@@ -18,6 +18,7 @@ def _make_settings(
     prompt_template_path: str = "src/ai/prompts/video_script.md",
     pillars: dict[str, list[str]] | None = None,
     pillar_preambles: dict[str, str] | None = None,
+    narrator_profile: str = "",
 ) -> LLMSettings:
     """Build LLMSettings with script_templates config for testing."""
     return LLMSettings(
@@ -33,6 +34,7 @@ def _make_settings(
             fixed_template=fixed_template,
             pillars=pillars or {},
             pillar_preambles=pillar_preambles or {},
+            narrator_profile=narrator_profile,
         ),
     )
 
@@ -381,39 +383,63 @@ class TestPillarFilter:
         assert r1 == r2
 
 
-class TestApplyPillarPreamble:
-    """Test apply_pillar_preamble() helper."""
+class TestApplyPromptPreambles:
+    """Test apply_prompt_preambles() helper."""
 
-    def test_prepends_preamble_when_pillar_matches(self):
+    def test_pillar_only_prepends_pillar_preamble(self):
         prompt = "Write a script for the product."
         preambles = {"value": "Pillar context: lean into deal-pitch."}
 
-        result = apply_pillar_preamble(prompt, "value", preambles)
+        result = apply_prompt_preambles(prompt, "", "value", preambles)
 
         assert result.startswith("Pillar context: lean into deal-pitch.")
         assert result.endswith(prompt)
-        # Blank line between preamble and original prompt
         assert "\n\n" in result
 
-    def test_no_change_when_pillar_is_none(self):
+    def test_narrator_only_prepends_narrator_profile(self):
+        prompt = "Write a script for the product."
+        narrator = "Narrator profile: one creator, calm voice."
+
+        result = apply_prompt_preambles(prompt, narrator, None, {})
+
+        assert result.startswith(narrator)
+        assert result.endswith(prompt)
+        assert "\n\n" in result
+
+    def test_narrator_and_pillar_stack_in_order(self):
+        """Narrator profile first, pillar preamble second, prompt last."""
+        prompt = "TEMPLATE"
+        narrator = "NARRATOR"
+        pillar_text = "PILLAR"
+
+        result = apply_prompt_preambles(
+            prompt, narrator, "value", {"value": pillar_text}
+        )
+
+        # Order: narrator, pillar, prompt
+        assert result == "NARRATOR\n\nPILLAR\n\nTEMPLATE"
+
+    def test_no_change_when_all_empty(self):
         prompt = "original"
-        result = apply_pillar_preamble(prompt, None, {"value": "preamble"})
+        result = apply_prompt_preambles(prompt, "", None, {})
         assert result == prompt
 
-    def test_no_change_when_pillar_unknown(self):
+    def test_no_pillar_preamble_when_pillar_unknown(self):
         prompt = "original"
-        result = apply_pillar_preamble(prompt, "missing", {"value": "preamble"})
+        narrator = "NARRATOR"
+        result = apply_prompt_preambles(prompt, narrator, "missing", {"value": "x"})
+        assert result == "NARRATOR\n\noriginal"
+
+    def test_no_pillar_preamble_when_pillar_text_empty(self):
+        prompt = "original"
+        result = apply_prompt_preambles(prompt, "", "value", {"value": ""})
         assert result == prompt
 
-    def test_no_change_when_preamble_empty(self):
+    def test_narrator_profile_skipped_when_empty_string(self):
+        """Empty narrator_profile is treated as 'not set'."""
         prompt = "original"
-        result = apply_pillar_preamble(prompt, "value", {"value": ""})
-        assert result == prompt
-
-    def test_no_change_when_map_is_empty(self):
-        prompt = "original"
-        result = apply_pillar_preamble(prompt, "value", {})
-        assert result == prompt
+        result = apply_prompt_preambles(prompt, "", "value", {"value": "PILLAR"})
+        assert result == "PILLAR\n\noriginal"
 
     def test_default_yaml_has_three_pillar_preambles(self):
         """The shipped config has preambles for value, novelty, utility."""
@@ -428,3 +454,19 @@ class TestApplyPillarPreamble:
         assert set(preambles) == {"value", "novelty", "utility"}
         for v in preambles.values():
             assert isinstance(v, str) and v.strip()
+
+    def test_default_yaml_has_narrator_profile(self):
+        """The shipped config has a non-empty narrator profile."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        profile = cfg["llm_settings"]["script_templates"].get("narrator_profile", "")
+        assert isinstance(profile, str) and profile.strip()
+        # Sanity-check that the profile carries the channel-voice anchors.
+        assert "Narrator profile" in profile
+        # And the anti-AI-tells list.
+        assert "Moreover" in profile

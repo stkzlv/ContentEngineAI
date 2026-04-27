@@ -210,22 +210,29 @@ def select_script_template(
     return templates_dir / f"{name}.md"
 
 
-def apply_pillar_preamble(
+def apply_prompt_preambles(
     prompt: str,
+    narrator_profile: str,
     pillar: str | None,
-    preambles: dict[str, str],
+    pillar_preambles: dict[str, str],
 ) -> str:
-    """Prepend the pillar preamble to the prompt when configured.
+    """Stack channel-wide and pillar preambles above the prompt.
 
-    Returns the prompt unchanged if pillar is None, the pillar isn't in the
-    preamble map, or the mapped preamble is empty.
+    Order in the returned string: narrator_profile, then the pillar's
+    preamble (when pillar is set and maps to a non-empty entry), then
+    the original prompt, joined by blank lines. Each layer is dropped
+    when its source is empty, so this function is safe to call with no
+    preambles configured.
     """
-    if not pillar:
-        return prompt
-    preamble = preambles.get(pillar)
-    if not preamble:
-        return prompt
-    return f"{preamble}\n\n{prompt}"
+    parts: list[str] = []
+    if narrator_profile:
+        parts.append(narrator_profile)
+    if pillar:
+        pillar_text = pillar_preambles.get(pillar)
+        if pillar_text:
+            parts.append(pillar_text)
+    parts.append(prompt)
+    return "\n\n".join(parts)
 
 
 async def _fetch_and_select_model(
@@ -650,8 +657,11 @@ async def generate_script(
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
 
-    prompt = apply_pillar_preamble(
-        prompt, pillar, settings.script_templates.pillar_preambles
+    prompt = apply_prompt_preambles(
+        prompt,
+        settings.script_templates.narrator_profile,
+        pillar,
+        settings.script_templates.pillar_preambles,
     )
 
     if debug_mode and "formatted_prompt" in intermediate_paths:

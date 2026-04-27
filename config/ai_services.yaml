@@ -112,9 +112,39 @@ llm_settings:
         - problem_solution
         - question_driven
         - challenge_dare
-    # Pillar -> preamble string prepended to the LLM prompt at runtime.
-    # Templates stay pillar-agnostic; the preamble nudges the LLM toward the
-    # pillar's framing angle. Empty dict disables preamble injection.
+    # Channel-wide voice direction prepended to every script prompt above any
+    # pillar preamble. Carries the rules every template would otherwise repeat
+    # (banned words, word target, narrator persona, anti-AI-tells). Override
+    # this in a gitignored config layer to add a channel-specific persona.
+    # Empty string disables narrator profile injection.
+    narrator_profile: |-
+      Narrator profile: every video on this channel is voiced by the same person. Keep that voice consistent across all templates.
+
+      Who: one creator, not a brand. Use "I", not "we". Helpful first, recommender second. The viewer should feel like they're getting a tip from a friend who has done the legwork, not pitched at.
+
+      Voice: calm, conversational, friendly. Slightly understated. Not slick, not loud, not announcer-perfect. The tone you'd use telling a friend about something you bought.
+
+      Specificity: drop one concrete detail per script. A real moment, a real number, a real reference. "Charged it Sunday, forgot about it until Friday" beats "great battery life."
+
+      Honesty: include one short trade-off or limitation. Not a knock, just real. One sentence or fragment, not a paragraph.
+
+      Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay", "honestly") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
+
+      CTA: pick one CTA, not a list. Options: "Link in bio if you want one." / "Follow for more finds like this." / "Drop a comment if you've tried it." / "Share with someone who needs this." Pick whichever fits the script.
+
+      Things to avoid because they read as AI:
+      - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting", "It's important to note".
+      - Empty intensifiers used as filler: "incredibly", "absolutely", "literally", "honestly" when not real emphasis.
+      - Three parallel adjectives or three parallel short phrases in a row.
+      - Paragraph structure that always ends on a tidy takeaway sentence.
+      - Three consecutive sentences starting with the same word.
+      - Generic summary closers: "In essence", "Ultimately", "At the end of the day".
+      - Stacked hedges: "might possibly potentially".
+
+      Universal rules: write the actual spoken words only, no stage directions or camera notes. Target 30-40 seconds at normal speaking pace (roughly 75-100 words). No emojis, no hashtags, no greetings like "hey guys", no markdown in the output. Refer to the product by a short natural name, not the full official title. Plain text suitable for direct text-to-speech. Do not mention the product price. Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
+    # Pillar -> preamble string prepended to the LLM prompt at runtime, after
+    # the narrator profile. Templates stay pillar-agnostic; the preamble nudges
+    # the LLM toward the pillar's framing angle. Empty dict disables it.
     pillar_preambles:
       value: |-
         Pillar context: this video runs under the value pillar. Lean into the deal-pitch angle, where the product feels accessible and packs more punch than its price suggests. If the product fits another angle better, follow the product.

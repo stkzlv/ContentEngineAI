@@ -287,7 +287,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 ### Pipeline Behavior
 - `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
 - The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
-- A short per-pillar preamble is prepended to the LLM prompt at runtime (configured under `script_templates.pillar_preambles`) so the model leans into the pillar's framing angle. Templates themselves stay pillar-agnostic.
+- Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.
 - The chosen pillar is recorded in `pipeline_state.json` and the published-products registry so downstream analytics can segment by it.
 
 ### Editorial Focus

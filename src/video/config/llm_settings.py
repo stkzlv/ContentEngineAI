@@ -25,6 +25,11 @@ class ScriptTemplateConfig(BaseModel):
     # model leans into that pillar's framing angle. Templates themselves stay
     # pillar-agnostic. Empty dict disables preamble injection.
     pillar_preambles: dict[str, str] = Field(default_factory=dict)
+    # Channel-wide voice direction. When non-empty, prepended to every script
+    # prompt above any pillar preamble. Carries the rules every template
+    # would otherwise duplicate (banned words, word target, narrator persona,
+    # anti-AI-tells). Empty string disables narrator profile injection.
+    narrator_profile: str = ""
 
 
 class ScriptValidationConfig(BaseModel):
