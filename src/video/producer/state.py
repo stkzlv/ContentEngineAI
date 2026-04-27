@@ -161,6 +161,7 @@ def get_video_run_paths(
             "visual_dir": paths["visual_dir"],  # New visual assets directory
             "ffmpeg_log": paths["ffmpeg_log"],  # FFmpeg command log
             "performance": paths["performance"],  # Performance metrics file
+            "script_prompt": paths["script_prompt"],  # Rendered LLM prompt
             # Pycaps engine artifacts
             "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
             "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",
