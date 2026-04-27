@@ -22,6 +22,7 @@ disables those that aren't available, with appropriate logging.
 import asyncio
 import hashlib
 import html
+import importlib.util
 import logging
 import os
 import random
@@ -118,17 +119,39 @@ except (ImportError, AttributeError) as e:
     DefaultCredentialsError = DummyDefaultCredentialsError
 
 
-# Try to import Coqui TTS dependencies
-try:
-    from TTS.api import TTS
+# Coqui TTS availability is checked without actually importing the package.
+# The TTS package transitively loads torch, and torch's overrides module
+# raises `RuntimeError("function '_has_torch_function' already has a docstring")`
+# when reimported under pytest-cov instrumentation. Deferring the real import
+# to first use (see _load_coqui_tts_class) keeps coverage runs that don't
+# exercise Coqui TTS off that path.
+COQUI_AVAILABLE = importlib.util.find_spec("TTS") is not None
+if not COQUI_AVAILABLE:
+    logger.warning("Coqui TTS library not available; this provider will be disabled.")
+_TTS_CLASS: Any = None  # populated lazily on first use
 
-    COQUI_AVAILABLE = True
-except (ImportError, OSError) as e:
-    logger.warning(
-        f"Coqui TTS library not available: {e}. This provider will be disabled."
-    )
-    TTS = None
-    COQUI_AVAILABLE = False
+
+def _load_coqui_tts_class() -> Any | None:
+    """Lazy-import the TTS class on first use, cached afterwards.
+
+    Returns None when Coqui isn't installed or when the import raises
+    (e.g. torch/runtime issues). Callers should treat None the same as
+    `not COQUI_AVAILABLE`.
+    """
+    global _TTS_CLASS
+    if _TTS_CLASS is not None:
+        return _TTS_CLASS
+    if not COQUI_AVAILABLE:
+        return None
+    try:
+        from TTS.api import TTS as _TTS
+
+        _TTS_CLASS = _TTS
+        return _TTS_CLASS
+    except (ImportError, OSError) as e:
+        logger.warning("Coqui TTS load failed at first use: %s. Provider disabled.", e)
+        return None
+
 
 try:
     import aiofiles
@@ -156,7 +179,8 @@ _cached_google_cloud_voices: list[Voice] | None = None
 def _initialize_coqui_tts_model(settings: CoquiTTSSettings) -> Any | None:
     global _global_coqui_tts_model
     with coqui_tts_lock:
-        if not COQUI_AVAILABLE or not TTS:
+        tts_class = _load_coqui_tts_class()
+        if tts_class is None:
             return None
         if _global_coqui_tts_model is not None:
             return _global_coqui_tts_model
@@ -170,7 +194,7 @@ def _initialize_coqui_tts_model(settings: CoquiTTSSettings) -> Any | None:
                 if hasattr(config, "audio_processing") and config.audio_processing
                 else os.getenv("COQUI_TTS_GPU", "false").lower() == "true"
             )
-            _global_coqui_tts_model = TTS(
+            _global_coqui_tts_model = tts_class(
                 model_name=settings.model_name, progress_bar=False, gpu=use_gpu
             )
             logger.info(f"Coqui TTS model loaded: {settings.model_name}")

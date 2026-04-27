@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `pytest --cov` no longer crashes with `RuntimeError: function '_has_torch_function' already has a docstring`. The Coqui TTS dependency transitively loads torch, and torch's `overrides` module errors when reimported under coverage instrumentation. `src/video/tts.py` now checks Coqui availability via `importlib.util.find_spec("TTS")` and defers the actual `from TTS.api import TTS` to first use inside `_initialize_coqui_tts_model`. Coverage runs that don't exercise Coqui skip the torch path entirely.
+
 ### Added
 - Content pillars system. Group products and scripts under named pillars (defaults: `value`, `novelty`, `utility`). Keyword pool grouped by pillar in `config/scraper.yaml`, script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`, and `--pillar <name>` added to both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`. The flag filters the active script-template pool and prepends a per-pillar preamble to the LLM prompt. Without the flag, all templates remain eligible.
 - Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt. Anchors voice and persona, defines the CTA pattern, lists anti-AI-tells (connector phrases, empty intensifiers, rule of three, symmetric structure), and carries the universal rules every template would otherwise repeat.
