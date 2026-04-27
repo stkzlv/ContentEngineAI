@@ -10,18 +10,10 @@ Close with a line about how this small addition made a real difference in your d
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The lifestyle moment should be specific to the target audience. Don't default to generic "morning routine" unless it actually fits.
 - Features become habits. Translate every spec into how it changes a real moment. If you can't connect a feature to a daily situation, skip it.
 - Avoid aspirational fluff. "Living my best life" territory is off limits. Stay concrete: real places, real times, real activities.
 - The product shouldn't be the main character. The routine is. The product just makes it better.
-- Contractions, casual phrasing, sentence fragments all welcome. Talk like you're explaining your setup to a friend.
-- Do not mention the product price.
 
 ## Product Data
 

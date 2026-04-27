@@ -12,16 +12,9 @@ Close with a short CTA: follow, link in bio, like, or share. Keep it natural.
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The "before" should be something the target audience actually experienced, not a made-up worst case.
 - The "after" should be grounded in real product features, not exaggerated claims.
-- Sound conversational. Use contractions. Vary your rhythm. A short punchy sentence after a longer one keeps things moving.
-- Do not mention the product price.
+- A short punchy sentence after a longer one keeps things moving.
 
 ## Product Data
 

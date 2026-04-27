@@ -10,16 +10,9 @@ Wrap up with a short CTA. Follow for more finds like this, link in bio, like if 
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Don't make the "secret" angle feel forced. If the product is a common item, the secret can be about a specific feature or use case people overlook, not about the product's existence.
 - Sound like someone who genuinely found something good and wants to share it. Not like an infomercial host.
-- Use contractions. Vary sentence length. Be specific, not vague.
-- Do not mention the product price.
+- Be specific, not vague.
 
 ## Product Data
 

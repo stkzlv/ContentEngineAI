@@ -10,18 +10,11 @@ Close by restating the challenge in a relaxed way. Then a casual CTA: follow to 
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Confident but not aggressive. You're inviting the viewer to compare, not daring them.
 - Every claim needs a specific detail backing it up. Don't say "find better quality" without saying what makes this one stand out.
 - Challenge on concrete specs, features, or value. Things the viewer can actually verify.
 - Keep the tone steady throughout. No volume spikes, no hype buildup. Calm conviction from start to finish.
-- Contractions, varied sentence length, the occasional rhetorical question. But keep it measured, not rapid-fire.
-- Do not mention the product price.
+- Mix in the occasional rhetorical question, but keep it measured, not rapid-fire.
 
 ## Product Data
 

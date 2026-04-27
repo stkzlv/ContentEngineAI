@@ -8,15 +8,7 @@ Close with a short call to action: follow for more, drop a like, check the link 
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title. If it's "Sony WH-1000XM5 Wireless Noise Canceling Headphones", just say "the XM5s" or "these headphones."
-- Sound like a real person talking to a friend. Vary sentence length. Use contractions. Sentence fragments are fine.
 - Don't start with a question AND end with a question. Pick one or the other.
-- Do not mention the product price.
 
 ## Product Data
 

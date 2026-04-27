@@ -10,16 +10,8 @@ Wrap up by reinforcing the verdict (this is the one worth buying) and end with a
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Never name competing brands or products. Say "the other ones", "everything else I tried", etc.
 - Sound like someone who's genuinely frustrated with bad purchases and relieved to find a good one. Not angry, just honest.
-- Mix sentence lengths. Contractions are fine. Let it sound like you're venting to a friend, not reading a review.
-- Do not mention the product price.
 
 ## Product Data
 

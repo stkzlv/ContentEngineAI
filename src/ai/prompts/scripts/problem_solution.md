@@ -12,15 +12,8 @@ End with a casual CTA: follow, like, link in bio, or share. One line, not a whol
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The problem should feel real to the target audience listed below. Don't pick a generic complaint; pick something specific to how they'd actually use this product.
-- Sound like a real person. Mix short and longer sentences. Contractions are good. Don't be overly dramatic in the agitation, just honest.
-- Do not mention the product price.
+- Don't be overly dramatic in the agitation, just honest.
 
 ## Product Data
 

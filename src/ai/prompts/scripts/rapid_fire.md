@@ -10,16 +10,9 @@ After covering 4-6 benefits, close with one grounding statement. "That covers a 
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Prioritize rhythm. If two sentences in a row have the same structure, rewrite one.
 - Don't start more than two consecutive sentences with "It" or the product name. Vary how you introduce each benefit.
 - Confidence comes from clarity, not speed. Let each benefit breathe. Don't use exclamation marks.
-- Do not mention the product price.
 
 ## Product Data
 

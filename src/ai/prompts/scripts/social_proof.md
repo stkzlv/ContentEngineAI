@@ -10,17 +10,9 @@ End by reinforcing the social proof angle. Something like "If you've been on the
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Social proof should feel organic, not manufactured. Don't say "millions of people" or cite fake numbers. Keep it vague but believable: "everyone", "people keep saying", "it's been all over my feed."
 - Don't make it sound like an infomercial. The tone is someone sharing something they noticed is trending, not a salesperson citing statistics.
-- Sound like a real person who got curious because other people wouldn't stop talking about it. Casual, slightly impressed.
-- Contractions and sentence fragments are fine. Vary your rhythm.
-- Do not mention the product price.
+- Casual, slightly impressed. Like someone who got curious because other people wouldn't stop talking about it.
 
 ## Product Data
 

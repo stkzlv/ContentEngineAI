@@ -10,17 +10,9 @@ End with the converted verdict. Something that acknowledges the initial doubt an
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The skepticism must feel honest. Don't make it cartoonish or over-the-top. Think "mildly doubtful" not "hated everything about it."
 - The conversion should be gradual across the script, not a single dramatic flip.
 - Sound like someone admitting they were wrong. A little sheepish, a little impressed. Not preachy.
-- Contractions, varied sentence length, fragments all fine. Keep it conversational.
-- Do not mention the product price.
 
 ## Product Data
 

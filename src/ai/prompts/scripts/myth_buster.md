@@ -10,18 +10,10 @@ Close with a one-liner that reframes the category for the viewer. They should wa
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The myth must be something people in the target audience actually believe. Don't invent a straw man nobody holds.
 - Bust the myth with specifics, not opinions. Specs, design choices, real-world behavior from the product description.
 - Tone is calm confidence, not condescension. You're correcting a misunderstanding, not dunking on people.
 - Don't name competitors. The myth is about the category, not a specific brand.
-- Keep it conversational. Contractions, fragments, varied sentence length.
-- Do not mention the product price.
 
 ## Product Data
 

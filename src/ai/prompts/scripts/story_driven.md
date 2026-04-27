@@ -12,16 +12,9 @@ End with a CTA: follow for more, link in bio, drop a like, share with someone. Q
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - The story should feel plausible for someone in the target audience. Match the tone and situation to who'd actually buy this.
 - Don't make the story too polished or cinematic. Real stories meander a little, have small details that don't matter but make it feel true.
-- Sound conversational. Contractions, fragments, natural rhythm. Not scripted, not rehearsed.
-- Do not mention the product price.
+- Not scripted, not rehearsed.
 
 ## Product Data
 

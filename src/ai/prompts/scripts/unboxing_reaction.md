@@ -10,17 +10,10 @@ Close with an honest first take. One calm sentence on whether it seems worth it.
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Reactions should feel spontaneous but low-key. Pauses, trailing thoughts, quiet observations. Like thinking out loud, not performing.
 - Don't oversell. If a feature is just "fine," say so. Understated appreciation lands better than forced excitement.
 - Avoid describing actions ("now I'm opening the box"). Focus on what you notice and think.
-- Contractions, fragments, mid-thought pivots are welcome. Keep the tone relaxed and unhurried throughout.
-- Price mention is optional. Work it in only if the value surprises you.
+- Mid-thought pivots are welcome. Keep the tone relaxed and unhurried throughout.
 
 ## Product Data
 
