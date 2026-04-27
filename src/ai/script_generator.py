@@ -259,6 +259,28 @@ def select_script_template(
     return templates_dir / f"{name}.md"
 
 
+def _warn_unknown_pillar(pillar: str, settings: LLMSettings) -> None:
+    """Log a hint when a pillar is set but not configured in any of the
+    three pillar maps (pillars, pillar_preambles, pillar_audiences).
+
+    Each map fails open: a missing entry just means no filter / no preamble /
+    no audience override. That's correct behavior, but it makes typos invisible
+    at runtime. This warning surfaces the typo so users know why their pillar
+    had no effect.
+    """
+    cfg = settings.script_templates
+    known = set(cfg.pillars) | set(cfg.pillar_preambles) | set(cfg.pillar_audiences)
+    if pillar in known:
+        return
+    logger.info(
+        "Pillar '%s' is not configured in pillars, pillar_preambles, or "
+        "pillar_audiences. No template filter, preamble, or audience override "
+        "will apply for this run. Known pillars: %s",
+        pillar,
+        sorted(known) or [],
+    )
+
+
 def apply_prompt_preambles(
     prompt: str,
     narrator_profile: str,
@@ -697,6 +719,9 @@ async def generate_script(
             product.price,
             getattr(product, "asin", None),
         )
+
+    if pillar:
+        _warn_unknown_pillar(pillar, settings)
 
     template_path = select_script_template(settings, product_id, pillar)
     template_name = template_path.stem

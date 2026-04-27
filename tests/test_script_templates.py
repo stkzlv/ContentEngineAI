@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from src.ai.script_generator import apply_prompt_preambles, select_script_template
+from src.ai.script_generator import (
+    _warn_unknown_pillar,
+    apply_prompt_preambles,
+    select_script_template,
+)
 from src.video.config.llm_settings import LLMSettings, ScriptTemplateConfig
 
 
@@ -488,3 +492,48 @@ class TestApplyPromptPreambles:
         assert set(audiences) == {"value", "novelty", "utility"}
         for v in audiences.values():
             assert isinstance(v, str) and v.strip()
+
+
+class TestWarnUnknownPillar:
+    """Test the unknown-pillar log helper."""
+
+    def test_logs_when_pillar_in_no_map(self, caplog):
+        settings = _make_settings(
+            pillars={"value": ["a"]},
+            pillar_preambles={"value": "v"},
+            pillar_audiences={"value": "vp"},
+        )
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("foobar", settings)
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("foobar" in m and "not configured" in m for m in messages)
+
+    def test_no_log_when_pillar_in_pillars(self, caplog):
+        settings = _make_settings(pillars={"value": ["a"]})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_no_log_when_pillar_in_preambles_only(self, caplog):
+        settings = _make_settings(pillar_preambles={"value": "v"})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_no_log_when_pillar_in_audiences_only(self, caplog):
+        settings = _make_settings(pillar_audiences={"value": "vp"})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_log_lists_known_pillars(self, caplog):
+        settings = _make_settings(
+            pillars={"value": ["a"]},
+            pillar_preambles={"novelty": "n"},
+            pillar_audiences={"utility": "u"},
+        )
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("foobar", settings)
+        messages = [r.getMessage() for r in caplog.records]
+        # Sorted union of all configured pillars across the three maps.
+        assert any("novelty" in m and "utility" in m and "value" in m for m in messages)
