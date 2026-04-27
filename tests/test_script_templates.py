@@ -19,6 +19,7 @@ def _make_settings(
     pillars: dict[str, list[str]] | None = None,
     pillar_preambles: dict[str, str] | None = None,
     narrator_profile: str = "",
+    pillar_audiences: dict[str, str] | None = None,
 ) -> LLMSettings:
     """Build LLMSettings with script_templates config for testing."""
     return LLMSettings(
@@ -35,6 +36,7 @@ def _make_settings(
             pillars=pillars or {},
             pillar_preambles=pillar_preambles or {},
             narrator_profile=narrator_profile,
+            pillar_audiences=pillar_audiences or {},
         ),
     )
 
@@ -470,3 +472,19 @@ class TestApplyPromptPreambles:
         assert "Narrator profile" in profile
         # And the anti-AI-tells list.
         assert "Moreover" in profile
+        # And the voice example we added for positive imitation.
+        assert "Voice example" in profile
+
+    def test_default_yaml_has_three_pillar_audiences(self):
+        """The shipped config has audience hints for value, novelty, utility."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        audiences = cfg["llm_settings"]["script_templates"].get("pillar_audiences", {})
+        assert set(audiences) == {"value", "novelty", "utility"}
+        for v in audiences.values():
+            assert isinstance(v, str) and v.strip()

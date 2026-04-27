@@ -30,6 +30,12 @@ class ScriptTemplateConfig(BaseModel):
     # would otherwise duplicate (banned words, word target, narrator persona,
     # anti-AI-tells). Empty string disables narrator profile injection.
     narrator_profile: str = ""
+    # Pillar -> target-audience override. When a pillar is set at runtime and
+    # the map has an entry for it, the {AUDIENCE} placeholder uses this value
+    # instead of LLMSettings.target_audience. Lets each pillar speak to the
+    # buyer it's actually written for. Empty dict falls back to the global
+    # target_audience.
+    pillar_audiences: dict[str, str] = Field(default_factory=dict)
 
 
 class ScriptValidationConfig(BaseModel):

@@ -163,6 +163,13 @@ llm_settings:
         Pillar context: this video runs under the novelty pillar. Lean into the discovery angle, framing the product as something the viewer hasn't seen before. If the product fits another angle better, follow the product.
       utility: |-
         Pillar context: this video runs under the utility pillar. Lean into the problem-solving angle, where the product fixes a specific, real-world annoyance the viewer would recognize. If the product fits another angle better, follow the product.
+    # Pillar -> target-audience override. When a pillar is set at runtime,
+    # the {AUDIENCE} placeholder in templates uses this value instead of the
+    # global target_audience. Lets each pillar speak to its actual buyer.
+    pillar_audiences:
+      value: "Budget-conscious shoppers looking for products that punch above their price."
+      novelty: "Curious people who enjoy discovering lesser-known products before everyone else."
+      utility: "Practical buyers solving a real, recurring problem with the right tool."
 
 # ============================================================================
 # TTS CONFIGURATION

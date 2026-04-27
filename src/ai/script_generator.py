@@ -692,9 +692,14 @@ async def generate_script(
 
     template_path = select_script_template(settings, product_id, pillar)
     template_name = template_path.stem
+    audience = settings.target_audience
+    if pillar:
+        pillar_audience = settings.script_templates.pillar_audiences.get(pillar)
+        if pillar_audience:
+            audience = pillar_audience
     try:
         template = load_prompt_template(template_path)
-        prompt = format_prompt(template, product, settings.target_audience)
+        prompt = format_prompt(template, product, audience)
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
 
