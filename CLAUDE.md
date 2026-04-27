@@ -23,6 +23,31 @@ If pyenv version shows something else, fix with:
 pyenv activate ContentEngineAI
 ```
 
+## Private Overlay Files
+
+The repo supports private, contributor-specific overlays that stay out of git. Any file matching `*.private.md` or living under `.business/` is gitignored (see `.gitignore`). Use this for business motivation, account-specific context, personal planning, or decisions you don't want to publish.
+
+**Naming convention**: a private overlay sits next to its public counterpart with the same basename plus `.private.md`. Example: `docs/roadmap.md` (public) and `docs/roadmap.private.md` (private).
+
+**At session start**: list any `*.private.md` files relevant to the current task and read them. They usually explain *why* a public item exists when the public doc only describes *what*. Typical check:
+```bash
+find . -name '*.private.md' -not -path './.venv/*' -not -path './outputs/*'
+```
+
+**Keeping public and private in sync** when a pair exists:
+- Items and structure stay aligned. When an item is added, removed, reordered, or changes horizon in one file, mirror it in the other.
+- Public describes the capability. Private adds motivation, constraints, and decisions.
+- `Done when` criteria may differ: public stays generic and testable; private can reference signals (metrics, sample sizes, thresholds specific to the contributor's use case).
+- The same rule applies to any other paired docs (e.g., `docs/strategy.md` + `docs/strategy.private.md`).
+
+**Never leaks into the public tree**:
+- Content or direct quotes from any `*.private.md` file.
+- Account handles, follower counts, financial numbers, real persona names, or any contributor-specific identifiers.
+- References to the private file's existence or path in commit messages, PR descriptions, issues, or committed code.
+- Config values keyed to the contributor's accounts. Public YAML ships generic defaults; real values live in `.env` or in a gitignored override file.
+
+This pattern is generic. Any contributor can create `docs/<public-doc>.private.md` (or a `.business/` subtree) for their own overlay without project-side configuration changes.
+
 ## Logs
 
 Pipeline logs are in `outputs/logs/`:

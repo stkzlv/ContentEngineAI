@@ -74,6 +74,11 @@ temp_subtitles/
 output/
 cache/
 
+# Business-specific notes that must never enter the open-source tree
+*.private.md
+ROADMAP.private.md
+.business/
+
 # Claude Code config (contains credentials)
 .claude.json
 
