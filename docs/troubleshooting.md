@@ -692,6 +692,24 @@ print('✓ SSL connections work')
 "
 ```
 
+## Test & Coverage Issues
+
+### `pytest --cov` crashes with "_has_torch_function already has a docstring"
+
+**Error message:**
+
+```
+RuntimeError: function '_has_torch_function' already has a docstring
+```
+
+The crash happens at conftest import time, before any test runs. Stack trace ends in `torch/overrides.py` calling `_add_docstr`.
+
+**Cause:** coverage instrumentation re-imports modules. If a project module imports a torch-using package at module load (Coqui TTS, transformers, anything with PyTorch as a transitive dep), torch's `overrides` module rejects the second `_add_docstr` call and aborts the whole pytest-cov session.
+
+**Fix:** defer the torch-transitive import to first use. In this repo `src/video/tts.py` uses `importlib.util.find_spec("TTS")` for the availability flag and a lazy `from TTS.api import TTS as _TTS` inside `_load_coqui_tts_class()`, which runs only when `_initialize_coqui_tts_model` is called. Coverage runs that don't exercise Coqui never trigger the torch path.
+
+**Workaround if you can't refactor the import:** run pytest without `--cov` (the project's regular `make test` works), or add `--no-cov` to your specific run.
+
 ## Getting More Help
 
 ### Enable Maximum Debugging
