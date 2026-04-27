@@ -259,6 +259,21 @@ def select_script_template(
     return templates_dir / f"{name}.md"
 
 
+def _resolve_audience(pillar: str | None, settings: LLMSettings) -> str:
+    """Pick the audience hint for this run.
+
+    Per-pillar audience (`pillar_audiences[pillar]`) wins when both are set
+    and the entry is non-empty. Falls back to the global `target_audience`
+    when pillar is None, has no entry in `pillar_audiences`, or the entry
+    is an empty string.
+    """
+    if pillar:
+        pillar_audience = settings.script_templates.pillar_audiences.get(pillar)
+        if pillar_audience:
+            return pillar_audience
+    return settings.target_audience
+
+
 def _warn_unknown_pillar(pillar: str, settings: LLMSettings) -> None:
     """Log a hint when a pillar is set but not configured in any of the
     three pillar maps (pillars, pillar_preambles, pillar_audiences).
@@ -725,11 +740,7 @@ async def generate_script(
 
     template_path = select_script_template(settings, product_id, pillar)
     template_name = template_path.stem
-    audience = settings.target_audience
-    if pillar:
-        pillar_audience = settings.script_templates.pillar_audiences.get(pillar)
-        if pillar_audience:
-            audience = pillar_audience
+    audience = _resolve_audience(pillar, settings)
     try:
         template = load_prompt_template(template_path)
         prompt = format_prompt(template, product, audience)

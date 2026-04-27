@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from src.ai.script_generator import (
+    _resolve_audience,
     _warn_unknown_pillar,
     apply_prompt_preambles,
     select_script_template,
@@ -537,3 +538,37 @@ class TestWarnUnknownPillar:
         messages = [r.getMessage() for r in caplog.records]
         # Sorted union of all configured pillars across the three maps.
         assert any("novelty" in m and "utility" in m and "value" in m for m in messages)
+
+
+class TestResolveAudience:
+    """Test per-pillar audience resolution."""
+
+    def test_pillar_none_returns_global_target_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        # _make_settings sets target_audience="General audience".
+        assert _resolve_audience(None, settings) == "General audience"
+
+    def test_pillar_set_with_match_returns_pillar_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        assert _resolve_audience("value", settings) == "Budget shoppers"
+
+    def test_pillar_set_no_match_returns_global_target_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        assert _resolve_audience("foobar", settings) == "General audience"
+
+    def test_pillar_set_with_empty_string_returns_global(self):
+        """Empty pillar audience entry is treated as 'not set'."""
+        settings = _make_settings(
+            pillar_audiences={"value": ""},
+        )
+        assert _resolve_audience("value", settings) == "General audience"
+
+    def test_pillar_set_with_empty_audiences_map_returns_global(self):
+        settings = _make_settings(pillar_audiences={})
+        assert _resolve_audience("value", settings) == "General audience"
