@@ -15,6 +15,7 @@ Close by restating the challenge in a relaxed way. End with one CTA per the narr
 - Challenge on concrete specs, features, or value. Things the viewer can actually verify.
 - Keep the tone steady throughout. No volume spikes, no hype buildup. Calm conviction from start to finish.
 - Mix in the occasional rhetorical question, but keep it measured, not rapid-fire.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

@@ -13,6 +13,7 @@ End with the converted verdict. Something that acknowledges the initial doubt an
 - The skepticism must feel honest. Don't make it cartoonish or over-the-top. Think "mildly doubtful" not "hated everything about it."
 - The conversion should be gradual across the script, not a single dramatic flip.
 - Sound like someone admitting they were wrong. A little sheepish, a little impressed. Not preachy.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

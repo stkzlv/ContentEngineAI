@@ -15,6 +15,7 @@ End with one CTA per the narrator profile. Keep it natural.
 - The "before" should be something the target audience actually experienced, not a made-up worst case.
 - The "after" should be grounded in real product features, not exaggerated claims.
 - A short punchy sentence after a longer one keeps things moving.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

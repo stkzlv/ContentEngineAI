@@ -13,6 +13,7 @@ After covering 4-6 benefits, close with one grounding statement. "That covers a 
 - Prioritize rhythm. If two sentences in a row have the same structure, rewrite one.
 - Don't start more than two consecutive sentences with "It" or the product name. Vary how you introduce each benefit.
 - Confidence comes from clarity, not speed. Let each benefit breathe. Don't use exclamation marks.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

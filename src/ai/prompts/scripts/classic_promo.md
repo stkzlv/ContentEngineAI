@@ -15,6 +15,7 @@ End with one CTA per the narrator profile. Direct, not desperate.
 - Inject personality. Avoid a robotic or overly formal tone. But don't force humor or quirks either.
 - Tailor the tone to the target audience without explicitly naming who the audience is.
 - The script should provide genuine value, not just hype. The viewer should walk away knowing something useful about the product.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

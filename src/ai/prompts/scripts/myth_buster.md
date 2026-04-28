@@ -14,6 +14,7 @@ Close with a one-liner that reframes the category for the viewer. They should wa
 - Bust the myth with specifics, not opinions. Specs, design choices, real-world behavior from the product description.
 - Tone is calm confidence, not condescension. You're correcting a misunderstanding, not dunking on people.
 - Don't name competitors. The myth is about the category, not a specific brand.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

@@ -14,6 +14,7 @@ Close with an honest first take. One calm sentence on whether it seems worth it.
 - Don't oversell. If a feature is just "fine," say so. Understated appreciation lands better than forced excitement.
 - Avoid describing actions ("now I'm opening the box"). Focus on what you notice and think.
 - Mid-thought pivots are welcome. Keep the tone relaxed and unhurried throughout.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

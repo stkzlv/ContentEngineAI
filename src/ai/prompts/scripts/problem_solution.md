@@ -14,6 +14,7 @@ End with one CTA per the narrator profile. One line, not a whole paragraph.
 
 - The problem should feel real to the target audience listed below. Don't pick a generic complaint; pick something specific to how they'd actually use this product.
 - Don't be overly dramatic in the agitation, just honest.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 
