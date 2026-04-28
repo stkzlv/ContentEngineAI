@@ -303,6 +303,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Pillar choice drives hook framing and product selection. Subtitle styling and TTS voice stay global so brand voice carries across pillars.
 - A `value` video pitches the deal, a `novelty` video pitches discovery, a `utility` video frames the problem and the solution.
 - The per-pillar audience hint reinforces the framing: `value` targets budget-conscious shoppers, `novelty` targets curious early discoverers, `utility` targets practical problem-solvers.
+- Every generated script includes one short trade-off or limitation about the product, one sentence max, to keep the brand voice trustworthy rather than purely promotional. The rule lives in each template's `## Rules` block in `src/ai/prompts/scripts/` so the LLM sees it adjacent to the active task and applies it more reliably than when it sat in the channel-wide narrator profile.
 
 ---
 

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The "include one short trade-off or limitation" rule lives in each script template's `## Rules` block in `src/ai/prompts/scripts/` rather than the channel-wide narrator profile. The rule sits adjacent to the active task in the rendered prompt, so the LLM applies it more reliably.
+
 ## [0.43.0] - 2026-04-28
 
 ### Added
