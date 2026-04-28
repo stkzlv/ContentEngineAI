@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-04-28
+
 ### Added
 - Content pillars system. Group products and scripts under named pillars (defaults: `value`, `novelty`, `utility`). Keyword pool grouped by pillar in `config/scraper.yaml`, script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`, and `--pillar <name>` added to both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`. The flag filters the active script-template pool, prepends a per-pillar preamble to the LLM prompt, and substitutes `{AUDIENCE}` with the pillar's audience hint. Unknown pillar values log an info-level hint and gracefully no-op all three. Without the flag, all templates remain eligible and the global `target_audience` applies.
 - Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt. Bulleted universal rules (banned phrases, word target, no-emoji rule, no-price rule), anti-AI-tells list (connector phrases, empty intensifiers, rule of three, symmetric structure), CTA pattern, persona anchor, voice-example script for positive imitation, and a paraphrase rule that tells the LLM to rewrite rather than quote when the source description contains banned phrases.
@@ -25,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pytest --cov` no longer crashes with `RuntimeError: function '_has_torch_function' already has a docstring`. The Coqui TTS dependency transitively loads torch, and torch's `overrides` module errors when reimported under coverage instrumentation. `src/video/tts.py` now checks Coqui availability via `importlib.util.find_spec("TTS")` and defers the actual `from TTS.api import TTS` to first use inside `_initialize_coqui_tts_model`. Coverage runs that don't exercise Coqui skip the torch path entirely.
 
 ### Removed
-- `docs/content-pillars-followups.md`, `docs/pycaps-followups.md`, and `docs/subtitle-config-cleanup.md`. Pending follow-up work is now tracked as GitHub Issues with `follow-up` plus topic labels (`content-pillars`, `pycaps`, `subtitles`); shipped items are dropped. CLAUDE.md and other docs that linked the removed files now point at the issue tracker.
+- `docs/pycaps-followups.md` and `docs/subtitle-config-cleanup.md`. Pending follow-up work is now tracked as GitHub Issues with `follow-up` plus topic labels (`content-pillars`, `pycaps`, `subtitles`); shipped items are dropped. CLAUDE.md and other docs that linked the removed files now point at the issue tracker.
 
 ## [0.42.2] - 2026-04-27
 
