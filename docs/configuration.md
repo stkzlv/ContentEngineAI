@@ -1175,7 +1175,7 @@ llm_settings:
 3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged.
 4. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).
 
-**Pillar override priority:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/global_batch.py` is the only source today. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override) — the run still completes. Source-keyword auto-pillar (the scraper attaching the source keyword's pillar to product data) is tracked as a follow-up.
+**Pillar override priority:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/global_batch.py` is the only source today. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes. Source-keyword auto-pillar (the scraper attaching the source keyword's pillar to product data) is tracked as a GitHub Issue with the `content-pillars` label.
 
 See [Requirements](requirements.md) "Content Pillars" for the behavior contract.
 
