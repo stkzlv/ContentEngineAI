@@ -12,6 +12,7 @@ Wrap up by reinforcing the verdict (this is the one worth buying), then end with
 
 - Never name competing brands or products. Say "the other ones", "everything else I tried", etc.
 - Sound like someone who's genuinely frustrated with bad purchases and relieved to find a good one. Not angry, just honest.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

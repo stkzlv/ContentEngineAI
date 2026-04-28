@@ -14,6 +14,7 @@ Close with a line about how this small addition made a real difference in your d
 - Features become habits. Translate every spec into how it changes a real moment. If you can't connect a feature to a daily situation, skip it.
 - Avoid aspirational fluff. "Living my best life" territory is off limits. Stay concrete: real places, real times, real activities.
 - The product shouldn't be the main character. The routine is. The product just makes it better.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

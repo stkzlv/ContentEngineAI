@@ -9,6 +9,7 @@ Close with one short CTA per the narrator profile. Keep it casual.
 ## Rules
 
 - Don't start with a question AND end with a question. Pick one or the other.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

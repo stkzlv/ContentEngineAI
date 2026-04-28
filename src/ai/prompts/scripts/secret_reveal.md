@@ -13,6 +13,7 @@ End with one CTA per the narrator profile.
 - Don't make the "secret" angle feel forced. If the product is a common item, the secret can be about a specific feature or use case people overlook, not about the product's existence.
 - Sound like someone who genuinely found something good and wants to share it. Not like an infomercial host.
 - Be specific, not vague.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

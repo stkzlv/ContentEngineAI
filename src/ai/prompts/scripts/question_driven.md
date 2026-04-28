@@ -14,6 +14,7 @@ Close with a short statement that ties the answers together, then end with one C
 - Don't ask yes/no questions. Ask questions that make the viewer think for a second.
 - Answers should be specific, not vague. Connect directly to product features from the description below.
 - Keep the overall tone curious and confident, like someone who figured something out and wants to share.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

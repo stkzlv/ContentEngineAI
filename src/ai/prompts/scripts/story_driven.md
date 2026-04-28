@@ -15,6 +15,7 @@ End with one CTA per the narrator profile. Quick and casual.
 - The story should feel plausible for someone in the target audience. Match the tone and situation to who'd actually buy this.
 - Don't make the story too polished or cinematic. Real stories meander a little, have small details that don't matter but make it feel true.
 - Not scripted, not rehearsed.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 

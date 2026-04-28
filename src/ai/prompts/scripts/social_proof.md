@@ -13,6 +13,7 @@ End by reinforcing the social proof angle. Something like "If you've been on the
 - Social proof should feel organic, not manufactured. Don't say "millions of people" or cite fake numbers. Keep it vague but believable: "everyone", "people keep saying", "it's been all over my feed."
 - Don't make it sound like an infomercial. The tone is someone sharing something they noticed is trending, not a salesperson citing statistics.
 - Casual, slightly impressed. Like someone who got curious because other people wouldn't stop talking about it.
+- Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
 
