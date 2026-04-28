@@ -358,6 +358,8 @@ Security-critical updates can trigger an immediate patch release without waiting
 - **Config loading gotcha**: `publisher.yaml` may contain keys not in `PublisherConfig` dataclass (e.g. deprecated `backoff_multiplier`). The config loader in `src/publisher/config.py` strips unknown keys before constructing `PublisherConfig(**config_dict)`.
 - **`.env` file**: Auto-loaded by the CLI via `load_dotenv()`. No manual sourcing needed.
 - **CLI format**: `poetry run python -m src.publisher.late single <PRODUCT_ID> --debug`. Takes product ID (not file paths). Video is auto-discovered from `outputs/<product_id>/`. Don't pass `--immediate` or `--platform-specific` by default.
+- **`publish_history.json` `published_at` is queue time, not actual publish time**: The field is written when `client.posts.create()` succeeds, i.e. when Zernio accepts the post into its scheduler. The video is still queued and won't go live until `scheduledFor`. To answer "is this video actually live yet", query Zernio directly via `client.posts.get(post_id)`. Sorting `publish_history.json` by `published_at` to find "the latest live videos" is wrong: it gives you the latest-queued, not the latest-published.
+- **Reading Zernio post status**: `client.posts.get(pid)` returns a `PostGetResponse` whose payload is nested under `.post` (Pydantic alias). Dump with `resp.model_dump(by_alias=True, mode="json")["post"]`. Without `by_alias=True`, every aliased field comes back as `None` and you get a misleading "no status / no scheduled_for" reading. Per-platform `status` values: `pending`, `published`, `failed`, `partial`. Real publish time is `platforms[*].publishedAt` (camelCase, only set once the platform actually publishes).
 
 ## Link-in-Bio Module Notes
 
@@ -367,6 +369,8 @@ Security-critical updates can trigger an immediate patch release without waiting
 - **Lnk.Bio auth**: Requires HTTP Basic Auth (not form-encoded), plus `User-Agent: ContentEngineAI/1.0` header to bypass Cloudflare
 - **Lnk.Bio API endpoints**: Auth: `POST /oauth/token`, Add: `POST /oauth/v1/lnk/add`, List: `GET /oauth/v1/lnk/list`, Delete: `POST /oauth/v1/lnk/delete`
 - **Non-blocking**: Failures never block video publishing; logged as warnings
+- **`created_at` is link-add time, not platform publish time**: The bio link is added right after `posts.create` (queue time), but YouTube/TikTok/Instagram only go live when Zernio's scheduler fires `scheduledFor`. The bio link can be clickable for days before the corresponding video is up. Don't use lnk.bio `created_at` to verify a video is actually published; use Zernio's `platforms[*].status` instead.
+- **Free plan has unlimited links**: lnk.bio's free tier has no link quota (their headline differentiator vs Linktree). Paid tiers unlock customization (themes, custom domain, analytics), not link count. Safe to keep adding without worrying about a cap.
 
 ## Scraper Module Notes
 
