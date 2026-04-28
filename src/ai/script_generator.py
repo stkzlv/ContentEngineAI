@@ -19,6 +19,7 @@ import hashlib
 import logging
 import random
 import re
+import unicodedata
 from pathlib import Path
 
 import aiohttp
@@ -77,14 +78,58 @@ def load_prompt_template(path: Path) -> str:
         return f.read()
 
 
+def _normalize_for_llm(text: str) -> str:
+    """Normalize text before sending to the LLM.
+
+    Amazon product titles and descriptions sometimes use mathematical-alphabet
+    Unicode codepoints for fake bold/italic styling (e.g. 𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫).
+    NFKC folds those down to plain ASCII letters, which both reduces token
+    waste and keeps the LLM from mimicking the styling in its output.
+
+    Em dashes and en dashes are also replaced. Em dashes especially are a
+    strong AI tell in generated text, and Amazon descriptions use them
+    liberally. Em dash becomes ", " (matches the comma-pause it usually
+    represents); en dash becomes "-" (matches its range/connector use).
+    """
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"\s*—\s*", ", ", text)
+    text = re.sub(r"\s*–\s*", "-", text)
+    return text
+
+
+def _short_product_name(full_title: str) -> str:
+    """Heuristic short alias for SEO-bloated product titles.
+
+    Cuts at the first SEO-style separator (comma, opening paren, vertical bar,
+    or hyphenated descriptor) and caps the result at the first three words.
+    Designed to give the LLM a plain "BRAND MODEL" handle without forcing it
+    to parse a 30-word Amazon listing title.
+    """
+    if not full_title:
+        return "this product"
+    cut = full_title
+    for sep in [",", " (", " | ", " - "]:
+        idx = cut.find(sep)
+        if idx > 0:
+            cut = cut[:idx]
+    short = " ".join(cut.split()[:3]).strip()
+    return short or "this product"
+
+
 def format_prompt(template: str, product: ProductData, audience: str) -> str:
     """Format the prompt template with product data and audience information.
 
     Replaces placeholders in the template with actual product data. The template
     should contain the following placeholders:
     - {FULL_PRODUCT_NAME}: The product title
+    - {SHORT_PRODUCT_NAME}: A short alias for the product (brand + model).
     - {PRODUCT_DESCRIPTION}: The product description
     - {AUDIENCE}: The target audience for the video
+
+    Product name and description are NFKC-normalized so Amazon's mathematical-
+    alphabet bold tricks don't reach the LLM.
 
     Price is intentionally excluded to avoid stale/incorrect pricing in videos.
 
@@ -103,10 +148,14 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
         ValueError: If the template contains placeholders that can't be filled
 
     """
+    full_name = _normalize_for_llm(product.title or "Product")
+    short_name = _short_product_name(full_name)
+    description = _normalize_for_llm(product.description or "No description available")
     try:
         return template.format(
-            FULL_PRODUCT_NAME=product.title or "Product",
-            PRODUCT_DESCRIPTION=product.description or "No description available",
+            FULL_PRODUCT_NAME=full_name,
+            SHORT_PRODUCT_NAME=short_name,
+            PRODUCT_DESCRIPTION=description,
             AUDIENCE=audience,
         )
     except KeyError as e:
@@ -134,10 +183,13 @@ def save_debug_prompt(prompt: str, path: Path):
 def select_script_template(
     settings: LLMSettings,
     product_id: str | None = None,
+    pillar: str | None = None,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
     When script_templates is enabled, picks from the templates directory.
+    When `pillar` is given and the templates config has a pillar map entry
+    for it, the pool is narrowed to that pillar's templates before selection.
     Falls back to the single prompt_template_path when disabled.
     """
     templates_cfg = settings.script_templates
@@ -173,6 +225,19 @@ def select_script_template(
     if not pool:
         pool = all_templates
 
+    # Apply pillar filter (when pillar is provided and known)
+    if pillar and pillar in templates_cfg.pillars:
+        pillar_templates = templates_cfg.pillars[pillar]
+        narrowed = [t for t in pool if t in pillar_templates]
+        if narrowed:
+            pool = narrowed
+        else:
+            logger.warning(
+                "Pillar '%s' has no templates intersecting current pool; "
+                "using full pool",
+                pillar,
+            )
+
     # Deterministic selection using salted product ID hash
     if product_id:
         hash_hex = hashlib.md5(
@@ -186,11 +251,74 @@ def select_script_template(
         name = random.choice(pool)  # noqa: S311
 
     logger.info(
-        "Selected script template '%s' for product '%s'",
+        "Selected script template '%s' for product '%s' (pillar=%s)",
         name,
         product_id,
+        pillar,
     )
     return templates_dir / f"{name}.md"
+
+
+def _resolve_audience(pillar: str | None, settings: LLMSettings) -> str:
+    """Pick the audience hint for this run.
+
+    Per-pillar audience (`pillar_audiences[pillar]`) wins when both are set
+    and the entry is non-empty. Falls back to the global `target_audience`
+    when pillar is None, has no entry in `pillar_audiences`, or the entry
+    is an empty string.
+    """
+    if pillar:
+        pillar_audience = settings.script_templates.pillar_audiences.get(pillar)
+        if pillar_audience:
+            return pillar_audience
+    return settings.target_audience
+
+
+def _warn_unknown_pillar(pillar: str, settings: LLMSettings) -> None:
+    """Log a hint when a pillar is set but not configured in any of the
+    three pillar maps (pillars, pillar_preambles, pillar_audiences).
+
+    Each map fails open: a missing entry just means no filter / no preamble /
+    no audience override. That's correct behavior, but it makes typos invisible
+    at runtime. This warning surfaces the typo so users know why their pillar
+    had no effect.
+    """
+    cfg = settings.script_templates
+    known = set(cfg.pillars) | set(cfg.pillar_preambles) | set(cfg.pillar_audiences)
+    if pillar in known:
+        return
+    logger.info(
+        "Pillar '%s' is not configured in pillars, pillar_preambles, or "
+        "pillar_audiences. No template filter, preamble, or audience override "
+        "will apply for this run. Known pillars: %s",
+        pillar,
+        sorted(known) or [],
+    )
+
+
+def apply_prompt_preambles(
+    prompt: str,
+    narrator_profile: str,
+    pillar: str | None,
+    pillar_preambles: dict[str, str],
+) -> str:
+    """Stack channel-wide and pillar preambles above the prompt.
+
+    Order in the returned string: narrator_profile, then the pillar's
+    preamble (when pillar is set and maps to a non-empty entry), then
+    the original prompt, joined by blank lines. Each layer is dropped
+    when its source is empty, so this function is safe to call with no
+    preambles configured.
+    """
+    parts: list[str] = []
+    if narrator_profile:
+        parts.append(narrator_profile)
+    if pillar:
+        pillar_text = pillar_preambles.get(pillar)
+        if pillar_text:
+            parts.append(pillar_text)
+    parts.append(prompt)
+    return "\n\n".join(parts)
 
 
 async def _fetch_and_select_model(
@@ -556,6 +684,7 @@ async def generate_script(
     debug_mode: bool,
     api_settings=None,
     product_id: str | None = None,
+    pillar: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
@@ -606,15 +735,26 @@ async def generate_script(
             getattr(product, "asin", None),
         )
 
-    template_path = select_script_template(settings, product_id)
+    if pillar:
+        _warn_unknown_pillar(pillar, settings)
+
+    template_path = select_script_template(settings, product_id, pillar)
     template_name = template_path.stem
+    audience = _resolve_audience(pillar, settings)
     try:
         template = load_prompt_template(template_path)
-        prompt = format_prompt(template, product, settings.target_audience)
+        prompt = format_prompt(template, product, audience)
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
 
-    if debug_mode and "formatted_prompt" in intermediate_paths:
+    prompt = apply_prompt_preambles(
+        prompt,
+        settings.script_templates.narrator_profile,
+        pillar,
+        settings.script_templates.pillar_preambles,
+    )
+
+    if "formatted_prompt" in intermediate_paths:
         save_debug_prompt(prompt, intermediate_paths["formatted_prompt"])
 
     for model in models_to_try:

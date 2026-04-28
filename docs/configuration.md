@@ -1084,6 +1084,104 @@ tags = await trend_gen.merge_trending_tags("tiktok", existing_tags)
 </details>
 
 <details>
+<summary><strong>7.2. Script Templates and Content Pillars</strong></summary>
+
+### 7.2. Script Templates and Content Pillars
+
+The `script_templates` sub-section of `llm_settings` (in `config/ai_services.yaml`) controls multi-template script generation, channel-wide voice direction, and the content pillars system.
+
+```yaml
+llm_settings:
+  # ... (other LLM settings; see section 7)
+  script_templates:
+    enabled: true
+    templates_dir: "src/ai/prompts/scripts"
+    template_pool: []                 # Empty = use all .md templates in templates_dir
+    fixed_template: null              # null = deterministic random per product; or a name to force
+
+    # Pillar -> list of template names. A template can appear under multiple pillars.
+    pillars:
+      value:
+        - classic_promo
+        - rapid_fire
+        - social_proof
+        - myth_buster
+        - comparison
+        - skeptic_converted
+      novelty:
+        - classic_promo
+        - curiosity_hook
+        - secret_reveal
+        - story_driven
+        - unboxing_reaction
+        - skeptic_converted
+      utility:
+        - classic_promo
+        - before_after
+        - comparison
+        - lifestyle_flex
+        - myth_buster
+        - problem_solution
+        - question_driven
+        - challenge_dare
+
+    # Pillar -> preamble string prepended to the LLM prompt at runtime.
+    pillar_preambles:
+      value: |-
+        Pillar context: this video runs under the value pillar. Lean into the deal-pitch angle...
+      novelty: |-
+        Pillar context: this video runs under the novelty pillar. Lean into the discovery angle...
+      utility: |-
+        Pillar context: this video runs under the utility pillar. Lean into the problem-solving angle...
+
+    # Pillar -> audience hint substituted into {AUDIENCE} when pillar is set.
+    pillar_audiences:
+      value: "Budget-conscious shoppers looking for products that punch above their price."
+      novelty: "Curious people who enjoy discovering lesser-known products before everyone else."
+      utility: "Practical buyers solving a real, recurring problem with the right tool."
+
+    # Channel-wide voice direction prepended above any pillar preamble.
+    # Carries banned phrases, word target, anti-AI-tells, persona anchor, and a voice example.
+    narrator_profile: |-
+      Narrator profile: every video on this channel is voiced by the same person...
+      # (full profile — see config/ai_services.yaml in the repo for the shipped default)
+```
+
+**Field reference:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `enabled` | bool | Master switch. When false, falls back to the single `prompt_template_path`. |
+| `templates_dir` | path | Where the `.md` template files live. |
+| `template_pool` | list[str] | Names (without `.md`) eligible for selection. Empty = all templates in `templates_dir`. |
+| `fixed_template` | str \| null | Force one template for every product. Null = deterministic per-product MD5 selection. |
+| `pillars` | dict[str, list[str]] | Pillar name -> templates that fit it. A template can be in multiple pillars. Empty dict disables pillar filtering. |
+| `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
+| `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
+| `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
+
+**Runtime prompt structure:**
+
+```
+[narrator_profile]      <- always, when non-empty
+[pillar_preambles[X]]   <- when --pillar X is set and the entry exists
+[template content]      <- selected template, with {FULL_PRODUCT_NAME}, {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION}, {AUDIENCE} substituted
+```
+
+**Selection rules:**
+
+1. If `fixed_template` is set, that template wins.
+2. Otherwise, the active pool is `template_pool` (or all templates when empty).
+3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged.
+4. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).
+
+**Pillar override priority:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/global_batch.py` is the only source today. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes. Source-keyword auto-pillar (the scraper attaching the source keyword's pillar to product data) is tracked as a GitHub Issue with the `content-pillars` label.
+
+See [Requirements](requirements.md) "Content Pillars" for the behavior contract.
+
+</details>
+
+<details>
 <summary><strong>8. Stock Media Settings</strong></summary>
 
 ### 8. Stock Media Settings

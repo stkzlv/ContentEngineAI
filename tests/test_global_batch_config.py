@@ -42,6 +42,7 @@ def _make_cli(**kwargs) -> argparse.Namespace:
         "platform_specific": False,
         "voice_profile": None,
         "script_template": None,
+        "pillar": None,
         "resume": False,
         "dry_run": False,
         "output_format": None,
@@ -125,3 +126,45 @@ class TestCLIOverride:
 
         # Empty list is falsy, so no CLI inputs -> use YAML
         assert config.keywords == ["smart ring", "mini projector", "portable charger"]
+
+
+class TestPillarOverride:
+    """`--pillar` flag should populate config.pillar."""
+
+    def test_cli_pillar_populates_config(self, yaml_with_keywords):
+        cli = _make_cli(pillar="value")
+        config = load_global_batch_config(cli, config_path=yaml_with_keywords)
+        assert config.pillar == "value"
+
+    def test_yaml_pillar_used_when_no_cli(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "global_batch": {
+                    "keywords": ["k"],
+                    "pillar": "novelty",
+                }
+            },
+        )
+        cli = _make_cli()
+        config = load_global_batch_config(cli, config_path=path)
+        assert config.pillar == "novelty"
+
+    def test_cli_pillar_overrides_yaml(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "global_batch": {
+                    "keywords": ["k"],
+                    "pillar": "novelty",
+                }
+            },
+        )
+        cli = _make_cli(pillar="utility")
+        config = load_global_batch_config(cli, config_path=path)
+        assert config.pillar == "utility"
+
+    def test_no_pillar_anywhere_is_none(self, yaml_with_keywords):
+        cli = _make_cli()
+        config = load_global_batch_config(cli, config_path=yaml_with_keywords)
+        assert config.pillar is None

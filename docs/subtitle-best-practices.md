@@ -13,9 +13,8 @@ large fraction of viewers they *are* the content.
 
 **Related docs**: [pycaps-subtitles.md](pycaps-subtitles.md) (pycaps engine
 reference), [platform-safe-zones.md](platform-safe-zones.md) (TikTok /
-Shorts / Reels safe zones), [pycaps-followups.md](pycaps-followups.md)
-(open work items), [subtitle-config-cleanup.md](subtitle-config-cleanup.md)
-(config system audit and refactoring plan).
+Shorts / Reels safe zones). Open follow-up work is tracked as GitHub Issues
+with the `subtitles` and `pycaps` labels.
 
 ---
 
@@ -215,7 +214,7 @@ timestamps are unreliable for karaoke-style captions. Two viable fixes:
   existing Whisper models, slightly less accurate than WhisperX.
 
 ContentEngineAI currently uses vanilla `openai-whisper`. Upgrading is
-tracked in [pycaps-followups.md](pycaps-followups.md).
+tracked as a GitHub Issue with the `subtitles` label.
 
 **Post-processing rules** (apply after STT, before handing to either
 engine):

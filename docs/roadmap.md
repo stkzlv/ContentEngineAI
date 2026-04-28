@@ -86,7 +86,7 @@ Migrate from the legacy `late-sdk` package to `zernio-sdk`, rename `LATE_API_KEY
 
 ### Pycaps follow-ups
 
-Open items tracked in `docs/pycaps-followups.md`: AI word tagging via the Gemini key, mypy pin cleanup, two-part subtitles plus pycaps hybrid, CSS renderer integration test in CI.
+Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via the Gemini key, two-part subtitles plus pycaps hybrid, CSS renderer integration test in CI, custom project template, WhisperX upgrade.
 
 ## Toward 1.0.0
 

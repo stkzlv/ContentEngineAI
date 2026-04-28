@@ -271,6 +271,41 @@ High-level requirements for ContentEngineAI.
 
 ---
 
+## Content Pillars
+
+Group products and scripts into a small set of named pillars (default 3). Each keyword, script template, and produced video declares one pillar so randomness operates within a focused theme instead of the whole catalog. The channel gets a through-line; variety stays inside each pillar.
+
+### Pillar Definition
+- Pillars listed in `config/scraper.yaml` as named buckets. Default labels: `value` (under-$30 staples, mass-appeal hooks), `novelty` (lesser-known or unique, "haven't seen this" hooks), `utility` (practical daily-use, problem/solution framing).
+- Names are user-defined. Users can rename, add, or remove pillars without code changes.
+
+### Tagging
+- Keywords declare their pillar via comment markers in `config/scraper.yaml`. A keyword fitting more than one pillar can appear under each (e.g., `mini projector` as both novelty and utility).
+- Script templates are mapped to pillars via a central `pillars` dict under `script_templates` in `config/ai_services.yaml`. A template can appear under multiple pillars when its style works in more than one (e.g., `classic_promo` could land under both value and novelty).
+- Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
+
+### Pipeline Behavior
+- `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
+- The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
+- Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.
+- When a pillar is set, the `{AUDIENCE}` placeholder substitutes the per-pillar audience hint (`script_templates.pillar_audiences[pillar]`) instead of the global `target_audience`. Falls back to the global value when the entry is missing or empty.
+- If `--pillar` is given a name that isn't configured in any of `pillars`, `pillar_preambles`, or `pillar_audiences`, the run logs an info-level hint listing the configured pillars. The run continues; the template filter, preamble injection, and audience override each gracefully no-op.
+- The fully-rendered script prompt (narrator profile + pillar preamble + template + product data) is written to `outputs/<asin>/temp/script_prompt.txt` on every run, useful for inspecting what the LLM actually saw.
+- The chosen pillar is recorded in `pipeline_state.json` and the published-products registry so downstream analytics can segment by it.
+
+### Prompt Hygiene
+- Product titles and descriptions are Unicode-normalized before injection, folding mathematical-alphabet bold codepoints (e.g. Amazon's pseudo-bold section headers) to plain ASCII.
+- Em dashes and en dashes in the description are replaced (em dash to a comma, en dash to a hyphen) so the LLM doesn't mimic them in output. Em dashes especially are a strong AI-writing tell.
+- Templates receive both the full product title (`{FULL_PRODUCT_NAME}`) and a short alias (`{SHORT_PRODUCT_NAME}`) extracted heuristically from the listing title (a brand-plus-model handle, capped to a few words). Scripts refer to the product by the short alias rather than parsing the SEO-bloated title themselves.
+- When the description contains a banned phrase or marketing fluff, the narrator profile instructs the LLM to paraphrase the underlying feature in its own words rather than quoting. Catches Amazon-SEO copy that contains banned-list words ("ultimate", "must-have", "revolutionary", etc.) before they leak into the script.
+
+### Editorial Focus
+- Pillar choice drives hook framing and product selection. Subtitle styling and TTS voice stay global so brand voice carries across pillars.
+- A `value` video pitches the deal, a `novelty` video pitches discovery, a `utility` video frames the problem and the solution.
+- The per-pillar audience hint reinforces the framing: `value` targets budget-conscious shoppers, `novelty` targets curious early discoverers, `utility` targets practical problem-solvers.
+
+---
+
 ## Batch Processing Module
 
 ### Global Pipeline

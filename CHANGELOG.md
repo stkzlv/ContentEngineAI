@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-04-28
+
+### Added
+- Content pillars system. Group products and scripts under named pillars (defaults: `value`, `novelty`, `utility`). Keyword pool grouped by pillar in `config/scraper.yaml`, script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`, and `--pillar <name>` added to both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`. The flag filters the active script-template pool, prepends a per-pillar preamble to the LLM prompt, and substitutes `{AUDIENCE}` with the pillar's audience hint. Unknown pillar values log an info-level hint and gracefully no-op all three. Without the flag, all templates remain eligible and the global `target_audience` applies.
+- Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt. Bulleted universal rules (banned phrases, word target, no-emoji rule, no-price rule), anti-AI-tells list (connector phrases, empty intensifiers, rule of three, symmetric structure), CTA pattern, persona anchor, voice-example script for positive imitation, and a paraphrase rule that tells the LLM to rewrite rather than quote when the source description contains banned phrases.
+- Per-pillar runtime preamble (`script_templates.pillar_preambles`) and per-pillar audience override (`script_templates.pillar_audiences`). When a pillar is set, the matching preamble prepends to the LLM prompt after the narrator profile, and `{AUDIENCE}` substitutes the pillar's audience hint (value = budget-conscious shoppers, novelty = curious early discoverers, utility = practical problem-solvers) instead of the global `target_audience`.
+- New `{SHORT_PRODUCT_NAME}` placeholder in script templates. A heuristic in `format_prompt` extracts a brand-plus-model handle (e.g. `Jackery Explorer 240D` from a 30-word SEO title) so the LLM gets an explicit short alias instead of having to parse the full Amazon listing title.
+
+### Changed
+- Universal rules (banned phrases, word target, no-emoji, no-price, anti-AI-tells) live in the narrator profile rather than being repeated in each template. The 15 templates now carry only hook-specific rules; total template length drops from ~450 to 323 lines.
+- CTA enumerations dropped from all 15 templates (they used to list "follow, like, link in bio, or share"); templates now defer to the narrator profile's single-CTA rule.
+- `classic_promo` hook examples neutralized; the originals were novelty-flavored despite the template's general-purpose billing.
+- Keyword pool expanded from 37 to 54 entries with 17 additions drawn from 2026 trend research (MagSafe ecosystem, galaxy projectors, smart locks, hydroponics, projection clocks, pet tech, travel/EDC). Brand-locked keywords that surface single-vendor results or no semantic match on Amazon were skipped.
+- Product titles and descriptions are NFKC-normalized in `format_prompt` before injection. Amazon's mathematical-alphabet bold tricks (e.g. `𝐌𝐢𝐠𝐡𝐭𝐲 𝐏𝐨𝐰𝐞𝐫`) fold to plain ASCII. Em dashes and en dashes in the description are replaced (em dash to ", ", en dash to "-") so the LLM doesn't mimic the source punctuation style.
+- The fully-rendered LLM prompt for each script (narrator profile + pillar preamble + template + product data) is now written to `outputs/<asin>/temp/script_prompt.txt` on every run, not only in debug mode. Useful for spot-checking what the model actually sees.
+
+### Fixed
+- `pytest --cov` no longer crashes with `RuntimeError: function '_has_torch_function' already has a docstring`. The Coqui TTS dependency transitively loads torch, and torch's `overrides` module errors when reimported under coverage instrumentation. `src/video/tts.py` now checks Coqui availability via `importlib.util.find_spec("TTS")` and defers the actual `from TTS.api import TTS` to first use inside `_initialize_coqui_tts_model`. Coverage runs that don't exercise Coqui skip the torch path entirely.
+
+### Removed
+- `docs/pycaps-followups.md` and `docs/subtitle-config-cleanup.md`. Pending follow-up work is now tracked as GitHub Issues with `follow-up` plus topic labels (`content-pillars`, `pycaps`, `subtitles`); shipped items are dropped. CLAUDE.md and other docs that linked the removed files now point at the issue tracker.
+
 ## [0.42.2] - 2026-04-27
 
 ### Added

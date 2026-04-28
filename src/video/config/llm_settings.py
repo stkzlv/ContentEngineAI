@@ -15,6 +15,27 @@ class ScriptTemplateConfig(BaseModel):
     templates_dir: str = "src/ai/prompts/scripts"
     template_pool: list[str] = Field(default_factory=list)
     fixed_template: str | None = None
+    # Pillar -> list of template names. A template may appear under more
+    # than one pillar. When a pillar is selected at runtime, deterministic
+    # MD5 selection picks from the matching list instead of the full pool.
+    # Empty dict disables pillar filtering (legacy behavior).
+    pillars: dict[str, list[str]] = Field(default_factory=dict)
+    # Pillar -> preamble string. When a pillar is set at runtime and the map
+    # has an entry for it, the preamble is prepended to the LLM prompt so the
+    # model leans into that pillar's framing angle. Templates themselves stay
+    # pillar-agnostic. Empty dict disables preamble injection.
+    pillar_preambles: dict[str, str] = Field(default_factory=dict)
+    # Channel-wide voice direction. When non-empty, prepended to every script
+    # prompt above any pillar preamble. Carries the rules every template
+    # would otherwise duplicate (banned words, word target, narrator persona,
+    # anti-AI-tells). Empty string disables narrator profile injection.
+    narrator_profile: str = ""
+    # Pillar -> target-audience override. When a pillar is set at runtime and
+    # the map has an entry for it, the {AUDIENCE} placeholder uses this value
+    # instead of LLMSettings.target_audience. Lets each pillar speak to the
+    # buyer it's actually written for. Empty dict falls back to the global
+    # target_audience.
+    pillar_audiences: dict[str, str] = Field(default_factory=dict)
 
 
 class ScriptValidationConfig(BaseModel):

@@ -6,25 +6,19 @@ Open with a calm challenge or observation. "Try this for a week. Just one week. 
 
 Back up the challenge with 2-3 specific features or specs from the product description below. Present them matter-of-factly: "It does X, which on its own is solid. But it also handles Y." Let the specs speak for themselves without overselling.
 
-Close by restating the challenge in a relaxed way. Then a casual CTA: follow to see more comparisons, drop a comment with your pick, link in bio to check it out.
+Close by restating the challenge in a relaxed way. End with one CTA per the narrator profile.
 
 ## Rules
 
-- Write the actual spoken words only. No stage directions, no scene descriptions, no camera notes.
-- Target 30-40 seconds at a normal speaking pace (roughly 75-100 words).
-- No emojis, no hashtags, no greetings like "hey guys", no markdown formatting in the output.
-- No marketing buzzwords: don't say "game changer", "next-level", "ultimate", "must-have", "revolutionary", or similar.
-- Clean plain text, suitable for direct text-to-speech input.
-- Refer to the product by a short natural name, not the full official title.
 - Confident but not aggressive. You're inviting the viewer to compare, not daring them.
 - Every claim needs a specific detail backing it up. Don't say "find better quality" without saying what makes this one stand out.
 - Challenge on concrete specs, features, or value. Things the viewer can actually verify.
 - Keep the tone steady throughout. No volume spikes, no hype buildup. Calm conviction from start to finish.
-- Contractions, varied sentence length, the occasional rhetorical question. But keep it measured, not rapid-fire.
-- Do not mention the product price.
+- Mix in the occasional rhetorical question, but keep it measured, not rapid-fire.
 
 ## Product Data
 
-- **Product name:** {FULL_PRODUCT_NAME}
+- **Product name (full):** {FULL_PRODUCT_NAME}
+- **Refer to it as:** {SHORT_PRODUCT_NAME}
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

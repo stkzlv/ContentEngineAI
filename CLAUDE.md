@@ -176,6 +176,8 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **LLM config fields**: `model_blocklist`, `min_context_length`, `retry_attempts`/`retry_min_wait_sec`/`retry_max_wait_sec`, and `script_validation` (min_chars, min_words) all live on `LLMSettings`. Don't hardcode these in generator code
 - **`.env` safety**: `update_env_file()` in `freesound_client.py` only updates existing keys, never adds new lines
 - **Timing smoother**: `src/video/subtitle_timing_smoother.py` post-processes raw Whisper word timestamps before either engine. Four rules: min duration 120ms, gap merge 80ms, segment-end hold +200ms, audio lead 40ms. Wired in `generate_subtitles_with_whisper` (single call site for both engines). Config: `subtitle_settings.timing_smoothing` nested dict in YAML, flows through `extra="allow"` on `MergedSubtitleSettings`. No flat Pydantic fields — the nested dict is passed directly to smoother kwargs.
+- **Run paths registration is in TWO places**: adding a new path to `src/video/config/core_models.py::get_run_paths()` is not enough. The runtime `ctx.run_paths` is built by `src/video/producer/state.py::get_video_run_paths()`, which constructs a separate `legacy_paths` dict from the core_models output. New keys must be registered in BOTH places or `ctx.run_paths['<key>']` raises `KeyError` at runtime. The `legacy_paths.update({...})` block at the bottom of `get_video_run_paths` is where additional keys go.
+- **Content pillar pipeline**: pillar-aware script generation is wired through `script_templates.{pillars, pillar_preambles, pillar_audiences, narrator_profile}` in `config/ai_services.yaml` and consumed in `src/ai/script_generator.py`. The `--pillar` flag on producer + global_batch sets `ctx.state["pillar"]`; `step_generate_script` passes it to `generate_ai_script`, which filters templates, prepends the per-pillar preamble (after the channel-wide narrator profile), and substitutes `{AUDIENCE}` from `pillar_audiences`. Unknown pillars log an info-level hint and gracefully no-op all three. The fully-rendered prompt always lands at `outputs/<asin>/temp/script_prompt.txt`.
 
 ### Pycaps Subtitle Engine Notes
 
@@ -192,7 +194,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Module/Batch Alignment Rule applied**: the four CLI flags (`--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool`, `--pycaps-renderer`) live on BOTH `src/video/producer/cli.py` AND `src/pipeline/global_batch.py`. Same names, same choices, same dotted override keys (`subtitle_settings.subtitle_engine`, `subtitle_settings.pycaps.*`). Grep both files when touching either.
 - **3-level merge supports nested dotted keys**: `VideoConfig.get_profile_merged_settings()` understands `subtitle_settings.pycaps.<field>` and folds them into the nested `PycapsSettings` model. The same path works in `cli_overrides` dicts.
 - **Pycaps upstream is alpha (0.2.1)**: pinned in `pyproject.toml` to a specific git SHA. Upgrade deliberately. If upstream stalls, fork to `ContentEngineAI/pycaps`.
-- **Follow-up work**: tracked in `docs/pycaps-followups.md` — AI word tagging via the Gemini key (top priority), mypy pin cleanup, two-part subtitles + pycaps hybrid, CSS renderer CI integration test. Read before starting any pycaps follow-up task.
+- **Follow-up work**: tracked as GitHub Issues with the `pycaps` label. Top priority: AI word tagging via the Gemini key.
 
 ### CI/CD Gotchas (mypy version drift)
 
@@ -201,6 +203,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Before pushing, run the exact CI commands** from `.github/workflows/ci.yml`: `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy .`. Don't substitute with `make lint` or `mypy src/` — they can diverge.
 - **`warn_unused_ignores = true`** is enabled. Bare `# type: ignore` works but module-level overrides in `pyproject.toml` are cleaner because they survive mypy version changes without unused-ignore noise.
 - **Poetry explicit source pins don't cascade to transitive deps.** `torch` is pinned to `pytorch-cpu` (`source = "pytorch-cpu"`), but `torchaudio` pulled transitively by `coqui-tts` still resolves from the default PyPI index (CUDA wheel), failing at import on CPU boxes with `libcudart.so.13: cannot open shared object file`. Fix: pin `torchaudio` explicitly to the same source. Any PyTorch-ecosystem package used at runtime needs its own source entry — don't assume `torch`'s pin propagates.
+- **`pytest --cov` + transitive torch.** Coverage instrumentation re-imports modules, which makes torch's `overrides.py` raise `RuntimeError("function '_has_torch_function' already has a docstring")` the second time it loads. If a module imports a torch-using package at module load (e.g. `from TTS.api import TTS`), pytest-cov sessions crash before any test runs. Fix: defer the import to first use via `importlib.util.find_spec("X")` for the availability check + a lazy `from X import Y` inside a function. Pattern is in `src/video/tts.py::_load_coqui_tts_class`. Same pattern works for any torch-transitive dependency that doesn't need to load until a feature path actually executes.
 
 ## Session Continuity
 
@@ -229,7 +232,7 @@ After every context compaction (session continuation), run `/github-workflow` to
 - **CRITICAL: NEVER include `Co-Authored-By` trailers, author attributions, or any mention of Claude Code / AI tools / assistants**
 - Keep messages short and simple
 - Explain what and why, not how
-- Don't reference internal follow-up/todo docs (`docs/pycaps-followups.md`, `docs/subtitle-config-cleanup.md`, etc.) in commit messages. These are temporary working docs that may be removed or restructured.
+- Track follow-up work as GitHub Issues with the `follow-up` label, not as `docs/*-followups.md` files. Issues survive renames, link cleanly from PRs, and don't bit-rot when section numbers shift.
 
 **Pull Request Descriptions**:
 - **CRITICAL: NEVER mention authors, Claude Code, AI tools, or assistants in PR titles or descriptions**

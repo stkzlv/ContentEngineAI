@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from src.ai.script_generator import select_script_template
+from src.ai.script_generator import (
+    _resolve_audience,
+    _warn_unknown_pillar,
+    apply_prompt_preambles,
+    select_script_template,
+)
 from src.video.config.llm_settings import LLMSettings, ScriptTemplateConfig
 
 
@@ -16,6 +21,10 @@ def _make_settings(
     template_pool: list[str] | None = None,
     fixed_template: str | None = None,
     prompt_template_path: str = "src/ai/prompts/video_script.md",
+    pillars: dict[str, list[str]] | None = None,
+    pillar_preambles: dict[str, str] | None = None,
+    narrator_profile: str = "",
+    pillar_audiences: dict[str, str] | None = None,
 ) -> LLMSettings:
     """Build LLMSettings with script_templates config for testing."""
     return LLMSettings(
@@ -29,6 +38,10 @@ def _make_settings(
             templates_dir=templates_dir,
             template_pool=template_pool or [],
             fixed_template=fixed_template,
+            pillars=pillars or {},
+            pillar_preambles=pillar_preambles or {},
+            narrator_profile=narrator_profile,
+            pillar_audiences=pillar_audiences or {},
         ),
     )
 
@@ -257,3 +270,305 @@ class TestSelectScriptTemplate:
         r2 = select_script_template(settings, "B0DK1VZBR4")
         assert r1 == r2
         assert r1.exists()
+
+
+class TestPillarFilter:
+    """Test the pillar filter inside select_script_template()."""
+
+    def test_pillar_narrows_pool_to_matching_templates(self, temp_dir: Path):
+        """When pillar is set, only templates listed under it can be picked."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma", "delta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha", "beta"], "novelty": ["gamma", "delta"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar="value")
+            selections.add(result.stem)
+
+        assert selections <= {"alpha", "beta"}
+
+    def test_pillar_none_uses_full_pool(self, temp_dir: Path):
+        """pillar=None must not narrow the pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha"]},
+        )
+
+        selections = set()
+        for i in range(50):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar=None)
+            selections.add(result.stem)
+
+        # Without pillar, all three should eventually appear
+        assert selections == {"alpha", "beta", "gamma"}
+
+    def test_unknown_pillar_uses_full_pool(self, temp_dir: Path):
+        """Pillar not present in the pillars map is ignored."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(
+                settings, f"PROD{i:04d}", pillar="not_a_real_pillar"
+            )
+            selections.add(result.stem)
+
+        assert selections == {"alpha", "beta"}
+
+    def test_pillar_with_no_pool_overlap_falls_back(self, temp_dir: Path):
+        """If pillar templates don't overlap the active pool, use the full pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            template_pool=["alpha"],
+            pillars={"value": ["beta"]},
+        )
+
+        result = select_script_template(settings, "B08TEST123", pillar="value")
+        assert result.stem == "alpha"
+
+    def test_pillar_filter_respects_template_pool(self, temp_dir: Path):
+        """Pool filter applies first; pillar filter narrows within the pool."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma", "delta"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        # Pool restricts to alpha+beta+gamma; pillar value lists alpha+gamma+delta;
+        # intersection is alpha+gamma.
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            template_pool=["alpha", "beta", "gamma"],
+            pillars={"value": ["alpha", "gamma", "delta"]},
+        )
+
+        selections = set()
+        for i in range(40):
+            result = select_script_template(settings, f"PROD{i:04d}", pillar="value")
+            selections.add(result.stem)
+
+        assert selections <= {"alpha", "gamma"}
+
+    def test_pillar_selection_is_deterministic(self, temp_dir: Path):
+        """Same product + same pillar always picks the same template."""
+        templates_dir = temp_dir / "scripts"
+        templates_dir.mkdir()
+        for name in ["alpha", "beta", "gamma"]:
+            (templates_dir / f"{name}.md").write_text("content")
+
+        settings = _make_settings(
+            templates_dir=str(templates_dir),
+            pillars={"value": ["alpha", "beta"]},
+        )
+
+        r1 = select_script_template(settings, "B08STABLE", pillar="value")
+        r2 = select_script_template(settings, "B08STABLE", pillar="value")
+        assert r1 == r2
+
+
+class TestApplyPromptPreambles:
+    """Test apply_prompt_preambles() helper."""
+
+    def test_pillar_only_prepends_pillar_preamble(self):
+        prompt = "Write a script for the product."
+        preambles = {"value": "Pillar context: lean into deal-pitch."}
+
+        result = apply_prompt_preambles(prompt, "", "value", preambles)
+
+        assert result.startswith("Pillar context: lean into deal-pitch.")
+        assert result.endswith(prompt)
+        assert "\n\n" in result
+
+    def test_narrator_only_prepends_narrator_profile(self):
+        prompt = "Write a script for the product."
+        narrator = "Narrator profile: one creator, calm voice."
+
+        result = apply_prompt_preambles(prompt, narrator, None, {})
+
+        assert result.startswith(narrator)
+        assert result.endswith(prompt)
+        assert "\n\n" in result
+
+    def test_narrator_and_pillar_stack_in_order(self):
+        """Narrator profile first, pillar preamble second, prompt last."""
+        prompt = "TEMPLATE"
+        narrator = "NARRATOR"
+        pillar_text = "PILLAR"
+
+        result = apply_prompt_preambles(
+            prompt, narrator, "value", {"value": pillar_text}
+        )
+
+        # Order: narrator, pillar, prompt
+        assert result == "NARRATOR\n\nPILLAR\n\nTEMPLATE"
+
+    def test_no_change_when_all_empty(self):
+        prompt = "original"
+        result = apply_prompt_preambles(prompt, "", None, {})
+        assert result == prompt
+
+    def test_no_pillar_preamble_when_pillar_unknown(self):
+        prompt = "original"
+        narrator = "NARRATOR"
+        result = apply_prompt_preambles(prompt, narrator, "missing", {"value": "x"})
+        assert result == "NARRATOR\n\noriginal"
+
+    def test_no_pillar_preamble_when_pillar_text_empty(self):
+        prompt = "original"
+        result = apply_prompt_preambles(prompt, "", "value", {"value": ""})
+        assert result == prompt
+
+    def test_narrator_profile_skipped_when_empty_string(self):
+        """Empty narrator_profile is treated as 'not set'."""
+        prompt = "original"
+        result = apply_prompt_preambles(prompt, "", "value", {"value": "PILLAR"})
+        assert result == "PILLAR\n\noriginal"
+
+    def test_default_yaml_has_three_pillar_preambles(self):
+        """The shipped config has preambles for value, novelty, utility."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        preambles = cfg["llm_settings"]["script_templates"].get("pillar_preambles", {})
+        assert set(preambles) == {"value", "novelty", "utility"}
+        for v in preambles.values():
+            assert isinstance(v, str) and v.strip()
+
+    def test_default_yaml_has_narrator_profile(self):
+        """The shipped config has a non-empty narrator profile."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        profile = cfg["llm_settings"]["script_templates"].get("narrator_profile", "")
+        assert isinstance(profile, str) and profile.strip()
+        # Sanity-check that the profile carries the channel-voice anchors.
+        assert "Narrator profile" in profile
+        # And the anti-AI-tells list.
+        assert "Moreover" in profile
+        # And the voice example we added for positive imitation.
+        assert "Voice example" in profile
+
+    def test_default_yaml_has_three_pillar_audiences(self):
+        """The shipped config has audience hints for value, novelty, utility."""
+        import yaml
+
+        cfg_path = Path("config/ai_services.yaml")
+        if not cfg_path.is_file():
+            pytest.skip("ai_services.yaml not found (running outside project root)")
+
+        cfg = yaml.safe_load(cfg_path.read_text())
+        audiences = cfg["llm_settings"]["script_templates"].get("pillar_audiences", {})
+        assert set(audiences) == {"value", "novelty", "utility"}
+        for v in audiences.values():
+            assert isinstance(v, str) and v.strip()
+
+
+class TestWarnUnknownPillar:
+    """Test the unknown-pillar log helper."""
+
+    def test_logs_when_pillar_in_no_map(self, caplog):
+        settings = _make_settings(
+            pillars={"value": ["a"]},
+            pillar_preambles={"value": "v"},
+            pillar_audiences={"value": "vp"},
+        )
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("foobar", settings)
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("foobar" in m and "not configured" in m for m in messages)
+
+    def test_no_log_when_pillar_in_pillars(self, caplog):
+        settings = _make_settings(pillars={"value": ["a"]})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_no_log_when_pillar_in_preambles_only(self, caplog):
+        settings = _make_settings(pillar_preambles={"value": "v"})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_no_log_when_pillar_in_audiences_only(self, caplog):
+        settings = _make_settings(pillar_audiences={"value": "vp"})
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("value", settings)
+        assert not any("not configured" in r.getMessage() for r in caplog.records)
+
+    def test_log_lists_known_pillars(self, caplog):
+        settings = _make_settings(
+            pillars={"value": ["a"]},
+            pillar_preambles={"novelty": "n"},
+            pillar_audiences={"utility": "u"},
+        )
+        with caplog.at_level("INFO", logger="src.ai.script_generator"):
+            _warn_unknown_pillar("foobar", settings)
+        messages = [r.getMessage() for r in caplog.records]
+        # Sorted union of all configured pillars across the three maps.
+        assert any("novelty" in m and "utility" in m and "value" in m for m in messages)
+
+
+class TestResolveAudience:
+    """Test per-pillar audience resolution."""
+
+    def test_pillar_none_returns_global_target_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        # _make_settings sets target_audience="General audience".
+        assert _resolve_audience(None, settings) == "General audience"
+
+    def test_pillar_set_with_match_returns_pillar_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        assert _resolve_audience("value", settings) == "Budget shoppers"
+
+    def test_pillar_set_no_match_returns_global_target_audience(self):
+        settings = _make_settings(
+            pillar_audiences={"value": "Budget shoppers"},
+        )
+        assert _resolve_audience("foobar", settings) == "General audience"
+
+    def test_pillar_set_with_empty_string_returns_global(self):
+        """Empty pillar audience entry is treated as 'not set'."""
+        settings = _make_settings(
+            pillar_audiences={"value": ""},
+        )
+        assert _resolve_audience("value", settings) == "General audience"
+
+    def test_pillar_set_with_empty_audiences_map_returns_global(self):
+        settings = _make_settings(pillar_audiences={})
+        assert _resolve_audience("value", settings) == "General audience"
