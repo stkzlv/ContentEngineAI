@@ -37,8 +37,11 @@ subtitle_settings:
 
   # ---- SUBTITLE ENGINE ----
   # See header comment block for the full engine comparison.
-  # Default "ffmpeg" preserves the existing SRT/ASS behaviour.
-  subtitle_engine: "ffmpeg"
+  # "pycaps" runs animated CSS-styled captions in the TikTok/Reels style.
+  # Requires `poetry install --with pycaps` (+ `playwright install chromium`
+  # for the css renderer). Forks without the optional group degrade to
+  # FFmpeg automatically because pycaps.fallback_policy is fallback_ffmpeg.
+  subtitle_engine: "pycaps"
 
   # ---- PYCAPS ENGINE SUB-SETTINGS ----
   # Only consumed when subtitle_engine == "pycaps". Per-profile overrides
@@ -54,12 +57,13 @@ subtitle_settings:
     template_name: "word-focus"
 
     # Pool for deterministic per-product template selection (md5 keyed).
-    # Ordered by how closely they track the best-practice recipe:
-    #   word-focus = closest match (white + karaoke pop)
-    #   hype       = higher-energy variant for promo content
-    #   minimalist = calmer tone for educational/corporate
-    #   vibrant    = gradient-heavy, use sparingly
-    template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
+    # 50/50 mix of AI-tagged and untagged templates so AI word tagging
+    # fires on roughly half the videos when enable_ai_tagging is true:
+    #   word-focus  = closest match to the best-practice recipe (no AI rule)
+    #   neo-minimal = AI rule highlights "most relevant impactful phrase"
+    #   minimalist  = calmer tone for educational/corporate (no AI rule)
+    #   explosive   = AI rule scale-pops "most important word in script"
+    template_pool: ["word-focus", "neo-minimal", "minimalist", "explosive"]
 
     # css = Playwright + Chromium. Full CSS fidelity, ~400 MB peak RSS,
     #       ~0.7x realtime on a 30s clip. Benchmark winner.
@@ -84,9 +88,31 @@ subtitle_settings:
     vertical_align: "bottom"
     vertical_align_offset: -0.20
 
-    # On render failure: "warn_and_skip" (keep the FFmpeg-assembled video)
-    # or "raise" (abort the pipeline).
-    fallback_policy: "raise"
+    # On render failure or when pycaps is not installed:
+    #   "fallback_ffmpeg" (default) = silently use the FFmpeg subtitle path,
+    #     so forks without the optional pycaps group still produce videos.
+    #   "raise" = abort the pipeline (use when you want to surface install
+    #     drift loudly).
+    #   "warn_and_skip" = keep the video without subtitles (not recommended).
+    fallback_policy: "fallback_ffmpeg"
+
+    # ---- AI WORD TAGGING ----
+    # When true and the Gemini key (llm_settings.api_key_env_var) is set,
+    # pycaps templates with `tagger_rules` of `type: ai` (e.g. neo-minimal,
+    # explosive) call Gemini to pick the most impactful words/phrases per
+    # segment and apply the named CSS class. Templates without AI rules
+    # ignore this flag.
+    enable_ai_tagging: true
+
+    # Gemini model used by the adapter. Default gemini-2.5-flash is cheap
+    # and fast; switch to gemini-2.5-pro for higher-quality tagging at
+    # higher cost/latency.
+    llm_model: "gemini-2.5-flash"
+
+    # Per-call AI failure handling. "skip" (default) swallows Gemini errors
+    # and lets pycaps drop the tag for that segment so the render still
+    # completes. "raise" propagates so fallback_policy decides.
+    ai_tagging_on_error: "skip"
 
   # ---- TIMING SMOOTHER ----
   # Post-processes raw Whisper word timestamps before they reach either

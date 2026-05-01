@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Pycaps AI word tagging via Gemini. Opt in with `subtitle_settings.pycaps.enable_ai_tagging: true`. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool, default `false`), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
+- Pycaps AI word tagging via Gemini. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
 
 ### Changed
+- **Default subtitle engine flipped from `ffmpeg` to `pycaps`** in `config/subtitles.yaml`. The bundled config now produces animated CSS-styled captions in the TikTok/Reels style by default. Forks without the optional pycaps group degrade silently to FFmpeg because `pycaps.fallback_policy` is now `fallback_ffmpeg` (was `raise`). To get the previous behavior, set `subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg`.
+- AI word tagging enabled by default in the bundled config (`pycaps.enable_ai_tagging: true`). Active when both pycaps is installed and `GEMINI_API_KEY` is set; missing key logs a warning and proceeds without AI tagging.
+- Default pycaps template pool rebalanced to a 50/50 mix of AI-tagged and untagged templates: `["word-focus", "neo-minimal", "minimalist", "explosive"]`. Was `["word-focus", "hype", "minimalist", "vibrant"]`.
 - PR template tightened to plain English with neutral tone and a 40-line cap. Removed redundant per-section instructions and the "Additional Context" closer.
 
 ## [0.43.1] - 2026-04-28
