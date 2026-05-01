@@ -1,55 +1,40 @@
-# Pull Request
+<!-- Keep total ≤40 lines. Plain English, neutral tone. No marketing words, no closing summary, no em dashes. -->
 
 ## Summary
 
-<!-- Brief description of what this PR does and why -->
+<!-- One or two sentences: what this PR does and why. Mention the issue number in prose ("Fixes #123" or "Relates to #123") if any. -->
 
+## Type of change
 
-## Related Issues
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation
+- [ ] Refactor
+- [ ] Performance
+- [ ] Tests
 
-<!-- Link to related issues using "Fixes #123" or "Relates to #123" -->
+## Changes
 
+<!-- Bullet list of what changed. One short sentence per bullet. -->
 
-## Type of Change
-
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that causes existing functionality to change)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
-- [ ] Performance improvement
-- [ ] Test improvements
-
-## Changes Made
-
-<!-- List the key changes in this PR -->
-
--
--
 -
 
 ## Testing
 
-<!-- Describe how you tested these changes -->
-
 - [ ] Existing tests pass (`make test`)
-- [ ] New tests added for new functionality
-- [ ] Manual testing performed
+- [ ] New tests added for new behavior
+- [ ] Manual check performed
 
 ## Checklist
 
-- [ ] Code follows project style guidelines (`make lint` passes)
-- [ ] Self-review completed
-- [ ] Documentation updated (if applicable)
-- [ ] CHANGELOG.md updated (if applicable)
-- [ ] No new warnings introduced
+- [ ] `make lint` passes
+- [ ] Docs updated if behavior changed
+- [ ] CHANGELOG.md updated if user-visible
+- [ ] No new warnings
 
-## Deployment Notes
+## Deployment notes
 
-<!-- Any migration steps, environment changes, or deployment considerations? Leave blank if none -->
+<!-- Migrations, env changes, deploy ordering. "None" is fine. -->
 
-
-## Additional Context
-
-<!-- Any other information reviewers should know -->
-
+None

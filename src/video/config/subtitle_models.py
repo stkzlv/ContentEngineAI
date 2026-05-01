@@ -346,6 +346,37 @@ class PycapsSettings(BaseModel):
             "the video without subtitles (not recommended)."
         ),
     )
+    enable_ai_tagging: bool = Field(
+        False,
+        description=(
+            "Opt into pycaps AI word tagging via the Gemini key. When true and "
+            "the Gemini key (config.llm_settings.api_key_env_var) is present, "
+            "pycaps' LlmProvider is wired to the GeminiLlm adapter so templates "
+            "with `tagger_rules` of `type: ai` (e.g. built-in `neo-minimal`, "
+            "`explosive`) call Gemini. Off by default — installing pycaps and "
+            "enabling AI tagging are separate flips."
+        ),
+    )
+    llm_model: str = Field(
+        "gemini-2.5-flash",
+        description=(
+            "Gemini model used by GeminiLlm. Only consumed when "
+            "`enable_ai_tagging` is true. Default `gemini-2.5-flash` is cheap "
+            "and fast; switch to `gemini-2.5-pro` for higher-quality tagging "
+            "at higher cost/latency."
+        ),
+    )
+    ai_tagging_on_error: Literal["raise", "skip"] = Field(
+        "skip",
+        description=(
+            "Per-call AI failure handling. `skip` (default) swallows the "
+            "Gemini error, logs a warning, and lets pycaps drop the tag for "
+            "that segment — the render still completes. `raise` re-raises so "
+            "the caller's `fallback_policy` decides. Distinct from "
+            "`fallback_policy`, which covers pycaps-unavailable / render "
+            "failure, not per-segment AI errors."
+        ),
+    )
 
 
 # ============================================================================

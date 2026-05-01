@@ -1123,6 +1123,33 @@ async def step_assemble_video(ctx: PipelineContext):
     logger.info("Video successfully created: %s", final_video_path)
 
 
+def _build_gemini_adapter_for_pycaps(ctx: PipelineContext, pycaps_settings: Any) -> Any:
+    """Construct a GeminiLlm adapter when AI tagging is enabled and the key is present.
+
+    Returns ``None`` when AI tagging is off or the Gemini key is missing.
+    Caller registers the adapter via ``LlmProvider.set()`` only when non-None.
+    """
+    if not getattr(pycaps_settings, "enable_ai_tagging", False):
+        return None
+    api_key_var = ctx.config.llm_settings.api_key_env_var
+    api_key = ctx.secrets.get(api_key_var)
+    if not api_key:
+        logger.warning(
+            "pycaps enable_ai_tagging=true but %s is not set; AI tagger rules "
+            "will silently no-op for this run.",
+            api_key_var,
+        )
+        return None
+
+    from src.video.pycaps_engine import GeminiLlm
+
+    return GeminiLlm(
+        api_key=api_key,
+        model=pycaps_settings.llm_model,
+        on_error=pycaps_settings.ai_tagging_on_error,
+    )
+
+
 @register_artifact_loader("burn_pycaps_subtitles")
 def _load_artifacts_burn_pycaps_subtitles(ctx: PipelineContext) -> None:
     """Load artifacts from completed burn_pycaps_subtitles step (no-op)."""
@@ -1216,6 +1243,23 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
         # captions stay inside platform UI overlay boundaries.
         safe_zone = getattr(subtitle_settings, "safe_zone", None)
 
+        # Wire Gemini into pycaps' LlmProvider when AI tagging is enabled and
+        # the key is present. LlmProvider is a process-wide singleton, so set
+        # it once per render. Skipped silently when the key is missing —
+        # pycaps' tagger then falls back to the default Gpt provider, which
+        # is itself disabled without PYCAPS_OPENAI_API_KEY, so AI rules just
+        # no-op (matches today's behavior).
+        gemini_adapter = _build_gemini_adapter_for_pycaps(ctx, pycaps_settings)
+        if gemini_adapter is not None:
+            from pycaps.ai import LlmProvider
+
+            LlmProvider.set(gemini_adapter)
+            logger.info(
+                "pycaps AI word tagging enabled (model=%s, on_error=%s)",
+                pycaps_settings.llm_model,
+                pycaps_settings.ai_tagging_on_error,
+            )
+
         renderer = PycapsRenderer()
         try:
             result = await asyncio.to_thread(
@@ -1254,14 +1298,16 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
         # Path.replace is atomic on POSIX when source and dest are on the
         # same filesystem.
         burned_output.replace(final_video_path)
+        ai_call_count = gemini_adapter.call_count if gemini_adapter is not None else 0
         logger.info(
             "Replaced %s with pycaps-burned video "
-            "(template=%s, renderer=%s, wall=%.2fs, peak=%.0f MB)",
+            "(template=%s, renderer=%s, wall=%.2fs, peak=%.0f MB, ai_calls=%d)",
             final_video_path.name,
             result.template_used,
             result.renderer_used,
             result.wall_time_sec,
             result.peak_rss_mb,
+            ai_call_count,
         )
 
         # Save per-run metadata for audit / pipeline_state.json.

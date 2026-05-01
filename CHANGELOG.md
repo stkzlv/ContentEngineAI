@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Pycaps AI word tagging via Gemini. Opt in with `subtitle_settings.pycaps.enable_ai_tagging: true`. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool, default `false`), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
+
+### Changed
+- PR template tightened to plain English with neutral tone and a 40-line cap. Removed redundant per-section instructions and the "Additional Context" closer.
+
 ## [0.43.1] - 2026-04-28
 
 ### Changed
