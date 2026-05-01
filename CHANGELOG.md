@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Pycaps AI word tagging via Gemini. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
 
+### Fixed
+- `make produce-lowpri` and the other `*-lowpri` targets no longer trigger `systemd-oomd` to kill unrelated user-session apps (Chrome, VSCode) under memory pressure. The `systemd-run --user --scope` invocations now also pass `-p MemorySwapMax=0`, which prevents the producer cgroup from pushing pages to swap. Without swap thrash, `user@<uid>.service` PSI never crosses oomd's 50% threshold, so oomd doesn't fire on the user slice. If the producer truly needs more than `MEM_LIMIT`, the cgroup OOM killer terminates the producer in-cgroup instead.
+
 ### Changed
 - **Default subtitle engine flipped from `ffmpeg` to `pycaps`** in `config/subtitles.yaml`. The bundled config now produces animated CSS-styled captions in the TikTok/Reels style by default. Forks without the optional pycaps group degrade silently to FFmpeg because `pycaps.fallback_policy` is now `fallback_ffmpeg` (was `raise`). To get the previous behavior, set `subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg`.
 - AI word tagging enabled by default in the bundled config (`pycaps.enable_ai_tagging: true`). Active when both pycaps is installed and `GEMINI_API_KEY` is set; missing key logs a warning and proceeds without AI tagging.
