@@ -275,12 +275,13 @@ class PycapsSettings(BaseModel):
     """
 
     template_name: str = Field(
-        "word-focus",
+        "explosive",
         description=(
             "Fixed pycaps preset template name. Used when template_pool is empty "
-            "or has one entry. Known presets: classic, default, explosive, fast, "
-            "hype, line-focus, minimalist, neo-minimal, retro-gaming, vibrant, "
-            "word-focus."
+            "or has one entry, which is also what `--pycaps-template NAME` "
+            "triggers (the flag clears the pool). Known presets: classic, "
+            "default, explosive, fast, hype, line-focus, minimalist, "
+            "neo-minimal, retro-gaming, vibrant, word-focus."
         ),
     )
     template_pool: list[str] = Field(

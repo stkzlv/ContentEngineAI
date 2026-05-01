@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Default subtitle engine flipped from `ffmpeg` to `pycaps`** in `config/subtitles.yaml`. The bundled config now produces animated CSS-styled captions in the TikTok/Reels style by default. Forks without the optional pycaps group degrade silently to FFmpeg because `pycaps.fallback_policy` is now `fallback_ffmpeg` (was `raise`). To get the previous behavior, set `subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg`.
 - AI word tagging enabled by default in the bundled config (`pycaps.enable_ai_tagging: true`). Active when both pycaps is installed and `GEMINI_API_KEY` is set; missing key logs a warning and proceeds without AI tagging.
 - Default pycaps template pool rebalanced to a 50/50 mix of AI-tagged and untagged templates: `["word-focus", "neo-minimal", "minimalist", "explosive"]`. Was `["word-focus", "hype", "minimalist", "vibrant"]`.
+- Default `pycaps.template_name` changed from `word-focus` to `explosive`. The bold orange-yellow gradient text with per-word scale-pop animation reads better on busy product imagery and matches short-form social-media conventions. Only takes effect when `template_pool` is empty or single-entry (e.g. via `--pycaps-template NAME`); the bundled 4-entry pool keeps deterministic rotation across all four templates per-product.
 - PR template tightened to plain English with neutral tone and a 40-line cap. Removed redundant per-section instructions and the "Additional Context" closer.
 
 ## [0.43.1] - 2026-04-28

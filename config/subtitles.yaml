@@ -51,10 +51,13 @@ subtitle_settings:
   # All defaults here track the starter recipe in
   # docs/subtitle-best-practices.md section 9 (Starter recipe).
   pycaps:
-    # Fixed template name. Used when template_pool is empty or single-entry.
-    # word-focus matches the recipe closest: white bold, word-by-word
-    # karaoke, minimal animation.
-    template_name: "word-focus"
+    # Fixed template name. Used when template_pool is empty or single-entry,
+    # which is also what `--pycaps-template NAME` triggers (the flag clears
+    # the pool to force this template).
+    # explosive: bold orange-yellow gradient text, thick black outline,
+    # per-word scale-pop animation. Loud TikTok/Reels aesthetic that holds
+    # up on busy product imagery.
+    template_name: "explosive"
 
     # Pool for deterministic per-product template selection (md5 keyed).
     # 50/50 mix of AI-tagged and untagged templates so AI word tagging
