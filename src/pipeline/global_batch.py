@@ -205,7 +205,9 @@ Examples:
         metavar="NAME",
         help=(
             "Pycaps template name (e.g. word-focus, hype, minimalist). "
-            "Overrides template_pool selection."
+            "Forces this template for every product by clearing the template "
+            "pool. To use a custom multi-entry pool, pass "
+            "--pycaps-template-pool instead."
         ),
     )
     producer_group.add_argument(
@@ -397,7 +399,13 @@ class GlobalPipelineOrchestrator:
             overrides["subtitle_settings.pycaps.template_name"] = (
                 self.config.pycaps_template
             )
+            # Clear the pool so the deterministic selector falls through to
+            # template_name. Without this, a multi-entry pool would still win
+            # via md5 hash and silently ignore --pycaps-template.
+            overrides["subtitle_settings.pycaps.template_pool"] = []
         if self.config.pycaps_template_pool:
+            # Explicit --pycaps-template-pool wins over the implicit clear
+            # above when both flags are passed.
             overrides["subtitle_settings.pycaps.template_pool"] = (
                 self.config.pycaps_template_pool
             )

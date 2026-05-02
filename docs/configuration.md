@@ -53,30 +53,34 @@ poetry run python -m src.video.producer \
 
 **Example: Subtitle engine selector (`ffmpeg` vs `pycaps`)**
 
-The same 3-level precedence applies to the subtitle engine. Default stays
-`ffmpeg` for backward compatibility.
+The same 3-level precedence applies to the subtitle engine. Bundled
+`config/subtitles.yaml` selects `pycaps`; the `SubtitleSettings` Pydantic
+field default (used when constructing without YAML) is `ffmpeg`.
 
 ```yaml
-# config/subtitles.yaml
+# config/subtitles.yaml (bundled)
 subtitle_settings:
-  subtitle_engine: "ffmpeg"
+  subtitle_engine: "pycaps"
   pycaps:
-    template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
+    template_pool: ["word-focus", "neo-minimal", "minimalist", "explosive"]
     renderer: "css"
+    fallback_policy: "fallback_ffmpeg"  # forks without --with pycaps land here
 ```
 
 ```yaml
 # config/video_production.yaml — per-profile override
 profiles:
   slideshow_images1:
-    subtitle_engine: "pycaps"                  # beats YAML default
-    pycaps_template_pool: ["hype", "vibrant"]  # profile-level override
+    subtitle_engine: "ffmpeg"                  # beats YAML default
+    subtitle_settings:
+      pycaps:
+        template_pool: ["explosive"]           # profile-level override
 ```
 
 ```bash
 # CLI override (highest)
 poetry run python -m src.video.producer outputs/B0ASIN123/data.json \
-    slideshow_images1 --subtitle-engine pycaps --pycaps-renderer pictex
+    slideshow_images1 --subtitle-engine ffmpeg
 ```
 
 Nested CLI overrides use dotted keys internally

@@ -431,7 +431,7 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.pipeline.global_batch $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
@@ -445,7 +445,7 @@ scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.scraper.amazon.scraper $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
@@ -459,7 +459,7 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.video.producer $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
@@ -476,7 +476,7 @@ publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.publisher.late $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \

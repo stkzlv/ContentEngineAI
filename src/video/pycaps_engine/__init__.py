@@ -11,6 +11,7 @@ Downstream code that uses these helpers must handle ``ImportError`` gracefully
 (see :class:`PycapsUnavailableError` below).
 """
 
+from src.video.pycaps_engine.gemini_llm import GeminiLlm
 from src.video.pycaps_engine.renderer import (
     PycapsRenderer,
     PycapsRenderResult,
@@ -25,6 +26,7 @@ from src.video.pycaps_engine.transcript_adapter import (
 )
 
 __all__ = [
+    "GeminiLlm",
     "PycapsRenderer",
     "PycapsRenderResult",
     "PycapsUnavailableError",

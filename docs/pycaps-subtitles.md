@@ -1,13 +1,17 @@
 # Pycaps Subtitle Engine
 
-ContentEngineAI ships two subtitle rendering engines. The default `ffmpeg`
-engine generates SRT or ASS files and burns them via `libass`/`drawtext`.
-The optional `pycaps` engine runs the [pycaps](https://github.com/francozanardi/pycaps)
+ContentEngineAI ships two subtitle rendering engines. The `ffmpeg` engine
+generates SRT or ASS files and burns them via `libass`/`drawtext`. The
+`pycaps` engine runs the [pycaps](https://github.com/francozanardi/pycaps)
 library as a post-assembly step to produce animated, CSS-styled captions in
 the TikTok/Reels style — word-by-word highlights, pop/slide/zoom animations,
 emoji overlays, gradient fills.
 
-The pycaps engine is opt-in. The default stays `ffmpeg`.
+The bundled `config/subtitles.yaml` selects `pycaps` by default. Forks
+without the optional pycaps group degrade silently to FFmpeg because the
+bundled `pycaps.fallback_policy` is `fallback_ffmpeg`. Set
+`subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg` to
+opt out per-run.
 
 ## When to use pycaps
 
@@ -69,7 +73,9 @@ No YAML or profile edits needed — the CLI overrides flow through the same
 | Producer CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 | Global batch CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 
-CLI beats profile. Profile beats YAML. Default stays `ffmpeg`.
+CLI beats profile. Profile beats YAML. Bundled YAML default is `pycaps`;
+the `SubtitleSettings` Pydantic field default (used when constructing
+without YAML) stays `ffmpeg`.
 
 ### Pycaps sub-settings
 
@@ -87,6 +93,9 @@ etc.) to mirror the other profile override naming.
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
 | `vertical_align_offset` | float \| null | null | Manual override for the derived offset. Range: -1.0 to 1.0. |
 | `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable/fails. `fallback_ffmpeg` = switch to FFmpeg engine. `warn_and_skip` = no subtitles (not recommended). |
+| `enable_ai_tagging` | bool | `false` | Opt into AI word tagging via Gemini. See [AI word tagging](#ai-word-tagging). |
+| `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
+| `ai_tagging_on_error` | `skip` \| `raise` | `skip` | Per-call AI failure handling. `skip` swallows the error and drops the tag for that segment; `raise` propagates to `fallback_policy`. |
 
 ### CLI override dotted keys
 
@@ -192,9 +201,85 @@ Switch with `--pycaps-renderer pictex`.
 - **Upstream is alpha.** Pycaps 0.2.1 is the first public release. Breaking
   changes are possible. We pin to an exact git commit in `pyproject.toml`
   and upgrade deliberately.
-- **No AI word tagging yet.** Pycaps supports LLM-driven word tagging
-  (e.g. highlight action verbs via GPT). Not wired to ContentEngineAI's
-  LLM config in v1. Follow-up work.
+## AI word tagging
+
+Pycaps templates can carry `tagger_rules` of `type: ai`. When applied, the
+named CSS class lands on the LLM-selected words so the template's CSS picks
+them out (e.g. background highlight, scale-pop animation). ContentEngineAI
+wires the existing Gemini key into pycaps' `LlmProvider` so these rules
+work without an OpenAI key.
+
+### Enable
+
+```yaml
+# config/subtitles.yaml
+subtitle_settings:
+  subtitle_engine: pycaps
+  pycaps:
+    enable_ai_tagging: true
+    template_name: neo-minimal      # built-in, ships an `ai` rule out of the box
+    llm_model: gemini-2.5-flash     # default
+    ai_tagging_on_error: skip       # default — degrade silently per call
+```
+
+The `enable_ai_tagging` flag defaults to `false`. Installing pycaps and
+turning AI tagging on are deliberately separate flips so a default install
+behaves predictably.
+
+### Built-in templates with AI rules
+
+Two presets ship with `tagger_rules: [{type: ai, ...}]` already wired:
+
+| Template | What gets tagged | Visual effect |
+|---|---|---|
+| `neo-minimal` | "Most relevant and impactful phrases (around 4-5 words)" | Background highlight on the picked phrase |
+| `explosive` | "The most important phrase or word in all the script" | Scale-pop animation on the picked words |
+
+Switching `template_name` to either of those plus `enable_ai_tagging: true`
+is the demo path. Other built-in templates (`word-focus`, `hype`, etc.) have
+no AI rules — they ignore the adapter even when it's wired.
+
+### Cost and latency
+
+Gemini Flash is cheap (about $0.30 per 1M input tokens at the time of
+writing) and fast. Pycaps' tagger calls the LLM once per caption segment,
+so a 30-second video at typical pacing makes 5-10 calls and adds 1-3
+seconds to wall time. The render summary log line includes an `ai_calls=N`
+counter:
+
+```
+Replaced sample.mp4 with pycaps-burned video
+  (template=neo-minimal, renderer=css, wall=22.4s, peak=412 MB, ai_calls=7)
+```
+
+### Failure modes
+
+- **Key missing.** If `enable_ai_tagging` is true but the Gemini key
+  (`GEMINI_API_KEY` in `.env` by default — controlled by
+  `llm_settings.api_key_env_var`) is missing, the step logs a warning and
+  proceeds without AI tagging. Pycaps' AI rules silently no-op for that
+  run.
+- **Per-call API error.** When `ai_tagging_on_error: skip` (default), a
+  Gemini error logs a warning and returns an empty response so pycaps
+  drops the tag for that segment. The render still completes. Set to
+  `raise` to surface the error and let `fallback_policy` decide.
+- **Template has no AI rule.** Most built-in templates (`word-focus`,
+  `hype`, `vibrant`, etc.) carry no `type: ai` rules and ignore the
+  adapter regardless of `enable_ai_tagging`. The flag is harmless but
+  inert in those cases.
+
+### CLI override
+
+The dotted keys also work from `cli_overrides`:
+
+```
+subtitle_settings.pycaps.enable_ai_tagging
+subtitle_settings.pycaps.llm_model
+subtitle_settings.pycaps.ai_tagging_on_error
+```
+
+No dedicated CLI flags in v1. Toggle in YAML or pass an override dict
+programmatically.
 
 ## Failure handling
 

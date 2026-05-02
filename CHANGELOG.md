@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-05-02
+
+### Added
+- Pycaps AI word tagging via Gemini. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
+
+### Fixed
+- `make produce-lowpri` and the other `*-lowpri` targets no longer trigger `systemd-oomd` to kill unrelated user-session apps (Chrome, VSCode) under memory pressure. The `systemd-run --user --scope` invocations now also pass `-p MemorySwapMax=0`, which prevents the producer cgroup from pushing pages to swap. Without swap thrash, `user@<uid>.service` PSI never crosses oomd's 50% threshold, so oomd doesn't fire on the user slice. If the producer truly needs more than `MEM_LIMIT`, the cgroup OOM killer terminates the producer in-cgroup instead.
+- `--pycaps-template NAME` now actually forces the named template. Previously the flag set `template_name` but left `template_pool` populated, and the deterministic md5 selector always picked from the pool — so the flag silently no-op'd against any multi-entry pool (the bundled config has 4). The flag now also clears the pool. To use a custom multi-entry pool, pass `--pycaps-template-pool` instead (or in addition; explicit pool wins when both flags appear). Applies to `src/video/producer/cli.py` and `src/pipeline/global_batch.py` per the Module/Batch Alignment Rule.
+
+### Changed
+- New doc `docs/promotional-video-best-practices.md` extracts the promo-video strategy material (hook patterns, sound-off audience, CTA staging, FTC `#ad` disclosure, trust signals, honest gaps in the evidence) that applies regardless of the caption engine. `docs/subtitle-best-practices.md` keeps the subtitle-engine-specific content (typography, color, animation, layout, timing, AI-driven highlighting, starter recipe) and cross-links the new doc.
+- Added `## 9. AI-driven highlighting — what to tag` to `docs/subtitle-best-practices.md`. Concrete prompt template tells the tagger to favor prices, numbers, product nouns, outcome verbs, factual superlatives and skip articles, prepositions, auxiliaries, absolute praise. Targets ~15% of words. Backed by the only peer-reviewed study (Weingärtner et al., MUM '24) plus vendor-converged guidance from Submagic, Captions.ai, OpusClip.
+- **Default subtitle engine flipped from `ffmpeg` to `pycaps`** in `config/subtitles.yaml`. The bundled config now produces animated CSS-styled captions in the TikTok/Reels style by default. Forks without the optional pycaps group degrade silently to FFmpeg because `pycaps.fallback_policy` is now `fallback_ffmpeg` (was `raise`). To get the previous behavior, set `subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg`.
+- AI word tagging enabled by default in the bundled config (`pycaps.enable_ai_tagging: true`). Active when both pycaps is installed and `GEMINI_API_KEY` is set; missing key logs a warning and proceeds without AI tagging.
+- Default pycaps template pool rebalanced to a 50/50 mix of AI-tagged and untagged templates: `["word-focus", "neo-minimal", "minimalist", "explosive"]`. Was `["word-focus", "hype", "minimalist", "vibrant"]`.
+- Default `pycaps.template_name` changed from `word-focus` to `explosive`. The bold orange-yellow gradient text with per-word scale-pop animation reads better on busy product imagery and matches short-form social-media conventions. Only takes effect when `template_pool` is empty or single-entry (e.g. via `--pycaps-template NAME`); the bundled 4-entry pool keeps deterministic rotation across all four templates per-product.
+- PR template tightened to plain English with neutral tone and a 40-line cap. Removed redundant per-section instructions and the "Additional Context" closer.
+
 ## [0.43.1] - 2026-04-28
 
 ### Changed
