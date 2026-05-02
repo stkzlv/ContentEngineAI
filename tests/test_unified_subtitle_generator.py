@@ -36,10 +36,12 @@ class TestUnifiedSubtitleGenerator:
         )
 
     @pytest.fixture
-    def generator(self, sample_config):
+    def generator(self, sample_config, mock_config):
         """Create a UnifiedSubtitleGenerator instance."""
         frame_size = (1920, 1080)
-        return UnifiedSubtitleGenerator(sample_config, frame_size)
+        return UnifiedSubtitleGenerator(
+            sample_config, frame_size, video_config=mock_config
+        )
 
     @pytest.fixture
     def sample_timings(self):
@@ -50,10 +52,12 @@ class TestUnifiedSubtitleGenerator:
             {"word": "test", "start_time": 1.1, "end_time": 1.5},
         ]
 
-    def test_init(self, sample_config):
+    def test_init(self, sample_config, mock_config):
         """Test UnifiedSubtitleGenerator initialization."""
         frame_size = (1920, 1080)
-        generator = UnifiedSubtitleGenerator(sample_config, frame_size)
+        generator = UnifiedSubtitleGenerator(
+            sample_config, frame_size, video_config=mock_config
+        )
 
         assert generator.config == sample_config
         assert generator.frame_size == frame_size
@@ -179,10 +183,12 @@ class TestUnifiedSubtitleGenerator:
             assert "[V4+ Styles]" in content
             assert "[Events]" in content
 
-    def test_color_selection_consistency(self, sample_config):
+    def test_color_selection_consistency(self, sample_config, mock_config):
         """Test that colors are selected consistently per instance."""
         frame_size = (1920, 1080)
-        generator = UnifiedSubtitleGenerator(sample_config, frame_size)
+        generator = UnifiedSubtitleGenerator(
+            sample_config, frame_size, video_config=mock_config
+        )
 
         colors1 = generator._get_colors()
         colors2 = generator._get_colors()
@@ -225,7 +231,7 @@ class TestUnifiedSubtitleGenerator:
         assert colors["outline"] == "&H00008000"  # Dark green
         # NOT black (&H00000000) from old legacy randomization
 
-    def test_select_colors_preserves_style_config(self):
+    def test_select_colors_preserves_style_config(self, mock_config):
         """Test that _select_colors() uses colors from style_config without overwriting.
 
         Regression test for bug where _select_colors() had legacy randomization
@@ -241,7 +247,9 @@ class TestUnifiedSubtitleGenerator:
         )
         frame_size = (1920, 1080)
 
-        generator = UnifiedSubtitleGenerator(config, frame_size)
+        generator = UnifiedSubtitleGenerator(
+            config, frame_size, video_config=mock_config
+        )
 
         # _select_colors() should return colors from style_config
         # The BOLD preset has specific outline color
@@ -322,7 +330,7 @@ class TestUnifiedSubtitleGenerator:
 
             assert result.success is True
 
-    def test_word_count_limit(self):
+    def test_word_count_limit(self, mock_config):
         """Test subtitle segmentation with word count limit."""
         config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
@@ -333,7 +341,9 @@ class TestUnifiedSubtitleGenerator:
             max_words_per_line=3,  # Strict word limit
             max_subtitle_width_fraction=0.67,
         )
-        generator = UnifiedSubtitleGenerator(config, (1920, 1080))
+        generator = UnifiedSubtitleGenerator(
+            config, (1920, 1080), video_config=mock_config
+        )
 
         # Script with multiple words
         script_text = "This is a long sentence with many words in it"
@@ -346,7 +356,7 @@ class TestUnifiedSubtitleGenerator:
             word_count = len(seg["text"].split())
             assert word_count <= 3, f"Segment has {word_count} words: {seg['text']}"
 
-    def test_width_constraint(self):
+    def test_width_constraint(self, mock_config):
         """Test subtitle width constraint based on frame width."""
         config = SubtitleSettings(
             anchor=PositionAnchor.BOTTOM,
@@ -358,7 +368,9 @@ class TestUnifiedSubtitleGenerator:
             max_subtitle_width_fraction=0.67,  # 2/3 of frame
         )
         frame_size = (1080, 1920)  # Width, Height
-        generator = UnifiedSubtitleGenerator(config, frame_size)
+        generator = UnifiedSubtitleGenerator(
+            config, frame_size, video_config=mock_config
+        )
 
         # Test that width calculation uses frame-based constraint
         max_width = int(frame_size[0] * 0.67)

@@ -100,6 +100,25 @@ def sample_segments():
     ]
 
 
+@pytest.fixture(autouse=True)
+def _default_video_config(monkeypatch, mock_config):
+    """Inject `mock_config` as `video_config` when tests construct a
+    `UnifiedSubtitleGenerator` without one.
+
+    Production callers always pass `video_config`. The tests in this file
+    predate the change in `get_style_config` that made `video_config`
+    required. Patching the constructor here avoids touching ~25 call sites
+    individually.
+    """
+    original_init = UnifiedSubtitleGenerator.__init__
+
+    def _patched_init(self, *args, **kwargs):
+        kwargs.setdefault("video_config", mock_config)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(UnifiedSubtitleGenerator, "__init__", _patched_init)
+
+
 class TestASSEffectSelection:
     """Tests for effect selection logic."""
 

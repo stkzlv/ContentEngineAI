@@ -64,66 +64,65 @@ def get_style_config(
 ) -> dict[str, Any]:
     """Get style configuration for a given preset with optional randomization.
 
+    Reads the style preset from `video_config.style_presets` (the typed
+    Pydantic source of truth). The legacy YAML re-read fallback was removed
+    because it was CWD-dependent (`Path("config/subtitles.yaml")`), bypassed
+    CLI overrides (fresh re-read on every call skipped the 3-level merge),
+    and silently dropped YAML typos (no validation). Callers must pass
+    `video_config` explicitly.
+
     Args:
     ----
         preset: Base style preset to use
         config: Unified subtitle configuration with randomization settings
         product_id: Product identifier for consistent randomization seeding
-        video_config: VideoConfig with validated style_presets (preferred path)
+        video_config: VideoConfig with validated style_presets (required)
 
     Returns:
     -------
         Dictionary of style parameters for subtitle generation
 
+    Raises:
+    ------
+        ValueError: video_config is None, video_config.style_presets is
+            missing or not a dict, or no preset matches `preset` and no
+            `modern` fallback exists in style_presets.
+        TypeError: video_config.style_presets[preset] is not a Pydantic
+            model (i.e. doesn't expose `.model_dump()`).
+
     """
     preset_key = preset.value if isinstance(preset, StylePreset) else preset
 
-    base_config: dict[str, Any] | None = None
+    if video_config is None:
+        raise ValueError(
+            "get_style_config requires video_config (a VideoConfig with "
+            "style_presets). The legacy YAML re-read fallback was removed; "
+            "pass video_config explicitly."
+        )
 
-    # Preferred path: typed config, no YAML re-read, no CWD dependency.
-    if video_config is not None:
-        presets = getattr(video_config, "style_presets", None)
-        if isinstance(presets, dict):
-            preset_obj = presets.get(preset_key) or presets.get("modern")
-            if preset_obj is not None and hasattr(preset_obj, "model_dump"):
-                base_config = preset_obj.model_dump(exclude={"description"})
+    presets = getattr(video_config, "style_presets", None)
+    if not isinstance(presets, dict):
+        raise ValueError(
+            f"video_config.style_presets is missing or invalid (got "
+            f"{type(presets).__name__}). Cannot resolve style preset "
+            f"{preset_key!r}."
+        )
 
-    # Legacy path: re-read YAML for callers that don't have VideoConfig yet.
-    if base_config is None:
-        from pathlib import Path
+    preset_obj = presets.get(preset_key) or presets.get("modern")
+    if preset_obj is None:
+        raise ValueError(
+            f"No style preset matches {preset_key!r} and no 'modern' "
+            f"fallback in video_config.style_presets. Available: "
+            f"{sorted(presets.keys())}."
+        )
 
-        import yaml
+    if not hasattr(preset_obj, "model_dump"):
+        raise TypeError(
+            f"video_config.style_presets[{preset_key!r}] is not a Pydantic "
+            f"model (got {type(preset_obj).__name__})."
+        )
 
-        subtitles_config_path = Path("config/subtitles.yaml")
-        style_presets: dict[str, Any] = {}
-        try:
-            if subtitles_config_path.exists():
-                with open(subtitles_config_path, encoding="utf-8") as f:
-                    subtitles_data = yaml.safe_load(f)
-                    style_presets = subtitles_data.get("style_presets", {})
-        except Exception as e:
-            logger.warning("Could not load style presets from config: %s", e)
-
-        if preset_key in style_presets:
-            base_config = style_presets[preset_key].copy()
-            base_config.pop("description", None)
-        elif "modern" in style_presets:
-            base_config = style_presets["modern"].copy()
-            base_config.pop("description", None)
-
-    # Absolute last resort: inline modern defaults.
-    if base_config is None:
-        base_config = {
-            "font_name": "Montserrat",
-            "font_color": "&H00FFFFFF",
-            "outline_color": "&H00000000",
-            "background_color": None,
-            "bold": True,
-            "outline_thickness": 3,
-            "shadow": True,
-            "effects": ["karaoke"],
-            "font_width_to_height_ratio": 0.5,
-        }
+    base_config = preset_obj.model_dump(exclude={"description"})
 
     # Handle RANDOM preset - force randomization and select one random effect
     if preset == StylePreset.RANDOM and product_id:
