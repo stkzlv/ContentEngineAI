@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import mock_open, patch
 
 import pytest
 
@@ -139,31 +138,33 @@ class TestSubtitlePositioning:
         size_scaled = get_font_size(config_scaled, 1000, base_size_percent=0.04)
         assert size_scaled == 80
 
-    def test_get_style_config_fallback(self):
-        # Test fallback when yaml missing and no video_config
-        with patch("pathlib.Path.exists", return_value=False):
-            style = get_style_config(StylePreset.MINIMAL)
-            # Inline last-resort defaults use Montserrat (modern preset)
-            assert style["font_name"] == "Montserrat"
+    def test_get_style_config_raises_without_video_config(self):
+        # The legacy YAML re-read fallback was removed; callers must pass
+        # video_config so the typed style_presets path is taken.
+        with pytest.raises(ValueError, match="requires video_config"):
+            get_style_config(StylePreset.MINIMAL)
 
-            style_modern = get_style_config(StylePreset.MODERN)
-            assert "karaoke" in style_modern["effects"]
+    def test_get_style_config_raises_when_preset_missing(self, mock_config):
+        # If neither the requested preset nor "modern" exists in
+        # style_presets, the function raises with a clear message.
+        mock_config.style_presets = {}
+        with pytest.raises(ValueError, match="No style preset matches"):
+            get_style_config(StylePreset.MINIMAL, video_config=mock_config)
 
-    def test_get_style_config_yaml(self):
-        mock_yaml = (
-            "style_presets:\n  minimal:\n    font_name: 'CustomFont'\n    effects: []"
-        )
-        with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("builtins.open", mock_open(read_data=mock_yaml)),
-        ):
-            style = get_style_config(StylePreset.MINIMAL)
-            assert style["font_name"] == "CustomFont"
+    def test_get_style_config_uses_typed_presets(self, mock_config):
+        # Default VideoConfig ships 5 presets (minimal, modern, bold,
+        # animated, random); the typed path returns the requested one.
+        style = get_style_config(StylePreset.MINIMAL, video_config=mock_config)
+        assert "font_name" in style
+        assert "effects" in style
 
-    def test_get_style_config_random(self):
+    def test_get_style_config_random(self, mock_config):
         config = SubtitleSettings(style_preset=StylePreset.RANDOM)
-        # Random preset forces randomization
-        style = get_style_config(StylePreset.RANDOM, config, "prod123")
+        # RANDOM preset forces randomization and selects one effect from the
+        # preset's effects list.
+        style = get_style_config(
+            StylePreset.RANDOM, config, "prod123", video_config=mock_config
+        )
         assert len(style["effects"]) == 1
         assert config.randomize_fonts is True
 

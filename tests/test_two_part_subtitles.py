@@ -2,7 +2,6 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -15,12 +14,14 @@ class TestTwoPartSubtitles:
     """Test suite for two-part subtitle system."""
 
     @pytest.fixture
-    def mock_video_config(self):
-        """Create mock video configuration."""
-        config = Mock()
-        config.video_settings = Mock()
-        config.video_settings.resolution = (1080, 1920)  # Portrait orientation
-        return config
+    def mock_video_config(self, mock_config):
+        """Use the project's `mock_config` from conftest.
+
+        Past iterations used a bare `Mock()`, but `get_style_config` now
+        requires a real `VideoConfig` with `style_presets` populated. The
+        20 usages of this fixture still pick the same name without churn.
+        """
+        return mock_config
 
     @pytest.fixture
     def basic_subtitle_settings(self):
