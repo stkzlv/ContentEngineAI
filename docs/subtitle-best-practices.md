@@ -11,10 +11,18 @@ research — see the sources at the bottom.
 on mobile, often with sound off. Captions aren't a nice-to-have — for a
 large fraction of viewers they *are* the content.
 
-**Related docs**: [pycaps-subtitles.md](pycaps-subtitles.md) (pycaps engine
-reference), [platform-safe-zones.md](platform-safe-zones.md) (TikTok /
-Shorts / Reels safe zones). Open follow-up work is tracked as GitHub Issues
-with the `subtitles` and `pycaps` labels.
+**Related docs**:
+- [promotional-video-best-practices.md](promotional-video-best-practices.md)
+  — promotional / e-commerce video strategy (hook patterns, sound-off
+  audience, CTA staging, FTC compliance, trust signals). Apply both docs
+  together for promo content.
+- [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
+  including AI word tagging via Gemini.
+- [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /
+  Reels UI overlay zones.
+
+Open follow-up work is tracked as GitHub Issues with the `subtitles` and
+`pycaps` labels.
 
 ---
 
@@ -35,6 +43,11 @@ with the `subtitles` and `pycaps` labels.
 13. **Contrast ≥4.5:1** (WCAG AA). White-on-black-stroke is 21:1, yellow-on-black is ~19:1, neon green ~17:1. All safe.
 14. **One emoji per 8–10 word segment max**. Zero is fine too. Spam looks amateur.
 15. **No flashing, scale cap 1.15×, pulse frequency <3 Hz**. Motion sickness and WCAG photosensitivity safety.
+
+For promotional / e-commerce video, the
+[promotional-video-best-practices.md](promotional-video-best-practices.md)
+companion adds 4 more rules covering hook content, CTA staging, FTC
+disclosure, and trust signals. Apply both lists together.
 
 ---
 
@@ -269,7 +282,46 @@ Center-Y around 960–1050 px. One template, three platforms.
 - Mixing 3+ highlight colors in one video
 - Platform auto-captions as final output (viewers read these as "creator didn't try")
 
-## 9. Starter recipe — e-commerce product videos
+## 9. AI-driven highlighting — what to tag
+
+The only peer-reviewed study to date (Weingärtner et al., MUM '24, n=66)
+tested standard captions vs. keyword highlights vs. time-synchronized
+keyword highlights. Both highlight conditions improved *recall*, but
+time-synced highlights were rated "too distracting to replace standard
+captions in everyday viewing." Translation: aggressive karaoke + color on
+every spoken word is overkill.
+
+**The "tag 15–20% of words" heuristic** is vendor-converged across
+Submagic, Captions.ai, and OpusClip. Targets in priority order:
+
+1. Prices and quantities (`$15`, `30 seconds`, `4.6 stars`)
+2. The product noun (`backpack`, `ring light`, `bottle`)
+3. Outcome verbs (`fixed`, `saves`, `lasts`, `replaces`)
+4. Factual superlatives only (`loudest`, `lightest` — not `best`, `amazing`)
+
+**What to skip**: articles, prepositions, auxiliaries, filler verbs,
+absolute superlatives. The frames we sampled in the explosive-template
+test had Gemini tagging `also`, `can`, and `all` — exactly the auxiliary /
+filler bucket that adds no information density.
+
+**Color cap: 3 highlight classes maximum.** Submagic enforces this in their
+UI. More colors = noise.
+
+**Concrete prompt template for the AI tagger** (override the built-in
+template prompt when needed):
+
+> Tag the most concrete, information-dense words: prices, numbers, product
+> nouns, outcome verbs, and factual superlatives. Never tag articles
+> (`a`, `the`), prepositions (`from`, `to`, `with`), auxiliaries
+> (`can`, `also`, `just`), or absolute praise words (`amazing`,
+> `incredible`). Aim for ~15% of total words.
+
+**Honest caveat**: vendor numbers like "+X% retention from dynamic
+highlighting" trace back to marketing copy, not controlled trials. The
+defensible directional claim is "selective highlighting outperforms
+either extreme (none / everything)."
+
+## 10. Starter recipe — short-form vertical video
 
 A concrete set of choices that produces a high-retention caption style
 directly implementable in either engine.
@@ -358,3 +410,5 @@ capped at 1.10.
 - Retention research — [ContentFries captions and retention study](https://www.contentfries.com/blog/the-science-of-video-captions-how-they-impact-audience-retention) / [3PlayMedia captions improve engagement](https://www.3playmedia.com/blog/studies-find-captions-improve-engagement/)
 - Subtitling conventions — [md-subs font size research](https://www.md-subs.com/blog/saa-subtitle-font-size) / [Nimdzi vertical video subtitling](https://www.nimdzi.com/subtitling-vertical-videos-guidelines-where-art-thou/) / [Kapwing best subtitle fonts](https://www.kapwing.com/resources/font-for-subtitles/)
 - Whisper timing accuracy — [WhisperX / whisper-timestamped](https://github.com/linto-ai/whisper-timestamped) / [OpenAI Whisper timestamp discussion](https://github.com/openai/whisper/discussions/435)
+- AI-driven highlighting (academic) — [Useful but Distracting: Keyword Highlights in Captions for Language Learning (MUM '24)](https://arxiv.org/abs/2307.05870)
+- AI-driven highlighting (vendor) — [Submagic: How To Apply Highlighting Colors](https://care.submagic.co/en/article/how-to-apply-highlighting-colors-to-your-words-16ttppq/) / [Submagic: How To Do Emphasis Captions](https://care.submagic.co/en/article/how-to-do-emphasis-captions-1p5w99b/) / [Submagic vertical example for realtors](https://www.aiedgeforrealtors.com/blog/submagic-ai-video-captions-for-realtors)
