@@ -60,13 +60,16 @@ subtitle_settings:
     template_name: "explosive"
 
     # Pool for deterministic per-product template selection (md5 keyed).
-    # 50/50 mix of AI-tagged and untagged templates so AI word tagging
-    # fires on roughly half the videos when enable_ai_tagging is true:
-    #   word-focus  = closest match to the best-practice recipe (no AI rule)
-    #   neo-minimal = AI rule highlights "most relevant impactful phrase"
-    #   minimalist  = calmer tone for educational/corporate (no AI rule)
-    #   explosive   = AI rule scale-pops "most important word in script"
-    template_pool: ["word-focus", "neo-minimal", "minimalist", "explosive"]
+    # Two-entry recipe-fit pool: each template passes most rules in
+    # docs/subtitle-best-practices.md (1 typography, 3 stroke + shadow,
+    # 4 karaoke, 5 word count, 13 contrast). neo-minimal and minimalist
+    # were dropped because they fail rules 1 + 3 (monospace / regular
+    # weight, no stroke).
+    #   explosive  = AI rule scale-pops "most important word in script"
+    #   word-focus = white + thick stroke, no AI rule
+    # Maintains 50/50 AI-tagged split (1 of 2 templates has an AI rule)
+    # while every roll lands on a recipe-fit template.
+    template_pool: ["explosive", "word-focus"]
 
     # css = Playwright + Chromium. Full CSS fidelity, ~400 MB peak RSS,
     #       ~0.7x realtime on a 30s clip. Benchmark winner.
@@ -85,9 +88,13 @@ subtitle_settings:
     max_number_of_lines: 2
 
     # Vertical positioning. "bottom" anchor + offset -0.20 places captions
-    # at ~75% of frame height, matching the platform safe zone bottom
-    # boundary (TikTok overlay starts at 75%). Tweak the offset to move
-    # captions up (more negative) or down (closer to 0).
+    # at ~75% of frame height. This sits inside TikTok's bottom UI overlay
+    # zone, but every bundled profile here uses `image_vertical_align:
+    # center` (slideshow_*) or full-frame source video (product_video_*),
+    # so a recipe-aligned vertical-center caption position (~55%) collides
+    # with product imagery. Lower-third is the lesser evil until profiles
+    # adopt `image_vertical_align: top` (then captions can rise to ~55%
+    # safely). Tracked in #99.
     vertical_align: "bottom"
     vertical_align_offset: -0.20
 
