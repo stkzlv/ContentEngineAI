@@ -83,10 +83,15 @@ All fields live under `subtitle_settings.pycaps` (YAML + merged runtime).
 Per-profile overrides use a flat prefix (`pycaps_template`, `pycaps_renderer`,
 etc.) to mirror the other profile override naming.
 
+The "Default" column lists the `PycapsSettings` Pydantic field defaults
+(used for programmatic construction without YAML). The bundled
+`config/subtitles.yaml` overrides several of them — see the inline
+comments in that file for the active values shipped to users.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `template_name` | str | `word-focus` | Fixed template name. Used when `template_pool` is empty or single-entry. |
-| `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). |
+| `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty or single-entry, which is also what `--pycaps-template NAME` triggers (the flag clears the pool). |
+| `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
 | `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium. `pictex` = browserless Skia path. |
 | `max_width_ratio` | float | 0.85 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
