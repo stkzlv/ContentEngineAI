@@ -68,7 +68,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `--subtitle-engine` | Rendering engine: `ffmpeg` (default) or `pycaps` | `--subtitle-engine pycaps` |
+| `--subtitle-engine` | Rendering engine: `ffmpeg` or `pycaps` (bundled YAML default is `pycaps`) | `--subtitle-engine ffmpeg` |
 | `--subtitle-format` | Format: `srt` (default) or `ass` (ffmpeg engine only) | `--subtitle-format ass` |
 | `--preset` | Style preset (ffmpeg engine only) | `--preset animated` |
 | `--subtitle-anchor` | Vertical position | `--subtitle-anchor bottom` |

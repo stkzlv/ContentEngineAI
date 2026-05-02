@@ -1,13 +1,17 @@
 # Pycaps Subtitle Engine
 
-ContentEngineAI ships two subtitle rendering engines. The default `ffmpeg`
-engine generates SRT or ASS files and burns them via `libass`/`drawtext`.
-The optional `pycaps` engine runs the [pycaps](https://github.com/francozanardi/pycaps)
+ContentEngineAI ships two subtitle rendering engines. The `ffmpeg` engine
+generates SRT or ASS files and burns them via `libass`/`drawtext`. The
+`pycaps` engine runs the [pycaps](https://github.com/francozanardi/pycaps)
 library as a post-assembly step to produce animated, CSS-styled captions in
 the TikTok/Reels style — word-by-word highlights, pop/slide/zoom animations,
 emoji overlays, gradient fills.
 
-The pycaps engine is opt-in. The default stays `ffmpeg`.
+The bundled `config/subtitles.yaml` selects `pycaps` by default. Forks
+without the optional pycaps group degrade silently to FFmpeg because the
+bundled `pycaps.fallback_policy` is `fallback_ffmpeg`. Set
+`subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg` to
+opt out per-run.
 
 ## When to use pycaps
 
@@ -69,7 +73,9 @@ No YAML or profile edits needed — the CLI overrides flow through the same
 | Producer CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 | Global batch CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 
-CLI beats profile. Profile beats YAML. Default stays `ffmpeg`.
+CLI beats profile. Profile beats YAML. Bundled YAML default is `pycaps`;
+the `SubtitleSettings` Pydantic field default (used when constructing
+without YAML) stays `ffmpeg`.
 
 ### Pycaps sub-settings
 

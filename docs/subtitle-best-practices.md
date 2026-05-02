@@ -2,8 +2,8 @@
 
 Practical, opinionated rules for designing captions that hold attention on
 short-form vertical video. Applies to both subtitle engines in this project
-(the default FFmpeg + SRT/ASS path and the optional pycaps engine). The
-recommendations are distilled from industry research across Submagic,
+(the bundled-default pycaps engine and the FFmpeg + SRT/ASS fallback path).
+The recommendations are distilled from industry research across Submagic,
 Opus Clip, Captions.ai, TikTok creator tooling, WCAG, and subtitling
 research — see the sources at the bottom.
 
