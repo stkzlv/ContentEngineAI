@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-05-02
+
 ### Added
 - Pycaps AI word tagging via Gemini. Reuses the existing Gemini key (`llm_settings.api_key_env_var`); no new credential plumbing. Built-in pycaps templates `neo-minimal` and `explosive` ship `type: ai` rules out of the box and pick up the wiring with no template changes. New fields: `pycaps.enable_ai_tagging` (bool), `pycaps.llm_model` (str, default `gemini-2.5-flash`), `pycaps.ai_tagging_on_error` (`skip` default = swallow per-call errors and drop the tag for that segment, or `raise` to propagate).
 
