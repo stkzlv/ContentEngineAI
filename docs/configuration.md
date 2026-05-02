@@ -62,7 +62,7 @@ field default (used when constructing without YAML) is `ffmpeg`.
 subtitle_settings:
   subtitle_engine: "pycaps"
   pycaps:
-    template_pool: ["word-focus", "neo-minimal", "minimalist", "explosive"]
+    template_pool: ["explosive", "word-focus"]
     renderer: "css"
     fallback_policy: "fallback_ffmpeg"  # forks without --with pycaps land here
 ```
