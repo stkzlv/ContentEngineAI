@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-05-02
+
 ### Changed
 - Bundled pycaps `template_pool` reduced from `["word-focus", "neo-minimal", "minimalist", "explosive"]` to `["explosive", "word-focus"]`. Drops the two templates that fail multiple rules in `docs/subtitle-best-practices.md` (neo-minimal: monospace + code-editor block; minimalist: regular weight + translucent box, no stroke). Maintains 50/50 AI-tagged split since explosive ships an AI tagger rule and word-focus does not.
 
