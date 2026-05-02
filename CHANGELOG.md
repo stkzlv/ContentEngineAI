@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.2] - 2026-05-02
+
 ### Removed
 - **Breaking** (internal API): `get_style_config` in `src/video/subtitle_positioning.py` now requires `video_config` and raises `ValueError` when it's missing or unusable. The legacy YAML re-read fallback (`Path("config/subtitles.yaml")` + `yaml.safe_load`) and the inline hardcoded modern-defaults dict are gone. The old fallbacks were CWD-dependent, bypassed CLI overrides, silently dropped YAML typos, and drifted from the typed Pydantic defaults; all four production call sites already passed `video_config`. Test fixtures that constructed `UnifiedSubtitleGenerator` without `video_config` now use the conftest `mock_config` (real `VideoConfig` with default `style_presets`).
 
