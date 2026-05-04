@@ -1,92 +1,198 @@
 # Roadmap
 
-Last updated: 2026-04-24
+Last updated: 2026-05-04
 
-Forward-looking work on ContentEngineAI, grouped by horizon. Items are aspirational, not commitments. Order within each horizon is rough priority.
+Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
+
+The phases are sequenced so each one builds on the previous. Phase 1 fixes the foundation (hook quality and retention). Phase 2 organises content by theme. Phase 3 makes attribution and CTAs measurable. Phase 4 layers per-platform optimisations. Phase 5 closes the analytics loop. Phase 6 captures unlocks blocked on platform thresholds or features.
 
 Issues and PRs are welcome on any item. If you want to pick something up, open an issue first so we can talk through scope.
 
-## Now
+## Phase 1 — Hook and retention surgery (Now)
 
-Targeted for the next 4-6 weeks.
+Targeted for the next 4-6 weeks. Highest-leverage block; downstream phases depend on retention being fixed first.
 
-### Pillar tagging across the pipeline
+Industry benchmark for short-form: 70-80% stayed-to-watch on YouTube Shorts, 60%+ 3-second hold on Reels, sub-1.5s distribution decisions on TikTok. Faceless slideshow content with a generic intro typically lands well below those benchmarks. The items below address that gap at the script-prompt and assembler levels.
 
-Add a `pillar` field to the keyword config so users can group products by content theme (e.g., gaming, home office, travel gear). Tag each script template in `src/ai/prompts/scripts/` with one or more pillar labels, and route the deterministic MD5 selection so a video produced under pillar X picks from templates tagged with X. Persist the chosen pillar in `pipeline_state.json` and the published-products registry. Add `--pillar <name>` to both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
+### 1.1 Front-loaded long-tail keyword in script prompts
 
-**Done when:** every produced video declares a pillar in its state file and registry row, and a single batch can run scoped to one pillar.
+Edit the script templates in `src/ai/prompts/scripts/` to require a long-tail audio hook in line 1, with structure `[audience or context] + [problem or benefit] + [price band]`. Mirror the hook in the on-screen text overlay and the platform caption (Rule of 3s — same keyword in caption, on-screen text, and spoken audio in the first 3 seconds). TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine search inclusion.
 
-### Default voice profile (voice pinning)
+**Done when:** spot-check 10 produced videos shows the long-tail keyword appears in TTS within the first 5 seconds and again in the on-screen text and caption.
 
-Add a `default_voice_profile` field to `tts_config` in `config/subtitles.yaml`. When set, unattended runs use that voice unless `--voice-profile` overrides. The random-voice path stays available for testing. Helps creators who want a single recognizable voice across their channel.
+### 1.2 Punchline-first opener with visual interrupt
+
+Modify the script templates so line 1 is the payoff, not the setup. Update the assembler in `src/video/producer/` so the first frame is mid-action (already-drawn arrow, mid-unbox image), not a fade-in. If the slide has a static product photo, add a 0.2s pre-zoom or pan to inject motion. Burned-in big text on the first frame is mandatory because 85-92% of mobile views are sound-off.
+
+**Done when:** the assembler emits a non-fade first frame with burned-in hook text, and a sample of 30 produced videos averages above 50% retention at the 3-second mark on YouTube Shorts.
+
+### 1.3 Short profile (15-30s) for hook iteration
+
+Add a `slideshow_short_20s` profile to `config/video_production.yaml` with shorter slide durations and a script word-budget around 50-60 words (tuned for ~150-180 wpm TTS pacing). Make the profile selectable per-platform in the publisher so the same product can render two cuts (a short YT cut and a longer TikTok/IG cut) when needed.
+
+**Done when:** the short profile renders a clean 15-30s output and the publisher accepts a per-platform profile-routing field.
+
+### 1.4 High-density cut profile
+
+Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better.
+
+**Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
+
+### 1.5 Closing comment-fork or spec-correction line
+
+Add a closing-line block to every script template that injects a comment-fork (two-option opinion question) or spec-correction line (a deliberately debatable claim that invites correction). The closing line stays in both the spoken script and the platform caption. Doesn't replace the affiliate CTA — adds an extra closing beat right before the CTA. Generic engagement bait ("Comment YES if...") is spam-filtered; specific opinion forks and spec-correction bait still drive comments.
+
+**Done when:** sample of 10 produced scripts shows 9+ include a comment-fork or spec-correction in the closing 5 seconds.
+
+## Phase 2 — Pillar persistence, non-affiliate mode, voice pinning (Now/Next)
+
+Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`; per-pillar preambles and audiences). What's still missing: pillar persistence into runtime state, an opt-out for affiliate URL injection so the same pipeline can carry an educational track, and voice pinning.
+
+### 2.1 Persist active pillar in state and registry
+
+Pillar is currently a runtime selector that filters the template pool and prepends a preamble, but the chosen pillar is not written into `pipeline_state.json` or the published-products registry. Without persistence, downstream analytics can't segment by pillar. Add `pillar` to the state file in `src/video/producer/state.py` and to the registry record in `src/publisher/product_registry.py`. Backfill the registry rebuild path so existing rows can be re-tagged from `pipeline_state.json` where available.
+
+**Done when:** every produced video records its pillar in `pipeline_state.json` and the registry row, and `registry --rebuild` preserves pillars on existing rows.
+
+### 2.2 Non-affiliate pillar mode (educational / how-to track)
+
+Add a `non_affiliate: true` flag at the pillar level. When set, the publisher skips appending the affiliate URL and skips the link-in-bio registration. Lets creators run an educational or how-to track alongside an affiliate track from the same pipeline. Educational content earns trust and search SEO; the audio script can still mention specific products by name (audio-keyword crossover indexes the video for both the help query and the product query) without an explicit affiliate push.
+
+**Done when:** a video produced under a `non_affiliate: true` pillar publishes with platform-appropriate captions, no affiliate URL, and no bio-link registration, while still naming products in the spoken script.
+
+### 2.3 Default voice profile (voice pinning)
+
+Add a `default_voice_profile` field to `tts_config` in `config/subtitles.yaml`. When set, unattended runs use that voice unless `--voice-profile` overrides. The random-voice path stays available for testing. Complements the channel-wide `narrator_profile` (text direction, shipped in 0.43.0) by pinning the synthesized voice itself.
 
 **Done when:** an unattended batch picks the configured default voice every time without a CLI flag.
 
-### UTM tagging at publish
+## Phase 3 — Conversion infrastructure (Now/Next)
+
+Targeted for weeks 5-6. Once retention is up and pillars exist, attribution and CTAs become measurable.
+
+### 3.1 UTM tagging at publish
 
 Append `utm_source`, `utm_medium`, `utm_campaign` query parameters to affiliate URLs at publish time, with values keyed off the target platform and the video's pillar. Configurable on/off per platform in `config/publisher.yaml`. Skip when the destination is the link-in-bio service itself.
 
 **Done when:** every cross-platform post ships with platform-tagged links, and click attribution becomes possible at the analytics layer.
 
-### Honest-tradeoff clause in script prompts
+### 3.2 Price-anchored CTA template system
 
-Update the script templates in `src/ai/prompts/scripts/` to require one realistic downside or limitation per product review. Add an optional validation step in `src/ai/llm_client.py` that warns when a generated script lacks a tradeoff marker. Builds trust with viewers and reduces the "AI shilling" feel.
+Add a CTA template system to the publisher with platform-specific defaults. Sub-$50 products use action-band wording ("Shop Now", "$X here →"); $50+ products use trust-band wording ("Learn More", "Link in bio"). Wire the price band into the publisher metadata generation (the scraper already pulls price; thread it through). Add an emoji-arrow overlay sticker in the final 3 seconds of every video pointing at the bio-link area on each platform's UI. CTA placement defaults to bottom-center, slightly above the native button area (the bottom 12% of frame is clipped by username/caption on TikTok).
 
-**Done when:** sampling 10 generated scripts shows at least 8 include a tradeoff marker.
+**Done when:** every video ends with a price-anchored CTA in TTS, on-screen text, and emoji-arrow overlay, with band-appropriate wording.
 
-### Instagram Reels delivery audit
+### 3.3 A/B caption variants
+
+Add an `ab_variant` field to the publish step that selects A or B per product via deterministic salted MD5. Two variant pools per platform (`cta_variants_a`, `cta_variants_b`) in `config/publisher.yaml`. Persist the chosen variant in the registry so downstream analytics can compute conversion per variant.
+
+**Done when:** the registry has an `ab_variant` column, the publisher logs which variant was used, and one A/B test is in flight.
+
+### 3.4 Hashtag pools per pillar
+
+Add `hashtag_pools` to `config/publisher.yaml`, keyed by pillar and platform. Per-platform caps reflect 2026 platform rules: Instagram has a hard 5-tag limit on Posts and Reels (Meta change, December 2025), TikTok favours 4-8 with volume bias, YouTube hashtags barely matter beyond the top 3 in description. Each post draws a baseline pillar-relevant set plus 2-3 product-specific tags from the LLM-generated metadata. Removes the need to curate hashtags per video.
+
+**Done when:** every published video carries a pillar-appropriate, platform-capped hashtag set, no manual curation.
+
+### 3.5 Cross-platform watermark check
+
+Add a smoke test in `src/publisher/` that asserts the platform-bound video file path matches the original render output, not a TikTok-source-derived file. Logs the file checksum for cross-platform comparison. Meta's 2026 originality rules de-rank Instagram content with TikTok watermarks, so the publisher must provably use the source render, not a re-downloaded copy.
+
+**Done when:** the test exists and passes, and each platform publisher provably uses the source render.
+
+### 3.6 Instagram Reels delivery audit
 
 Verify the Instagram path in the publisher posts as a Reel, not as a Feed Post. Zernio accepts separate `instagramSettings` for each format. Add a regression test that asserts the payload carries the Reels flag.
 
 **Done when:** the next batch publishes to IG as Reels, confirmed end-to-end, with a test in place to prevent drift.
 
-## Next
+## Phase 4 — Per-platform optimisations (Next)
 
-Targeted for this quarter. Most depend on Now items landing.
+Targeted for the following quarter. Builds on Phases 1-3.
 
-### Long-form profile (60-120s)
+### 4.1 Instagram Stories auto-publish with link sticker
 
-Add a long-form profile (`slideshow_long_60s` or `video_long_90s`) to `config/video_production.yaml` with longer slide durations and a longer script template variant. Useful for YouTube long-form Shorts, TikTok Creator Rewards eligibility (which requires 60s+ videos), and platforms that reward depth over brevity. Word-count budget assumes Google Chirp 3 HD pacing of 150-180 wpm.
+After publishing a Reel, the publisher automatically schedules a Story re-share with a link sticker pointing at the same destination URL. Optional poll or quiz sticker for engagement signal. The link sticker is open to all Instagram accounts regardless of follower count (changed in 2021), so this is a near-zero-threshold reach and CTR unlock. Make this opt-in per pillar so non-affiliate pillars don't carry an affiliate link sticker.
 
-### A/B caption variants
+**Done when:** every Reel published triggers an automatic Story re-share with a link sticker, confirmed live on the IG account.
 
-Add an `ab_variant` field to the publish step that selects A or B per product via deterministic salted MD5. Two variant pools per platform (`cta_variants_a`, `cta_variants_b`) in `config/publisher.yaml`. Persist the chosen variant in the registry so downstream analytics can compute conversion per variant.
+### 4.2 YouTube engagement-bait pinned comment
 
-### Hashtag pools per pillar
+Add a "pinned comment" field to the YouTube publish path. Generate the pinned comment from the script's closing fork (Phase 1.5) — the comment is the spec-correction or two-option fork phrased as a direct question. Don't pin a "subscribe" CTA; pinned subscribe asks underperform, and the closing 5s of the video already carries a script-level subscribe CTA. End screens are not available on Shorts (long-form only), so the pinned comment is the equivalent placement.
 
-Add `hashtag_pools` to `config/publisher.yaml`, keyed by pillar and platform. Each post draws a baseline pillar-relevant set plus 2-3 product-specific tags from the LLM-generated metadata. Removes the need to curate hashtags per video.
+**Done when:** every YouTube Short publishes with an engagement-bait pinned comment derived from the script.
 
-### Non-affiliate pillar support
+### 4.3 Comment-reply video mode
 
-When a pillar is marked non-affiliate (e.g., tutorial or how-to content), the publisher skips appending the affiliate URL and skips the link-in-bio registration. Lets creators run a tutorial track alongside an affiliate track from the same pipeline.
+Add a `--mode reply` option to the producer that takes a parent video ID, a comment text, and a product ID, and produces a 10-15s response clip with the comment text overlaid and the product image/video. Doesn't auto-publish; surfaces the rendered clip in `outputs/<asin>/reply_drafts/` for manual review and submission. Future hook: an analytics step that scans recent comments for product questions and pre-draws reply videos.
 
-### Companion analytics module
+**Done when:** producer renders a reply-mode video from a comment text + product ID + parent video ID, output to a drafts folder.
 
-Optional analytics tooling that pulls platform metrics (TikTok, Instagram, YouTube, Amazon Associates, lnk.bio) into a local SQLite store and produces weekly reports segmented by pillar, template, voice profile, and A/B variant. Either a sister module in this repo or a separately released companion tool, to be decided when the work starts.
+### 4.4 Amazon Influencer Storefront publisher target
 
-## Later
+Add the Amazon Influencer Storefront as a publisher target alongside YouTube, TikTok, and Instagram. The storefront accepts MP4 uploads; videos appear on relevant product detail pages and earn commission from on-Amazon traffic the creator didn't drive. The same render output that goes to YouTube can go to the storefront in v1; trim to under 60s if the storefront video length cap requires it (verify at integration time). Maps products to storefront slots (one or two products per uploaded video). Eligibility for the Amazon Influencer Program is separate from Amazon Associates and uses "demonstrated social influence" rather than a formal follower minimum.
+
+**Done when:** the publisher uploads each rendered video to a configured Amazon Influencer Storefront alongside the other platforms.
+
+### 4.5 Amazon OneLink localisation wrapper
+
+Wrap every Amazon affiliate URL with the OneLink redirect at publish time so non-US viewers get routed to their local Amazon storefront automatically. Verify the wrapped URL preserves the affiliate tracking ID across locales. Free Amazon feature; recovers the share of traffic that lands on the wrong-region store.
+
+**Done when:** non-US clicks route to the correct local Amazon storefront with tracking ID preserved.
+
+### 4.6 Link-in-bio funnel hygiene
+
+Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a new product rotates the featured slot rather than appending. Industry baseline: link-in-bio hubs see 20-40% click-through to the top destination URL when only 2-3 links are present; the first 3 positions get ~130% higher CTR than positions 4-10. Cap the bio at the most recent featured product plus an "all products" fallback.
+
+**Done when:** the bio shows at most 2-3 links at any time, with the most recent product as the featured slot.
+
+## Phase 5 — Analytics and continuous learning (Next)
+
+Targeted for the following quarter. Closes the loop between pipeline output and platform signals.
+
+### 5.1 Companion analytics module
+
+Optional analytics tooling that pulls platform metrics (TikTok, Instagram, YouTube, Amazon Associates, link-in-bio) into a local SQLite store and produces weekly reports segmented by pillar, template, voice profile, and A/B variant. Either a sister module in this repo or a separately released companion tool, to be decided when the work starts. Avoid building against Amazon's PA-API — it deprecates May 15, 2026; use the new Creators API or scraping instead.
+
+### 5.2 Listing-side drift diagnostic
+
+Add a diagnostic step to the analytics tool that pulls the current state of every recently-published product's source listing (price, stock, availability flags, rating, review count) and flags products whose state has drifted from as-published thresholds (price up >15%, out of stock, rating dropped below 4.0, return-rate badge added). Per-product alert in the weekly report. Optional hook: a publisher endpoint to remove a flagged product from the link-in-bio rotation.
+
+**Done when:** the dashboard flags drifted listings and exposes a "remove from bio" hook for manual action.
+
+### 5.3 Per-pillar / per-CTA / per-hook performance reports
+
+Add report types to the analytics tool for: per-pillar conversion, per-template engagement, per-voice watch-through (historical baseline; mostly constant after voice pinning), per-A/B-variant CTA click rate, per-hook style retention. 4-week rolling windows so seasonality doesn't pollute the comparison.
+
+**Done when:** the user can answer "which pillar converts best on platform X over the last 4 weeks" with a single command.
+
+## Phase 6 — Threshold-gated unlocks (Later)
 
 Blocked on platform features, eligibility, or earlier items landing.
 
-### TikTok Shop product tagging in publisher
+### 6.1 Long-form profile (60-120s)
 
-Add support for TikTok Shop product tags in the publisher payload. Requires the user's TikTok Shop affiliate approval. Once enabled, posts in supported regions can carry tappable product cards, replacing or complementing the bio-link CTA.
+Add a long-form profile (`slideshow_long_60s` or `video_long_90s`) to `config/video_production.yaml` with longer slide durations and a longer script template variant. Useful for YouTube long-form, TikTok Creator Rewards eligibility (which requires 60s+ videos), and platforms that reward depth over brevity. Word-count budget assumes ~150-180 wpm TTS pacing. Pairs with the Shorts-to-long-form bridge: the algorithmic Shorts→long-form recommendation spillover ended in late 2025, so the bridge is now user-driven via explicit CTAs and channel-page landing experience.
 
-### Instagram native affiliate product tagging
+### 6.2 TikTok Shop product tagging in publisher
 
-Wire up Instagram's native affiliate product tagging through the publisher when the user's account meets the threshold. Solves the bio-click drop-off because the tag is in-feed.
+Add support for TikTok Shop product tags in the publisher payload. Requires the user's TikTok Shop affiliate approval and Shop-eligible product listings. Once enabled, posts in supported regions can carry tappable product cards, replacing or complementing the bio-link CTA.
 
-### YouTube end-screen subscribe overlay
+### 6.3 Instagram native affiliate product tagging
 
-Add an end-screen overlay step in `src/video/producer/` that bakes a subscribe CTA on the last few seconds. Pinned-comment subscribe asks can ride on the existing publisher path. Most useful in combination with the long-form profile.
+Wire up Instagram's native affiliate product tagging through the publisher when the user's account meets the threshold (1K followers + Pro account) and Instagram has rolled the affiliate program out to the user's market. As of mid-2026 the affiliate program is live in only a small number of markets; check current availability before building. Solves the bio-click drop-off because the tag is in-feed.
 
-### Zernio SDK migration
+### 6.4 YouTube end-screen subscribe overlay
+
+Add an end-screen overlay step in `src/video/producer/` that bakes a subscribe CTA on the last few seconds. End screens are long-form-only — they don't appear on Shorts under 60s — so this depends on the long-form profile (6.1) shipping first. Pinned-comment subscribe asks can ride on the existing publisher path but underperform engagement-bait pinned comments (Phase 4.2), so end-screens are the better long-term lever.
+
+### 6.5 Zernio SDK migration
 
 Migrate from the legacy `late-sdk` package to `zernio-sdk`, rename `LATE_API_KEY` to `ZERNIO_API_KEY`, and update imports under `src/publisher/late/`. The old package keeps working during the SDK grace period; do this when the publisher gets its next substantive change so the migration rides on existing testing.
 
-### Pycaps follow-ups
+### 6.6 Pycaps follow-ups
 
-Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via the Gemini key, two-part subtitles plus pycaps hybrid, CSS renderer integration test in CI, custom project template, WhisperX upgrade.
+Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via the Gemini key (in flight), two-part subtitles plus pycaps hybrid, CSS renderer integration test in CI, custom project template, WhisperX upgrade.
 
 ## Toward 1.0.0
 
@@ -127,9 +233,9 @@ Concrete gates for the 1.0.0 release:
 - No HIGH or CRITICAL CVEs in pinned dependencies for more than 7 days; Dependabot batched into patch releases per existing workflow.
 
 **Roadmap items in scope for 1.0.0**
-- All Now items shipped: pillar tagging, default voice profile, UTM tagging, honest-tradeoff clause, Instagram Reels delivery audit.
-- At least three of the five Next items shipped or in review.
-- TikTok Shop and Instagram native affiliate tagging (Later) are explicitly out of scope; they're 1.x material once the platforms unlock for real users.
+- All Phase 1, 2, and 3 items shipped.
+- At least four of six Phase 4 items shipped or in review.
+- Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
 
 **Real-world proof**
 - The pipeline has produced and successfully published a meaningful volume of videos (target: 100+) end-to-end across all three target platforms.
@@ -142,7 +248,7 @@ When all gates are green, the next release is `1.0.0`, not `0.43.x`. Anything no
 
 - Each shipped item moves to the Shipped section at the bottom (append-only) with a one-line summary and the release version.
 - Items dropped from the roadmap also get a one-line note in the same section, with the reason.
-- Don't let the Later section accumulate without bound. If something sits in Later for two quarters with no movement, either prune it or rewrite the description to reflect the actual blocker.
+- Don't let Phase 6 accumulate without bound. If something sits there for two quarters with no movement, either prune it or rewrite the description to reflect the actual blocker.
 
 ## Shipped
 
@@ -224,3 +330,18 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Compliance test suite (114 tests) validating all documented requirements.
 - Comprehensive test coverage for video producer, scraper, publisher, audio, AI metadata modules.
 - Performance regression detection with configurable window and threshold.
+
+**Content pillars and prompt hygiene (0.43.x)**
+- Content pillars system. Default pillars `value`, `novelty`, `utility`. Keyword pool grouped by pillar in `config/scraper.yaml`; script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` on both producer CLI and global batch.
+- Per-pillar runtime preamble (`script_templates.pillar_preambles`) and per-pillar audience override (`script_templates.pillar_audiences`).
+- Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt, with anti-AI-tells list, banned phrases, single-CTA rule, persona anchor, voice example.
+- `{SHORT_PRODUCT_NAME}` placeholder resolved by a brand-plus-model heuristic in `format_prompt`.
+- NFKC normalization of product titles and descriptions before prompt injection (kills Amazon's mathematical-alphabet bold tricks); em/en dash replacement in descriptions.
+- Honest-tradeoff clause: per-template `## Rules` block requires one short trade-off or limitation per script.
+
+**Pycaps subtitle engine maturity (0.44.x)**
+- AI word tagging via Gemini in pycaps. Reuses existing Gemini key. Built-in `neo-minimal` and `explosive` templates ship `type: ai` rules. Per-call errors governed by `pycaps.ai_tagging_on_error` (default `skip`).
+- Default subtitle engine flipped from FFmpeg to pycaps; bundled `pycaps.fallback_policy` is `fallback_ffmpeg` so forks without the optional pycaps group degrade silently.
+- Default pycaps template pool tightened to `["explosive", "word-focus"]` (50/50 AI-tagged / untagged); default template `explosive`.
+- `--pycaps-template NAME` now actually forces the named template (was silently no-op against multi-entry pools).
+- `make produce-lowpri` cgroup hardening with `MemorySwapMax=0` so producer memory pressure doesn't trigger systemd-oomd kills on unrelated session apps.
