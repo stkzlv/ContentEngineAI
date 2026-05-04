@@ -275,6 +275,7 @@ def mock_config(temp_dir: Path) -> VideoConfig:
                 "enable_format_normalization": True,
                 "image_width_percent": 0.75,
                 "image_top_position_percent": 0.20,
+                "image_vertical_align": "top",
                 "video_vertical_align": "top",
             },
             "product_video_mixed": {

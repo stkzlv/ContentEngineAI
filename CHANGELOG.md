@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Profile-level `image_vertical_align` was silently dropped during config merge. The field existed on the global `VideoSettings` model but not on `VideoProfile`, and Pydantic's `extra="ignore"` default swallowed any YAML override without warning. The merge map in `core_models.py::get_profile_merged_settings` also lacked the field, so even if it had been declared, profile overrides wouldn't have reached the assembler. Added the field to `VideoProfile` and the merge map. Profiles can now set `image_vertical_align: "top"` to anchor product imagery at the top of the frame instead of inheriting the global `"center"` default. Surfaced while investigating #99; the broader caption-out-of-dead-zone goal stays blocked on a separate architectural mismatch (assembler reserves caption space at the lower-third for FFmpeg-path captions; the pycaps engine ignores that reservation and positions captions at `vertical_align_offset` independently).
+
 ## [0.44.2] - 2026-05-02
 
 ### Removed
