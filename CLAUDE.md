@@ -56,6 +56,29 @@ Pipeline logs are in `outputs/logs/`:
 - `producer.log` — standalone video production
 - `publisher.log` — standalone publishing
 
+## Resource discipline (read before running anything below)
+
+The scraper and the producer are the heavy commands. The producer pipeline peaks around 2-2.5 GB RSS per render (Whisper STT, FFmpeg encoding, pycaps Chromium) and runs for 3-6 minutes on a single 30-45s output. The scraper drives Botasaurus + Chromium and holds RAM for the duration of a search. Running either bare while the user is working on the same machine causes systemd-oomd to kill unrelated session apps (Chrome, VSCode) — see the 0.44.0 changelog for why we now ship `MemorySwapMax=0` in the lowpri cgroup.
+
+**Rule: full scrape and full produce ALWAYS go through `make scrape-lowpri` / `make produce-lowpri` (or `make batch-lowpri` for the global pipeline).** These targets wrap the command in a `systemd-run --user --scope` cgroup with `MEM_LIMIT` (default 8G) + `nice` (default 10) + `MemorySwapMax=0`. Tune via `MEM_LIMIT=6G NICE_LEVEL=15` when thrashing. The bare `poetry run python -m src.scraper.amazon.scraper` and `poetry run python -m src.video.producer` forms are reserved for:
+
+- Unit tests / pytest runs (no full render).
+- Single-step debug runs that pass `--step <name>` and skip the heavy steps.
+- Dry runs (`--dry-run`).
+- One-second invocations that just print help or load config.
+
+If the command will scrape products, render audio/video, or run the full pipeline end-to-end, use lowpri. No exceptions for "I just need one quick test render" — quick test renders are exactly when the user is also using the machine.
+
+When invoking lowpri, pass the args via `ARGS="..."`:
+
+```bash
+make produce-lowpri ARGS="outputs/<ASIN>/data.json slideshow_images1 --clean --debug"
+make scrape-lowpri  ARGS="--product-ids B0XXXXXXXX --debug"
+make batch-lowpri   ARGS="--product-ids B0XXXXXXXX --profile slideshow_images1 --debug"
+```
+
+For batch operations, `make batch-lowpri` is documented below as the default for global pipeline runs. Apply the same rule to single-product runs by reaching for `make produce-lowpri` first.
+
 ## Essential Commands
 
 ```bash
@@ -159,6 +182,7 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 ### Video Module Notes
 
 - **Profile settings**: `get_profile_merged_settings()` returns typed `MergedProfileSettings` (not dicts). Access via `.video_settings.field` and `.subtitle_settings.field`. Use `.model_dump()` when downstream functions need dicts.
+- **Profile-level field gating** (silent-drop class of bugs): a profile-level YAML override only reaches the assembler when ALL THREE conditions hold: (1) field declared on `VideoSettings` in `src/video/config/visual_models.py`, (2) field declared as `<type> | None = Field(None, ...)` on `VideoProfile` in the same file, (3) field listed in the `_collect_overrides` field map in `src/video/config/core_models.py::get_profile_merged_settings`. Miss any one and Pydantic's default `extra="ignore"` swallows the override silently — no warning, no test failure. When adding a new profile-overridable field, grep both files for similar fields (e.g., `image_top_position_percent`) and follow the pattern. Audit follow-up tracked as a GitHub issue with the `follow-up` label.
 - **Subtitle config model**: `SubtitleSettings` (in `src/video/config/subtitle_models.py`) is the single source of truth — both the config-layer merge output and runtime generator input. Strict (`extra="forbid"`); YAML typos throw at load. `from_legacy_dict()` translates renames (`max_subtitle_duration` → `max_duration`, `min_subtitle_duration` → `min_duration`) and drops underscore-prefixed runtime side-channel keys.
 - **Subtitle profile overrides**: `VideoProfile.subtitle_settings: PartialSubtitleSettings | None` is a single nested block; `partial.merge_into(base)` deep-merges (nested sub-models like `pycaps`, `two_part_subtitles`, `safe_zone` merge per-field). The `@model_validator(mode="before")` shim on `VideoProfile` migrates legacy flat keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) to the nested block at load with a `DeprecationWarning` for one release.
 - **Video centering**: Use `video_vertical_align: center` in profile config. Setting `video_top_position_percent: 0.0` puts video at top, not center. The `center` value triggers FFmpeg's `(oh-ih)/2` pad expression.

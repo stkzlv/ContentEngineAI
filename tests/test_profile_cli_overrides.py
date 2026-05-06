@@ -101,6 +101,34 @@ class TestProfileSpecificSettings:
         )
         assert default.video_vertical_align is None
 
+    def test_profile_image_vertical_align_field(self):
+        """image_vertical_align is accepted at profile level and stored.
+
+        Regression: previously the field was missing from VideoProfile, so
+        Pydantic silently dropped it (extra="ignore" default), and any
+        profile-level override never reached the assembler.
+        """
+        top = VideoProfile(
+            description="Top-anchored slideshow",
+            use_scraped_images=True,
+            image_vertical_align="top",
+        )
+        assert top.image_vertical_align == "top"
+
+        center = VideoProfile(
+            description="Center-anchored slideshow",
+            use_scraped_images=True,
+            image_vertical_align="center",
+        )
+        assert center.image_vertical_align == "center"
+
+        # None by default — inherits from global VideoSettings.
+        default = VideoProfile(
+            description="Default slideshow",
+            use_scraped_images=True,
+        )
+        assert default.image_vertical_align is None
+
 
 @pytest.mark.unit
 class TestMergedProfileSettings:
@@ -150,6 +178,22 @@ class TestMergedProfileSettings:
         # product_video_single sets "top", global is "center"
         assert merged.video_settings.video_vertical_align == "top"
         assert merged.video_settings.image_width_percent == 0.75
+
+    def test_profile_overrides_image_vertical_align(self, mock_config: VideoConfig):
+        """Profile-level image_vertical_align reaches merged video_settings.
+
+        Regression: the field was missing from both VideoProfile and the
+        _collect_overrides field map, so YAML overrides were silently
+        dropped. The assembler then fell back to the global default
+        ("center"), ignoring profile intent.
+        """
+        merged = mock_config.get_profile_merged_settings("product_video_single")
+        assert merged.video_settings.image_vertical_align == "top"
+
+        # test_profile doesn't set the field; merged value is the global
+        # default ("center"), not None.
+        merged_default = mock_config.get_profile_merged_settings("test_profile")
+        assert merged_default.video_settings.image_vertical_align == "center"
 
     def test_subtitle_settings_from_global(self, mock_config: VideoConfig):
         """Subtitle settings merge from global YAML config."""

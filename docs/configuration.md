@@ -1670,6 +1670,7 @@ video_profiles:
 # Image Settings (all optional, top-level on the profile)
 image_width_percent: 0.85            # Override global image width
 image_top_position_percent: 0.15     # Override global image position
+image_vertical_align: "top"          # Override global vertical alignment ("top" or "center")
 preserve_aspect_ratio: true          # Override aspect ratio setting
 
 # Subtitle Settings — single nested block. Any field on the global

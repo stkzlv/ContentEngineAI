@@ -285,6 +285,9 @@ class VideoProfile(BaseModel):
     image_top_position_percent: float | None = Field(
         None, description="Override global image top position as percentage (0.0-1.0)"
     )
+    image_vertical_align: Literal["top", "center"] | None = Field(
+        None, description="Override global image vertical alignment (top or center)"
+    )
     preserve_aspect_ratio: bool | None = Field(
         None, description="Override global aspect ratio preservation setting"
     )
