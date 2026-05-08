@@ -212,8 +212,12 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
         logger.info(f"Loading existing state from {state_file.name}")
         state_data = json.loads(state_file.read_text(encoding="utf-8"))
 
-        # Verify that all artifacts for completed steps still exist
+        # Verify that all artifacts for completed steps still exist.
+        # Top-level scalars (pillar, script_template) live alongside step dicts;
+        # skip non-dict entries instead of calling .get() on them.
         for step, data in state_data.items():
+            if not isinstance(data, dict):
+                continue
             if data.get("status") == "done":
                 for key, path_str in data.get("artifacts", {}).items():
                     if not Path(path_str).exists():
