@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Four named male voice profiles in `config/subtitles.yaml`: `puck`, `charon`, `fenrir`, `orus`. Each pins one Gemini TTS voice via `voice_criteria.name_contains`. Use with `--voice-profile <name>` to force a specific voice for any render. Sits ahead of the planned `default_voice_profile` field (Phase 2.3 in `docs/roadmap.md`); once a voice is chosen for a channel, that field will reference one of these names.
+
+### Fixed
+- `_load_pipeline_state` in `src/video/producer/state.py` crashed with `'str' object has no attribute 'get'` when the state file contained top-level scalar keys (`pillar`, `script_template`) alongside step dicts. The pillar tagging system in 0.43.x added these scalar keys without updating the loader. Loader now skips non-dict entries instead of calling `.get()` on them.
+
+### Documentation
+- `docs/roadmap.md` adds Phase 0 (disclosure compliance baseline) ahead of the existing Phase 1. Covers persistent on-frame disclosure overlay, first-line caption disclosure, affiliate program literal-phrase rendering, language-aware variants, platform-tag audit (TikTok / YouTube / Instagram), a disclosure test suite, and a new `docs/compliance.md`. Targeted to ship before Phase 1 retention work and gating the 1.0.0 release. Toward 1.0.0 gate updated to require Phase 0 shipped.
+
 ## [0.44.3] - 2026-05-06
 
 ### Fixed
