@@ -1,12 +1,66 @@
 # Roadmap
 
-Last updated: 2026-05-04
+Last updated: 2026-05-07
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
-The phases are sequenced so each one builds on the previous. Phase 1 fixes the foundation (hook quality and retention). Phase 2 organises content by theme. Phase 3 makes attribution and CTAs measurable. Phase 4 layers per-platform optimisations. Phase 5 closes the analytics loop. Phase 6 captures unlocks blocked on platform thresholds or features.
+The phases are sequenced so each one builds on the previous. Phase 0 is the disclosure-compliance baseline that every promotional render needs to satisfy and has to land before anything else ships. Phase 1 fixes the retention foundation (hook quality and 3-second hold). Phase 2 organises content by theme. Phase 3 makes attribution and CTAs measurable. Phase 4 layers per-platform optimisations. Phase 5 closes the analytics loop. Phase 6 captures unlocks blocked on platform thresholds or features.
 
 Issues and PRs are welcome on any item. If you want to pick something up, open an issue first so we can talk through scope.
+
+## Phase 0 — Disclosure compliance baseline (Now, blocking)
+
+Targeted to ship before any Phase 1 retention work, and gating the 1.0.0 release. Creators using the pipeline for affiliate marketing have legal disclosure obligations under the FTC Endorsement Guides (any US-facing content), the Amazon Associates Operating Agreement (any Amazon affiliate program participant), and per-platform policy (TikTok / Instagram / YouTube). The pipeline already wires TikTok branded-content disclosure but leaves the rest of the stack manual. Compliance is not a polish item: FTC penalties reach $53,088 per violation per post in 2025 and Amazon Associates enforces with account termination, no warning. The pipeline should make compliance the default render output, not a per-video checklist.
+
+This phase ships as a single compliance bundle, not staged. Shipping pieces of it leaves the floor incomplete.
+
+### 0.1 Persistent on-frame disclosure overlay
+
+Burn a configurable disclosure overlay (`#ad`, `Sponsored`, `Paid partnership`, or localized equivalents like `#publi` / `#publicidad`) into every produced video. Full-clip duration, fixed corner, ~50-60% size of narration captions, contrasting font weight against the background. Configurable via a new `disclosure` block in `config/publisher.yaml` (or `config/video_production.yaml`, depending on which side of the assembler/publisher boundary the overlay lives). Required by FTC's two-punch guidance (overlay AND caption text); platform tags alone don't satisfy it.
+
+**Done when:** every render emits a persistent on-frame disclosure overlay in the language of the script, visible across TikTok / YouTube Shorts / Instagram Reels safe zones (`docs/platform-safe-zones.md`).
+
+### 0.2 First-line caption disclosure
+
+Update the per-platform metadata generators in the publisher so the disclosure leads the caption text, before any product description, hook, hashtags, or affiliate link. Platform-specific quirks: Instagram and TikTok captions clip at the `…more` cut, so the disclosure must fit ahead of that fold; YouTube descriptions tolerate longer lead-ins. The disclosure language must match the script language, not the platform default.
+
+**Done when:** every published caption leads with the disclosure on every platform, language-matched to the script.
+
+### 0.3 Affiliate program literal-phrase rendering
+
+Add a configurable literal-phrase block that ships the affiliate program's required identification text. For Amazon Associates: "As an Amazon Associate I earn from qualifying purchases" (or a substantially similar pre-approved statement). Render in at least one of: profile bio, the closing frame of the video, or the caption body. Drive from a new `affiliate_disclosure` config keyed by program name so non-Amazon programs (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
+
+**Done when:** every published video includes the configured affiliate program literal phrase in at least one of bio / on-frame / caption.
+
+### 0.4 Localized disclosure variants
+
+When the script language is not English, the disclosure must match. Add per-language disclosure variants keyed off the existing TTS / script language: `en` → `#ad`, `es` → `#publi` or `#publicidad`, etc. Required by FTC's same-language rule and by Spain's Royal Decree 444/2024 for creators in the EU. A config-load-time validator should warn (not silently default) when the configured disclosure language doesn't match the script language for a given run.
+
+**Done when:** a Spanish-language render emits a Spanish-language disclosure overlay and caption first line; an English render emits English; mismatches raise a config-load warning.
+
+### 0.5 Platform-tag audit (TikTok / YouTube / Instagram)
+
+Verify the platform-policy disclosure flags are set on every publish:
+
+- TikTok: `commercial_content_type: "brand_organic"` and `is_brand_organic_post: true` (already wired in `src/publisher/late/client.py`).
+- YouTube: `paid_promotion: true` (or the Zernio / late-sdk equivalent field) in the publish payload.
+- Instagram: paid partnership label on Reels and Posts.
+
+These satisfy each platform's policy floor and are additive to the FTC overlay/caption disclosure, not a substitute. Add a regression test that asserts each flag is present in the per-platform payload.
+
+**Done when:** every per-platform publish payload carries the platform's paid-content flag, with a regression test in CI.
+
+### 0.6 Disclosure-test suite
+
+One smoke test per requirement above, living next to the existing publisher tests and running in CI on every PR. Asserts: overlay is rendered, caption first line is the disclosure, affiliate phrase is present in at least one rendered location, language matches script, platform flags are set in the payload. Fails the build on any drift.
+
+**Done when:** the suite catches every documented disclosure regression.
+
+### 0.7 Documentation
+
+Add a `docs/compliance.md` that describes the disclosure stack the pipeline produces, what each layer satisfies (FTC, Amazon Operating Agreement, platform policy), what configuration knobs exist, and what creators are still expected to verify manually (e.g., bio identification on each social profile). Cross-link from `docs/publisher.md` and from the README's feature list.
+
+**Done when:** `docs/compliance.md` exists and the publisher README points to it.
 
 ## Phase 1 — Hook and retention surgery (Now)
 
@@ -233,6 +287,7 @@ Concrete gates for the 1.0.0 release:
 - No HIGH or CRITICAL CVEs in pinned dependencies for more than 7 days; Dependabot batched into patch releases per existing workflow.
 
 **Roadmap items in scope for 1.0.0**
+- All Phase 0 items shipped (compliance baseline; gating).
 - All Phase 1, 2, and 3 items shipped.
 - At least four of six Phase 4 items shipped or in review.
 - Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
