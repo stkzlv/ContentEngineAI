@@ -241,9 +241,10 @@ group degrade to FFmpeg without manual intervention.
 - Speaking rate and pitch tunable per profile. Rates near 1.0 (natural pace), avoid stacking slow rate + low pitch + "slow" style prompt.
 - Inline markup rules for pause insertion at sentence boundaries (periods, exclamations, question marks)
 - Deterministic profile selection per product for reproducibility
-- Configurable profile pool to restrict selection (random across pool when non-empty, A/B testing path)
-- Pinned default profile for unattended runs via `default_voice_profile` (channel-wide voice consistency)
-- CLI override to force a specific profile
+- Voice selection precedence (highest first): CLI override, random across configured pool, pinned default profile, random across all profiles
+- Pinned default profile keeps unattended runs on a single voice for channel-wide consistency
+- Configurable profile pool restricts selection to a named subset for A/B testing
+- CLI override forces a specific profile for one-off runs
 - Profile metadata (profile name and selected voice) recorded in pipeline output for traceability
 
 ### Stock Background Music
