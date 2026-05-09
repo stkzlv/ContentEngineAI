@@ -439,9 +439,72 @@ tts_config:
         - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "FEMALE" }
         - { language_code: "en-US", name_contains: "Chirp3", ssml_gender: "MALE" }
 
-  # Pool for random profile selection
-  # Empty list = use all profiles. Set to ["chirp3_natural"] to use only Chirp3.
+    # ---- NAMED MALE VOICE PROFILES (Phase 2.3 voice-pinning candidates) ----
+    # Each profile pins one Gemini TTS voice by name via voice_criteria.
+    # Use with --voice-profile <name> to force a specific voice for a render.
+    # Once a voice is chosen, set tts_config.default_voice_profile to its name.
+
+    puck:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak in a warm, friendly, conversational tone. Sound natural and enthusiastic about the product."
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Puck" }
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
+
+    # Pinned default voice. Speaking rate set to 1.00 to dial back the
+    # newscaster-pacing tendency Charon has at 1.05+ and stay closer to the
+    # "trusted friend over coffee" register documented in the style_prompt.
+    charon:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak calmly and confidently. Warm but grounded. Like a trusted friend recommending something over coffee."
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Charon" }
+      speaking_rate: 1.00
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
+
+    fenrir:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak with energy and conviction. Confident, engaging, like a tech reviewer who actually uses the product."
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Fenrir" }
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
+
+    orus:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak with quiet authority. Trusted, grounded, like a friend giving honest advice."
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Orus" }
+      speaking_rate: 1.05
+      markup_rules:
+        - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
+
+  # Voice selection precedence (highest first):
+  #   1. CLI --voice-profile <name>           (always wins)
+  #   2. voice_profile_pool (non-empty)       (random across pool, for testing)
+  #   3. default_voice_profile                (pinned voice for unattended runs)
+  #   4. random across all voice_profiles     (back-compat fallback)
+  #
+  # Set voice_profile_pool to a non-empty list to opt back into random selection
+  # (e.g., for A/B testing voice candidates).
   voice_profile_pool: []
+  default_voice_profile: charon
 
 # ============================================================================
 # SUBTITLE EFFECTS (ASS Format Animations)

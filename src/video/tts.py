@@ -667,8 +667,29 @@ class TTSManager:
                 self.voice_profile_override,
             )
 
-        pool = self.config.voice_profile_pool or list(self.config.voice_profiles.keys())
-        pool = [p for p in pool if p in self.config.voice_profiles]
+        # Explicit pool wins next: use it for random selection (testing path).
+        # Otherwise honor default_voice_profile if set (pinned voice).
+        # Final fallback: random across all profiles (back-compat).
+        if self.config.voice_profile_pool:
+            pool = [
+                p
+                for p in self.config.voice_profile_pool
+                if p in self.config.voice_profiles
+            ]
+        elif self.config.default_voice_profile:
+            pinned = self.config.default_voice_profile
+            if pinned in self.config.voice_profiles:
+                logger.info("Using default voice profile: '%s'", pinned)
+                return pinned, self.config.voice_profiles[pinned]
+            logger.warning(
+                "default_voice_profile '%s' not found in voice_profiles, "
+                "falling back to random selection",
+                pinned,
+            )
+            pool = list(self.config.voice_profiles.keys())
+        else:
+            pool = list(self.config.voice_profiles.keys())
+
         if not pool:
             return None, None
 

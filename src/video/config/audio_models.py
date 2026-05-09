@@ -121,6 +121,7 @@ class TTSConfig(BaseModel):
     voice_profiles_enabled: bool = Field(True)
     voice_profiles: dict[str, VoiceProfileConfig] = Field(default_factory=dict)
     voice_profile_pool: list[str] = Field(default_factory=list)
+    default_voice_profile: str | None = Field(None)
 
     @model_validator(mode="after")
     def check_provider_settings_exist(self) -> "TTSConfig":
