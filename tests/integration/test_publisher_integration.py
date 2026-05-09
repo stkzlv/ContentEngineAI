@@ -505,6 +505,56 @@ class TestPlatformPublishing:
         assert tiktok_settings["express_consent_given"] is True
 
     @pytest.mark.asyncio
+    async def test_publish_youtube_sets_synthetic_media_flag(self, mock_publisher):
+        """YouTube payload always carries containsSyntheticMedia=True (AI disclosure)."""
+        platforms = [
+            {"platform": "youtube", "account_id": "acc_yt_001"},
+        ]
+
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            content="YouTube post #ad",
+        )
+
+        call_kwargs = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call_kwargs.kwargs.get(
+            "platforms", call_kwargs[1].get("platforms", [])
+        )
+        youtube_platform = next(p for p in sdk_platforms if p["platform"] == "youtube")
+        psd = youtube_platform["platformSpecificData"]
+        assert psd["containsSyntheticMedia"] is True
+
+    @pytest.mark.asyncio
+    async def test_publish_youtube_synthetic_media_with_platform_content(
+        self, mock_publisher
+    ):
+        """YouTube containsSyntheticMedia stays True even when platform-specific
+        content is provided (covers the platform_contents branch).
+        """
+        platforms = [
+            {"platform": "youtube", "account_id": "acc_yt_001"},
+        ]
+        platform_contents = {
+            "youtube": {"content": "YouTube body #ad", "title": "Test Title"},
+        }
+
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media_123.mp4",
+            platforms=platforms,
+            platform_contents=platform_contents,
+        )
+
+        call_kwargs = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call_kwargs.kwargs.get(
+            "platforms", call_kwargs[1].get("platforms", [])
+        )
+        youtube_platform = next(p for p in sdk_platforms if p["platform"] == "youtube")
+        psd = youtube_platform["platformSpecificData"]
+        assert psd["containsSyntheticMedia"] is True
+        assert psd["title"] == "Test Title"
+
+    @pytest.mark.asyncio
     async def test_publish_validates_empty_platforms(self, mock_publisher):
         """Test publish rejects empty platforms list."""
         from src.publisher.base import ValidationError
