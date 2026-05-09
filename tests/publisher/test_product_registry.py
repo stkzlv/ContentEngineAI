@@ -40,6 +40,15 @@ def _write_data_json(outputs_dir: Path, product_id: str, data: dict) -> None:
     )
 
 
+def _write_pipeline_state(outputs_dir: Path, product_id: str, state: dict) -> None:
+    """Helper to create a product pipeline_state.json file."""
+    temp_dir = outputs_dir / product_id / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    (temp_dir / "pipeline_state.json").write_text(
+        json.dumps(state, ensure_ascii=False), encoding="utf-8"
+    )
+
+
 class TestLoadSaveRegistry:
     """Test load/save round-trip."""
 
@@ -220,3 +229,119 @@ class TestRebuildRegistry:
     def test_rebuild_empty_dir(self, outputs_dir: Path):
         outputs_dir.mkdir(parents=True)
         assert rebuild_registry(outputs_dir) == 0
+
+
+class TestPillarColumn:
+    """Test pillar field on registry rows (#83)."""
+
+    def test_default_pillar_is_empty(self, sample_entry: RegistryEntry):
+        assert sample_entry.pillar == ""
+
+    def test_add_picks_pillar_from_pipeline_state(self, outputs_dir: Path):
+        _write_data_json(
+            outputs_dir,
+            "B0PILLAR001",
+            {
+                "title": "Tagged Product",
+                "url": "https://www.amazon.com/dp/B0PILLAR001",
+                "affiliate_link": "",
+            },
+        )
+        _write_pipeline_state(
+            outputs_dir,
+            "B0PILLAR001",
+            {"pillar": "value", "script_template": "before_after"},
+        )
+
+        add_to_registry("B0PILLAR001", outputs_dir)
+        entries = load_registry(outputs_dir)
+        assert entries[0].pillar == "value"
+
+    def test_add_with_no_state_file_leaves_pillar_empty(self, outputs_dir: Path):
+        _write_data_json(
+            outputs_dir,
+            "B0NOSTATE00",
+            {
+                "title": "Untagged",
+                "url": "https://www.amazon.com/dp/B0NOSTATE00",
+                "affiliate_link": "",
+            },
+        )
+
+        add_to_registry("B0NOSTATE00", outputs_dir)
+        entries = load_registry(outputs_dir)
+        assert entries[0].pillar == ""
+
+    def test_rebuild_picks_pillar_from_state(self, outputs_dir: Path):
+        for asin, pillar in [
+            ("B0VALUEPRO", "value"),
+            ("B0NOVELTY01", "novelty"),
+            ("B0NOTAG0001", None),
+        ]:
+            _write_data_json(
+                outputs_dir,
+                asin,
+                {
+                    "title": f"Product {asin}",
+                    "url": f"https://www.amazon.com/dp/{asin}",
+                    "affiliate_link": "",
+                },
+            )
+            if pillar is not None:
+                _write_pipeline_state(outputs_dir, asin, {"pillar": pillar})
+
+        rebuild_registry(outputs_dir)
+        entries = {e.product_id: e for e in load_registry(outputs_dir)}
+        assert entries["B0VALUEPRO"].pillar == "value"
+        assert entries["B0NOVELTY01"].pillar == "novelty"
+        assert entries["B0NOTAG0001"].pillar == ""
+
+    def test_csv_includes_pillar_column(
+        self, outputs_dir: Path, sample_entry: RegistryEntry
+    ):
+        sample_entry.pillar = "utility"
+        save_registry([sample_entry], outputs_dir)
+
+        with open(outputs_dir / "published_products.csv", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        assert "pillar" in reader.fieldnames
+        assert rows[0]["pillar"] == "utility"
+
+    def test_load_legacy_json_without_pillar(self, outputs_dir: Path):
+        # Existing registry rows from before #83 won't have a pillar field.
+        # Loader must accept them and default pillar to "".
+        outputs_dir.mkdir(parents=True)
+        legacy = [
+            {
+                "product_id": "B0LEGACY001",
+                "title": "Legacy",
+                "url": "https://www.amazon.com/dp/B0LEGACY001",
+                "affiliate_url": "",
+            }
+        ]
+        (outputs_dir / "published_products.json").write_text(
+            json.dumps(legacy), encoding="utf-8"
+        )
+
+        entries = load_registry(outputs_dir)
+        assert len(entries) == 1
+        assert entries[0].pillar == ""
+
+    def test_corrupt_state_file_leaves_pillar_empty(self, outputs_dir: Path):
+        _write_data_json(
+            outputs_dir,
+            "B0CORRUPT01",
+            {
+                "title": "Corrupt State",
+                "url": "https://www.amazon.com/dp/B0CORRUPT01",
+                "affiliate_link": "",
+            },
+        )
+        temp_dir = outputs_dir / "B0CORRUPT01" / "temp"
+        temp_dir.mkdir(parents=True)
+        (temp_dir / "pipeline_state.json").write_text("{not json")
+
+        add_to_registry("B0CORRUPT01", outputs_dir)
+        entries = load_registry(outputs_dir)
+        assert entries[0].pillar == ""

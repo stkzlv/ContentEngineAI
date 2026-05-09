@@ -22,6 +22,7 @@ class RegistryEntry:
     title: str
     url: str
     affiliate_url: str
+    pillar: str = ""
 
 
 def get_registry_path(outputs_dir: Path, fmt: str = "json") -> Path:
@@ -58,7 +59,7 @@ def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:
     csv_path = get_registry_path(outputs_dir, "csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
-            f, fieldnames=["product_id", "title", "url", "affiliate_url"]
+            f, fieldnames=["product_id", "title", "url", "affiliate_url", "pillar"]
         )
         writer.writeheader()
         for entry in entries:
@@ -67,6 +68,19 @@ def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:
     logger.info(
         "Registry saved: %d entries (%s, %s)", len(entries), json_path, csv_path
     )
+
+
+def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
+    """Read pillar tag from the product's pipeline_state.json. Empty if absent."""
+    state_path = outputs_dir / product_id / "temp" / "pipeline_state.json"
+    if not state_path.exists():
+        return ""
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        pillar = state.get("pillar")
+        return pillar if isinstance(pillar, str) else ""
+    except (json.JSONDecodeError, OSError):
+        return ""
 
 
 def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | None:
@@ -94,6 +108,7 @@ def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | No
             title=title,
             url=url,
             affiliate_url=affiliate_url,
+            pillar=_read_pillar_from_state(product_id, outputs_dir),
         )
     except (json.JSONDecodeError, OSError, KeyError, ValueError) as exc:
         logger.warning("Failed to read data.json for %s: %s", product_id, exc)
