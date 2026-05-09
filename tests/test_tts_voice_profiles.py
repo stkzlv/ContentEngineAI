@@ -22,6 +22,7 @@ def _make_tts_config(
     profiles: dict[str, VoiceProfileConfig] | None = None,
     pool: list[str] | None = None,
     enabled: bool = True,
+    default_voice_profile: str | None = None,
 ) -> TTSConfig:
     """Build a minimal TTSConfig with voice profiles for testing."""
     return TTSConfig(
@@ -35,6 +36,7 @@ def _make_tts_config(
         voice_profiles_enabled=enabled,
         voice_profiles=profiles or {},
         voice_profile_pool=pool or [],
+        default_voice_profile=default_voice_profile,
     )
 
 
@@ -147,6 +149,57 @@ class TestVoiceProfileOverride:
         # Should fall back to normal selection, not None
         assert name in SAMPLE_PROFILES
         assert profile is not None
+
+
+class TestDefaultVoiceProfile:
+    """Tests for tts_config.default_voice_profile precedence."""
+
+    def test_default_pins_voice_when_pool_empty(self):
+        cfg = _make_tts_config(profiles=SAMPLE_PROFILES, default_voice_profile="calm")
+        for asin in ["B0A", "B0B", "B0C", "B0D"]:
+            mgr = TTSManager(cfg, {}, product_id=asin)
+            name, profile = mgr._select_voice_profile()
+            assert name == "calm"
+            assert profile is not None
+
+    def test_cli_override_beats_default(self):
+        cfg = _make_tts_config(profiles=SAMPLE_PROFILES, default_voice_profile="calm")
+        mgr = TTSManager(cfg, {}, product_id="B0TEST001", voice_profile_override="warm")
+        name, _ = mgr._select_voice_profile()
+        assert name == "warm"
+
+    def test_non_empty_pool_beats_default(self):
+        # Pool non-empty means user opted into random selection (testing path);
+        # default_voice_profile should not pin.
+        cfg = _make_tts_config(
+            profiles=SAMPLE_PROFILES,
+            pool=["chirp"],
+            default_voice_profile="calm",
+        )
+        for asin in ["B0A", "B0B", "B0C"]:
+            mgr = TTSManager(cfg, {}, product_id=asin)
+            name, _ = mgr._select_voice_profile()
+            assert name == "chirp"
+
+    def test_invalid_default_falls_back_to_random(self):
+        cfg = _make_tts_config(
+            profiles=SAMPLE_PROFILES, default_voice_profile="nonexistent"
+        )
+        mgr = TTSManager(cfg, {}, product_id="B0TEST001")
+        name, profile = mgr._select_voice_profile()
+        assert name in SAMPLE_PROFILES
+        assert profile is not None
+
+    def test_no_default_keeps_random_back_compat(self):
+        # default_voice_profile not set, pool empty, no override.
+        # Behavior should match the prior random-across-all path.
+        cfg = _make_tts_config(profiles=SAMPLE_PROFILES, default_voice_profile=None)
+        results = set()
+        for asin in ["B0A", "B0B", "B0C", "B0D", "B0E", "B0F", "B0G", "B0H"]:
+            mgr = TTSManager(cfg, {}, product_id=asin)
+            name, _ = mgr._select_voice_profile()
+            results.add(name)
+        assert len(results) > 1, "Variety preserved when no default is set"
 
 
 class TestMarkupRules:

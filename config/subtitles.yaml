@@ -484,9 +484,16 @@ tts_config:
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
 
-  # Pool for random profile selection
-  # Empty list = use all profiles. Set to ["chirp3_natural"] to use only Chirp3.
+  # Voice selection precedence (highest first):
+  #   1. CLI --voice-profile <name>           (always wins)
+  #   2. voice_profile_pool (non-empty)       (random across pool, for testing)
+  #   3. default_voice_profile                (pinned voice for unattended runs)
+  #   4. random across all voice_profiles     (back-compat fallback)
+  #
+  # Set voice_profile_pool to a non-empty list to opt back into random selection
+  # (e.g., for A/B testing voice candidates).
   voice_profile_pool: []
+  default_voice_profile: charon
 
 # ============================================================================
 # SUBTITLE EFFECTS (ASS Format Animations)
