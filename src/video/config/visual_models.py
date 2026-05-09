@@ -74,6 +74,58 @@ class CTADetectionSettings(BaseModel):
     )
 
 
+class DisclosureSettings(BaseModel):
+    """On-frame disclosure overlay (FTC `#ad`, Spain `#publi`, etc.).
+
+    Renders a persistent text overlay in a fixed corner of every produced video
+    so the disclosure is visible regardless of which subtitle engine ran or
+    whether the platform clips part of the frame. Sized relative to the
+    subtitle font so it stays smaller than narration captions per FTC guidance
+    (50-60% of caption size) but readable on phone screens.
+    """
+
+    enabled: bool = Field(True, description="Burn the overlay on every render")
+    text: str = Field("#ad", description="Disclosure text. Override per language.")
+    position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(
+        "top-right", description="Corner placement within the safe zone"
+    )
+    size_factor: float = Field(
+        0.55,
+        ge=0.2,
+        le=1.0,
+        description="Font size as a fraction of subtitle caption size",
+    )
+    font_color: str = Field("white", description="FFmpeg color name or hex")
+    outline_color: str = Field(
+        "black", description="High-contrast outline for readability on any background"
+    )
+    outline_thickness: int = Field(3, ge=0)
+    background_enabled: bool = Field(
+        True,
+        description="Semi-transparent box behind text for readability on bright frames",
+    )
+    background_color: str = Field(
+        "black@0.5",
+        description="FFmpeg color@alpha syntax. 0=transparent, 1=opaque",
+    )
+    margin_x_percent: float = Field(
+        0.04,
+        ge=0.0,
+        le=0.5,
+        description="Horizontal margin from frame edge as fraction of width",
+    )
+    margin_y_percent: float = Field(
+        0.12,
+        ge=0.0,
+        le=0.5,
+        description=(
+            "Vertical margin from frame edge as fraction of height. "
+            "Default 12% sits below the YouTube Shorts top header (~10%) "
+            "and above the TikTok bottom username block (~12%)."
+        ),
+    )
+
+
 class VideoSettings(BaseModel):
     resolution: tuple[int, int] = Field(
         ..., description="Video resolution as (width, height)"
@@ -102,6 +154,9 @@ class VideoSettings(BaseModel):
     subtitle_box_border_width: int = Field(5)  # Configurable via YAML
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
+    disclosure_overlay: DisclosureSettings = Field(
+        default_factory=DisclosureSettings  # type: ignore[arg-type]
+    )
 
     # Media validation requirements (must match scraper config)
     min_total_media: int = Field(3, description="Minimum total media files required")

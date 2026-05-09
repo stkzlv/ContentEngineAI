@@ -27,6 +27,7 @@ from src.utils.async_io import (
 )
 from src.video.assembler.audio_builder import AudioFilterBuilder
 from src.video.assembler.media_inspector import MediaInspector
+from src.video.assembler.overlay_builder import apply_disclosure_overlay
 from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
 from src.video.assembler.subtitle_utils import SubtitleStyler
 from src.video.assembler.video_strategies import VideoStrategyFactory
@@ -626,6 +627,17 @@ class VideoAssembler:
                     subtitle_path,
                     Path(temp_sub_dir),
                 )
+
+            # Burn the persistent disclosure overlay (#ad / #publi etc.) as the
+            # final video filter. Required by FTC's two-punch guidance: the
+            # caption text disclosure (Phase 0.2) is not enough on its own.
+            disclosure = self.config.video_settings.disclosure_overlay
+            frame_height = self.config.video_settings.resolution[1]
+            base_font_pct = self.config.video_settings.base_font_height_percent
+            subtitle_font_size_pixels = max(8, int(round(frame_height * base_font_pct)))
+            video_filters = apply_disclosure_overlay(
+                video_filters, disclosure, subtitle_font_size_pixels
+            )
 
             # Add audio inputs to command
             num_visual_inputs = input_cmd_parts.count("-i")

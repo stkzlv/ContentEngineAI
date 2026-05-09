@@ -18,15 +18,15 @@ Disclosure is a default render output, not a per-video manual checklist. Where t
 
 | Layer | Status | What it satisfies |
 |---|---|---|
+| Persistent on-frame disclosure overlay (`#ad` burned in a fixed corner, full-clip duration) | Shipped | FTC two-punch (overlay component). Configurable via `video_settings.disclosure_overlay` in `config/video_production.yaml` (text, position, size, color, background). Sized at 55% of subtitle font by default per FTC guidance. Survives the pycaps subtitle pass because pycaps burns its captions onto the assembler's output rather than replacing it. |
+| First-line caption disclosure (`#ad` leads every caption on TikTok / Instagram / YouTube) | Shipped | FTC two-punch (caption component) and Spain CNMC. Configurable per render via the `disclosure` field on `PublishMetadata`; defaults to `#ad`. The string-only escape hatch lets language-aware variants (Phase 0.4) inject `#publi` for Spanish renders without further code change. |
 | TikTok branded-content disclosure (`commercialContentType=brand_organic`, `isBrandOrganicPost=true`) | Shipped | TikTok platform policy. Without it, TikTok rejects affiliate posts. |
 | YouTube AI-content disclosure (`containsSyntheticMedia=true`) | Shipped | YouTube platform policy. Required for AI-generated video. |
-| First-line caption disclosure (`#ad` leads every caption on TikTok / Instagram / YouTube) | Shipped | FTC two-punch (caption component) and Spain CNMC. Configurable per render via the `disclosure` field on `PublishMetadata`; defaults to `#ad`. The string-only escape hatch lets language-aware variants (Phase 0.4) inject `#publi` for Spanish renders without further code change. |
 
 ## What's planned in Phase 0
 
 | Layer | Status | What it satisfies |
 |---|---|---|
-| Persistent on-frame disclosure overlay | **(planned)** Phase 0.1 | FTC two-punch (overlay component). Burns `#ad` (or localized) into every render, full-clip duration, fixed corner. |
 | Affiliate program literal-phrase rendering | **(planned)** Phase 0.3 | Amazon Associates Operating Agreement. The literal "As an Amazon Associate I earn from qualifying purchases" phrase rendered in at least one of bio / on-frame / caption. |
 | Localized disclosure variants | **(planned)** Phase 0.4 | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata`; Phase 0.4 wires script language to the field value. |
 | Disclosure test suite | **(planned)** Phase 0.6 | CI regression coverage on every render layer. |

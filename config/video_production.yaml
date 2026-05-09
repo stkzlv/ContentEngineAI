@@ -158,6 +158,24 @@ video_settings:
   image_loop: 1                       # Number of times to loop images (1=no loop)
   pad_color: "black"                  # Padding color for letterboxing
 
+  # Persistent on-frame disclosure overlay (FTC #ad, Spain #publi, etc.)
+  # Burned into every render in a fixed corner. Required for affiliate
+  # content per FTC guidance ("clear and conspicuous", in the medium of the
+  # endorsement). Sized smaller than narration captions (50-60%) so it
+  # discloses without dominating the frame. See docs/compliance.md.
+  disclosure_overlay:
+    enabled: true                     # Set false to skip the overlay (not recommended for affiliate content)
+    text: "#ad"                       # Disclosure text. Override for non-English renders.
+    position: "top-right"             # top-left, top-right, bottom-left, bottom-right
+    size_factor: 0.55                 # Font size as fraction of subtitle font size (FTC guidance: 50-60%)
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 3
+    background_enabled: true          # Semi-transparent box for readability
+    background_color: "black@0.5"     # FFmpeg color@alpha
+    margin_x_percent: 0.04            # 4% from horizontal edge
+    margin_y_percent: 0.12            # 12% from vertical edge (clears Shorts header / TikTok bottom)
+
   # System resource requirements
   # Used by: config_validator.py to verify system can handle video production
   # Pipeline Impact: Warns users if system resources are insufficient
