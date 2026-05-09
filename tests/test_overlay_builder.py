@@ -22,8 +22,8 @@ class TestBuildDisclosureDrawtext:
         assert filter_str.startswith("[v_in]drawtext=")
         assert filter_str.endswith("[v_out]")
         assert "text='#ad'" in filter_str
-        # 80 * 0.55 = 44
-        assert "fontsize=44" in filter_str
+        # 80 * 0.45 = 36
+        assert "fontsize=36" in filter_str
         assert "fontcolor=white" in filter_str
         assert "bordercolor=black" in filter_str
 

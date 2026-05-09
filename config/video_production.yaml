@@ -167,7 +167,7 @@ video_settings:
     enabled: true                     # Set false to skip the overlay (not recommended for affiliate content)
     text: "#ad"                       # Disclosure text. Override for non-English renders.
     position: "top-right"             # top-left, top-right, bottom-left, bottom-right
-    size_factor: 0.55                 # Font size as fraction of subtitle font size (FTC guidance: 50-60%)
+    size_factor: 0.45                 # Font size as fraction of subtitle font size (slightly under FTC's 50-60% band; tuned for tighter corner placement)
     font_color: "white"
     outline_color: "black"
     outline_thickness: 3

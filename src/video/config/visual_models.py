@@ -90,10 +90,14 @@ class DisclosureSettings(BaseModel):
         "top-right", description="Corner placement within the safe zone"
     )
     size_factor: float = Field(
-        0.55,
+        0.45,
         ge=0.2,
         le=1.0,
-        description="Font size as a fraction of subtitle caption size",
+        description=(
+            "Font size as a fraction of subtitle caption size. "
+            "FTC guidance is 50-60%; the default sits slightly under that band "
+            "to keep the corner badge tight against the platform UI corridor."
+        ),
     )
     font_color: str = Field("white", description="FFmpeg color name or hex")
     outline_color: str = Field(
