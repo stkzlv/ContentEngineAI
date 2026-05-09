@@ -154,7 +154,9 @@ class TestPublishMetadata:
         assert metadata.platform == Platform.YOUTUBE
         assert metadata.title == "Amazing Product Review"
         assert metadata.description == "Check out this amazing product!"
-        assert len(metadata.hashtags) == 3
+        # '#ad' is dropped from hashtags because it duplicates the disclosure
+        # which now leads the formatted caption.
+        assert metadata.hashtags == ["tech", "review"]
         assert len(metadata.keywords) == 3
 
     def test_metadata_without_title(self):
@@ -298,7 +300,7 @@ class TestPublishMetadata:
         assert "#viral #fyp" in content
 
     def test_format_content_no_hashtags(self):
-        """Test format_content without hashtags (description only)."""
+        """Test format_content without hashtags (disclosure + description only)."""
         metadata = PublishMetadata(
             platform=Platform.YOUTUBE,
             title="Title",
@@ -308,7 +310,68 @@ class TestPublishMetadata:
         content = metadata.format_content()
         # Title is NOT included - it's passed separately to platform APIs
         assert "Title" not in content
-        assert content == "Description only"
+        # Disclosure leads, then description, separated by blank line
+        assert content == "#ad\n\nDescription only"
+
+    def test_format_content_disclosure_leads(self):
+        """Disclosure must be the first line of the formatted content."""
+        metadata = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Tested this $15 cable for a week.",
+            hashtags=["techfinds", "amazonfinds"],
+        )
+
+        content = metadata.format_content()
+        first_line = content.split("\n", 1)[0]
+        assert first_line == "#ad"
+
+    def test_format_content_dedupes_disclosure_from_hashtags(self):
+        """If '#ad' is also in hashtags, drop it (disclosure leads instead)."""
+        metadata = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Caption text.",
+            hashtags=["ad", "techfinds"],
+        )
+
+        content = metadata.format_content()
+        # The leading line is #ad
+        assert content.startswith("#ad\n")
+        # The trailing hashtag block does not repeat #ad
+        assert "#ad #techfinds" not in content
+        assert "#techfinds" in content
+        # Only one '#ad' total
+        assert content.count("#ad") == 1
+
+    def test_format_content_custom_disclosure(self):
+        """Disclosure can be overridden, e.g. for Spanish-language renders."""
+        metadata = PublishMetadata(
+            platform=Platform.INSTAGRAM,
+            title=None,
+            description="Texto en español.",
+            hashtags=["gadgetstech"],
+            disclosure="#publi",
+        )
+
+        content = metadata.format_content()
+        assert content.startswith("#publi\n")
+        assert "#gadgetstech" in content
+
+    def test_format_content_empty_disclosure_omits_line(self):
+        """An empty disclosure string skips the leading line entirely."""
+        metadata = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="Title",
+            description="Description.",
+            hashtags=["tag1"],
+            disclosure="",
+        )
+
+        content = metadata.format_content()
+        # No leading #ad
+        assert not content.startswith("#ad")
+        assert content == "Description.\n\n#tag1"
 
 
 class TestPublisherConfig:

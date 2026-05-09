@@ -134,6 +134,7 @@ class PublishMetadata:
     keywords: list[str] = field(default_factory=list)
     character_counts: dict[str, int] = field(default_factory=dict)
     product_id: str | None = None
+    disclosure: str = "#ad"
 
     def __post_init__(self):
         """Post-initialization validation and normalization."""
@@ -149,6 +150,12 @@ class PublishMetadata:
         self.hashtags = [
             tag.lstrip("#") if tag.startswith("#") else tag for tag in self.hashtags
         ]
+
+        # Drop hashtags that duplicate the disclosure (it leads the caption now).
+        # Compare case-insensitively against the bare token (without #).
+        if self.disclosure:
+            disc_token = self.disclosure.lstrip("#").lower()
+            self.hashtags = [t for t in self.hashtags if t.lower() != disc_token]
 
         # Calculate character counts if not provided
         if not self.character_counts:
@@ -210,7 +217,11 @@ class PublishMetadata:
         return True, "Content within limits"
 
     def format_content(self) -> str:
-        """Format content for posting (description + hashtags + product_id).
+        """Format content for posting: disclosure, description, hashtags, product_id.
+
+        Disclosure leads the caption on a line of its own so it sits above the
+        '...more' fold on Instagram and TikTok and satisfies the FTC requirement
+        that the disclosure appears before any other text or hashtags.
 
         Returns
         -------
@@ -218,6 +229,10 @@ class PublishMetadata:
 
         """
         parts = []
+
+        # Disclosure leads the caption (FTC: clear and conspicuous, top of caption)
+        if self.disclosure:
+            parts.append(self.disclosure)
 
         # Description only - title is handled separately by platform APIs
         parts.append(self.description)
@@ -249,6 +264,7 @@ class PublishMetadata:
             "keywords": self.keywords,
             "character_counts": self.character_counts,
             "product_id": self.product_id,
+            "disclosure": self.disclosure,
         }
 
 

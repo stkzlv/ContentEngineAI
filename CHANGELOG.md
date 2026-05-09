@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `PublishMetadata.disclosure` field (default `#ad`) leads every formatted caption on TikTok, Instagram, and YouTube. Disclosure sits on its own line above the description and hashtag block, satisfying FTC's "clear and conspicuous" placement requirement (must appear before any other text or hashtags). The field is configurable per render so future Phase 0.4 work can inject language-matched variants (`#publi` / `#publicidad`) without further model changes. `#ad` is also de-duped from the hashtag list so it doesn't appear twice.
+- `pillar` column on the published-products registry. New rows pick the pillar from `pipeline_state.json::pillar`. The `--rebuild` path retroactively tags any back-catalogue product whose state file carries a pillar value. CSV gets a new `pillar` column. Backward-compatible: legacy registry rows without the field load with `pillar=""`. Closes #83.
+- YouTube `containsSyntheticMedia: true` set on every publish payload. ContentEngineAI's renders are AI-generated and YouTube's policy requires the disclosure flag for that content. Two regression tests cover the with-content and without-content publish paths.
+- New `docs/compliance.md` describes the disclosure stack the pipeline produces (TikTok branded-content, YouTube AI-content, first-line caption disclosure), what's planned for the rest of Phase 0, the per-video manual workarounds for the Zernio SDK gaps (YouTube paid-promotion checkbox, Instagram paid-partnership label), and the regulatory penalty surface across FTC / Amazon / Spain CNMC.
+
 ## [0.45.0] - 2026-05-09
 
 ### Added
