@@ -49,6 +49,8 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
+For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).
+
 ---
 
 ## 🚀 Quick Start
