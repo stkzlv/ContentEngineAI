@@ -28,8 +28,7 @@ Disclosure is a default render output, not a per-video manual checklist. Where t
 | Layer | Status | What it satisfies |
 |---|---|---|
 | Affiliate program literal-phrase rendering | **(planned)** Phase 0.3 | Amazon Associates Operating Agreement. The literal "As an Amazon Associate I earn from qualifying purchases" phrase rendered in at least one of bio / on-frame / caption. |
-| Localized disclosure variants | **(planned)** Phase 0.4 | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata`; Phase 0.4 wires script language to the field value. |
-| Disclosure test suite | **(planned)** Phase 0.6 | CI regression coverage on every render layer. |
+| Localized disclosure variants | **(planned)** Phase 0.4 | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata` and `DisclosureSettings`; Phase 0.4 wires script language to the field value. |
 
 ## Manual steps
 
