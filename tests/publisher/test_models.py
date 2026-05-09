@@ -373,6 +373,31 @@ class TestPublishMetadata:
         assert not content.startswith("#ad")
         assert content == "Description.\n\n#tag1"
 
+    @pytest.mark.parametrize("variant", ["ad", "AD", "Ad", "aD", "#ad", "#AD"])
+    def test_format_content_dedupes_ad_case_insensitive(self, variant):
+        """Disclosure dedup matches case-insensitively against the bare token."""
+        metadata = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Caption.",
+            hashtags=[variant, "techfinds"],
+        )
+        # The disclosure leads on its own line; the supplied #ad/AD/Ad variant
+        # is dropped from hashtags so it doesn't appear twice in the caption.
+        assert metadata.hashtags == ["techfinds"]
+        assert metadata.format_content().count("#ad") == 1
+
+    def test_to_dict_includes_disclosure(self):
+        """to_dict serialization carries the disclosure for round-trip."""
+        metadata = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Body.",
+            disclosure="#publi",
+        )
+        as_dict = metadata.to_dict()
+        assert as_dict["disclosure"] == "#publi"
+
 
 class TestPublisherConfig:
     """Test PublisherConfig dataclass."""

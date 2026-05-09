@@ -173,6 +173,43 @@ class TestVideoSettings:
                 frame_rate=30,
             )
 
+    def test_disclosure_overlay_defaults(self):
+        """Default DisclosureSettings sit in the FTC-aligned compliance band."""
+        settings = VideoSettings(resolution=(1080, 1920), frame_rate=30)
+        d = settings.disclosure_overlay
+        assert d.enabled is True
+        assert d.text == "#ad"
+        assert d.position == "top-right"
+        # 0.45 sits just under FTC's 50-60% band; tuned for tight corner placement.
+        assert d.size_factor == 0.45
+        assert d.background_enabled is True
+
+    def test_disclosure_overlay_yaml_round_trip(self):
+        """Bundled YAML config loads cleanly into DisclosureSettings."""
+        from src.video.config.visual_models import DisclosureSettings
+
+        cfg_path = Path("config/video_production.yaml")
+        raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+        overlay_block = raw["video_settings"]["disclosure_overlay"]
+        # Pydantic accepts the dict directly; any schema drift surfaces here.
+        loaded = DisclosureSettings.model_validate(overlay_block)
+        assert loaded.text == "#ad"
+        assert loaded.position == "top-right"
+
+    def test_disclosure_overlay_rejects_invalid_position(self):
+        from src.video.config.visual_models import DisclosureSettings
+
+        with pytest.raises(ValidationError):
+            DisclosureSettings(position="middle-center")
+
+    def test_disclosure_overlay_rejects_size_factor_out_of_range(self):
+        from src.video.config.visual_models import DisclosureSettings
+
+        with pytest.raises(ValidationError):
+            DisclosureSettings(size_factor=0.05)  # below 0.2 floor
+        with pytest.raises(ValidationError):
+            DisclosureSettings(size_factor=1.5)  # above 1.0 ceiling
+
 
 class TestAudioSettings:
     """Test AudioSettings model."""
