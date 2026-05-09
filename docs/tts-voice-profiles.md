@@ -24,13 +24,27 @@ tts_config:
     calm_confident:         # relaxed friend, rate 1.10, ~165 WPM
     gentle_storyteller:     # soft narration, rate 1.05, ~155 WPM
     chirp3_natural:         # Google Cloud Chirp3, neutral baseline
+    puck:                   # Gemini TTS, pinned to "Puck" voice
+    charon:                 # Gemini TTS, pinned to "Charon" voice
+    fenrir:                 # Gemini TTS, pinned to "Fenrir" voice
+    orus:                   # Gemini TTS, pinned to "Orus" voice
 
-  voice_profile_pool: []  # empty = use all profiles
+  voice_profile_pool: []         # empty = no random pool (see precedence below)
+  default_voice_profile: charon  # pinned voice for unattended runs
 ```
 
 Set `voice_profiles_enabled: false` to disable profiles and use the default Chirp3-HD path.
 
-To restrict which profiles are used, list them in `voice_profile_pool`. Empty list means all profiles are eligible.
+## Voice selection precedence
+
+Selection precedence (highest first):
+
+1. `--voice-profile <name>` CLI override (always wins)
+2. Non-empty `voice_profile_pool` (random selection across the pool, deterministic per product; the testing / A-B path)
+3. `default_voice_profile` (pinned voice for unattended runs)
+4. Random across all `voice_profiles` (back-compat fallback when nothing above is set)
+
+The bundled config ships `default_voice_profile: charon` and an empty `voice_profile_pool`, so an unattended `make produce-lowpri` run picks Charon every render. To opt back into random selection (e.g., to A/B test voice candidates), set `voice_profile_pool` to a non-empty list. To pin a different voice, set `default_voice_profile` to one of the profile names.
 
 ## Providers
 
@@ -142,6 +156,8 @@ Puck, Zephyr, Fenrir, Leda, Sadachbia, Laomedeia, Autonoe (all bright/upbeat/exc
 
 **Too assertive:** Kore, Orus, Alnilam, Pulcherrima (firm/forward).
 
+The bundled `puck`, `charon`, `fenrir`, and `orus` named profiles exist as A/B candidates for picking a default voice; only `charon` ships as `default_voice_profile`. The other three are available via `--voice-profile <name>` for testing the trade-off (energy vs. trust) on your script style.
+
 ## Style prompt tips
 
 The `style_prompt` field is a natural language instruction passed as the Gemini `SynthesisInput.prompt`. It's the primary lever for tone control.
@@ -152,9 +168,11 @@ The `style_prompt` field is a natural language instruction passed as the Gemini 
 
 | Field | Range | Effect |
 |-------|-------|--------|
-| `speaking_rate` | 0.25-4.0 | Speed. 0.85-0.93 for calm. |
+| `speaking_rate` | 0.25-4.0 | Speed. 0.85-0.93 for calm. **Gemini caveat below.** |
 | `pitch` | -20.0 to 20.0 | Semitones. -1.0 to -3.0 adds warmth. |
 | `volume_gain_db` | -96.0 to 16.0 | Global only, not per-profile. |
+
+**Gemini caveat on `speaking_rate`:** empirically, the Gemini TTS API appears to ignore the numeric `speaking_rate` parameter for Gemini-model voices. A 1.05 vs 1.00 A/B render produced near-identical durations (38.23s vs 38.03s). For Gemini voices, pacing direction realistically flows through the `style_prompt` ("at a relaxed conversational pace", "never rushed") rather than the rate field. The rate field is honored on Chirp 3 HD voices via the same Cloud TTS client.
 
 **Markup tags** Gemini understands: `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`. Injected via `markup_rules` regex patterns. Stripped automatically when falling back to Google Cloud TTS.
 

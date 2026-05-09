@@ -18,7 +18,7 @@
 - **Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
 - **Platform-Specific Metadata**: AI-generated titles, captions, hashtags for YouTube, TikTok, Instagram
 - **Content-Aware Subtitles**: Dynamic positioning with CTA-synchronized dual-line support
-- **Premium Audio**: Google Chirp 3 HD voices with Whisper STT synchronization
+- **Premium Audio**: Google Chirp 3 HD and Gemini TTS voices with Whisper STT synchronization, channel-wide voice pinning
 
 ## Quick Start
 

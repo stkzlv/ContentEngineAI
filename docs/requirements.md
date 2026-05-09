@@ -239,11 +239,12 @@ group degrade to FFmpeg without manual intervention.
 - Multiple TTS providers with automatic fallback
 - Style-directed speech (tone, energy, pacing). Profiles favor calm, confident delivery over high-energy pitch.
 - Speaking rate and pitch tunable per profile. Rates near 1.0 (natural pace), avoid stacking slow rate + low pitch + "slow" style prompt.
-- Inline markup rules for pause insertion at sentence boundaries
+- Inline markup rules for pause insertion at sentence boundaries (periods, exclamations, question marks)
 - Deterministic profile selection per product for reproducibility
-- Configurable profile pool to restrict selection
+- Configurable profile pool to restrict selection (random across pool when non-empty, A/B testing path)
+- Pinned default profile for unattended runs via `default_voice_profile` (channel-wide voice consistency)
 - CLI override to force a specific profile
-- Profile metadata recorded in pipeline output
+- Profile metadata (profile name and selected voice) recorded in pipeline output for traceability
 
 ### Stock Background Music
 - Pluggable audio provider platform: `BaseAudioProvider` ABC with registry and factory pattern
