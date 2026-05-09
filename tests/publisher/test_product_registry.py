@@ -305,7 +305,8 @@ class TestPillarColumn:
         with open(outputs_dir / "published_products.csv", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
-        assert "pillar" in reader.fieldnames
+            fieldnames = reader.fieldnames or []
+        assert "pillar" in fieldnames
         assert rows[0]["pillar"] == "utility"
 
     def test_load_legacy_json_without_pillar(self, outputs_dir: Path):
