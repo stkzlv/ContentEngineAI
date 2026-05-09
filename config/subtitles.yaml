@@ -453,16 +453,23 @@ tts_config:
       speaking_rate: 1.05
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
+    # Pinned default voice. Speaking rate set to 1.00 to dial back the
+    # newscaster-pacing tendency Charon has at 1.05+ and stay closer to the
+    # "trusted friend over coffee" register documented in the style_prompt.
     charon:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
       style_prompt: "Speak calmly and confidently. Warm but grounded. Like a trusted friend recommending something over coffee."
       voice_criteria:
         - { language_code: "en-US", name_contains: "Charon" }
-      speaking_rate: 1.05
+      speaking_rate: 1.00
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
     fenrir:
       provider: gemini
@@ -473,6 +480,8 @@ tts_config:
       speaking_rate: 1.05
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
     orus:
       provider: gemini
@@ -483,6 +492,8 @@ tts_config:
       speaking_rate: 1.05
       markup_rules:
         - { pattern: '\.\s+', insert_after: '[short pause] ' }
+        - { pattern: '!\s+', insert_after: '[short pause] ' }
+        - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
   # Voice selection precedence (highest first):
   #   1. CLI --voice-profile <name>           (always wins)

@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `default_voice_profile` field on `tts_config` (Phase 2.3 in `docs/roadmap.md`). When set, unattended runs use the named profile every time without a CLI flag. Selection precedence (highest first): `--voice-profile` CLI override, non-empty `voice_profile_pool` (random selection for testing / A-B), `default_voice_profile` (pinned voice), random across all profiles (back-compat fallback when nothing else is set). Bundled `config/subtitles.yaml` now ships `default_voice_profile: charon`.
-- Four named male voice profiles in `config/subtitles.yaml`: `puck`, `charon`, `fenrir`, `orus`. Each pins one Gemini TTS voice via `voice_criteria.name_contains`. Use with `--voice-profile <name>` to force a specific voice for any render, or set `default_voice_profile` to one of these names to pin it as the channel-wide default.
+
+### Changed
+- `charon` profile speaking_rate dialed from 1.05 to 1.00 to dial back any newscaster-pacing tendency and stay closer to the "trusted friend over coffee" register documented in the style_prompt. Note: empirically, the Gemini TTS API appears to ignore the numeric `speaking_rate` parameter for Gemini-model voices (it's honored on Chirp 3 HD voices via the same field). Pacing direction for Gemini realistically flows through the style_prompt, not AudioConfig. The 1.00 setting is the documented intent in case Gemini starts honoring it.
+- Four named male voice profiles in `config/subtitles.yaml`: `puck`, `charon`, `fenrir`, `orus`. Each pins one Gemini TTS voice via `voice_criteria.name_contains`. Use with `--voice-profile <name>` to force a specific voice for any render, or set `default_voice_profile` to one of these names to pin it as the channel-wide default. Each profile carries `markup_rules` for periods, exclamations, and question marks so the TTS gets sentence-boundary cues for all three punctuation types.
 
 ### Fixed
 - `_load_pipeline_state` in `src/video/producer/state.py` crashed with `'str' object has no attribute 'get'` when the state file contained top-level scalar keys (`pillar`, `script_template`) alongside step dicts. The pillar tagging system in 0.43.x added these scalar keys without updating the loader. Loader now skips non-dict entries instead of calling `.get()` on them.
