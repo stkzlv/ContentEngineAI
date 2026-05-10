@@ -386,6 +386,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content pillar
 - Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
 - Append new entries after each successful publish (no duplicates)
+- Republish refreshes the existing row so registry fields reflect the latest publish, not the original. Identical-data calls don't trigger a save.
 - Pillar is read from the producer's pipeline state at registration time so it captures what was actually rendered, not what was scraped. Empty when no pillar was set for the run.
 - Backward-compatible loader: legacy rows without a pillar field load with the field empty.
 - Support bulk import from existing scraped data directories

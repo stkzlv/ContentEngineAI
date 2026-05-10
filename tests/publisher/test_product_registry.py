@@ -346,3 +346,100 @@ class TestPillarColumn:
         add_to_registry("B0CORRUPT01", outputs_dir)
         entries = load_registry(outputs_dir)
         assert entries[0].pillar == ""
+
+
+class TestRepublishRefresh:
+    """add_to_registry refreshes existing rows so --force republish updates fields."""
+
+    def test_republish_refreshes_pillar(self, outputs_dir: Path):
+        _write_data_json(
+            outputs_dir,
+            "B0REPUB0001",
+            {
+                "title": "Test",
+                "url": "https://www.amazon.com/dp/B0REPUB0001",
+                "affiliate_link": "",
+            },
+        )
+        # First publish: no pillar in state
+        add_to_registry("B0REPUB0001", outputs_dir)
+        assert load_registry(outputs_dir)[0].pillar == ""
+
+        # Second publish (--force): producer ran with --pillar value
+        _write_pipeline_state(outputs_dir, "B0REPUB0001", {"pillar": "value"})
+        add_to_registry("B0REPUB0001", outputs_dir)
+
+        entries = load_registry(outputs_dir)
+        assert len(entries) == 1
+        assert entries[0].pillar == "value"
+
+    def test_republish_refreshes_affiliate_url(self, outputs_dir: Path):
+        _write_data_json(
+            outputs_dir,
+            "B0REPUB0002",
+            {
+                "title": "Test",
+                "url": "https://www.amazon.com/dp/B0REPUB0002",
+                "affiliate_link": "https://amzn.to/old-link",
+            },
+        )
+        add_to_registry("B0REPUB0002", outputs_dir)
+        assert load_registry(outputs_dir)[0].affiliate_url == "https://amzn.to/old-link"
+
+        # Republish with a new affiliate URL (e.g., Lnk.bio rotation)
+        _write_data_json(
+            outputs_dir,
+            "B0REPUB0002",
+            {
+                "title": "Test",
+                "url": "https://www.amazon.com/dp/B0REPUB0002",
+                "affiliate_link": "https://amzn.to/new-link",
+            },
+        )
+        add_to_registry("B0REPUB0002", outputs_dir)
+
+        entries = load_registry(outputs_dir)
+        assert len(entries) == 1
+        assert entries[0].affiliate_url == "https://amzn.to/new-link"
+
+    def test_republish_returns_false_on_refresh(self, outputs_dir: Path):
+        # Return contract: True only when a new row is added; False otherwise
+        # (preserves the pseudo-semantic the original implementation had).
+        _write_data_json(
+            outputs_dir,
+            "B0REPUB0003",
+            {
+                "title": "Test",
+                "url": "https://www.amazon.com/dp/B0REPUB0003",
+                "affiliate_link": "",
+            },
+        )
+        assert add_to_registry("B0REPUB0003", outputs_dir) is True
+        # Same data → no save needed, returns False
+        assert add_to_registry("B0REPUB0003", outputs_dir) is False
+
+        # Different data → refresh, still returns False (not a new row)
+        _write_pipeline_state(outputs_dir, "B0REPUB0003", {"pillar": "novelty"})
+        assert add_to_registry("B0REPUB0003", outputs_dir) is False
+
+    def test_republish_with_no_data_change_does_not_resave(
+        self, outputs_dir: Path, tmp_path: Path
+    ):
+        # When the entry is identical to what's already in the registry,
+        # short-circuit before save_registry runs (avoids needless disk writes).
+        _write_data_json(
+            outputs_dir,
+            "B0REPUB0004",
+            {
+                "title": "Test",
+                "url": "https://www.amazon.com/dp/B0REPUB0004",
+                "affiliate_link": "",
+            },
+        )
+        add_to_registry("B0REPUB0004", outputs_dir)
+        json_path = outputs_dir / "published_products.json"
+        mtime_before = json_path.stat().st_mtime_ns
+
+        # Repeated identical call should NOT touch the file.
+        add_to_registry("B0REPUB0004", outputs_dir)
+        assert json_path.stat().st_mtime_ns == mtime_before

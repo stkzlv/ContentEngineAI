@@ -116,17 +116,41 @@ def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | No
 
 
 def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
-    """Append a product to the registry (skip if duplicate)."""
-    entries = load_registry(outputs_dir)
+    """Add or refresh a product in the registry.
 
-    if any(e.product_id == product_id for e in entries):
-        logger.debug("Product %s already in registry, skipping", product_id)
-        return False
+    When the product is new, append it. When the product already exists (e.g.
+    after a `--force` republish), replace the existing entry with the latest
+    data so fields like ``pillar`` and ``affiliate_url`` reflect what was
+    actually published this time, not the original publish.
+
+    Returns
+    -------
+    True if a new entry was added; False if an existing entry was refreshed
+    or the read failed.
+
+    """
+    entries = load_registry(outputs_dir)
 
     entry = _read_product_data(product_id, outputs_dir)
     if not entry:
         logger.warning("Cannot add %s to registry: no data.json", product_id)
         return False
+
+    for i, existing in enumerate(entries):
+        if existing.product_id == product_id:
+            if existing == entry:
+                logger.debug(
+                    "Product %s already in registry with current data, skipping save",
+                    product_id,
+                )
+                return False
+            logger.info(
+                "Refreshing registry entry for %s (republish updates fields)",
+                product_id,
+            )
+            entries[i] = entry
+            save_registry(entries, outputs_dir)
+            return False
 
     entries.append(entry)
     save_registry(entries, outputs_dir)
