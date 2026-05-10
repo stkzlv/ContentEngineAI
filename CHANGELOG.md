@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `add_to_registry` refreshes existing entries on republish instead of skipping. A `--force` republish now updates registry fields (pillar, affiliate URL, title) to reflect the latest publish rather than the original. Identical-data calls still short-circuit before disk write so no spurious file churn. Return value preserves the original semantic (True only on net-new add).
+
+### Fixed
+- `make clean-outputs` (and the underlying `tools/cleanup_outputs.py`) no longer wipes the publish registry, publish history, and cleanup audit files. The `preserve_patterns` default in `CleanupSettings` now whitelists `published_products.json`, `published_products.csv`, `publish_history.json`, and `cleanup_audit.json`. The cleanup tool was deleting these whenever they aged past `max_age_days` (default 7), silently truncating publish history every time a creator ran the documented Makefile target. Pre-bug data isn't recoverable; the protection is forward-looking.
 - YouTube `containsSyntheticMedia: true` set on every publish payload. ContentEngineAI's renders are AI-generated and YouTube's policy requires the disclosure flag for that content. Two regression tests cover the with-content and without-content publish paths.
 - New `docs/compliance.md` describes the disclosure stack the pipeline produces (TikTok branded-content, YouTube AI-content, first-line caption disclosure), what's planned for the rest of Phase 0, the per-video manual workarounds for the Zernio SDK gaps (YouTube paid-promotion checkbox, Instagram paid-partnership label), and the regulatory penalty surface across FTC / Amazon / Spain CNMC.
 

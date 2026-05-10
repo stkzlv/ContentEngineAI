@@ -443,7 +443,20 @@ class CleanupSettings(BaseModel):
     dry_run: bool = Field(False)
     max_age_days: int = Field(7)
     preserve_patterns: list[str] = Field(
-        ["*.md", "*.txt", ".gitkeep", "cache/**", "backup/**"]
+        [
+            "*.md",
+            "*.txt",
+            ".gitkeep",
+            "cache/**",
+            "backup/**",
+            # Top-level tracking files. Without these, `make clean-outputs`
+            # silently wipes the publish registry, history, and cleanup audit
+            # whenever they age past max_age_days.
+            "published_products.json",
+            "published_products.csv",
+            "publish_history.json",
+            "cleanup_audit.json",
+        ]
     )
     force_cleanup_patterns: list[str] = Field(
         ["*.tmp", "*.temp", "~*", ".DS_Store", "Thumbs.db", "*.log.old"]

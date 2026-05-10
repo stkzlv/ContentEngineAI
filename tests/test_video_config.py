@@ -211,6 +211,26 @@ class TestVideoSettings:
             DisclosureSettings(size_factor=1.5)  # above 1.0 ceiling
 
 
+class TestCleanupSettings:
+    """Regression tests for top-level tracking file protection."""
+
+    def test_default_preserve_patterns_protect_tracking_files(self):
+        # Without these in the preserve_patterns default, `make clean-outputs`
+        # silently wipes the publish registry and history once they age past
+        # `max_age_days`. This was the cause of one full-history loss event;
+        # the patterns must stay in the default forever.
+        from src.video.config.core_models import CleanupSettings
+
+        patterns = CleanupSettings().preserve_patterns
+        for required in [
+            "published_products.json",
+            "published_products.csv",
+            "publish_history.json",
+            "cleanup_audit.json",
+        ]:
+            assert required in patterns, f"{required} missing from preserve_patterns"
+
+
 class TestAudioSettings:
     """Test AudioSettings model."""
 
