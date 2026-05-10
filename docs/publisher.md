@@ -49,6 +49,8 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
+For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).
+
 ---
 
 ## 🚀 Quick Start
@@ -1334,6 +1336,8 @@ export LNKBIO_CLIENT_SECRET=your_client_secret
 - `title` → link title (truncated to `max_title_length`)
 - `affiliate_link` → destination URL (falls back to `url` if unavailable)
 - `images[0]` → thumbnail URL (falls back to `downloaded_images[0]` local file)
+
+Protocol-level notes (auth, Cloudflare gate, the 50-link list ceiling, the undocumented `/lnk/edit` endpoint, dashboard escape hatch): [lnkbio-api.md](lnkbio-api.md).
 
 </details>
 

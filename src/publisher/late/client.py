@@ -937,10 +937,11 @@ class LatePublisher(BasePublisher):
                     main_content = pc.get("content", "")
                 platform_entry["customContent"] = pc.get("content", "")
 
-                if platform_name == "youtube" and pc.get("title"):
-                    platform_entry["platformSpecificData"] = {
-                        "title": pc["title"],
-                    }
+                if platform_name == "youtube":
+                    yt_psd: dict[str, object] = {"containsSyntheticMedia": True}
+                    if pc.get("title"):
+                        yt_psd["title"] = pc["title"]
+                    platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {
                         "tiktokSettings": self.tiktok_settings.to_sdk_dict()
@@ -956,6 +957,16 @@ class LatePublisher(BasePublisher):
                         platform_entry["platformSpecificData"] = {
                             "firstComment": first_comment,
                         }
+
+            # Always disclose AI-generated content on YouTube, even without
+            # platform-specific content (YouTube policy requires the flag).
+            if (
+                platform_name == "youtube"
+                and "platformSpecificData" not in platform_entry
+            ):
+                platform_entry["platformSpecificData"] = {
+                    "containsSyntheticMedia": True,
+                }
 
             # Add TikTok settings even without platform-specific content
             if (

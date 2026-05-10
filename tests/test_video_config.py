@@ -173,6 +173,63 @@ class TestVideoSettings:
                 frame_rate=30,
             )
 
+    def test_disclosure_overlay_defaults(self):
+        """Default DisclosureSettings sit in the FTC-aligned compliance band."""
+        settings = VideoSettings(resolution=(1080, 1920), frame_rate=30)
+        d = settings.disclosure_overlay
+        assert d.enabled is True
+        assert d.text == "#ad"
+        assert d.position == "top-right"
+        # 0.45 sits just under FTC's 50-60% band; tuned for tight corner placement.
+        assert d.size_factor == 0.45
+        assert d.background_enabled is True
+
+    def test_disclosure_overlay_yaml_round_trip(self):
+        """Bundled YAML config loads cleanly into DisclosureSettings."""
+        from src.video.config.visual_models import DisclosureSettings
+
+        cfg_path = Path("config/video_production.yaml")
+        raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+        overlay_block = raw["video_settings"]["disclosure_overlay"]
+        # Pydantic accepts the dict directly; any schema drift surfaces here.
+        loaded = DisclosureSettings.model_validate(overlay_block)
+        assert loaded.text == "#ad"
+        assert loaded.position == "top-right"
+
+    def test_disclosure_overlay_rejects_invalid_position(self):
+        from src.video.config.visual_models import DisclosureSettings
+
+        with pytest.raises(ValidationError):
+            DisclosureSettings(position="middle-center")
+
+    def test_disclosure_overlay_rejects_size_factor_out_of_range(self):
+        from src.video.config.visual_models import DisclosureSettings
+
+        with pytest.raises(ValidationError):
+            DisclosureSettings(size_factor=0.05)  # below 0.2 floor
+        with pytest.raises(ValidationError):
+            DisclosureSettings(size_factor=1.5)  # above 1.0 ceiling
+
+
+class TestCleanupSettings:
+    """Regression tests for top-level tracking file protection."""
+
+    def test_default_preserve_patterns_protect_tracking_files(self):
+        # Without these in the preserve_patterns default, `make clean-outputs`
+        # silently wipes the publish registry and history once they age past
+        # `max_age_days`. This was the cause of one full-history loss event;
+        # the patterns must stay in the default forever.
+        from src.video.config.core_models import CleanupSettings
+
+        patterns = CleanupSettings().preserve_patterns
+        for required in [
+            "published_products.json",
+            "published_products.csv",
+            "publish_history.json",
+            "cleanup_audit.json",
+        ]:
+            assert required in patterns, f"{required} missing from preserve_patterns"
+
 
 class TestAudioSettings:
     """Test AudioSettings model."""

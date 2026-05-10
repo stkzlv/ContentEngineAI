@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-05-10
+
+### Added
+- Cross-cutting disclosure regression suite at `tests/test_disclosure_stack.py`. Covers all four disclosure surfaces in one file (on-frame overlay, caption first-line, TikTok branded-content flag, YouTube AI-content flag) plus invariants asserting the surfaces stay consistent when one is changed. Single canonical entry point for future engineers touching any disclosure code.
+- Persistent on-frame disclosure overlay (`#ad` by default, configurable text). Burned in a fixed corner of every produced video, full-clip duration, sized at 45% of the subtitle font (slightly under FTC's 50-60% band, tuned for tight corner placement against the platform UI corridor). Configurable via `video_settings.disclosure_overlay` in `config/video_production.yaml`: enabled/disabled, text, position (top-left / top-right / bottom-left / bottom-right), size factor, font color, outline, semi-transparent background box, edge margins. Survives the pycaps subtitle pass because pycaps overlays its captions on the assembler's output. New `src/video/assembler/overlay_builder.py` module produces the FFmpeg drawtext filter; injected as the final video filter in `assembler.core.assemble_video`. Defaults clear the YouTube Shorts top header (~10%) and the TikTok bottom username block (~12%).
+- `PublishMetadata.disclosure` field (default `#ad`) leads every formatted caption on TikTok, Instagram, and YouTube. Disclosure sits on its own line above the description and hashtag block, satisfying FTC's "clear and conspicuous" placement requirement (must appear before any other text or hashtags). The field is configurable per render so future Phase 0.4 work can inject language-matched variants (`#publi` / `#publicidad`) without further model changes. `#ad` is also de-duped from the hashtag list so it doesn't appear twice.
+- `pillar` column on the published-products registry. New rows pick the pillar from `pipeline_state.json::pillar`. The `--rebuild` path retroactively tags any back-catalogue product whose state file carries a pillar value. CSV gets a new `pillar` column. Backward-compatible: legacy registry rows without the field load with `pillar=""`.
+
+### Changed
+- `add_to_registry` refreshes existing entries on republish instead of skipping. A `--force` republish now updates registry fields (pillar, affiliate URL, title) to reflect the latest publish rather than the original. Identical-data calls still short-circuit before disk write so no spurious file churn. Return value preserves the original semantic (True only on net-new add).
+
+### Fixed
+- `make clean-outputs` (and the underlying `tools/cleanup_outputs.py`) no longer wipes the publish registry, publish history, and cleanup audit files. The `preserve_patterns` default in `CleanupSettings` now whitelists `published_products.json`, `published_products.csv`, `publish_history.json`, and `cleanup_audit.json`. The cleanup tool was deleting these whenever they aged past `max_age_days` (default 7), silently truncating publish history every time a creator ran the documented Makefile target. Pre-bug data isn't recoverable; the protection is forward-looking.
+- YouTube `containsSyntheticMedia: true` set on every publish payload. ContentEngineAI's renders are AI-generated and YouTube's policy requires the disclosure flag for that content. Two regression tests cover the with-content and without-content publish paths.
+- New `docs/compliance.md` describes the disclosure stack the pipeline produces (TikTok branded-content, YouTube AI-content, first-line caption disclosure), what's planned for the rest of Phase 0, the per-video manual workarounds for the Zernio SDK gaps (YouTube paid-promotion checkbox, Instagram paid-partnership label), and the regulatory penalty surface across FTC / Amazon / Spain CNMC.
+
+### Documentation
+- New `docs/lnkbio-api.md` captures Lnk.Bio OAuth protocol notes: the undocumented `/lnk/edit` endpoint for in-place title edits, the hard-capped `basic` OAuth scope, the 50-link `/lnk/list` page-size ceiling that isn't a bio quota, the Cloudflare `User-Agent` requirement, and the rate-limited internal dashboard route. Cross-linked from `docs/publisher.md`. CLAUDE.md Link-in-Bio Module Notes mirror the same facts so the operational context loads with the project.
+
 ## [0.45.0] - 2026-05-09
 
 ### Added
