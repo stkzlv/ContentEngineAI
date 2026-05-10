@@ -1337,6 +1337,8 @@ export LNKBIO_CLIENT_SECRET=your_client_secret
 - `affiliate_link` → destination URL (falls back to `url` if unavailable)
 - `images[0]` → thumbnail URL (falls back to `downloaded_images[0]` local file)
 
+Protocol-level notes (auth, Cloudflare gate, the 50-link list ceiling, the undocumented `/lnk/edit` endpoint, dashboard escape hatch): [lnkbio-api.md](lnkbio-api.md).
+
 </details>
 
 <details>
