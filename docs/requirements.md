@@ -383,11 +383,13 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory
-- Fields: product ID (ASIN), product title, canonical URL, affiliate URL
+- Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content pillar
 - Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
 - Append new entries after each successful publish (no duplicates)
+- Pillar is read from the producer's pipeline state at registration time so it captures what was actually rendered, not what was scraped. Empty when no pillar was set for the run.
+- Backward-compatible loader: legacy rows without a pillar field load with the field empty.
 - Support bulk import from existing scraped data directories
-- CLI command to rebuild registry from existing data
+- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose state file carries one
 
 ---
 
@@ -399,5 +401,9 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Character limit validation per platform
 
 ### Compliance
-- Automatic `#ad` inclusion for FTC compliance
-- Proper affiliate disclosure handling
+- Persistent on-frame disclosure overlay burned into every render. Fixed corner placement, full-clip duration, sized smaller than narration captions. Configurable text, position, size, color, outline, and background per render. Disabling the overlay is opt-in for non-affiliate renders (educational pillar mode).
+- First-line caption disclosure on every platform. Disclosure leads the caption text on its own line, ahead of the description and hashtag block, satisfying the regulatory requirement for clear and conspicuous placement.
+- Disclosure dedup: when a platform metadata generator emits the disclosure as a hashtag, the published caption renders it once (leading line) rather than twice.
+- Platform-policy disclosure tags propagated automatically: TikTok branded-content disclosure, YouTube AI-content disclosure. Set on every publish payload that targets the relevant platform.
+- Configurable disclosure text per render so language-matched variants are possible without code changes.
+- Manual workarounds documented for platform-policy layers the publishing SDK does not expose (YouTube paid-promotion checkbox, Instagram paid-partnership label).
