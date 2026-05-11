@@ -1119,13 +1119,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             verbose_log = self.debug_mode and provider != "bare"
             if self.debug_mode and provider == "bare":
                 self.logger.info(
-                    "🔗 URL shortener: bare (no-op, %d affiliate link(s) "
+                    "URL shortener: bare (no-op, %d affiliate link(s) "
                     "passed through unchanged)",
                     len(products),
                 )
             elif verbose_log:
                 self.logger.info(
-                    "🔗 Shortening %d affiliate links using %s",
+                    "Shortening %d affiliate links using %s",
                     len(products),
                     provider,
                 )
@@ -1164,7 +1164,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         product.shortened_affiliate_link = result.short_url
                         if verbose_log:
                             self.logger.info(
-                                "✅ Shortened: %s -> %s",
+                                "Shortened: %s -> %s",
                                 product.asin,
                                 result.short_url,
                             )
@@ -1192,7 +1192,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             if verbose_log:
                 shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
                 self.logger.info(
-                    "✅ Shortened %d/%d affiliate links",
+                    "Shortened %d/%d affiliate links",
                     shortened_count,
                     len(products),
                 )
