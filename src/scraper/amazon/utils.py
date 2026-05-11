@@ -339,8 +339,18 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
         except Exception:
             associate_tag = None
 
-    # If no associate tag configured, return original URL
+    # If no associate tag configured, return original URL.
+    # WARN loudly because the same silent fallback historically produced
+    # affiliate links without our tag for whole scrape sessions, which is a
+    # direct revenue and FTC-attribution miss. The calling CLI is responsible
+    # for loading .env early enough that AMAZON_ASSOCIATE_TAG is visible.
     if not associate_tag:
+        logger.warning(
+            "build_affiliate_url: no associate tag configured "
+            "(env AMAZON_ASSOCIATE_TAG and config scrapers.amazon.associate_tag "
+            "both empty). Returning input URL unchanged: affiliate revenue and "
+            "FTC attribution will be lost on this product."
+        )
         return url
 
     # Extract ASIN and build clean URL

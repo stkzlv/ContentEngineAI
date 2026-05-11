@@ -13,6 +13,7 @@ from enum import Enum
 class URLShortenerProvider(Enum):
     """Supported URL shortening providers."""
 
+    BARE = "bare"
     PICSEE = "picsee"
     BITLY = "bitly"
     TINYURL = "tinyurl"

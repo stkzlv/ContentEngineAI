@@ -7,6 +7,7 @@ import aiohttp
 import pytest
 
 from src.utils.url_shortener import (
+    BareURLShortener,
     BaseURLShortener,
     PicseeURLShortener,
     ShortenedURL,
@@ -23,6 +24,7 @@ class TestURLShortenerProvider:
 
     def test_provider_values(self):
         """Test that provider enum has expected values."""
+        assert URLShortenerProvider.BARE.value == "bare"
         assert URLShortenerProvider.PICSEE.value == "picsee"
         assert URLShortenerProvider.BITLY.value == "bitly"
         assert URLShortenerProvider.TINYURL.value == "tinyurl"
@@ -660,3 +662,44 @@ class TestURLShortenerIntegration:
         assert shortener.max_retries == 5
         assert shortener.retry_delay == 1.0
         assert shortener.retry_backoff_multiplier == 2.5
+
+
+class TestBareURLShortener:
+    """The bare (no-op) provider returns the input URL unchanged."""
+
+    @pytest.mark.asyncio
+    async def test_shorten_returns_input_unchanged(self):
+        url = "https://www.amazon.com/dp/B0XXXXXXXX?tag=stealtech0c-20"
+        shortener = BareURLShortener()
+        result = await shortener.shorten(url)
+        assert result.original_url == url
+        assert result.short_url == url
+        assert result.provider == URLShortenerProvider.BARE
+
+    @pytest.mark.asyncio
+    async def test_shorten_preserves_affiliate_tag(self):
+        """Round-trip invariant: tag=X comes back identical."""
+        url = "https://www.amazon.com/dp/B0ABCDEFGH?tag=mytag-99"
+        result = await BareURLShortener().shorten(url)
+        assert "tag=mytag-99" in result.short_url
+
+    @pytest.mark.asyncio
+    async def test_shorten_bulk_returns_inputs_unchanged(self):
+        urls = [
+            "https://www.amazon.com/dp/B0AAA00001?tag=t1",
+            "https://www.amazon.com/dp/B0AAA00002?tag=t2",
+        ]
+        results = await BareURLShortener().shorten_bulk(urls)
+        assert [r.short_url for r in results] == urls
+
+    @pytest.mark.asyncio
+    async def test_validate_api_key_always_true(self):
+        """Bare provider needs no API key; validation always passes."""
+        assert await BareURLShortener().validate_api_key() is True
+
+    def test_factory_creates_bare_without_api_key(self):
+        URLShortenerRegistry._providers.clear()
+        register_shortener(URLShortenerProvider.BARE)(BareURLShortener)
+        shortener = create_url_shortener(provider="bare", api_key="")
+        assert isinstance(shortener, BareURLShortener)
+        assert shortener.provider == URLShortenerProvider.BARE

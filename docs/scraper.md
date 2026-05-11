@@ -151,6 +151,27 @@ global_settings:
     max_batch_size: 15
 ```
 
+## Affiliate URLs
+
+The scraper writes the affiliate URL for each scraped product into `data.json::affiliate_link` using `build_affiliate_url`, which canonicalises every URL to `https://www.amazon.com/dp/<ASIN>?tag=<AMAZON_ASSOCIATE_TAG>`. The tag is read from the `AMAZON_ASSOCIATE_TAG` environment variable (or, if unset, from `scrapers.amazon.associate_tag` in `config/scraper.yaml`).
+
+The standalone scraper CLI loads `.env` at startup, so a tag present in `.env` is visible to the URL builder without any shell-side `export`. If the tag resolves empty (no env var, no config value), `build_affiliate_url` logs a WARNING and returns the input URL unchanged: this signals lost affiliate attribution on every scrape in the session and is grep-able in `outputs/logs/scraper.log`.
+
+## URL shortener
+
+Configured in `config/url_shortener.yaml`. Two providers ship:
+
+| Provider | Default | Requires | Behaviour |
+|---|---|---|---|
+| `bare` | yes | nothing | Returns the canonical affiliate URL unchanged. No third-party dependency. |
+| `picsee` | opt-in | `PICSEE_API_KEY` in `.env`, Picsee account | Mints a `stte.psee.io` short code that 302s to the affiliate URL. |
+
+The canonical Amazon URL is ~50 characters and fits every supported platform's caption budget after the first-line disclosure, description, and hashtags land. The character savings from a shortener don't justify the vendor dependency for most setups. The bare provider is the recommended default.
+
+The Picsee path remains for setups already invested in `stte.psee.io` shorts (e.g. live published captions reference existing short codes). One known caveat: Picsee captures the input URL verbatim rather than re-canonicalising, so a shortened code minted while the upstream affiliate URL was bad (no tag, or stale account tag) will keep redirecting to that bad URL until the redirect target is updated server-side via Picsee's API or dashboard. The bare provider sidesteps this class of issue by design.
+
+A third theoretical option, Amazon's own `amzn.to` shortener, isn't available programmatically: SiteStripe mints the short codes in-browser and there's no public API. If you want short URLs in captions and have access to SiteStripe, mint them manually and bypass this layer.
+
 ## Troubleshooting
 
 ### Rate Limiting / CAPTCHA

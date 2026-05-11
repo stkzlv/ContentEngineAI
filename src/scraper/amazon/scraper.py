@@ -1077,20 +1077,24 @@ class BotasaurusAmazonScraper(BaseScraper):
             load_dotenv()
 
             # Get provider and config
-            provider = url_config.get("provider", "picsee")
+            provider = url_config.get("provider", "bare")
             provider_config = url_config.get(provider, {})
             api_config = url_config.get("api", {})
 
-            # Get API key using configured env var name
-            api_key_env_var = provider_config.get("api_key_env_var", "PICSEE_API_KEY")
-            api_key = os.getenv(api_key_env_var)
-            if not api_key:
-                if self.debug_mode:
-                    self.logger.warning(
-                        "%s not found, skipping URL shortening",
-                        api_key_env_var,
-                    )
-                return
+            # Bare provider returns input unchanged; no API key, no network.
+            api_key = ""
+            if provider != "bare":
+                api_key_env_var = provider_config.get(
+                    "api_key_env_var", "PICSEE_API_KEY"
+                )
+                api_key = os.getenv(api_key_env_var) or ""
+                if not api_key:
+                    if self.debug_mode:
+                        self.logger.warning(
+                            "%s not found, skipping URL shortening",
+                            api_key_env_var,
+                        )
+                    return
 
             # Import URL shortener utilities
             from ...utils.url_shortener import create_url_shortener
@@ -1279,6 +1283,15 @@ class BotasaurusAmazonScraper(BaseScraper):
 def main():
     """Command-line interface for the Botasaurus Amazon scraper"""
     import argparse
+
+    # Load .env BEFORE anything reads env vars. Without this, AMAZON_ASSOCIATE_TAG
+    # (and any other secret in .env) is invisible to build_affiliate_url, which
+    # silently falls back to returning the input URL unchanged: untagged
+    # affiliate links end up in data.json. The global batch entry point in
+    # src/pipeline/global_batch.py loads .env the same way for the same reason.
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     parser = argparse.ArgumentParser(
         description="Botasaurus Amazon Scraper for ContentEngineAI"

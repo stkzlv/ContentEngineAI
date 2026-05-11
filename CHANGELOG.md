@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `bare` URL shortener provider (`src/utils/url_shortener/bare.py`). Returns the input URL unchanged. No API key, no third-party dependency. Registered alongside Picsee in `URLShortenerProvider`. The bundled `config/url_shortener.yaml` now defaults `provider: bare`, so scraper runs out of the box emit the canonical `https://www.amazon.com/dp/<ASIN>?tag=<tag>` form in both `data.json::affiliate_link` and `data.json::shortened_affiliate_link` with no external setup. The Picsee path stays available behind `provider: picsee` plus `PICSEE_API_KEY`.
+
+### Fixed
+- Standalone scraper CLI (`python -m src.scraper.amazon.scraper`) now loads `.env` at startup, mirroring what `src/pipeline/global_batch.py::main` already does. Previously, the scraper relied on the calling shell having exported `AMAZON_ASSOCIATE_TAG`; runs from a shell that only had it in `.env` produced `affiliate_link` values with no tag, silently. The affected entry point is the standalone CLI used by `make scrape-lowpri`; the global batch path was already correct.
+- `build_affiliate_url` now logs a WARNING when it returns the input URL unchanged because no associate tag is configured. The previous silent fallback historically produced whole scrape sessions of untagged affiliate URLs with nothing in the logs to flag it. The behaviour is otherwise preserved: the function still returns the URL unchanged, but the warning makes the misconfiguration grep-able and surfaces in `outputs/logs/scraper.log`.
+- `config/url_shortener.yaml` default `provider: picsee` switched to `provider: bare`. Forks that explicitly set `provider: picsee` are unaffected.
+
+### Documentation
+- `docs/scraper.md` gains an "Affiliate URLs" section and a "URL shortener" section. Describes the bare and Picsee providers, the trade-offs, the Picsee tag-preservation caveat, the missing-tag warning, and why `amzn.to` isn't a programmatic option.
+
 ## [0.46.0] - 2026-05-10
 
 ### Added
