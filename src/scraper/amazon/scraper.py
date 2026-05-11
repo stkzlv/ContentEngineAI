@@ -1113,7 +1113,17 @@ class BotasaurusAmazonScraper(BaseScraper):
             retry_delay = api_config.get("retry_delay_sec", 2.0)
             retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
 
-            if self.debug_mode:
+            # The bare provider doesn't shorten or retry, so the verbose
+            # "Shortening N using ...", custom-domain, and retry-config lines
+            # don't apply. Emit one short line instead.
+            verbose_log = self.debug_mode and provider != "bare"
+            if self.debug_mode and provider == "bare":
+                self.logger.info(
+                    "🔗 URL shortener: bare (no-op, %d affiliate link(s) "
+                    "passed through unchanged)",
+                    len(products),
+                )
+            elif verbose_log:
                 self.logger.info(
                     "🔗 Shortening %d affiliate links using %s",
                     len(products),
@@ -1152,7 +1162,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     try:
                         result = await shortener.shorten(product.affiliate_link)
                         product.shortened_affiliate_link = result.short_url
-                        if self.debug_mode:
+                        if verbose_log:
                             self.logger.info(
                                 "✅ Shortened: %s -> %s",
                                 product.asin,
@@ -1179,7 +1189,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # No event loop running, safe to use asyncio.run()
                 asyncio.run(shorten_all())
 
-            if self.debug_mode:
+            if verbose_log:
                 shortened_count = sum(1 for p in products if p.shortened_affiliate_link)
                 self.logger.info(
                     "✅ Shortened %d/%d affiliate links",
