@@ -17,6 +17,7 @@ Usage:
     print(result.short_url)
 """
 
+from .bare import BareURLShortener
 from .base import (
     BaseURLShortener,
     ShortenedURL,
@@ -30,10 +31,11 @@ from .registry import (
     register_shortener,
 )
 
-# Auto-register Picsee provider
+register_shortener(URLShortenerProvider.BARE)(BareURLShortener)
 register_shortener(URLShortenerProvider.PICSEE)(PicseeURLShortener)
 
 __all__ = [
+    "BareURLShortener",
     "BaseURLShortener",
     "ShortenedURL",
     "URLShortenerError",
