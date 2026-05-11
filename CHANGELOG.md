@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - `docs/scraper.md` gains an "Affiliate URLs" section and a "URL shortener" section. Describes the bare and Picsee providers, the trade-offs, the Picsee tag-preservation caveat, the missing-tag warning, and why `amzn.to` isn't a programmatic option.
+- `docs/configuration.md` URL-shortener block rewritten to match the shipped YAML structure: drops stale `fallback_providers` / `enable_caching` / `cache_ttl_hours` fields that were never implemented, adds the `bare` section, points readers to `docs/scraper.md` for the trade-off discussion.
+- `docs/requirements.md` Scraper module section gains two subsections: "Affiliate URL handling" (canonicalisation, env-var precedence, warn-on-missing-tag behaviour) and "URL shortener" (provider-pluggable registry, bare/picsee providers, bundled default).
+- `CLAUDE.md` Scraper Module Notes records the `.env`-loading requirement for new CLI entry points, the `build_affiliate_url` warn-on-missing-tag behaviour, and the bare-default architectural note.
 
 ## [0.46.0] - 2026-05-10
 

@@ -138,6 +138,19 @@ High-level requirements for ContentEngineAI.
 - Processing continues through keyword list until `max_products` is reached
 - Early termination when global limit is hit, even if keywords remain
 
+### Affiliate URL handling
+- Every scraped product's affiliate URL is canonicalised to `https://www.amazon.com/dp/<ASIN>?tag=<associate_tag>` before it lands in `data.json`
+- The associate tag is read from the `AMAZON_ASSOCIATE_TAG` environment variable, with the YAML `scrapers.amazon.associate_tag` field as a fallback
+- The standalone scraper CLI loads `.env` at startup; a tag set only in `.env` (not exported in the shell) is visible to the canonicaliser
+- When no associate tag resolves, the canonicaliser returns the input URL unchanged and emits a WARNING-level log line indicating affiliate attribution will be lost
+
+### URL shortener
+- The shortener layer is provider-pluggable through a typed registry
+- Bundled providers: `bare` (no-op, returns input unchanged) and `picsee` (opt-in, requires API key)
+- The bundled default is the bare provider; fresh installs do not require any shortener API key
+- The bare provider requires no API key and makes no network calls; the canonical affiliate URL passes through untouched
+- A new provider is registered by implementing the shared shortener interface and adding it to the enum and registry
+
 ---
 
 ## Video Producer Module

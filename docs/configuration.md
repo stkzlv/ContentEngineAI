@@ -311,38 +311,33 @@ config = load_scraper_config_pydantic()  # Type-safe ScraperConfig instance
 ```
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
-URL shortening providers for affiliate links:
+URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [docs/scraper.md](scraper.md#url-shortener).
 
 ```yaml
 url_shortener:
   enabled: true                    # Enable/disable URL shortening
-  provider: picsee                 # Primary provider: picsee, bitly, tinyurl
+  provider: bare                   # Default: bare (no-op). Opt-in: picsee.
 
-  # Fallback providers (tried in order if primary fails)
-  fallback_providers:
-    - bitly
-    - tinyurl
-
-  # API configuration
   api:
     timeout_sec: 30
     max_retries: 3
     retry_delay_sec: 2
     retry_backoff_multiplier: 2
 
-  # PicSee-specific settings
+  # Bare (no-op) provider. Returns input unchanged. No API key needed.
+  bare: {}
+
+  # Picsee provider. Opt-in via `provider: picsee` plus PICSEE_API_KEY in .env.
   picsee:
     api_key_env_var: PICSEE_API_KEY
-    custom_domain: stte.psee.io    # Optional branded short domain
+    api_base_url: https://api.pics.ee
+    custom_domain: stte.psee.io
     max_bulk_size: 100
+    bulk_timeout_multiplier: 2.0
 
-  # Integration settings
   integration:
-    shorten_on_scrape: true        # Auto-shorten during scraping
-    include_in_descriptions: true  # Include in video descriptions
-    fallback_to_original: true     # Use original URL if shortening fails
-    enable_caching: true           # Cache shortened URLs
-    cache_ttl_hours: 168           # 7-day cache TTL
+    shorten_on_scrape: true        # Run shortener during scrape
+    fallback_to_original: true     # On shortener failure, keep canonical URL
 ```
 
 ## Core Configuration Sections
