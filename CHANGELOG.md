@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-05-11
+
 ### Added
 - New `bare` URL shortener provider (`src/utils/url_shortener/bare.py`). Returns the input URL unchanged. No API key, no third-party dependency. Registered alongside Picsee in `URLShortenerProvider`. The bundled `config/url_shortener.yaml` now defaults `provider: bare`, so scraper runs out of the box emit the canonical `https://www.amazon.com/dp/<ASIN>?tag=<tag>` form in both `data.json::affiliate_link` and `data.json::shortened_affiliate_link` with no external setup. The Picsee path stays available behind `provider: picsee` plus `PICSEE_API_KEY`.
+
+### Changed
+- Project convention: no emojis in log messages. New code emits plain text. Pre-existing emoji-laden log calls (~149 across `src/`) are tech debt to clean up opportunistically when surrounding code gets touched. Rule documented in `CLAUDE.md` Code Standards.
+- Debug logs in `_shorten_affiliate_links` are quieter for the bare provider: one short summary line replaces the "Shortening N using ...", retry-config, per-link, and tally lines that don't apply when nothing is being shortened. Verbose logging is unchanged for the Picsee path.
 
 ### Fixed
 - Standalone scraper CLI (`python -m src.scraper.amazon.scraper`) now loads `.env` at startup, mirroring what `src/pipeline/global_batch.py::main` already does. Previously, the scraper relied on the calling shell having exported `AMAZON_ASSOCIATE_TAG`; runs from a shell that only had it in `.env` produced `affiliate_link` values with no tag, silently. The affected entry point is the standalone CLI used by `make scrape-lowpri`; the global batch path was already correct.
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/scraper.md` gains an "Affiliate URLs" section and a "URL shortener" section. Describes the bare and Picsee providers, the trade-offs, the Picsee tag-preservation caveat, the missing-tag warning, and why `amzn.to` isn't a programmatic option.
 - `docs/configuration.md` URL-shortener block rewritten to match the shipped YAML structure: drops stale `fallback_providers` / `enable_caching` / `cache_ttl_hours` fields that were never implemented, adds the `bare` section, points readers to `docs/scraper.md` for the trade-off discussion.
 - `docs/requirements.md` Scraper module section gains two subsections: "Affiliate URL handling" (canonicalisation, env-var precedence, warn-on-missing-tag behaviour) and "URL shortener" (provider-pluggable registry, bare/picsee providers, bundled default).
-- `CLAUDE.md` Scraper Module Notes records the `.env`-loading requirement for new CLI entry points, the `build_affiliate_url` warn-on-missing-tag behaviour, and the bare-default architectural note.
+- `CLAUDE.md` Scraper Module Notes records the `.env`-loading requirement for new CLI entry points, the `build_affiliate_url` warn-on-missing-tag behaviour, and the bare-default architectural note. Code Standards section adds the no-emojis-in-logs convention.
 
 ## [0.46.0] - 2026-05-10
 
