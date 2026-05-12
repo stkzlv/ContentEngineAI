@@ -41,6 +41,25 @@ TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** ov
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
 
+**Generated Spoken Script** (for closing-line mirror, see rule below):
+
+{VIDEO_SCRIPT}
+
+---
+
+**Closing-line Mirror:**
+
+The script above ends with one short engagement-bait line right before the
+final CTA ("Link in bio", etc.). It is either a two-option opinion question
+(e.g. "USB-C or Lightning — which still annoys you more?") or a debatable
+spec claim (e.g. "Most people only need two ports, but three is usually
+better."). End the caption body with that same line, verbatim or
+near-verbatim, BEFORE the hashtag block. The closing line is additive to
+the search-optimised caption content, not a replacement; the caption still
+has to satisfy the length, hashtag, and keyword rules above. If the
+Generated Spoken Script section above is empty, skip the mirror — produce
+the caption as you would otherwise.
+
 ---
 
 **Output Format:**

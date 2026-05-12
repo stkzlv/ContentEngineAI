@@ -37,6 +37,25 @@ You are a YouTube SEO expert specializing in YouTube Shorts optimization. Your t
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
 
+**Generated Spoken Script** (for closing-line mirror, see rule below):
+
+{VIDEO_SCRIPT}
+
+---
+
+**Closing-line Mirror:**
+
+The script above ends with one short engagement-bait line right before the
+final CTA ("Link in bio", etc.). It is either a two-option opinion question
+(e.g. "USB-C or Lightning — which still annoys you more?") or a debatable
+spec claim (e.g. "Most people only need two ports, but three is usually
+better."). End the description with that same line, verbatim or
+near-verbatim, on its own line before the product URL. The closing line is
+additive to the description content (front-loaded SEO + benefits), not a
+replacement; the description still has to satisfy the rules above and end
+with the product URL. If the Generated Spoken Script section above is
+empty, skip the mirror — produce the description as you would otherwise.
+
 ---
 
 **Output Format:**

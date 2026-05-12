@@ -68,6 +68,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         intermediate_paths: dict[str, Path],
         debug_mode: bool,
         api_settings=None,
+        video_script: str | None = None,
     ) -> PlatformMetadata | None:
         """Generate Instagram-optimized metadata using LLM.
 
@@ -83,6 +84,10 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             intermediate_paths: Dictionary of file paths for outputs (unused)
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
+            video_script: Optional generated spoken script. When provided, the
+                caption template's `{VIDEO_SCRIPT}` placeholder substitutes
+                with this text so the LLM can mirror the script's closing
+                engagement-bait line into the caption body.
 
         Returns:
         -------
@@ -125,7 +130,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             template = template.replace("{EMOJI_ENABLED}", emoji_status)
 
             # Format with product data
-            prompt = format_prompt(template, product)
+            prompt = format_prompt(template, product, video_script=video_script)
 
             if debug_mode:
                 logger.info(f"Instagram caption style: {caption_style}")

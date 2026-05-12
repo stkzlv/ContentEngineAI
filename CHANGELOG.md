@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Caption-side mirror of the Phase 1.5 closing engagement-bait line. The producer step that generates platform metadata now threads the rendered spoken script through to the per-platform LLM prompts via a new `{VIDEO_SCRIPT}` placeholder. Each caption template (TikTok, Instagram, YouTube) ends the caption body with the same closing line that the script ends with — comment-fork for personal/storytelling templates, spec-correction for analytical templates — so the Rule of 3s for engagement bait holds across spoken audio, on-screen subtitles, and the caption itself. Backward-compatible: templates without `{VIDEO_SCRIPT}` are unaffected, and an empty/missing script produces a normal search-optimised caption without the closing line.
+
+### Changed
+- `src/ai/description_generator.py::format_prompt` gains an optional `video_script: str | None = None` parameter that substitutes the `{VIDEO_SCRIPT}` placeholder.
+- `src/ai/platform_metadata/utilities.py::generate_with_llm` and `BasePlatformMetadataGenerator.generate` (plus the YouTube, TikTok, Instagram concrete generators) carry the new `video_script` argument through to the prompt formatter.
+- `src/ai/platform_metadata/__init__.py::generate_multi_platform` reads the script once from `intermediate_paths['script']` via a new `_read_video_script` helper and passes it to every generator in parallel.
+- `src/video/producer/steps.py` wires `"script": ctx.run_paths["script_file"]` into the `intermediate_paths` dict the metadata step constructs.
+
 ## [0.48.0] - 2026-05-12
 
 ### Changed

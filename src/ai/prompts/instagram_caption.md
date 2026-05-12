@@ -46,6 +46,29 @@ You are an Instagram Reels growth specialist. Your task is to create a platform-
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
 
+**Generated Spoken Script** (for closing-line mirror, see rule below):
+
+{VIDEO_SCRIPT}
+
+---
+
+**Closing-line Mirror:**
+
+The script above ends with one short engagement-bait line right before the
+final CTA ("Link in bio", etc.). It is either a two-option opinion question
+(e.g. "USB-C or Lightning — which still annoys you more?") or a debatable
+spec claim (e.g. "Most people only need two ports, but three is usually
+better."). End the caption body with that same line, verbatim or
+near-verbatim, BEFORE the hashtag block. The closing line is additive to
+the caption content, not a replacement; the caption still has to satisfy
+the style, hashtag, and emoji rules above. For the SEO style (100-200
+chars), the closing line counts toward the budget; trim the descriptive
+copy if needed so the closing line still fits. For the short style (3-5
+words), the closing line replaces the brief hook — use the script's
+closing line as the caption body. If the Generated Spoken Script section
+above is empty, skip the mirror — produce the caption as you would
+otherwise.
+
 ---
 
 **Output Format:**

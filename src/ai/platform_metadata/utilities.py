@@ -105,6 +105,7 @@ async def generate_with_llm(
     api_settings=None,
     debug_mode: bool = False,
     secrets: dict[str, str] | None = None,
+    video_script: str | None = None,
 ) -> str | None:
     """High-level helper to generate content using LLM with automatic model fallback.
 
@@ -125,6 +126,11 @@ async def generate_with_llm(
         api_settings: Optional API-specific settings override
         debug_mode: Enable verbose logging if True
         secrets: Dict of env var names to values for fallback provider key lookup
+        video_script: Optional generated spoken script for the video. When
+            provided, the prompt template's `{VIDEO_SCRIPT}` placeholder
+            substitutes with this text, letting caption prompts mirror the
+            closing engagement-bait line into the platform caption. Templates
+            that don't reference the placeholder are unaffected.
 
     Returns:
     -------
@@ -138,7 +144,7 @@ async def generate_with_llm(
             logger.info(f"Loaded template from {template_path}")
 
         # Step 2: Format with product data
-        prompt = format_prompt(template, product)
+        prompt = format_prompt(template, product, video_script=video_script)
         if debug_mode:
             logger.info(f"Formatted prompt ({len(prompt)} chars)")
 

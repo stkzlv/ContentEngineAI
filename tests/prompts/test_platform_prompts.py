@@ -95,6 +95,7 @@ class TestYouTubeTemplateStructure:
         sample_data = {
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
+            "VIDEO_SCRIPT": "",
         }
 
         formatted = self.template.format(**sample_data)
@@ -165,6 +166,7 @@ class TestTikTokTemplateStructure:
         sample_data = {
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
+            "VIDEO_SCRIPT": "",
         }
 
         formatted = self.template.format(**sample_data)
@@ -248,6 +250,7 @@ class TestInstagramTemplateStructure:
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
             "CAPTION_STYLE": "seo",
             "EMOJI_ENABLED": "Use emojis",
+            "VIDEO_SCRIPT": "",
         }
 
         formatted = self.template.format(**sample_data)
@@ -269,6 +272,7 @@ class TestInstagramTemplateStructure:
             "PRODUCT_URL": "https://example.com/test",
             "CAPTION_STYLE": "short",
             "EMOJI_ENABLED": "No emojis",
+            "VIDEO_SCRIPT": "",
         }
 
         formatted = self.template.format(**sample_data)

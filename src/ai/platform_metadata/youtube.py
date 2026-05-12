@@ -65,6 +65,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         intermediate_paths: dict[str, Path],
         debug_mode: bool,
         api_settings=None,
+        video_script: str | None = None,
     ) -> PlatformMetadata | None:
         """Generate YouTube-optimized metadata using LLM.
 
@@ -80,6 +81,10 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             intermediate_paths: Dictionary of file paths for outputs (unused)
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
+            video_script: Optional generated spoken script. When provided, the
+                metadata template's `{VIDEO_SCRIPT}` placeholder substitutes
+                with this text so the LLM can mirror the script's closing
+                engagement-bait line into the description.
 
         Returns:
         -------
@@ -115,6 +120,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 api_settings,
                 debug_mode,
                 secrets=secrets,
+                video_script=video_script,
             )
 
             if not response:

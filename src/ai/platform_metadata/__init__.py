@@ -62,6 +62,35 @@ from src.video.config.llm_settings import LLMSettings
 logger = logging.getLogger(__name__)
 
 
+def _read_video_script(
+    intermediate_paths: dict[str, Path] | None,
+) -> str | None:
+    """Read the generated script from intermediate_paths, or None if absent.
+
+    Returns the script text when the `"script"` key is present and the file
+    exists and is readable. Missing key, missing file, or read error all
+    produce None silently so caption prompts without the `{VIDEO_SCRIPT}`
+    placeholder remain unaffected and the metadata pipeline doesn't fail
+    just because the script artifact wasn't produced (e.g. first publish
+    without a re-render, or a partial pipeline run).
+    """
+    if not intermediate_paths:
+        return None
+    script_path = intermediate_paths.get("script")
+    if not script_path or not Path(script_path).is_file():
+        return None
+    try:
+        text = Path(script_path).read_text(encoding="utf-8").strip()
+        return text or None
+    except OSError as e:
+        logger.warning(
+            "Failed to read script from %s for caption mirror: %s",
+            script_path,
+            e,
+        )
+        return None
+
+
 class PlatformMetadataFactory:
     """Factory for creating and managing platform-specific metadata generators.
 
@@ -234,6 +263,18 @@ class PlatformMetadataFactory:
                 results[platform] = None
                 continue
 
+        # Read the generated script once so caption prompts that reference
+        # {VIDEO_SCRIPT} can mirror the closing engagement-bait line into the
+        # platform caption. Missing key / missing file / unreadable file all
+        # produce an empty script; templates without the placeholder are
+        # unaffected.
+        video_script = _read_video_script(intermediate_paths)
+        if video_script and debug_mode:
+            logger.debug(
+                "Passing %d-char script to platform metadata generators",
+                len(video_script),
+            )
+
         # Build async tasks for parallel execution
         tasks = []
         task_platforms = []
@@ -246,6 +287,7 @@ class PlatformMetadataFactory:
                 intermediate_paths,
                 debug_mode,
                 api_settings,
+                video_script=video_script,
             )
             tasks.append(task)
             task_platforms.append(platform)
