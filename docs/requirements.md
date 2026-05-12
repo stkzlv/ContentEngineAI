@@ -246,6 +246,8 @@ group degrade to FFmpeg without manual intervention.
 - Configurable template pool to restrict which styles get used
 - CLI override to force a specific template
 - Template metadata recorded in pipeline output for traceability
+- Every template instructs the LLM to open with a natural conversational hook that carries the long-tail audio keyword (product category, price band, audience cue, pain point) embedded inside speech a person would actually say out loud. The template rule lists six proven hook patterns aligned with `docs/promotional-video-best-practices.md` §1 — price-first reveal, regret/contrarian, POV, outcome-first, numbered teardown, comparison — and names the literal Google-query shape as an anti-pattern. The keyword must land in the first 5 seconds of TTS because TikTok transcribes audio via ASR and indexes the transcript as a primary search signal.
+- Every template instructs the LLM to end the spoken script with one short engagement-bait closing line, right before the CTA, not replacing it. Personal and storytelling templates use a two-option opinion question (comment-fork); analytical and comparison templates use a debatable but defensible spec claim that invites a correction. The closing line drives comments, which feeds the platform algorithm; generic "Comment YES if..." asks are spam-filtered and excluded.
 
 ### TTS Voice Profiles
 - Named voice presets with style direction, voice preferences, and text markup

@@ -20,12 +20,13 @@ with sound off.
 
 ---
 
-## The 4 promo-video rules that matter (cheat-sheet)
+## The 5 promo-video rules that matter (cheat-sheet)
 
-1. **First-3-second hook is a static title card, not karaoke.** 5-12 words, on screen for the full 1.5-3 s, larger than narration captions. The decision window is ~1.7 s; if the hook is still revealing word-by-word at 1.5 s, the viewer has already swiped.
+1. **First-3-second hook is a static title card, not karaoke.** 5-12 words, on screen for the full 1.5-3 s, larger than narration captions. The decision window is ~1.7 s; if the hook is still revealing word-by-word at 1.5 s, the viewer has already swiped. The hook must also land the search keyword in spoken audio within the first 5 s — TikTok 2026 transcribes audio via ASR and indexes the transcript as a primary search signal.
 2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Red/orange beats green in independent A/B tests.
 3. **`#ad` disclosure is a persistent on-frame overlay AND first-line caption text.** FTC requires both. Same font family as captions, ~50-60% size, fixed corner, full-clip duration. Penalties up to $53,088 per violation (2025).
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
+5. **End with an engagement-bait closing line right before the hard CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. The closing line drives comments and saves, both of which feed the algorithm. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
 
 ---
 
@@ -59,6 +60,18 @@ design rules; the deviation here is "no per-word reveal on the hook."
 
 Hook caption sizing and word budget converge across Captions.ai, OpusClip,
 and Submagic 2025-2026 guidance.
+
+**Audio is its own search signal.** TikTok 2026 transcribes spoken audio via
+ASR and indexes the transcript alongside captions and hashtags. The hook
+keyword (product category, price band, audience cue, pain point) must land
+in the first 5 seconds of spoken audio — not just on-screen — for the video
+to surface in search. All six patterns above embed the keyword naturally
+without the opener reading as a search-bar query. **Anti-pattern**: literal
+Google-query syntax like "Best [category] under $[N] for [audience]." Reads
+as keyword stuffing in voiceover; sacrifices the conversational register
+that holds the viewer through the first few beats. The project's script
+templates encode the six patterns as the rule for line one and call out
+the Google-query shape as an explicit anti-pattern.
 
 ## 2. Sound-off as the primary audience
 
@@ -127,7 +140,42 @@ accessibility layer for the 15%, not the source of truth.
 This aligns with the project's trade-off-honesty rule baked into the
 script template prompts (CHANGELOG `0.43.1`).
 
-## 4. CTA staging — soft + hard, two-stage
+## 4. Closing-line beat — comment-fork or spec-correction
+
+One short engagement-bait line, right before the hard CTA, not replacing it.
+TikTok's algorithm rewards comments and saves as primary engagement signals;
+a closing line that invites a reply outperforms a video that ends on the
+sponsor pitch. Generic engagement bait ("Comment YES if you agree") is
+spam-filtered and reduces reach; specific, opinion-driven prompts pass.
+
+**Two flavours, picked by template framing:**
+
+| Flavour | When to use | Example | Why it works |
+|---|---|---|---|
+| **Comment-fork** | Personal, storytelling, discovery framing (POV / regret / outcome-first hooks) | "USB-C or Lightning — which still annoys you more?" / "Team magnetic or team plug-in?" | Two-option opinion questions invite a one-tap pick; viewers reply because the answer is fast. |
+| **Spec-correction** | Analytical, comparison, numbered-teardown content (price-first / comparison / numbered hooks) | "Most people only need two ports, but three is usually better." / "65W is the sweet spot for laptops." | Debatable but defensible claims invite "well, actually" replies. The audience that knows the spec types because they want to correct you. |
+
+**Word budget**: ≤15 words. The line is one beat, not a paragraph. Read it
+out loud before locking — if it reads as a rhetorical question with no real
+options ("Isn't that crazy?"), rewrite it as a specific opinion fork or
+spec claim.
+
+**Render staging**: the closing line lives in the script (TTS reads it), in
+the on-screen subtitle (subtitles ARE the script in this project), and
+optionally in the platform caption. It comes BEFORE the hard CTA frame, not
+on the same frame.
+
+**Anti-patterns**:
+- "Comment YES if you agree" — generic, spam-filtered
+- "What do you think?" — too open, no reply hook
+- A question with no opinion attached ("Have you seen this before?")
+- Replacing the CTA with the closing line — both beats are needed, not one
+
+The project's script templates encode comment-fork for personal/storytelling
+templates and spec-correction for analytical/comparison templates. See
+`src/ai/prompts/scripts/` for the per-template Rules block.
+
+## 5. CTA staging — soft + hard, two-stage
 
 **Wistia State of Video 2025** analyzed 36,000+ video CTAs:
 
@@ -158,7 +206,7 @@ script template prompts (CHANGELOG `0.43.1`).
 **Verb choice**: imperative + specific outcome. "Get the $15 fix" beats
 "Shop now". "Link to the bag in bio" beats "Click here".
 
-## 5. Honest gaps in the evidence
+## 6. Honest gaps in the evidence
 
 The vendor literature on captions and promo video is louder than the
 empirical record. Things to flag rather than assert:

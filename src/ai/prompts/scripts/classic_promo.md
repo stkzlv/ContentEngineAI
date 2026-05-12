@@ -15,6 +15,8 @@ End with one CTA per the narrator profile. Direct, not desperate.
 - Inject personality. Avoid a robotic or overly formal tone. But don't force humor or quirks either.
 - Tailor the tone to the target audience without explicitly naming who the audience is.
 - The script should provide genuine value, not just hype. The viewer should walk away knowing something useful about the product.
+- **Open with a natural conversational hook that carries the audio keyword** (product category, price band, audience cue, pain point) in speech a person would actually say, never as a search-bar query. TikTok 2026 indexes ASR transcripts as a primary search signal, so the keyword must land in the first 5 seconds of TTS. Pick one of six proven shapes from `docs/promotional-video-best-practices.md` §1: price-first reveal, regret/contrarian, POV, outcome-first, numbered teardown, comparison. Word budget ≤3 seconds, ~5-12 words. Anti-pattern: "Best [X] under $[N] for [Y]" reads as a Google query. Name the brand and a concrete spec by the second sentence at the latest. Read it out loud; if it sounds like a search bar, rewrite.
+- **Close with a debatable spec claim right before the CTA. This is a SEPARATE beat from the trade-off rule below — not a downside, but a defensible opinion-shaped claim that invites a 'well, actually' reply.** Concrete examples: "Most people only need two ports, but three is usually better." / "65W is the sweet spot for laptop charging." / "Eight hours is the right battery target for daily HDR use." One short line, under 15 words. NOT a trade-off (the trade-off rule below handles that), NOT a question — a defensible claim with an implied opinion.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data
