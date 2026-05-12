@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video using an insider knowledge angle.
 
-Open with a "secret" or "hack" framing. Something like "Okay so here's something most people don't know" or "There's a reason you keep seeing this everywhere but nobody explains why." Position the product as something the viewer is lucky to be hearing about. Not in a condescending way, more like you're letting them in on something good.
+Open with the "secret" or "hack" framing AND embed the audio-keyword hook in the first sentence (see Rules below for the full spec). The secret is about a specific product category, price band, or audience-specific use case — not a vague "most people don't know." Examples: "There's a $25 USB-C hub that does what the $80 ones do and almost nobody talks about it." / "Most reviews skip this: a $15 ergonomic mouse pad fixes wrist pain better than the $50 brands." Specific category and price, not vague hype. You're letting the viewer in on something good, not posturing.
 
 Then reveal 2-3 features from the product description, but frame them as discoveries or little-known benefits rather than a spec sheet. Think "the thing nobody tells you is..." or "what most reviews skip over is..." Each point should feel like you're sharing something genuinely useful, not reading a product page.
 

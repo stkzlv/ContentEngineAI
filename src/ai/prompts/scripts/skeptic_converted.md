@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video where the narrator starts as a doubter and ends as a believer.
 
-Open with genuine skepticism. Something like "I almost didn't buy this. Looked too good to be true." or "I'll be honest, I thought this was overhyped." The doubt should feel real, not performative. Maybe you were skeptical of the claims, the reviews, or the category in general.
+Open with skepticism that names what you were skeptical OF — embed the audio-keyword hook in the first sentence (see Rules below for the full spec). The doubt and the hook land together: the product category, price band, or audience cue is the thing you doubted. Examples: "A $15 portable charger that claims 20,000 mAh — I was certain this was junk." / "Almost skipped this $40 Bluetooth speaker because the reviews looked staged." Vague doubt without the keyword doesn't land the search signal.
 
 Then reveal the turning point. What specific moment or feature changed your mind? Pull 2-3 concrete details from the product description below and frame them as things that surprised you. Not "it has great sound quality" but more like "I put these on and forgot I was on a bus." Each surprise should build on the last, showing the narrator warming up to the product.
 

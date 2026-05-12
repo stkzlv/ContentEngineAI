@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video. The narrator just received the product and is sharing quiet first impressions as they look it over. Think "I just got this and here's what I'm noticing" rather than unboxing hype.
 
-Open with a low-key moment of receiving the product. "So this just arrived" or "Been curious about this one for a while." Put the viewer in the moment without fanfare.
+Open with the arrival moment, but embed the audio-keyword hook in the first sentence (see Rules below for the full spec). Name the product category, price band, or audience cue as you mention the arrival; the low-key tone stays, the keyword lands immediately. Examples: "Just unboxed this $22 robot vacuum and my expectations are honestly low." / "This 4K webcam for under $50 just showed up and the box is way smaller than I thought." Quiet tone, immediate keyword.
 
 As you go through the product, react to specific features from the description below. Keep reactions genuine but understated. "Huh, it actually does that" or "Lighter than I expected." Let observations build naturally from first glance to closer look. No need to escalate to excitement.
 

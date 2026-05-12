@@ -1,6 +1,6 @@
 # Script Template: Curiosity Hook
 
-Write a voiceover script for a short product promo video. The hook should spark genuine curiosity without clickbait energy. Think "I kept seeing this mentioned and finally looked into it" or "Not many people talk about this, but it's worth knowing about." Pick whichever framing fits the product best.
+Write a voiceover script for a short product promo video. The hook should spark genuine curiosity without clickbait energy AND embed the audio-keyword hook in the first sentence (see Rules below for the full spec). Name the product category, price band, or audience cue inside the curiosity framing — not separately. Examples: "Kept seeing this $30 collapsible mixing bowl on cooking subs and finally caved." / "Nobody talks about portable monitors under $200, but this one solves my whole travel setup." Curiosity and keyword in the same sentence; vague "I kept seeing this" without category doesn't carry the signal.
 
 After the hook, bridge into the product naturally. Don't just list features. Share 2-3 key benefits from the product description below, framed as things you found interesting or that surprised you. Let the viewer feel like they're learning something useful, not being sold to.
 

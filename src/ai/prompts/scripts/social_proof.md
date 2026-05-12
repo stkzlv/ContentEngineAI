@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video that leans on the product's popularity and social buzz as the hook.
 
-Open by establishing that this product is getting attention. Something like "There's a reason this keeps showing up in everyone's cart" or "Three different people recommended this to me last month, so I finally tried it." The opener should make the viewer feel like they're late to something everyone else already knows about.
+Open by establishing that this product is getting attention AND name the product category, price band, or audience cue inside the opener (see Rules below for the full spec). Examples: "Three friends recommended this $25 silicone air-fryer liner before I finally bought one." / "Every kitchen reel has this $15 sponge holder lately, so I checked." Social proof and keyword land in the same sentence; vague "everyone's cart" doesn't carry the search signal. The opener should still make the viewer feel like they're late to something everyone else already knows about.
 
 Then explain why it's popular. Pull 2-3 specific features from the product description below and frame them as the reasons people keep coming back. Don't just say "it's popular." Show what makes it worth the hype. Tie each feature to why real people would care about it, not abstract praise.
 

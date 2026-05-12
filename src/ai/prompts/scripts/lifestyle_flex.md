@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video that weaves the product into everyday life. Instead of reviewing the product directly, show how it fits into a routine, a habit, or a specific moment in the day.
 
-Open by setting a scene from daily life. Not a generic one. Pick something specific based on the target audience and what the product does. "Every morning before I leave the house..." or "I used to dread this part of my day" or "Three weeks with this and my whole evening routine is different." The product enters naturally, not as a pitch but as part of the story.
+Open with a daily-life moment that carries the audio-keyword hook in the first sentence (see Rules below for the full spec). The scene and the hook are one beat — pack the product category, price band, or audience cue into the opening so the routine introduces the product world immediately. Examples: "This $30 silicone mat replaced the cracked one I cooked on for two years." / "Switched to this 8-hour battery clip-on desk fan and the white noise alone is worth it." Specific moment, specific audience, immediate keyword.
 
 Weave in 2-3 features from the product description below, but frame them as lifestyle benefits rather than specs. Not "it has 40-hour battery life" but "I charge it on Sunday and forget about it until the next weekend." The viewer should picture themselves using it, not reading a spec sheet.
 

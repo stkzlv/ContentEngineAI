@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video built around a mini personal story.
 
-Open with a brief first-person anecdote. Something happened: a frustration, a lucky find, a recommendation from a friend, a late-night scroll that led somewhere unexpected. Keep it to one or two sentences. Make it feel like an actual moment, not a setup.
+Open with a first-person anecdote that carries the audio-keyword hook in the first sentence (see Rules below for the full spec). The anecdote and the hook are one beat — pack the product category, price band, or audience cue into the opening so the story names the product world immediately, not three sentences in. Examples: "Spent $25 on this USB-C hub after my third dongle broke at the coffee shop." / "Found this 4K dashcam for under $80 on a whim and now I keep one in each car." One or two sentences. Make it feel like an actual moment, not a setup.
 
 Then bridge into the product discovery. How did you come across it, and what made you try it? This should feel natural, like you're telling a friend about something you bought. Not a testimonial, just a story.
 

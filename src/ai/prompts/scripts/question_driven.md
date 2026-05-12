@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video built around provocative rhetorical questions that the product answers.
 
-Open with a question that stops the viewer. Something like "What if I told you there's a reason your old one keeps breaking?" or "Ever wonder why some people never complain about [common problem]?" The question should feel like it's about to reveal something the viewer hasn't considered.
+Open with a question that names the audio keyword inside it — product category, price band, or audience cue (see Rules below for the full spec). The question and the hook land together; vague "what if I told you" without category doesn't carry the search signal. Examples: "Ever wondered why $20 wireless earbuds keep dying after six months?" / "Why does a $40 mechanical keyboard feel better than a $200 one?" The question should still feel like it's about to reveal something the viewer hasn't considered — just with the keyword built in.
 
 Follow with 2-3 more questions, each one targeting a different pain point or desire from the target audience. After each question, deliver the answer in one tight sentence tied to a real feature from the product description below. The pattern is: question, answer, question, answer. Don't stack all the questions at the start and all the answers at the end.
 
