@@ -13,7 +13,14 @@ End with the converted verdict. Something that acknowledges the initial doubt an
 - The skepticism must feel honest. Don't make it cartoonish or over-the-top. Think "mildly doubtful" not "hated everything about it."
 - The conversion should be gradual across the script, not a single dramatic flip.
 - Sound like someone admitting they were wrong. A little sheepish, a little impressed. Not preachy.
-- **Open with a natural conversational hook that carries the audio keyword.** The first sentence the viewer hears should embed the long-tail keyword (product category, problem or benefit, audience or use context, and a price band when the product price supports it) inside speech a person would actually say out loud, never as a search-bar query. TikTok's algorithm transcribes spoken audio and ranks it as a primary search signal, so the keyword must be PRESENT in the audio, not the opener's grammar. Good shapes: problem-first ("Most [category] under $[N] fail at [pain point]. This one doesn't."), direct address ("If you're [audience] and [pain point], this $[N] [product] [benefit]."), discovery framing ("I needed [product] for [context]. This $[N] one surprised me."), myth-tension ("Most $[N] [category] [common flaw]. This one doesn't."). Bad shape to avoid: "Best [category] under $[N] for [audience]" reads as a Google query, not speech. Read the opener out loud; if it sounds like a search bar entry rather than something a friend would say, rewrite it.
+- **Open with a natural conversational hook that carries the audio keyword.** The first sentence the viewer hears should embed the long-tail keyword (product category, price band, audience cue, pain point) inside speech a person would actually say out loud, never as a search-bar query. TikTok 2026 transcribes spoken audio via ASR and ranks the transcript as a primary search signal, so the keyword must land in the first 5 seconds of TTS for the video to surface in search. Pick whichever of these proven patterns fits the product (all six embed the keyword naturally; see `docs/promotional-video-best-practices.md` §1 for the underlying research):
+  - **Price-first reveal**: "The $[N] [thing] that…"
+  - **Regret / contrarian**: "I regret buying this." / "Don't buy [product] until you see this."
+  - **POV**: "POV: you finally found a [thing] that doesn't [pain]."
+  - **Outcome-first**: "This fixed my [pain] in 30 seconds."
+  - **Numbered teardown**: "3 reasons I'm returning this."
+  - **Comparison**: "$[N] vs $[M] — same thing?"
+  Anti-pattern: "Best [category] under $[N] for [audience]" reads as a Google query, not speech. Word budget ≤3 seconds, ~5-12 words. Read the opener out loud; if it sounds like a search-bar entry, rewrite.
 - **End with a two-option opinion question, right before the CTA.** One short line, under 12 words, that invites the viewer to pick a side. Shape: "X or Y — which still annoys you more?" or "Team X or team Y?" Pick something the audience would actually have an opinion about. The comment-fork is an extra closing beat, not a replacement for the CTA.
 - Include one short trade-off or limitation, one sentence max.
 
