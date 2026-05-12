@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-05-12
+
 ### Changed
 - Every script template in `src/ai/prompts/scripts/` (15 files) now requires a natural conversational hook in the first spoken line that carries the long-tail audio keyword (product category, price band, audience cue, pain point) embedded inside speech a person would actually say out loud. The rule provides six proven patterns aligned with `docs/promotional-video-best-practices.md` §1 — price-first reveal, regret/contrarian, POV, outcome-first, numbered teardown, comparison — and calls out the literal Google-query shape ("Best [X] under $[N] for [Y]") as an anti-pattern. TikTok 2026 transcribes spoken audio via ASR and ranks the transcript as a primary search signal; the keyword must land in the first 5 seconds of TTS for the video to surface in search.
 - Every script template also requires an engagement-bait closing line, right before the CTA. Personal and storytelling templates (`story_driven`, `lifestyle_flex`, `unboxing_reaction`, `social_proof`, `secret_reveal`, `skeptic_converted`, `curiosity_hook`) close with a two-option opinion question (comment-fork). Analytical and comparison templates (`problem_solution`, `myth_buster`, `comparison`, `before_after`, `challenge_dare`, `classic_promo`, `rapid_fire`, `question_driven`) close with a debatable but defensible spec claim that invites a "well, actually" correction. The closing line is additive to the affiliate CTA, not a replacement.
