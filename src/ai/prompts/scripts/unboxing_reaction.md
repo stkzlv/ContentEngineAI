@@ -14,6 +14,8 @@ Close with an honest first take. One calm sentence on whether it seems worth it.
 - Don't oversell. If a feature is just "fine," say so. Understated appreciation lands better than forced excitement.
 - Avoid describing actions ("now I'm opening the box"). Focus on what you notice and think.
 - Mid-thought pivots are welcome. Keep the tone relaxed and unhurried throughout.
+- **Front-load a long-tail audio hook in line one.** The first sentence the viewer hears names the target audience or use context, the problem or benefit, and a price band when the product price supports it. Example shape: "Best [category] under $[N] for [audience or context]." TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine whether the video gets discovered. The hook is the search keyword.
+- **End with a two-option opinion question, right before the CTA.** One short line, under 12 words, that invites the viewer to pick a side. Shape: "X or Y — which still annoys you more?" or "Team X or team Y?" Pick something the audience would actually have an opinion about. The comment-fork is an extra closing beat, not a replacement for the CTA.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data

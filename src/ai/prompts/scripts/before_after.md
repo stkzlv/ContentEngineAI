@@ -15,6 +15,8 @@ End with one CTA per the narrator profile. Keep it natural.
 - The "before" should be something the target audience actually experienced, not a made-up worst case.
 - The "after" should be grounded in real product features, not exaggerated claims.
 - A short punchy sentence after a longer one keeps things moving.
+- **Front-load a long-tail audio hook in line one.** The first sentence the viewer hears names the target audience or use context, the problem or benefit, and a price band when the product price supports it. Example shape: "Best [category] under $[N] for [audience or context]." TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine whether the video gets discovered. The hook is the search keyword.
+- **End with one debatable but defensible spec claim, right before the CTA.** One short line, under 15 words, that invites a 'well, actually' correction. Shape: "...and that's why N units is the sweet spot for use-case." Pick a claim the audience would have opinions about. The spec-correction is an extra closing beat, not a replacement for the CTA.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data

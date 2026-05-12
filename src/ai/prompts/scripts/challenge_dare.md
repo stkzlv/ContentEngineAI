@@ -15,6 +15,8 @@ Close by restating the challenge in a relaxed way. End with one CTA per the narr
 - Challenge on concrete specs, features, or value. Things the viewer can actually verify.
 - Keep the tone steady throughout. No volume spikes, no hype buildup. Calm conviction from start to finish.
 - Mix in the occasional rhetorical question, but keep it measured, not rapid-fire.
+- **Front-load a long-tail audio hook in line one.** The first sentence the viewer hears names the target audience or use context, the problem or benefit, and a price band when the product price supports it. Example shape: "Best [category] under $[N] for [audience or context]." TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine whether the video gets discovered. The hook is the search keyword.
+- **End with one debatable but defensible spec claim, right before the CTA.** One short line, under 15 words, that invites a 'well, actually' correction. Shape: "...and that's why N units is the sweet spot for use-case." Pick a claim the audience would have opinions about. The spec-correction is an extra closing beat, not a replacement for the CTA.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data

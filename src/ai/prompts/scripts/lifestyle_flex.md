@@ -14,6 +14,8 @@ Close with a line about how this small addition made a real difference in your d
 - Features become habits. Translate every spec into how it changes a real moment. If you can't connect a feature to a daily situation, skip it.
 - Avoid aspirational fluff. "Living my best life" territory is off limits. Stay concrete: real places, real times, real activities.
 - The product shouldn't be the main character. The routine is. The product just makes it better.
+- **Front-load a long-tail audio hook in line one.** The first sentence the viewer hears names the target audience or use context, the problem or benefit, and a price band when the product price supports it. Example shape: "Best [category] under $[N] for [audience or context]." TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine whether the video gets discovered. The hook is the search keyword.
+- **End with a two-option opinion question, right before the CTA.** One short line, under 12 words, that invites the viewer to pick a side. Shape: "X or Y — which still annoys you more?" or "Team X or team Y?" Pick something the audience would actually have an opinion about. The comment-fork is an extra closing beat, not a replacement for the CTA.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data

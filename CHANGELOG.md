@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Every script template in `src/ai/prompts/scripts/` (15 files) now requires a front-loaded long-tail audio hook in the first spoken line: shape `Best [category] under $[N] for [audience or context]`. TikTok ranks spoken audio as a primary search signal, so the first 5 seconds of TTS determine whether the video gets discovered. The hook is the audio search keyword, mirrored implicitly through the subtitle pass (subtitles ARE the script).
+- Every script template also requires an engagement-bait closing line, right before the CTA. Personal and storytelling templates (`story_driven`, `lifestyle_flex`, `unboxing_reaction`, `social_proof`, `secret_reveal`, `skeptic_converted`, `curiosity_hook`) close with a two-option opinion question (comment-fork). Analytical and comparison templates (`problem_solution`, `myth_buster`, `comparison`, `before_after`, `challenge_dare`, `classic_promo`, `rapid_fire`, `question_driven`) close with a debatable but defensible spec claim that invites a "well, actually" correction. The closing line is additive to the affiliate CTA, not a replacement.
+
+### Documentation
+- `docs/requirements.md` Script Templates section adds the long-tail-hook and closing-engagement-line requirements.
+
 ## [0.47.0] - 2026-05-11
 
 ### Added
