@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - `docs/requirements.md` Script Templates section adds the long-tail-hook and closing-engagement-line requirements.
 - `docs/promotional-video-best-practices.md` cheat-sheet grows from 4 to 5 rules (adds the closing-line beat). §1 gains an "Audio is its own search signal" paragraph covering the TikTok 2026 ASR ranking signal and the Google-query anti-pattern. A new §4 covers the closing-line beat with comment-fork and spec-correction variants, picked by template framing. Trailing section renumbered (Honest gaps: §5 → §6). The script-template hook rule now references this doc directly so the doc is the single source of truth for hook design.
+- `CLAUDE.md` Video Module Notes adds a corollary to the existing prompt-rule-placement gotcha: long rules with nested sub-bullets crowd attention from neighbouring rules. Point at external docs rather than inlining lengthy example lists.
 
 ## [0.47.0] - 2026-05-11
 
