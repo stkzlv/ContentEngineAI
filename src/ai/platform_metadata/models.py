@@ -188,23 +188,26 @@ class InstagramPlatformSettings(BaseModel):
     """Instagram Reels-specific platform settings with dual caption styles.
 
     Configures Instagram Reels optimization supporting both ultra-short (3-5 words)
-    and SEO-descriptive (100-200 chars) caption styles with extensive hashtag usage.
+    and SEO-descriptive (100-240 chars) caption styles with extensive hashtag usage.
     """
 
     enabled: bool = Field(True, description="Enable Instagram metadata generation")
     caption_style: str = Field(
         "seo",
         pattern="^(short|seo)$",
-        description="Caption style: 'short' (3-5 words) or 'seo' (100-200 chars)",
+        description="Caption style: 'short' (3-5 words) or 'seo' (100-240 chars)",
     )
     caption_length_short: int = Field(
         15, ge=5, le=30, description="Character limit for 'short' caption style"
     )
     caption_length_seo: int = Field(
-        200,
+        240,
         ge=50,
         le=300,
-        description="Character limit for 'seo' caption style",
+        description=(
+            "Character limit for 'seo' caption style "
+            "(room for body + mirrored closing line)"
+        ),
     )
     hashtag_count_min: int = Field(
         15, ge=5, le=20, description="Minimum number of hashtags"

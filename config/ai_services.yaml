@@ -239,7 +239,7 @@ description_settings:
       enabled: true
       caption_style: "seo"
       caption_length_short_max: 30
-      caption_length_seo_max: 200
+      caption_length_seo_max: 240
       hashtag_count_min: 15
       hashtag_count_max: 30
       hashtags_in_caption: true
@@ -535,10 +535,10 @@ platform_metadata_config:
     caption_length_short: 15
 
     # Caption length for "seo" style (characters)
-    # Descriptive captions with keywords for search discovery
-    # 100-200 characters provides context while staying readable
-    # Include value proposition and keywords for Instagram search
-    caption_length_seo: 200
+    # Descriptive captions with keywords for search discovery + closing-line mirror
+    # 100-240 characters provides context plus the engagement-bait line from the script
+    # while staying well under Instagram's 2200-char hard cap
+    caption_length_seo: 240
 
     # Hashtag count range (min-max)
     # Instagram allows 30 hashtags and actively encourages using 15-30

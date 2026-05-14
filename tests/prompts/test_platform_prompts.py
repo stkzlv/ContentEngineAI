@@ -217,7 +217,7 @@ class TestInstagramTemplateStructure:
         """Test that template explains both caption styles."""
         # Should have instructions for both short and SEO styles
         assert "3-5 words" in self.template
-        assert "100-200 characters" in self.template
+        assert "100-240 characters" in self.template
 
     def test_hashtag_requirements(self):
         """Test that template specifies hashtag requirements."""

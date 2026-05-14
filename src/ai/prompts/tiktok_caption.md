@@ -51,10 +51,12 @@ Product Description: {PRODUCT_DESCRIPTION}
 
 The script above ends with one short engagement-bait line right before the
 final CTA ("Link in bio", etc.). It is either a two-option opinion question
-(e.g. "USB-C or Lightning — which still annoys you more?") or a debatable
+(e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
 spec claim (e.g. "Most people only need two ports, but three is usually
 better."). End the caption body with that same line, verbatim or
-near-verbatim, BEFORE the hashtag block. The closing line is additive to
+near-verbatim, BEFORE the hashtag block. **Preserve the script's exact
+punctuation, including any hyphen between the two options; do not
+convert a hyphen to an em-dash or en-dash.** The closing line is additive to
 the search-optimised caption content, not a replacement; the caption still
 has to satisfy the length, hashtag, and keyword rules above. If the
 Generated Spoken Script section above is empty, skip the mirror — produce
@@ -78,7 +80,7 @@ KEYWORDS: [5-10 search phrases separated by commas]
 "These are a game changer! You NEED these in your life 🔥 #fyp #viral"
 
 ✅ GOOD (Search-optimized + closing-line mirror):
-"Best wireless earbuds under $50 - amazing sound quality for workouts and daily use. Comfortable fit, long battery life. Bass-heavy or balanced sound — which do you reach for? #ad #WirelessEarbuds #TechReview #BudgetGadgets"
+"Best wireless earbuds under $50 - amazing sound quality for workouts and daily use. Comfortable fit, long battery life. Bass-heavy or balanced sound - which do you reach for? #ad #WirelessEarbuds #TechReview #BudgetGadgets"
 
 ---
 
@@ -86,7 +88,7 @@ KEYWORDS: [5-10 search phrases separated by commas]
 
 **Example 1: Wireless Earbuds (Budget Tech)**
 
-CAPTION: Best wireless earbuds under $50 with amazing sound quality. Perfect for workouts and commuting - comfortable fit, noise isolation, 8hr battery. Bass-heavy or balanced sound — which do you reach for? #ad
+CAPTION: Best wireless earbuds under $50 with amazing sound quality. Perfect for workouts and commuting - comfortable fit, noise isolation, 8hr battery. Bass-heavy or balanced sound - which do you reach for? #ad
 
 HASHTAGS: #WirelessEarbuds #BudgetTech #TechReview #AudioGear #ad
 
@@ -94,7 +96,7 @@ KEYWORDS: wireless earbuds under 50, best budget earbuds, affordable wireless he
 
 **Example 2: Phone Power Bank (Tech Accessories)**
 
-CAPTION: 20000mAh portable charger that charges your phone 5 times - fast charging for iPhone and Android. Perfect for travel and emergencies. Team big battery or team lightweight — which side are you on? #ad
+CAPTION: 20000mAh portable charger that charges your phone 5 times - fast charging for iPhone and Android. Perfect for travel and emergencies. Team big battery or team lightweight - which side are you on? #ad
 
 HASHTAGS: #PortableCharger #TravelTech #PhoneAccessories #TechEssentials #ad
 
@@ -102,7 +104,7 @@ KEYWORDS: portable charger 20000mah, phone power bank, fast charging power bank,
 
 **Example 3: Fitness Smartwatch (Health Tech)**
 
-CAPTION: Fitness smartwatch with heart rate monitor and sleep tracking for under $100. Tracks 100+ workouts, 10 day battery life, waterproof design. Sleep tracking or step counting — which one actually changes your habits? #ad
+CAPTION: Fitness smartwatch with heart rate monitor and sleep tracking for under $100. Tracks 100+ workouts, 10 day battery life, waterproof design. Sleep tracking or step counting - which one actually changes your habits? #ad
 
 HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #WorkoutGear #ad
 

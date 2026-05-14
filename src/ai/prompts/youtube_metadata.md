@@ -47,10 +47,12 @@ Product Description: {PRODUCT_DESCRIPTION}
 
 The script above ends with one short engagement-bait line right before the
 final CTA ("Link in bio", etc.). It is either a two-option opinion question
-(e.g. "USB-C or Lightning — which still annoys you more?") or a debatable
+(e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
 spec claim (e.g. "Most people only need two ports, but three is usually
 better."). End the description with that same line, verbatim or
-near-verbatim, on its own line before the product URL. The closing line is
+near-verbatim, on its own line before the product URL. **Preserve the
+script's exact punctuation, including any hyphen between the two options;
+do not convert a hyphen to an em-dash or en-dash.** The closing line is
 additive to the description content (front-loaded SEO + benefits), not a
 replacement; the description still has to satisfy the rules above and end
 with the product URL. If the Generated Spoken Script section above is
@@ -78,7 +80,7 @@ TITLE: Best Wireless Earbuds Under $50 - Amazing Sound Quality
 
 DESCRIPTION: Looking for affordable wireless earbuds with premium sound? These budget-friendly earbuds deliver crystal-clear audio, 8-hour battery life, and comfortable all-day wear. Perfect for workouts, commutes, and everyday listening. Features include noise isolation, touch controls, and IPX5 water resistance. Great value for the price.
 
-Bass-heavy or balanced sound — which do you reach for?
+Bass-heavy or balanced sound - which do you reach for?
 
 Shop now: https://example.com/product
 
@@ -92,7 +94,7 @@ TITLE: 20000mAh Power Bank - Charges iPhone 5X Fast Charging
 
 DESCRIPTION: Never run out of battery again with this ultra-high capacity 20000mAh portable charger. Fast charges iPhone, Samsung, and all USB devices. Includes 3 ports for simultaneous charging, LED display shows remaining power, and compact design fits in your pocket. Perfect for travel, camping, and emergencies.
 
-Team big battery or team lightweight — which side are you on?
+Team big battery or team lightweight - which side are you on?
 
 Shop now: https://example.com/product
 
@@ -106,7 +108,7 @@ TITLE: Fitness Smartwatch - Heart Rate, Sleep Tracking, 10 Days
 
 DESCRIPTION: Track your health 24/7 with this advanced fitness smartwatch featuring heart rate monitoring, sleep analysis, and 100+ workout modes. 10-day battery life, waterproof design, and smartphone notifications keep you connected. Monitor calories, steps, and blood oxygen levels. Achieve your fitness goals.
 
-Sleep tracking or step counting — which one actually changes your habits?
+Sleep tracking or step counting - which one actually changes your habits?
 
 Shop now: https://example.com/product
 
