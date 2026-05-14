@@ -41,7 +41,7 @@ DEFAULT_PLATFORMS = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
 # Platform-specific content limits for validation
 PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
     Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
-    Platform.TIKTOK: {"description": 150, "hashtags": (3, 5)},
+    Platform.TIKTOK: {"description": 2200, "hashtags": (3, 5)},
     Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
 }
 
