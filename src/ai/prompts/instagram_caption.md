@@ -16,7 +16,7 @@ You are an Instagram Reels growth specialist. Your task is to create a platform-
 - Can include 1-2 relevant emojis if appropriate
 
 ### If CAPTION_STYLE = "seo":
-- Length: 100-200 characters (SEO-optimized, descriptive)
+- Length: 100-240 characters (SEO-optimized, descriptive)
 - Include primary keywords and product category
 - Front-load value proposition
 - Natural, searchable language (think: what users search for)
@@ -46,13 +46,38 @@ You are an Instagram Reels growth specialist. Your task is to create a platform-
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
 
+**Generated Spoken Script** (for closing-line mirror, see rule below):
+
+{VIDEO_SCRIPT}
+
+---
+
+**Closing-line Mirror:**
+
+The script above ends with one short engagement-bait line right before the
+final CTA ("Link in bio", etc.). It is either a two-option opinion question
+(e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
+spec claim (e.g. "Most people only need two ports, but three is usually
+better."). End the caption body with that same line, verbatim or
+near-verbatim, BEFORE the hashtag block. **Preserve the script's exact
+punctuation, including any hyphen between the two options; do not
+convert a hyphen to an em-dash or en-dash.** The closing line is additive to
+the caption content, not a replacement; the caption still has to satisfy
+the style, hashtag, and emoji rules above. For the SEO style (100-240
+chars), the closing line counts toward the budget; trim the descriptive
+copy if needed so the closing line still fits. For the short style (3-5
+words), the closing line replaces the brief hook — use the script's
+closing line as the caption body. If the Generated Spoken Script section
+above is empty, skip the mirror — produce the caption as you would
+otherwise.
+
 ---
 
 **Output Format:**
 
 Return your response in the following exact format:
 
-CAPTION: [Your caption based on style - either 3-5 words OR 100-200 chars]
+CAPTION: [Your caption based on style - either 3-5 words OR 100-240 chars]
 
 HASHTAGS: [15-30 hashtags separated by spaces, include #ad]
 
@@ -72,7 +97,7 @@ HASHTAGS: #WirelessEarbuds #TechGadgets #BudgetTech #AmazonFinds #GadgetReview #
 KEYWORDS: wireless earbuds, budget tech, affordable earbuds, workout headphones, tech gadgets
 
 **SEO STYLE:**
-CAPTION: Best wireless earbuds under $50 - amazing sound quality, comfortable fit, and long battery life. Perfect for workouts and daily commutes 🎧✨ #ad
+CAPTION: Best wireless earbuds under $50 - amazing sound quality, comfortable fit, long battery for workouts and commutes 🎧 Bass-heavy or balanced sound - which do you reach for? #ad
 
 HASHTAGS: #WirelessEarbuds #BudgetEarbuds #TechReview #AffordableTech #BestEarbuds #AudioGear #TechGadgets #WorkoutEssentials #GymTech #FitnessGear #AmazonFinds #TechDeals #SoundQuality #MusicLovers #BudgetFriendly #TechUnder50 #ProductReview #GadgetReview #TechTok #DailyEssentials #ad
 
@@ -90,7 +115,7 @@ HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAcces
 KEYWORDS: portable charger, power bank, travel essentials, phone accessories, battery pack
 
 **SEO STYLE:**
-CAPTION: 20000mAh portable charger that charges your iPhone 5X - perfect for travel, camping, and emergencies. Fast charging with 3 ports 📱💪 #ad
+CAPTION: 20000mAh portable charger charges your iPhone 5X - travel, camping, emergencies. Fast charging across 3 ports 📱 Team big battery or team lightweight - which side are you on? #ad
 
 HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAccessories #TravelTech #FastCharging #BatteryPack #CampingGear #TechReview #EmergencyPrep #PhoneTech #MobileAccessories #TechMustHaves #ProductReview #GadgetReview #iPhoneAccessories #TechFinds #OnTheGo #TravelGear #ad
 
@@ -108,7 +133,7 @@ HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #WorkoutGear #FitnessGadgets #
 KEYWORDS: fitness smartwatch, health tracker, workout gear, fitness tech, wellness gadgets
 
 **SEO STYLE:**
-CAPTION: Fitness smartwatch under $100 with heart rate monitor, sleep tracking, and 100+ workout modes. 10-day battery, waterproof design ⌚💙 #ad
+CAPTION: Fitness smartwatch under $100: heart rate monitor, sleep tracking, 100+ workout modes, 10-day battery, waterproof ⌚ Sleep tracking or step counting - which one actually changes your habits? #ad
 
 HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #WorkoutGear #FitnessGadgets #HeartRateMonitor #SleepTracking #WearableTech #BudgetFitness #HealthMonitor #WaterproofWatch #FitnessGoals #GymEssentials #ActiveLifestyle #HealthJourney #FitnessTech #WorkoutWatch #WellnessTech #ProductReview #TechGadgets #ad
 
@@ -122,6 +147,6 @@ KEYWORDS: fitness smartwatch under 100, heart rate monitor watch, sleep tracking
 - MUST include #ad hashtag
 - Hashtags provide discovery - use niche + popular mix
 - Short style: 3-5 words only (ultra-brief, engaging)
-- SEO style: 100-200 characters (descriptive, searchable)
+- SEO style: 100-240 characters (descriptive, searchable)
 
 Generate the Instagram caption below this line:

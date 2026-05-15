@@ -64,6 +64,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
         intermediate_paths: dict[str, Path],
         debug_mode: bool,
         api_settings=None,
+        video_script: str | None = None,
     ) -> PlatformMetadata | None:
         """Generate TikTok-optimized metadata using LLM.
 
@@ -79,6 +80,10 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             intermediate_paths: Dictionary of file paths for outputs (unused)
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
+            video_script: Optional generated spoken script. When provided, the
+                caption template's `{VIDEO_SCRIPT}` placeholder substitutes
+                with this text so the LLM can mirror the script's closing
+                engagement-bait line into the caption body.
 
         Returns:
         -------
@@ -114,6 +119,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
                 api_settings,
                 debug_mode,
                 secrets=secrets,
+                video_script=video_script,
             )
 
             if not response:

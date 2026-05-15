@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video that poses a quiet challenge to the viewer. The tone is confident and steady, not loud or cocky. Think "I've done the research, here's what I found" rather than "prove me wrong."
 
-Open with a calm challenge or observation. "Try this for a week. Just one week. See if you go back." or "Find me something in this category that covers all of this." Keep it conversational, like you're genuinely curious whether the viewer can find better.
+Open with a calm challenge that names what you're challenging the viewer ON — embed the audio-keyword hook in the first sentence (see Rules below for the full spec). The challenge anchors in a specific product category, price band, or audience cue, not a vague "try this for a week." Examples: "Find me a 65W GaN laptop charger under $25 that does USB-C and pass-through. I'll wait." / "Use this $30 silicone splatter screen for a week. See if you go back to oil shields." Conversational tone, immediate keyword.
 
 Back up the challenge with 2-3 specific features or specs from the product description below. Present them matter-of-factly: "It does X, which on its own is solid. But it also handles Y." Let the specs speak for themselves without overselling.
 

@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video built around a mini personal story.
 
-Open with a brief first-person anecdote. Something happened: a frustration, a lucky find, a recommendation from a friend, a late-night scroll that led somewhere unexpected. Keep it to one or two sentences. Make it feel like an actual moment, not a setup.
+Open with a first-person anecdote that carries the audio-keyword hook in the first sentence (see Rules below for the full spec). The anecdote and the hook are one beat — pack the product category, price band, or audience cue into the opening so the story names the product world immediately, not three sentences in. Examples: "Spent $25 on this USB-C hub after my third dongle broke at the coffee shop." / "Found this 4K dashcam for under $80 on a whim and now I keep one in each car." One or two sentences. Make it feel like an actual moment, not a setup.
 
 Then bridge into the product discovery. How did you come across it, and what made you try it? This should feel natural, like you're telling a friend about something you bought. Not a testimonial, just a story.
 
@@ -16,7 +16,7 @@ End with one CTA per the narrator profile. Quick and casual.
 - Don't make the story too polished or cinematic. Real stories meander a little, have small details that don't matter but make it feel true.
 - Not scripted, not rehearsed.
 - **Open with a natural conversational hook that carries the audio keyword** (product category, price band, audience cue, pain point) in speech a person would actually say, never as a search-bar query. TikTok 2026 indexes ASR transcripts as a primary search signal, so the keyword must land in the first 5 seconds of TTS. Pick one of six proven shapes from `docs/promotional-video-best-practices.md` §1: price-first reveal, regret/contrarian, POV, outcome-first, numbered teardown, comparison. Word budget ≤3 seconds, ~5-12 words. Anti-pattern: "Best [X] under $[N] for [Y]" reads as a Google query. Name the brand and a concrete spec by the second sentence at the latest. Read it out loud; if it sounds like a search bar, rewrite.
-- **Close with a two-option opinion question right before the CTA. This is a SEPARATE beat from the trade-off rule below — not a downside, but a real fork that invites a one-tap pick.** Concrete examples: "USB-C or Lightning — which still annoys you more?" / "Team magnetic or team plug-in?" / "Quick charge or long battery — which matters more for you?" One short line, under 12 words. Both options must be pickable; rhetorical questions and yes/no asks don't count. NOT a trade-off, NOT a sponsor pitch — a real question with two clear sides.
+- **Close with a two-option opinion question right before the CTA. This is a SEPARATE beat from the trade-off rule below — not a downside, but a real fork that invites a one-tap pick.** Concrete examples: "USB-C or Lightning - which still annoys you more?" / "Team magnetic or team plug-in?" / "Quick charge or long battery - which matters more for you?" One short line, under 12 words. Both options must be pickable; rhetorical questions and yes/no asks don't count. NOT a trade-off, NOT a sponsor pitch — a real question with two clear sides.
 - Include one short trade-off or limitation, one sentence max.
 
 ## Product Data

@@ -406,7 +406,7 @@ class TestInstagramPlatformSettings:
         assert settings.enabled is True
         assert settings.caption_style == "seo"
         assert settings.caption_length_short == 15
-        assert settings.caption_length_seo == 200
+        assert settings.caption_length_seo == 240
         assert settings.hashtag_count_min == 15
         assert settings.hashtag_count_max == 30
         assert settings.emoji_enabled is True

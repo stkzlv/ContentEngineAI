@@ -248,11 +248,15 @@ class TestPublishMetadata:
         assert is_valid is True
 
     def test_validate_limits_tiktok_description_too_long(self):
-        """Test validate_limits for TikTok with description exceeding 150 chars."""
+        """Test validate_limits for TikTok with description exceeding 2200 chars.
+
+        2200 is TikTok's actual platform hard cap; the 150-char "optimal" soft
+        target lives in the prompt config, not the publisher validator.
+        """
         metadata = PublishMetadata(
             platform=Platform.TIKTOK,
             title=None,
-            description="A" * 151,  # 151 chars
+            description="A" * 2201,
         )
 
         is_valid, message = metadata.validate_limits()

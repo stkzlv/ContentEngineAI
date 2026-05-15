@@ -51,6 +51,7 @@ class BasePlatformMetadataGenerator(ABC):
         intermediate_paths: dict[str, Path],
         debug_mode: bool,
         api_settings=None,
+        video_script: str | None = None,
     ) -> PlatformMetadata | None:
         """Generate platform-specific metadata using LLM.
 
@@ -67,6 +68,10 @@ class BasePlatformMetadataGenerator(ABC):
             intermediate_paths: Dictionary of file paths for outputs
             debug_mode: Enable verbose logging if True
             api_settings: Optional API-specific settings override
+            video_script: Optional generated spoken script. When provided,
+                caption prompts can mirror the script's closing engagement-bait
+                line into the platform caption. Pass through to the LLM call
+                via the `{VIDEO_SCRIPT}` placeholder.
 
         Returns:
         -------

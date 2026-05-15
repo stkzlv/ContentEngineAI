@@ -490,6 +490,10 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         text_dir = ctx.run_paths["description_file"].parent
         intermediate_paths = {
             "description": text_dir / "description.txt",
+            # Script path lets caption prompts mirror the closing
+            # engagement-bait line into the platform caption (Phase 1.5).
+            # Caption templates without the {VIDEO_SCRIPT} placeholder ignore it.
+            "script": ctx.run_paths["script_file"],
             "metadata_youtube": product_root / "metadata_youtube.json",
             "metadata_tiktok": product_root / "metadata_tiktok.json",
             "metadata_instagram": product_root / "metadata_instagram.json",

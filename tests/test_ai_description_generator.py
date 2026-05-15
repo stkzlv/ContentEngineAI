@@ -84,6 +84,34 @@ class TestFormatPrompt:
         assert "Product: Product" in result  # Default value
         assert "Description: No description available" in result  # Default value
 
+    def test_format_prompt_video_script_substitutes(
+        self, sample_product_data: ProductData
+    ):
+        """The VIDEO_SCRIPT placeholder substitutes the passed script text."""
+        template = "Product: {FULL_PRODUCT_NAME}. Script: {VIDEO_SCRIPT}"
+        script = (
+            "Best 65W chargers under $50. This one charges fast. "
+            "Most people only need two ports, but three is usually better."
+        )
+        result = format_prompt(template, sample_product_data, video_script=script)
+        assert script in result
+
+    def test_format_prompt_video_script_none_substitutes_empty(
+        self, sample_product_data: ProductData
+    ):
+        """When video_script is None, VIDEO_SCRIPT substitutes the empty string."""
+        template = "Product: {FULL_PRODUCT_NAME}. Script:[{VIDEO_SCRIPT}]"
+        result = format_prompt(template, sample_product_data, video_script=None)
+        assert "Script:[]" in result
+
+    def test_format_prompt_video_script_unused_when_no_placeholder(
+        self, sample_product_data: ProductData
+    ):
+        """Templates without {VIDEO_SCRIPT} are unaffected (backward-compat)."""
+        template = "Product: {FULL_PRODUCT_NAME}"
+        result = format_prompt(template, sample_product_data, video_script="ignored")
+        assert result == "Product: " + sample_product_data.title
+
 
 class TestValidateDescriptionCompleteness:
     """Test description validation functionality."""

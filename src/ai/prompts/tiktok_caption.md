@@ -3,7 +3,7 @@
 You are a TikTok content strategist specializing in search optimization for the TikTok algorithm (2025). Your task is to create a search-friendly caption and hashtags for a TikTok video, following the instructions below and using the provided product information.
 
 **IMPORTANT - TikTok is Now a Search Engine:**
-TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** over creative hooks. Users actively search for specific phrases like "wireless earbuds under $50" or "best budget tech gadgets". Your captions MUST include these exact search phrases that users type.
+TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** over creative hooks. Users actively search for specific phrases like "wireless earbuds under $50" or "best budget tech gadgets". Your captions MUST include these exact search phrases that users type. **Exception:** the closing engagement-bait line carried over from the spoken script (see Closing-line Mirror rule below) is required even though it reads as a "creative hook". It's an engagement signal, not a discovery signal, and it lives at the end of the caption body before hashtags — keep it.
 
 **Instructions:**
 
@@ -14,7 +14,7 @@ TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** ov
    - Natural, conversational tone - casual and authentic
    - Include product benefits and key features in searchable language
    - Front-load the main search phrase in the first sentence
-   - NO creative hooks or mystery - be direct and descriptive
+   - NO creative hooks or mystery in the body - be direct and descriptive (the closing engagement-bait line is the one exception; see Closing-line Mirror rule below)
    - Include #ad for advertising disclosure
 
 2. **Hashtags:**
@@ -41,6 +41,27 @@ TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** ov
 Product Title: {FULL_PRODUCT_NAME}
 Product Description: {PRODUCT_DESCRIPTION}
 
+**Generated Spoken Script** (for closing-line mirror, see rule below):
+
+{VIDEO_SCRIPT}
+
+---
+
+**Closing-line Mirror:**
+
+The script above ends with one short engagement-bait line right before the
+final CTA ("Link in bio", etc.). It is either a two-option opinion question
+(e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
+spec claim (e.g. "Most people only need two ports, but three is usually
+better."). End the caption body with that same line, verbatim or
+near-verbatim, BEFORE the hashtag block. **Preserve the script's exact
+punctuation, including any hyphen between the two options; do not
+convert a hyphen to an em-dash or en-dash.** The closing line is additive to
+the search-optimised caption content, not a replacement; the caption still
+has to satisfy the length, hashtag, and keyword rules above. If the
+Generated Spoken Script section above is empty, skip the mirror — produce
+the caption as you would otherwise.
+
 ---
 
 **Output Format:**
@@ -58,8 +79,8 @@ KEYWORDS: [5-10 search phrases separated by commas]
 ❌ BAD (Creative but not searchable):
 "These are a game changer! You NEED these in your life 🔥 #fyp #viral"
 
-✅ GOOD (Search-optimized):
-"Best wireless earbuds under $50 - amazing sound quality for workouts and daily use. Comfortable fit, long battery life. #ad #WirelessEarbuds #TechReview #BudgetGadgets"
+✅ GOOD (Search-optimized + closing-line mirror):
+"Best wireless earbuds under $50 - amazing sound quality for workouts and daily use. Comfortable fit, long battery life. Bass-heavy or balanced sound - which do you reach for? #ad #WirelessEarbuds #TechReview #BudgetGadgets"
 
 ---
 
@@ -67,7 +88,7 @@ KEYWORDS: [5-10 search phrases separated by commas]
 
 **Example 1: Wireless Earbuds (Budget Tech)**
 
-CAPTION: Best wireless earbuds under $50 with amazing sound quality. Perfect for workouts and commuting - comfortable fit, noise isolation, 8hr battery. Great value for the price #ad
+CAPTION: Best wireless earbuds under $50 with amazing sound quality. Perfect for workouts and commuting - comfortable fit, noise isolation, 8hr battery. Bass-heavy or balanced sound - which do you reach for? #ad
 
 HASHTAGS: #WirelessEarbuds #BudgetTech #TechReview #AudioGear #ad
 
@@ -75,7 +96,7 @@ KEYWORDS: wireless earbuds under 50, best budget earbuds, affordable wireless he
 
 **Example 2: Phone Power Bank (Tech Accessories)**
 
-CAPTION: 20000mAh portable charger that charges your phone 5 times - fast charging for iPhone and Android. Perfect for travel and emergencies. Compact design fits in your pocket #ad
+CAPTION: 20000mAh portable charger that charges your phone 5 times - fast charging for iPhone and Android. Perfect for travel and emergencies. Team big battery or team lightweight - which side are you on? #ad
 
 HASHTAGS: #PortableCharger #TravelTech #PhoneAccessories #TechEssentials #ad
 
@@ -83,7 +104,7 @@ KEYWORDS: portable charger 20000mah, phone power bank, fast charging power bank,
 
 **Example 3: Fitness Smartwatch (Health Tech)**
 
-CAPTION: Fitness smartwatch with heart rate monitor and sleep tracking for under $100. Tracks 100+ workouts, 10 day battery life, waterproof design. Perfect for hitting your fitness goals #ad
+CAPTION: Fitness smartwatch with heart rate monitor and sleep tracking for under $100. Tracks 100+ workouts, 10 day battery life, waterproof design. Sleep tracking or step counting - which one actually changes your habits? #ad
 
 HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #WorkoutGear #ad
 
@@ -97,5 +118,6 @@ KEYWORDS: fitness smartwatch under 100, budget fitness tracker, heart rate monit
 - Keep caption 100-300 characters
 - Natural, casual tone
 - MUST include #ad
+- End the caption body with the script's closing engagement-bait line, before the hashtag block (see Closing-line Mirror rule above). Skip only if the script section is empty.
 
 Generate the TikTok caption below this line:

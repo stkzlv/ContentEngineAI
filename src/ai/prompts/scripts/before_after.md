@@ -2,7 +2,7 @@
 
 Write a voiceover script for a short product promo video built around a before/after contrast.
 
-Start with the "before" picture. Something like "Before I got this..." or "Remember when you had to..." Paint a quick scene of what life looked like without this product. Keep it specific and relatable to the target audience, not vague. One or two sentences.
+Start with the "before" picture and embed the audio-keyword hook in the first sentence (see Rules below for the full spec). The "before" state names the product category, audience cue, or pain point immediately, not three sentences in. Examples: "Before this $18 magnetic phone mount, my GPS lived in a cup holder." / "Remember when noise-canceling earbuds under $40 sounded terrible?" Quick scene, specific to the target audience, immediate keyword. One or two sentences.
 
 Then flip to the "after." Show the contrast clearly. Pull 2-3 features from the product description and frame them as what changed. Don't just list specs. Describe what those features actually feel like in practice, what they let you do differently.
 

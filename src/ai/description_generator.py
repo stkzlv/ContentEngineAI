@@ -72,18 +72,29 @@ def load_prompt_template(path: Path) -> str:
         return f.read()
 
 
-def format_prompt(template: str, product: ProductData) -> str:
+def format_prompt(
+    template: str, product: ProductData, video_script: str | None = None
+) -> str:
     """Format the prompt template with product data.
 
     Replaces placeholders in the template with actual product data. The template
     should contain the following placeholders:
     - {FULL_PRODUCT_NAME}: The product title
     - {PRODUCT_DESCRIPTION}: The product description
+    - {VIDEO_SCRIPT}: Optional. The generated spoken script for the video. When
+      a caller passes this, prompts can read the script (e.g. to mirror the
+      closing engagement-bait line into the platform caption). Substitutes the
+      empty string when not provided.
 
     Args:
     ----
         template: The prompt template string
         product: Product data object containing title and description
+        video_script: Optional generated script text. When provided, the
+            `{VIDEO_SCRIPT}` placeholder is substituted with this text;
+            otherwise it substitutes the empty string. Extra `str.format`
+            kwargs are silently ignored by templates that don't reference
+            the placeholder, so this stays backwards compatible.
 
     Returns:
     -------
@@ -98,6 +109,7 @@ def format_prompt(template: str, product: ProductData) -> str:
         return template.format(
             FULL_PRODUCT_NAME=product.title or "Product",
             PRODUCT_DESCRIPTION=product.description or "No description available",
+            VIDEO_SCRIPT=video_script or "",
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
