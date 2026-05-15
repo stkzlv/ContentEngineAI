@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-05-15
+
 ### Added
 - Caption-side mirror of the Phase 1.5 closing engagement-bait line. The producer step that generates platform metadata now threads the rendered spoken script through to the per-platform LLM prompts via a new `{VIDEO_SCRIPT}` placeholder. Each caption template (TikTok, Instagram, YouTube) ends the caption body with the same closing line that the script ends with — comment-fork for personal/storytelling templates, spec-correction for analytical templates — so the Rule of 3s for engagement bait holds across spoken audio, on-screen subtitles, and the caption itself. Backward-compatible: templates without `{VIDEO_SCRIPT}` are unaffected, and an empty/missing script produces a normal search-optimised caption without the closing line.
 
