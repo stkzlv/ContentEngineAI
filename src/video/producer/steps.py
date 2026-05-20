@@ -1103,6 +1103,17 @@ async def step_assemble_video(ctx: PipelineContext):
             except OSError as e:
                 logger.warning("Could not read script for hook overlay: %s", e)
 
+        # Phase 1.2e: pick a cold-open variant deterministically and persist
+        # it for downstream analytics. Variant name lands in pipeline_state.json
+        # via _update_state_for_completed_step (state.py).
+        from src.video.cold_open_selector import select_cold_open_variant
+
+        cold_open_variant = select_cold_open_variant(
+            product_id, ctx.config.video_settings.cold_open_variant_pool
+        )
+        ctx.state["cold_open_variant"] = cold_open_variant
+        logger.info("Cold-open variant for %s: %s", product_id, cold_open_variant)
+
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,

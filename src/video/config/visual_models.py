@@ -236,6 +236,24 @@ class VideoSettings(BaseModel):
             "is enabled. Settles to 1.0 over the segment duration."
         ),
     )
+    # Phase 1.2e: cold-open variant rotation. Three named opening styles are
+    # tracked per render so downstream analytics can segment retention by
+    # variant. v1 ships the framework — variant name is persisted to
+    # pipeline_state.json and selected deterministically per product. Visual
+    # differentiation between variants follows once a baseline render exists
+    # to A/B against.
+    cold_open_variant_pool: list[str] = Field(
+        default_factory=lambda: [
+            "mid_zoom_title_card",
+            "static_title_card",
+            "pre_motion_only",
+        ],
+        description=(
+            "Named cold-open variants rotated deterministically per product. "
+            "Empty list disables rotation; otherwise the selector picks one "
+            "via salted MD5 hash on the product ID."
+        ),
+    )
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
     video_duration_tolerance_sec: float = Field(1.0)
