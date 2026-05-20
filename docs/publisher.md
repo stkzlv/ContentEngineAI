@@ -563,6 +563,20 @@ poetry run python -m src.pipeline.global_batch --keywords "earbuds" \
 
 **Scheduling**: In unified mode, all platforms share the same post ID. In platform-specific mode, each platform gets its own post ID.
 
+### Per-Platform Profile Routing (Phase 1.3)
+
+Maps each platform to a video profile from `config/video_production.yaml::video_profiles`. The publisher prefers the matching `video_<asin>_<profile>.mp4` render when present and falls back to the first `video_<asin>_*.mp4` found otherwise. Leave the block commented to keep the pre-1.3 first-match behaviour.
+
+```yaml
+# config/publisher.yaml
+profiles:
+  youtube: slideshow_short_20s     # Use the 15-30s cut for Shorts
+  tiktok: slideshow_images1        # Keep the 30-45s cut for TikTok
+  instagram: slideshow_images1     # Same for Reels
+```
+
+The producer must render the matching profile per ASIN before the publisher runs. With unified upload (the default mode), the publisher uploads one file shared across platforms — when `profiles` is set, the file picked is the render for the first platform in the post's target list. True per-platform uploads (different files to different platforms) are a follow-up.
+
 ### Metadata File Location
 
 Metadata files are stored in the product directory root:
