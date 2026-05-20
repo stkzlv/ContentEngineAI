@@ -74,25 +74,6 @@ Edit the script templates in `src/ai/prompts/scripts/` to require a long-tail au
 
 **Done when:** spot-check 10 produced videos shows the long-tail keyword appears in TTS within the first 5 seconds and again in the on-screen text and caption.
 
-### 1.2 Punchline-first opener with visual interrupt
-
-Modify the script templates so line 1 is the payoff, not the setup (Phase 1.2a, shipped: anti-setup clause added across all 15 templates). At the assembler level, ship two distinct hook shapes that share one drawtext implementation:
-
-- **Static title card** (default on `slideshow_short_20s`): 1.0-1.5 s, hard cut to motion, 3-5 words capped at 7, ALL CAPS, 10-15% frame height.
-- **Text-over-mid-action-frame** (default on the existing 30-45s profiles): 1.5-3.0 s, can fade in, sits over a frame that already carries motion.
-
-If the first slide is a static product photo, inject **0.3-0.5 s of Ken Burns settle-zoom** so frame 1 is mid-motion. The pipeline's `first_frame_pre_motion: true` + `pre_motion_peak_zoom: 1.10` defaults sit at the upper edge of that band. Ship with at least 2-3 cold-open variants per pillar (rotated deterministically per product via `cold_open_variant_pool`) so the channel doesn't read as a template factory at the aggregate level. Burned-in big text on the first frame is mandatory because 85-92% of mobile views are sound-off.
-
-**Done when:** the assembler emits a non-fade first frame with burned-in hook text, the static title card and text-over-frame shapes are both selectable per profile, the cold-open variant rotation is tracked in `pipeline_state.json`, and a sample of 30 produced videos averages above 50% retention at the 3-second mark on YouTube Shorts. Closes Issue #102.
-
-### 1.3 Short profile (15-30s) for hook iteration
-
-Add a `slideshow_short_20s` profile to `config/video_production.yaml` with shorter slide durations and a script word-budget around 50-60 words (tuned for ~150-180 wpm TTS pacing). 15-30s is the hook-iteration zone for getting fast retention deltas; 60-90s is needed for TikTok Creator Rewards eligibility, which Phase 6.1 (long-form profile) covers when that threshold comes into reach.
-
-Make the profile selectable per-platform in the publisher via a `profiles: <platform>: <profile_name>` mapping in `config/publisher.yaml`, with a single `profile` field as the back-compat fallback. The publisher prefers `video_<asin>_<profile>.mp4` per platform and falls back to the first `video_<asin>_*.mp4` when no matching render exists.
-
-**Done when:** the short profile renders a clean 15-30s output and the publisher accepts a per-platform profile-routing field.
-
 ### 1.4 High-density cut profile
 
 Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better.
@@ -407,3 +388,8 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Default pycaps template pool tightened to `["explosive", "word-focus"]` (50/50 AI-tagged / untagged); default template `explosive`.
 - `--pycaps-template NAME` now actually forces the named template (was silently no-op against multi-entry pools).
 - `make produce-lowpri` cgroup hardening with `MemorySwapMax=0` so producer memory pressure doesn't trigger systemd-oomd kills on unrelated session apps.
+
+**Hook retention surgery and short profile (Unreleased)**
+- Phase 1.2 punchline-first opener. Anti-setup clause across all 15 script templates so line 1 states a concrete fact instead of a setup framing. Pre-motion (Ken Burns settle-zoom) on the first image segment (`first_frame_pre_motion` + `pre_motion_peak_zoom`). Burned-in hook overlay renders the first sentence of the spoken script as centre-upper static text on the first 1.5 s, drawn after subtitles and before the disclosure rewrite. Cold-open variant rotation framework: three named variants selected per product via salted MD5 and persisted to `pipeline_state.json` for analytics. Hook-line lead in the subtitle timing smoother (first 3 words led by an extra 200 ms on top of the base lead).
+- Phase 1.3 short profile and per-platform routing. New `slideshow_short_20s` (15-30 s canvas at ~50-60 word script budget). `profiles: <platform>: <profile>` mapping in `config/publisher.yaml` routes each platform to a named profile; the publisher prefers `video_<asin>_<profile>.mp4` and falls back to the first matching render when unset.
+- Phase 1.5 closing-line rule pivot. The 8 analytical templates now branch the spec-correction close on whether the description carries a contestable performance number; passive products close with a material-or-use claim instead. Fixes a fabrication case where the LLM invented numeric specs on products that didn't have them.
