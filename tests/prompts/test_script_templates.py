@@ -30,6 +30,21 @@ EXPECTED_TEMPLATES = {
     "unboxing_reaction",
 }
 
+# Templates that use the analytical closing line (spec-or-material claim).
+# The remaining 7 templates use the comment-fork close. Keeping the split
+# explicit here so a future template gets categorised intentionally rather
+# than silently inheriting a default.
+ANALYTICAL_TEMPLATES = {
+    "before_after",
+    "challenge_dare",
+    "classic_promo",
+    "comparison",
+    "myth_buster",
+    "problem_solution",
+    "question_driven",
+    "rapid_fire",
+}
+
 
 def _all_templates() -> list[Path]:
     return sorted(SCRIPTS_DIR.glob("*.md"))
@@ -59,11 +74,35 @@ def test_phase_1_2_anti_setup_clause_present(template: Path) -> None:
 
 @pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
 def test_phase_1_5_closing_line_rule_present(template: Path) -> None:
-    """Phase 1.5: every template carries a comment-fork OR spec-correction close."""
+    """Phase 1.5: every template carries a comment-fork OR debatable-claim close."""
     text = template.read_text()
     has_fork = "two-option opinion question right before the CTA" in text
-    has_spec = "debatable spec claim right before the CTA" in text
-    assert has_fork or has_spec, "Template missing both fork and spec-correction"
+    has_claim = "debatable claim right before the CTA" in text
+    assert has_fork or has_claim, "Template missing both fork and debatable-claim"
+
+
+@pytest.mark.parametrize(
+    "template",
+    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    ids=lambda p: p.stem,
+)
+def test_analytical_close_has_passive_product_branch(template: Path) -> None:
+    """Every analytical template carries the spec-vs-passive conditional.
+
+    Bug class: the spec-correction close on a passive product (phone holder,
+    bracket, organizer) made the LLM fabricate a spec (e.g. "eight hours of
+    battery for phone holders") then walk it back. The rule now branches on
+    a keyword self-check: spec claim if the description has a contestable
+    number, material-or-use claim otherwise.
+    """
+    text = template.read_text()
+    # Branch condition is grep-able (token list).
+    assert "contestable performance number" in text
+    # Anchor against the canary case from production.
+    assert "don't claim battery life for a phone holder" in text
+    # Both branches' example sets present.
+    assert "65W is the sweet spot for laptop charging" in text
+    assert "Steel beats plastic for any clamp-style mount" in text
 
 
 @pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
