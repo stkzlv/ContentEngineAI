@@ -187,6 +187,8 @@ async def generate_subtitles_with_whisper(
                     "gap_merge_sec",
                     "hold_last_sec",
                     "lead_sec",
+                    "hook_lead_sec",
+                    "hook_lead_word_count",
                 )
                 if k in ts_cfg
             }

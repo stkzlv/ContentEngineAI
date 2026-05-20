@@ -143,6 +143,15 @@ subtitle_settings:
     # Rule 4: lead time (seconds). Each word appears this far ahead of
     # its audio onset so the viewer reads it just before hearing it.
     lead_sec: 0.04
+    # Phase 1.2f: extra lead applied to the FIRST `hook_lead_word_count`
+    # words on top of the base `lead_sec`. Pairs with the burned-in hook
+    # overlay so silent viewers parse the opening hook before any audio
+    # cue. Research band is 100-300 ms; 200 ms balances readability and
+    # audio sync without making the karaoke caption look out of step.
+    # Set hook_lead_sec to 0.0 to disable the hook-specific lead and
+    # keep all words on the base lead.
+    hook_lead_sec: 0.20
+    hook_lead_word_count: 3
 
   # ---- UNIFIED POSITIONING SYSTEM ----
   # Content-aware positioning that automatically adapts to visual layout
