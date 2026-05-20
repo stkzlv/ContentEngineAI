@@ -27,7 +27,11 @@ from src.utils.async_io import (
 )
 from src.video.assembler.audio_builder import AudioFilterBuilder
 from src.video.assembler.media_inspector import MediaInspector
-from src.video.assembler.overlay_builder import apply_disclosure_overlay
+from src.video.assembler.overlay_builder import (
+    apply_disclosure_overlay,
+    apply_hook_overlay,
+    extract_hook_line,
+)
 from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
 from src.video.assembler.subtitle_utils import SubtitleStyler
 from src.video.assembler.video_strategies import VideoStrategyFactory
@@ -552,6 +556,7 @@ class VideoAssembler:
         temp_dir: Path,
         debug_mode: bool = False,
         subtitle_upper_path: Path | None = None,
+        hook_text: str | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -566,6 +571,9 @@ class VideoAssembler:
             temp_dir: Temporary directory for processing
             debug_mode: Enable debug output
             subtitle_upper_path: Optional upper subtitle file path (two-part mode only)
+            hook_text: Spoken script text used to source the hook overlay's
+                first sentence. None / empty skips the overlay even when
+                hook_overlay.enabled is True. See overlay_builder.extract_hook_line.
 
         Returns:
         -------
@@ -631,10 +639,25 @@ class VideoAssembler:
             # Burn the persistent disclosure overlay (#ad / #publi etc.) as the
             # final video filter. Required by FTC's two-punch guidance: the
             # caption text disclosure (Phase 0.2) is not enough on its own.
-            disclosure = self.config.video_settings.disclosure_overlay
             frame_height = self.config.video_settings.resolution[1]
             base_font_pct = self.config.video_settings.base_font_height_percent
             subtitle_font_size_pixels = max(8, int(round(frame_height * base_font_pct)))
+
+            # Phase 1.2c / Issue #102: burn the hook overlay BEFORE the
+            # disclosure so the disclosure stays on top in the z-order.
+            # The first sentence of the script is the hook text; an empty
+            # hook_text (no script available) makes the overlay a no-op.
+            hook_settings = self.config.video_settings.hook_overlay
+            if hook_settings.enabled and hook_text:
+                hook_line = extract_hook_line(hook_text, hook_settings.max_words)
+                video_filters = apply_hook_overlay(
+                    video_filters,
+                    hook_settings,
+                    hook_line,
+                    subtitle_font_size_pixels,
+                )
+
+            disclosure = self.config.video_settings.disclosure_overlay
             video_filters = apply_disclosure_overlay(
                 video_filters, disclosure, subtitle_font_size_pixels
             )

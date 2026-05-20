@@ -176,6 +176,25 @@ video_settings:
     margin_x_percent: 0.04            # 4% from horizontal edge
     margin_y_percent: 0.12            # 12% from vertical edge (clears Shorts header / TikTok bottom)
 
+  # Phase 1.2c hook overlay (also closes Issue #102). Renders the first
+  # sentence of the spoken script as a centre-upper static text on the
+  # first 1.5s. NOT karaoke — one line held for the full hook window.
+  # Sized larger than narration captions (1.2-1.5x band). Z-order: drawn
+  # AFTER subtitles and BEFORE the disclosure, so the corner #ad stays on
+  # top. Default ON; short profiles benefit most but the overlay works
+  # for any profile that ships a payoff-first first sentence.
+  hook_overlay:
+    enabled: true
+    duration_sec: 1.5
+    size_factor: 1.35
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 6
+    background_enabled: false
+    background_color: "black@0.5"
+    margin_y_percent: 0.28
+    max_words: 7
+
   # System resource requirements
   # Used by: config_validator.py to verify system can handle video production
   # Pipeline Impact: Warns users if system resources are insufficient
@@ -477,6 +496,10 @@ video_profiles:
     # Phase 1.2: pre-motion on the first image segment (Ken Burns settle-zoom)
     first_frame_pre_motion: true
     pre_motion_peak_zoom: 1.10
+
+    # Phase 1.2c (also closes Issue #102): hook overlay is enabled globally
+    # under video_settings.hook_overlay; the short profile inherits that
+    # config. Per-profile overrides land in a follow-up if needed.
 
     # Subtitle settings (nested block, same shape as slideshow_images1)
     subtitle_settings:

@@ -130,6 +130,77 @@ class DisclosureSettings(BaseModel):
     )
 
 
+class HookOverlaySettings(BaseModel):
+    """Burned-in hook text overlay (Phase 1.2c, also closes #102).
+
+    Renders the first sentence of the spoken script as a static centre-upper
+    text overlay for the first ``duration_sec`` seconds. Distinct from the
+    karaoke caption pass: the overlay is one short line held for the full
+    hook duration with no per-word reveal, sized larger than narration
+    captions per docs/promotional-video-best-practices.md §1.
+
+    Designed for sound-off viewers and the 1.7-second decision window. The
+    `#ad` disclosure stays in its own corner (top-left in the typical
+    config); this overlay sits centre-upper so the two don't compete for
+    the same attention zone.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Burn the hook overlay on the first segment of every render.",
+    )
+    duration_sec: float = Field(
+        1.5,
+        ge=0.5,
+        le=3.0,
+        description=(
+            "On-screen duration for the hook text. Research band is 1.0-1.5s "
+            "for a static title card, 1.5-3.0s for text-over-mid-action-frame."
+        ),
+    )
+    size_factor: float = Field(
+        1.35,
+        ge=1.0,
+        le=2.5,
+        description=(
+            "Hook font size as a multiple of the narration caption font. "
+            "1.2-1.5x is the vendor-converged band for short-form hooks."
+        ),
+    )
+    font_color: str = Field("white", description="FFmpeg colour name or hex.")
+    outline_color: str = Field(
+        "black", description="High-contrast stroke for readability on any background."
+    )
+    outline_thickness: int = Field(6, ge=0)
+    background_enabled: bool = Field(
+        False,
+        description=(
+            "Semi-transparent box behind the text. Default off keeps the "
+            "look clean against product imagery; flip on for noisy backgrounds."
+        ),
+    )
+    background_color: str = Field("black@0.5")
+    margin_y_percent: float = Field(
+        0.28,
+        ge=0.0,
+        le=0.5,
+        description=(
+            "Vertical position as fraction of frame height from the top. "
+            "Default 0.28 sits centre-upper, clearing the YouTube Shorts "
+            "top header (~10%) and the narration caption band (~50-60%)."
+        ),
+    )
+    max_words: int = Field(
+        7,
+        ge=3,
+        le=12,
+        description=(
+            "Word cap on the hook line. Longer hooks wrap and lose readability "
+            "in the 1.5s window. Lines beyond the cap are truncated with ellipsis."
+        ),
+    )
+
+
 class VideoSettings(BaseModel):
     resolution: tuple[int, int] = Field(
         ..., description="Video resolution as (width, height)"
@@ -183,6 +254,9 @@ class VideoSettings(BaseModel):
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
     disclosure_overlay: DisclosureSettings = Field(
         default_factory=DisclosureSettings  # type: ignore[arg-type]
+    )
+    hook_overlay: HookOverlaySettings = Field(
+        default_factory=HookOverlaySettings  # type: ignore[arg-type]
     )
 
     # Media validation requirements (must match scraper config)
