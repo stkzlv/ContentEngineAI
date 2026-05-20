@@ -57,7 +57,7 @@ class TestBuildHookDrawtext:
         # Centre-horizontal
         assert "x=(w-text_w)/2" in out
         # time-gated
-        assert "enable='between(t,0,1.500)'" in out
+        assert "enable=between(t\\,0\\,1.500)" in out
 
     def test_disabled_background_skips_box(self) -> None:
         settings = HookOverlaySettings(enabled=True, background_enabled=False)
@@ -128,7 +128,7 @@ class TestApplyHookOverlay:
         assert out[-2].startswith("[v_sub_3]drawtext=")
         assert out[-2].endswith("[v_hook]")
         # Time-gated to duration_sec
-        assert "enable='between(t,0,1.500)'" in out[-2]
+        assert "enable=between(t\\,0\\,1.500)" in out[-2]
 
 
 class TestVideoSettingsField:

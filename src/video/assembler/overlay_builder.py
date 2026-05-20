@@ -195,12 +195,20 @@ def build_hook_drawtext(
     input_stream: str,
     output_stream: str,
 ) -> str:
-    """Build a time-gated centre-upper FFmpeg drawtext for the hook overlay.
+    r"""Build a time-gated centre-upper FFmpeg drawtext for the hook overlay.
 
     The drawtext is `enable`-gated to the first ``duration_sec`` seconds so
     it disappears for the rest of the clip without changing the filter
     graph length. Position is centred horizontally (``(w-text_w)/2``) and
     placed ``margin_y_percent`` from the top.
+
+    The ``enable`` expression uses backslash-escaped commas (``\,``) per
+    FFmpeg's filtergraph escaping rules. Single-quoting the expression
+    (``enable='between(t,0,X)'``) is the documented form but breaks in
+    practice when the filter sits inside a comma-separated chain — FFmpeg's
+    parser still splits at the inner commas. ``between(t\,0\,X)`` survives
+    cleanly. Same trick applies to any FFmpeg filter expression with
+    embedded commas (``if``, ``lt``, ``gte``, etc.).
     """
     font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
     text = _escape_drawtext_text(hook_text)
@@ -218,7 +226,7 @@ def build_hook_drawtext(
     if settings.background_enabled:
         parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
     parts.append(f"x={x_expr}:y={y_expr}:")
-    parts.append(f"enable='between(t,0,{settings.duration_sec:.3f})'{output_stream}")
+    parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){output_stream}")
 
     return "".join(parts)
 
