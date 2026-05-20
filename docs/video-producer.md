@@ -164,7 +164,7 @@ video_profiles:
     subtitle_format: "srt"
 ```
 
-### Hook Overlay and Pre-Motion (Phase 1.2)
+### Hook Overlay and Pre-Motion
 
 Three visual-layer knobs live on `video_settings` and the per-profile partial override:
 

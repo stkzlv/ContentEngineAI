@@ -563,9 +563,9 @@ poetry run python -m src.pipeline.global_batch --keywords "earbuds" \
 
 **Scheduling**: In unified mode, all platforms share the same post ID. In platform-specific mode, each platform gets its own post ID.
 
-### Per-Platform Profile Routing (Phase 1.3)
+### Per-Platform Profile Routing
 
-Maps each platform to a video profile from `config/video_production.yaml::video_profiles`. The publisher prefers the matching `video_<asin>_<profile>.mp4` render when present and falls back to the first `video_<asin>_*.mp4` found otherwise. Leave the block commented to keep the pre-1.3 first-match behaviour.
+Maps each platform to a video profile from `config/video_production.yaml::video_profiles`. The publisher prefers the matching `video_<asin>_<profile>.mp4` render when present and falls back to the first `video_<asin>_*.mp4` found otherwise. Leave the block commented to keep the first-match behaviour.
 
 ```yaml
 # config/publisher.yaml

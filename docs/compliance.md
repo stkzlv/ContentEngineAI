@@ -19,16 +19,16 @@ Disclosure is a default render output, not a per-video manual checklist. Where t
 | Layer | Status | What it satisfies |
 |---|---|---|
 | Persistent on-frame disclosure overlay (`#ad` burned in a fixed corner, full-clip duration) | Shipped | FTC two-punch (overlay component). Configurable via `video_settings.disclosure_overlay` in `config/video_production.yaml` (text, position, size, color, background). Sized at 45% of subtitle font by default (slightly under FTC's 50-60% band, tuned for tighter corner placement against the platform UI corridor). Survives the pycaps subtitle pass because pycaps burns its captions onto the assembler's output rather than replacing it. |
-| First-line caption disclosure (`#ad` leads every caption on TikTok / Instagram / YouTube) | Shipped | FTC two-punch (caption component) and Spain CNMC. Configurable per render via the `disclosure` field on `PublishMetadata`; defaults to `#ad`. The string-only escape hatch lets language-aware variants (Phase 0.4) inject `#publi` for Spanish renders without further code change. |
+| First-line caption disclosure (`#ad` leads every caption on TikTok / Instagram / YouTube) | Shipped | FTC two-punch (caption component) and Spain CNMC. Configurable per render via the `disclosure` field on `PublishMetadata`; defaults to `#ad`. The string-only escape hatch lets language-aware variants inject `#publi` for Spanish renders without further code change. |
 | TikTok branded-content disclosure (`commercialContentType=brand_organic`, `isBrandOrganicPost=true`) | Shipped | TikTok platform policy. Without it, TikTok rejects affiliate posts. |
 | YouTube AI-content disclosure (`containsSyntheticMedia=true`) | Shipped | YouTube platform policy. Required for AI-generated video. |
 
-## What's planned in Phase 0
+## What's still planned
 
 | Layer | Status | What it satisfies |
 |---|---|---|
-| Affiliate program literal-phrase rendering | **(planned)** Phase 0.3 | Amazon Associates Operating Agreement. The literal "As an Amazon Associate I earn from qualifying purchases" phrase rendered in at least one of bio / on-frame / caption. |
-| Localized disclosure variants | **(planned)** Phase 0.4 | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata` and `DisclosureSettings`; Phase 0.4 wires script language to the field value. |
+| Affiliate program literal-phrase rendering | **(planned)** | Amazon Associates Operating Agreement. The literal "As an Amazon Associate I earn from qualifying purchases" phrase rendered in at least one of bio / on-frame / caption. |
+| Localized disclosure variants | **(planned)** | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata` and `DisclosureSettings`; remaining work wires script language to the field value. |
 
 ## Manual steps
 
@@ -44,7 +44,7 @@ YouTube's "Includes paid promotion" platform label is set via YouTube Studio. Th
 4. Under "Paid promotion", check "Yes, video contains paid promotion like a product placement, sponsorship, or endorsement."
 5. Save.
 
-This is a platform-policy layer (ranking impact if missed), not the FTC regulatory floor. The on-frame overlay (Phase 0.1, planned) and first-line caption (Phase 0.2, planned) cover the regulatory side independently.
+This is a platform-policy layer (ranking impact if missed), not the FTC regulatory floor. The on-frame overlay and first-line caption disclosure cover the regulatory side independently.
 
 ### Instagram paid-partnership label
 
@@ -67,7 +67,7 @@ Amazon's Operating Agreement requires the literal phrase "As an Amazon Associate
 - YouTube channel description (About tab): no character pressure; use the full literal phrase.
 - Link-in-bio page header: same as TikTok.
 
-This is a one-time manual setup per account, not per-video. The phrase doesn't need to appear on every video as long as the account that posts the video carries it in the bio. Phase 0.3 (planned) adds a closing-frame render of the same phrase as a belt-and-suspenders measure.
+This is a one-time manual setup per account, not per-video. The phrase doesn't need to appear on every video as long as the account that posts the video carries it in the bio. A closing-frame render of the same phrase is planned as a belt-and-suspenders measure.
 
 ## Tracked SDK gaps
 

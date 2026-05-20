@@ -60,7 +60,7 @@ design rules; the deviation here is "no per-word reveal on the hook."
 
 **Title card vs. text-over-frame — two shapes, different timing**:
 
-- **Static title card** (Phase 1.2c default on `slideshow_short_20s`):
+- **Static title card** (default on `slideshow_short_20s`):
   1.0-1.5 s, **hard cut to motion** (no fade between card and the first
   slideshow segment), 3-5 words capped at 7, ALL CAPS-leaning or bold
   weight, 10-15% of frame height. The card is the first thing on screen
@@ -146,9 +146,9 @@ accessibility layer for the 15%, not the source of truth.
   configuration, ~50-60% caption size, fixed top-left or top-right
   corner, full-clip duration.
 - **Corner conflict**: when the burned-in hook overlay sits centre-upper
-  (Phase 1.2c default), the `#ad` disclosure goes top-left (or top-right).
-  Don't stack both at top-centre — they compete for the same attention
-  zone in the 1.5-second decision window.
+  (the pipeline's default), the `#ad` disclosure goes top-left (or
+  top-right). Don't stack both at top-centre — they compete for the
+  same attention zone in the 1.5-second decision window.
 
 **Trust signals beyond the legal floor:**
 
@@ -264,9 +264,8 @@ the FTC `#ad` overlay above.
   but Meta has published draft policy. Watch for changes if the pipeline
   expands its Instagram footprint.
 
-The pipeline already prepends `#ad` to caption text (Phase 0.2) and burns
-the corner disclosure (Phase 0.1). AI-content disclosure is additive, not
-a replacement.
+The pipeline already prepends `#ad` to caption text and burns the corner
+disclosure. AI-content disclosure is additive, not a replacement.
 
 ## 7. Honest gaps in the evidence
 
