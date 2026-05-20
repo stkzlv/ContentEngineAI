@@ -21,6 +21,39 @@ from src.video.config import VideoConfig
 logger = logging.getLogger(__name__)
 
 
+def _build_ken_burns_filter(
+    *,
+    width: int,
+    height: int,
+    duration_sec: float,
+    fps: int,
+    peak_zoom: float,
+    in_label: str,
+    out_label: str,
+) -> str:
+    """Build a settle-zoom (Ken Burns) FFmpeg zoompan filter for the first image.
+
+    The output starts at `peak_zoom` on frame 0 and decreases to 1.0 over the
+    segment duration, keeping the centre of the frame fixed. Frame 1 is
+    mid-zoom rather than a static still — Phase 1.2 pattern-interrupt.
+
+    Returns the filter as a single ``[in]...[out]`` clause; the caller chains
+    it with the existing trim/setpts steps. No-op math (peak <= 1.0) is the
+    caller's responsibility; the field validator already enforces peak >= 1.0.
+    """
+    total_frames = max(int(round(duration_sec * fps)), 2)
+    zoom_step = (peak_zoom - 1.0) / total_frames
+    return (
+        f"{in_label}zoompan="
+        f"z='if(eq(on,0),{peak_zoom:.3f},max(1.0,zoom-{zoom_step:.6f}))':"
+        f"d={total_frames}:"
+        f"x='iw/2-(iw/zoom/2)':"
+        f"y='ih/2-(ih/zoom/2)':"
+        f"s={width}x{height}:"
+        f"fps={fps}{out_label}"
+    )
+
+
 @dataclass
 class VisualGeometry:
     """Position and dimensions of visual element in video.
@@ -562,14 +595,37 @@ class VisualFilterBuilder:
                     )
                 )
 
-                vf_string = (
-                    f"[{i}:v]{vf_scale},setsar=1,"
-                    f"pad={width}:{height}:(ow-iw)/2:{int(target_y_pos)}:"
-                    f"color={video_settings.pad_color},"
-                    f"format={pix_fmt}[v_temp_{i}];"
-                    f"[v_temp_{i}]trim=duration={duration},"
-                    f"setpts=PTS-STARTPTS{proc_label}"
+                pre_motion = bool(
+                    i == 0 and getattr(video_settings, "first_frame_pre_motion", False)
                 )
+                if pre_motion:
+                    zoom_filter = _build_ken_burns_filter(
+                        width=width,
+                        height=height,
+                        duration_sec=duration,
+                        fps=video_settings.frame_rate,
+                        peak_zoom=getattr(video_settings, "pre_motion_peak_zoom", 1.10),
+                        in_label=f"[v_temp_{i}]",
+                        out_label=f"[v_motion_{i}]",
+                    )
+                    vf_string = (
+                        f"[{i}:v]{vf_scale},setsar=1,"
+                        f"pad={width}:{height}:(ow-iw)/2:{int(target_y_pos)}:"
+                        f"color={video_settings.pad_color},"
+                        f"format={pix_fmt}[v_temp_{i}];"
+                        f"{zoom_filter};"
+                        f"[v_motion_{i}]trim=duration={duration},"
+                        f"setpts=PTS-STARTPTS{proc_label}"
+                    )
+                else:
+                    vf_string = (
+                        f"[{i}:v]{vf_scale},setsar=1,"
+                        f"pad={width}:{height}:(ow-iw)/2:{int(target_y_pos)}:"
+                        f"color={video_settings.pad_color},"
+                        f"format={pix_fmt}[v_temp_{i}];"
+                        f"[v_temp_{i}]trim=duration={duration},"
+                        f"setpts=PTS-STARTPTS{proc_label}"
+                    )
 
             filter_parts.append(vf_string)
             stream_labels.append(proc_label)

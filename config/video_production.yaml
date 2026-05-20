@@ -474,6 +474,10 @@ video_profiles:
     image_width_percent: 1
     image_top_position_percent: 0.15
 
+    # Phase 1.2: pre-motion on the first image segment (Ken Burns settle-zoom)
+    first_frame_pre_motion: true
+    pre_motion_peak_zoom: 1.10
+
     # Subtitle settings (nested block, same shape as slideshow_images1)
     subtitle_settings:
       anchor: "below_content"

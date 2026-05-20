@@ -142,6 +142,29 @@ class VideoSettings(BaseModel):
     image_top_position_percent: float = Field(0.0)
     image_vertical_align: Literal["top", "center"] = Field("center")
     default_image_duration_sec: float = Field(3.0)
+    # Phase 1.2: pre-motion on the first image segment to defeat the
+    # fade-in / static-still pattern that burns the 1.5-second decision
+    # window. When enabled, a subtle Ken Burns (settle-zoom) is applied to
+    # the first image only — frame 0 sits at `pre_motion_peak_zoom`, then
+    # zooms back to 1.0 over the segment duration. Has no effect when the
+    # first segment is a video clip (clips already carry motion).
+    first_frame_pre_motion: bool = Field(
+        False,
+        description=(
+            "Inject Ken Burns motion on the first image segment. "
+            "Defaults off for the legacy 30-45s profiles; enabled on "
+            "slideshow_short_20s where the hook needs frame-1 motion."
+        ),
+    )
+    pre_motion_peak_zoom: float = Field(
+        1.10,
+        ge=1.0,
+        le=1.5,
+        description=(
+            "Starting zoom factor on frame 0 when first_frame_pre_motion "
+            "is enabled. Settles to 1.0 over the segment duration."
+        ),
+    )
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
     video_duration_tolerance_sec: float = Field(1.0)
@@ -391,6 +414,24 @@ class VideoProfile(BaseModel):
     )
     video_vertical_align: str | None = Field(
         None, description="Video vertical alignment: 'top' or 'center'"
+    )
+
+    # ---- PER-PROFILE PRE-MOTION (Phase 1.2) ----
+    first_frame_pre_motion: bool | None = Field(
+        None,
+        description=(
+            "Override VideoSettings.first_frame_pre_motion. Enable per "
+            "profile to inject Ken Burns motion on the first image segment."
+        ),
+    )
+    pre_motion_peak_zoom: float | None = Field(
+        None,
+        ge=1.0,
+        le=1.5,
+        description=(
+            "Override VideoSettings.pre_motion_peak_zoom (starting zoom "
+            "factor on frame 0 when first_frame_pre_motion is enabled)."
+        ),
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
