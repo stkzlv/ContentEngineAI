@@ -131,6 +131,37 @@ class TestApplyHookOverlay:
         assert "enable=between(t\\,0\\,1.500)" in out[-2]
 
 
+class TestApostropheEscape:
+    r"""Regression guard for the FFmpeg multi-filter chain apostrophe bug.
+
+    The naive ``\'`` escape works on a standalone drawtext but breaks inside
+    a multi-filter filtergraph chain: FFmpeg's parser consumes past the
+    intended quote boundary and absorbs the downstream filters' args,
+    producing a misleading ``Option 'st' not found`` error from later
+    filters. The exit/reenter pattern (``'\''``) survives.
+    """
+
+    def test_apostrophe_uses_exit_reenter_pattern(self) -> None:
+        from src.video.assembler.overlay_builder import _escape_drawtext_text
+
+        # `you're` becomes `you'\''re` (close-quote, backslash-quote,
+        # open-quote). Two literal apostrophes plus an escaped one.
+        assert _escape_drawtext_text("you're") == r"you'\''re"
+
+    def test_filter_uses_correct_apostrophe_escape(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        out = build_hook_drawtext(
+            settings,
+            "you're trying",
+            subtitle_font_size_pixels=72,
+            input_stream="[v_sub]",
+            output_stream="[v_hook]",
+        )
+        # Naive escape `you\'re` must NOT appear. Exit/reenter must.
+        assert "you\\'re" not in out
+        assert "you'\\''re" in out
+
+
 class TestVideoSettingsField:
     def test_default_has_disabled_hook_overlay(self) -> None:
         from src.video.config.visual_models import VideoSettings

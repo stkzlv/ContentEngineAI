@@ -25,15 +25,24 @@ logger = logging.getLogger(__name__)
 
 
 def _escape_drawtext_text(text: str) -> str:
-    """Escape characters that break FFmpeg drawtext's `text=` arg.
+    r"""Escape characters that break FFmpeg drawtext's `text=` arg.
 
     Special chars in drawtext's text argument: backslash, single quote, colon,
-    percent. Use FFmpeg's escape sequences. The arg is wrapped in single
-    quotes by the caller.
+    percent. The arg is wrapped in single quotes by the caller.
+
+    Apostrophes use the close-quote / backslash-quote / open-quote pattern
+    (``'\''``) rather than ``\'``. The ``\'`` form is documented and works
+    on a standalone drawtext, but breaks when the drawtext sits inside a
+    multi-filter filtergraph chain — FFmpeg's parser consumes characters
+    past the intended quote boundary and absorbs the rest of the chain
+    into the drawtext args, producing a confusing ``Option 'st' not found``
+    style error from later filters. The exit/reenter pattern is the same
+    shell-style trick used to embed apostrophes in any single-quoted
+    string; reliable across filter contexts.
     """
     return (
         text.replace("\\", r"\\")
-        .replace("'", r"\'")
+        .replace("'", r"'\''")
         .replace(":", r"\:")
         .replace("%", r"\%")
     )
