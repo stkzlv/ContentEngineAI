@@ -131,6 +131,60 @@ class TestApplyHookOverlay:
         assert "enable=between(t\\,0\\,1.500)" in out[-2]
 
 
+class TestHookPlusDisclosureStack:
+    """Hook overlay must compose cleanly with the disclosure overlay rewrite.
+
+    Order in core.py is: subtitle builder emits `<input>copy[v_out]`, hook
+    rewrite produces `<input>drawtext_hook[v_hook];[v_hook]copy[v_out]`,
+    disclosure rewrite then consumes the new terminal `copy[v_out]` and
+    emits `[v_hook]drawtext_disclosure[v_out]`. Final shape is 3 entries:
+    the original prefix, the hook drawtext, and the disclosure drawtext.
+    """
+
+    def test_hook_then_disclosure_produces_three_entries(self) -> None:
+        from src.video.assembler.overlay_builder import (
+            apply_disclosure_overlay,
+            apply_hook_overlay,
+        )
+        from src.video.config.visual_models import DisclosureSettings
+
+        hook = HookOverlaySettings(enabled=True)
+        disclosure = DisclosureSettings(enabled=True)
+        filters = ["scaled;padded[v_sub];", "[v_sub]copy[v_out]"]
+
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60)
+        final = apply_disclosure_overlay(hooked, disclosure, 60)
+
+        # Three filter entries: prefix, hook drawtext, disclosure drawtext.
+        assert len(final) == 3
+        # Hook lives in slot 1, consuming the original [v_sub] and emitting [v_hook].
+        assert final[1].startswith("[v_sub]drawtext=")
+        assert final[1].endswith("[v_hook]")
+        # Disclosure lives in slot 2, consuming [v_hook] and emitting [v_out].
+        assert final[2].startswith("[v_hook]drawtext=")
+        assert final[2].endswith("[v_out]")
+
+    def test_disclosure_only_when_hook_disabled(self) -> None:
+        from src.video.assembler.overlay_builder import (
+            apply_disclosure_overlay,
+            apply_hook_overlay,
+        )
+        from src.video.config.visual_models import DisclosureSettings
+
+        hook = HookOverlaySettings(enabled=False)
+        disclosure = DisclosureSettings(enabled=True)
+        filters = ["prefix", "[v_sub]copy[v_out]"]
+
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60)
+        final = apply_disclosure_overlay(hooked, disclosure, 60)
+
+        # Hook was disabled, so the filter list grew by zero. Disclosure
+        # still rewrites the terminal copy[v_out] into a drawtext.
+        assert len(final) == 2
+        assert final[-1].startswith("[v_sub]drawtext=")
+        assert final[-1].endswith("[v_out]")
+
+
 class TestApostropheEscape:
     r"""Regression guard for the FFmpeg multi-filter chain apostrophe bug.
 
