@@ -195,6 +195,18 @@ video_settings:
     margin_y_percent: 0.28
     max_words: 7
 
+  # Phase 1.2e cold-open variant rotation. Three named opening styles are
+  # tracked per render so downstream analytics can segment retention by
+  # variant. Variant name is selected deterministically per product (salted
+  # md5 on the product_id) and persisted to pipeline_state.json. v1 ships
+  # the framework only — all three render identically; visual-differentiation
+  # configs land in a follow-up. Set to an empty list to disable rotation
+  # entirely (selector returns the default "mid_zoom_title_card").
+  cold_open_variant_pool:
+    - mid_zoom_title_card
+    - static_title_card
+    - pre_motion_only
+
   # System resource requirements
   # Used by: config_validator.py to verify system can handle video production
   # Pipeline Impact: Warns users if system resources are insufficient

@@ -595,16 +595,14 @@ class VisualFilterBuilder:
                     )
                 )
 
-                pre_motion = bool(
-                    i == 0 and getattr(video_settings, "first_frame_pre_motion", False)
-                )
+                pre_motion = i == 0 and video_settings.first_frame_pre_motion
                 if pre_motion:
                     zoom_filter = _build_ken_burns_filter(
                         width=width,
                         height=height,
                         duration_sec=duration,
                         fps=video_settings.frame_rate,
-                        peak_zoom=getattr(video_settings, "pre_motion_peak_zoom", 1.10),
+                        peak_zoom=video_settings.pre_motion_peak_zoom,
                         in_label=f"[v_temp_{i}]",
                         out_label=f"[v_motion_{i}]",
                     )

@@ -182,7 +182,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         else str(args.platforms[0])
     )
     video_path = select_video_for_platform(
-        product_dir, product_id, first_platform, getattr(config, "profiles", None)
+        product_dir, product_id, first_platform, config.profiles
     )
     if video_path is None:
         logger.error("No video files found in %s", product_dir)
