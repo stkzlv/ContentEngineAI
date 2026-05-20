@@ -382,6 +382,13 @@ class PublisherConfig:
         default_factory=lambda: FirstCommentConfig()
     )
     use_platform_specific_content: bool = False
+    # Per-platform video profile routing (Phase 1.3).
+    # Maps platform name (lowercased: "tiktok"/"youtube"/"instagram") to a
+    # video profile name from config/video_production.yaml::video_profiles.
+    # When set, the publisher prefers `video_<asin>_<profile>.mp4` for that
+    # platform; when unset, falls back to the first `video_<asin>_*.mp4` in
+    # the product directory (legacy behaviour).
+    profiles: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         """Post-initialization validation."""

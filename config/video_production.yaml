@@ -456,6 +456,41 @@ video_profiles:
     # NOTE: Background music controlled by audio_settings.background_music section
     # NOTE: Subtitle settings controlled by profile-level subtitle_* config
 
+  # Short-form slideshow profile (15-30s) for hook iteration
+  # Per docs/promotional-video-best-practices.md and roadmap Phase 1.3:
+  # the 20s canvas is the hook-A/B iteration zone. 60-90s is needed for
+  # TikTok Creator Rewards eligibility; this profile targets organic reach
+  # and search inclusion, not CRP revenue. See Phase 6.1 for the long-form
+  # complement when CRP thresholds clear.
+  slideshow_short_20s:
+    description: "Short 15-30s slideshow tuned for hook iteration. ~50-60 word script budget at 150-180 wpm TTS pacing. Static hook title card on segment 0 by default."
+    use_scraped_images: true
+    use_scraped_videos: false
+    use_stock_images: false
+    use_stock_videos: false
+    use_dynamic_image_count: true
+
+    # Image positioning overrides
+    image_width_percent: 1
+    image_top_position_percent: 0.15
+
+    # Subtitle settings (nested block, same shape as slideshow_images1)
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.05
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "bold"
+      font_size_scale: 1.0
+      randomize_fonts: false
+      randomize_colors: false
+      randomize_effects: false
+      max_line_length: 38
+      max_words_per_line: 3
+      max_subtitle_width_fraction: 0.80
+      max_duration: 2.5
+      min_duration: 0.6
+
   # Slideshow with images profile
   slideshow_images1:
     description: "Dynamically uses scraped product images to match voiceover duration. Uses SRT format (no advanced effects)."

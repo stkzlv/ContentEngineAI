@@ -65,6 +65,23 @@ default_platforms:
 use_platform_specific_content: false
 
 # ============================================================================
+# PER-PLATFORM VIDEO PROFILE ROUTING (Phase 1.3)
+# ============================================================================
+# Maps each platform to a video profile from
+# config/video_production.yaml::video_profiles. The publisher prefers the
+# matching `video_<asin>_<profile>.mp4` render when present and falls back
+# to the first `video_<asin>_*.mp4` found otherwise.
+#
+# Typical setup: route YouTube Shorts to the short hook-iteration profile
+# while TikTok and Instagram keep the 30-45s cut.
+#
+# Leave commented to use the legacy "first matching render" behaviour.
+# profiles:
+#   youtube: slideshow_short_20s
+#   tiktok: slideshow_images1
+#   instagram: slideshow_images1
+
+# ============================================================================
 # RETRY AND TIMEOUT SETTINGS
 # ============================================================================
 

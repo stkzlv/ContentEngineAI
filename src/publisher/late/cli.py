@@ -165,20 +165,29 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         logger.error("Product directory not found: %s", product_dir)
         sys.exit(1)
 
-    # Auto-discover video file
-    video_files = list(product_dir.glob("video_*.mp4"))
-    if not video_files:
-        logger.error("No video files found in %s", product_dir)
-        sys.exit(1)
-
-    # Use the first video file (usually the most recent or main one)
-    video_path = video_files[0]
-    logger.info("Auto-discovered video: %s", video_path.name)
-
     # Default to all 3 platforms if none specified
     if not args.platforms:
         args.platforms = list(DEFAULT_PLATFORMS)
         logger.info("Using default platforms: youtube, tiktok, instagram")
+
+    # Auto-discover video file. If profiles are configured, prefer the
+    # render for the first platform in the list. The unified upload path
+    # uses one file for all platforms; full per-platform uploads are a
+    # follow-up after multi-profile renders ship.
+    from src.publisher.video_selector import select_video_for_platform
+
+    first_platform = (
+        args.platforms[0].value
+        if hasattr(args.platforms[0], "value")
+        else str(args.platforms[0])
+    )
+    video_path = select_video_for_platform(
+        product_dir, product_id, first_platform, getattr(config, "profiles", None)
+    )
+    if video_path is None:
+        logger.error("No video files found in %s", product_dir)
+        sys.exit(1)
+    logger.info("Auto-discovered video: %s", video_path.name)
 
     logger.info("Publishing single video: %s", video_path.name)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
