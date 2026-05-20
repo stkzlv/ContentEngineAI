@@ -204,6 +204,11 @@ lower-third because TikTok's UI controls occupy the bottom 480 px of a
 1080×1920 canvas. Caption center Y between **860–1100 px**. One design
 covers all three platforms.
 
+**Single-rectangle fallback** when a template ships one design that has
+to work on all three: centre **888×1160 px** on the 1080×1920 canvas
+(Kreatli cross-platform intersection). Use as the conservative bound
+when per-platform safe-zone tuning is not available.
+
 **Line break strategy**: 3–5 words per line, max 2 lines on screen. Break
 on natural phrase boundaries (after verbs, before prepositions) — never
 split noun phrases or compound names.
@@ -234,7 +239,8 @@ engine):
 - Clamp minimum word duration to **120 ms** (otherwise individual words flash imperceptibly)
 - Merge inter-word gaps under **80 ms** into the preceding word
 - Hold the last word of each segment **+200 ms** after audio end so viewers finish reading
-- Lead the audio by **~40 ms** (show the word a hair before it's spoken) — eye→brain→recognition takes longer than ear→brain
+- Lead narration audio by **~40 ms** (show the word a hair before it's spoken) — eye→brain→recognition takes longer than ear→brain
+- Lead the **first N hook words** by an extra **100-300 ms** on top of the narration lead so silent viewers parse the opening before any audio cue. Default 200 ms across the first 3 words. Pair with the burned-in hook overlay so the title-card text and the first karaoke word both lead the audio by similar amounts. Set via `hook_lead_sec` and `hook_lead_word_count` in `subtitle_settings.timing_smoothing` (config/subtitles.yaml).
 
 **Reading speed budget**: 15–17 CPS (~170 WPM) for general audiences.
 If a segment exceeds this, merge shorter words into the previous group
