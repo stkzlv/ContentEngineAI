@@ -303,3 +303,85 @@ class TestSmoothWhisperResultDict:
         words = result["segments"][0]["words"]
         # Gap of 50ms < 80ms threshold → merged
         assert words[0]["end"] == pytest.approx(words[1]["start"])
+
+
+class TestHookLineLead:
+    """Phase 1.2f: extra lead on the first N words for sound-off readability."""
+
+    def test_zero_hook_lead_preserves_baseline(self):
+        """hook_lead_sec=0 should produce the same result as omitting it."""
+        timings = _make_sentence()
+        base = smooth_word_timings(timings, lead_sec=0.04)
+        hooked = smooth_word_timings(
+            timings, lead_sec=0.04, hook_lead_sec=0.0, hook_lead_word_count=3
+        )
+        assert [t["start_time"] for t in base] == [t["start_time"] for t in hooked]
+
+    def test_first_n_words_get_extra_lead(self):
+        timings = _make_sentence()
+        result = smooth_word_timings(
+            timings,
+            lead_sec=0.04,
+            hook_lead_sec=0.20,
+            hook_lead_word_count=3,
+        )
+        # First three words: shifted by 0.04 + 0.20 = 0.24
+        # "This" at 0.50 - 0.24 = 0.26
+        # "is" at 0.74 - 0.24 = 0.50
+        # "a" at 0.82 - 0.24 = 0.58
+        assert result[0]["start_time"] == pytest.approx(0.26)
+        assert result[1]["start_time"] == pytest.approx(0.50)
+        assert result[2]["start_time"] == pytest.approx(0.58)
+        # Fourth word onward: shifted only by 0.04
+        assert result[3]["start_time"] == pytest.approx(0.84)  # 0.88 - 0.04
+        assert result[4]["start_time"] == pytest.approx(1.18)  # 1.22 - 0.04
+
+    def test_hook_lead_clamps_to_zero_start(self):
+        """Aggressive hook lead never produces a negative start_time."""
+        timings = [_word("Hook", 0.05, 0.50)]
+        result = smooth_word_timings(
+            timings,
+            lead_sec=0.04,
+            hook_lead_sec=0.30,
+            hook_lead_word_count=1,
+        )
+        assert result[0]["start_time"] == 0.0
+
+    def test_word_count_zero_disables_hook_lead(self):
+        timings = _make_sentence()
+        result = smooth_word_timings(
+            timings,
+            lead_sec=0.04,
+            hook_lead_sec=0.20,
+            hook_lead_word_count=0,
+        )
+        # No words get the extra lead — same as baseline
+        assert result[0]["start_time"] == pytest.approx(0.46)  # 0.50 - 0.04
+
+    def test_hook_lead_on_whisper_dict_first_n_only(self):
+        """Whisper-dict smoother applies hook lead to first N words across all segments."""
+        seg1_words = [
+            {"word": "This", "start": 0.50, "end": 0.90},
+            {"word": "is", "start": 0.92, "end": 1.10},
+        ]
+        seg2_words = [
+            {"word": "fine", "start": 2.00, "end": 2.40},
+            {"word": "now", "start": 2.42, "end": 2.80},
+        ]
+        result = smooth_whisper_result_dict(
+            _make_whisper_dict([seg1_words, seg2_words]),
+            lead_sec=0.04,
+            hook_lead_sec=0.20,
+            hook_lead_word_count=3,
+            hold_last_sec=0.0,
+            gap_merge_sec=0.0,
+            min_word_sec=0.0,
+        )
+        # First 3 words across both segments get the extra lead
+        words_seg1 = result["segments"][0]["words"]
+        words_seg2 = result["segments"][1]["words"]
+        assert words_seg1[0]["start"] == pytest.approx(0.26)  # 0.50 - 0.24
+        assert words_seg1[1]["start"] == pytest.approx(0.68)  # 0.92 - 0.24
+        assert words_seg2[0]["start"] == pytest.approx(1.76)  # 2.00 - 0.24
+        # Fourth word: only the base lead
+        assert words_seg2[1]["start"] == pytest.approx(2.38)  # 2.42 - 0.04

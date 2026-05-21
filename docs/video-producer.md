@@ -149,6 +149,13 @@ video_profiles:
     subtitle_preset: "animated"
     font_size_scale: 1.0
 
+  slideshow_short_20s:
+    description: "Short 15-30s slideshow tuned for hook iteration"
+    use_scraped_images: true
+    image_top_position_percent: 0.15
+    first_frame_pre_motion: true   # Ken Burns settle-zoom on segment 0
+    pre_motion_peak_zoom: 1.10
+
   video_sequential:
     description: "Sequential video clips"
     use_scraped_videos: true
@@ -156,6 +163,16 @@ video_profiles:
     video_audio_handling: "remove"
     subtitle_format: "srt"
 ```
+
+### Hook Overlay and Pre-Motion
+
+Three visual-layer knobs live on `video_settings` and the per-profile partial override:
+
+- `first_frame_pre_motion` / `pre_motion_peak_zoom` — when enabled, the first image segment starts at `pre_motion_peak_zoom` and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. Default off on the existing 30-45s profiles, on for `slideshow_short_20s`.
+- `hook_overlay` — burns the first sentence of the spoken script as a centre-upper static drawtext on the first `duration_sec` seconds (default 1.5). 1.35x narration size, no per-word reveal. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top.
+- `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
+
+See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.
 
 ### Configuration Precedence
 

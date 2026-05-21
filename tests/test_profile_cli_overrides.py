@@ -195,6 +195,35 @@ class TestMergedProfileSettings:
         merged_default = mock_config.get_profile_merged_settings("test_profile")
         assert merged_default.video_settings.image_vertical_align == "center"
 
+    def test_profile_pre_motion_override_reaches_merged(self, mock_config: VideoConfig):
+        """Profile-level first_frame_pre_motion + pre_motion_peak_zoom flow
+        through _collect_overrides to merged video_settings.
+
+        Regression guard for the CLAUDE.md "profile-level field gating
+        triple" gotcha: a new VideoSettings field has to be declared on
+        VideoSettings, mirrored as `| None` on VideoProfile, AND listed
+        in the _collect_overrides field map. Miss any one and the
+        profile YAML is silently dropped.
+        """
+        profile = VideoProfile(
+            description="Pre-motion override profile",
+            use_scraped_images=True,
+            first_frame_pre_motion=True,
+            pre_motion_peak_zoom=1.15,
+        )
+        mock_config.video_profiles["pre_motion_test"] = profile
+
+        merged = mock_config.get_profile_merged_settings("pre_motion_test")
+
+        # Global default is False / 1.10; profile must win.
+        assert merged.video_settings.first_frame_pre_motion is True
+        assert merged.video_settings.pre_motion_peak_zoom == 1.15
+
+        # Sanity: a profile that doesn't set these falls back to global.
+        merged_default = mock_config.get_profile_merged_settings("test_profile")
+        assert merged_default.video_settings.first_frame_pre_motion is False
+        assert merged_default.video_settings.pre_motion_peak_zoom == 1.10
+
     def test_subtitle_settings_from_global(self, mock_config: VideoConfig):
         """Subtitle settings merge from global YAML config."""
         merged = mock_config.get_profile_merged_settings("test_profile")

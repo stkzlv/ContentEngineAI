@@ -58,6 +58,38 @@ has already swiped. Pin the full hook caption on screen for the entire
 scale-pop, no per-word reveal). See subtitle-best-practices for caption
 design rules; the deviation here is "no per-word reveal on the hook."
 
+**Title card vs. text-over-frame — two shapes, different timing**:
+
+- **Static title card** (default on `slideshow_short_20s`):
+  1.0-1.5 s, **hard cut to motion** (no fade between card and the first
+  slideshow segment), 3-5 words capped at 7, ALL CAPS-leaning or bold
+  weight, 10-15% of frame height. The card is the first thing on screen
+  and gives way to motion immediately.
+- **Text-over-mid-action-frame** (longer profiles): 1.5-3.0 s, can fade in,
+  text sits over a frame that already carries motion (Ken Burns settle-zoom
+  or a video clip mid-action). The hook reads alongside visible movement
+  rather than as a separate beat.
+
+The pipeline's `hook_overlay` setting in `config/video_production.yaml`
+controls the duration. Set `duration_sec: 1.5` for title-card behaviour,
+`duration_sec: 2.5` for text-over-frame. Both share the same drawtext
+implementation; the duration choice carries the design intent.
+
+**Pre-motion on static product photos**: the first slide must already be
+mid-motion when frame 1 lands. Inject **0.3-0.5 s of Ken Burns settle-zoom**
+on static product photos by default. 0.2 s is defensible only when burned-in
+text is on frame 1 (the text alone gives the eye a focal point). The
+pipeline's `first_frame_pre_motion: true` + `pre_motion_peak_zoom: 1.10`
+defaults sit at the upper edge of the band; tune `pre_motion_peak_zoom`
+between 1.05 and 1.15 to taste.
+
+**Opener fatigue**: identical pattern-interrupt structure for ~3 weeks
+shows measurable diminishing returns. Rotate at least 2-3 cold-open
+variants per pillar so the channel doesn't read as a template factory
+at the aggregate level. The pipeline's `cold_open_variant_pool`
+deterministically picks one variant per product render and persists the
+chosen variant in `pipeline_state.json` for downstream analytics.
+
 Hook caption sizing and word budget converge across Captions.ai, OpusClip,
 and Submagic 2025-2026 guidance.
 
@@ -113,6 +145,10 @@ accessibility layer for the 15%, not the source of truth.
 - Practical rendering: same font family as the project's caption
   configuration, ~50-60% caption size, fixed top-left or top-right
   corner, full-clip duration.
+- **Corner conflict**: when the burned-in hook overlay sits centre-upper
+  (the pipeline's default), the `#ad` disclosure goes top-left (or
+  top-right). Don't stack both at top-centre — they compete for the
+  same attention zone in the 1.5-second decision window.
 
 **Trust signals beyond the legal floor:**
 
@@ -206,7 +242,32 @@ templates and spec-correction for analytical/comparison templates. See
 **Verb choice**: imperative + specific outcome. "Get the $15 fix" beats
 "Shop now". "Link to the bag in bio" beats "Click here".
 
-## 6. Honest gaps in the evidence
+## 6. AI-content disclosure (platform policy, not FTC)
+
+YouTube and TikTok treat AI-generated content separately from sponsored
+content. The disclosure surfaces are different and both apply on top of
+the FTC `#ad` overlay above.
+
+- **YouTube**: in July 2025 YouTube revoked monetization eligibility for
+  "purely AI-generated videos without human creative input." The pipeline
+  output qualifies as "significantly AI-modified" (LLM-written script +
+  AI TTS + AI subtitle styling), not "purely AI-generated", but the
+  publisher payload sets `containsSyntheticMedia: true` on every YouTube
+  publish to stay on the safe side. The flag is necessary, not optional.
+- **TikTok**: as of 2026, TikTok auto-flags AI content via C2PA detection.
+  Auto-flagging suppresses distribution BEFORE removal; explicit
+  disclosure via TikTok's AI-content label keeps reach intact. The
+  publisher does not currently set this flag because the Zernio SDK does
+  not expose it; the platform-side label is set manually per render
+  (documented as a known gap in `docs/compliance.md`).
+- **Instagram / Reels**: no automatic AI-detection enforcement yet (May 2026),
+  but Meta has published draft policy. Watch for changes if the pipeline
+  expands its Instagram footprint.
+
+The pipeline already prepends `#ad` to caption text and burns the corner
+disclosure. AI-content disclosure is additive, not a replacement.
+
+## 7. Honest gaps in the evidence
 
 The vendor literature on captions and promo video is louder than the
 empirical record. Things to flag rather than assert:

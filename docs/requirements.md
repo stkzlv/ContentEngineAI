@@ -200,6 +200,7 @@ group degrade to FFmpeg without manual intervention.
 - **Max 3 words per line**, max 2 lines, max 80% frame width
 - **Segment duration**: 2.5s max, 0.6s min (~170 WPM reading speed)
 - Terminal punctuation stripped in karaoke mode
+- **Audio-lead timing**: each narration word appears slightly before its audio onset (read-ahead lead). The opening hook gets an extra lead applied to the first few words on top of the base, so sound-off viewers parse the hook before any audio cue. Lead duration and number of leading words configurable per render.
 
 **Two-part mode** (FFmpeg engine only):
 - Upper line: static URL/link, positioned above content
@@ -219,14 +220,22 @@ group degrade to FFmpeg without manual intervention.
 - Fallback policy: warn-and-skip (keep FFmpeg video) or raise (abort pipeline)
 - Render speed: ~0.7x realtime on CSS path, ~420 MB peak RSS
 
+### Cold-Open Style
+
+- **Pre-motion on first image segment**: when enabled, the first image starts at a slight zoom and settles to 1.0 over the segment duration, so frame 0 is mid-motion instead of a static still. Pairs with the burned-in hook overlay to defeat the static-still-then-fade pattern that burns the 1.5-second decision window. Off by default on existing profiles, on by default on the short profile. Peak zoom factor configurable globally and per profile.
+- **Burned-in hook overlay**: the first sentence of the spoken script is rendered as centre-upper static text on the first 1.5 s (configurable). Sized 1.2-1.5x narration captions, capped at 7 words, no per-word reveal. Drawn after the subtitle pass and before the FTC `#ad` corner disclosure so the disclosure stays on top of the z-order. Source text is the rendered spoken script; an empty or missing script makes the overlay a silent no-op.
+- **Cold-open variant rotation**: each render picks one named variant from a configurable pool (defaults: title-card with pre-motion, static title-card, pre-motion only). Selection is deterministic per product so re-renders match. The chosen variant name is persisted in the pipeline state for downstream analytics; v1 ships the framework only, with all variants rendering identically until variant-specific visual differentiation lands.
+
 ### Profile System
 - **Precedence**: CLI > Profile > Global defaults
 - All visual, subtitle, and video settings configurable per profile
 - Subtitle overrides use a single nested `subtitle_settings` block on each profile; only fields that differ from the global value need to be set, and nested sub-blocks (`pycaps`, `two_part_subtitles`, `safe_zone`) deep-merge per-field rather than being replaced wholesale
+- Cold-open knobs (pre-motion toggle, peak zoom) are per-profile overrides as well; the short profile enables pre-motion by default while the existing 30-45s profiles inherit the off default
 - Strict validation: unknown keys in subtitle YAML or profile overrides fail at config load with a typed error, instead of being silently dropped at render time
 - Legacy flat per-profile keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) still load with a deprecation warning during one-release migration window
 - Typed Pydantic models for merged settings
 - Deterministic random profile selection per product
+- **Short profile (15-30 s)** sized for hook-iteration renders. Script word budget around 50-60 words at natural TTS pacing. 60-90 s long-form for platform-revenue-program eligibility lives in a separate planned profile, not in the short profile.
 
 ### Media Validation
 - Scraper validates media against producer profile requirements
@@ -247,7 +256,9 @@ group degrade to FFmpeg without manual intervention.
 - CLI override to force a specific template
 - Template metadata recorded in pipeline output for traceability
 - Every template instructs the LLM to open with a natural conversational hook that carries the long-tail audio keyword (product category, price band, audience cue, pain point) embedded inside speech a person would actually say out loud. The template rule lists six proven hook patterns aligned with `docs/promotional-video-best-practices.md` §1 — price-first reveal, regret/contrarian, POV, outcome-first, numbered teardown, comparison — and names the literal Google-query shape as an anti-pattern. The keyword must land in the first 5 seconds of TTS because TikTok transcribes audio via ASR and indexes the transcript as a primary search signal.
+- Line 1 must state a concrete fact, result, or observation about the product. Setup framings ("Today I'll show you", "Let me tell you", "In this video", "I want to share") are anti-patterns — they burn the 1.5-second decision window before the payoff lands.
 - Every template instructs the LLM to end the spoken script with one short engagement-bait closing line, right before the CTA, not replacing it. Personal and storytelling templates use a two-option opinion question (comment-fork); analytical and comparison templates use a debatable but defensible spec claim that invites a correction. The closing line drives comments, which feeds the platform algorithm; generic "Comment YES if..." asks are spam-filtered and excluded.
+- Analytical templates branch the closing claim on whether the product description carries a contestable performance number (units like W, mAh, Hz, GHz, MP, GB, ports, hours of battery, dB, Mbps, lumens, refresh rate). Spec-rich products close with a spec claim; passive products (mounts, hooks, organizers, brackets, kitchen tools, decor, manual gadgets) close with a material-or-use claim instead. The LLM is explicitly anchored against fabricating specs the product doesn't have (e.g. battery life for a phone holder).
 - The per-platform caption generator receives the rendered spoken script and mirrors the script's closing engagement-bait line into the caption body before the hashtag block. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s for engagement bait). When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
 
 ### TTS Voice Profiles
@@ -360,6 +371,11 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Publish via third-party scheduling services (e.g., Late.dev)
 - Multi-platform support: YouTube, TikTok, Instagram
 - API-based upload and status tracking
+
+### Per-Platform Profile Routing
+- Optional mapping from platform to video profile so the publisher uploads a platform-tailored render per platform (e.g., the short hook-iteration cut for YouTube, the longer cut for TikTok and Instagram).
+- The publisher prefers the routed profile's render when present and falls back to the first available render in the product directory when the mapping is unset or the routed profile hasn't been produced for that product.
+- Routing leaves the unified upload model intact: when one file is shared across platforms, the file picked is the render for the first platform in the post's target list. True per-platform uploads (different files to different platforms) live behind the platform-specific publishing mode and remain a planned extension.
 
 ### Scheduling
 - Immediate or future publish times with timezone support

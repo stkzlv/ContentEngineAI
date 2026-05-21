@@ -290,6 +290,11 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # Include pycaps metadata (saved by step_burn_pycaps_subtitles)
     if step_name == STEP_BURN_PYCAPS_SUBTITLES and ctx.state.get("pycaps_metadata"):
         step_state["pycaps_metadata"] = ctx.state["pycaps_metadata"]
+    # Phase 1.2e: cold-open variant chosen by select_cold_open_variant in
+    # step_assemble_video. Persisted so the analytics layer can segment
+    # retention by variant when comparing renders.
+    if step_name == STEP_ASSEMBLE_VIDEO and ctx.state.get("cold_open_variant"):
+        step_state["cold_open_variant"] = ctx.state["cold_open_variant"]
 
     ctx.state[step_name] = step_state
     logger.debug(f"Updated state for completed step: {step_name}")

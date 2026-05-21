@@ -1,31 +1,48 @@
-"""Persistent on-frame disclosure overlay (FTC `#ad`, Spain `#publi`, etc.).
+"""Persistent on-frame overlays burned by the assembler.
 
-Burns a fixed-corner text overlay into every produced video so the disclosure
-is visible across the full clip duration regardless of which subtitle engine
-ran. Mounts as the last filter in the video filter chain, replacing the
-existing `copy[v_out]` no-op so the overlay output IS the assembler's final
-video stream.
+Two overlays live here:
+
+- `apply_disclosure_overlay`: FTC `#ad` / Spain `#publi` corner badge,
+  visible for the full clip duration. Last filter in the chain; rewrites
+  the subtitle builder's `copy[v_out]` no-op so the overlay output is the
+  final video stream.
+
+- `apply_hook_overlay` (Phase 1.2c, closes #102): centre-upper static text
+  rendering the first sentence of the spoken script, visible for the first
+  ``duration_sec`` seconds only. Inserted BEFORE the disclosure overlay so
+  the disclosure stays on top in the z-order. Preserves the chain's
+  terminal ``copy[v_out]`` so the disclosure rewrite still finds the
+  expected shape.
 """
 
 from __future__ import annotations
 
 import logging
 
-from src.video.config.visual_models import DisclosureSettings
+from src.video.config.visual_models import DisclosureSettings, HookOverlaySettings
 
 logger = logging.getLogger(__name__)
 
 
 def _escape_drawtext_text(text: str) -> str:
-    """Escape characters that break FFmpeg drawtext's `text=` arg.
+    r"""Escape characters that break FFmpeg drawtext's `text=` arg.
 
     Special chars in drawtext's text argument: backslash, single quote, colon,
-    percent. Use FFmpeg's escape sequences. The arg is wrapped in single
-    quotes by the caller.
+    percent. The arg is wrapped in single quotes by the caller.
+
+    Apostrophes use the close-quote / backslash-quote / open-quote pattern
+    (``'\''``) rather than ``\'``. The ``\'`` form is documented and works
+    on a standalone drawtext, but breaks when the drawtext sits inside a
+    multi-filter filtergraph chain — FFmpeg's parser consumes characters
+    past the intended quote boundary and absorbs the rest of the chain
+    into the drawtext args, producing a confusing ``Option 'st' not found``
+    style error from later filters. The exit/reenter pattern is the same
+    shell-style trick used to embed apostrophes in any single-quoted
+    string; reliable across filter contexts.
     """
     return (
         text.replace("\\", r"\\")
-        .replace("'", r"\'")
+        .replace("'", r"'\''")
         .replace(":", r"\:")
         .replace("%", r"\%")
     )
@@ -151,3 +168,124 @@ def apply_disclosure_overlay(
         output_stream="[v_out]",
     )
     return [*video_filters[:-1], rewritten]
+
+
+def _truncate_to_words(text: str, max_words: int) -> str:
+    """Trim ``text`` to ``max_words`` words, appending an ellipsis when cut."""
+    words = text.split()
+    if len(words) <= max_words:
+        return text.strip()
+    return " ".join(words[:max_words]).rstrip(",.;:!?") + "..."
+
+
+def extract_hook_line(script: str, max_words: int) -> str:
+    """Pull the first sentence of the script as the hook overlay text.
+
+    Splits on the first sentence terminator (``.!?``), strips, and caps to
+    ``max_words``. Returns an empty string when the script is empty or all
+    whitespace; the caller skips the overlay in that case.
+    """
+    if not script or not script.strip():
+        return ""
+
+    head = script.strip()
+    for terminator in (". ", "! ", "? ", ".\n", "!\n", "?\n"):
+        idx = head.find(terminator)
+        if 0 < idx < len(head):
+            head = head[: idx + 1].rstrip(".!? ")
+            break
+    return _truncate_to_words(head, max_words)
+
+
+def build_hook_drawtext(
+    settings: HookOverlaySettings,
+    hook_text: str,
+    subtitle_font_size_pixels: int,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    r"""Build a time-gated centre-upper FFmpeg drawtext for the hook overlay.
+
+    The drawtext is `enable`-gated to the first ``duration_sec`` seconds so
+    it disappears for the rest of the clip without changing the filter
+    graph length. Position is centred horizontally (``(w-text_w)/2``) and
+    placed ``margin_y_percent`` from the top.
+
+    The ``enable`` expression uses backslash-escaped commas (``\,``) per
+    FFmpeg's filtergraph escaping rules. Single-quoting the expression
+    (``enable='between(t,0,X)'``) is the documented form but breaks in
+    practice when the filter sits inside a comma-separated chain — FFmpeg's
+    parser still splits at the inner commas. ``between(t\,0\,X)`` survives
+    cleanly. Same trick applies to any FFmpeg filter expression with
+    embedded commas (``if``, ``lt``, ``gte``, etc.).
+    """
+    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    text = _escape_drawtext_text(hook_text)
+    x_expr = "(w-text_w)/2"
+    y_expr = f"h*{settings.margin_y_percent}"
+
+    parts = [
+        f"{input_stream}drawtext=",
+        f"text='{text}':",
+        f"fontsize={font_size}:",
+        f"fontcolor={settings.font_color}:",
+        f"borderw={settings.outline_thickness}:",
+        f"bordercolor={settings.outline_color}:",
+    ]
+    if settings.background_enabled:
+        parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
+    parts.append(f"x={x_expr}:y={y_expr}:")
+    parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){output_stream}")
+
+    return "".join(parts)
+
+
+def apply_hook_overlay(
+    video_filters: list[str],
+    settings: HookOverlaySettings,
+    hook_text: str,
+    subtitle_font_size_pixels: int,
+) -> list[str]:
+    """Insert the hook overlay before the disclosure overlay's rewrite slot.
+
+    Rewrites the trailing ``copy[v_out]`` into a time-gated hook drawtext
+    that produces an intermediate stream, then appends a new
+    ``copy[v_out]`` so :func:`apply_disclosure_overlay` still finds the
+    terminal shape it expects. Order in core.py is: hook → disclosure →
+    [v_out], giving the disclosure top z-order.
+
+    No-ops (returns input unchanged) when:
+
+    - ``settings.enabled`` is False.
+    - ``hook_text`` is empty after extraction (script was empty or all
+      whitespace).
+    - The terminal filter does not match ``copy[v_out]`` (logged at WARN;
+      keeps the disclosure pipeline from breaking on unexpected shapes).
+    """
+    if not settings.enabled:
+        return video_filters
+    if not hook_text:
+        logger.debug("Hook overlay skipped: empty hook text.")
+        return video_filters
+    if not video_filters:
+        logger.warning("Hook overlay skipped: empty video_filters list.")
+        return video_filters
+
+    last = video_filters[-1]
+    if "copy[v_out]" not in last:
+        logger.warning(
+            "Hook overlay skipped: last filter has unexpected shape: %r", last
+        )
+        return video_filters
+
+    input_stream = last.replace("copy[v_out]", "")
+    hook_filter = build_hook_drawtext(
+        settings,
+        hook_text,
+        subtitle_font_size_pixels,
+        input_stream=input_stream,
+        output_stream="[v_hook]",
+    )
+    # Preserve the terminal copy[v_out] so the disclosure rewrite still works.
+    new_terminal = "[v_hook]copy[v_out]"
+    return [*video_filters[:-1], hook_filter, new_terminal]

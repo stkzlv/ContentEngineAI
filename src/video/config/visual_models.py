@@ -130,6 +130,77 @@ class DisclosureSettings(BaseModel):
     )
 
 
+class HookOverlaySettings(BaseModel):
+    """Burned-in hook text overlay (Phase 1.2c, also closes #102).
+
+    Renders the first sentence of the spoken script as a static centre-upper
+    text overlay for the first ``duration_sec`` seconds. Distinct from the
+    karaoke caption pass: the overlay is one short line held for the full
+    hook duration with no per-word reveal, sized larger than narration
+    captions per docs/promotional-video-best-practices.md §1.
+
+    Designed for sound-off viewers and the 1.7-second decision window. The
+    `#ad` disclosure stays in its own corner (top-left in the typical
+    config); this overlay sits centre-upper so the two don't compete for
+    the same attention zone.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Burn the hook overlay on the first segment of every render.",
+    )
+    duration_sec: float = Field(
+        1.5,
+        ge=0.5,
+        le=3.0,
+        description=(
+            "On-screen duration for the hook text. Research band is 1.0-1.5s "
+            "for a static title card, 1.5-3.0s for text-over-mid-action-frame."
+        ),
+    )
+    size_factor: float = Field(
+        1.35,
+        ge=1.0,
+        le=2.5,
+        description=(
+            "Hook font size as a multiple of the narration caption font. "
+            "1.2-1.5x is the vendor-converged band for short-form hooks."
+        ),
+    )
+    font_color: str = Field("white", description="FFmpeg colour name or hex.")
+    outline_color: str = Field(
+        "black", description="High-contrast stroke for readability on any background."
+    )
+    outline_thickness: int = Field(6, ge=0)
+    background_enabled: bool = Field(
+        False,
+        description=(
+            "Semi-transparent box behind the text. Default off keeps the "
+            "look clean against product imagery; flip on for noisy backgrounds."
+        ),
+    )
+    background_color: str = Field("black@0.5")
+    margin_y_percent: float = Field(
+        0.28,
+        ge=0.0,
+        le=0.5,
+        description=(
+            "Vertical position as fraction of frame height from the top. "
+            "Default 0.28 sits centre-upper, clearing the YouTube Shorts "
+            "top header (~10%) and the narration caption band (~50-60%)."
+        ),
+    )
+    max_words: int = Field(
+        7,
+        ge=3,
+        le=12,
+        description=(
+            "Word cap on the hook line. Longer hooks wrap and lose readability "
+            "in the 1.5s window. Lines beyond the cap are truncated with ellipsis."
+        ),
+    )
+
+
 class VideoSettings(BaseModel):
     resolution: tuple[int, int] = Field(
         ..., description="Video resolution as (width, height)"
@@ -142,6 +213,47 @@ class VideoSettings(BaseModel):
     image_top_position_percent: float = Field(0.0)
     image_vertical_align: Literal["top", "center"] = Field("center")
     default_image_duration_sec: float = Field(3.0)
+    # Phase 1.2: pre-motion on the first image segment to defeat the
+    # fade-in / static-still pattern that burns the 1.5-second decision
+    # window. When enabled, a subtle Ken Burns (settle-zoom) is applied to
+    # the first image only — frame 0 sits at `pre_motion_peak_zoom`, then
+    # zooms back to 1.0 over the segment duration. Has no effect when the
+    # first segment is a video clip (clips already carry motion).
+    first_frame_pre_motion: bool = Field(
+        False,
+        description=(
+            "Inject Ken Burns motion on the first image segment. "
+            "Defaults off for the legacy 30-45s profiles; enabled on "
+            "slideshow_short_20s where the hook needs frame-1 motion."
+        ),
+    )
+    pre_motion_peak_zoom: float = Field(
+        1.10,
+        ge=1.0,
+        le=1.5,
+        description=(
+            "Starting zoom factor on frame 0 when first_frame_pre_motion "
+            "is enabled. Settles to 1.0 over the segment duration."
+        ),
+    )
+    # Phase 1.2e: cold-open variant rotation. Three named opening styles are
+    # tracked per render so downstream analytics can segment retention by
+    # variant. v1 ships the framework — variant name is persisted to
+    # pipeline_state.json and selected deterministically per product. Visual
+    # differentiation between variants follows once a baseline render exists
+    # to A/B against.
+    cold_open_variant_pool: list[str] = Field(
+        default_factory=lambda: [
+            "mid_zoom_title_card",
+            "static_title_card",
+            "pre_motion_only",
+        ],
+        description=(
+            "Named cold-open variants rotated deterministically per product. "
+            "Empty list disables rotation; otherwise the selector picks one "
+            "via salted MD5 hash on the product ID."
+        ),
+    )
     transition_duration_sec: float = Field(0.5)
     total_duration_limit_sec: int = Field(90)
     video_duration_tolerance_sec: float = Field(1.0)
@@ -160,6 +272,9 @@ class VideoSettings(BaseModel):
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
     disclosure_overlay: DisclosureSettings = Field(
         default_factory=DisclosureSettings  # type: ignore[arg-type]
+    )
+    hook_overlay: HookOverlaySettings = Field(
+        default_factory=HookOverlaySettings  # type: ignore[arg-type]
     )
 
     # Media validation requirements (must match scraper config)
@@ -391,6 +506,24 @@ class VideoProfile(BaseModel):
     )
     video_vertical_align: str | None = Field(
         None, description="Video vertical alignment: 'top' or 'center'"
+    )
+
+    # ---- PER-PROFILE PRE-MOTION (Phase 1.2) ----
+    first_frame_pre_motion: bool | None = Field(
+        None,
+        description=(
+            "Override VideoSettings.first_frame_pre_motion. Enable per "
+            "profile to inject Ken Burns motion on the first image segment."
+        ),
+    )
+    pre_motion_peak_zoom: float | None = Field(
+        None,
+        ge=1.0,
+        le=1.5,
+        description=(
+            "Override VideoSettings.pre_motion_peak_zoom (starting zoom "
+            "factor on frame 0 when first_frame_pre_motion is enabled)."
+        ),
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----

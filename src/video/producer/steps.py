@@ -1091,6 +1091,29 @@ async def step_assemble_video(ctx: PipelineContext):
 
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
         assembler.set_product_id(product_id)
+        # Hook overlay text source: the rendered spoken script. extract_hook_line
+        # in overlay_builder pulls the first sentence and caps to max_words.
+        # When the script file doesn't exist (rare), the assembler treats the
+        # overlay as disabled — same behaviour as `hook_overlay.enabled: false`.
+        hook_text: str | None = None
+        script_path = ctx.run_paths.get("script_file")
+        if script_path and script_path.exists():
+            try:
+                hook_text = script_path.read_text(encoding="utf-8")
+            except OSError as e:
+                logger.warning("Could not read script for hook overlay: %s", e)
+
+        # Phase 1.2e: pick a cold-open variant deterministically and persist
+        # it for downstream analytics. Variant name lands in pipeline_state.json
+        # via _update_state_for_completed_step (state.py).
+        from src.video.cold_open_selector import select_cold_open_variant
+
+        cold_open_variant = select_cold_open_variant(
+            product_id, ctx.config.video_settings.cold_open_variant_pool
+        )
+        ctx.state["cold_open_variant"] = cold_open_variant
+        logger.info("Cold-open variant for %s: %s", product_id, cold_open_variant)
+
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,
@@ -1103,6 +1126,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 temp_dir=ctx.run_paths["intermediate_base"],
                 debug_mode=ctx.debug_mode,
                 subtitle_upper_path=ctx.run_paths.get("subtitle_upper_file"),
+                hook_text=hook_text,
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

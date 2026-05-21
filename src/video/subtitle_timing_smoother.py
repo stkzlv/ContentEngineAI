@@ -29,6 +29,8 @@ def smooth_word_timings(
     hold_last_sec: float = 0.20,
     lead_sec: float = 0.04,
     segment_gap_threshold_sec: float = 0.40,
+    hook_lead_sec: float = 0.0,
+    hook_lead_word_count: int = 0,
 ) -> list[dict[str, Any]]:
     """Apply best-practice smoothing to raw STT word timings.
 
@@ -52,6 +54,13 @@ def smooth_word_timings(
         segment_gap_threshold_sec: Silence gap longer than this is treated as
             a segment boundary (used by rule 3). Default 400 ms matches
             ``word_timestamp_pause_threshold`` in subtitles.yaml.
+        hook_lead_sec: Phase 1.2f hook-line lead. Extra shift applied to the
+            first ``hook_lead_word_count`` words on top of ``lead_sec``.
+            Default 0 (off). Research band is 0.10-0.30s.
+        hook_lead_word_count: Number of leading words to apply
+            ``hook_lead_sec`` to. Default 0 (off). Pair with the burned-in
+            hook overlay so silent viewers parse the opening line before
+            any audio cue.
 
     """
     if not timings:
@@ -61,8 +70,10 @@ def smooth_word_timings(
 
     # Rule 4: lead — shift start earlier so the word appears just before
     # it's spoken. Don't touch end_time; that still marks the audio offset.
-    for t in out:
-        t["start_time"] = max(0.0, t["start_time"] - lead_sec)
+    hook_lead_n = max(0, hook_lead_word_count) if hook_lead_sec > 0 else 0
+    for idx, t in enumerate(out):
+        extra = hook_lead_sec if idx < hook_lead_n else 0.0
+        t["start_time"] = max(0.0, t["start_time"] - lead_sec - extra)
 
     # Rule 2: merge short inter-word gaps into the preceding word.
     # Walk forward so each adjustment only affects the immediate pair.
@@ -109,6 +120,8 @@ def smooth_whisper_result_dict(
     hold_last_sec: float = 0.20,
     lead_sec: float = 0.04,
     segment_gap_threshold_sec: float = 0.40,
+    hook_lead_sec: float = 0.0,
+    hook_lead_word_count: int = 0,
 ) -> dict[str, Any]:
     """Apply the same smoothing rules to the raw Whisper result dict.
 
@@ -125,6 +138,9 @@ def smooth_whisper_result_dict(
         return result_w
 
     out = copy.deepcopy(result_w)
+    # Phase 1.2f hook lead applies to the first N words across the entire
+    # transcript, not the first N words of each segment.
+    hook_lead_remaining = max(0, hook_lead_word_count) if hook_lead_sec > 0 else 0
 
     for segment in out["segments"]:
         words = segment.get("words")
@@ -134,7 +150,10 @@ def smooth_whisper_result_dict(
         # Rule 4: lead
         for w in words:
             if "start" in w:
-                w["start"] = max(0.0, w["start"] - lead_sec)
+                extra = hook_lead_sec if hook_lead_remaining > 0 else 0.0
+                w["start"] = max(0.0, w["start"] - lead_sec - extra)
+                if hook_lead_remaining > 0:
+                    hook_lead_remaining -= 1
 
         # Rule 2: merge short gaps
         for i in range(1, len(words)):

@@ -770,6 +770,8 @@ class VideoConfig(BaseModel):
                 "video_top_position_percent": "video_top_position_percent",
                 "video_content_height_percent": "video_content_height_percent",
                 "video_vertical_align": "video_vertical_align",
+                "first_frame_pre_motion": "first_frame_pre_motion",
+                "pre_motion_peak_zoom": "pre_motion_peak_zoom",
             },
         )
         for field_name in (

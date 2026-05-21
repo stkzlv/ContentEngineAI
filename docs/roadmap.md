@@ -8,23 +8,11 @@ The phases are sequenced so each one builds on the previous. Phase 0 is the disc
 
 Issues and PRs are welcome on any item. If you want to pick something up, open an issue first so we can talk through scope.
 
-## Phase 0 — Disclosure compliance baseline (Now, blocking)
+## Phase 0 — Disclosure compliance baseline (partial, blocking)
 
-Targeted to ship before any Phase 1 retention work, and gating the 1.0.0 release. Creators using the pipeline for affiliate marketing have legal disclosure obligations under the FTC Endorsement Guides (any US-facing content), the Amazon Associates Operating Agreement (any Amazon affiliate program participant), and per-platform policy (TikTok / Instagram / YouTube). The pipeline already wires TikTok branded-content disclosure but leaves the rest of the stack manual. Compliance is not a polish item: FTC penalties reach $53,088 per violation per post in 2025 and Amazon Associates enforces with account termination, no warning. The pipeline should make compliance the default render output, not a per-video checklist.
+Targeted to gate the 1.0.0 release. Creators using the pipeline for affiliate marketing have legal disclosure obligations under the FTC Endorsement Guides (any US-facing content), the Amazon Associates Operating Agreement (any Amazon affiliate program participant), and per-platform policy (TikTok / Instagram / YouTube). Compliance is not a polish item: FTC penalties reach $53,088 per violation per post in 2025 and Amazon Associates enforces with account termination, no warning. The pipeline should make compliance the default render output, not a per-video checklist.
 
-This phase ships as a single compliance bundle, not staged. Shipping pieces of it leaves the floor incomplete.
-
-### 0.1 Persistent on-frame disclosure overlay
-
-Burn a configurable disclosure overlay (`#ad`, `Sponsored`, `Paid partnership`, or localized equivalents like `#publi` / `#publicidad`) into every produced video. Full-clip duration, fixed corner, ~50-60% size of narration captions, contrasting font weight against the background. Configurable via a new `disclosure` block in `config/publisher.yaml` (or `config/video_production.yaml`, depending on which side of the assembler/publisher boundary the overlay lives). Required by FTC's two-punch guidance (overlay AND caption text); platform tags alone don't satisfy it.
-
-**Done when:** every render emits a persistent on-frame disclosure overlay in the language of the script, visible across TikTok / YouTube Shorts / Instagram Reels safe zones (`docs/platform-safe-zones.md`).
-
-### 0.2 First-line caption disclosure
-
-Update the per-platform metadata generators in the publisher so the disclosure leads the caption text, before any product description, hook, hashtags, or affiliate link. Platform-specific quirks: Instagram and TikTok captions clip at the `…more` cut, so the disclosure must fit ahead of that fold; YouTube descriptions tolerate longer lead-ins. The disclosure language must match the script language, not the platform default.
-
-**Done when:** every published caption leads with the disclosure on every platform, language-matched to the script.
+The persistent on-frame overlay, first-line caption disclosure, platform-tag audit, regression suite, and `docs/compliance.md` shipped together. What remains gates 1.0.0:
 
 ### 0.3 Affiliate program literal-phrase rendering
 
@@ -38,53 +26,9 @@ When the script language is not English, the disclosure must match. Add per-lang
 
 **Done when:** a Spanish-language render emits a Spanish-language disclosure overlay and caption first line; an English render emits English; mismatches raise a config-load warning.
 
-### 0.5 Platform-tag audit (TikTok / YouTube / Instagram)
-
-Verify the platform-policy disclosure flags are set on every publish:
-
-- TikTok: `commercial_content_type: "brand_organic"` and `is_brand_organic_post: true` (already wired in `src/publisher/late/client.py`).
-- YouTube: `paid_promotion: true` (or the Zernio / late-sdk equivalent field) in the publish payload.
-- Instagram: paid partnership label on Reels and Posts.
-
-These satisfy each platform's policy floor and are additive to the FTC overlay/caption disclosure, not a substitute. Add a regression test that asserts each flag is present in the per-platform payload.
-
-**Done when:** every per-platform publish payload carries the platform's paid-content flag, with a regression test in CI.
-
-### 0.6 Disclosure-test suite
-
-One smoke test per requirement above, living next to the existing publisher tests and running in CI on every PR. Asserts: overlay is rendered, caption first line is the disclosure, affiliate phrase is present in at least one rendered location, language matches script, platform flags are set in the payload. Fails the build on any drift.
-
-**Done when:** the suite catches every documented disclosure regression.
-
-### 0.7 Documentation
-
-Add a `docs/compliance.md` that describes the disclosure stack the pipeline produces, what each layer satisfies (FTC, Amazon Operating Agreement, platform policy), what configuration knobs exist, and what creators are still expected to verify manually (e.g., bio identification on each social profile). Cross-link from `docs/publisher.md` and from the README's feature list.
-
-**Done when:** `docs/compliance.md` exists and the publisher README points to it.
-
 ## Phase 1 — Hook and retention surgery (Now)
 
-Targeted for the next 4-6 weeks. Highest-leverage block; downstream phases depend on retention being fixed first.
-
-Industry benchmark for short-form: 70-80% stayed-to-watch on YouTube Shorts, 60%+ 3-second hold on Reels, sub-1.5s distribution decisions on TikTok. Faceless slideshow content with a generic intro typically lands well below those benchmarks. The items below address that gap at the script-prompt and assembler levels.
-
-### 1.1 Front-loaded long-tail keyword in script prompts
-
-Edit the script templates in `src/ai/prompts/scripts/` to require a long-tail audio hook in line 1, with structure `[audience or context] + [problem or benefit] + [price band]`. Mirror the hook in the on-screen text overlay and the platform caption (Rule of 3s — same keyword in caption, on-screen text, and spoken audio in the first 3 seconds). TikTok ranks spoken audio as a primary signal alongside captions, so the first 5 seconds of TTS determine search inclusion.
-
-**Done when:** spot-check 10 produced videos shows the long-tail keyword appears in TTS within the first 5 seconds and again in the on-screen text and caption.
-
-### 1.2 Punchline-first opener with visual interrupt
-
-Modify the script templates so line 1 is the payoff, not the setup. Update the assembler in `src/video/producer/` so the first frame is mid-action (already-drawn arrow, mid-unbox image), not a fade-in. If the slide has a static product photo, add a 0.2s pre-zoom or pan to inject motion. Burned-in big text on the first frame is mandatory because 85-92% of mobile views are sound-off.
-
-**Done when:** the assembler emits a non-fade first frame with burned-in hook text, and a sample of 30 produced videos averages above 50% retention at the 3-second mark on YouTube Shorts.
-
-### 1.3 Short profile (15-30s) for hook iteration
-
-Add a `slideshow_short_20s` profile to `config/video_production.yaml` with shorter slide durations and a script word-budget around 50-60 words (tuned for ~150-180 wpm TTS pacing). Make the profile selectable per-platform in the publisher so the same product can render two cuts (a short YT cut and a longer TikTok/IG cut) when needed.
-
-**Done when:** the short profile renders a clean 15-30s output and the publisher accepts a per-platform profile-routing field.
+The foundational items shipped across 0.48.0-0.49.0 (audio-keyword opener, engagement-bait closing line, caption mirror) and on the current branch (punchline-first opener with visual interrupt, short profile). One Gen Z cut-density profile remains.
 
 ### 1.4 High-density cut profile
 
@@ -92,33 +36,15 @@ Add a `cut_density: high` profile setting in `config/video_production.yaml` that
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
 
-### 1.5 Closing comment-fork or spec-correction line
+## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
-Add a closing-line block to every script template that injects a comment-fork (two-option opinion question) or spec-correction line (a deliberately debatable claim that invites correction). The closing line stays in both the spoken script and the platform caption. Doesn't replace the affiliate CTA — adds an extra closing beat right before the CTA. Generic engagement bait ("Comment YES if...") is spam-filtered; specific opinion forks and spec-correction bait still drive comments.
-
-**Done when:** sample of 10 produced scripts shows 9+ include a comment-fork or spec-correction in the closing 5 seconds.
-
-## Phase 2 — Pillar persistence, non-affiliate mode, voice pinning (Now/Next)
-
-Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`; per-pillar preambles and audiences). What's still missing: pillar persistence into runtime state, an opt-out for affiliate URL injection so the same pipeline can carry an educational track, and voice pinning.
-
-### 2.1 Persist active pillar in state and registry
-
-Pillar is currently a runtime selector that filters the template pool and prepends a preamble, but the chosen pillar is not written into `pipeline_state.json` or the published-products registry. Without persistence, downstream analytics can't segment by pillar. Add `pillar` to the state file in `src/video/producer/state.py` and to the registry record in `src/publisher/product_registry.py`. Backfill the registry rebuild path so existing rows can be re-tagged from `pipeline_state.json` where available.
-
-**Done when:** every produced video records its pillar in `pipeline_state.json` and the registry row, and `registry --rebuild` preserves pillars on existing rows.
+Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
 
 ### 2.2 Non-affiliate pillar mode (educational / how-to track)
 
 Add a `non_affiliate: true` flag at the pillar level. When set, the publisher skips appending the affiliate URL and skips the link-in-bio registration. Lets creators run an educational or how-to track alongside an affiliate track from the same pipeline. Educational content earns trust and search SEO; the audio script can still mention specific products by name (audio-keyword crossover indexes the video for both the help query and the product query) without an explicit affiliate push.
 
 **Done when:** a video produced under a `non_affiliate: true` pillar publishes with platform-appropriate captions, no affiliate URL, and no bio-link registration, while still naming products in the spoken script.
-
-### 2.3 Default voice profile (voice pinning)
-
-Add a `default_voice_profile` field to `tts_config` in `config/subtitles.yaml`. When set, unattended runs use that voice unless `--voice-profile` overrides. The random-voice path stays available for testing. Complements the channel-wide `narrator_profile` (text direction, shipped in 0.43.0) by pinning the synthesized voice itself.
-
-**Done when:** an unattended batch picks the configured default voice every time without a CLI flag.
 
 ## Phase 3 — Conversion infrastructure (Now/Next)
 
@@ -393,6 +319,7 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - `{SHORT_PRODUCT_NAME}` placeholder resolved by a brand-plus-model heuristic in `format_prompt`.
 - NFKC normalization of product titles and descriptions before prompt injection (kills Amazon's mathematical-alphabet bold tricks); em/en dash replacement in descriptions.
 - Honest-tradeoff clause: per-template `## Rules` block requires one short trade-off or limitation per script.
+- Phase 2.1 state-side: chosen pillar persists to `pipeline_state.json` for every produced video.
 
 **Pycaps subtitle engine maturity (0.44.x)**
 - AI word tagging via Gemini in pycaps. Reuses existing Gemini key. Built-in `neo-minimal` and `explosive` templates ship `type: ai` rules. Per-call errors governed by `pycaps.ai_tagging_on_error` (default `skip`).
@@ -400,3 +327,26 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Default pycaps template pool tightened to `["explosive", "word-focus"]` (50/50 AI-tagged / untagged); default template `explosive`.
 - `--pycaps-template NAME` now actually forces the named template (was silently no-op against multi-entry pools).
 - `make produce-lowpri` cgroup hardening with `MemorySwapMax=0` so producer memory pressure doesn't trigger systemd-oomd kills on unrelated session apps.
+
+**TTS voice pinning (0.45.x)**
+- Phase 2.3 default voice profile. `tts_config.default_voice_profile` pins one voice for unattended runs without a CLI flag. Voice selection precedence: CLI override > non-empty pool (random for A/B) > pinned default > random across all profiles. Bundled `default_voice_profile: charon`.
+
+**Phase 0 disclosure compliance baseline (0.46.x)**
+- Phase 0.1 persistent on-frame disclosure overlay (`#ad` by default, configurable text). Burned in a fixed corner of every produced video, full-clip duration, sized smaller than narration captions. Configurable per render so language-aware variants can ship without code changes.
+- Phase 0.2 first-line caption disclosure on every platform. Disclosure leads each caption on its own line ahead of the description and hashtag block. `#ad` deduped from hashtags so it never appears twice.
+- Phase 0.5 platform-tag audit completed: YouTube `containsSyntheticMedia: true` set on every publish payload alongside the TikTok branded-content flags already wired.
+- Phase 0.6 cross-cutting disclosure regression suite at `tests/test_disclosure_stack.py` covers all four disclosure surfaces with consistency invariants.
+- Phase 0.7 `docs/compliance.md` describes the disclosure stack, regulator coverage, and the per-video manual workarounds for SDK gaps.
+- Phase 2.1 registry side: `pillar` column on the published-products registry; `--rebuild` retroactively tags rows from the producer state file. Backward-compatible loader.
+
+**Script template hook and closing rules (0.48.x)**
+- Phase 1.1 long-tail audio keyword required in line 1 of every script template. Six proven hook patterns listed in each template's Rules block; literal Google-query shape called out as anti-pattern.
+- Phase 1.5 engagement-bait closing line required in every script template. Personal/storytelling templates use a two-option comment-fork; analytical/comparison templates use a debatable spec claim that invites a correction.
+
+**Caption-side mirror of the engagement-bait closing line (0.49.x)**
+- Per-platform caption generators receive the rendered spoken script and mirror its closing engagement-bait line into each caption body. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s). Empty or missing script produces a normal caption with no closing line.
+
+**Hook retention surgery and short profile (Unreleased)**
+- Phase 1.2 punchline-first opener. Anti-setup clause across all 15 script templates so line 1 states a concrete fact instead of a setup framing. Pre-motion (Ken Burns settle-zoom) on the first image segment (`first_frame_pre_motion` + `pre_motion_peak_zoom`). Burned-in hook overlay renders the first sentence of the spoken script as centre-upper static text on the first 1.5 s, drawn after subtitles and before the disclosure rewrite. Cold-open variant rotation framework: three named variants selected per product via salted MD5 and persisted to `pipeline_state.json` for analytics. Hook-line lead in the subtitle timing smoother (first 3 words led by an extra 200 ms on top of the base lead).
+- Phase 1.3 short profile and per-platform routing. New `slideshow_short_20s` (15-30 s canvas at ~50-60 word script budget). `profiles: <platform>: <profile>` mapping in `config/publisher.yaml` routes each platform to a named profile; the publisher prefers `video_<asin>_<profile>.mp4` and falls back to the first matching render when unset.
+- Phase 1.5 closing-line rule pivot. The 8 analytical templates now branch the spec-correction close on whether the description carries a contestable performance number; passive products close with a material-or-use claim instead. Fixes a fabrication case where the LLM invented numeric specs on products that didn't have them.
