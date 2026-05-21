@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-05-21
+
 ### Added
 - Phase 1.3 short profile and per-platform routing. New `slideshow_short_20s` profile in `config/video_production.yaml` with a ~50-60 word script budget at 150-180 wpm TTS pacing, sized for the 15-30s hook-iteration zone. New `profiles: <platform>: <profile_name>` block in `config/publisher.yaml` maps each platform to a profile, and `select_video_for_platform` prefers `video_<asin>_<profile>.mp4` per platform with a fallback to the first matching render. `PublisherConfig.profiles` accepts the mapping; unset / empty preserves the pre-1.3 first-match behaviour.
 - Phase 1.2 pre-motion (Ken Burns settle-zoom) on the first image segment. Frame 0 sits at `pre_motion_peak_zoom` (default 1.10) and the zoom decreases by `(peak - 1.0) / total_frames` per frame, landing at 1.0 on the last frame. Centre stays fixed. New fields on `VideoSettings` and matching profile-level overrides on `VideoProfile`. Enabled by default on `slideshow_short_20s`; opt-in on the existing 30-45s profiles. Defeats the static-still-then-fade pattern that burns the 1.5-second decision window.
