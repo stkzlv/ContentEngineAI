@@ -112,9 +112,8 @@ class TestLoadBatchConfigDictKeywords:
 
 class TestBaseProductDataPillar:
     def test_pillar_field_defaults_none(self) -> None:
-        from src.scraper.base.models import Platform
-
         from src.scraper.amazon.models import ProductData
+        from src.scraper.base.models import Platform
 
         p = ProductData(
             title="Test",
@@ -125,9 +124,8 @@ class TestBaseProductDataPillar:
         assert p.pillar is None
 
     def test_pillar_field_serializes(self) -> None:
-        from src.scraper.base.models import Platform
-
         from src.scraper.amazon.models import ProductData
+        from src.scraper.base.models import Platform
 
         p = ProductData(
             title="Test",
