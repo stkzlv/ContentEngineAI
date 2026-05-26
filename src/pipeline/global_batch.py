@@ -1195,6 +1195,13 @@ class GlobalPipelineOrchestrator:
                     )
 
                 try:
+                    cli_overrides = self._build_cli_overrides()
+                    product_pillar = getattr(product, "pillar", None)
+                    if product_pillar and not self.config.pillar:
+                        if cli_overrides is None:
+                            cli_overrides = {}
+                        cli_overrides.setdefault("pillar", product_pillar)
+
                     # Call video producer with timeout
                     result_path = await asyncio.wait_for(
                         create_video_for_product(
@@ -1206,7 +1213,7 @@ class GlobalPipelineOrchestrator:
                             debug_mode=self.config.debug,
                             clean_run=False,
                             debug_step_target=None,
-                            cli_overrides=self._build_cli_overrides(),
+                            cli_overrides=cli_overrides,
                         ),
                         timeout=config.pipeline_timeout_sec,
                     )

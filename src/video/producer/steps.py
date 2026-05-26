@@ -330,6 +330,7 @@ async def step_generate_script(ctx: PipelineContext):
             return
 
         try:
+            pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
             script_text, template_name = await generate_ai_script(
                 ctx.product,
                 ctx.config.llm_settings,
@@ -342,7 +343,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.debug_mode,
                 ctx.config.api_settings,
                 product_id=ctx.product.asin,
-                pillar=ctx.state.get("pillar"),
+                pillar=pillar,
             )
         except (RuntimeError, ValueError, OSError) as e:
             raise PipelineError(f"Script generation failed: {e}") from e
@@ -499,6 +500,10 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
             "metadata_instagram": product_root / "metadata_instagram.json",
         }
 
+        # Resolve pillar from CLI override or product data
+        active_pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
+        script_cfg = ctx.config.llm_settings.script_templates
+
         # Generate metadata for all platforms in parallel
         metadata_results = await PlatformMetadataFactory.generate_multi_platform(
             product=ctx.product,
@@ -509,6 +514,9 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
             intermediate_paths=intermediate_paths,
             debug_mode=ctx.debug_mode,
             api_settings=ctx.config.api_settings,
+            narrator_profile=script_cfg.narrator_profile,
+            pillar=active_pillar,
+            pillar_preambles=script_cfg.pillar_preambles,
         )
 
         # Save metadata to individual platform files

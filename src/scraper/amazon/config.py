@@ -277,7 +277,7 @@ def load_batch_config(
     # Load YAML batch configuration with defaults
     yaml_batch = CONFIG.get("batch", {})
     yaml_product_ids = yaml_batch.get("product_ids", [])
-    yaml_keywords = yaml_batch.get("keywords", [])
+    yaml_keywords_raw = yaml_batch.get("keywords", [])
     yaml_fail_fast = yaml_batch.get("fail_fast", False)
     yaml_products_per_keyword = yaml_batch.get("products_per_keyword", 2)
 
@@ -285,6 +285,23 @@ def load_batch_config(
     yaml_max_products = (
         CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 10)
     )
+
+    # Build keyword list and pillar map from YAML.
+    # Dict shape (pillar -> keyword list) attaches each keyword to its pillar.
+    # Flat list shape (backward compat) leaves the pillar map empty.
+    keyword_pillar_map: dict[str, str] = {}
+    if isinstance(yaml_keywords_raw, dict):
+        yaml_keywords: list[str] = []
+        for pillar, kw_list in yaml_keywords_raw.items():
+            if not isinstance(kw_list, list):
+                continue
+            for kw in kw_list:
+                yaml_keywords.append(kw)
+                keyword_pillar_map[kw] = str(pillar)
+    elif isinstance(yaml_keywords_raw, list):
+        yaml_keywords = yaml_keywords_raw
+    else:
+        yaml_keywords = []
 
     # Apply CLI > YAML > Defaults precedence
     product_ids = cli_product_ids if cli_product_ids is not None else yaml_product_ids
@@ -316,6 +333,7 @@ def load_batch_config(
         search_params=search_params,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
+        keyword_pillar_map=keyword_pillar_map,
     )
 
     return batch_config

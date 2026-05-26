@@ -73,6 +73,9 @@ class BaseProductData:
     affiliate_link: str | None = None
     shortened_affiliate_link: str | None = None
 
+    # Content pillar (attached from source keyword config)
+    pillar: str | None = None
+
     def __post_init__(self):
         """Post-initialization validation and setup."""
         # All list fields are now initialized with default_factory
@@ -100,6 +103,7 @@ class BaseProductData:
             "platform_id": self.platform_id,
             "affiliate_link": self.affiliate_link,
             "shortened_affiliate_link": self.shortened_affiliate_link,
+            "pillar": self.pillar,
         }
 
 

@@ -4,7 +4,7 @@ This module contains Amazon-specific data structures that extend the base
 platform-agnostic models with Amazon-specific fields and functionality.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..base import BaseProductData, BaseSearchParameters, Platform
@@ -197,11 +197,16 @@ class BatchConfig:
     """
 
     product_ids: list[str]  # Product IDs (ASINs) to scrape
-    keywords: list[str]  # Keywords to search
+    keywords: list[str]  # Keywords to search (flattened from pillar dict)
     fail_fast: bool  # Stop on first failure
     search_params: SearchParameters  # Filters for keyword searches
     max_products: int  # Max products across all sources
     products_per_keyword: int  # Max products per keyword/product ID
+    keyword_pillar_map: dict[str, str] = field(default_factory=dict)
+
+    def pillar_for(self, keyword: str) -> str | None:
+        """Return the pillar a keyword belongs to, or None."""
+        return self.keyword_pillar_map.get(keyword)
 
 
 @dataclass
