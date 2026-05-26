@@ -205,14 +205,21 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     }
 
     if debug_mode:
-        logger.info("📊 [MEDIA DOWNLOAD] Download summary for ASIN %s:", asin)
+        logger.info("[MEDIA DOWNLOAD] Download summary for ASIN %s:", asin)
+        images_skipped = len(image_urls) - len(downloaded_images)
+        if images_skipped > 0:
+            logger.info(
+                "   Images: %d downloaded, %d skipped (placeholder/too-small)",
+                len(downloaded_images),
+                images_skipped,
+            )
+        else:
+            logger.info(
+                "   Images: %d downloaded",
+                len(downloaded_images),
+            )
         logger.info(
-            "   • Images: %d/%d downloaded and validated successfully",
-            len(downloaded_images),
-            len(image_urls),
-        )
-        logger.info(
-            "   • Videos: %d/%d downloaded and validated successfully",
+            "   Videos: %d/%d downloaded",
             len(downloaded_videos),
             len(video_urls),
         )

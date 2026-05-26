@@ -347,8 +347,8 @@ class DebugSettings(BaseModel):
     cleanup_on_success: bool = Field(False)
     cleanup_on_failure: bool = Field(False)
     cleanup_whisper_files: bool = Field(False)
-    operation_timing_threshold_sec: float = Field(5.0)
-    memory_usage_warning_mb: int = Field(1000)
+    operation_timing_threshold_sec: float = Field(180.0)
+    memory_usage_warning_mb: int = Field(3000)
 
 
 class ProductFiles(BaseModel):
