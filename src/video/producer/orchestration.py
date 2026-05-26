@@ -376,11 +376,12 @@ async def create_video_for_product(
         performance_monitor.finish_pipeline(success=True)
 
         # Check performance thresholds and log warnings
-        timing_threshold = 5.0
-        memory_warning = 1000
         if config.debug_settings:
             timing_threshold = config.debug_settings.operation_timing_threshold_sec
             memory_warning = config.debug_settings.memory_usage_warning_mb
+        else:
+            timing_threshold = 180.0
+            memory_warning = 3000
         threshold_warnings = performance_monitor.check_thresholds(
             timing_threshold_sec=timing_threshold,
             memory_warning_mb=memory_warning,
