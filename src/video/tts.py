@@ -517,11 +517,12 @@ async def _generate_gemini_speech(
 
     ensure_dirs_exist(output_path)
 
-    # Gemini TTS uses text + prompt (not SSML)
-    input_kwargs: dict[str, str] = {"text": text}
-    if profile.style_prompt:
-        input_kwargs["prompt"] = profile.style_prompt
-    synthesis_input = texttospeech.SynthesisInput(**input_kwargs)
+    # Gemini TTS uses text only. The style_prompt field is NOT passed as
+    # the SynthesisInput prompt parameter because the Gemini TTS model
+    # reads it aloud as spoken content instead of treating it as a style
+    # directive. Voice character is controlled by the voice name selection
+    # (Charon, Puck, etc.) rather than the prompt field.
+    synthesis_input = texttospeech.SynthesisInput(text=text)
 
     voice_params = texttospeech.VoiceSelectionParams(
         language_code=selected_voice.language_codes[0],
