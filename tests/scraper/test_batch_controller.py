@@ -272,6 +272,51 @@ class TestKeywordProcessing:
         assert all(r.success for r in results)
         assert all(r.source == "keyword" for r in results)
 
+    def test_process_keywords_sets_product_pillar(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Keyword-sourced products carry the pillar from the config map."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["smart plug"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+            keyword_pillar_map={"smart plug": "value"},
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        results = controller._process_keywords()
+
+        assert len(results) == 1
+        assert results[0].data is not None
+        assert results[0].data.pillar == "value"
+
+    def test_process_keywords_no_pillar_when_unmapped(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """Keywords not in the pillar map leave product.pillar as None."""
+        config = BatchConfig(
+            product_ids=[],
+            keywords=["unknown keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=10,
+            products_per_keyword=5,
+        )
+
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        controller = BatchController(mock_scraper, config)
+        results = controller._process_keywords()
+
+        assert len(results) == 1
+        assert results[0].data is not None
+        assert results[0].data.pillar is None
+
     def test_process_keywords_multiple_products(
         self, mock_scraper, sample_search_params, sample_product_data
     ):
