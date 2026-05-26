@@ -66,6 +66,9 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
         debug_mode: bool,
         api_settings=None,
         video_script: str | None = None,
+        narrator_profile: str = "",
+        pillar: str | None = None,
+        pillar_preambles: dict[str, str] | None = None,
     ) -> PlatformMetadata | None:
         """Generate YouTube-optimized metadata using LLM.
 
@@ -85,6 +88,9 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 metadata template's `{VIDEO_SCRIPT}` placeholder substitutes
                 with this text so the LLM can mirror the script's closing
                 engagement-bait line into the description.
+            narrator_profile: Channel-wide voice direction prepended to the prompt.
+            pillar: Content pillar name for pillar-specific preamble lookup.
+            pillar_preambles: Dict mapping pillar names to preamble text.
 
         Returns:
         -------
@@ -121,6 +127,9 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 debug_mode,
                 secrets=secrets,
                 video_script=video_script,
+                narrator_profile=narrator_profile,
+                pillar=pillar,
+                pillar_preambles=pillar_preambles,
             )
 
             if not response:

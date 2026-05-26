@@ -69,6 +69,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         debug_mode: bool,
         api_settings=None,
         video_script: str | None = None,
+        narrator_profile: str = "",
+        pillar: str | None = None,
+        pillar_preambles: dict[str, str] | None = None,
     ) -> PlatformMetadata | None:
         """Generate Instagram-optimized metadata using LLM.
 
@@ -88,6 +91,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 caption template's `{VIDEO_SCRIPT}` placeholder substitutes
                 with this text so the LLM can mirror the script's closing
                 engagement-bait line into the caption body.
+            narrator_profile: Channel-wide voice direction prepended to the prompt.
+            pillar: Content pillar name for pillar-specific preamble lookup.
+            pillar_preambles: Dict mapping pillar names to preamble text.
 
         Returns:
         -------
@@ -131,6 +137,16 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
 
             # Format with product data
             prompt = format_prompt(template, product, video_script=video_script)
+
+            if narrator_profile or pillar:
+                from src.ai.script_generator import apply_prompt_preambles
+
+                prompt = apply_prompt_preambles(
+                    prompt,
+                    narrator_profile,
+                    pillar,
+                    pillar_preambles or {},
+                )
 
             if debug_mode:
                 logger.info(f"Instagram caption style: {caption_style}")
