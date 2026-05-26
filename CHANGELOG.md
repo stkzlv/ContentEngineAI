@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Source-keyword pillar attachment. `config/scraper.yaml` keywords are now a dict keyed by pillar (`value`, `novelty`, `utility`). `BatchConfig` carries a `keyword_pillar_map` that maps each keyword to its pillar. The batch controller sets `product.pillar` on every keyword-sourced product. The producer and global batch fall back to `product.pillar` when `--pillar` is not set, so unattended batches get pillar context without a CLI flag. Flat-list keyword shape is still accepted for backward compatibility.
+- Narrator profile sharing with platform metadata generators. `generate_with_llm()` and the Instagram inline LLM path now receive the narrator profile, pillar, and pillar preambles. Each caption prompt is prefixed with the same voice direction that shapes the spoken script, so captions adopt the video's conversational tone instead of defaulting to SEO copy.
+
+### Fixed
+- Performance threshold warnings no longer fire on every healthy run. Default timing threshold raised from 5 s to 180 s and memory threshold from 1 GB to 3 GB, matching realistic Whisper STT and TTS model peaks. Orchestration fallback values aligned with `DebugSettings` defaults.
+- Secret-masking filter no longer censors product keywords like "wireless". The key=value regex now requires SCREAMING_SNAKE_CASE key names, so only real env-var-shaped secrets are masked.
+- Image download summary no longer inflates the denominator with placeholder thumbnails. Skipped placeholders are reported separately from real download failures.
+
 ## [0.50.0] - 2026-05-21
 
 ### Added

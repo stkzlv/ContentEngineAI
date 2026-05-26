@@ -312,7 +312,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Names are user-defined. Users can rename, add, or remove pillars without code changes.
 
 ### Tagging
-- Keywords declare their pillar via comment markers in `config/scraper.yaml`. A keyword fitting more than one pillar can appear under each (e.g., `mini projector` as both novelty and utility).
+- Keywords declare their pillar via a dict keyed by pillar name in `config/scraper.yaml` (`batch.keywords: {value: [...], novelty: [...], utility: [...]}`). Each scraped product carries the source keyword's pillar through to the producer and registry. A flat list is accepted for backward compatibility (no pillar attached). A keyword fitting more than one pillar can appear under each.
 - Script templates are mapped to pillars via a central `pillars` dict under `script_templates` in `config/ai_services.yaml`. A template can appear under multiple pillars when its style works in more than one (e.g., `classic_promo` could land under both value and novelty).
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 
@@ -320,6 +320,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
 - The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
 - Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.
+- Platform caption generators (YouTube, TikTok, Instagram) receive the same narrator profile and pillar preamble so captions adopt the video's conversational voice rather than defaulting to SEO copy.
 - When a pillar is set, the `{AUDIENCE}` placeholder substitutes the per-pillar audience hint (`script_templates.pillar_audiences[pillar]`) instead of the global `target_audience`. Falls back to the global value when the entry is missing or empty.
 - If `--pillar` is given a name that isn't configured in any of `pillars`, `pillar_preambles`, or `pillar_audiences`, the run logs an info-level hint listing the configured pillars. The run continues; the template filter, preamble injection, and audience override each gracefully no-op.
 - The fully-rendered script prompt (narrator profile + pillar preamble + template + product data) is written to `outputs/<asin>/temp/script_prompt.txt` on every run, useful for inspecting what the LLM actually saw.
