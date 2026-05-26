@@ -56,9 +56,7 @@ class TestLoadBatchConfigDictKeywords:
             },
             "scrapers": {"amazon": {"max_products": 10}},
         }
-        with patch(
-            "src.scraper.amazon.config.CONFIG", yaml_config
-        ):
+        with patch("src.scraper.amazon.config.CONFIG", yaml_config):
             from src.scraper.amazon.config import load_batch_config
 
             bc = load_batch_config()
@@ -79,9 +77,7 @@ class TestLoadBatchConfigDictKeywords:
             },
             "scrapers": {"amazon": {"max_products": 10}},
         }
-        with patch(
-            "src.scraper.amazon.config.CONFIG", yaml_config
-        ):
+        with patch("src.scraper.amazon.config.CONFIG", yaml_config):
             from src.scraper.amazon.config import load_batch_config
 
             bc = load_batch_config()
@@ -99,9 +95,7 @@ class TestLoadBatchConfigDictKeywords:
             },
             "scrapers": {"amazon": {"max_products": 10}},
         }
-        with patch(
-            "src.scraper.amazon.config.CONFIG", yaml_config
-        ):
+        with patch("src.scraper.amazon.config.CONFIG", yaml_config):
             from src.scraper.amazon.config import load_batch_config
 
             bc = load_batch_config(cli_keywords=["custom keyword"])
