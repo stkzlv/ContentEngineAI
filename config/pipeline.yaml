@@ -15,15 +15,19 @@ global_batch:
   # Example: ["B0ABC123", "B0DEF456", "B0GHI789"]
   product_ids: []
 
-  # Keywords to search for products
-  # Example: ["wireless earbuds", "smart watch", "bluetooth speaker"]
+  # Keywords to search for products, grouped by content pillar.
+  # Dict shape attaches the pillar to each scraped product automatically.
+  # A flat list is also accepted (no pillar attached).
   keywords:
-    - "smart ring"
-    - "mini projector"
-    - "portable charger"
-    - "wallet finder"
-    - "car charger"
-    - "LED Strip Lights"
+    value:
+      - "portable charger"
+      - "car charger"
+      - "LED Strip Lights"
+    novelty:
+      - "smart ring"
+      - "mini projector"
+    utility:
+      - "wallet finder"
 
   # Maximum total products to collect across all keywords (global cap)
   # Processing stops when this limit is reached, even if keywords remain

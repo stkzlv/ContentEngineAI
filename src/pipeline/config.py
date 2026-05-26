@@ -328,6 +328,7 @@ class GlobalBatchConfig:
     # Scraper configuration
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
+    keyword_pillar_map: dict[str, str] = field(default_factory=dict)
     max_products: int = 10
     products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
@@ -738,12 +739,22 @@ def load_global_batch_config(
     cli_keywords = getattr(cli_args, "keywords", None)
     cli_has_inputs = cli_product_ids or cli_keywords
 
+    keyword_pillar_map: dict[str, str] = {}
     if cli_has_inputs:
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
     else:
         product_ids = yaml_config.get("product_ids", []) or []
-        keywords = yaml_config.get("keywords", []) or []
+        yaml_keywords_raw = yaml_config.get("keywords", []) or []
+        if isinstance(yaml_keywords_raw, dict):
+            keywords = []
+            for pillar_name, kw_list in yaml_keywords_raw.items():
+                if isinstance(kw_list, list):
+                    for kw in kw_list:
+                        keywords.append(kw)
+                        keyword_pillar_map[kw] = str(pillar_name)
+        else:
+            keywords = yaml_keywords_raw if isinstance(yaml_keywords_raw, list) else []
 
     # Max products (global cap across all keywords)
     max_products = (
@@ -862,6 +873,7 @@ def load_global_batch_config(
     return GlobalBatchConfig(
         product_ids=product_ids,
         keywords=keywords,
+        keyword_pillar_map=keyword_pillar_map,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,

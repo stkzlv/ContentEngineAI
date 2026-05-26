@@ -988,7 +988,10 @@ class GlobalPipelineOrchestrator:
 
                 if products:
                     inputs_processed += 1
+                    kw_pillar = self.config.keyword_pillar_map.get(input_item)
                     for product in products:
+                        if kw_pillar:
+                            product.pillar = kw_pillar
                         if hasattr(product, "asin") and product.asin:
                             successful_products.append(product.asin)
                         if hasattr(product, "images") and product.images:
