@@ -252,6 +252,7 @@ class BatchController:
                     # Add each product as a result
                     for product in products:
                         product_id = product.asin or product.title or "unknown"
+                        product.pillar = self.config.pillar_for(keyword)
                         results.append(
                             ProductResult(
                                 product_id=product_id,

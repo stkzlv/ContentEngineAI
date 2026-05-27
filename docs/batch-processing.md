@@ -54,8 +54,11 @@ poetry run python -m src.scraper.amazon.scraper \
 ```yaml
 batch:
   keywords:
-    - "wireless earbuds"
-    - "bluetooth headphones"
+    value:
+      - "wireless earbuds"
+      - "bluetooth headphones"
+    novelty:
+      - "smart ring"
   max_products: 10          # Global cap across all keywords
   products_per_keyword: 1   # Limit per individual keyword
 

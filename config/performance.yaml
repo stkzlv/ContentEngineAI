@@ -127,6 +127,6 @@ debug_settings:
   create_whisper_debug_files: true
   create_temp_files: true
 
-  # Performance thresholds
-  operation_timing_threshold_sec: 5.0
-  memory_usage_warning_mb: 1000
+  # Performance thresholds (Whisper STT runs 60-120s; peak RSS ~2.3GB)
+  operation_timing_threshold_sec: 180.0
+  memory_usage_warning_mb: 3000

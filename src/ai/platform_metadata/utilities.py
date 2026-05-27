@@ -106,15 +106,19 @@ async def generate_with_llm(
     debug_mode: bool = False,
     secrets: dict[str, str] | None = None,
     video_script: str | None = None,
+    narrator_profile: str = "",
+    pillar: str | None = None,
+    pillar_preambles: dict[str, str] | None = None,
 ) -> str | None:
     """High-level helper to generate content using LLM with automatic model fallback.
 
     This function encapsulates the common pattern of:
     1. Load prompt template from file
     2. Format template with product data
-    3. Try auto-selecting free model (if enabled)
-    4. Fallback to configured models list
-    5. Call LLM API with retry logic
+    3. Prepend narrator profile and pillar preamble (when provided)
+    4. Try auto-selecting free model (if enabled)
+    5. Fallback to configured models list
+    6. Call LLM API with retry logic
 
     Args:
     ----
@@ -131,6 +135,9 @@ async def generate_with_llm(
             substitutes with this text, letting caption prompts mirror the
             closing engagement-bait line into the platform caption. Templates
             that don't reference the placeholder are unaffected.
+        narrator_profile: Channel-wide voice direction prepended to the prompt.
+        pillar: Content pillar name for pillar-specific preamble lookup.
+        pillar_preambles: Dict mapping pillar names to preamble text.
 
     Returns:
     -------
@@ -145,6 +152,18 @@ async def generate_with_llm(
 
         # Step 2: Format with product data
         prompt = format_prompt(template, product, video_script=video_script)
+
+        # Step 2b: Prepend narrator profile and pillar preamble
+        if narrator_profile or pillar:
+            from src.ai.script_generator import apply_prompt_preambles
+
+            prompt = apply_prompt_preambles(
+                prompt,
+                narrator_profile,
+                pillar,
+                pillar_preambles or {},
+            )
+
         if debug_mode:
             logger.info(f"Formatted prompt ({len(prompt)} chars)")
 

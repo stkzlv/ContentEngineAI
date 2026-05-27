@@ -52,6 +52,9 @@ class BasePlatformMetadataGenerator(ABC):
         debug_mode: bool,
         api_settings=None,
         video_script: str | None = None,
+        narrator_profile: str = "",
+        pillar: str | None = None,
+        pillar_preambles: dict[str, str] | None = None,
     ) -> PlatformMetadata | None:
         """Generate platform-specific metadata using LLM.
 
@@ -72,6 +75,9 @@ class BasePlatformMetadataGenerator(ABC):
                 caption prompts can mirror the script's closing engagement-bait
                 line into the platform caption. Pass through to the LLM call
                 via the `{VIDEO_SCRIPT}` placeholder.
+            narrator_profile: Channel-wide voice direction prepended to the prompt.
+            pillar: Content pillar name for pillar-specific preamble lookup.
+            pillar_preambles: Dict mapping pillar names to preamble text.
 
         Returns:
         -------

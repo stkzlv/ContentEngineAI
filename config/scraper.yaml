@@ -416,71 +416,71 @@ batch:
   # Empty list means no batch processing via product IDs
   product_ids: []
 
-  # List of keywords to search in batch mode
-  # Example: ["wireless earbuds", "bluetooth headphones", "noise cancelling headphones"]
-  # Empty list means no batch processing via keywords
-  # Grouped by content pillar (see docs/requirements.md "Content Pillars").
-  # Order within each group is loose; new entries can land anywhere in their pillar block.
+  # Keywords to search in batch mode, grouped by content pillar.
+  # Dict shape: each key is a pillar name, each value is a list of keywords.
+  # The pillar is attached to each scraped product so downstream steps
+  # (script generation, metadata, registry) can use it without --pillar.
+  # A flat list is still accepted for backward compatibility (no pillar attached).
   keywords:
-    # value: under-$30 staples, mass-appeal hooks
-    - "USB C hub"
-    - "smart plug"
-    - "smart light bulb"
-    - "car charger"
-    - "portable charger"
-    - "wireless charging pad"
-    - "bluetooth tracker"
-    - "LED strip lights"
-    - "digital picture frame"
-    - "wireless earbuds"
-    - "bluetooth speaker"
-    - "MagSafe wallet"
-    - "MagSafe ring grip"
-    - "magnetic phone mount"
-    - "galaxy projector"
-    - "sunset lamp"
-    - "RFID blocking wallet"
+    value:
+      - "USB C hub"
+      - "smart plug"
+      - "smart light bulb"
+      - "car charger"
+      - "portable charger"
+      - "wireless charging pad"
+      - "bluetooth tracker"
+      - "LED strip lights"
+      - "digital picture frame"
+      - "wireless earbuds"
+      - "bluetooth speaker"
+      - "MagSafe wallet"
+      - "MagSafe ring grip"
+      - "magnetic phone mount"
+      - "galaxy projector"
+      - "sunset lamp"
+      - "RFID blocking wallet"
 
-    # novelty: lesser-known or unique, "haven't seen this" hooks
-    - "smart ring"
-    - "smart plant pot"
-    - "smart mirror"
-    - "levitating bluetooth speaker"
-    - "bone conduction headphones"
-    - "portable espresso maker"
-    - "retro game console"
-    - "smart bicycle helmet"
-    - "solar backpack"
-    - "3D pen"
-    - "mini projector"
-    - "drone with camera"
-    - "hydroponics kit"
-    - "herb growing system"
-    - "projection alarm clock"
-    - "pomodoro cube timer"
+    novelty:
+      - "smart ring"
+      - "smart plant pot"
+      - "smart mirror"
+      - "levitating bluetooth speaker"
+      - "bone conduction headphones"
+      - "portable espresso maker"
+      - "retro game console"
+      - "smart bicycle helmet"
+      - "solar backpack"
+      - "3D pen"
+      - "mini projector"
+      - "drone with camera"
+      - "hydroponics kit"
+      - "herb growing system"
+      - "projection alarm clock"
+      - "pomodoro cube timer"
 
-    # utility: practical daily-use, problem/solution framing
-    - "blue light blocking glasses"
-    - "wallet finder"
-    - "compact power station"
-    - "smart luggage tracker"
-    - "robot vacuum"
-    - "smart doorbell camera"
-    - "noise cancelling earbuds"
-    - "phone gimbal stabilizer"
-    - "portable monitor"
-    - "mechanical keyboard"
-    - "smart watch"
-    - "fitness tracker band"
-    - "action camera"
-    - "solar power bank"
-    - "smart door lock"
-    - "keypad deadbolt"
-    - "travel adapter universal"
-    - "automatic pet feeder"
-    - "GPS pet tracker"
-    - "pet water fountain"
-    - "custom macro pad"
+    utility:
+      - "blue light blocking glasses"
+      - "wallet finder"
+      - "compact power station"
+      - "smart luggage tracker"
+      - "robot vacuum"
+      - "smart doorbell camera"
+      - "noise cancelling earbuds"
+      - "phone gimbal stabilizer"
+      - "portable monitor"
+      - "mechanical keyboard"
+      - "smart watch"
+      - "fitness tracker band"
+      - "action camera"
+      - "solar power bank"
+      - "smart door lock"
+      - "keypad deadbolt"
+      - "travel adapter universal"
+      - "automatic pet feeder"
+      - "GPS pet tracker"
+      - "pet water fountain"
+      - "custom macro pad"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure

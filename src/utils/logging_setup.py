@@ -108,12 +108,14 @@ class SecretMaskingFilter(logging.Filter):
 
         result = text
 
-        # Check for key=value patterns first (e.g., API_KEY=xxx)
+        # Check for key=value patterns (e.g., API_KEY=xxx, AUTH_TOKEN: yyy).
+        # Require the key to be SCREAMING_SNAKE_CASE so product keywords
+        # like "wireless" (contains "key") aren't falsely masked.
         result = re.sub(
-            r"(\b\w*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)\w*\s*[=:]\s*)(\S+)",
+            r"(\b[A-Z][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)"
+            r"[A-Z0-9_]*\s*[=:]\s*)(\S+)",
             lambda m: m.group(1) + mask_secret(m.group(2)),
             result,
-            flags=re.IGNORECASE,
         )
 
         # Mask standalone secret-like values

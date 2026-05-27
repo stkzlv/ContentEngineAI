@@ -169,6 +169,9 @@ class PlatformMetadataFactory:
         api_settings=None,
         cache: MetadataCache | None = None,
         trend_generator: TrendAwareHashtagGenerator | None = None,
+        narrator_profile: str = "",
+        pillar: str | None = None,
+        pillar_preambles: dict[str, str] | None = None,
     ) -> dict[str, PlatformMetadata | None]:
         """Generate metadata for all platforms in parallel using asyncio.gather().
 
@@ -200,6 +203,9 @@ class PlatformMetadataFactory:
             api_settings: Optional API-specific settings override
             cache: Optional MetadataCache for caching generated metadata
             trend_generator: Optional TrendAwareHashtagGenerator for trending tags
+            narrator_profile: Channel-wide voice direction prepended to each prompt.
+            pillar: Content pillar name for pillar-specific preamble lookup.
+            pillar_preambles: Dict mapping pillar names to preamble text.
 
         Returns:
         -------
@@ -288,6 +294,9 @@ class PlatformMetadataFactory:
                 debug_mode,
                 api_settings,
                 video_script=video_script,
+                narrator_profile=narrator_profile,
+                pillar=pillar,
+                pillar_preambles=pillar_preambles,
             )
             tasks.append(task)
             task_platforms.append(platform)
