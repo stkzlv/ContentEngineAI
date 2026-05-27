@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-05-27
+
 ### Added
 - Source-keyword pillar attachment. Keywords in `config/scraper.yaml` and `config/pipeline.yaml` are now dicts keyed by pillar (`value`, `novelty`, `utility`). Both `BatchConfig` and `GlobalBatchConfig` carry a `keyword_pillar_map`. The batch controller and global_batch scraping loop set `product.pillar` on every keyword-sourced product. The producer and global batch fall back to `product.pillar` when `--pillar` is not set, so unattended batches get pillar context without a CLI flag. Flat-list keyword shape is still accepted for backward compatibility.
 - Narrator profile sharing with platform metadata generators. `generate_with_llm()` and the Instagram inline LLM path now receive the narrator profile, pillar, and pillar preambles. Each caption prompt is prefixed with the same voice direction that shapes the spoken script, so captions adopt the video's conversational tone instead of defaulting to SEO copy.
