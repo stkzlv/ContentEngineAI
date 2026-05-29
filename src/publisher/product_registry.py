@@ -45,18 +45,27 @@ def load_registry(outputs_dir: Path) -> list[RegistryEntry]:
 
 
 def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:
-    """Write registry to both JSON and CSV."""
+    """Write registry to both JSON and CSV.
+
+    Each existing file is renamed to ``<name>.bak`` before the new file
+    is written, so a write that drops or corrupts entries can be recovered
+    from the backup.
+    """
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
-    # JSON
     json_path = get_registry_path(outputs_dir, "json")
+    csv_path = get_registry_path(outputs_dir, "csv")
+
+    # Back up existing files before overwriting.
+    for p in (json_path, csv_path):
+        if p.exists():
+            p.replace(p.with_suffix(p.suffix + ".bak"))
+
     json_path.write_text(
         json.dumps([asdict(e) for e in entries], indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
 
-    # CSV
-    csv_path = get_registry_path(outputs_dir, "csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=["product_id", "title", "url", "affiliate_url", "pillar"]
@@ -158,7 +167,12 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
 
 
 def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
-    """Rebuild registry from all product data.json files.
+    """Rebuild registry by merging scanned entries into the existing one.
+
+    Existing entries stay in the registry even when their product directory
+    has been cleaned up after publishing. Scanned entries update matching
+    existing rows (keyed by product_id) and add new ones. Counts logged
+    cover existing, scanned, and final entry totals.
 
     Args:
     ----
@@ -167,19 +181,23 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
 
     """
     source = scan_dir or outputs_dir
-    entries: list[RegistryEntry] = []
-    seen: set[str] = set()
+    existing = {e.product_id: e for e in load_registry(outputs_dir)}
+    existing_count = len(existing)
 
+    scanned_count = 0
     for data_json in sorted(source.glob("*/data.json")):
         product_id = data_json.parent.name
-        if product_id in seen:
-            continue
-
         entry = _read_product_data(product_id, source)
         if entry and entry.title:
-            entries.append(entry)
-            seen.add(product_id)
+            existing[product_id] = entry
+            scanned_count += 1
 
+    entries = list(existing.values())
     save_registry(entries, outputs_dir)
-    logger.info("Registry rebuilt: %d products", len(entries))
+    logger.info(
+        "Registry rebuilt: %d entries (existing=%d, scanned=%d)",
+        len(entries),
+        existing_count,
+        scanned_count,
+    )
     return len(entries)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-05-29
+
+### Fixed
+- `record_publish` no longer silently drops `publish_history.json` writes. The publish-record loop is wrapped so a tracking write that fails for one platform doesn't drop the others, and `outputs_dir` is resolved to an absolute path so anything changing cwd downstream can't redirect the file.
+- `registry --rebuild` no longer wipes the registry when product directories have been cleaned up after publishing. `save_registry()` now writes a `.bak` of each JSON/CSV file before overwriting, and `rebuild_registry()` merges scanned entries into the existing registry instead of replacing it.
+- Title and description that exceed platform limits are trimmed on word boundaries with an ellipsis before reaching the publisher (YouTube 100/5000, TikTok/Instagram 2200). YouTube no longer truncates titles mid-word server-side. Hashtag-count violations stay WARN.
+
 ## [0.51.0] - 2026-05-27
 
 ### Added

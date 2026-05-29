@@ -424,6 +424,8 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Backward-compatible loader: legacy rows without a pillar field load with the field empty.
 - Support bulk import from existing scraped data directories
 - CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose state file carries one
+- Rebuild merges scanned entries into the existing registry; rows whose product directories were cleaned up after publishing stay in the registry
+- Each write of the registry renames the existing JSON/CSV file to `<name>.bak` first so a write that drops or corrupts entries can be recovered
 
 ---
 
@@ -433,6 +435,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - **Unified mode**: Single metadata set for all platforms
 - **Optimized mode**: Platform-tailored titles, descriptions, hashtags
 - Character limit validation per platform
+- Title and description that exceed the platform's hard cap are trimmed on a word boundary with an ellipsis before reaching the publisher. Hashtag-count violations are logged as warnings; the publisher does not invent or drop tags.
 
 ### Compliance
 - Persistent on-frame disclosure overlay burned into every render. Fixed corner placement, full-clip duration, sized smaller than narration captions. Configurable text, position, size, color, outline, and background per render. Disabling the overlay is opt-in for non-affiliate renders (educational pillar mode).

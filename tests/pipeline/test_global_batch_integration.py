@@ -203,6 +203,7 @@ async def test_pipeline_with_product_ids_only(
                 "description": "Test Description",
             }
         )
+        mock_metadata.clamp_to_limits = Mock(return_value=())
         return mock_metadata
 
     with (

@@ -194,3 +194,94 @@ class TestRetryQueue:
         assert item is not None
         assert item["scheduled_time"] == "2026-03-01T10:00:00"
         assert item["platforms"] == ["youtube", "tiktok"]
+
+
+class TestRecordPublishResults:
+    """The cli helper that writes every publish_results entry to history (#138)."""
+
+    def test_records_unified_result_for_every_platform(self, outputs_dir):
+        from src.publisher.late.cli import _record_publish_results
+
+        platforms = [
+            {"platform": "youtube", "account_id": "yt"},
+            {"platform": "tiktok", "account_id": "tt"},
+            {"platform": "instagram", "account_id": "ig"},
+        ]
+        publish_results = [
+            {"result": {"post_id": "abc123", "status": "scheduled"}, "platform": "all"}
+        ]
+
+        count = _record_publish_results(
+            "B0TEST001", publish_results, platforms, outputs_dir
+        )
+
+        assert count == 3
+        tracking = load_tracking(outputs_dir)
+        assert set(tracking["posts"].keys()) == {
+            "B0TEST001:youtube",
+            "B0TEST001:tiktok",
+            "B0TEST001:instagram",
+        }
+        for entry in tracking["posts"].values():
+            assert entry["post_id"] == "abc123"
+
+    def test_records_platform_specific_results(self, outputs_dir):
+        from src.publisher.late.cli import _record_publish_results
+
+        platforms = [
+            {"platform": "youtube", "account_id": "yt"},
+            {"platform": "tiktok", "account_id": "tt"},
+        ]
+        publish_results = [
+            {
+                "result": {"post_id": "yt-id", "status": "scheduled"},
+                "platform": "youtube",
+            },
+            {
+                "result": {"post_id": "tt-id", "status": "scheduled"},
+                "platform": "tiktok",
+            },
+        ]
+
+        count = _record_publish_results(
+            "B0TEST002", publish_results, platforms, outputs_dir
+        )
+
+        assert count == 2
+        tracking = load_tracking(outputs_dir)
+        assert tracking["posts"]["B0TEST002:youtube"]["post_id"] == "yt-id"
+        assert tracking["posts"]["B0TEST002:tiktok"]["post_id"] == "tt-id"
+
+    def test_oserror_on_one_platform_does_not_drop_others(
+        self, outputs_dir, monkeypatch
+    ):
+        from src.publisher.late import cli as cli_mod
+
+        platforms = [
+            {"platform": "youtube", "account_id": "yt"},
+            {"platform": "tiktok", "account_id": "tt"},
+        ]
+        publish_results = [
+            {"result": {"post_id": "abc", "status": "scheduled"}, "platform": "all"}
+        ]
+
+        original = cli_mod.record_publish
+        calls: list[str] = []
+
+        def flaky(product_id, platform, post_id, outputs_dir):
+            calls.append(platform)
+            if platform == "youtube":
+                raise OSError("disk full simulation")
+            return original(product_id, platform, post_id, outputs_dir)
+
+        monkeypatch.setattr(cli_mod, "record_publish", flaky)
+
+        count = cli_mod._record_publish_results(
+            "B0TEST003", publish_results, platforms, outputs_dir
+        )
+
+        assert count == 1
+        assert calls == ["youtube", "tiktok"]
+        tracking = load_tracking(outputs_dir)
+        assert "B0TEST003:tiktok" in tracking["posts"]
+        assert "B0TEST003:youtube" not in tracking["posts"]

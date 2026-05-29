@@ -602,3 +602,100 @@ class TestBatchPublishSummary:
 
         assert summary.duration_seconds == 120.5
         assert summary.get_success_rate() == 100.0
+
+
+class TestTrimOnWordBoundary:
+    """Module-level helper used by clamp_to_limits (#109)."""
+
+    def test_no_op_when_under_limit(self):
+        from src.publisher.models import _trim_on_word_boundary
+
+        assert _trim_on_word_boundary("hello world", 100) == "hello world"
+
+    def test_breaks_on_word_boundary(self):
+        from src.publisher.models import _trim_on_word_boundary
+
+        text = "one two three four five six seven eight nine ten"
+        out = _trim_on_word_boundary(text, 20)
+        assert len(out) <= 20
+        assert out.endswith("...")
+        # Trimmed at a space, so no partial word before the ellipsis.
+        assert " " in out
+        body = out[:-3].rstrip()
+        assert not body.endswith("o")  # not in the middle of "two"
+
+    def test_hard_cut_when_no_whitespace(self):
+        from src.publisher.models import _trim_on_word_boundary
+
+        text = "abcdefghijklmnopqrstuvwxyz" * 5
+        out = _trim_on_word_boundary(text, 20)
+        assert len(out) == 20
+        assert out.endswith("...")
+
+
+class TestClampToLimits:
+    """PublishMetadata.clamp_to_limits trims long title/description (#109)."""
+
+    def test_clamps_youtube_title(self):
+        long_title = (
+            "Anker SOLIX C1000 Gen 2 Portable Power Station, "
+            "2,000W Peak 3,000W Surge LFP Battery for Camping RV "
+            "Home Backup and Outdoor Emergency Use"
+        )
+        assert len(long_title) > 100
+
+        meta = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title=long_title,
+            description="desc",
+        )
+        trimmed = meta.clamp_to_limits()
+
+        assert "title" in trimmed
+        assert meta.title is not None
+        assert len(meta.title) <= 100
+        assert meta.title.endswith("...")
+        assert meta.character_counts["title"] == len(meta.title)
+
+    def test_no_op_when_under_limit(self):
+        meta = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="Short title",
+            description="Short description",
+        )
+        original_title = meta.title
+        original_desc = meta.description
+
+        trimmed = meta.clamp_to_limits()
+
+        assert trimmed == ()
+        assert meta.title == original_title
+        assert meta.description == original_desc
+
+    def test_clamps_tiktok_description(self):
+        long_desc = "word " * 500  # ~2500 chars
+        assert len(long_desc) > 2200
+
+        meta = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description=long_desc,
+        )
+        trimmed = meta.clamp_to_limits()
+
+        assert "description" in trimmed
+        assert len(meta.description) <= 2200
+        assert meta.character_counts["description"] == len(meta.description)
+
+    def test_clamps_both_title_and_description(self):
+        meta = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="x " * 60,  # 120 chars
+            description="y " * 3000,  # 6000 chars
+        )
+        trimmed = meta.clamp_to_limits()
+
+        assert set(trimmed) == {"title", "description"}
+        assert meta.title is not None
+        assert len(meta.title) <= 100
+        assert len(meta.description) <= 5000

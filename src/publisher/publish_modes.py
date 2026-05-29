@@ -112,6 +112,14 @@ async def _publish_unified(
     if not metadata:
         raise ValueError(f"No metadata found for {product_id}")
 
+    trimmed = metadata.clamp_to_limits()
+    if trimmed:
+        logger.info(
+            "Clamped %s for %s to platform limits",
+            ", ".join(trimmed),
+            metadata.platform.value,
+        )
+
     content = metadata.format_content()
     logger.info("Publishing to %d platform(s) in single post...", len(platforms))
 
@@ -166,6 +174,14 @@ async def _publish_platform_specific(
 
         if not metadata:
             raise ValueError(f"No metadata found for {product_id}/{platform_name}")
+
+        trimmed = metadata.clamp_to_limits()
+        if trimmed:
+            logger.info(
+                "Clamped %s for %s to platform limits",
+                ", ".join(trimmed),
+                metadata.platform.value,
+            )
 
         content = metadata.format_content()
 
