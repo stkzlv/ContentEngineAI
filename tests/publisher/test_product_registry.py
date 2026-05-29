@@ -443,3 +443,122 @@ class TestRepublishRefresh:
         # Repeated identical call should NOT touch the file.
         add_to_registry("B0REPUB0004", outputs_dir)
         assert json_path.stat().st_mtime_ns == mtime_before
+
+
+class TestSaveRegistryBackup:
+    """save_registry must back up existing files before overwriting (#137)."""
+
+    def test_creates_bak_for_existing_json(
+        self, outputs_dir: Path, sample_entry: RegistryEntry
+    ) -> None:
+        save_registry([sample_entry], outputs_dir)
+        json_path = outputs_dir / "published_products.json"
+        original = json_path.read_text(encoding="utf-8")
+
+        # Save a different set of entries; original must be preserved as .bak.
+        other = RegistryEntry(
+            product_id="B0OTHER0000",
+            title="Other",
+            url="https://www.amazon.com/dp/B0OTHER0000",
+            affiliate_url="",
+        )
+        save_registry([other], outputs_dir)
+
+        bak_path = json_path.with_suffix(".json.bak")
+        assert bak_path.exists()
+        assert bak_path.read_text(encoding="utf-8") == original
+
+    def test_creates_bak_for_existing_csv(
+        self, outputs_dir: Path, sample_entry: RegistryEntry
+    ) -> None:
+        save_registry([sample_entry], outputs_dir)
+        csv_path = outputs_dir / "published_products.csv"
+        original = csv_path.read_text(encoding="utf-8")
+
+        save_registry([], outputs_dir)
+
+        bak_path = csv_path.with_suffix(".csv.bak")
+        assert bak_path.exists()
+        assert bak_path.read_text(encoding="utf-8") == original
+
+    def test_no_bak_on_first_write(self, outputs_dir: Path) -> None:
+        save_registry([], outputs_dir)
+        assert not (outputs_dir / "published_products.json.bak").exists()
+        assert not (outputs_dir / "published_products.csv.bak").exists()
+
+
+class TestRebuildRegistryMerge:
+    """rebuild_registry must merge with existing entries, not replace (#137)."""
+
+    def test_merges_existing_when_scan_empty(
+        self, outputs_dir: Path, sample_entry: RegistryEntry
+    ) -> None:
+        # Pre-populate registry with two entries, no data.json on disk.
+        other = RegistryEntry(
+            product_id="B0OLD0000XX",
+            title="Old Product",
+            url="https://www.amazon.com/dp/B0OLD0000XX",
+            affiliate_url="",
+        )
+        save_registry([sample_entry, other], outputs_dir)
+
+        count = rebuild_registry(outputs_dir)
+
+        assert count == 2
+        ids = {e.product_id for e in load_registry(outputs_dir)}
+        assert ids == {sample_entry.product_id, other.product_id}
+
+    def test_merges_existing_with_scan(
+        self, outputs_dir: Path, sample_entry: RegistryEntry
+    ) -> None:
+        # Existing: A, B. Scan finds: C. Result: A, B, C.
+        other = RegistryEntry(
+            product_id="B0EXIST0000",
+            title="Existing",
+            url="https://www.amazon.com/dp/B0EXIST0000",
+            affiliate_url="",
+        )
+        save_registry([sample_entry, other], outputs_dir)
+
+        _write_data_json(
+            outputs_dir,
+            "B0NEW000000",
+            {
+                "title": "New Product",
+                "url": "https://www.amazon.com/dp/B0NEW000000",
+                "affiliate_link": "",
+            },
+        )
+
+        count = rebuild_registry(outputs_dir)
+
+        assert count == 3
+        ids = {e.product_id for e in load_registry(outputs_dir)}
+        assert ids == {sample_entry.product_id, "B0EXIST0000", "B0NEW000000"}
+
+    def test_scan_overwrites_existing_on_match(self, outputs_dir: Path) -> None:
+        # Existing A with old title. Scan finds A with new title.
+        old = RegistryEntry(
+            product_id="B0SAME00000",
+            title="Old Title",
+            url="https://www.amazon.com/dp/B0SAME00000",
+            affiliate_url="",
+        )
+        save_registry([old], outputs_dir)
+
+        _write_data_json(
+            outputs_dir,
+            "B0SAME00000",
+            {
+                "title": "New Title",
+                "url": "https://www.amazon.com/dp/B0SAME00000",
+                "affiliate_link": "https://www.amazon.com/dp/B0SAME00000?tag=t-20",
+            },
+        )
+
+        rebuild_registry(outputs_dir)
+
+        entries = load_registry(outputs_dir)
+        assert len(entries) == 1
+        assert entries[0].title == "New Title"
+        assert entries[0].affiliate_url.endswith("tag=t-20")
