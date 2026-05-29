@@ -45,6 +45,26 @@ PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
     Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
 }
 
+_ELLIPSIS = "..."
+
+
+def _trim_on_word_boundary(text: str, limit: int) -> str:
+    """Trim text to at most `limit` chars, breaking on a word boundary.
+
+    Reserves three chars for an ellipsis. Falls back to a hard cut when no
+    whitespace exists in the budgeted range.
+    """
+    if len(text) <= limit:
+        return text
+    budget = limit - len(_ELLIPSIS)
+    if budget <= 0:
+        return text[:limit]
+    head = text[:budget]
+    cut = head.rfind(" ")
+    if cut == -1:
+        return head + _ELLIPSIS
+    return head[:cut].rstrip() + _ELLIPSIS
+
 
 @dataclass(frozen=True)
 class PublishResult:
@@ -215,6 +235,33 @@ class PublishMetadata:
                 )
 
         return True, "Content within limits"
+
+    def clamp_to_limits(self) -> tuple[str, ...]:
+        """Trim title and description to platform limits on word boundaries.
+
+        Returns the names of fields that were trimmed (empty tuple when
+        nothing changed). Updates ``character_counts`` so downstream
+        consumers see the new lengths.
+        """
+        trimmed: list[str] = []
+        limits = PLATFORM_LIMITS.get(self.platform, {})
+
+        title_lim = limits.get("title")
+        if isinstance(title_lim, int) and self.title and len(self.title) > title_lim:
+            self.title = _trim_on_word_boundary(self.title, title_lim)
+            trimmed.append("title")
+
+        desc_lim = limits.get("description")
+        if isinstance(desc_lim, int) and len(self.description) > desc_lim:
+            self.description = _trim_on_word_boundary(self.description, desc_lim)
+            trimmed.append("description")
+
+        if trimmed:
+            self.character_counts["description"] = len(self.description)
+            if self.title:
+                self.character_counts["title"] = len(self.title)
+
+        return tuple(trimmed)
 
     def format_content(self) -> str:
         """Format content for posting: disclosure, description, hashtags, product_id.
