@@ -525,6 +525,8 @@ export LATE_STAGGER_MAX=30
 - Caption length: 2200 characters
 - Supports scheduled publishing (Reels)
 
+Title and description are trimmed on a word boundary with an ellipsis before reaching the publisher when either exceeds the per-platform limit. Hashtag-count violations are logged as warnings; auto-fixing those would invent or drop tags.
+
 </details>
 
 ---
@@ -1445,7 +1447,7 @@ python -m src.publisher.late registry --rebuild --outputs-dir outputs
 python -m src.publisher.late registry --rebuild --scan-dir tmp --outputs-dir outputs
 ```
 
-Running rebuild is idempotent and replaces existing registry files.
+Running rebuild merges scanned entries into the existing registry; rows whose product directories were cleaned up after publishing stay in the registry. Each existing JSON/CSV file is renamed to `<name>.bak` before the new copy is written, so a write that drops or corrupts entries can be recovered from the backup.
 
 </details>
 
@@ -1455,7 +1457,7 @@ Running rebuild is idempotent and replaces existing registry files.
 1. After a successful publish, `add_to_registry()` reads `data.json` for the product
 2. Extracts title, URL (normalized to `https://www.amazon.com/dp/<ASIN>`), and affiliate URL
 3. Skips if product already exists in registry (dedup by product ID)
-4. Writes updated registry to both JSON and CSV
+4. Writes updated registry to both JSON and CSV, renaming each existing file to `<name>.bak` first
 5. Failures are logged as warnings and never block publishing
 
 </details>
