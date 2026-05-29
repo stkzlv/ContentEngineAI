@@ -251,3 +251,72 @@ class TestPublishProductPlatformSpecific:
 
         call_args = mock_load.call_args
         assert isinstance(call_args.args[2], Path)
+
+
+class TestPublishClampsMetadata:
+    """Metadata exceeding platform limits is clamped before publish (#109)."""
+
+    @pytest.mark.asyncio
+    async def test_unified_mode_clamps_oversized_title(self, mock_publisher, platforms):
+        from src.publisher.models import PublishMetadata
+
+        long_title = "Word " * 30  # 150 chars, over the 100 cap
+        oversized = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title=long_title,
+            description="ok",
+            hashtags=[],
+            keywords=[],
+            product_id="B0TEST001",
+        )
+        assert len(oversized.title) > 100
+
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=oversized,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=False,
+            )
+
+        # clamp_to_limits mutates the metadata before format_content runs,
+        # so the publisher.publish call sees a clamped title length.
+        assert oversized.title is not None
+        assert len(oversized.title) <= 100
+
+    @pytest.mark.asyncio
+    async def test_platform_specific_clamps_oversized_description(
+        self, mock_publisher, platforms
+    ):
+        from src.publisher.models import PublishMetadata
+
+        long_desc = "word " * 600  # ~3000 chars, over TikTok's 2200 cap
+        oversized = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description=long_desc,
+            hashtags=[],
+            keywords=[],
+            product_id="B0TEST001",
+        )
+        assert len(oversized.description) > 2200
+
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=oversized,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+                outputs_dir="outputs",
+                platform_specific=True,
+            )
+
+        assert len(oversized.description) <= 2200
