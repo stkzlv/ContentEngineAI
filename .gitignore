@@ -87,3 +87,7 @@ ROADMAP.private.md
 # runtime-only and never go in git.
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Playwright MCP runtime captures (page snapshots, console logs). Capture
+# logged-in session state, so they must never be committed.
+.playwright-mcp/

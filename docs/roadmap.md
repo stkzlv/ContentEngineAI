@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-07
+Last updated: 2026-05-31
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
@@ -32,9 +32,27 @@ The foundational items shipped across 0.48.0-0.49.0 (audio-keyword opener, engag
 
 ### 1.4 High-density cut profile
 
-Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better.
+Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2.
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
+
+### 1.6 Cross-platform safe-zone refresh
+
+The safe-zone docs were aligned to 2026 platform specs (`docs/platform-safe-zones.md` is now the canonical source; the subtitle and promo docs cite it). The runtime constants in `src/video/config/constants.py` still carry the older union (top 200 / bottom 1440 / left 50 / right 840). Update them to the 2026 union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920), driven by Meta's March 2026 Reels unification (14% top, 35% bottom). The current `max_y` of 0.75 lets captions land inside Reels' bottom interactive zone. A single cross-platform render should clamp to the union, not `platform=tiktok` only. Tracked as GitHub issues.
+
+**Done when:** the runtime safe-zone defaults match the canonical doc, and a render's lowest caption pixel stays above y=1250.
+
+### 1.7 Hook-variant A/B measurement
+
+The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers.
+
+**Done when:** the registry carries the hook variant per video and a report segments retention by hook variant.
+
+### 1.8 Loop-friendly ending
+
+Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds. Config flag per profile, off by default.
+
+**Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
@@ -86,6 +104,12 @@ Verify the Instagram path in the publisher posts as a Reel, not as a Feed Post. 
 
 **Done when:** the next batch publishes to IG as Reels, confirmed end-to-end, with a test in place to prevent drift.
 
+### 3.7 Pre-production conversion gate in the scraper
+
+Score and filter product candidates before rendering, using the data the scraper already pulls (price, rating, review count, stock, Prime/shipping). Drop weak-converting candidates up front: rating below a floor, thin review count, out of stock, price outside a configurable impulse band. Renders are expensive; spending them on products that won't convert is the largest avoidable waste in the funnel. This sits upstream of the listing-drift diagnostic (5.2), which only monitors drift after publish. Thresholds live in `config/scraper.yaml`.
+
+**Done when:** a scrape run rejects below-threshold products before the producer stage, with the rejection reason logged.
+
 ## Phase 4 — Per-platform optimisations (Next)
 
 Targeted for the following quarter. Builds on Phases 1-3.
@@ -125,6 +149,18 @@ Wrap every Amazon affiliate URL with the OneLink redirect at publish time so non
 Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a new product rotates the featured slot rather than appending. Industry baseline: link-in-bio hubs see 20-40% click-through to the top destination URL when only 2-3 links are present; the first 3 positions get ~130% higher CTR than positions 4-10. Cap the bio at the most recent featured product plus an "all products" fallback.
 
 **Done when:** the bio shows at most 2-3 links at any time, with the most recent product as the featured slot.
+
+### 4.7 Cover / poster-frame generation
+
+Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Shorts/Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
+
+**Done when:** every render produces a cover image and the publish payload sets it as the poster where the platform supports it.
+
+### 4.8 Episodic series framing per pillar
+
+Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system.
+
+**Done when:** published titles/captions carry a per-pillar episode number that increments across the back-catalogue.
 
 ## Phase 5 — Analytics and continuous learning (Next)
 
@@ -354,3 +390,8 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 **Pillar infrastructure and caption voice (Unreleased)**
 - Keyword-to-pillar attachment in the scraper config. Keywords in `config/scraper.yaml` are a dict keyed by pillar; each scraped product carries the pillar through to the producer and registry without `--pillar`.
 - Narrator profile and pillar preamble shared with platform caption generators (YouTube, TikTok, Instagram) so captions match the video's conversational voice.
+
+**Best-practices docs (Unreleased)**
+- Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button. Runtime constant refresh tracked separately (roadmap 1.6).
+- New `docs/audio-best-practices.md`: the sound-on layer (trending vs original audio, voiceover/music mix levels, ducking, audio hook, platform loudness).
+- New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary) backing the high-density cut profile (1.4).

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.2] - 2026-05-31
+
+### Documentation
+- `docs/platform-safe-zones.md` is now the canonical safe-zone reference, refreshed to 2026 platform specs (Meta's unified Reels/Stories margins and TikTok's playlist button). The subtitle and promotional best-practices docs cite it instead of carrying their own divergent numbers.
+- New `docs/audio-best-practices.md` covers the sound-on layer: trending vs original audio, voiceover/music mix levels, ducking, the audio hook, and platform loudness.
+- New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary).
+- Roadmap gains a safe-zone constant follow-up plus five engagement/conversion items (hook-variant A/B measurement, loop-friendly ending, pre-production conversion gate, cover-frame generation, episodic series framing).
+
 ## [0.51.1] - 2026-05-29
 
 ### Fixed
