@@ -42,6 +42,18 @@ The safe-zone docs were aligned to 2026 platform specs (`docs/platform-safe-zone
 
 **Done when:** the runtime safe-zone defaults match the canonical doc, and a render's lowest caption pixel stays above y=1250.
 
+### 1.7 Hook-variant A/B measurement
+
+The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers.
+
+**Done when:** the registry carries the hook variant per video and a report segments retention by hook variant.
+
+### 1.8 Loop-friendly ending
+
+Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds. Config flag per profile, off by default.
+
+**Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
+
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
 Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
@@ -92,6 +104,12 @@ Verify the Instagram path in the publisher posts as a Reel, not as a Feed Post. 
 
 **Done when:** the next batch publishes to IG as Reels, confirmed end-to-end, with a test in place to prevent drift.
 
+### 3.7 Pre-production conversion gate in the scraper
+
+Score and filter product candidates before rendering, using the data the scraper already pulls (price, rating, review count, stock, Prime/shipping). Drop weak-converting candidates up front: rating below a floor, thin review count, out of stock, price outside a configurable impulse band. Renders are expensive; spending them on products that won't convert is the largest avoidable waste in the funnel. This sits upstream of the listing-drift diagnostic (5.2), which only monitors drift after publish. Thresholds live in `config/scraper.yaml`.
+
+**Done when:** a scrape run rejects below-threshold products before the producer stage, with the rejection reason logged.
+
 ## Phase 4 — Per-platform optimisations (Next)
 
 Targeted for the following quarter. Builds on Phases 1-3.
@@ -131,6 +149,18 @@ Wrap every Amazon affiliate URL with the OneLink redirect at publish time so non
 Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a new product rotates the featured slot rather than appending. Industry baseline: link-in-bio hubs see 20-40% click-through to the top destination URL when only 2-3 links are present; the first 3 positions get ~130% higher CTR than positions 4-10. Cap the bio at the most recent featured product plus an "all products" fallback.
 
 **Done when:** the bio shows at most 2-3 links at any time, with the most recent product as the featured slot.
+
+### 4.7 Cover / poster-frame generation
+
+Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Shorts/Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
+
+**Done when:** every render produces a cover image and the publish payload sets it as the poster where the platform supports it.
+
+### 4.8 Episodic series framing per pillar
+
+Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system.
+
+**Done when:** published titles/captions carry a per-pillar episode number that increments across the back-catalogue.
 
 ## Phase 5 — Analytics and continuous learning (Next)
 
