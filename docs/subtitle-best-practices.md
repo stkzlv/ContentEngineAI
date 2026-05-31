@@ -19,7 +19,9 @@ large fraction of viewers they *are* the content.
 - [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
   including AI word tagging via Gemini.
 - [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /
-  Reels UI overlay zones.
+  Reels UI overlay zones (canonical safe-zone numbers).
+- [audio-best-practices.md](audio-best-practices.md) — the sound-on layer
+  (trending vs original audio, voiceover/music levels, ducking).
 
 Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 `pycaps` labels.
