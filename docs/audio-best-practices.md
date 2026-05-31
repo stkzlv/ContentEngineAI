@@ -76,8 +76,9 @@ the "music under voice" band above. Fades are `music_fade_in_duration` /
 **Ducking** (music level keyed to the presence of voice) keeps the gap clean:
 the music drops when narration plays and recovers in the gaps, instead of one
 fixed level for the whole clip. The assembler's audio builder
-(`src/video/assembler/audio_builder.py`) builds the FFmpeg ducking and mixing
-filter chains.
+(`src/video/assembler/audio_builder.py`) currently mixes music at the fixed
+`music_volume_db` with fade in/out, not a voice-keyed sidechain duck. A real
+sidechain duck (FFmpeg `sidechaincompress`) is a future improvement.
 
 **`silence_min_duration_sec` is a trim knob, not a level knob.** Audio
 trimming and music ducking are separate concerns; see the audio module notes in
