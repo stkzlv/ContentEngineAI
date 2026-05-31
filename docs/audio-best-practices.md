@@ -67,17 +67,17 @@ Mix targets converge across audio-for-video guidance:
 | Music in voice-free beats | -6 to -10 dB | Intro sting, outro, B-roll moments |
 | Sound effects (caption pops) | ~-18 dB rel. voice | Only on emphasized words, not every segment |
 
-**Pipeline mapping.** The producer holds music at a fixed level for the whole
-clip via `audio_settings.music_volume_db` (default -24.0) in
-`config/video_production.yaml`, with the voiceover at `voiceover_volume_db`
-(default 0.0). The default -24.0 sits at the top of the "music under voice"
-band above. Fades are `music_fade_in_duration` / `music_fade_out_duration`.
+**Pipeline mapping.** Levels live in `audio_settings` in
+`config/video_production.yaml`: `music_volume_db` (default -24.0) and
+`voiceover_volume_db` (default 3.0). The -24.0 music level sits at the top of
+the "music under voice" band above. Fades are `music_fade_in_duration` /
+`music_fade_out_duration`.
 
-**Ducking** (sidechain: music level keyed to the presence of voice) is the
-cleaner approach: the music drops automatically when narration starts and
-recovers in the gaps, instead of a fixed low level for the whole clip. The
-pipeline does not do sidechain ducking today (the fixed `music_volume_db` is
-the current model); a voice-keyed duck is a future improvement.
+**Ducking** (music level keyed to the presence of voice) keeps the gap clean:
+the music drops when narration plays and recovers in the gaps, instead of one
+fixed level for the whole clip. The assembler's audio builder
+(`src/video/assembler/audio_builder.py`) builds the FFmpeg ducking and mixing
+filter chains.
 
 **`silence_min_duration_sec` is a trim knob, not a level knob.** Audio
 trimming and music ducking are separate concerns; see the audio module notes in
