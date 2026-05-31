@@ -189,7 +189,7 @@ group degrade to FFmpeg without manual intervention.
 - **Margin** from anchor edge (default 4%)
 - **Horizontal alignment**: left, center (default), right
 - Content-aware positioning relative to actual media bounds
-- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. Cross-platform union: top 220px, bottom 480px, left/right 90px on 1080x1920. Configurable globally in YAML and per-profile via the nested `subtitle_settings.safe_zone` block (only the boundaries that differ need to be set).
+- **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. See `platform-safe-zones.md` for the canonical cross-platform union measurements. Configurable globally in YAML and per-profile via the nested `subtitle_settings.safe_zone` block (only the boundaries that differ need to be set).
 - Both engines enforce the safe zone: FFmpeg clamps subtitle width to safe zone boundaries, pycaps dynamically clamps `max_width_ratio` so centered text never extends past the right-side boundary (TikTok buttons). The clamping is automatic — no manual tuning needed per template.
 - Pycaps default position: bottom of safe zone (~75% of frame). Template's own alignment preserved unless explicitly overridden.
 
