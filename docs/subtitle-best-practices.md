@@ -35,8 +35,8 @@ Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 5. **Max 3–5 words on screen, max 2 lines**. Break on phrase boundaries, never mid-phrase.
 6. **Sentence case, not ALL CAPS** (mixed case reads faster — ascenders/descenders carry word shape). ALL CAPS only for deliberate shout-style.
 7. **15–17 CPS (~170 WPM)** reading speed. Minimum 500–600 ms per segment.
-8. **Vertical center (45–60% from top)**, not lower-third. TikTok's UI eats the bottom 480 px.
-9. **Design to TikTok's safe zone**: top 220 / bottom 480 / right 180. Works on Shorts and Reels automatically.
+8. **Vertical center, block centered around 52% from top**, not lower-third. Keep the lowest caption pixel above y=1250 (65%). See [platform-safe-zones.md](platform-safe-zones.md).
+9. **Design to the cross-platform union**: top 270 / bottom 670 / right 180 on a 1080x1920 canvas (Instagram drives top and bottom after Meta's March 2026 change). Canonical numbers live in [platform-safe-zones.md](platform-safe-zones.md).
 10. **Entrance 100–250 ms, no exit animation**. Use ease-out-quint (`cubic-bezier(0.22, 1, 0.36, 1)`).
 11. **Strip terminal punctuation** — karaoke segment breaks ARE the punctuation.
 12. **Smooth Whisper timings**: merge gaps <80 ms, min word duration 120 ms, hold last word +200 ms, lead audio by 40 ms.
@@ -186,28 +186,24 @@ only trigger on emphasized words — every-word SFX becomes fatiguing fast.
 
 ## 4. Layout and positioning
 
-**Vertical position: 45–60% from top** (roughly center, slightly above
-center). This survives TikTok's bottom UI overlay, Reels' caption sticker,
-and Shorts' progress bar simultaneously. Center-ish outperforms strict
-lower-third because TikTok's UI controls occupy the bottom 480 px of a
-1920-tall frame.
+**Vertical position: block centered around 52% from top** (roughly center,
+slightly above center). This survives TikTok's bottom UI overlay, Reels'
+caption zone, and Shorts' progress bar simultaneously. Center-ish outperforms
+strict lower-third because the bottom is now interactive UI: 35% on Reels
+(Meta unified, March 2026) and ~25% on TikTok.
 
-**Safe zones** (union of all three platforms):
+**Safe zones**: see [platform-safe-zones.md](platform-safe-zones.md) for the
+canonical per-platform tables and the cross-platform union. The summary, for a
+1080x1920 canvas:
 
-| Platform | Top | Bottom | Right |
+| | Top | Bottom | Right |
 |---|---|---|---|
-| TikTok | 160 px | 480 px (ads: ~600 px) | 180 px |
-| YouTube Shorts | 120 px | 300 px (expanded: ~400 px) | 84 px |
-| Instagram Reels | 220 px | 450 px | 84 px |
+| Union (single render) | 270 px | 670 px | 180 px |
 
-**Design to the union**: top 220 px, bottom 480 px, left/right 90 px on a
-1080×1920 canvas. Caption center Y between **860–1100 px**. One design
-covers all three platforms.
-
-**Single-rectangle fallback** when a template ships one design that has
-to work on all three: centre **888×1160 px** on the 1080×1920 canvas
-(Kreatli cross-platform intersection). Use as the conservative bound
-when per-platform safe-zone tuning is not available.
+Instagram drives both top and bottom after the March 2026 Meta change. Caption
+band y=900-1150, block center ~y=1000 (~52%), hard floor y=1250 (65%),
+horizontal x=60..900. One design covers all three platforms. Defer to the
+canonical doc when the numbers here and there ever diverge.
 
 **Line break strategy**: 3–5 words per line, max 2 lines on screen. Break
 on natural phrase boundaries (after verbs, before prepositions) — never
@@ -258,12 +254,14 @@ colorful, karaoke.
 Keep bottom 300 px clear (expand to 400 px when description is open).
 Shorts' AI captions are plainer — your custom design differentiates.
 
-**Instagram Reels**: tightest top margin (220 px eaten by username/music).
-IG's native caption sticker has a specific look that viewers associate
-with "lazy creator" — custom captions should look clearly more intentional.
+**Instagram Reels**: after Meta's March 2026 unification, the tightest margins
+on both ends (270 px top, 670 px bottom). IG's native caption sticker has a
+specific look that viewers associate with "lazy creator" -- custom captions
+should look clearly more intentional.
 
-**Cross-platform rule**: design to TikTok's safe zone (tightest bottom).
-Center-Y around 960–1050 px. One template, three platforms.
+**Cross-platform rule**: design to the union; Instagram now drives both top and
+bottom. Block center-Y around 1000 px (~52%), lowest pixel above y=1250. One
+template, three platforms. See [platform-safe-zones.md](platform-safe-zones.md).
 
 ## 7. What the pros ship
 
@@ -397,8 +395,10 @@ placed at end of phrase.
 **Segment rules**: 3–5 words per segment, 600–1800 ms duration, break on
 sentence/phrase boundaries not word count alone.
 
-**Safe zone**: designed to TikTok (tightest union) — top 220 / bottom 480 /
-right 180. Single render covers all three platforms.
+**Safe zone**: designed to the cross-platform union -- top 270 / bottom 670 /
+right 180 on 1080x1920 (Instagram drives top and bottom after Meta's March 2026
+change). Block center ~y=1000, lowest pixel above y=1250. Single render covers
+all three platforms. See [platform-safe-zones.md](platform-safe-zones.md).
 
 **Accessibility**: ~21:1 contrast, WCAG AAA. No flashes, scale pulses
 capped at 1.10.

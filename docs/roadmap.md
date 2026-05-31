@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-07
+Last updated: 2026-05-31
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
@@ -32,9 +32,15 @@ The foundational items shipped across 0.48.0-0.49.0 (audio-keyword opener, engag
 
 ### 1.4 High-density cut profile
 
-Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better.
+Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2.
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
+
+### 1.6 Cross-platform safe-zone refresh
+
+The safe-zone docs were aligned to 2026 platform specs (`docs/platform-safe-zones.md` is now the canonical source; the subtitle and promo docs cite it). The runtime constants in `src/video/config/constants.py` still carry the older union (top 200 / bottom 1440 / left 50 / right 840). Update them to the 2026 union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920), driven by Meta's March 2026 Reels unification (14% top, 35% bottom). The current `max_y` of 0.75 lets captions land inside Reels' bottom interactive zone. A single cross-platform render should clamp to the union, not `platform=tiktok` only. Tracked as GitHub issues.
+
+**Done when:** the runtime safe-zone defaults match the canonical doc, and a render's lowest caption pixel stays above y=1250.
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
@@ -354,3 +360,8 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 **Pillar infrastructure and caption voice (Unreleased)**
 - Keyword-to-pillar attachment in the scraper config. Keywords in `config/scraper.yaml` are a dict keyed by pillar; each scraped product carries the pillar through to the producer and registry without `--pillar`.
 - Narrator profile and pillar preamble shared with platform caption generators (YouTube, TikTok, Instagram) so captions match the video's conversational voice.
+
+**Best-practices docs (Unreleased)**
+- Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button. Runtime constant refresh tracked separately (roadmap 1.6).
+- New `docs/audio-best-practices.md`: the sound-on layer (trending vs original audio, voiceover/music mix levels, ducking, audio hook, platform loudness).
+- New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary) backing the high-density cut profile (1.4).

@@ -16,17 +16,20 @@ with sound off.
 - [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
   including AI word tagging via Gemini.
 - [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /
-  Reels UI overlay zones.
+  Reels UI overlay zones (canonical safe-zone numbers).
+- [audio-best-practices.md](audio-best-practices.md) — the sound-on layer:
+  trending audio, voiceover/music mix levels, ducking.
 
 ---
 
-## The 5 promo-video rules that matter (cheat-sheet)
+## The 6 promo-video rules that matter (cheat-sheet)
 
 1. **First-3-second hook is a static title card, not karaoke.** 5-12 words, on screen for the full 1.5-3 s, larger than narration captions. The decision window is ~1.7 s; if the hook is still revealing word-by-word at 1.5 s, the viewer has already swiped. The hook must also land the search keyword in spoken audio within the first 5 s — TikTok 2026 transcribes audio via ASR and indexes the transcript as a primary search signal.
 2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Red/orange beats green in independent A/B tests.
 3. **`#ad` disclosure is a persistent on-frame overlay AND first-line caption text.** FTC requires both. Same font family as captions, ~50-60% size, fixed corner, full-clip duration. Penalties up to $53,088 per violation (2025).
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
 5. **End with an engagement-bait closing line right before the hard CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. The closing line drives comments and saves, both of which feed the algorithm. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
+6. **Keep something moving every 1.5-3 seconds.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Younger audiences need the tighter end of the band (cut every 2-4 s); a high-density profile pushes to 1.5-3 s with a transition between slides.
 
 ---
 
@@ -105,7 +108,48 @@ that holds the viewer through the first few beats. The project's script
 templates encode the six patterns as the rule for line one and call out
 the Google-query shape as an explicit anti-pattern.
 
-## 2. Sound-off as the primary audience
+## 2. Cut cadence and motion density
+
+Vertical feeds reward visual energy. A frame that hasn't changed in a few
+seconds reads as "nothing happening" and the viewer swipes. The fix is a steady
+beat of visual change, tuned to the audience.
+
+**Shot-length bands** (vendor-converged across 2026 editing tooling):
+
+| Audience / profile | Cut every | Notes |
+|---|---|---|
+| General short-form | 1.5-3 s | The default high-retention band |
+| Younger / Gen Z feeds | 2-4 s, pushing to 1-2 s on high-energy edits | The algorithm reclassifies into faster feeds; match it |
+| First shot (hook) | change within 1-1.5 s | Signals pace immediately, see section 1 |
+| Hard ceiling | never hold a static frame past 4-5 s | Add a punch-in, cut, B-roll, or text pop |
+
+**Motion within a shot counts as a cut.** A Ken Burns settle-zoom, a punch-in,
+or a text pop resets the attention clock without an actual edit. On static
+product photos the pipeline's pre-motion (section 1) supplies this; on a
+slideshow, the slide change itself is the beat.
+
+**Transition vocabulary**, lightest to heaviest:
+
+- **Hard cut** -- the default. Keeps momentum without drawing attention to
+  itself. Most cuts should be hard cuts.
+- **Whip pan** -- energetic scene-to-scene transition; use sparingly so it
+  stays a pattern interrupt, not a tic.
+- **Zoom punch** -- quick scale-in to emphasize a price, spec, or benefit beat.
+- **J-cut / L-cut** -- audio leads or trails the video edit; smooths a
+  narration handoff so the cut doesn't feel abrupt.
+
+**One transition style per video.** Mirrors the subtitle one-effect rule:
+mixing whip pans, zoom punches, and slides in one clip reads as amateur. Pick
+the cadence and the transition from the profile, not per-slide.
+
+**Pipeline mapping**: the high-density cut profile (`cut_density: high`,
+roadmap 1.4) drops the minimum slide duration to 1.5-3 s and inserts one
+transition between every slide. Keep the slower-cut profile available for
+audiences and platforms where a calmer pace fits. Match cut speed to content
+energy; a calm productivity review and a Gen Z gadget teardown should not share
+a cadence.
+
+## 3. Sound-off as the primary audience
 
 **85% of social video views are sound-off** (Manchester Digital,
 Clicks.video, Zebracat 2025 — number converges across sources). Design
@@ -130,7 +174,7 @@ accessibility layer for the 15%, not the source of truth.
   skip if captions are present (vs. higher skip rates without). Captions
   don't directly boost CTR — they prevent the skip that kills CTR.
 
-## 3. Trust signals & FTC `#ad` disclosure
+## 4. Trust signals & FTC `#ad` disclosure
 
 **FTC compliance (US, 2023-updated Endorsement Guides) is the floor**:
 
@@ -176,7 +220,7 @@ accessibility layer for the 15%, not the source of truth.
 This aligns with the project's trade-off-honesty rule baked into the
 script template prompts (CHANGELOG `0.43.1`).
 
-## 4. Closing-line beat — comment-fork or spec-correction
+## 5. Closing-line beat — comment-fork or spec-correction
 
 One short engagement-bait line, right before the hard CTA, not replacing it.
 TikTok's algorithm rewards comments and saves as primary engagement signals;
@@ -211,7 +255,7 @@ The project's script templates encode comment-fork for personal/storytelling
 templates and spec-correction for analytical/comparison templates. See
 `src/ai/prompts/scripts/` for the per-template Rules block.
 
-## 5. CTA staging — soft + hard, two-stage
+## 6. CTA staging — soft + hard, two-stage
 
 **Wistia State of Video 2025** analyzed 36,000+ video CTAs:
 
@@ -242,7 +286,7 @@ templates and spec-correction for analytical/comparison templates. See
 **Verb choice**: imperative + specific outcome. "Get the $15 fix" beats
 "Shop now". "Link to the bag in bio" beats "Click here".
 
-## 6. AI-content disclosure (platform policy, not FTC)
+## 7. AI-content disclosure (platform policy, not FTC)
 
 YouTube and TikTok treat AI-generated content separately from sponsored
 content. The disclosure surfaces are different and both apply on top of
@@ -267,7 +311,7 @@ the FTC `#ad` overlay above.
 The pipeline already prepends `#ad` to caption text and burns the corner
 disclosure. AI-content disclosure is additive, not a replacement.
 
-## 7. Honest gaps in the evidence
+## 8. Honest gaps in the evidence
 
 The vendor literature on captions and promo video is louder than the
 empirical record. Things to flag rather than assert:
