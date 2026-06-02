@@ -1081,9 +1081,17 @@ class SubtitleGraphBuilder:
         return 5.5  # Default fallback
 
     def _get_safe_zone(self):
-        """Get platform safe zone from config."""
+        """Get platform safe zone: profile-merged first, then global, then default.
+
+        The merged profile subtitle settings carry any per-profile safe-zone
+        override, so prefer them; the FFmpeg burn then honors the same override
+        the pycaps path reads. Falls back to the global text_rendering block,
+        then the PlatformSafeZone default (the 2026 union constants).
+        """
         from src.video.config.core_models import PlatformSafeZone
 
+        if self.profile_settings is not None:
+            return self.profile_settings.subtitle_settings.safe_zone
         if self.config.text_rendering:
             return self.config.text_rendering.safe_zone
         return PlatformSafeZone()

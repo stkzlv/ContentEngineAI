@@ -141,6 +141,31 @@ class TestSubtitlePositioning:
         _, mid = clamp_to_safe_zone(540, 1920, 1080, 1920, sz, 2000)
         assert int(1920 * sz.min_y) <= mid <= int(1920 * sz.max_y)
 
+    def test_get_safe_zone_prefers_profile_override(self):
+        """_get_safe_zone honors the profile-merged safe zone over the global
+        text_rendering one, so the ffmpeg burn matches the pycaps path.
+        """
+        from types import SimpleNamespace
+
+        from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
+        from src.video.config.subtitle_models import SubtitleSettings
+
+        b = SubtitleGraphBuilder.__new__(SubtitleGraphBuilder)
+        profile_sz = PlatformSafeZone(max_y=0.5)
+        global_sz = PlatformSafeZone(max_y=0.651)
+        prof = SimpleNamespace(subtitle_settings=SubtitleSettings(safe_zone=profile_sz))
+        cfg = SimpleNamespace(text_rendering=SimpleNamespace(safe_zone=global_sz))
+        b.profile_settings = prof  # type: ignore[assignment]
+        b.config = cfg  # type: ignore[assignment]
+        assert b._get_safe_zone().max_y == 0.5  # profile override wins
+
+        b.profile_settings = None  # no profile -> global text_rendering
+        assert b._get_safe_zone().max_y == 0.651
+
+        # No profile and no text_rendering -> PlatformSafeZone() union default.
+        b.config = SimpleNamespace(text_rendering=None)  # type: ignore[assignment]
+        assert b._get_safe_zone().max_y == PlatformSafeZone().max_y
+
     def test_custom_position_clamped(self):
         from src.video.subtitle_positioning import Position
 
