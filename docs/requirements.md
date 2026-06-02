@@ -190,8 +190,8 @@ group degrade to FFmpeg without manual intervention.
 - **Horizontal alignment**: left, center (default), right
 - Content-aware positioning relative to actual media bounds
 - **Platform safe zone**: boundaries avoid TikTok, YouTube Shorts, and Instagram Reels UI overlays. See `platform-safe-zones.md` for the canonical cross-platform union measurements. Configurable globally in YAML and per-profile via the nested `subtitle_settings.safe_zone` block (only the boundaries that differ need to be set).
-- Both engines enforce the safe zone: FFmpeg clamps subtitle width to safe zone boundaries, pycaps dynamically clamps `max_width_ratio` so centered text never extends past the right-side boundary (TikTok buttons). The clamping is automatic — no manual tuning needed per template.
-- Pycaps default position: bottom of safe zone (~75% of frame). Template's own alignment preserved unless explicitly overridden.
+- Both engines enforce the safe zone. FFmpeg clamps subtitle position to the zone, including the vertical floor (it accounts for line height so a centered caption's lowest pixel stays above the bottom boundary), and honors per-profile safe-zone overrides. Pycaps dynamically clamps `max_width_ratio` so centered text never extends past the right-side boundary (TikTok buttons). The clamping is automatic — no manual tuning needed per template.
+- Pycaps default position: a deliberate lower-third (~75% of frame), which sits below the 2026 safe-zone bottom (65%) to avoid colliding with centered product imagery. Template's own alignment preserved unless explicitly overridden.
 
 **Text formatting (best-practice aligned):**
 - **Font**: bold sans-serif weight 700+ (Montserrat Black default)
