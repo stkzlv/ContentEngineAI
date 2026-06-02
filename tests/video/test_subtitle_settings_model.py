@@ -40,7 +40,7 @@ class TestSubtitleSettingsDefaults:
     def test_safe_zone_nested_default(self):
         s = SubtitleSettings()
         assert isinstance(s.safe_zone, PlatformSafeZone)
-        assert s.safe_zone.max_y == 0.75  # TikTok overlay floor
+        assert s.safe_zone.max_y == 0.651  # 2026 union floor (Reels 35% zone)
 
     def test_two_part_nested_default(self):
         s = SubtitleSettings()

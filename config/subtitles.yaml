@@ -623,14 +623,16 @@ text_rendering:
   space_char_width_factor: 0.3
 
   # ---- PLATFORM SAFE ZONE ----
-  # Boundaries to avoid platform UI overlays (TikTok, YouTube Shorts, Reels)
+  # 2026 cross-platform union (worst-case of TikTok, YouTube Shorts, Reels).
+  # A single cross-platform render clamps to this union, not one platform.
+  # Instagram drives top+bottom after Meta's March 2026 Reels unification.
   # Values are fractions of frame dimensions. See docs/platform-safe-zones.md
   # Per-profile overrides available via subtitle_safe_zone_* fields
   safe_zone:
-    min_x: 0.046    # Left: 50px on 1080w
-    max_x: 0.778    # Right: 840px on 1080w (TikTok buttons)
-    min_y: 0.104    # Top: 200px on 1920h (YouTube Shorts header)
-    max_y: 0.75     # Bottom: 1440px on 1920h (TikTok overlay)
+    min_x: 0.056    # Left: 60px on 1080w
+    max_x: 0.833    # Right: 900px on 1080w (TikTok buttons + Jan 2026 playlist)
+    min_y: 0.141    # Top: 270px on 1920h (Instagram Reels 14% header)
+    max_y: 0.651    # Bottom: 1250px on 1920h (Instagram Reels 35% zone)
 
 # ============================================================================
 # FONT RANDOMIZATION POOL

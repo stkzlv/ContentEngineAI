@@ -70,13 +70,15 @@ FREESOUND_TOKEN_REFRESH_BUFFER_SEC = 60  # Buffer before expiry to refresh
 FREESOUND_DOWNLOAD_CHUNK_SIZE = 8192 * 4  # Network buffer size
 
 # =============================================================================
-# PLATFORM SAFE ZONE BOUNDARIES (cross-platform worst case on 1080x1920)
-# See docs/platform-safe-zones.md for per-platform breakdown
+# PLATFORM SAFE ZONE BOUNDARIES (2026 cross-platform union on 1080x1920)
+# Worst-case of TikTok, YouTube Shorts, and Instagram Reels. Instagram drives
+# both top and bottom after Meta's March 2026 Reels unification (14% top, 35%
+# bottom interactive zone). See docs/platform-safe-zones.md for the breakdown.
 # =============================================================================
-SAFE_ZONE_MIN_X = 0.046  # Left: 50px on 1080w (all platforms similar)
-SAFE_ZONE_MAX_X = 0.778  # Right: 840px on 1080w (TikTok engagement buttons)
-SAFE_ZONE_MIN_Y = 0.104  # Top: 200px on 1920h (YouTube Shorts header)
-SAFE_ZONE_MAX_Y = 0.75  # Bottom: 1440px on 1920h (TikTok overlay)
+SAFE_ZONE_MIN_X = 0.056  # Left: 60px on 1080w (all platforms ~60px)
+SAFE_ZONE_MAX_X = 0.833  # Right: 900px on 1080w (TikTok buttons + Jan 2026 playlist)
+SAFE_ZONE_MIN_Y = 0.141  # Top: 270px on 1920h (Instagram Reels 14% header)
+SAFE_ZONE_MAX_Y = 0.651  # Bottom: 1250px on 1920h (Instagram Reels 35% zone)
 
 # =============================================================================
 # SUBTITLE POSITIONING TECHNICAL CONSTANTS (coordinate system standards)

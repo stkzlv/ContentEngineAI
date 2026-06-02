@@ -36,12 +36,6 @@ Add a `cut_density: high` profile setting in `config/video_production.yaml` that
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
 
-### 1.6 Cross-platform safe-zone refresh
-
-The safe-zone docs were aligned to 2026 platform specs (`docs/platform-safe-zones.md` is now the canonical source; the subtitle and promo docs cite it). The runtime constants in `src/video/config/constants.py` still carry the older union (top 200 / bottom 1440 / left 50 / right 840). Update them to the 2026 union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920), driven by Meta's March 2026 Reels unification (14% top, 35% bottom). The current `max_y` of 0.75 lets captions land inside Reels' bottom interactive zone. A single cross-platform render should clamp to the union, not `platform=tiktok` only. Tracked as GitHub issues.
-
-**Done when:** the runtime safe-zone defaults match the canonical doc, and a render's lowest caption pixel stays above y=1250.
-
 ### 1.7 Hook-variant A/B measurement
 
 The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers.
@@ -392,6 +386,9 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Narrator profile and pillar preamble shared with platform caption generators (YouTube, TikTok, Instagram) so captions match the video's conversational voice.
 
 **Best-practices docs (Unreleased)**
-- Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button. Runtime constant refresh tracked separately (roadmap 1.6).
+- Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button.
+
+**Safe-zone runtime alignment (Unreleased)**
+- Phase 1.6 runtime constant refresh. `src/video/config/constants.py` and `config/subtitles.yaml` safe-zone defaults now match the 2026 cross-platform union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920). The old bottom of 1440px let captions land inside Reels' interactive zone. A single cross-platform render clamps to the union, not one platform. The pycaps engine's deliberate lower-third offset is unchanged.
 - New `docs/audio-best-practices.md`: the sound-on layer (trending vs original audio, voiceover/music mix levels, ducking, audio hook, platform loudness).
 - New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary) backing the high-density cut profile (1.4).

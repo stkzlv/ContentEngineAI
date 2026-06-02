@@ -55,9 +55,11 @@ class Position(BaseModel):
 class PlatformSafeZone(BaseModel):
     """Safe zone boundaries to avoid platform UI overlays (fractions of frame).
 
-    Default values represent the cross-platform worst case for TikTok,
-    YouTube Shorts, and Instagram Reels on a 1080x1920 frame.
-    See docs/platform-safe-zones.md for per-platform breakdown.
+    Defaults are the 2026 cross-platform union: the worst-case of TikTok,
+    YouTube Shorts, and Instagram Reels on a 1080x1920 frame. A single render
+    serving all three platforms clamps to this union, not one platform's zone.
+    Instagram drives top and bottom after Meta's March 2026 Reels unification.
+    See docs/platform-safe-zones.md for the per-platform breakdown.
     """
 
     min_x: float = Field(
@@ -333,8 +335,9 @@ class PycapsSettings(BaseModel):
         description=(
             "Vertical offset from the anchor (-1.0..1.0). With bottom anchor "
             "the formula is y = h * (offset + 0.95) - text_height. "
-            "-0.20 places captions at ~75% of frame height, matching the "
-            "platform safe zone bottom boundary (TikTok overlay starts at 75%). "
+            "-0.20 places captions at ~75% of frame height, a deliberate "
+            "lower-third position that sits below the 2026 safe-zone floor "
+            "(65%) to avoid colliding with centered product imagery (see #99). "
             "Set to null to let the pycaps template's own positioning win."
         ),
     )

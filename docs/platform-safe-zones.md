@@ -85,8 +85,9 @@ Safe rectangle: 840 x 980 px, spanning x=60..900, y=270..1250
 ```
 
 The runtime defaults in `src/video/config/constants.py` are the
-fractions for these bounds (`SAFE_ZONE_MIN_X/MAX_X/MIN_Y/MAX_Y`). Keep the two
-in sync; a follow-up issue tracks updating the constants to this 2026 union.
+fractions for these bounds (`SAFE_ZONE_MIN_X/MAX_X/MIN_Y/MAX_Y`) and now match
+this 2026 union. `config/subtitles.yaml::safe_zone` mirrors them. Keep all three
+in sync. A single cross-platform render clamps to this union, not one platform.
 
 ## Subtitle and text placement
 

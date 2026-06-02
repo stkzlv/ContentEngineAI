@@ -115,6 +115,19 @@ class TestSubtitlePositioning:
         # Above max
         assert clamp_to_safe_zone(1080, 1920, 1080, 1920, sz) == (864, 1440)
 
+    def test_default_safe_zone_matches_2026_union(self):
+        """Roadmap 1.6 (#140): defaults are the 2026 cross-platform union and
+        a render's lowest caption pixel stays above the Reels y=1250 floor.
+        """
+        sz = PlatformSafeZone()  # 2026 union defaults
+        assert sz.min_x == 0.056
+        assert sz.max_x == 0.833
+        assert sz.min_y == 0.141
+        assert sz.max_y == 0.651
+        # A y past the floor clamps back above the Reels 35% interactive zone.
+        _, clamped_y = clamp_to_safe_zone(540, 1920, 1080, 1920, sz)
+        assert clamped_y <= 1250
+
     def test_custom_position_clamped(self):
         from src.video.subtitle_positioning import Position
 

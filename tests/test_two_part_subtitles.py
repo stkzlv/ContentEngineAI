@@ -111,10 +111,10 @@ class TestTwoPartSubtitles:
 
             y_pos = int(pos_match.group(2))
 
-            # Y position should be above visual content with margin gap
-            # ABOVE_CONTENT: Y = (visual_bounds.y - margin) * height
-            # = (0.12 - 0.005) * 1920 = 0.115 * 1920 = 220.8 pixels
-            expected_y = int((0.12 - 0.005) * 1920)
+            # ABOVE_CONTENT wants Y = (visual_bounds.y - margin) = 0.115, but
+            # that sits inside the 2026 top header, so it clamps up to min_y
+            # (0.141 * 1920 = 270px).
+            expected_y = int(0.141 * 1920)
             assert (
                 abs(y_pos - expected_y) < 10
             ), f"Y position {y_pos} not close to expected {expected_y}"
@@ -149,8 +149,8 @@ class TestTwoPartSubtitles:
             y_pos = int(pos_match.group(2))
 
             # Without visual_bounds, falls back to margin. Safe zone clamps
-            # to min_y (0.104 * 1920 = 199px) since margin 0.005 is below it.
-            safe_zone_min_y_px = int(0.104 * 1920)
+            # to min_y (0.141 * 1920 = 270px) since margin 0.005 is below it.
+            safe_zone_min_y_px = int(0.141 * 1920)
             assert (
                 abs(y_pos - safe_zone_min_y_px) < 20
             ), f"Without visual_bounds, y should be near safe zone min {safe_zone_min_y_px}, got {y_pos}"
@@ -332,8 +332,8 @@ class TestTwoPartSubtitles:
             ), f"Y with bounds should be above content: {y_with} vs {expected_y_with}"
 
             # WITHOUT visual_bounds: falls back to margin, clamped by safe zone
-            # min_y (0.104 * 1920 = 199px)
-            expected_y_without = int(0.104 * 1920)
+            # min_y (0.141 * 1920 = 270px)
+            expected_y_without = int(0.141 * 1920)
             assert (
                 abs(y_without - expected_y_without) < 20
             ), f"Y without bounds should be at safe zone min: {y_without} vs {expected_y_without}"
