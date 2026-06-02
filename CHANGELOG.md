@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.3] - 2026-06-02
+
 ### Fixed
 - Runtime safe-zone defaults now match the 2026 cross-platform union in `docs/platform-safe-zones.md` (top 270px, bottom 1250px, left 60px, right 900px on 1080x1920). The old bottom of 1440px let captions land inside Instagram Reels' interactive zone after Meta's March 2026 unification. Updated in both `src/video/config/constants.py` and `config/subtitles.yaml`. A single cross-platform render clamps to this union rather than one platform. The pycaps engine's deliberate lower-third caption offset is unchanged and tracked separately.
 - The FFmpeg-engine caption clamp now accounts for text height. Captions use ASS center alignment, so clamping only the center point let the bottom half spill ~40px past the safe-zone floor into the Reels UI zone. `clamp_to_safe_zone` takes the line half-height and keeps the whole text box inside the band, so a clamped caption's lowest pixel stays above y=1250.
