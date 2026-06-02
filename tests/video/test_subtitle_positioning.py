@@ -115,6 +115,57 @@ class TestSubtitlePositioning:
         # Above max
         assert clamp_to_safe_zone(1080, 1920, 1080, 1920, sz) == (864, 1440)
 
+    def test_default_safe_zone_matches_2026_union(self):
+        """Roadmap 1.6 (#140): defaults are the 2026 cross-platform union and
+        a render's lowest caption pixel stays above the Reels y=1250 floor.
+        """
+        sz = PlatformSafeZone()  # 2026 union defaults
+        assert sz.min_x == 0.056
+        assert sz.max_x == 0.833
+        assert sz.min_y == 0.141
+        assert sz.max_y == 0.651
+        # A y past the floor clamps back above the Reels 35% interactive zone.
+        _, clamped_y = clamp_to_safe_zone(540, 1920, 1080, 1920, sz)
+        assert clamped_y <= 1250
+
+    def test_clamp_accounts_for_text_height(self):
+        """With center-anchored captions (ASS align 5), the clamp keeps the
+        whole text box inside the band, not just the center point.
+        """
+        sz = PlatformSafeZone()  # 2026 union: max_y -> 1249px
+        half = 40  # half a ~80px line
+        _, center_y = clamp_to_safe_zone(540, 1920, 1080, 1920, sz, half)
+        # Center is pulled up so the lowest pixel (center + half) stays <= 1250.
+        assert center_y + half <= 1250
+        # Degenerate case: text taller than the band centers within it.
+        _, mid = clamp_to_safe_zone(540, 1920, 1080, 1920, sz, 2000)
+        assert int(1920 * sz.min_y) <= mid <= int(1920 * sz.max_y)
+
+    def test_get_safe_zone_prefers_profile_override(self):
+        """_get_safe_zone honors the profile-merged safe zone over the global
+        text_rendering one, so the ffmpeg burn matches the pycaps path.
+        """
+        from types import SimpleNamespace
+
+        from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
+        from src.video.config.subtitle_models import SubtitleSettings
+
+        b = SubtitleGraphBuilder.__new__(SubtitleGraphBuilder)
+        profile_sz = PlatformSafeZone(max_y=0.5)
+        global_sz = PlatformSafeZone(max_y=0.651)
+        prof = SimpleNamespace(subtitle_settings=SubtitleSettings(safe_zone=profile_sz))
+        cfg = SimpleNamespace(text_rendering=SimpleNamespace(safe_zone=global_sz))
+        b.profile_settings = prof  # type: ignore[assignment]
+        b.config = cfg  # type: ignore[assignment]
+        assert b._get_safe_zone().max_y == 0.5  # profile override wins
+
+        b.profile_settings = None  # no profile -> global text_rendering
+        assert b._get_safe_zone().max_y == 0.651
+
+        # No profile and no text_rendering -> PlatformSafeZone() union default.
+        b.config = SimpleNamespace(text_rendering=None)  # type: ignore[assignment]
+        assert b._get_safe_zone().max_y == PlatformSafeZone().max_y
+
     def test_custom_position_clamped(self):
         from src.video.subtitle_positioning import Position
 

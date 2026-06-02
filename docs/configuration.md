@@ -1693,7 +1693,7 @@ subtitle_settings:
     upper_line:
       style_preset: "minimal"
   safe_zone:                         # Nested safe-zone overrides (deep-merged)
-    max_y: 0.65                      # Tighter bottom for ad-heavy clips
+    max_y: 0.60                      # Tighter bottom than the 0.651 default
 ```
 
 **Key Features:**
