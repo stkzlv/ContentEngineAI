@@ -48,11 +48,24 @@ def clamp_to_safe_zone(
     frame_width: int,
     frame_height: int,
     safe_zone: PlatformSafeZone | None = None,
+    text_half_height_px: int = 0,
 ) -> tuple[int, int]:
-    """Clamp pixel coordinates to platform safe zone boundaries."""
+    """Clamp pixel coordinates to platform safe zone boundaries.
+
+    With ASS alignment 5 the caption ``y`` is the text center, so clamping the
+    bare point lets the bottom half spill past ``max_y`` into the platform UI
+    zone. Pass ``text_half_height_px`` (half the rendered line height) to keep
+    the whole text box inside the band: the center is held within
+    ``[min_y + half, max_y - half]``. Defaults to 0 (clamp the bare point).
+    """
     sz = safe_zone or PlatformSafeZone()
     clamped_x = max(int(frame_width * sz.min_x), min(x, int(frame_width * sz.max_x)))
-    clamped_y = max(int(frame_height * sz.min_y), min(y, int(frame_height * sz.max_y)))
+    top = int(frame_height * sz.min_y) + text_half_height_px
+    bottom = int(frame_height * sz.max_y) - text_half_height_px
+    if top > bottom:  # text taller than the band: center it in the band
+        clamped_y = (int(frame_height * sz.min_y) + int(frame_height * sz.max_y)) // 2
+    else:
+        clamped_y = max(top, min(y, bottom))
     return clamped_x, clamped_y
 
 

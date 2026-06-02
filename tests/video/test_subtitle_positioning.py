@@ -128,6 +128,19 @@ class TestSubtitlePositioning:
         _, clamped_y = clamp_to_safe_zone(540, 1920, 1080, 1920, sz)
         assert clamped_y <= 1250
 
+    def test_clamp_accounts_for_text_height(self):
+        """With center-anchored captions (ASS align 5), the clamp keeps the
+        whole text box inside the band, not just the center point.
+        """
+        sz = PlatformSafeZone()  # 2026 union: max_y -> 1249px
+        half = 40  # half a ~80px line
+        _, center_y = clamp_to_safe_zone(540, 1920, 1080, 1920, sz, half)
+        # Center is pulled up so the lowest pixel (center + half) stays <= 1250.
+        assert center_y + half <= 1250
+        # Degenerate case: text taller than the band centers within it.
+        _, mid = clamp_to_safe_zone(540, 1920, 1080, 1920, sz, 2000)
+        assert int(1920 * sz.min_y) <= mid <= int(1920 * sz.max_y)
+
     def test_custom_position_clamped(self):
         from src.video.subtitle_positioning import Position
 

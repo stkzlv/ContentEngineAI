@@ -761,6 +761,7 @@ class SubtitleGraphBuilder:
                         frame_width,
                         frame_height,
                         sz,
+                        text_half_height_px=int(font_size / 2),
                     )
 
                     # Update text with positioning
@@ -937,6 +938,7 @@ class SubtitleGraphBuilder:
                         frame_width,
                         frame_height,
                         sz,
+                        text_half_height_px=int(font_size / 2),
                     )
 
                     # Format times back to ASS
