@@ -80,6 +80,9 @@ poetry run python -m src.publisher.late single B0BTYCRJSS \
 poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube --platform tiktok --platform instagram \
   --debug
+
+# 7. Verify first comments landed on recent published posts
+poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 ```
 
 ---

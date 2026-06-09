@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
 from datetime import UTC, datetime
@@ -26,6 +27,7 @@ from dotenv import load_dotenv
 from src.publisher import PublisherProvider, create_publisher
 from src.publisher.batch import BatchPublisher
 from src.publisher.cleanup import CleanupManager
+from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.models import DEFAULT_PLATFORMS, Platform
 from src.publisher.product_registry import add_to_registry, rebuild_registry
@@ -186,6 +188,68 @@ async def cmd_list_accounts(
     except Exception as e:
         logger.error("Failed to list accounts: %s", e, exc_info=args.debug)
         sys.exit(1)
+
+
+def _load_product_map(outputs_dir: Path) -> dict[str, str]:
+    """Map Zernio post_id to product_id from publish_history.json (best effort)."""
+    try:
+        posts = json.loads((outputs_dir / "publish_history.json").read_text())["posts"]
+    except (OSError, KeyError, ValueError):
+        return {}
+    out: dict[str, str] = {}
+    for value in posts.values():
+        post_id = value.get("post_id")
+        if post_id:
+            out[post_id] = value.get("product_id", post_id)
+    return out
+
+
+async def cmd_verify_comments(
+    args: argparse.Namespace, config, session: aiohttp.ClientSession
+):
+    """Check recent published posts for a missing first comment.
+
+    Sweeps the most recent published posts and WARNs when a YouTube or
+    Instagram post is missing its owner first comment. Run after posts go live;
+    the comment is the affiliate-link surface and can fail silently.
+    """
+    publisher = _create_publisher_from_config(config, session)
+    if not await publisher.authenticate():
+        logger.error("Authentication failed - check your API key")
+        sys.exit(1)
+
+    posts = (await publisher.list_posts(status="published"))[: args.limit]
+    product_map = _load_product_map(args.outputs_dir)
+    logger.info("Checking first comments on %d recent published post(s)", len(posts))
+
+    checked = 0
+    missing = 0
+    for post in posts:
+        post_id = post.get("id")
+        if not post_id:
+            continue
+        product = product_map.get(post_id, post_id)
+        try:
+            checks = await verify_post_first_comments(publisher, post_id)
+        except Exception as exc:
+            logger.warning("Could not check post %s (%s): %s", product, post_id, exc)
+            continue
+        for check in checks:
+            checked += 1
+            if not check.present:
+                missing += 1
+                logger.warning(
+                    "First comment MISSING: %s on %s (post %s)",
+                    product,
+                    check.platform,
+                    post_id,
+                )
+    logger.info(
+        "First-comment check: %d missing of %d checked across %d post(s)",
+        missing,
+        checked,
+        len(posts),
+    )
 
 
 async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSession):
@@ -1209,6 +1273,28 @@ Examples:
         help="Enable debug logging",
     )
 
+    verify_parser = subparsers.add_parser(
+        "verify-comments",
+        help="Check that first comments landed on recent published posts",
+    )
+    verify_parser.add_argument(
+        "--limit",
+        type=int,
+        default=25,
+        help="Number of recent published posts to check (default: 25)",
+    )
+    verify_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=Path("outputs"),
+        help="Directory holding publish_history.json for product names",
+    )
+    verify_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1307,6 +1393,8 @@ Examples:
             await cmd_delete(args, config, session)
         elif args.command == "registry":
             cmd_registry(args)
+        elif args.command == "verify-comments":
+            await cmd_verify_comments(args, config, session)
 
 
 if __name__ == "__main__":
