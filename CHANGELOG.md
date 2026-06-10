@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.1] - 2026-06-10
+
 ### Fixed
 - Global batch no longer logs an invalid `sort_order` warning on every scrape. The Amazon search-parameters default was the CLI-friendly `relevance` instead of the Amazon token `relevanceblender`, so the batch's default filters failed validation.
 - Random profile selection no longer picks the `base` profile. It's the inheritance template, not a render target, and stays available via an explicit `--profile` / `--batch-profile`.
