@@ -168,3 +168,30 @@ class TestPillarOverride:
         cli = _make_cli()
         config = load_global_batch_config(cli, config_path=yaml_with_keywords)
         assert config.pillar is None
+
+
+def test_random_profile_pool_excludes_base():
+    """validate_global_batch_config drops base from the all-profiles fallback.
+
+    base is the inheritance template, not a render target, so a random batch
+    with no explicit pool must not select it.
+    """
+    from unittest.mock import Mock
+
+    from src.pipeline.config import GlobalBatchConfig, validate_global_batch_config
+
+    video_config = Mock()
+    video_config.video_profiles = {
+        "base": Mock(),
+        "slideshow_images1": Mock(),
+        "video_sequential": Mock(),
+    }
+    config = GlobalBatchConfig(random_profile=True)
+    config.product_ids = ["B0TESTASIN"]
+    config.skip_publish = True
+    config.profile_pool = []
+
+    validate_global_batch_config(config, video_config)
+
+    assert "base" not in config.profile_pool
+    assert "slideshow_images1" in config.profile_pool

@@ -71,6 +71,10 @@ class SearchParameters(BaseSearchParameters):
 
     # Amazon-specific fields
     prime_only: bool = False
+    # Override the generic base default ("relevance") with the Amazon sort
+    # token. validate() and build_search_url() expect an Amazon token; the
+    # CLI --sort maps friendly names, but the global batch uses this default.
+    sort_order: str = "relevanceblender"
 
     def __post_init__(self):
         """Initialize Amazon search parameters."""

@@ -356,6 +356,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Profile Randomization
 - Random profile selection per product from configured pool
+- When no pool is configured, the fallback is all profiles except `base` (the inheritance template, not a render target); `base` is still usable via an explicit profile choice
 - Deterministic seeding for reproducibility
 - Profile compatibility checking with skip on mismatch
 

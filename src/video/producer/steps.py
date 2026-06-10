@@ -860,7 +860,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
         if subtitle_engine == "pycaps":
             if two_part_enabled:
-                logger.warning(
+                logger.debug(
                     "Two-part subtitles are not supported in pycaps mode. "
                     "Disabling two-part for this run; re-enable by switching "
                     "subtitle_engine back to 'ffmpeg'."

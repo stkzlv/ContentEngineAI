@@ -12,6 +12,11 @@ from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
 
+# Profiles excluded from random selection. `base` is the inheritance template
+# other profiles extend, not a render target, so random batches shouldn't pick
+# it. It stays usable via an explicit --profile / --batch-profile.
+EXCLUDED_RANDOM_PROFILES = frozenset({"base"})
+
 
 def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     """Set up logging to both console and file.
@@ -339,8 +344,8 @@ def load_profile_pool(
     elif yaml_pool is not None and len(yaml_pool) > 0:
         pool = yaml_pool
     else:
-        # Default to all available profiles
-        pool = list(config.video_profiles.keys())
+        # Default to all available profiles, minus non-render templates.
+        pool = [p for p in config.video_profiles if p not in EXCLUDED_RANDOM_PROFILES]
 
     # Validate all profiles exist
     validate_profiles(pool, config)

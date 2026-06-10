@@ -952,9 +952,16 @@ def validate_global_batch_config(
 
     # Validate random profile configuration
     if config.random_profile:
-        # If no profile pool specified, use all available profiles
+        # If no profile pool specified, use all available render profiles
+        # (excluding `base`, the inheritance template).
         if not config.profile_pool:
-            config.profile_pool = list(video_config.video_profiles.keys())
+            from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
+
+            config.profile_pool = [
+                p
+                for p in video_config.video_profiles
+                if p not in EXCLUDED_RANDOM_PROFILES
+            ]
 
         # Validate all profiles in pool exist
         invalid_profiles = [

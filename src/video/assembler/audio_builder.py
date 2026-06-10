@@ -1,7 +1,8 @@
 """Audio filter chain construction.
 
 This module provides utilities for building FFmpeg audio filter chains with
-support for voiceover, background music, ducking, and video audio mixing.
+support for voiceover, background music, and video audio. Tracks are combined
+with fixed-level mixing (FFmpeg amix, normalize off), not sidechain ducking.
 """
 
 import logging
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class AudioFilterBuilder:
-    """Build FFmpeg audio filter chains with ducking and mixing.
+    """Build FFmpeg audio filter chains with fixed-level mixing.
 
     This class handles construction of complex audio filter graphs for FFmpeg,
     including voiceover processing, background music with fades, and optional
