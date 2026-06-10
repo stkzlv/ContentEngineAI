@@ -37,6 +37,21 @@ from src.video.config.constants import (
 logger = logging.getLogger(__name__)
 
 
+def _extract_account_id(acc: Any) -> str | None:
+    """Pull the account id string from a platform target's accountId.
+
+    The SDK returns accountId as a nested SocialAccount object (``field_id``),
+    a dict (``_id``), or already a string depending on the endpoint.
+    """
+    if acc is None:
+        return None
+    if isinstance(acc, str):
+        return acc
+    if isinstance(acc, dict):
+        return acc.get("_id") or acc.get("field_id") or acc.get("id")
+    return getattr(acc, "field_id", None) or getattr(acc, "_id", None)
+
+
 @register_publisher(PublisherProvider.LATE)
 class LatePublisher(BasePublisher):
     """Late.dev implementation of video publishing service.
@@ -688,6 +703,69 @@ class LatePublisher(BasePublisher):
             if "401" in str(e) or "403" in str(e):
                 raise AuthenticationError(f"Authentication expired: {e}") from e
             raise PublishError(error_msg) from e
+
+    async def get_post_platforms(self, post_id: str) -> list[dict[str, Any]]:
+        """Return normalized per-platform targets for a post.
+
+        Each item: ``{platform, platform_post_id, account_id, status}``. Used to
+        find the platform post id and account needed to read inbox comments.
+        ``platform_post_id`` is None until the platform actually publishes.
+        """
+
+        async def _get_post():
+            return await self._call_sdk(self.client.posts.get, post_id)
+
+        resp = await self._retry_with_backoff(_get_post, f"Get platforms for {post_id}")
+        post_data = resp.post if getattr(resp, "post", None) else resp
+        raw = getattr(post_data, "platforms", None)
+        if raw is None and isinstance(post_data, dict):
+            raw = post_data.get("platforms")
+        out: list[dict[str, Any]] = []
+        for p in raw or []:
+            if isinstance(p, dict):
+                platform = str(p.get("platform", "")).split(".")[-1].lower()
+                ppid = p.get("platformPostId")
+                acc = p.get("accountId")
+                status = p.get("status")
+            else:
+                platform = str(getattr(p, "platform", "")).split(".")[-1].lower()
+                ppid = getattr(p, "platformPostId", None)
+                acc = getattr(p, "accountId", None)
+                raw_status = getattr(p, "status", None)
+                status = str(raw_status).split(".")[-1].lower() if raw_status else None
+            out.append(
+                {
+                    "platform": platform,
+                    "platform_post_id": ppid,
+                    "account_id": _extract_account_id(acc),
+                    "status": status,
+                }
+            )
+        return out
+
+    async def get_post_comments(
+        self, platform_post_id: str, account_id: str, limit: int = 25
+    ) -> list[dict[str, Any]]:
+        """Return inbox comments on a published post (list of dicts).
+
+        Each comment has ``message`` and a ``from`` object with ``isOwner``,
+        which flags the account owner's own comment (our first comment).
+        """
+
+        async def _get():
+            return await self._call_sdk(
+                self.client.comments.get_inbox_post_comments,
+                post_id=platform_post_id,
+                account_id=account_id,
+                limit=limit,
+            )
+
+        resp = await self._retry_with_backoff(
+            _get, f"Get comments for {platform_post_id}"
+        )
+        if isinstance(resp, dict):
+            return resp.get("comments") or []
+        return getattr(resp, "comments", None) or []
 
     async def delete_post(self, post_id: str) -> bool:
         """Delete a post from Late.dev.

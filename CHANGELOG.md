@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-06-10
+
+### Added
+- `verify-comments` publisher subcommand. Sweeps recent published posts and WARNs when a YouTube or Instagram post is missing its first comment. Zernio accepts the `firstComment` field and reports the post published with no error, but the comment can fail to post silently; the platform inbox is the only signal (our first comment is the only owner-authored one). Run it after posts go live.
+
 ## [0.51.3] - 2026-06-02
 
 ### Fixed

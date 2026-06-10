@@ -395,6 +395,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Non-blocking: missing data or affiliate link silently skipped (warning logged)
 - Works in both unified and platform-specific publishing modes (each platform gets its own comment via per-platform data)
 - Disabled by default, toggled via config
+- Delivery is verifiable after a post goes live: the platform inbox is queried for the account owner's own comment, since the scheduling API reports the post published without confirming the comment posted. A sweep over recent published posts warns on any YouTube or Instagram post missing its first comment.
 
 ### Duplicate Publish Protection
 - Tracks previously published products per platform
