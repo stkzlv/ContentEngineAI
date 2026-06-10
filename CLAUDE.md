@@ -439,6 +439,9 @@ Security-critical updates can trigger an immediate patch release without waiting
 
 **CRITICAL**: Standalone module CLIs (publisher, scraper, producer) and `global_batch.py` often have parallel implementations of the same logic (scheduling, validation, retry, cleanup). When fixing or adding behavior in one path, **proactively check the other path** for the same issue or missing feature. Don't wait for it to break separately. The batch pipeline re-implements logic from standalone modules rather than calling them, so drift is common and silent.
 
+- **The random profile-pool "all profiles" fallback exists in FOUR places**: `src/video/producer/utils.py::load_profile_pool`, two spots in `src/pipeline/global_batch.py`, and `src/pipeline/config.py::validate_global_batch_config`. The last one is the one that actually matters for the batch: it populates an empty `config.profile_pool` with the profile list, and that populated pool is what `select_profile_for_product` selects from. The two `global_batch.py` spots build local pools used elsewhere. So a change to "which profiles are random-selectable" (e.g. excluding `base`) has to land in `config.py` too, or the batch keeps using the old set. Grep all four for `video_profiles` when touching random selection.
+- **Two `SearchParameters` classes hold the same concept**: `src/scraper/config_models.py` (Pydantic) and `src/scraper/amazon/models.py` (dataclass extending `BaseSearchParameters`). The global batch's `scraper_filters` uses the dataclass one; its defaults can drift from the Pydantic one (the `sort_order` default did: dataclass inherited the base's `"relevance"`, Pydantic had `"relevanceblender"`). When changing a search-param default, change both or confirm which path consumes it.
+
 ## Available MCP Servers
 
 The project has access to these MCP servers for enhanced development capabilities:
