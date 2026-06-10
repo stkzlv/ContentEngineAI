@@ -157,6 +157,15 @@ class TestLoadProfilePool:
 
         assert set(result) == set(mock_config.video_profiles.keys())
 
+    def test_base_excluded_from_all_profiles_fallback(self, mock_config):
+        """Base is the inheritance template, never picked by random selection."""
+        mock_config.video_profiles["base"] = Mock()
+
+        result = load_profile_pool(None, None, mock_config)
+
+        assert "base" not in result
+        assert "slideshow_images1" in result
+
     def test_cli_empty_list_overrides_yaml(self, mock_config):
         """Test empty CLI list is respected (returns empty, triggers all later)."""
         cli_pool: list[str] = []

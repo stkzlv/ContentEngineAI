@@ -430,9 +430,13 @@ class GlobalPipelineOrchestrator:
             return None
 
         if self.config.random_profile:
-            pool = self.config.profile_pool or list(
-                self.video_config.video_profiles.keys()
-            )
+            from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
+
+            pool = self.config.profile_pool or [
+                p
+                for p in self.video_config.video_profiles
+                if p not in EXCLUDED_RANDOM_PROFILES
+            ]
             for name in pool:
                 profile = self.video_config.video_profiles.get(name)
                 if profile and not profile.use_scraped_videos:
@@ -545,8 +549,14 @@ class GlobalPipelineOrchestrator:
                 print(f"    - Strategy: {profile.strategy}")
                 print(f"    - Resolution: {profile.resolution}")
         elif self.config.random_profile:
+            from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
+
             print("  Profile mode: Random selection")
-            pool = self.config.profile_pool or list(video_config.video_profiles.keys())
+            pool = self.config.profile_pool or [
+                p
+                for p in video_config.video_profiles
+                if p not in EXCLUDED_RANDOM_PROFILES
+            ]
             print(f"  Profile pool ({len(pool)} profiles):")
             for p in pool[:5]:
                 print(f"    - {p}")
