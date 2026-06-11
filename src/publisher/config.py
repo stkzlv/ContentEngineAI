@@ -17,6 +17,7 @@ import yaml
 from src.publisher.models import (
     DEFAULT_PLATFORMS,
     AccountConfig,
+    BlobRetentionConfig,
     CleanupConfig,
     FirstCommentConfig,
     LinkInBioConfig,
@@ -309,6 +310,22 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             result["first_comment_config"] = FirstCommentConfig()
     else:
         result["first_comment_config"] = FirstCommentConfig()
+
+    # Parse blob_retention config
+    blob_retention_section = result.get("blob_retention", {})
+    if blob_retention_section:
+        try:
+            result["blob_retention_config"] = BlobRetentionConfig(
+                **blob_retention_section
+            )
+            logger.debug("Parsed blob_retention config: %s", blob_retention_section)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse blob_retention config: %s, using defaults", e
+            )
+            result["blob_retention_config"] = BlobRetentionConfig()
+    else:
+        result["blob_retention_config"] = BlobRetentionConfig()
 
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)

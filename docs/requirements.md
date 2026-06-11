@@ -408,6 +408,9 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Configurable per-platform enable/disable
 - Safety checks verify publication success before deletion
 - Require all platforms to succeed before cleanup
+- Trim the Vercel Blob upload store after each publish run under a config-driven retention policy: delete blobs older than a configurable age, then trim oldest-first to a configurable total size
+- Blobs referenced by posts that aren't fully published yet are always kept, regardless of the retention policy
+- Retention is non-blocking (failures log a warning, never affect publishing) and skips silently when disabled or no Blob token is configured
 
 ### Link-in-Bio Integration
 - After publishing a video, add the product's Amazon affiliate link to a link-in-bio page

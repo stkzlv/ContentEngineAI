@@ -1815,6 +1815,22 @@ class GlobalPipelineOrchestrator:
                 )
                 await asyncio.sleep(delay)
 
+        # Trim the Vercel Blob upload store (non-blocking)
+        if successful > 0:
+            from src.publisher.blob_retention import run_blob_retention
+            from src.publisher.late.client import LatePublisher
+            from src.publisher.models import BlobRetentionConfig
+
+            br_section = publisher_config.get("blob_retention", {})
+            try:
+                retention_policy = (
+                    BlobRetentionConfig(**br_section) if br_section else None
+                )
+            except (ValueError, TypeError):
+                retention_policy = None
+            if isinstance(publisher, LatePublisher):
+                await run_blob_retention(publisher, retention_policy)
+
         # Generate summary
         duration = time.time() - phase_start
         logger.info(

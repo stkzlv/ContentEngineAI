@@ -279,6 +279,24 @@ first_comment:
     youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
     instagram: "{product_title}\n🔗 Link in bio!"
 
+# Retention for the Vercel Blob store that stages large video uploads
+# (LATE_VERCEL_TOKEN). Zernio fetches the video from the blob URL when a
+# scheduled post goes live; after that the blob is dead weight. Without
+# retention the store fills the free tier and Vercel pauses access, which
+# breaks every upload over the direct-upload limit. Runs once after each
+# publish run. Blobs referenced by not-yet-published posts are always kept,
+# regardless of these limits.
+
+blob_retention:
+  enabled: true
+  # Delete blobs older than this many days (must exceed the longest time a
+  # post can sit scheduled; the auto-scheduler looks ahead up to 8 weeks only
+  # when the calendar is full, and protection covers scheduled posts anyway)
+  max_age_days: 30
+  # After the age sweep, trim oldest-first until the store total is under
+  # this (free tier is 1024 MB; leave headroom for a publishing burst)
+  max_total_mb: 500
+
 link_in_bio:
   # Enable/disable link-in-bio updates after publishing
   enabled: true
