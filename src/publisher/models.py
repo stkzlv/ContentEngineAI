@@ -428,6 +428,9 @@ class PublisherConfig:
     first_comment_config: "FirstCommentConfig" = field(
         default_factory=lambda: FirstCommentConfig()
     )
+    blob_retention_config: "BlobRetentionConfig" = field(
+        default_factory=lambda: BlobRetentionConfig()
+    )
     use_platform_specific_content: bool = False
     # Per-platform video profile routing (Phase 1.3).
     # Maps platform name (lowercased: "tiktok"/"youtube"/"instagram") to a
@@ -1108,3 +1111,26 @@ class FirstCommentConfig:
     enabled: bool = False
     platforms: dict[str, str] = field(default_factory=dict)
     move_hashtags_to_comment: bool = False
+
+
+@dataclass
+class BlobRetentionConfig:
+    """Retention policy for the Vercel Blob upload store.
+
+    Large video uploads are staged in the user's Blob store and fetched by
+    the scheduling service at publish time; without retention the store
+    grows until the free tier pauses access and uploads start failing.
+    Blobs referenced by not-yet-published posts are always kept, regardless
+    of this policy.
+
+    Attributes
+    ----------
+        enabled: Apply retention after publish runs
+        max_age_days: Delete blobs older than this many days
+        max_total_mb: After the age sweep, trim oldest-first to this total
+
+    """
+
+    enabled: bool = False
+    max_age_days: int = 30
+    max_total_mb: int = 500

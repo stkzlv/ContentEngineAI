@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Vercel Blob retention. After each publish run the publisher trims the Blob store that stages large video uploads: blobs older than `blob_retention.max_age_days` are deleted, then the store is trimmed oldest-first under `blob_retention.max_total_mb`. Blobs referenced by posts that aren't fully published yet are always kept. Non-blocking; skips silently when disabled or when no Blob token is configured. Without retention the store fills the free tier and Vercel pauses access, breaking every upload over 4 MB.
+
 ## [0.52.1] - 2026-06-10
 
 ### Fixed

@@ -743,6 +743,42 @@ class LatePublisher(BasePublisher):
             )
         return out
 
+    async def get_unpublished_media_urls(self) -> set[str]:
+        """Return media URLs referenced by posts that aren't fully published.
+
+        Used by blob retention to protect uploads that the scheduling service
+        still needs (scheduled/pending/draft/failed/partial posts). The
+        normalized ``list_posts`` drops mediaItems, so this reads the raw
+        paginated SDK response.
+        """
+        urls: set[str] = set()
+        page = 1
+        while True:
+
+            async def _fetch(current_page=page):
+                return await self._call_sdk(
+                    self.client.posts.list, page=current_page, limit=SDK_LIST_PAGE_SIZE
+                )
+
+            resp = await self._retry_with_backoff(_fetch, f"List posts page {page}")
+            data = (
+                resp.model_dump(by_alias=True, mode="json")
+                if hasattr(resp, "model_dump")
+                else resp
+            )
+            posts = data.get("posts") or [] if isinstance(data, dict) else []
+            for post in posts:
+                status = str(post.get("status") or "").lower()
+                if status == "published":
+                    continue
+                for item in post.get("mediaItems") or []:
+                    url = item.get("url") if isinstance(item, dict) else None
+                    if url:
+                        urls.add(str(url))
+            if len(posts) < SDK_LIST_PAGE_SIZE:
+                return urls
+            page += 1
+
     async def get_post_comments(
         self, platform_post_id: str, account_id: str, limit: int = 25
     ) -> list[dict[str, Any]]:

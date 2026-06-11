@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 
 from src.publisher import PublisherProvider, create_publisher
 from src.publisher.batch import BatchPublisher
+from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
@@ -514,6 +515,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         else:
             logger.debug("Cleanup not configured in config file")
 
+        # Trim the Vercel Blob upload store (non-blocking)
+        await run_blob_retention(publisher, config.blob_retention_config)
+
     except Exception as e:
         logger.error("Failed to publish video: %s", e, exc_info=args.debug)
         sys.exit(1)
@@ -795,6 +799,10 @@ async def _run_immediate_batch(
         logger.debug("No successful publishes - skipping cleanup")
     else:
         logger.debug("Cleanup not configured in config file")
+
+    # Trim the Vercel Blob upload store (non-blocking)
+    if summary.successful > 0:
+        await run_blob_retention(publisher, config.blob_retention_config)
 
     if summary.failed > 0:
         sys.exit(1)

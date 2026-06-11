@@ -24,6 +24,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Link-in-Bio Integration](#-link-in-bio-integration)
 - [First Comment](#-first-comment)
+- [Blob Store Retention](#-blob-store-retention)
 - [Published Products Registry](#-published-products-registry)
 - [Error Handling](#-error-handling)
 - [Troubleshooting](#-troubleshooting)
@@ -1424,6 +1425,21 @@ This works in both publishing modes. In unified mode (default), one post goes to
 The feature is additive: post descriptions stay as-is, the first comment is extra.
 
 </details>
+
+---
+
+## 🗑️ Blob Store Retention
+
+Videos over 4 MB are staged in your Vercel Blob store (`LATE_VERCEL_TOKEN`); Zernio fetches them from the blob URL when a scheduled post goes live. After that the blob is dead weight, and without retention the store fills the free tier (1 GB) until Vercel pauses access, breaking every large upload.
+
+Retention runs once after each publish run (`single`, `schedule`, and the global batch) and applies two policies in order: delete blobs older than `max_age_days`, then trim oldest-first until the store total is under `max_total_mb`. Blobs referenced by posts that aren't fully published yet are always kept, regardless of policy. Failures log a warning and never affect publishing; the step skips silently when disabled or when no Blob token is set.
+
+```yaml
+blob_retention:
+  enabled: true
+  max_age_days: 30    # delete blobs older than this
+  max_total_mb: 500   # then trim oldest-first under this total
+```
 
 ---
 
