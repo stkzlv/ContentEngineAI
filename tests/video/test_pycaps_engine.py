@@ -369,3 +369,49 @@ class TestConfigMergePycapsLayer:
         assert isinstance(settings.pycaps, PycapsSettings)
         assert settings.pycaps.template_name == "vibrant"
         assert settings.pycaps.renderer == "pictex"
+
+
+class TestEnsurePlaywrightChromiumPlatform:
+    """The Ubuntu 26.04 Playwright host-platform override workaround."""
+
+    @staticmethod
+    def _run(monkeypatch, os_release: str, preset: str | None) -> str | None:
+        from unittest.mock import mock_open
+
+        import src.video.pycaps_engine.renderer as r
+
+        env: dict[str, str] = {}
+        if preset is not None:
+            env["PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"] = preset
+        monkeypatch.setattr(r.os, "environ", env)
+        monkeypatch.setattr("builtins.open", mock_open(read_data=os_release))
+        r._ensure_playwright_chromium_platform()
+        return env.get("PLAYWRIGHT_HOST_PLATFORM_OVERRIDE")
+
+    def test_forces_2404_build_on_ubuntu_2604(self, monkeypatch):
+        result = self._run(monkeypatch, 'ID=ubuntu\nVERSION_ID="26.04"\n', None)
+        assert result == "ubuntu24.04-x64"
+
+    def test_explicit_override_wins(self, monkeypatch):
+        result = self._run(monkeypatch, 'ID=ubuntu\nVERSION_ID="26.04"\n', "custom")
+        assert result == "custom"
+
+    def test_noop_on_ubuntu_2404(self, monkeypatch):
+        result = self._run(monkeypatch, 'ID=ubuntu\nVERSION_ID="24.04"\n', None)
+        assert result is None
+
+    def test_noop_on_non_ubuntu(self, monkeypatch):
+        result = self._run(monkeypatch, 'ID=fedora\nVERSION_ID="42"\n', None)
+        assert result is None
+
+    def test_noop_when_os_release_missing(self, monkeypatch):
+        import src.video.pycaps_engine.renderer as r
+
+        def _raise(*_a, **_k):
+            raise OSError("no /etc/os-release")
+
+        env: dict[str, str] = {}
+        monkeypatch.setattr(r.os, "environ", env)
+        monkeypatch.setattr("builtins.open", _raise)
+        r._ensure_playwright_chromium_platform()
+        assert "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE" not in env

@@ -26,6 +26,7 @@ from __future__ import annotations
 import gc
 import hashlib
 import logging
+import os
 import resource
 import time
 from dataclasses import dataclass
@@ -43,6 +44,38 @@ _BOTTOM_ANCHOR_MARGIN: float = 0.02  # keep 2% whitespace below the image
 _PYCAPS_BOTTOM_BASE: float = 0.95  # matches LayoutUtils.get_vertical_alignment_position
 _OFFSET_MIN: float = -0.9
 _OFFSET_MAX: float = 0.0
+
+
+def _ensure_playwright_chromium_platform() -> None:
+    """Force the Ubuntu 24.04 chromium build on Ubuntu 26.04+.
+
+    Playwright (<=1.60) maps Ubuntu 26.04 to ``ubuntu26.04-x64``, which has no
+    browser in its registry, so the CSS renderer's ``chromium.launch()`` fails.
+    The 24.04 build is binary-compatible; the documented override forces it.
+    Runs for every entry point (standalone producer, batch, tests), not just the
+    Makefile targets. No-op off Ubuntu 26+ or when the var is already set, so an
+    explicit override always wins. See docs/troubleshooting.md.
+    """
+    if os.environ.get("PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"):
+        return
+    try:
+        with open("/etc/os-release", encoding="utf-8") as f:
+            release = dict(line.rstrip().split("=", 1) for line in f if "=" in line)
+    except OSError:
+        return
+    if release.get("ID", "").strip('"') != "ubuntu":
+        return
+    try:
+        major = int(release.get("VERSION_ID", "").strip('"').split(".")[0])
+    except ValueError:
+        return
+    if major >= 26:
+        os.environ["PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"] = "ubuntu24.04-x64"
+        logger.debug(
+            "Forced PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 "
+            "(Ubuntu %s has no native Playwright chromium build)",
+            release.get("VERSION_ID", "").strip('"'),
+        )
 
 
 class PycapsUnavailableError(RuntimeError):
@@ -274,6 +307,8 @@ class PycapsRenderer:
         """
         wall_start = time.monotonic()
         template_used = select_template_for_product(product_id, settings)
+        if settings.renderer == "css":
+            _ensure_playwright_chromium_platform()
         try:
             caps_builder, custom_renderer = self._build_pipeline(
                 input_video=input_video,

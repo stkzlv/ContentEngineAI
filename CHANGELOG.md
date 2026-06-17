@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- pycaps CSS subtitle renderer now installs and runs on Ubuntu 26.04. Playwright has no chromium build for 26.04 yet (through 1.60), so the producer forces the binary-compatible 24.04 build via `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE`; the one-time browser install needs the same prefix. The CSS renderer also needs `xvfb-run` on Wayland desktops or its per-word screenshots hang. The browserless `pictex` renderer needs neither.
+
 ## [0.53.1] - 2026-06-18
 
 ### Fixed
