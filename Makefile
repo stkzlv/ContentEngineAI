@@ -432,7 +432,6 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
-			--setenv=DISPLAY --setenv=WAYLAND_DISPLAY --setenv=XAUTHORITY \
 			poetry run python -m src.pipeline.global_batch $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
@@ -447,7 +446,6 @@ scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
-			--setenv=DISPLAY --setenv=WAYLAND_DISPLAY --setenv=XAUTHORITY \
 			poetry run python -m src.scraper.amazon.scraper $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \

@@ -19,6 +19,15 @@ class TestNormalMode:
         # Normal mode must not touch DISPLAY; pyvirtualdisplay sets it itself.
         assert "DISPLAY" not in __import__("os").environ
 
+    def test_unsets_wayland_display(self, monkeypatch):
+        # Chrome must use X11/Xvfb, not the Wayland backend, or normal runs draw a window.
+        monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+        monkeypatch.delenv("DISPLAY", raising=False)
+        _build_browser_config(debug_mode=False)
+        import os
+
+        assert "WAYLAND_DISPLAY" not in os.environ
+
     def test_warns_when_xvfb_missing(self, monkeypatch, caplog):
         monkeypatch.setattr(browser_functions.shutil, "which", lambda _: None)
         with caplog.at_level("WARNING"):

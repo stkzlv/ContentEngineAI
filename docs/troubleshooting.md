@@ -907,8 +907,10 @@ command -v Xvfb          # must be installed
 **Fix:** Install `Xvfb` (`sudo apt install -y xvfb`). Normal runs then use a virtual display
 (real headful browser, no visible window); `--debug` runs attach to the live Xwayland server so
 you can watch. If `Xvfb` is missing, Botasaurus silently falls back to `--headless=new` and
-crashes, so a missing-Xvfb box is the real failure, not a working degraded mode. Under
-`make scrape-lowpri --debug` the display is forwarded into the cgroup scope automatically.
+crashes, so a missing-Xvfb box is the real failure, not a working degraded mode. The scraper
+forces Chrome onto X11 (unsets `WAYLAND_DISPLAY`) so normal runs stay invisible on Xvfb; a
+`--debug` run resolves the live Xwayland display from `/proc`, so it works under
+`make scrape-lowpri` without any env forwarding.
 
 ### Community Support
 

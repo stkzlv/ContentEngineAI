@@ -709,6 +709,11 @@ def _build_browser_config(debug_mode=False):
     except Exception:
         current_config = {}
 
+    # Keep Chrome on X11 (Xvfb when normal, Xwayland when debug), never Wayland. If
+    # WAYLAND_DISPLAY is set, Chromium can pick the Wayland backend and draw a real
+    # window even in normal/invisible mode, defeating the Xvfb virtual display.
+    os.environ.pop("WAYLAND_DISPLAY", None)
+
     force_real_browser = debug_mode
 
     if force_real_browser:
