@@ -46,15 +46,22 @@ _OFFSET_MIN: float = -0.9
 _OFFSET_MAX: float = 0.0
 
 
+# Distros Playwright maps onto the ``ubuntuXX.XX`` build family. On these, a
+# major >= 26 produces the ``ubuntu26.04`` tag that has no registry build.
+# Matches Playwright's own getHostPlatform() list (ubuntu, pop, neon, tuxedo).
+_UBUNTU_LIKE_IDS = frozenset({"ubuntu", "pop", "neon", "tuxedo"})
+
+
 def _ensure_playwright_chromium_platform() -> None:
     """Force the Ubuntu 24.04 chromium build on Ubuntu 26.04+.
 
     Playwright (<=1.60) maps Ubuntu 26.04 to ``ubuntu26.04-x64``, which has no
     browser in its registry, so the CSS renderer's ``chromium.launch()`` fails.
     The 24.04 build is binary-compatible; the documented override forces it.
-    Runs for every entry point (standalone producer, batch, tests), not just the
-    Makefile targets. No-op off Ubuntu 26+ or when the var is already set, so an
-    explicit override always wins. See docs/troubleshooting.md.
+    Runs for every entry point (standalone producer, batch, tests). No-op off
+    Ubuntu 26+ or when the var is already set, so an explicit override always
+    wins. Covers Ubuntu and the derivatives Playwright treats as Ubuntu (Pop!_OS,
+    KDE neon, Tuxedo). See docs/troubleshooting.md.
     """
     if os.environ.get("PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"):
         return
@@ -63,7 +70,7 @@ def _ensure_playwright_chromium_platform() -> None:
             release = dict(line.rstrip().split("=", 1) for line in f if "=" in line)
     except OSError:
         return
-    if release.get("ID", "").strip('"') != "ubuntu":
+    if release.get("ID", "").strip('"').lower() not in _UBUNTU_LIKE_IDS:
         return
     try:
         major = int(release.get("VERSION_ID", "").strip('"').split(".")[0])

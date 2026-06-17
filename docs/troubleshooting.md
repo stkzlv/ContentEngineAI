@@ -186,9 +186,9 @@ poetry run playwright install chromium
 PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 poetry run playwright install chromium
 ```
 
-At runtime the override is set automatically on Ubuntu 26+ for the CSS renderer: the producer applies it in `src/video/pycaps_engine/renderer.py` (covers standalone `python -m src.video.producer`, the batch pipeline, and tests), and `make produce-lowpri` / `batch-lowpri` also set it via the `PW_OVERRIDE` Makefile variable. An explicit env var always wins (the code uses `setdefault` semantics).
+At runtime the override is set automatically for the CSS renderer on Ubuntu-like distros at version 26+: the producer applies it in `src/video/pycaps_engine/renderer.py` before any Playwright launch, so it covers standalone `python -m src.video.producer`, the batch pipeline, `make produce-lowpri` / `batch-lowpri`, and tests with no Makefile env wiring. It matches Playwright's own distro set (`ubuntu`, `pop`, `neon`, `tuxedo`). An explicit env var always wins (the code uses `setdefault` semantics).
 
-Once Playwright 1.61+ is on PyPI, bump it and drop the override (the Makefile var and the renderer helper both no-op off Ubuntu 26+, so they're safe to leave until then).
+Once Playwright 1.61+ is on PyPI, bump it and drop the override (the renderer helper no-ops off Ubuntu 26+, so it's safe to leave until then).
 
 ### pycaps CSS renderer hangs at `Page.screenshot: Timeout 30000ms exceeded`
 

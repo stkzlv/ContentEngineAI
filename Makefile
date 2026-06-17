@@ -423,11 +423,6 @@ IONICE_CLASS := 2
 IONICE_LEVEL := 6
 MEM_LIMIT := 4G
 
-# Playwright (pycaps CSS renderer) has no prebuilt chromium for Ubuntu 26.04 yet.
-# On 26+ force the 24.04 build, which is binary-compatible. Empty elsewhere (no-op).
-# Must match the value used for `playwright install chromium` (see docs/troubleshooting.md).
-PW_OVERRIDE := $(shell . /etc/os-release 2>/dev/null; if [ "$$ID" = ubuntu ] && [ "$${VERSION_ID%%.*}" -ge 26 ] 2>/dev/null; then echo PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64; fi)
-
 batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 	poetry run python -m src.pipeline.global_batch $(ARGS)
 
@@ -435,13 +430,13 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
-		$(PW_OVERRIDE) nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.pipeline.global_batch $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
-		$(PW_OVERRIDE) nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			poetry run python -m src.pipeline.global_batch $(ARGS); \
 	fi
 
@@ -490,13 +485,13 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
-		$(PW_OVERRIDE) nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			poetry run python -m src.video.producer $(ARGS); \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
-		$(PW_OVERRIDE) nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			poetry run python -m src.video.producer $(ARGS); \
 	fi
 

@@ -392,6 +392,13 @@ class TestEnsurePlaywrightChromiumPlatform:
         result = self._run(monkeypatch, 'ID=ubuntu\nVERSION_ID="26.04"\n', None)
         assert result == "ubuntu24.04-x64"
 
+    @pytest.mark.parametrize("distro_id", ["pop", "neon", "tuxedo", "Ubuntu"])
+    def test_forces_2404_build_on_ubuntu_derivatives(self, monkeypatch, distro_id):
+        # Playwright maps these onto the ubuntu build family, so 26+ hits the
+        # same missing-build bug. The ID match is case-insensitive.
+        result = self._run(monkeypatch, f'ID={distro_id}\nVERSION_ID="26.04"\n', None)
+        assert result == "ubuntu24.04-x64"
+
     def test_explicit_override_wins(self, monkeypatch):
         result = self._run(monkeypatch, 'ID=ubuntu\nVERSION_ID="26.04"\n', "custom")
         assert result == "custom"
