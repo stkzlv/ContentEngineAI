@@ -80,25 +80,25 @@ def extract_high_res_images_botasaurus(
 
     if DEBUG_MODE:
         logger.info(
-            "🔍 Using fast Botasaurus extraction methods " "(max: %d, threshold: %dpx)",
+            "Using fast Botasaurus extraction methods " "(max: %d, threshold: %dpx)",
             max_images,
             high_res_threshold,
         )
 
         # Page analysis using Botasaurus built-in methods
-        logger.info("🔬 [FAST EXTRACTION] Starting page analysis...")
+        logger.info("[FAST EXTRACTION] Starting page analysis...")
         try:
             page_title = driver.title
-            logger.info("📄 Page title: %s", page_title)
+            logger.info("Page title: %s", page_title)
         except Exception as e:
-            logger.warning("⚠️ Page title extraction failed: %s", e)
+            logger.warning("Page title extraction failed: %s", e)
 
     # Advanced debug functionality
     if DEBUG_MODE and debug_options:
         _perform_advanced_debug_analysis(driver, debug_options, logger)
 
     if DEBUG_MODE:
-        logger.info("⚡ Using fast direct extraction methods")
+        logger.info("Using fast direct extraction methods")
 
     image_urls: list[str] = []
 
@@ -106,7 +106,7 @@ def extract_high_res_images_botasaurus(
         # Method 1: Advanced JavaScript extraction of dynamic image data
         if DEBUG_MODE:
             logger.info(
-                "🎯 Method 1: Advanced JavaScript extraction of dynamic image data"
+                "Method 1: Advanced JavaScript extraction of dynamic image data"
             )
 
         try:
@@ -220,10 +220,10 @@ def extract_high_res_images_botasaurus(
 
                 if DEBUG_MODE:
                     logger.info(
-                        "📊 Found %d high-res images in JSON data", len(high_res_images)
+                        "Found %d high-res images in JSON data", len(high_res_images)
                     )
                     logger.info(
-                        "📊 Found %d thumbnails for potential clicking", thumbnail_count
+                        "Found %d thumbnails for potential clicking", thumbnail_count
                     )
 
                 # Add high-res images from JavaScript extraction
@@ -234,18 +234,18 @@ def extract_high_res_images_botasaurus(
                         image_urls.append(url)
                         if DEBUG_MODE:
                             logger.info(
-                                "✅ Method 1 found high-res image: %s...", url[:80]
+                                "Method 1 found high-res image: %s...", url[:80]
                             )
 
         except Exception as e:
             if DEBUG_MODE:
-                logger.warning("⚠️ Method 1 failed: %s", e)
+                logger.warning("Method 1 failed: %s", e)
 
         # Method 2: Strategic thumbnail clicking for dynamic image loading
         if len(image_urls) < max_images:
             if DEBUG_MODE:
                 logger.info(
-                    "🖱️ Method 2: Strategic thumbnail clicking for dynamic loading"
+                    "Method 2: Strategic thumbnail clicking for dynamic loading"
                 )
 
             try:
@@ -254,7 +254,7 @@ def extract_high_res_images_botasaurus(
                     "#altImages .imageThumbnail, #altImages li"
                 )
                 if DEBUG_MODE:
-                    logger.info("🖱️ Found %d clickable thumbnails", len(thumbnails))
+                    logger.info("Found %d clickable thumbnails", len(thumbnails))
 
                 for i, thumb in enumerate(thumbnails[:max_images]):
                     if len(image_urls) >= max_images:
@@ -264,7 +264,7 @@ def extract_high_res_images_botasaurus(
                         # Click the thumbnail to potentially load high-res version
                         if DEBUG_MODE:
                             logger.info(
-                                "🖱️ Clicking thumbnail %d/%d", i + 1, len(thumbnails)
+                                "Clicking thumbnail %d/%d", i + 1, len(thumbnails)
                             )
 
                         # Use Botasaurus click with short wait
@@ -299,25 +299,23 @@ def extract_high_res_images_botasaurus(
                                 image_urls.append(enhanced_url)
                                 if DEBUG_MODE:
                                     logger.info(
-                                        "✅ Method 2 found clicked image: %s...",
+                                        "Method 2 found clicked image: %s...",
                                         enhanced_url[:80],
                                     )
 
                     except Exception as e:
                         if DEBUG_MODE:
-                            logger.warning(
-                                "⚠️ Error clicking thumbnail %d: %s", i + 1, e
-                            )
+                            logger.warning("Error clicking thumbnail %d: %s", i + 1, e)
                         continue
 
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.warning("⚠️ Method 2 failed: %s", e)
+                    logger.warning("Method 2 failed: %s", e)
 
         # Method 3: Fallback to enhanced direct extraction
         if len(image_urls) < max_images:
             if DEBUG_MODE:
-                logger.info("📋 Method 3: Enhanced direct extraction fallback")
+                logger.info("Method 3: Enhanced direct extraction fallback")
 
             try:
                 # Use get_all_image_links but with better filtering
@@ -343,17 +341,17 @@ def extract_high_res_images_botasaurus(
                             image_urls.append(enhanced_url)
                             if DEBUG_MODE:
                                 logger.info(
-                                    "✅ Method 3 found fallback image: %s...",
+                                    "Method 3 found fallback image: %s...",
                                     enhanced_url[:80],
                                 )
 
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.warning("⚠️ Method 3 failed: %s", e)
+                    logger.warning("Method 3 failed: %s", e)
 
     except Exception as e:
         if DEBUG_MODE:
-            logger.error("❌ Error in advanced image extraction: %s", e)
+            logger.error("Error in advanced image extraction: %s", e)
 
     # Remove duplicates while preserving order and limit results
     unique_urls = []
@@ -365,7 +363,7 @@ def extract_high_res_images_botasaurus(
 
     if DEBUG_MODE:
         logger.info(
-            "🎯 Extracted %d high-res images using Botasaurus (limit: %d)",
+            "Extracted %d high-res images using Botasaurus (limit: %d)",
             len(unique_urls),
             max_images,
         )

@@ -54,7 +54,7 @@ async def convert_m3u8_to_mp4(
             str(output_path),
         ]
 
-        logger.info("🎬 Converting m3u8 to mp4: %s", output_path.name)
+        logger.info("Converting m3u8 to mp4: %s", output_path.name)
         logger.debug("   Command: %s", " ".join(cmd))
 
         # Run ffmpeg with timeout using async subprocess
@@ -70,27 +70,27 @@ async def convert_m3u8_to_mp4(
             )
 
             if process.returncode == 0:
-                logger.info("✅ Successfully converted to MP4: %s", output_path.name)
+                logger.info("Successfully converted to MP4: %s", output_path.name)
                 return True
             else:
                 logger.error(
-                    "❌ FFmpeg conversion failed with code %s", process.returncode
+                    "FFmpeg conversion failed with code %s", process.returncode
                 )
                 stderr_text = stderr.decode("utf-8", errors="ignore")[:500]
                 logger.error("   stderr: %s", stderr_text)
                 return False
 
         except TimeoutError:
-            logger.error("❌ FFmpeg conversion timed out after %ds", timeout)
+            logger.error("FFmpeg conversion timed out after %ds", timeout)
             process.kill()
             await process.wait()
             return False
 
     except FileNotFoundError:
-        logger.error("❌ FFmpeg not found. Please install: sudo apt install ffmpeg")
+        logger.error("FFmpeg not found. Please install: sudo apt install ffmpeg")
         return False
     except Exception as e:
-        logger.error("❌ Unexpected error during m3u8 conversion: %s", e)
+        logger.error("Unexpected error during m3u8 conversion: %s", e)
         return False
 
 
@@ -274,7 +274,7 @@ async def _download_media_async(
         # Download images concurrently
         if image_urls:
             if debug_mode:
-                logger.info("🖼️ [IMAGE DOWNLOAD] Processing %d images", len(image_urls))
+                logger.info("[IMAGE DOWNLOAD] Processing %d images", len(image_urls))
 
             async def download_single_image(i: int, url: str) -> str | None:
                 try:
@@ -318,7 +318,7 @@ async def _download_media_async(
                                 )
                                 dim_str = f"{dimensions[0]}x{dimensions[1]}"
                                 logger.info(
-                                    "✅ [IMAGE] %s (%s bytes, %s)",
+                                    "[IMAGE] %s (%s bytes, %s)",
                                     filename,
                                     file_size,
                                     dim_str,
@@ -328,7 +328,7 @@ async def _download_media_async(
                             with contextlib.suppress(Exception):
                                 file_path.unlink()
                 except Exception as e:
-                    logger.warning("❌ [IMAGE] Failed %d: %s", i + 1, e)
+                    logger.warning("[IMAGE] Failed %d: %s", i + 1, e)
                 return None
 
             # Download images concurrently with semaphore
@@ -355,7 +355,7 @@ async def _download_media_async(
                 m3u8_count = sum(1 for url in video_urls if url and ".m3u8" in url)
                 mp4_count = len(video_urls) - m3u8_count
                 logger.info(
-                    "🎥 [VIDEO] Processing %d videos (M3U8: %d, MP4: %d)",
+                    "[VIDEO] Processing %d videos (M3U8: %d, MP4: %d)",
                     len(video_urls),
                     m3u8_count,
                     mp4_count,
@@ -401,7 +401,7 @@ async def _download_media_async(
                                     "duration", 0
                                 )
                                 logger.info(
-                                    "✅ [VIDEO] %s (%s bytes, %ss)",
+                                    "[VIDEO] %s (%s bytes, %ss)",
                                     filename,
                                     file_size,
                                     duration,
@@ -411,7 +411,7 @@ async def _download_media_async(
                             with contextlib.suppress(Exception):
                                 file_path.unlink()
                 except Exception as e:
-                    logger.warning("❌ [VIDEO] Failed %d: %s", i + 1, e)
+                    logger.warning("[VIDEO] Failed %d: %s", i + 1, e)
                 return None
 
             # Download videos concurrently with semaphore

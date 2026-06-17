@@ -116,7 +116,7 @@ def get_output_path(path_type: str, **kwargs) -> str:
 
             fallback_path = fallback_paths.get(path_type, outputs_base)
             print(
-                f"⚠️  Config fallback: Using path '{fallback_path}' "
+                f" Config fallback: Using path '{fallback_path}' "
                 f"for type '{path_type}' (error: {e})"
             )
             return fallback_path
@@ -137,7 +137,7 @@ def get_output_path(path_type: str, **kwargs) -> str:
 
             ultimate_path = ultimate_fallback.get(path_type, f"{current_dir}/outputs")
             print(
-                f"⚠️  Ultimate fallback: Using path '{ultimate_path}' "
+                f" Ultimate fallback: Using path '{ultimate_path}' "
                 f"for type '{path_type}' (errors: {e}, {fallback_error})"
             )
             return ultimate_path
@@ -181,7 +181,7 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             pattern = fallback_patterns.get(file_type, "{keyword}_{file_type}.{ext}")
             formatted_pattern = str(pattern).format(**kwargs)
             print(
-                f"⚠️  Config fallback: Using filename pattern "
+                f" Config fallback: Using filename pattern "
                 f"'{formatted_pattern}' for type '{file_type}' (error: {e})"
             )
             return formatted_pattern
@@ -204,7 +204,7 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
                 safe_filename += ".txt"
 
             print(
-                f"⚠️  Ultimate fallback: Using safe filename '{safe_filename}' "
+                f" Ultimate fallback: Using safe filename '{safe_filename}' "
                 f"for type '{file_type}' (errors: {e}, {fallback_error})"
             )
             return safe_filename
@@ -426,7 +426,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         return config_data
 
     except Exception as e:
-        print(f"❌ Error loading configuration: {e}")
+        print(f"Error loading configuration: {e}")
         print("Using enhanced fallback configuration...")
 
         # Enhanced fallback configuration
@@ -472,7 +472,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
 try:
     load_browser_config_from_yaml()
 except Exception as init_error:
-    print(f"⚠️  Warning: Config initialization failed: {init_error}")
+    print(f" Warning: Config initialization failed: {init_error}")
     print("Using enhanced initialization fallback...")
 
     # Enhanced initialization fallback configuration

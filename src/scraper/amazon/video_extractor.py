@@ -180,7 +180,7 @@ def extract_functional_videos_with_validation(
 
         if not page_info or not page_info.get("asin"):
             if DEBUG_MODE:
-                logger.warning("❌ Could not extract ASIN from current page")
+                logger.warning("Could not extract ASIN from current page")
             return []
 
         current_asin = page_info["asin"]
@@ -190,7 +190,7 @@ def extract_functional_videos_with_validation(
 
         if not current_asin:
             if DEBUG_MODE:
-                logger.warning("❌ Could not extract ASIN from current page")
+                logger.warning("Could not extract ASIN from current page")
             return []
 
         if DEBUG_MODE:
@@ -201,7 +201,7 @@ def extract_functional_videos_with_validation(
 
         # Method 1: JavaScript extraction from page data (same as images)
         if DEBUG_MODE:
-            logger.info("🎯 Method 1: JavaScript extraction from page data")
+            logger.info("Method 1: JavaScript extraction from page data")
 
         try:
             js_result = driver.run_js(  # noqa: E501
@@ -498,7 +498,7 @@ def extract_functional_videos_with_validation(
                 #     if url not in video_urls:
                 #         video_urls.append(url)
                 #         if DEBUG_MODE:
-                #             logger.info(f"✅ Method 1 found VDP link: {url[:80]}...")
+                #             logger.info(f"Method 1 found VDP link: {url[:80]}...")
 
         except Exception as e:
             if DEBUG_MODE:
@@ -509,9 +509,7 @@ def extract_functional_videos_with_validation(
             "Method 2 check: %d videos so far, max=%d", len(video_urls), max_videos
         )
         if len(video_urls) < max_videos:
-            logger.info(
-                "🖱️ Method 2: Strategic thumbnail clicking for videos - STARTING"
-            )
+            logger.info("Method 2: Strategic thumbnail clicking for videos - STARTING")
 
             try:
                 # PRAGMATIC SOLUTION: Amazon mixes competitor videos everywhere
@@ -542,7 +540,7 @@ def extract_functional_videos_with_validation(
                 # - Works with Amazon's bot detection (doesn't require carousel access)
 
                 if enable_m3u8_monitoring:
-                    logger.info("🎬 Using network monitoring to capture video streams")
+                    logger.info("Using network monitoring to capture video streams")
                     logger.info("   Method: Capture m3u8 HLS URLs from network traffic")
 
                     # Find and click the first video thumbnail to trigger video loading
@@ -552,7 +550,7 @@ def extract_functional_videos_with_validation(
                         )
                         if video_thumbnail:
                             if DEBUG_MODE:
-                                logger.info("🖱️ Clicking video thumbnail to load player")
+                                logger.info("Clicking video thumbnail to load player")
 
                             # Mute videos before clicking
                             driver.run_js("""
@@ -568,11 +566,11 @@ def extract_functional_videos_with_validation(
 
                             if DEBUG_MODE:
                                 logger.info(
-                                    "✅ Video player triggered, waiting for "
+                                    "Video player triggered, waiting for "
                                     "network requests"
                                 )
                         else:
-                            logger.warning("⚠️ No video thumbnail found")
+                            logger.warning("No video thumbnail found")
                     except Exception as e:
                         logger.warning("Failed to trigger video player: %s", e)
 
@@ -608,9 +606,7 @@ def extract_functional_videos_with_validation(
                                             m3u8_url[:80],
                                         )
                         else:
-                            logger.warning(
-                                "⚠️ No m3u8 URLs captured from network traffic"
-                            )
+                            logger.warning("No m3u8 URLs captured from network traffic")
 
                     except Exception as e:
                         if DEBUG_MODE:
@@ -624,7 +620,7 @@ def extract_functional_videos_with_validation(
         if len(video_urls) < max_videos:
             if DEBUG_MODE:
                 logger.info(
-                    "📋 Method 3: Direct element extraction with context filtering"
+                    "Method 3: Direct element extraction with context filtering"
                 )
 
             try:

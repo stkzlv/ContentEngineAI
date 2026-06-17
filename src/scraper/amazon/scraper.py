@@ -184,7 +184,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if original_debug_mode != DEBUG_MODE:
                 logger.debug(
-                    "🔧 [CLI OVERRIDE] Debug mode set to %s "
+                    "[CLI OVERRIDE] Debug mode set to %s "
                     "(overriding config value: %s)",
                     DEBUG_MODE,
                     original_debug_mode,
@@ -209,17 +209,17 @@ class BotasaurusAmazonScraper(BaseScraper):
         if self.debug_mode:
             self.logger.setLevel(logging.DEBUG)
             self.logger.info(
-                "🐛 DEBUG MODE ENABLED - Enhanced logging and diagnostics active"
+                "DEBUG MODE ENABLED - Enhanced logging and diagnostics active"
             )
             self.logger.info(
-                "📊 Config loaded: %d Amazon settings",
+                "Config loaded: %d Amazon settings",
                 len(self.amazon_config),
             )
             min_high_res = self.global_settings.get("image_config", {}).get(
                 "min_high_res_dimension", HIGH_RES_DIMENSION
             )
-            self.logger.info("🎯 Min High-Res Dimension: %s", min_high_res)
-            self.logger.info("⚙️ Browser config: %s", self.browser_config)
+            self.logger.info("Min High-Res Dimension: %s", min_high_res)
+            self.logger.info("Browser config: %s", self.browser_config)
         else:
             self.logger.setLevel(logging.INFO)
 
@@ -302,7 +302,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         current_page = 1
 
         self.logger.info(
-            "🎯 Target: %d products that pass validation requirements",
+            "Target: %d products that pass validation requirements",
             target_count,
         )
 
@@ -331,7 +331,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if self.debug_mode:
                 self.logger.info(
-                    "📊 Progress: %d/%d validated | Page %d | "
+                    "Progress: %d/%d validated | Page %d | "
                     "Requesting %d more products...",
                     len(validated_products),
                     target_count,
@@ -368,7 +368,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if self.debug_mode:
                 self.logger.info(
-                    "✅ Batch complete: +%d validated products (total: %d/%d)",
+                    "Batch complete: +%d validated products (total: %d/%d)",
                     len(batch),
                     len(validated_products),
                     target_count,
@@ -382,7 +382,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             validated_products = validated_products[:target_count]
 
         self.logger.info(
-            "🎉 Scraping complete: %d validated products collected",
+            "Scraping complete: %d validated products collected",
             len(validated_products),
         )
 
@@ -429,8 +429,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             # Use the dynamic Botasaurus browser function with current debug settings
             if self.debug_mode:
                 self.logger.debug(
-                    "🔧 [DEBUG] Creating dynamic browser function with "
-                    "DEBUG_MODE=%s",
+                    "[DEBUG] Creating dynamic browser function with " "DEBUG_MODE=%s",
                     self.debug_mode,
                 )
 
@@ -438,27 +437,25 @@ class BotasaurusAmazonScraper(BaseScraper):
                 browser_func = create_dynamic_browser_function(self.debug_mode)
                 if self.debug_mode:
                     self.logger.debug(
-                        "🔧 [DEBUG] browser_func type: %s",
+                        "[DEBUG] browser_func type: %s",
                         type(browser_func),
                     )
-                    self.logger.debug("🔧 [DEBUG] browser_func: %s", browser_func)
+                    self.logger.debug("[DEBUG] browser_func: %s", browser_func)
                     self.logger.debug(
-                        "🔧 [DEBUG] Calling browser_func with data: %s",
+                        "[DEBUG] Calling browser_func with data: %s",
                         data,
                     )
                 results = self._scrape_with_retry(browser_func, data)
                 self.logger.debug(
-                    "🔧 [DEBUG] browser_func returned %d products",
+                    "[DEBUG] browser_func returned %d products",
                     len(results) if results else 0,
                 )
             except Exception as e:
                 if self.debug_mode:
-                    self.logger.error("❌ [DEBUG] Error in browser function: %s", e)
+                    self.logger.error("[DEBUG] Error in browser function: %s", e)
                     import traceback
 
-                    self.logger.error(
-                        "❌ [DEBUG] Traceback: %s", traceback.format_exc()
-                    )
+                    self.logger.error("[DEBUG] Traceback: %s", traceback.format_exc())
                 raise
 
             # Download media for scraped products
@@ -488,7 +485,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         """
         if self.debug_mode:
             self.logger.info(
-                "🚀 Starting media downloads for %d products",
+                "Starting media downloads for %d products",
                 len(results),
             )
 
@@ -497,7 +494,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         for result in results:
             if self.debug_mode:
                 self.logger.debug(
-                    "📋 Checking product: ASIN=%s, images=%d, videos=%d",
+                    "Checking product: ASIN=%s, images=%d, videos=%d",
                     result.get("asin"),
                     len(result.get("images", [])),
                     len(result.get("videos", [])),
@@ -515,9 +512,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     }
                 )
                 if self.debug_mode:
-                    self.logger.info(
-                        "✅ Added %s to media download queue", result["asin"]
-                    )
+                    self.logger.info("Added %s to media download queue", result["asin"])
 
         # Limit downloads to target_download_count if specified
         if (
@@ -527,7 +522,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             if self.debug_mode:
                 task_count = len(media_download_tasks)
                 self.logger.info(
-                    "📉 Limiting downloads: %d -> %d products",
+                    "Limiting downloads: %d -> %d products",
                     task_count,
                     target_download_count,
                 )
@@ -535,7 +530,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         if self.debug_mode:
             self.logger.info(
-                "📦 Total media download tasks prepared: %d",
+                "Total media download tasks prepared: %d",
                 len(media_download_tasks),
             )
 
@@ -551,7 +546,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         if self.debug_mode:
             self.logger.info(
-                "🚀 [MEDIA ORCHESTRATION] Starting media downloads for " "%d products",
+                "[MEDIA ORCHESTRATION] Starting media downloads for " "%d products",
                 len(media_download_tasks),
             )
             for i, task in enumerate(media_download_tasks):
@@ -566,7 +561,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         try:
             if self.debug_mode:
                 self.logger.info(
-                    "🔄 [MEDIA ORCHESTRATION] Calling "
+                    "[MEDIA ORCHESTRATION] Calling "
                     "download_media_files with %d tasks",
                     len(media_download_tasks),
                 )
@@ -576,7 +571,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             for task in media_download_tasks:
                 if self.debug_mode:
                     self.logger.info(
-                        "🔽 [INDIVIDUAL DOWNLOAD] Processing ASIN: %s",
+                        "[INDIVIDUAL DOWNLOAD] Processing ASIN: %s",
                         task["asin"],
                     )
                 dl_result = download_media_files([task])
@@ -599,7 +594,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if not download_results:
                 self.logger.warning(
-                    "⚠️ No media download results returned, " "continuing without media"
+                    "No media download results returned, " "continuing without media"
                 )
 
             # Create mapping for easy lookup
@@ -611,7 +606,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     else "N/A"
                 )
                 self.logger.debug(
-                    "🐛 [DEBUG] Processing download_results: " "type=%s, length=%s",
+                    "[DEBUG] Processing download_results: " "type=%s, length=%s",
                     type(download_results),
                     length_str,
                 )
@@ -619,7 +614,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             for i, dl_result in enumerate(download_results):
                 if self.debug_mode:
                     self.logger.debug(
-                        "🐛 [DEBUG] Processing result %d: type=%s",
+                        "[DEBUG] Processing result %d: type=%s",
                         i,
                         type(dl_result),
                     )
@@ -631,7 +626,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         img_count = len(dl_result.get("downloaded_images", []))
                         vid_count = len(dl_result.get("downloaded_videos", []))
                         self.logger.debug(
-                            "✅ [DEBUG] Mapped download result for ASIN: "
+                            "[DEBUG] Mapped download result for ASIN: "
                             "%s (images: %d, videos: %d)",
                             asin,
                             img_count,
@@ -646,7 +641,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     )
                     result_preview = str(dl_result)[:result_preview_length]
                     self.logger.debug(
-                        "⚠️ [DEBUG] Skipping invalid result %d: " "%s, preview: %s...",
+                        "[DEBUG] Skipping invalid result %d: " "%s, preview: %s...",
                         i,
                         type(dl_result),
                         result_preview,
@@ -671,7 +666,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         media_download_success += 1
                         if self.debug_mode:
                             self.logger.info(
-                                "📁 ASIN %s: %d images, %d videos downloaded",
+                                "ASIN %s: %d images, %d videos downloaded",
                                 asin,
                                 total_images,
                                 total_videos,
@@ -680,7 +675,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         media_download_partial += 1
                         if self.debug_mode:
                             self.logger.debug(
-                                "📁 ASIN %s: Media extraction "
+                                "ASIN %s: Media extraction "
                                 "attempted but no files downloaded",
                                 asin,
                             )
@@ -691,14 +686,14 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if self.debug_mode:
                 self.logger.info(
-                    "📊 Media download summary: %d successful, %d partial/failed",
+                    "Media download summary: %d successful, %d partial/failed",
                     media_download_success,
                     media_download_partial,
                 )
 
         except Exception as e:
             self.logger.warning(
-                "⚠️ Media download failed (%s), continuing with " "product data only",
+                "Media download failed (%s), continuing with " "product data only",
                 e,
             )
             for result in results:
@@ -763,8 +758,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         if self.debug_mode:
             self.logger.info(
-                "🔍 [FINAL VERIFICATION] Checking scraped products and "
-                "media files..."
+                "[FINAL VERIFICATION] Checking scraped products and " "media files..."
             )
 
         for i, product in enumerate(products):
@@ -796,7 +790,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             if self.debug_mode:
                 self.logger.info(
-                    "🔍 [FINAL VERIFICATION] Product %d: "
+                    "[FINAL VERIFICATION] Product %d: "
                     "ASIN=%s, Actual files: %d images, %d videos",
                     i + 1,
                     product.asin,
@@ -845,7 +839,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 products_with_media.append(product)
                 if self.debug_mode:
                     self.logger.info(
-                        "✅ [FINAL VERIFICATION] Product %s "
+                        "[FINAL VERIFICATION] Product %s "
                         "meets producer requirements: %d images, "
                         "%d videos, %d total media",
                         product.asin,
@@ -867,7 +861,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         shutil.rmtree(product_dir)
                         if self.debug_mode:
                             self.logger.info(
-                                "🧹 Cleaned up product directory for "
+                                "Cleaned up product directory for "
                                 "filtered product: %s",
                                 product.asin,
                             )
@@ -883,13 +877,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             if count_products_with_media:
                 if len(products_with_media) == max_products:
                     self.logger.info(
-                        "✅ [FINAL VERIFICATION] SUCCESS: Got exactly "
+                        "[FINAL VERIFICATION] SUCCESS: Got exactly "
                         "%d products with downloaded media!",
                         max_products,
                     )
                 else:
                     self.logger.warning(
-                        "⚠️ [FINAL VERIFICATION] Expected "
+                        "[FINAL VERIFICATION] Expected "
                         "%d products with media, but only "
                         "%d have media files. Filtered out "
                         "%d without media.",
@@ -899,7 +893,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     )
             else:
                 self.logger.info(
-                    "🔍 [FINAL VERIFICATION] Traditional mode: "
+                    "[FINAL VERIFICATION] Traditional mode: "
                     "%d scraped, %d with media files",
                     len(products),
                     len(products_with_media),
@@ -1029,13 +1023,13 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Scrape with retry logic for Amazon error pages"""
         try:
             if self.debug_mode:
-                self.logger.debug("🔄 [DEBUG] Attempting scrape with retry logic")
+                self.logger.debug("[DEBUG] Attempting scrape with retry logic")
             return browser_func(data)
         except RuntimeError as e:
             if "Amazon error page detected" in str(e):
                 if self.debug_mode:
                     self.logger.warning(
-                        "🔄 [DEBUG] Caught Amazon error " "page, will retry: %s",
+                        "[DEBUG] Caught Amazon error " "page, will retry: %s",
                         e,
                     )
                 raise  # Will trigger retry
@@ -1208,7 +1202,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Save scraped products to product-centric JSON structure"""
         if not products:
             if self.debug_mode:
-                self.logger.info("⚠️ No products to save")
+                self.logger.info("No products to save")
             return
 
         # Shorten affiliate links if enabled
@@ -1225,7 +1219,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             product_dicts.append(product_dict)
 
         if self.debug_mode:
-            self.logger.info("📄 Saving %d products manually", len(product_dicts))
+            self.logger.info("Saving %d products manually", len(product_dicts))
 
         # Call the output function directly
         write_scraped_data_output(
@@ -1264,7 +1258,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 try:
                     self._browser_func.close()
                     if self.debug_mode:
-                        self.logger.info("🧹 Browser instances cleaned up")
+                        self.logger.info("Browser instances cleaned up")
                 except Exception as e:
                     if self.debug_mode:
                         self.logger.debug("Browser cleanup warning: %s", e)
@@ -1273,7 +1267,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             try:
                 download_media_files.close()
                 if self.debug_mode:
-                    self.logger.info("🧹 Media download tasks cleaned up")
+                    self.logger.info("Media download tasks cleaned up")
             except Exception as e:
                 if self.debug_mode:
                     self.logger.debug("Media download cleanup warning: %s", e)
@@ -1486,13 +1480,13 @@ def main():
                     seen.add(fid)
             args.product_ids = existing
             logger.info(
-                "📂 Loaded %d entries from %s (%d unique total)",
+                "Loaded %d entries from %s (%d unique total)",
                 len(file_ids),
                 args.input_file,
                 len(args.product_ids),
             )
         else:
-            logger.error("❌ Input file not found: %s", input_path)
+            logger.error("Input file not found: %s", input_path)
             return
 
     # Load keywords/product_ids from config if not provided via CLI
@@ -1518,19 +1512,19 @@ def main():
 
                     if batch_product_ids and batch_keywords:
                         logger.debug(
-                            "📝 Using batch mode from config: "
+                            "Using batch mode from config: "
                             "%d product IDs, %d keywords",
                             len(batch_product_ids),
                             len(batch_keywords),
                         )
                     elif batch_product_ids:
                         logger.debug(
-                            "📝 Using batch product IDs from config: %s",
+                            "Using batch product IDs from config: %s",
                             ", ".join(batch_product_ids),
                         )
                     else:
                         logger.debug(
-                            "📝 Using batch keywords from config: %s",
+                            "Using batch keywords from config: %s",
                             ", ".join(batch_keywords),
                         )
                 else:
@@ -1541,32 +1535,30 @@ def main():
                     if config_keywords:
                         args.keywords = config_keywords
                         logger.debug(
-                            "📝 Using keywords from config file: %s",
+                            "Using keywords from config file: %s",
                             ", ".join(config_keywords),
                         )
                     else:
                         logger.error(
-                            "❌ No keywords/product_ids provided via CLI and none "
+                            "No keywords/product_ids provided via CLI and none "
                             "found in config file"
                         )
                         logger.debug(
-                            "💡 Either use --keywords/--product-ids or add to "
+                            "Either use --keywords/--product-ids or add to "
                             "batch section in config/scraper.yaml"
                         )
                         return
             else:
                 logger.error(
-                    "❌ No keywords provided via CLI and " "config file not found"
+                    "No keywords provided via CLI and " "config file not found"
                 )
                 logger.debug(
-                    "💡 Use --keywords 'your keyword' to " "specify what to scrape"
+                    "Use --keywords 'your keyword' to " "specify what to scrape"
                 )
                 return
         except Exception as e:
-            logger.error("❌ Error loading config file: %s", e)
-            logger.debug(
-                "💡 Use --keywords 'your keyword' to " "specify what to scrape"
-            )
+            logger.error("Error loading config file: %s", e)
+            logger.debug("Use --keywords 'your keyword' to " "specify what to scrape")
             return
 
     # Setup debug mode early - before scraper instantiation
@@ -1608,37 +1600,34 @@ def main():
     # Log debug mode status messages only when debug is enabled
     if debug_enabled:
         if args.verbose:
-            logger.debug("🔍 Verbose mode enabled - detailed logging active")
+            logger.debug("Verbose mode enabled - detailed logging active")
         elif config_debug_mode and not args.debug:
             logger.debug(
-                "🔧 Debug mode enabled from config - browser visibility and "
+                "Debug mode enabled from config - browser visibility and "
                 "detailed logging active"
             )
         else:
             logger.debug(
-                "🔧 Debug mode enabled - browser visibility and detailed "
-                "logging active"
+                "Debug mode enabled - browser visibility and detailed " "logging active"
             )
 
-        logger.debug("🔧 Debug mode set globally for browser visibility")
+        logger.debug("Debug mode set globally for browser visibility")
 
         if args.pause_on_error:
             logger.debug(
-                "⏸️ Pause-on-error enabled - execution " "will pause when errors occur"
+                "Pause-on-error enabled - execution " "will pause when errors occur"
             )
         if args.save_screenshots:
-            logger.debug("📸 Screenshot saving enabled - " "key steps will be captured")
+            logger.debug("Screenshot saving enabled - " "key steps will be captured")
         if args.save_page_source:
             logger.debug(
-                "📄 Page source saving enabled - " "HTML will be saved for analysis"
+                "Page source saving enabled - " "HTML will be saved for analysis"
             )
         if args.analyze_images:
-            logger.debug(
-                "🔍 Deep image analysis enabled - " "all images will be analyzed"
-            )
+            logger.debug("Deep image analysis enabled - " "all images will be analyzed")
         if args.dump_image_urls:
             logger.debug(
-                "📝 Image URL dumping enabled - " "all URLs will be saved to file"
+                "Image URL dumping enabled - " "all URLs will be saved to file"
             )
 
     if args.clean:
@@ -1650,7 +1639,7 @@ def main():
         project_root = Path(__file__).parent.parent.parent.parent
         base_output_path = project_root / get_output_path("base")
         if base_output_path.exists():
-            logger.info("🧹 Cleaning all scraper outputs in: %s", base_output_path)
+            logger.info("Cleaning all scraper outputs in: %s", base_output_path)
 
             # Remove all product directories (ASIN patterns and test IDs)
             # Amazon ASINs: typically 10 chars like B0XXXXXXXX, but also catch test IDs
@@ -1663,11 +1652,11 @@ def main():
                     # Remove ASIN directories
                     if asin_pattern.match(item.name):
                         shutil.rmtree(item)
-                        logger.debug("🧹 Cleaned product directory: %s", item)
+                        logger.debug("Cleaned product directory: %s", item)
                     # Remove other scraper directories (but preserve logs, reports)
                     elif item.name in ["cache", "temp", "screenshots"]:
                         shutil.rmtree(item)
-                        logger.debug("🧹 Cleaned scraper directory: %s", item)
+                        logger.debug("Cleaned scraper directory: %s", item)
                 elif (
                     item.is_file()
                     and item.suffix
@@ -1680,16 +1669,16 @@ def main():
                     and not item.name.startswith("report")
                 ):
                     item.unlink()
-                    logger.debug("🧹 Cleaned scraper file: %s", item)
+                    logger.debug("Cleaned scraper file: %s", item)
 
-            logger.info("✅ Cleanup completed - all scraper outputs removed")
+            logger.info("Cleanup completed - all scraper outputs removed")
 
     if args.debug:
-        logger.debug("🐛 Debug mode enabled")
+        logger.debug("Debug mode enabled")
         from ...utils.outputs_paths import get_temp_directory
 
         temp_dir = get_temp_directory()
-        logger.debug("📂 Debug files will be saved to: %s", temp_dir)
+        logger.debug("Debug files will be saved to: %s", temp_dir)
 
     # Create SearchParameters from CLI arguments with config defaults
     # Start with default parameters from config
@@ -1742,14 +1731,14 @@ def main():
     # Validate search parameters
     validation_errors = search_params.validate()
     if validation_errors:
-        logger.error("❌ Invalid search parameters:")
+        logger.error("Invalid search parameters:")
         for error in validation_errors:
             logger.error("   • %s", error)
         return
 
     # Show search parameters in debug mode
     if args.debug:
-        logger.debug("🔍 Search parameters configured:")
+        logger.debug("Search parameters configured:")
         if search_params.min_price or search_params.max_price:
             price_range = (
                 f"${search_params.min_price or 0:.2f}-${search_params.max_price or '∞'}"
@@ -1846,7 +1835,7 @@ def main():
                     for i in range(0, len(all_product_ids), batch_size)
                 ]
                 logger.info(
-                    "📦 Splitting %d products into %d batches of %d",
+                    "Splitting %d products into %d batches of %d",
                     len(all_product_ids),
                     len(chunks),
                     batch_size,
@@ -1858,7 +1847,7 @@ def main():
             for chunk_idx, chunk in enumerate(chunks):
                 if len(chunks) > 1:
                     logger.info(
-                        "📦 Batch %d/%d (%d products)",
+                        "Batch %d/%d (%d products)",
                         chunk_idx + 1,
                         len(chunks),
                         len(chunk) if chunk else 0,

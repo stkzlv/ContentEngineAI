@@ -97,7 +97,7 @@ def exponential_backoff_retry(
 
                     if attempt == actual_max_retries:
                         logging.getLogger(__name__).error(
-                            f"❌ Final retry failed for {wrapped_func.__name__}: {e}"
+                            f"Final retry failed for {wrapped_func.__name__}: {e}"
                         )
                         raise last_exception from None
 
@@ -112,7 +112,7 @@ def exponential_backoff_retry(
                     )
 
                 logging.getLogger(__name__).debug(
-                    f"🔄 Retry {attempt + 1}/{actual_max_retries} for "
+                    f"Retry {attempt + 1}/{actual_max_retries} for "
                     f"{wrapped_func.__name__} in {delay:.2f}s: {last_exception}"
                 )
 

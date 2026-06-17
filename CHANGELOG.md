@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Scraper now works on Wayland desktops (Ubuntu 26+). Normal runs request Botasaurus's Xvfb virtual display instead of relying on a `DISPLAY` that Wayland never exports, so headful Chrome has somewhere to draw; previously every scrape returned 0 products with a 60s "document not ready" timeout. Debug runs resolve the live Xwayland display and auth cookie instead of a hardcoded `:0`. Needs the `xvfb` package on Linux desktops. New `src/scraper/base/display.py` helper, covered by tests.
+
+### Changed
+- Emojis removed from scraper module log messages (plain text per the project logging standard).
+
 ## [0.53.0] - 2026-06-11
 
 ### Added

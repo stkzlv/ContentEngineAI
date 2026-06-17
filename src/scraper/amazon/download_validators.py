@@ -108,7 +108,7 @@ def _validate_image_size_before_download(
         if is_obvious_thumbnail:
             if debug_mode and logger:
                 logger.debug(
-                    "❌ [SMART-VALIDATION] Obvious thumbnail pattern " "detected in URL"
+                    "[SMART-VALIDATION] Obvious thumbnail pattern " "detected in URL"
                 )
             return False
 
@@ -135,7 +135,7 @@ def _validate_image_size_before_download(
         if is_high_quality:
             if debug_mode and logger:
                 logger.info(
-                    "✅ [SMART-VALIDATION] High-quality image pattern "
+                    "[SMART-VALIDATION] High-quality image pattern "
                     "detected, skipping size check"
                 )
             return True
@@ -155,7 +155,7 @@ def _validate_image_size_before_download(
             # Verify it's actually an image
             if content_type and not content_type.startswith("image/"):
                 if debug_mode and logger:
-                    logger.debug(f"❌ [SMART-VALIDATION] Not an image: {content_type}")
+                    logger.debug(f"[SMART-VALIDATION] Not an image: {content_type}")
                 return False
 
             if content_length:
@@ -193,7 +193,7 @@ def _validate_image_size_before_download(
                     if has_quality_hint:
                         if debug_mode and logger:
                             logger.info(
-                                f"✅ [SMART-VALIDATION] Borderline size "
+                                f"[SMART-VALIDATION] Borderline size "
                                 f"({file_size} bytes) but quality hint "
                                 f"detected"
                             )
@@ -202,14 +202,14 @@ def _validate_image_size_before_download(
                 if debug_mode and logger:
                     if is_valid:
                         logger.info(
-                            f"✅ [SMART-VALIDATION] Image size OK: "
+                            f"[SMART-VALIDATION] Image size OK: "
                             f"{file_size} bytes "
                             f"(>= {effective_min_size}, "
                             f"format: {content_type})"
                         )
                     else:
                         logger.debug(
-                            f"❌ [SMART-VALIDATION] Image too small: "
+                            f"[SMART-VALIDATION] Image too small: "
                             f"{file_size} bytes "
                             f"(< {effective_min_size}, "
                             f"format: {content_type})"
@@ -220,7 +220,7 @@ def _validate_image_size_before_download(
                 # No content-length header - use URL analysis as fallback
                 if debug_mode and logger:
                     logger.debug(
-                        "⚠️ [SMART-VALIDATION] No content-length header, "
+                        "[SMART-VALIDATION] No content-length header, "
                         "using URL analysis"
                     )
                 # Already checked for thumbnail patterns, so assume valid
@@ -228,7 +228,7 @@ def _validate_image_size_before_download(
         else:
             if debug_mode and logger:
                 logger.debug(
-                    f"❌ [SMART-VALIDATION] HTTP {response.status_code} "
+                    f"[SMART-VALIDATION] HTTP {response.status_code} "
                     f"for URL validation"
                 )
             return False
@@ -236,12 +236,12 @@ def _validate_image_size_before_download(
     except requests.exceptions.Timeout:
         if debug_mode and logger:
             logger.debug(
-                "⏰ [SMART-VALIDATION] Timeout during validation, " "assuming valid"
+                "[SMART-VALIDATION] Timeout during validation, " "assuming valid"
             )
         return True  # Assume valid on timeout to avoid missing images
     except Exception as e:
         if debug_mode and logger:
             logger.debug(
-                f"❌ [SMART-VALIDATION] Validation error: {e}, " f"assuming valid"
+                f"[SMART-VALIDATION] Validation error: {e}, " f"assuming valid"
             )
         return True  # Assume valid on error to avoid missing images
