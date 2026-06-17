@@ -135,6 +135,29 @@ poetry env remove python
 poetry install
 ```
 
+### `openai-whisper` Fails to Build (`No module named 'pkg_resources'`)
+
+**Error:** `poetry install` fails while building `openai-whisper (20240930)`:
+```
+ModuleNotFoundError: No module named 'pkg_resources'
+```
+
+**Cause:** Whisper's legacy `setup.py` imports `pkg_resources`, which setuptools removed in `>=81`. Poetry's isolated PEP 517 build environment always pulls the latest setuptools, so the build fails on a fresh virtualenv.
+
+**Solution:** Bootstrap a compatible setuptools into the active virtualenv, then let Poetry's build inherit it via system site-packages:
+```bash
+# Inside the activated ContentEngineAI venv
+pip install 'setuptools>=78.1.0,<79' wheel   # 78.x still ships pkg_resources
+VIRTUALENV_SYSTEM_SITE_PACKAGES=true poetry install
+```
+`VIRTUALENV_SYSTEM_SITE_PACKAGES=true` makes Poetry's build env see the venv's setuptools. `PIP_CONSTRAINT` does **not** propagate into Poetry's build subprocess, so that approach does not help.
+
+**Do not** work around this by running `pip install openai-whisper` directly. pip resolves `torch` from PyPI (the multi-GB CUDA wheel) instead of the `pytorch-cpu` source pinned in `pyproject.toml`, and Poetry then treats the venv as satisfied and skips reinstalling the correct CPU build. If this has already happened, recreate the virtualenv from scratch rather than untangling the mixed state:
+```bash
+pyenv virtualenv-delete -f ContentEngineAI
+pyenv virtualenv 3.12.13 ContentEngineAI
+```
+
 ### Playwright Browser Issues
 
 **Error:** Browser-related errors during scraping
@@ -863,6 +886,29 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    # Remove --debug to run headless (uses less resources)
    poetry run python -m src.scraper.amazon.scraper --keywords "test"
    ```
+
+### Scraper times out / 0 products on Wayland
+
+**Symptom:** Every scrape returns 0 products with "Document did not become ready within 60s"
+in `outputs/logs/scraper.log`, and no browser window appears. Often shows up right after an OS
+or session change (e.g. Ubuntu 22 to Ubuntu 26).
+
+**Cause:** The scraper runs Chrome headful (its headless mode is detectable and crash-prone). On
+Wayland, `DISPLAY` is empty, so headful Chrome has nowhere to draw and the navigation hangs. It
+looks like an anti-bot block but it's a missing display.
+
+**Check first:**
+```bash
+echo "$DISPLAY"          # empty on a broken Wayland session
+echo "$XDG_SESSION_TYPE" # wayland vs x11
+command -v Xvfb          # must be installed
+```
+
+**Fix:** Install `Xvfb` (`sudo apt install -y xvfb`). Normal runs then use a virtual display
+(real headful browser, no visible window); `--debug` runs attach to the live Xwayland server so
+you can watch. If `Xvfb` is missing, Botasaurus silently falls back to `--headless=new` and
+crashes, so a missing-Xvfb box is the real failure, not a working degraded mode. Under
+`make scrape-lowpri --debug` the display is forwarded into the cgroup scope automatically.
 
 ### Community Support
 

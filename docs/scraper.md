@@ -172,6 +172,107 @@ The Picsee path remains for setups already invested in `stte.psee.io` shorts (e.
 
 A third theoretical option, Amazon's own `amzn.to` shortener, isn't available programmatically: SiteStripe mints the short codes in-browser and there's no public API. If you want short URLs in captions and have access to SiteStripe, mint them manually and bypass this layer.
 
+## Anti-bot detection and browser mode
+
+The scraper drives a real Chrome through Botasaurus (a fork of `nodriver`, itself descended
+from `undetected-chromedriver`). Two facts drive the whole design: Botasaurus is unreliable in
+headless mode, and Amazon runs a serious anti-bot stack. The scraper answers both by running a
+real, visible-capable browser with human-like navigation.
+
+### Why the scraper never runs true headless
+
+Every browser config path hardcodes `headless: False` (see `config.py` and
+`browser_functions.py::_build_browser_config`). Headless is avoided for two separate reasons,
+both observed in this project and confirmed upstream:
+
+1. Detection. In headless mode Botasaurus/nodriver does not fully patch the browser
+   fingerprint. The user agent still reports `HeadlessChrome/<version>` and other headless
+   signals leak (missing plugins, GPU/renderer mismatches, `navigator.webdriver` traces).
+   Anti-bot services flag this immediately. Botasaurus's own docs state that headless mode
+   "will surely result in identification by services like Cloudflare and DataDome" and
+   recommend it only for sites with no bot protection. Amazon is not such a site.
+2. Stability. nodriver's headless startup path has crash bugs. This project hit a
+   `StopIteration` during the headless connection setup (hence the `# Disabled - causes
+   StopIteration in headless mode` comments), and upstream tracks a related
+   `TypeError: cannot unpack non-iterable NoneType` in the headless connection-prep code.
+   Headful avoids both.
+
+The cost of headful is that Chrome needs a display. On X11 (Ubuntu 22 and earlier) the session
+exported `DISPLAY`, so this was invisible. On Wayland (Ubuntu 26) `DISPLAY` is empty, so headful
+Chrome has nowhere to draw and `google_get` hangs until the 60s document-ready timeout. That
+failure looks like an anti-bot block in the logs but is purely a missing display.
+
+### Virtual display (Xvfb) for non-debug runs
+
+Botasaurus has built-in support for a headful-but-invisible browser via a virtual framebuffer.
+When `headless=False` and `enable_xvfb_virtual_display=True`, it starts a `pyvirtualdisplay`
+Xvfb session itself (`botasaurus_driver/core/config.py`). This is the right mode for unattended
+scraping: a real, non-headless browser with no visible window, so the fingerprint stays clean
+and nothing pops up on screen.
+
+Two gotchas:
+
+- Botasaurus only auto-starts Xvfb when `is_vmish` is true (Docker, a VM with `VM=true`,
+  Gitpod, or Kubernetes). A normal Linux desktop is not `is_vmish`, so the virtual display must
+  be requested explicitly with `enable_xvfb_virtual_display=True`.
+- The Xvfb binary comes from the `xvfb` apt package (`sudo apt-get install -y xvfb`). The
+  `pyvirtualdisplay` Python package is already installed but only wraps the binary. If the
+  binary is missing, Botasaurus prints a one-line notice and silently falls back to
+  `--headless=new`, putting you right back in the detectable/unstable headless mode. Grep
+  `outputs/logs/scraper.log` for `install Xvfb` to catch this.
+
+Debug mode (`--debug`) keeps `enable_xvfb_virtual_display=False` and uses the real session
+display so you can watch the browser. On Wayland that means attaching to the running Xwayland
+server (`:0`) with its auth cookie.
+
+### Amazon's anti-bot stack (AWS WAF, not Cloudflare)
+
+Amazon does not use Cloudflare. Amazon.com is fronted by CloudFront (CDN) and protected by
+AWS WAF plus Amazon's own "Robot Check" page. The layers a scraper actually meets:
+
+| Layer | What it does |
+|---|---|
+| AWS WAF silent Challenge | Background JavaScript interrogation and lightweight proof-of-work that issues a token before content loads. No user interaction; a real browser passes, a thin HTTP client or leaky headless browser fails. |
+| Robot Check CAPTCHA | Amazon's image-text CAPTCHA page, shown when the silent challenge is not satisfied or risk is high. |
+| Fingerprinting | TLS/JA3, HTTP/2 frame order, header consistency, and JS browser-environment checks (the headless tells above). |
+| IP reputation and rate limits | Datacenter-IP blocks, per-IP request-rate thresholds, repeated-pattern detection. |
+| Behavioral / ML analysis | AWS WAF targeted protections score traffic statistics (timing, navigation patterns, prior URL) for anomalies indicative of coordinated bots. |
+
+This is why the scraper navigates with `driver.google_get(url, bypass_cloudflare=True)` and
+human-like cursor motion rather than fetching the URL directly: an organic referer and real
+browser behavior are what satisfy the silent AWS WAF challenge. Direct `requests`-style fetches
+get the Robot Check immediately.
+
+### Cloudflare Turnstile and the bypass flag
+
+The `bypass_cloudflare=True` argument on `google_get` is generic Botasaurus machinery, not
+Amazon-specific. Cloudflare Turnstile runs non-interactive JS challenges (proof-of-work and
+browser-environment signals); most legitimate visitors never see a visible widget. When a
+visible Turnstile checkbox does appear, `solve_cloudflare_captcha.py` walks the iframe and shadow
+DOM and clicks it with a restored human cursor. Since Amazon does not run Cloudflare, this code
+path is mostly dormant for Amazon scraping. It still matters because `google_get` routes through
+the same flow, and the `wait_till_document_is_ready` step that times out on a missing display
+lives in that module. Treat a 60s document-ready timeout as a display or navigation failure
+first, not as a Cloudflare block.
+
+### Practical implications
+
+- Run non-debug scrapes with a virtual display; install `xvfb` so Botasaurus does not silently
+  fall back to headless.
+- A sudden run of 0 products with 60s timeouts after an OS or session change is almost always a
+  display problem, not Amazon blocking you. Check `echo $DISPLAY` and whether the session is
+  Wayland or X11 before assuming a ban.
+- If Amazon genuinely starts challenging (Robot Check in `--save-page-source` output, captcha
+  text on the page), slow down: raise `rate_limiting` delays, reduce per-page volume, and
+  consider a residential IP. Headless is never the answer here; it makes detection worse.
+
+Sources: [Botasaurus](https://github.com/omkarcloud/botasaurus),
+[nodriver headless bot detection (undetected-chromedriver #2003)](https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/2003),
+[nodriver headless exception (#2120)](https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/2120),
+[AWS WAF Bot Control](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html),
+[Amazon CAPTCHA / AWS WAF overview](https://2captcha.com/p/amazon-captcha-bypass),
+[Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/).
+
 ## Troubleshooting
 
 ### Rate Limiting / CAPTCHA

@@ -54,6 +54,18 @@ sudo apt install ffmpeg
 ffmpeg -version
 ```
 
+### Xvfb (Linux desktop only)
+
+On desktop Linux the scraper runs Chrome headful on a virtual display (its headless mode is
+detectable by Amazon's anti-bot and crash-prone). This needs the `Xvfb` binary. Required on
+Wayland sessions (Ubuntu 26+), where `DISPLAY` is empty; without it the scraper falls back to
+headless and times out at 0 products. Not needed on macOS/Windows or in Docker.
+
+```bash
+sudo apt install -y xvfb
+command -v Xvfb   # verify
+```
+
 ## Installation Steps
 
 ### 1. Clone the Repository
@@ -90,6 +102,8 @@ poetry install
 # Install Playwright browsers for web scraping
 poetry run playwright install
 ```
+
+> **Note:** If `poetry install` fails building `openai-whisper` with `No module named 'pkg_resources'`, your virtualenv's setuptools is too new (≥81). See [Troubleshooting → openai-whisper Fails to Build](troubleshooting.md#openai-whisper-fails-to-build-no-module-named-pkg_resources).
 
 ### 4. Verify Installation
 
