@@ -1738,6 +1738,35 @@ WARNING: No metadata found for youtube, using basic content
 </details>
 
 <details>
+<summary><strong>Instagram Container Errors &amp; Partial Posts</strong></summary>
+
+**Problem**: A scheduled post publishes to some platforms but its top-level status is `partial`, and the Instagram leg shows:
+```
+instagram container error: ERROR
+```
+(per-platform `status: failed`, `errorCategory: platform_rejected`, no `platformPostId`, no `publishedAt`).
+
+**Cause**: Instagram's Graph API publishes Reels in two steps — create a media container, then publish it. A `container error: ERROR` means the container stage failed with no sub-detail. When the **same** media published fine to YouTube and TikTok, the cause is almost always a **transient** Instagram-side container failure, not a bad video file.
+
+**Solutions:**
+
+1. **Retry the failed leg.** Zernio keeps the uploaded media on its own CDN (`media.zernio.com`), independent of the Vercel Blob store, so no re-render or re-upload is needed:
+   ```python
+   from late import Late
+   client = Late(api_key=...)
+   client.posts.retry(post_id)   # failed platform → processing, then auto-republishes
+   ```
+   Use `retry()` (not `update()`) for a transient failure with no settings change — `update()` is for cases like the TikTok disclosure fix where the payload itself must change. Already-published platforms are untouched, so there are no duplicate posts. The IG container usually resolves to `published` within ~1 minute; poll `posts.get(post_id)` to confirm.
+
+2. **Confirm it actually went live.** Read `platforms[*].status` / `platformPostUrl` from `posts.get(post_id)` (dump with `model_dump(by_alias=True, mode="json")["post"]`). Do **not** trust `publish_history.json` for this — its `published_at` is **queue time**, not on-platform publish time, so "the Jun 11 post" by queue time and by publish time can be two different posts.
+
+3. **If retry fails again**, the video likely violates a Reels spec (aspect ratio, duration, codec, frame rate). Re-render and re-upload.
+
+**Note**: There is currently no automatic sweep for `partial` / `failed` posts after their scheduled fire time, so a silently-failed leg can sit unnoticed for days (tracked in [#156](https://github.com/stkzlv/ContentEngineAI/issues/156)). Until that lands, spot-check recent posts by scanning `posts.list()` for any `platforms[*].status in (failed, partial)`.
+
+</details>
+
+<details>
 <summary><strong>Debug Mode</strong></summary>
 
 Enable verbose debug logging for troubleshooting:
