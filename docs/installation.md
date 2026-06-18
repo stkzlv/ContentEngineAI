@@ -66,6 +66,13 @@ sudo apt install -y xvfb
 command -v Xvfb   # verify
 ```
 
+To watch a debug scrape on Wayland (`make scrape-watch`), also install `x11vnc`; the browser
+runs on a dedicated Xvfb and is viewable over VNC at `localhost:5900`.
+
+```bash
+sudo apt install -y x11vnc
+```
+
 ## Installation Steps
 
 ### 1. Clone the Repository
