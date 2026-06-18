@@ -10,6 +10,7 @@ import os
 import platform
 import re
 import shutil
+import time
 from typing import Any
 
 from botasaurus.browser import Driver, browser
@@ -192,6 +193,7 @@ def scrape_amazon_products_browser_impl(
             nav_start = time.time()
             logger.debug("[DEBUG] Navigating to search URL...")
 
+        nav_start = time.monotonic()
         try:
             if DEBUG_MODE:
                 logger.debug("[DEBUG] Starting navigation to search page...")
@@ -216,7 +218,9 @@ def scrape_amazon_products_browser_impl(
                 logger.debug("Tab creation attempt: %s", e)
 
             # Use google_get for organic navigation pattern (same as working version)
+            logger.debug("Navigating to search URL (timeout-bounded): %s", search_url)
             driver.google_get(search_url, bypass_cloudflare=True)
+            logger.debug("google_get returned in %.1fs", time.monotonic() - nav_start)
 
             # Get page info
             current_url = driver.current_url
@@ -231,7 +235,22 @@ def scrape_amazon_products_browser_impl(
         except Exception as e:
             import traceback
 
-            logger.error("[DEBUG] Navigation failed: %s: %s", type(e).__name__, e)
+            # "Response not received" is a CDP-layer timeout (Chromium's DevTools
+            # endpoint stopped answering), distinct from a page-load timeout. Capture
+            # the elapsed time and a best-effort readyState so the failure mode is
+            # identifiable from the log alone. See docs/troubleshooting.md.
+            ready_state = "<unreachable>"
+            with contextlib.suppress(Exception):
+                ready_state = driver.run_js("return document.readyState")
+            logger.error(
+                "[DEBUG] Navigation failed after %.1fs: %s: %s "
+                "(readyState=%s) — 'Response not received' indicates a CDP timeout, "
+                "not a page-load timeout",
+                time.monotonic() - nav_start,
+                type(e).__name__,
+                e,
+                ready_state,
+            )
             logger.debug("[DEBUG] Traceback: %s", traceback.format_exc())
             return []
 
@@ -604,6 +623,7 @@ def scrape_amazon_products_browser_impl(
                     if current_count < max_products and i < len(product_cards) - 1:
                         if DEBUG_MODE:
                             logger.debug("[DEBUG] Navigating back to search results...")
+                        back_nav_start = time.monotonic()
                         try:
                             driver.google_get(search_url, bypass_cloudflare=True)
                             driver.short_random_sleep()
@@ -624,8 +644,15 @@ def scrape_amazon_products_browser_impl(
                                     )
                                 break
                         except Exception as e:
-                            if DEBUG_MODE:
-                                logger.warning("[DEBUG] Navigation failed: %s", e)
+                            # Back-navigation between products: same CDP-timeout class
+                            # as the initial nav. Log elapsed + type so a stalled CDP
+                            # endpoint is distinguishable from a missing element.
+                            logger.warning(
+                                "[DEBUG] Back-navigation failed after %.1fs: %s: %s",
+                                time.monotonic() - back_nav_start,
+                                type(e).__name__,
+                                e,
+                            )
                             break  # Break if navigation fails
                 else:
                     if DEBUG_MODE:
@@ -709,21 +736,31 @@ def _build_browser_config(debug_mode=False):
     except Exception:
         current_config = {}
 
-    # Keep Chrome on X11 (Xvfb when normal, Xwayland when debug), never Wayland. If
-    # WAYLAND_DISPLAY is set, Chromium can pick the Wayland backend and draw a real
-    # window even in normal/invisible mode, defeating the Xvfb virtual display.
-    os.environ.pop("WAYLAND_DISPLAY", None)
-
     force_real_browser = debug_mode
 
     if force_real_browser:
+        # A real visible window on a live Wayland session makes Chromium's CDP
+        # endpoint go unresponsive: every command times out with "Response not
+        # received", so a headful browser cannot be driven on the live compositor.
+        # When WAYLAND_DISPLAY is set we run on a virtual X display (Xvfb) instead.
+        # To WATCH a debug run, use `make scrape-watch`: it starts a dedicated Xvfb
+        # + x11vnc and unsets WAYLAND_DISPLAY, so the else-branch below uses that
+        # X-only display and the window is visible over VNC.
+        on_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
         display_info = resolve_debug_display()
-        if display_info.source == "none":
-            logger.warning(
-                "No real display found for debug run; falling back to a virtual "
-                "display, so the browser window will not be visible. Run from a "
-                "desktop session to watch the browser."
-            )
+        if on_wayland or display_info.source == "none":
+            if on_wayland:
+                logger.warning(
+                    "Live Wayland session (WAYLAND_DISPLAY=%s): a headful window "
+                    "freezes Chromium's CDP, so running on a virtual Xvfb display "
+                    "(no visible window). Use `make scrape-watch` to watch over VNC.",
+                    os.environ.get("WAYLAND_DISPLAY"),
+                )
+            else:
+                logger.warning(
+                    "No real display found for debug run; falling back to a virtual "
+                    "display, so the browser window will not be visible."
+                )
             current_config["enable_xvfb_virtual_display"] = True
         else:
             current_config["enable_xvfb_virtual_display"] = False
@@ -842,6 +879,13 @@ def _build_browser_config(debug_mode=False):
     current_config.update(output_config)
 
     chrome_args = current_config.get("add_arguments", [])
+    # Force the X11 backend so Chromium renders to the X display (Xvfb, or the
+    # wrapper's Xvfb for debug) instead of drawing a real Wayland window: Chromium's
+    # Ozone defaults to Wayland whenever WAYLAND_DISPLAY is set (libwayland uses
+    # wayland-0). Both normal and debug runs target an X display (the debug branch
+    # above routes live-Wayland sessions to Xvfb), so x11 is always correct here.
+    if not any("--ozone-platform" in arg for arg in chrome_args):
+        chrome_args.append("--ozone-platform=x11")
     if not any("--timeout" in arg for arg in chrome_args):
         global_settings = CONFIG.get("global_settings", {})
         browser_config = global_settings.get("browser_config", {})
@@ -855,6 +899,28 @@ def _build_browser_config(debug_mode=False):
             ]
         )
     current_config["add_arguments"] = chrome_args
+
+    # Launch-profile summary: the single most useful line for diagnosing headful /
+    # Wayland / Xvfb launch problems. Captures which display backend Chromium will
+    # actually use, the display env, and the page-load wait policy, so a failing run
+    # can be triaged from the log alone instead of re-running with a live window.
+    ozone = next(
+        (a.split("=", 1)[1] for a in chrome_args if a.startswith("--ozone-platform=")),
+        "native (auto)",
+    )
+    logger.debug(
+        "Browser launch profile: debug=%s headless=%s xvfb=%s ozone=%s "
+        "wait_for_complete_page_load=%s | DISPLAY=%s WAYLAND_DISPLAY=%s XAUTHORITY=%s",
+        debug_mode,
+        current_config.get("headless"),
+        current_config.get("enable_xvfb_virtual_display"),
+        ozone,
+        current_config.get("wait_for_complete_page_load", True),
+        os.environ.get("DISPLAY", "<unset>"),
+        os.environ.get("WAYLAND_DISPLAY", "<unset>"),
+        os.environ.get("XAUTHORITY", "<unset>"),
+    )
+    logger.debug("Browser chrome args: %s", " ".join(chrome_args))
 
     return current_config
 

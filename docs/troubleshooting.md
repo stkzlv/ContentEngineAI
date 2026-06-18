@@ -905,12 +905,30 @@ command -v Xvfb          # must be installed
 ```
 
 **Fix:** Install `Xvfb` (`sudo apt install -y xvfb`). Normal runs then use a virtual display
-(real headful browser, no visible window); `--debug` runs attach to the live Xwayland server so
-you can watch. If `Xvfb` is missing, Botasaurus silently falls back to `--headless=new` and
-crashes, so a missing-Xvfb box is the real failure, not a working degraded mode. The scraper
-forces Chrome onto X11 (unsets `WAYLAND_DISPLAY`) so normal runs stay invisible on Xvfb; a
-`--debug` run resolves the live Xwayland display from `/proc`, so it works under
-`make scrape-lowpri` without any env forwarding.
+(real headful browser, no visible window). If `Xvfb` is missing, Botasaurus silently falls back
+to `--headless=new` and crashes, so a missing-Xvfb box is the real failure, not a working
+degraded mode. The scraper passes Chrome `--ozone-platform=x11` so it uses the X11 backend
+(Xvfb) instead of drawing a real Wayland window; unsetting `WAYLAND_DISPLAY` alone is not enough
+because libwayland defaults to the `wayland-0` socket.
+
+### Watching a debug scrape on Wayland (`make scrape-watch`)
+
+A headful browser **cannot** be driven on a live Wayland session: once it does real work,
+Chromium's CDP endpoint stops answering (`Failed to connect to Chrome URL`, then per-navigation
+`Response not received` ~400s hangs). So `--debug` on a Wayland desktop runs on a virtual Xvfb
+display (no visible window) rather than the live Xwayland server. To actually watch a debug run,
+use `make scrape-watch`, which starts a dedicated Xvfb plus `x11vnc` and points the scraper at it:
+
+```bash
+make scrape-watch ARGS="--keywords 'wireless earbuds' --max-products 1"
+# then connect a VNC viewer:
+vncviewer localhost:5900
+```
+
+Needs the `xvfb` and `x11vnc` packages. `x11vnc` refuses to start on a detected Wayland session,
+so the target launches it with `WAYLAND_DISPLAY`/`XDG_SESSION_TYPE` unset (an empty value is not
+enough). The browser launch profile and per-navigation timing are logged at DEBUG to triage
+display/CDP problems from the log alone.
 
 ### Community Support
 

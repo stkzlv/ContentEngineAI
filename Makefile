@@ -18,7 +18,7 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri scrape-lowpri produce-lowpri publish publish-lowpri
+	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri
 
 # Default target
 help:
@@ -453,6 +453,33 @@ scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			poetry run python -m src.scraper.amazon.scraper $(ARGS); \
 	fi
+
+# Watchable debug scrape. Headful Chrome cannot be driven on a live Wayland
+# session (its CDP endpoint freezes), so this runs the browser on a dedicated
+# Xvfb display and exposes it over VNC. Connect a viewer to localhost:$(VNC_PORT).
+VNC_DISPLAY := :99
+VNC_PORT := 5900
+VNC_GEOMETRY := 1920x1080x24
+
+scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:5900). Pass ARGS="..."
+	@command -v Xvfb >/dev/null 2>&1 || { echo "$(RED)Xvfb not found: sudo apt install -y xvfb$(NC)"; exit 1; }
+	@command -v x11vnc >/dev/null 2>&1 || { echo "$(RED)x11vnc not found: sudo apt install -y x11vnc$(NC)"; exit 1; }
+	@echo "$(BLUE)Starting Xvfb on $(VNC_DISPLAY) ($(VNC_GEOMETRY))$(NC)"
+	@Xvfb $(VNC_DISPLAY) -screen 0 $(VNC_GEOMETRY) >/dev/null 2>&1 & echo $$! > /tmp/ceai-xvfb.pid
+	@sleep 1
+	@# x11vnc refuses to start if it detects a Wayland login session, so WAYLAND_DISPLAY
+	@# and XDG_SESSION_TYPE must be truly unset (empty string is not enough for getenv).
+	@env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE x11vnc -display $(VNC_DISPLAY) \
+		-localhost -nopw -forever -quiet -bg >/dev/null 2>&1 || true
+	@echo "$(GREEN)Watch at vnc://localhost:$(VNC_PORT) (e.g. vncviewer localhost:$(VNC_PORT))$(NC)"
+	@DISPLAY=$(VNC_DISPLAY) WAYLAND_DISPLAY= XAUTHORITY= \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+		poetry run python -m src.scraper.amazon.scraper $(ARGS) --debug; ret=$$?; \
+		echo "$(BLUE)Cleaning up Xvfb/x11vnc$(NC)"; \
+		kill `cat /tmp/ceai-xvfb.pid 2>/dev/null` 2>/dev/null || true; \
+		pkill -x x11vnc 2>/dev/null || true; \
+		rm -f /tmp/ceai-xvfb.pid; \
+		exit $$ret
 
 produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
