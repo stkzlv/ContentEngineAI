@@ -56,7 +56,7 @@ Both the standalone scraper and the global batch pipeline accept these flags.
 ### Debugging
 | Argument | Description |
 |----------|-------------|
-| `--debug` | Detailed logging, visible browser |
+| `--debug` | Detailed logging; visible browser on X11 (on Wayland use `make scrape-watch`) |
 | `--verbose` | Even more logging |
 | `--save-screenshots` | Screenshots at key steps |
 | `--save-page-source` | Save HTML source |
@@ -221,9 +221,17 @@ Two gotchas:
   `--headless=new`, putting you right back in the detectable/unstable headless mode. Grep
   `outputs/logs/scraper.log` for `install Xvfb` to catch this.
 
-Debug mode (`--debug`) keeps `enable_xvfb_virtual_display=False` and uses the real session
-display so you can watch the browser. On Wayland that means attaching to the running Xwayland
-server (`:0`) with its auth cookie.
+Debug mode (`--debug`) behaviour depends on the session:
+
+- On a real X11 desktop it uses the live session display (`enable_xvfb_virtual_display=False`),
+  so the browser window is visible.
+- On a live Wayland session it runs on a virtual Xvfb display (no visible window): a headful
+  window on Wayland freezes Chromium's CDP (DevTools won't connect, then per-navigation
+  `Response not received` hangs). To watch a debug scrape on Wayland, run `make scrape-watch` —
+  it starts a dedicated Xvfb plus `x11vnc` and the browser is viewable at `localhost:5900`.
+
+Running the module directly (`poetry run python -m src.scraper.amazon.scraper ... --debug`)
+works the same way; only `make scrape-watch` adds the VNC view.
 
 ### Amazon's anti-bot stack (AWS WAF, not Cloudflare)
 
