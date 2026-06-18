@@ -67,11 +67,11 @@ def write_scraped_data_output(
 
     """
     print(
-        f"🔧 [DEBUG] write_scraped_data_output called with "
+        f"[DEBUG] write_scraped_data_output called with "
         f"{len(result) if result else 0} products"
     )
     if not result:
-        print("⚠️ [DEBUG] No result data to save")
+        print("[DEBUG] No result data to save")
         return
 
     # Process each product individually to create separate data.json files
@@ -99,9 +99,9 @@ def write_scraped_data_output(
                 output_file = product_dir / "data.json"
                 with open(output_file, "w", encoding="utf-8") as f:
                     json.dump([product], f, indent=4, ensure_ascii=False)
-                print(f"📄 Saved scraped data: {output_file}")
+                print(f"Saved scraped data: {output_file}")
             except Exception as e:
-                print(f"❌ Failed to save product data for {product_id}: {e}")
+                print(f"Failed to save product data for {product_id}: {e}")
     else:
         logger.warning("Scraper returned non-list result, skipping save")
 
@@ -144,7 +144,7 @@ def write_download_cache_output(data: Any, result: dict[str, Any]) -> None:
     try:
         os.chdir(cache_dir)
         json_filename = bt.write_json(result, f"{product_id}_downloads")
-        print(f"💾 Saved download cache: {cache_dir / json_filename}")
+        print(f"Saved download cache: {cache_dir / json_filename}")
     finally:
         os.chdir(original_cwd)
 
@@ -157,10 +157,10 @@ def configure_botasaurus_outputs() -> None:
         # Use centralized outputs structure setup
         ensure_outputs_structure()
         outputs_root = get_outputs_root()
-        print(f"🔧 Configured outputs directory: {outputs_root}")
+        print(f"Configured outputs directory: {outputs_root}")
 
     except Exception as e:
-        print(f"⚠️ Warning: Could not create output directories: {e}")
+        print(f"Warning: Could not create output directories: {e}")
 
 
 def get_browser_config_for_outputs() -> dict[str, Any]:

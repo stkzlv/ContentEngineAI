@@ -77,7 +77,7 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
 def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, logger):
     """Perform deep analysis of all images on the page"""
     try:
-        logger.info("🔍 [DEEP ANALYSIS] Analyzing all images on page...")
+        logger.info("[DEEP ANALYSIS] Analyzing all images on page...")
 
         # Find all image elements
         all_imgs = driver.select_all("img")
@@ -157,7 +157,7 @@ def _perform_deep_image_analysis(driver: Driver, asin: str, debug_dir: Path, log
 def _dump_all_image_urls(driver: Driver, asin: str, debug_dir: Path, logger):
     """Dump all discovered image URLs to a file"""
     try:
-        logger.info("📝 [URL DUMP] Collecting all image URLs...")
+        logger.info("[URL DUMP] Collecting all image URLs...")
 
         all_urls = set()
 

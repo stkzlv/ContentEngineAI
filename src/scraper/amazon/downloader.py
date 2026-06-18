@@ -85,9 +85,9 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
     output_dir = data.get("output_dir")
 
     if debug_mode:
-        logger.info("📥 [MEDIA DOWNLOAD] Starting async download for ASIN: %s", asin)
+        logger.info("[MEDIA DOWNLOAD] Starting async download for ASIN: %s", asin)
         logger.info(
-            "📥 [MEDIA DOWNLOAD] Images: %d, Videos: %d",
+            "[MEDIA DOWNLOAD] Images: %d, Videos: %d",
             len(image_urls),
             len(video_urls),
         )
@@ -133,7 +133,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
         product_dir = download_result["product_dir"]
 
     except Exception as e:
-        logger.error("❌ [MEDIA DOWNLOAD] Async download failed: %s", e)
+        logger.error("[MEDIA DOWNLOAD] Async download failed: %s", e)
         return {
             "asin": asin,
             "downloaded_images": [],
@@ -174,7 +174,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 )
 
                 logger.info(
-                    "📋 [VALIDATION REPORT] Generated for %d files:", len(all_files)
+                    "[VALIDATION REPORT] Generated for %d files:", len(all_files)
                 )
                 logger.info(
                     "   • Valid files: %s", validation_report["summary"]["valid_files"]
@@ -190,7 +190,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                 logger.info("   • Report saved: %s", report_path)
 
         except Exception as e:
-            logger.warning("⚠️ [VALIDATION REPORT] Failed to generate report: %s", e)
+            logger.warning("[VALIDATION REPORT] Failed to generate report: %s", e)
 
     # Final results summary
     result = {

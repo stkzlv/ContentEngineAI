@@ -113,7 +113,7 @@ class BatchController:
             is_url = product_id.startswith(("http://", "https://"))
             if not is_url and not validate_asin_format(product_id):
                 self.logger.warning(
-                    "[%d/%d] ⚠️  Invalid ASIN format: %s - Skipping",
+                    "[%d/%d]  Invalid ASIN format: %s - Skipping",
                     i,
                     len(self.config.product_ids),
                     product_id,
@@ -148,7 +148,7 @@ class BatchController:
                 if products and len(products) > 0:
                     product_data = products[0]
                     self.logger.info(
-                        "[%d/%d] ✅ Successfully scraped: %s",
+                        "[%d/%d] Successfully scraped: %s",
                         i,
                         len(self.config.product_ids),
                         product_id,
@@ -164,7 +164,7 @@ class BatchController:
                     )
                 else:
                     self.logger.warning(
-                        "[%d/%d] ⚠️  No data found for: %s",
+                        "[%d/%d]  No data found for: %s",
                         i,
                         len(self.config.product_ids),
                         product_id,
@@ -182,7 +182,7 @@ class BatchController:
             except Exception as e:
                 error_msg = str(e)
                 self.logger.error(
-                    "[%d/%d] ❌ Failed to scrape %s: %s",
+                    "[%d/%d] Failed to scrape %s: %s",
                     i,
                     len(self.config.product_ids),
                     product_id,
@@ -201,7 +201,7 @@ class BatchController:
                 # Fail-fast: stop on first error
                 if self.config.fail_fast:
                     self.logger.error(
-                        "❌ Fail-fast enabled: " "Stopping batch after first failure"
+                        "Fail-fast enabled: " "Stopping batch after first failure"
                     )
                     break
 
@@ -242,7 +242,7 @@ class BatchController:
 
                 if products:
                     self.logger.info(
-                        "[%d/%d] ✅ Found %d products for: %s",
+                        "[%d/%d] Found %d products for: %s",
                         i,
                         len(self.config.keywords),
                         len(products),
@@ -266,7 +266,7 @@ class BatchController:
                     # Check if max_products limit reached
                     if len(results) >= self.config.max_products:
                         self.logger.info(
-                            "✅ Reached max_products limit (%d). "
+                            "Reached max_products limit (%d). "
                             "Stopping keyword processing.",
                             self.config.max_products,
                         )
@@ -274,7 +274,7 @@ class BatchController:
 
                 else:
                     self.logger.warning(
-                        "[%d/%d] ⚠️  No products found for: %s",
+                        "[%d/%d]  No products found for: %s",
                         i,
                         len(self.config.keywords),
                         keyword,
@@ -283,7 +283,7 @@ class BatchController:
             except Exception as e:
                 error_msg = str(e)
                 self.logger.error(
-                    "[%d/%d] ❌ Failed to search %s: %s",
+                    "[%d/%d] Failed to search %s: %s",
                     i,
                     len(self.config.keywords),
                     keyword,
@@ -293,7 +293,7 @@ class BatchController:
                 # Fail-fast: stop on first error
                 if self.config.fail_fast:
                     self.logger.error(
-                        "❌ Fail-fast enabled: " "Stopping batch after first failure"
+                        "Fail-fast enabled: " "Stopping batch after first failure"
                     )
                     break
 

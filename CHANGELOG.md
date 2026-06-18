@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.53.1] - 2026-06-18
+
+### Fixed
+- Scraper now works on Wayland desktops (Ubuntu 26+). Headful Chrome is forced onto the X11 backend (`--ozone-platform=x11`) and normal runs use Botasaurus's Xvfb virtual display, instead of relying on a `DISPLAY` that Wayland never exports; previously every scrape returned 0 products with a 60s "document not ready" timeout. Debug runs on a live Wayland session use a virtual Xvfb display, because a headful window there freezes Chromium's CDP. New `make scrape-watch` runs a debug scrape on a dedicated Xvfb plus `x11vnc`, watchable over VNC. Needs the `xvfb` package (`x11vnc` too for `scrape-watch`). New `src/scraper/base/display.py` helper, covered by tests.
+
+### Changed
+- Emojis removed from scraper module log messages (plain text per the project logging standard).
+
 ## [0.53.0] - 2026-06-11
 
 ### Added

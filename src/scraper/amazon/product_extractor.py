@@ -44,9 +44,9 @@ def extract_product_data_from_page(
         for indicator in unavailable_indicators:
             if indicator.lower() in driver.get_text("body").lower():
                 if DEBUG_MODE:
-                    logger.info(f"⚠️ Shipping restriction detected: {indicator}")
+                    logger.info(f"Shipping restriction detected: {indicator}")
                     logger.info(
-                        "⚠️ Continuing to extract media " "despite shipping restriction"
+                        "Continuing to extract media " "despite shipping restriction"
                     )
                 break
 
@@ -132,11 +132,11 @@ def extract_product_data_from_page(
                 debug_config = CONFIG.get("global_settings", {}).get("debug_config", {})
                 title_preview_length = debug_config.get("title_preview_length", 50)
                 logger.warning(
-                    f"❌ Invalid product data for {asin}: "
+                    f"Invalid product data for {asin}: "
                     f"title='{title[:title_preview_length]}...', "
                     f"price='{price}', "
-                    f"description={'✓' if description else '✗'}, "
-                    f"rating={'✓' if rating else '✗'} "
+                    f"description={'' if description else ''}, "
+                    f"rating={'' if rating else ''} "
                     f"- SKIPPING MEDIA EXTRACTION"
                 )
             return None
@@ -167,7 +167,7 @@ def extract_product_data_from_page(
 
         if DEBUG_MODE:
             logger.info(
-                f"✅ Extracted product data for {asin}: "
+                f"Extracted product data for {asin}: "
                 f"{len(images)} images, {len(videos)} videos"
             )
 
@@ -175,7 +175,7 @@ def extract_product_data_from_page(
 
     except Exception as e:
         if DEBUG_MODE:
-            logger.error(f"❌ Error extracting product data for {asin}: {e}")
+            logger.error(f"Error extracting product data for {asin}: {e}")
         return None
 
 
