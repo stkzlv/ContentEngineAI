@@ -73,6 +73,17 @@ runs on a dedicated Xvfb and is viewable over VNC at `localhost:5900`.
 sudo apt install -y x11vnc
 ```
 
+### espeak-ng (optional, Coqui TTS fallback)
+
+Gemini is the primary TTS provider and needs no system binary. The Coqui TTS fallback needs the
+`espeak-ng` backend; without it the producer logs a non-fatal `No espeak backend found` error and
+skips the fallback. Install it to silence the error and enable the fallback:
+
+```bash
+sudo apt install -y espeak-ng
+command -v espeak-ng   # verify
+```
+
 ## Installation Steps
 
 ### 1. Clone the Repository

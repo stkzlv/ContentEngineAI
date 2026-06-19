@@ -159,6 +159,49 @@ poetry run python tools/performance_report.py --report-type regressions --window
 poetry run python tools/performance_report.py --report-type detailed --format csv --limit 5
 ```
 
+## End-to-End Pipeline Test Cases
+
+Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see Module/Batch Alignment Rule).
+
+**On this Wayland box, wrap any producer run in `xvfb-run -a`** — the CSS pycaps renderer (bundled default) needs an X display or its per-word screenshots hang. `pictex` doesn't.
+
+Pick a random keyword from the config pool:
+```bash
+KW=$(sed -n '/^  keywords:/,/^  [a-z]/p' config/scraper.yaml | grep -oE '^\s+- "[^"]+"' | sed -E 's/^\s+- "([^"]+)"/\1/' | shuf -n1)
+```
+
+**Case 1 — batch pipeline (one command, `global_batch`):**
+```bash
+xvfb-run -a make batch-lowpri ARGS="--keywords '$KW' --max-products 1 --products-per-keyword 1 --random-profile --debug"
+```
+
+**Case 2 — separate modules via make (lowpri cgroup):**
+```bash
+make scrape-lowpri ARGS="--keywords '$KW' --max-products 1 --debug"          # note the ASIN
+xvfb-run -a make produce-lowpri ARGS="--batch --random-profile --product-ids <ASIN> --debug"
+make publish ARGS="single <ASIN> --debug"                                    # add --force to republish an already-published product
+```
+
+**Case 3 — separate modules, no makefile (bare, normal mode):** bypasses the lowpri memory cap (see Resource discipline), so only when the machine is otherwise idle.
+```bash
+poetry run python -m src.scraper.amazon.scraper --keywords "$KW" --max-products 1    # see window-size caveat below
+xvfb-run -a poetry run python -m src.video.producer --batch --random-profile --product-ids <ASIN>
+poetry run python -m src.publisher.late single <ASIN>
+```
+
+**Verify each stage:**
+- **Scrape**: `outputs/<ASIN>/data.json` + `images/` exist; log says `complete: N validated products collected`.
+- **Produce**: `outputs/<ASIN>/video_<ASIN>_<profile>.mp4` exists; log says `Pipeline execution completed: 8 completed, 0 skipped, 0 failed`; the random profile is in the log line `with profile '<name>'`.
+- **Publish**: log says `Post created successfully: <id> (status: scheduled)`; the product dir is auto-cleaned after a successful publish (media lives on Zernio's CDN).
+- **Registry**: `grep <ASIN> outputs/published_products.json`.
+- **Authoritative publish check** (the post actually reached the scheduler): `client.posts.get(<id>).model_dump(by_alias=True, mode="json")["post"]` -> top `status` plus `platforms[*].status` / `scheduledFor`. Don't trust `publish_history.json` `published_at` (that's queue time, not live time).
+
+**Caveats baked in from real runs:**
+- **Normal-mode scrape can intermittently return 0 products** (random window size triggers Amazon's mobile layout; desktop card selectors miss). `--debug` pins `--window-size=1920,1080` and scrapes reliably. Until the window-size bug is fixed, prefer `--debug` for the scrape stage; don't read a 0-product normal-mode scrape as "no matches".
+- **`--force` republishes** a product already published (default off). Fresh scrapes don't need it.
+- **Coqui TTS `No espeak backend` ERROR is non-fatal** and appears only when `espeak-ng` isn't installed (it's the unused fallback provider failing to load; Gemini TTS is primary). Install `espeak-ng` (`sudo apt install -y espeak-ng`) to silence it.
+- **Random profile is per-run, not pinned** — the same product can draw a different profile across runs.
+
 ## Code Standards
 
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
