@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Hook overlay disabled in the bundled config. A long hook line overflowed the frame width (the single drawtext line clipped at both edges); off until the wrap + fit-shrink fix lands.
+- Publisher `--force` now has an explicit `--no-force` opt-out (`single` and `schedule`). Default stays off: the duplicate guard skips already-published products unless `--force` is passed.
 
 ## [0.53.1] - 2026-06-18
 

@@ -988,6 +988,9 @@ Examples:
   # Publish to specific platforms
   python -m src.publisher.late single B0ABC123 --platform youtube --platform tiktok
 
+  # Republish a product already posted (bypass the duplicate guard; default is off)
+  python -m src.publisher.late single B0ABC123 --force --debug
+
   # Schedule all unpublished videos to calendar slots
   python -m src.publisher.late schedule --dry-run --debug
 
@@ -1060,8 +1063,9 @@ Examples:
     )
     single_parser.add_argument(
         "--force",
-        action="store_true",
-        help="Force republish even if already published to platform",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Republish even if already published (default: off; --force to republish)",
     )
     single_parser.add_argument(
         "--no-cleanup",
@@ -1175,8 +1179,9 @@ Examples:
     )
     schedule_parser.add_argument(
         "--force",
-        action="store_true",
-        help="Include already published products",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include already published products (default: off; --force to include)",
     )
     schedule_parser.add_argument(
         "--fail-fast",
@@ -1334,7 +1339,7 @@ Examples:
             args.platforms = [Platform[p.upper()] for p in args.platforms]
         # Else: cmd_single will default to all 3 platforms
 
-        # Initialize force if not set
+        # Initialize force if not set (default off; safe duplicate guard)
         if not hasattr(args, "force"):
             args.force = False
 
