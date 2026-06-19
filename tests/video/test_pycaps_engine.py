@@ -422,3 +422,15 @@ class TestEnsurePlaywrightChromiumPlatform:
         monkeypatch.setattr("builtins.open", _raise)
         r._ensure_playwright_chromium_platform()
         assert "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE" not in env
+
+    @pytest.mark.parametrize(
+        "os_release",
+        [
+            'ID=ubuntu\nVERSION_ID="rolling"\n',  # non-numeric major
+            "ID=ubuntu\n",  # VERSION_ID line absent entirely
+        ],
+    )
+    def test_noop_on_unparseable_version_id(self, monkeypatch, os_release):
+        # Ubuntu-like ID but VERSION_ID has no numeric major: don't crash, don't override.
+        result = self._run(monkeypatch, os_release, None)
+        assert result is None
