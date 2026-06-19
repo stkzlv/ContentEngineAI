@@ -184,7 +184,9 @@ video_settings:
   # top. Default ON; short profiles benefit most but the overlay works
   # for any profile that ships a payoff-first first sentence.
   hook_overlay:
-    enabled: true
+    # Disabled pending the wrap + fit-shrink fix (#160): a long hook line overflows
+    # the frame width (single unwrapped drawtext line clips at both edges).
+    enabled: false
     duration_sec: 1.5
     size_factor: 1.35
     font_color: "white"

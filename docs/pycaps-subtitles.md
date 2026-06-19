@@ -36,6 +36,18 @@ poetry install --with pycaps
 poetry run playwright install chromium
 ```
 
+On Ubuntu 26.04 the chromium install fails with `does not support
+chromium on ubuntu26.04-x64` (Playwright has no 26.04 build yet, through
+1.60). Prefix the install to force the binary-compatible 24.04 build:
+
+```bash
+PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 poetry run playwright install chromium
+```
+
+At render time the producer sets that override itself, so runs don't need
+the prefix. See `docs/troubleshooting.md` for the full writeup, including the
+`xvfb-run` wrapper the CSS renderer needs on Wayland desktops.
+
 The pycaps library is pinned to a validated git commit in `pyproject.toml`.
 Upstream is alpha (0.2.1), so we lock to a specific SHA and bump it deliberately.
 
@@ -179,6 +191,9 @@ per-word keyframe animations, `@font-face` loading.
 - Peak RSS: ~400-500 MB per render (process ceiling, varies with template)
 - Speed: ~0.7x realtime on a 30s portrait clip (benchmark winner)
 - Template coverage: all 10+ built-in templates work.
+- Needs a real X display for the per-word screenshots. On Wayland desktops
+  the screenshots hang (`Page.screenshot` timeout); wrap the run in
+  `xvfb-run -a`. `pictex` avoids this.
 
 ### `pictex`
 

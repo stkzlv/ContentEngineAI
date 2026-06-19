@@ -209,13 +209,23 @@ python -m src.publisher.late single <product_id> [options]
 | `--platform PLATFORM` | No | Target platform (youtube, tiktok, instagram, facebook, twitter, linkedin). Defaults to all 3 if not specified |
 | `--immediate` | No | Publish immediately |
 | `--schedule DATETIME` | No | Schedule for later (format: `2025-01-20 14:00:00`) |
-| `--force` | No | Force republish even if already published |
+| `--force` / `--no-force` | No | Republish even if already published. Default off: the publisher skips a product already published to the target platform (logs "already published"). Pass `--force` to bypass that guard and create a new post anyway. |
 | `--no-cleanup` | No | Disable automatic cleanup after success |
 | `--platform-specific` | No | Create separate posts per platform with optimized metadata |
 | `--link-in-bio` | No | Enable link-in-bio update (overrides config) |
 | `--no-link-in-bio` | No | Disable link-in-bio update (overrides config) |
 
 *If neither `--immediate` nor `--schedule` is provided, auto-discovers next available slot from recurring schedule.
+
+**`--force`**: by default the publisher refuses to re-post a product already published to a platform (the duplicate guard), so reruns are safe. Use `--force` to deliberately republish, e.g. after re-rendering a video you already posted:
+
+```bash
+# Re-schedule an already-published product (creates a new post)
+poetry run python -m src.publisher.late single B0ABC123 --force --debug
+
+# Schedule the whole backlog including products already published
+poetry run python -m src.publisher.late schedule --force --debug
+```
 
 ### Command: `batch` (Removed)
 

@@ -174,6 +174,38 @@ poetry run playwright install-deps
 poetry run playwright install chromium
 ```
 
+### Playwright Chromium on Ubuntu 26.04 (`does not support chromium on ubuntu26.04-x64`)
+
+**Error:** `playwright install chromium` fails with `ERROR: Playwright does not support chromium on ubuntu26.04-x64`. This breaks the pycaps `css` subtitle renderer, which launches Playwright's bundled Chromium. (The `pictex` renderer is browserless and isn't affected.)
+
+**Cause:** Playwright maps the host OS to a browser build. Its platform detection treats Ubuntu 26.04 as `ubuntu26.04-x64`, but the registry only ships builds up to `ubuntu24.04`. Versions through 1.60.0 (current PyPI latest) hit this; the fix first lands in 1.61, not yet published.
+
+**Fix:** force the binary-compatible 24.04 build with `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`. Only the one-time browser install needs the manual prefix:
+
+```bash
+PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 poetry run playwright install chromium
+```
+
+At runtime the override is set automatically for the CSS renderer on Ubuntu-like distros at version 26+: the producer applies it in `src/video/pycaps_engine/renderer.py` before any Playwright launch, so it covers standalone `python -m src.video.producer`, the batch pipeline, `make produce-lowpri` / `batch-lowpri`, and tests with no Makefile env wiring. It matches Playwright's own distro set (`ubuntu`, `pop`, `neon`, `tuxedo`). An explicit env var always wins (the code uses `setdefault` semantics).
+
+Once Playwright 1.61+ is on PyPI, bump it and drop the override (the renderer helper no-ops off Ubuntu 26+, so it's safe to leave until then).
+
+### pycaps CSS renderer hangs at `Page.screenshot: Timeout 30000ms exceeded`
+
+**Error:** the `css` renderer launches Chromium and lays out captions, then fails per word with `Page.screenshot: Timeout 30000ms exceeded`. The `fallback_policy` then keeps the FFmpeg-assembled video (so you still get a file, just without pycaps captions).
+
+**Cause:** headless Chromium can't rasterize a frame for the screenshot when there's no usable X display, which happens on Wayland sessions (and bare headless boxes). Page navigation and layout work, so launch succeeds, but every `page.screenshot` blocks until timeout. Confirmed independent of Chrome version (the bundled 145 build and a system Chrome 149 both hang) and of the platform override above.
+
+**Fix:** give Chromium a virtual display by wrapping the producer in `xvfb-run` (this is the same reason the scraper runs its browser under Xvfb):
+
+```bash
+xvfb-run -a make produce-lowpri ARGS="outputs/<ASIN>/data.json slideshow_images1 --pycaps-renderer css --debug"
+# bare run:
+xvfb-run -a poetry run python -m src.video.producer outputs/<ASIN>/data.json slideshow_images1 --pycaps-renderer css --debug
+```
+
+`xvfb-run` ships in the `xvfb` apt package. The `pictex` renderer is browserless and needs none of this; prefer it if you don't want the Xvfb dependency.
+
 ## API and Authentication Issues
 
 ### Gemini API Issues (Primary LLM Provider)

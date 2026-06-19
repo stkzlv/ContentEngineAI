@@ -24,7 +24,10 @@ poetry install --with pycaps
 poetry run playwright install chromium   # CSS renderer (default). Skip for pictex-only.
 ```
 
-See [docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full reference.
+On Ubuntu 26.04 prefix the chromium install with
+`PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64` (no 26.04 build yet), and
+wrap CSS-renderer runs in `xvfb-run -a` on Wayland. See
+[docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full reference.
 
 ## Code Quality Standards
 

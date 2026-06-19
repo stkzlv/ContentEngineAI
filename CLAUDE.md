@@ -159,6 +159,49 @@ poetry run python tools/performance_report.py --report-type regressions --window
 poetry run python tools/performance_report.py --report-type detailed --format csv --limit 5
 ```
 
+## End-to-End Pipeline Test Cases
+
+Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see Module/Batch Alignment Rule).
+
+**On this Wayland box, wrap any producer run in `xvfb-run -a`** — the CSS pycaps renderer (bundled default) needs an X display or its per-word screenshots hang. `pictex` doesn't.
+
+Pick a random keyword from the config pool:
+```bash
+KW=$(sed -n '/^  keywords:/,/^  [a-z]/p' config/scraper.yaml | grep -oE '^\s+- "[^"]+"' | sed -E 's/^\s+- "([^"]+)"/\1/' | shuf -n1)
+```
+
+**Case 1 — batch pipeline (one command, `global_batch`):**
+```bash
+xvfb-run -a make batch-lowpri ARGS="--keywords '$KW' --max-products 1 --products-per-keyword 1 --random-profile --debug"
+```
+
+**Case 2 — separate modules via make (lowpri cgroup):**
+```bash
+make scrape-lowpri ARGS="--keywords '$KW' --max-products 1 --debug"          # note the ASIN
+xvfb-run -a make produce-lowpri ARGS="--batch --random-profile --product-ids <ASIN> --debug"
+make publish ARGS="single <ASIN> --debug"                                    # add --force to republish an already-published product
+```
+
+**Case 3 — separate modules, no makefile (bare, normal mode):** bypasses the lowpri memory cap (see Resource discipline), so only when the machine is otherwise idle.
+```bash
+poetry run python -m src.scraper.amazon.scraper --keywords "$KW" --max-products 1    # see window-size caveat below
+xvfb-run -a poetry run python -m src.video.producer --batch --random-profile --product-ids <ASIN>
+poetry run python -m src.publisher.late single <ASIN>
+```
+
+**Verify each stage:**
+- **Scrape**: `outputs/<ASIN>/data.json` + `images/` exist; log says `complete: N validated products collected`.
+- **Produce**: `outputs/<ASIN>/video_<ASIN>_<profile>.mp4` exists; log says `Pipeline execution completed: 8 completed, 0 skipped, 0 failed`; the random profile is in the log line `with profile '<name>'`.
+- **Publish**: log says `Post created successfully: <id> (status: scheduled)`; the product dir is auto-cleaned after a successful publish (media lives on Zernio's CDN).
+- **Registry**: `grep <ASIN> outputs/published_products.json`.
+- **Authoritative publish check** (the post actually reached the scheduler): `client.posts.get(<id>).model_dump(by_alias=True, mode="json")["post"]` -> top `status` plus `platforms[*].status` / `scheduledFor`. Don't trust `publish_history.json` `published_at` (that's queue time, not live time).
+
+**Caveats baked in from real runs:**
+- **Normal-mode scrape can intermittently return 0 products** (random window size triggers Amazon's mobile layout; desktop card selectors miss). `--debug` pins `--window-size=1920,1080` and scrapes reliably. Until the window-size bug is fixed, prefer `--debug` for the scrape stage; don't read a 0-product normal-mode scrape as "no matches".
+- **`--force` republishes** a product already published (default off). Fresh scrapes don't need it.
+- **Coqui TTS `No espeak backend` ERROR is non-fatal** and appears only when `espeak-ng` isn't installed (it's the unused fallback provider failing to load; Gemini TTS is primary). Install `espeak-ng` (`sudo apt install -y espeak-ng`) to silence it.
+- **Random profile is per-run, not pinned** — the same product can draw a different profile across runs.
+
 ## Code Standards
 
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
@@ -227,6 +270,8 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 - **Template selection**: deterministic md5 hash `md5(product_id + ":pycaps_template")[0:8] % len(pool)`. Empty pool falls back to `template_name`. Same pattern as font/colour/script-template selection
 - **Two-part incompatibility**: when engine=pycaps, `step_generate_subtitles` warns and disables `two_part_subtitles_enabled` (now `two_part_subtitles.enabled` after nesting) for that run. Single-line only in v1. The upper URL is NOT rendered.
 - **Benchmark numbers** (30s 1080x1920 portrait, 40-word transcript, CSS renderer): word-focus 0.70x realtime, hype 0.79x, minimalist 0.67x. Peak RSS ~420 MB per render. CSS is faster than pictex on production-length clips.
+- **CSS renderer on Ubuntu 26.04 needs a Playwright override**: `playwright install chromium` fails with `does not support chromium on ubuntu26.04-x64` (Playwright's platform detection emits `ubuntu26.04-x64`, but the registry only ships up to `ubuntu24.04`; affects ≤1.60.0, fixed in unreleased 1.61). Force the binary-compatible 24.04 build with `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`. At runtime it's set automatically for the CSS renderer on Ubuntu-like distros at version 26+ by `_ensure_playwright_chromium_platform()` in `src/video/pycaps_engine/renderer.py` — the single source of truth, covering standalone producer, batch, `make`, and tests (it runs before any Playwright launch, so the Makefile needs no env wiring). It matches Playwright's own distro set (`ubuntu`, `pop`, `neon`, `tuxedo`) and uses setdefault semantics, so an explicit env wins. Only the one-time `playwright install chromium` still needs a manual prefix. Full writeup in `docs/troubleshooting.md`.
+- **CSS renderer needs a virtual display on Wayland/headless boxes**: after the install override above, the `css` renderer launches Chromium but every `page.screenshot` hangs (`Timeout 30000ms exceeded`) because headless Chrome can't rasterize a frame without a usable X display (same reason the scraper runs under Xvfb). Confirmed independent of Chrome version (bundled 145 and system 149 both hang). Wrap the producer in `xvfb-run -a` (apt `xvfb`). The `pictex` renderer is browserless and sidesteps both the install override and the Xvfb requirement, so it's the path of least resistance on this machine. See `docs/troubleshooting.md`.
 - **Font randomization**: the project's `subtitle_randomize_fonts` doesn't affect pycaps — templates ship their own `@font-face` in `resources/`. Custom fonts go into a template directory, not into the global font pool.
 - **Font/color pools**: live in `config/subtitles.yaml` under top-level `font_pool` / `color_pool` keys, validated by `FontPoolEntry` / `ColorPoolEntry` on `VideoConfig`. To add or remove an entry, edit YAML — no Python changes needed. `FontManager` and `ColorManager` load from these pools; selection methods return string names (not enums). Old pair names (`vibrant`, `warm`, `modern`) fall back to `classic` with a warning for backwards compatibility.
 - **Fallback policy**: `raise` (Pydantic default) aborts the pipeline if pycaps is unavailable or fails. `fallback_ffmpeg` (bundled YAML default in `config/subtitles.yaml`) switches to the FFmpeg subtitle engine for that run; this is what forks without `--with pycaps` actually hit. `warn_and_skip` keeps the video without subtitles (not recommended). The availability check runs early in `step_generate_subtitles`, before committing to the pycaps-only path.
