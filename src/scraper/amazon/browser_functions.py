@@ -188,9 +188,6 @@ def scrape_amazon_products_browser_impl(
 
         # Use google_get for organic navigation pattern
         if DEBUG_MODE:
-            import time
-
-            nav_start = time.time()
             logger.debug("[DEBUG] Navigating to search URL...")
 
         nav_start = time.monotonic()
@@ -1105,8 +1102,6 @@ def scrape_single_product(
             "[DEBUG] Pausing for %s seconds so you can see the browser...",
             debug_pause,
         )
-        import time
-
         time.sleep(debug_pause)
 
     # Check for regional redirect first
