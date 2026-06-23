@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Keyword scrapes no longer crash on the default (non-debug) path. A redundant local `import time` shadowed the module-level import, raising `UnboundLocalError` before navigation, so every keyword search failed unless run with `--debug`. ASIN and URL inputs were unaffected.
+
 ## [0.54.0] - 2026-06-19
 
 ### Fixed
