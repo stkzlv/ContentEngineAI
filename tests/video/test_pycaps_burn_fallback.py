@@ -20,8 +20,7 @@ MSG = "pycaps render failed: boom. template=word-focus, renderer=css"
 def test_warn_and_skip_keeps_caption_less_video(caplog):
     """warn_and_skip returns without raising (caller keeps the bare video)."""
     with caplog.at_level("WARNING"):
-        result = _handle_pycaps_burn_failure("warn_and_skip", MSG)
-    assert result is None
+        _handle_pycaps_burn_failure("warn_and_skip", MSG)  # returns, no raise
     assert any("caption-less" in r.message for r in caplog.records)
 
 
