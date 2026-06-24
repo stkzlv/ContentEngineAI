@@ -7,7 +7,7 @@ import logging
 import random
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from src.ai.description_generator import generate_description as generate_ai_description
 from src.ai.script_generator import generate_script as generate_ai_script
@@ -1192,15 +1192,24 @@ def _load_artifacts_burn_pycaps_subtitles(ctx: PipelineContext) -> None:
     pass
 
 
-def _handle_pycaps_burn_failure(fallback_policy: str, msg: str) -> None:
-    """Resolve a runtime pycaps burn failure per ``fallback_policy``.
+def _handle_pycaps_burn_failure(
+    fallback_policy: Literal["raise", "fallback_ffmpeg", "warn_and_skip"],
+    msg: str,
+) -> None:
+    """Resolve any pycaps burn-step failure per ``fallback_policy``.
 
-    ``warn_and_skip`` logs and returns, so the caller keeps the caption-less
-    assembled video. ``raise`` and ``fallback_ffmpeg`` both raise
-    ``PipelineError``: a runtime burn failure must not silently ship a
-    caption-less video, and ``fallback_ffmpeg`` only re-routes when pycaps is
-    unavailable (handled earlier in ``step_generate_subtitles``), not after the
-    assembler has already run without captions.
+    Covers every failure in ``step_burn_pycaps_subtitles`` that leaves the video
+    without captions: a missing transcript, a missing assembled video, or a
+    runtime render failure. ``warn_and_skip`` logs and returns, so the caller
+    keeps the caption-less video. ``raise`` and ``fallback_ffmpeg`` both raise
+    ``PipelineError``: a burn-step failure must not silently ship a caption-less
+    video reported as success. ``fallback_ffmpeg`` only re-routes to the ffmpeg
+    subtitle engine when pycaps is *unavailable* (handled earlier in
+    ``step_generate_subtitles``), not after the assembler has already run
+    without captions, so there is nothing to fall back to here.
+
+    Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
+    can't accidentally continue past a skipped burn.
     """
     if fallback_policy == "warn_and_skip":
         logger.warning(
@@ -1214,13 +1223,14 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
     """Burn pycaps animated captions onto the assembled video.
 
     Runs after ``assemble_video``. Short-circuits when the profile's
-    ``subtitle_engine`` is not ``"pycaps"``. On a runtime burn failure the
-    behaviour depends on ``pycaps.fallback_policy``: ``warn_and_skip`` keeps the
-    caption-less assembled video, while ``raise`` and ``fallback_ffmpeg`` both
-    abort. ``fallback_ffmpeg`` cannot re-burn here (the assembler already ran
-    without captions), so it fails loudly rather than ship a caption-less video.
-    The pycaps-unavailable case still degrades to ffmpeg earlier, in
-    ``step_generate_subtitles``.
+    ``subtitle_engine`` is not ``"pycaps"``. Any failure that would leave the
+    video without captions (missing transcript, missing assembled video, or a
+    runtime render failure) goes through ``_handle_pycaps_burn_failure``:
+    ``warn_and_skip`` keeps the caption-less video, while ``raise`` and
+    ``fallback_ffmpeg`` both abort. ``fallback_ffmpeg`` cannot re-burn here (the
+    assembler already ran without captions), so it fails loudly rather than ship
+    a caption-less video. The pycaps-unavailable case still degrades to ffmpeg
+    earlier, in ``step_generate_subtitles``.
     """
     merged_profile_settings = ctx.config.get_profile_merged_settings(
         ctx.profile_name, ctx.cli_overrides
@@ -1258,20 +1268,14 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"Pycaps mode requested but whisper transcript is missing at "
                 f"{transcript_path}. Did generate_subtitles run in pycaps mode?"
             )
-            if pycaps_settings.fallback_policy == "raise":
-                raise PipelineError(msg)
-            logger.warning("%s Skipping pycaps burn.", msg)
-            return
+            return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         if not final_video_path.exists():
             msg = (
                 f"Assembled video not found at {final_video_path}, cannot "
                 f"burn pycaps captions."
             )
-            if pycaps_settings.fallback_policy == "raise":
-                raise PipelineError(msg)
-            logger.warning("%s Skipping pycaps burn.", msg)
-            return
+            return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         # Reuse the two-part helper's visual bounds calculation even though
         # two-part is disabled in pycaps mode. The helper is standalone.
@@ -1347,8 +1351,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"pycaps render failed: {result.error}. "
                 f"template={result.template_used}, renderer={result.renderer_used}"
             )
-            _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
-            return
+            return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         # Swap the burned output over the original final video atomically.
         # Path.replace is atomic on POSIX when source and dest are on the

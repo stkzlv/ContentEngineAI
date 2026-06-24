@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- A runtime pycaps subtitle-burn failure no longer ships a caption-less video reported as success. When the pycaps render fails (for example the CSS renderer with no display), `fallback_ffmpeg` and `raise` now abort the run instead of keeping the un-captioned assembled video; only `warn_and_skip` keeps it. The pycaps-unavailable case still degrades to the ffmpeg subtitle engine as before.
+- A pycaps subtitle-burn failure no longer ships a caption-less video reported as success. Whether the transcript is missing, the assembled video is missing, or the render fails (for example the CSS renderer with no display), `fallback_ffmpeg` and `raise` now abort the run instead of keeping the un-captioned video; only `warn_and_skip` keeps it. The pycaps-unavailable case still degrades to the ffmpeg subtitle engine as before.
 
 ## [0.54.1] - 2026-06-24
 

@@ -1,12 +1,14 @@
-"""Fallback handling for a runtime pycaps burn failure.
+"""Fallback handling for pycaps burn-step failures.
 
-A runtime pycaps render failure (e.g. the CSS renderer timing out with no
-display) used to keep the caption-less assembled video and report success under
-`fallback_ffmpeg`, so subtitle-less videos shipped silently. The burn step now
-routes a runtime failure through `_handle_pycaps_burn_failure`: only
-`warn_and_skip` keeps the caption-less video; `raise` and `fallback_ffmpeg` both
-abort. `fallback_ffmpeg` still degrades to ffmpeg for the pycaps-*unavailable*
-case, which is handled earlier in `step_generate_subtitles`, not here.
+Any failure in the burn step that would leave the video without captions (a
+missing transcript, a missing assembled video, or a runtime render failure such
+as the CSS renderer timing out with no display) used to keep the caption-less
+video and report success under `fallback_ffmpeg`, so subtitle-less videos
+shipped silently. All three branches now route through
+`_handle_pycaps_burn_failure`: only `warn_and_skip` keeps the caption-less
+video; `raise` and `fallback_ffmpeg` both abort. `fallback_ffmpeg` still
+degrades to ffmpeg for the pycaps-*unavailable* case, which is handled earlier
+in `step_generate_subtitles`, not here.
 """
 
 import pytest
