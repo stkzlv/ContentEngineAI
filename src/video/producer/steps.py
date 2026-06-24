@@ -1192,13 +1192,35 @@ def _load_artifacts_burn_pycaps_subtitles(ctx: PipelineContext) -> None:
     pass
 
 
+def _handle_pycaps_burn_failure(fallback_policy: str, msg: str) -> None:
+    """Resolve a runtime pycaps burn failure per ``fallback_policy``.
+
+    ``warn_and_skip`` logs and returns, so the caller keeps the caption-less
+    assembled video. ``raise`` and ``fallback_ffmpeg`` both raise
+    ``PipelineError``: a runtime burn failure must not silently ship a
+    caption-less video, and ``fallback_ffmpeg`` only re-routes when pycaps is
+    unavailable (handled earlier in ``step_generate_subtitles``), not after the
+    assembler has already run without captions.
+    """
+    if fallback_policy == "warn_and_skip":
+        logger.warning(
+            "%s Keeping caption-less video (fallback_policy='warn_and_skip').", msg
+        )
+        return
+    raise PipelineError(msg)
+
+
 async def step_burn_pycaps_subtitles(ctx: PipelineContext):
     """Burn pycaps animated captions onto the assembled video.
 
     Runs after ``assemble_video``. Short-circuits when the profile's
-    ``subtitle_engine`` is not ``"pycaps"``. On pycaps failure the behaviour
-    depends on ``pycaps.fallback_policy``: ``warn_and_skip`` keeps the
-    FFmpeg-assembled video intact, while ``raise`` aborts the pipeline.
+    ``subtitle_engine`` is not ``"pycaps"``. On a runtime burn failure the
+    behaviour depends on ``pycaps.fallback_policy``: ``warn_and_skip`` keeps the
+    caption-less assembled video, while ``raise`` and ``fallback_ffmpeg`` both
+    abort. ``fallback_ffmpeg`` cannot re-burn here (the assembler already ran
+    without captions), so it fails loudly rather than ship a caption-less video.
+    The pycaps-unavailable case still degrades to ffmpeg earlier, in
+    ``step_generate_subtitles``.
     """
     merged_profile_settings = ctx.config.get_profile_merged_settings(
         ctx.profile_name, ctx.cli_overrides
@@ -1325,9 +1347,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"pycaps render failed: {result.error}. "
                 f"template={result.template_used}, renderer={result.renderer_used}"
             )
-            if pycaps_settings.fallback_policy == "raise":
-                raise PipelineError(msg)
-            logger.warning("%s Keeping FFmpeg-assembled video.", msg)
+            _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
             return
 
         # Swap the burned output over the original final video atomically.
