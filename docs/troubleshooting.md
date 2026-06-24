@@ -192,7 +192,7 @@ Once Playwright 1.61+ is on PyPI, bump it and drop the override (the renderer he
 
 ### pycaps CSS renderer hangs at `Page.screenshot: Timeout 30000ms exceeded`
 
-**Error:** the `css` renderer launches Chromium and lays out captions, then fails per word with `Page.screenshot: Timeout 30000ms exceeded`. The `fallback_policy` then keeps the FFmpeg-assembled video (so you still get a file, just without pycaps captions).
+**Error:** the `css` renderer launches Chromium and lays out captions, then fails per word with `Page.screenshot: Timeout 30000ms exceeded`. Under the bundled `fallback_policy: fallback_ffmpeg` (and under `raise`) this aborts the run rather than ship a caption-less video — there's no FFmpeg burn to fall back to once the assembler has already run. Only `warn_and_skip` keeps the caption-less file.
 
 **Cause:** headless Chromium can't rasterize a frame for the screenshot when there's no usable X display, which happens on Wayland sessions (and bare headless boxes). Page navigation and layout work, so launch succeeds, but every `page.screenshot` blocks until timeout. Confirmed independent of Chrome version (the bundled 145 build and a system Chrome 149 both hang) and of the platform override above.
 
