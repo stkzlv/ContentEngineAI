@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.54.3] - 2026-06-25
+
 ### Fixed
 - Normal-mode scrapes no longer intermittently return 0 products. The browser window size was drawn from an unbounded random set that could pick narrow/mobile widths, making Amazon serve a responsive layout the desktop product-card selectors don't match. Window size now randomizes only among desktop-width sizes (>= 1280 wide), so the desktop layout always renders.
 
