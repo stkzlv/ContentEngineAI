@@ -4,6 +4,7 @@ This module handles YAML configuration loading, path management, and global
 settings for the scraper.
 """
 
+import random
 from pathlib import Path
 from typing import Any
 
@@ -387,6 +388,20 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
             from botasaurus.user_agent import UserAgent
             from botasaurus.window_size import WindowSize
 
+            # Desktop-width window sizes only (all >= 1280 wide). WindowSize.RANDOM
+            # can draw narrow/mobile widths, which make Amazon serve a responsive
+            # layout the desktop product-card selectors don't match, silently
+            # yielding 0 products in normal mode (#161). Randomize among these for
+            # anti-detection variety while always rendering the desktop layout.
+            desktop_window_sizes = [
+                WindowSize.window_size_1280_720,
+                WindowSize.window_size_1366_768,
+                WindowSize.window_size_1440_900,
+                WindowSize.window_size_1536_864,
+                WindowSize.window_size_1600_900,
+                WindowSize.window_size_1920_1080,
+            ]
+
             # Extract browser-specific settings
             global_settings = CONFIG.get("global_settings", {})
             debug_mode = global_settings.get("debug_mode", False)
@@ -405,8 +420,8 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 "proxy": global_settings.get("proxy"),
                 "user_agent": UserAgent.RANDOM,  # Randomize user agent for better
                 # anti-detection
-                "window_size": WindowSize.RANDOM,  # Randomize window size for
-                # better anti-detection
+                # Desktop-width only; see desktop_window_sizes note above (#161).
+                "window_size": random.choice(desktop_window_sizes),  # noqa: S311
                 "headless": False,  # Disabled - Botasaurus bug in headless mode
                 "output": get_output_path(
                     "botasaurus"
