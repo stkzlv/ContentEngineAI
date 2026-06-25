@@ -123,6 +123,7 @@ High-level requirements for ContentEngineAI.
 ### Stealth & Human Simulation
 - Implement detection evasion techniques
 - Simulate human-like browsing patterns
+- Browser window size varies for detection evasion but stays desktop-width, so the site serves the desktop layout the product-card extraction depends on; a narrow window draws a mobile layout with no extractable cards
 - Handle failures gracefully without halting batch
 
 ### Batch Mode

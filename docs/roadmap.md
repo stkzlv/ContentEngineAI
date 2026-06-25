@@ -216,9 +216,9 @@ Concrete gates for the 1.0.0 release:
 - Public Python entry points (`src/pipeline.global_batch`, `src/video.producer.cli`, `src/scraper.amazon.scraper`, `src/publisher.late.cli`) treated as a stable surface; signature changes need a major bump.
 - Module/Batch Alignment Rule covers every flag pair (CLAUDE.md), enforced in CI by a parity test.
 
-**Test coverage at the documented targets**
-- Unit tests at the >=90% line CONTRIBUTING.md already promises (currently around 45%).
-- Integration tests at >=80% on the critical paths: scraper end-to-end, producer end-to-end, publisher per-platform.
+**Test coverage on the critical paths**
+- Critical-path coverage is the gate, not a global percentage: scraper end-to-end, producer end-to-end, and publisher per-platform each covered by unit + integration tests, at >=80% module-level on those paths.
+- Overall line coverage holds a realistic floor (the CI `--cov-fail-under` gate) and trends up as files get touched. The >=90% global target in README / CONTRIBUTING.md is a post-1.0.0 aspiration, not a release blocker: chasing it across the whole tree is high-effort, low-signal, and would crowd out feature work.
 - One real-API smoke test in CI that exercises scrape → produce → publish on a fixture ASIN with sandbox credentials. Marked optional so forks without secrets stay green.
 
 **Documentation completeness**
