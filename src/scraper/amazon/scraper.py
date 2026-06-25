@@ -1244,6 +1244,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 if hasattr(product.platform, "value")
                 else product.platform
             ),
+            "rating": product.rating,
             "serp_rating": product.serp_rating,
             "serp_reviews_count": product.serp_reviews_count,
             "downloaded_images": product.downloaded_images,

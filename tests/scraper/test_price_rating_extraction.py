@@ -56,3 +56,17 @@ def test_explicit_rating_is_not_overwritten():
 
 def test_no_rating_source_stays_none():
     assert _product(rating=None, serp_rating=None).rating is None
+
+
+def test_data_json_serializer_carries_rating():
+    """The data.json serializer must emit the (fallback-populated) rating.
+
+    The model fallback is useless if `_product_to_dict` drops the field, which
+    is what shipped before this guard. `_product_to_dict` reads only `product`,
+    so it's safe to call with a dummy `self`.
+    """
+    from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+    p = _product(rating=None, serp_rating="4.2")  # rating falls back to 4.2
+    d = BotasaurusAmazonScraper._product_to_dict(None, p)
+    assert d["rating"] == "4.2"
