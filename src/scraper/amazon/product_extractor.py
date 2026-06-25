@@ -20,6 +20,19 @@ from .utils import build_affiliate_url, is_valid_product_data
 logger = logging.getLogger(__name__)
 
 
+def _normalize_price(raw: str) -> str:
+    """Extract a clean numeric price string from messy element text.
+
+    Amazon's `.a-price-whole` text includes the nested `.a-price-decimal` span,
+    yielding values with a trailing newline and dot; the `.a-offscreen` span
+    carries the full "$44.99". This drops currency symbols, thousands
+    separators, and stray punctuation, returning the first number with optional
+    decimals ("44.99", "44"). Returns an empty string when no number is present.
+    """
+    match = re.search(r"\d+(?:\.\d+)?", raw.replace(",", ""))
+    return match.group(0) if match else ""
+
+
 def extract_product_data_from_page(
     driver: Driver,
     asin: str,
@@ -73,20 +86,24 @@ def extract_product_data_from_page(
                 title = title_element.text.strip()
                 break
 
-        # Try multiple selectors for price
+        # Try multiple selectors for price. `.a-offscreen` carries the full
+        # clean price ("$44.99"); prefer it over `.a-price-whole`, whose text
+        # includes the nested `.a-price-decimal` span and yields "44\n.".
         price_selectors = [
-            ".a-price-whole",
             ".a-price .a-offscreen",
             "#priceblock_dealprice",
             "#priceblock_ourprice",
+            ".a-price-whole",
             ".a-price-symbol + .a-price-whole",
         ]
 
         for selector in price_selectors:
             price_element = driver.select(selector)
             if price_element:
-                price = price_element.text.strip()
-                break
+                normalized = _normalize_price(price_element.text)
+                if normalized:
+                    price = normalized
+                    break
 
         # Extract description
         desc_selectors = [

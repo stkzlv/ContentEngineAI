@@ -36,6 +36,11 @@ class ProductData(BaseProductData):
             self.platform = Platform.AMAZON
         if self.asin and (not hasattr(self, "platform_id") or self.platform_id is None):
             self.platform_id = self.asin
+        # The detail-page rating selector is unreliable, so `rating` is often
+        # empty while the search-results card captured `serp_rating`. Fall back
+        # so consumers (e.g. rating-based product filtering) see a value.
+        if not self.rating and self.serp_rating:
+            self.rating = self.serp_rating
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with Amazon-specific fields."""
