@@ -184,7 +184,7 @@ make publish ARGS="single <ASIN> --debug"                                    # a
 
 **Case 3 — separate modules, no makefile (bare, normal mode):** bypasses the lowpri memory cap (see Resource discipline), so only when the machine is otherwise idle.
 ```bash
-poetry run python -m src.scraper.amazon.scraper --keywords "$KW" --max-products 1    # see window-size caveat below
+poetry run python -m src.scraper.amazon.scraper --keywords "$KW" --max-products 1
 xvfb-run -a poetry run python -m src.video.producer --batch --random-profile --product-ids <ASIN>
 poetry run python -m src.publisher.late single <ASIN>
 ```
@@ -197,7 +197,7 @@ poetry run python -m src.publisher.late single <ASIN>
 - **Authoritative publish check** (the post actually reached the scheduler): `client.posts.get(<id>).model_dump(by_alias=True, mode="json")["post"]` -> top `status` plus `platforms[*].status` / `scheduledFor`. Don't trust `publish_history.json` `published_at` (that's queue time, not live time).
 
 **Caveats baked in from real runs:**
-- **Normal-mode scrape can intermittently return 0 products** (random window size triggers Amazon's mobile layout; desktop card selectors miss). `--debug` pins `--window-size=1920,1080` and scrapes reliably. Until the window-size bug is fixed, prefer `--debug` for the scrape stage; don't read a 0-product normal-mode scrape as "no matches".
+- **Normal-mode scrape is reliable** now that the browser window size is clamped to desktop widths in `_BROWSER_CONFIG` (`src/scraper/amazon/config.py`). It was `WindowSize.RANDOM`, which could draw a narrow/mobile width that triggers Amazon's responsive layout the desktop card selectors miss, silently yielding 0 products. `--debug` is no longer needed just for scrape reliability (it still pins a fixed window and adds verbosity). A genuine 0-product run on Wayland is a different cause (no X display) — see `docs/troubleshooting.md`.
 - **`--force` republishes** a product already published (default off). Fresh scrapes don't need it.
 - **Coqui TTS `No espeak backend` ERROR is non-fatal** and appears only when `espeak-ng` isn't installed (it's the unused fallback provider failing to load; Gemini TTS is primary). Install `espeak-ng` (`sudo apt install -y espeak-ng`) to silence it.
 - **Random profile is per-run, not pinned** — the same product can draw a different profile across runs.
