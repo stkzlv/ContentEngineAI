@@ -85,7 +85,7 @@ help:
 	@echo "$(GREEN)Batch Pipeline:$(NC)"
 	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
 	@echo "  batch-lowpri  - Same but with reduced CPU/IO/memory priority"
-	@echo "                  Override limits: MEM_LIMIT=6G NICE_LEVEL=10"
+	@echo "                  Defaults MEM_LIMIT=6G NICE_LEVEL=15; tighten with MEM_LIMIT=4G NICE_LEVEL=19"
 	@echo ""
 	@echo "$(YELLOW)Scraping Commands:$(NC)"
 	@echo "  scrape-test        - Run test scrape with Botasaurus"
@@ -421,7 +421,7 @@ scrape-advanced: ## Run scraper with advanced search parameters
 NICE_LEVEL := 15
 IONICE_CLASS := 2
 IONICE_LEVEL := 6
-MEM_LIMIT := 4G
+MEM_LIMIT := 6G
 
 batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 	poetry run python -m src.pipeline.global_batch $(ARGS)

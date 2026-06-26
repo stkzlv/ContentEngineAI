@@ -572,8 +572,8 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 # Video production only
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
-# Override resource limits (defaults: MEM_LIMIT=8G, NICE_LEVEL=10)
-make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
+# Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
 ```
 
 Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.

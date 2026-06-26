@@ -60,7 +60,7 @@ Pipeline logs are in `outputs/logs/`:
 
 The scraper and the producer are the heavy commands. The producer pipeline peaks around 2-2.5 GB RSS per render (Whisper STT, FFmpeg encoding, pycaps Chromium) and runs for 3-6 minutes on a single 30-45s output. The scraper drives Botasaurus + Chromium and holds RAM for the duration of a search. Running either bare while the user is working on the same machine causes systemd-oomd to kill unrelated session apps (Chrome, VSCode) — see the 0.44.0 changelog for why we now ship `MemorySwapMax=0` in the lowpri cgroup.
 
-**Rule: full scrape and full produce ALWAYS go through `make scrape-lowpri` / `make produce-lowpri` (or `make batch-lowpri` for the global pipeline).** These targets wrap the command in a `systemd-run --user --scope` cgroup with `MEM_LIMIT` (default 8G) + `nice` (default 10) + `MemorySwapMax=0`. Tune via `MEM_LIMIT=6G NICE_LEVEL=15` when thrashing. The bare `poetry run python -m src.scraper.amazon.scraper` and `poetry run python -m src.video.producer` forms are reserved for:
+**Rule: full scrape and full produce ALWAYS go through `make scrape-lowpri` / `make produce-lowpri` (or `make batch-lowpri` for the global pipeline).** These targets wrap the command in a `systemd-run --user --scope` cgroup with `MEM_LIMIT` (default 6G) + `nice` (default 15) + `MemorySwapMax=0`. Tune via `MEM_LIMIT=4G NICE_LEVEL=19` when thrashing. `nice`/`ionice` are CPU/IO priority only and do nothing for OOM; `MemoryMax` + `MemorySwapMax=0` are what contain a memory blow-up to the pipeline cgroup instead of letting it (or systemd-oomd) kill unrelated session apps. The bare `poetry run python -m src.scraper.amazon.scraper` and `poetry run python -m src.video.producer` forms are reserved for:
 
 - Unit tests / pytest runs (no full render).
 - Single-step debug runs that pass `--step <name>` and skip the heavy steps.
@@ -132,8 +132,8 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 # Video production only (low priority)
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
-# Tune resource limits if needed (defaults: MEM_LIMIT=8G, NICE_LEVEL=10)
-make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=6G NICE_LEVEL=15
+# Tune resource limits if needed (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
 
 # Publish single product (auto-schedules to next slot)
 poetry run python -m src.publisher.late single B0ASIN1 --debug
