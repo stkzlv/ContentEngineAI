@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-06-28
+
 ### Changed
 - The lowpri make targets default to `MEM_LIMIT=6G` (was 4G); `NICE_LEVEL` stays 15. 6G gives the producer headroom (Whisper STT plus render peak near 2.6-2.9 GB) without starving other apps. Override per-run as before.
 
