@@ -110,6 +110,8 @@ High-level requirements for ContentEngineAI.
 
 ### Product Discovery & Media Extraction
 - Extract product data: title, price, description, ID, ratings, reviews
+- Scraped price is recorded as a plain decimal number, parsed from both US (comma grouping, dot decimal) and European (dot grouping, comma decimal) price formats
+- Product rating falls back to the search-results rating when the product page yields none, so a rating is recorded whenever the listing shows one
 - Download high-resolution images and videos
 - Filter out low-quality or invalid media
 - Store media in dedicated directories per product ID

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-06-28
+
+### Changed
+- The lowpri make targets default to `MEM_LIMIT=6G` (was 4G); `NICE_LEVEL` stays 15. 6G gives the producer headroom (Whisper STT plus render peak near 2.6-2.9 GB) without starving other apps. Override per-run as before.
+
+### Fixed
+- Scraped price is now a clean numeric value. The extractor prefers the full `.a-offscreen` price, scoped to the core price block and skipping the struck-through list price so it doesn't read the wrong number; when only the split whole/fraction spans are present it keeps the cents instead of truncating to whole dollars. Normalization handles both US (`$1,234.56`) and European (`1.234,56`) grouping/decimal conventions.
+- Scraped product rating now falls back to the search-results rating when the detail page doesn't yield one, instead of staying empty. Rating-based product filtering sees a value whenever the listing has a rating.
+
 ## [0.54.3] - 2026-06-25
 
 ### Fixed

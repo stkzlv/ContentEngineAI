@@ -20,6 +20,60 @@ from .utils import build_affiliate_url, is_valid_product_data
 logger = logging.getLogger(__name__)
 
 
+def _normalize_price(raw: str) -> str:
+    """Extract a clean dot-decimal price string from messy element text.
+
+    Handles both US ("$1,234.56") and European ("1.234,56 EUR", "19,95")
+    grouping/decimal conventions, since Amazon's locale domains differ. Drops
+    currency symbols and stray text, then infers which separator is the decimal:
+
+    - Both `.` and `,` present: the last one is the decimal, the other grouping.
+    - One separator, appearing more than once: all grouping ("1.234.567").
+    - One separator followed by exactly 3 digits: grouping ("1.234" -> "1234"),
+      since prices use 2 decimal places, not 3.
+    - One separator otherwise: decimal ("44,99" -> "44.99", "0.50" -> "0.50").
+
+    Returns a dot-decimal string ("1234.56", "44") or "" when no number is
+    present. `.a-price-whole` (a fallback selector) carries only the integer
+    part, so it normalizes to whole dollars with no cents.
+    """
+    # Keep digits and separators only; drop currency symbols, text, whitespace.
+    s = re.sub(r"[^\d.,]", "", raw).strip(".,")
+    if not s:
+        return ""
+
+    has_dot, has_comma = "." in s, "," in s
+    if has_dot and has_comma:
+        decimal = "." if s.rfind(".") > s.rfind(",") else ","
+        s = s.replace("," if decimal == "." else ".", "").replace(decimal, ".")
+    elif has_dot or has_comma:
+        sep = "." if has_dot else ","
+        parts = s.split(sep)
+        if len(parts) > 2 or len(parts[1]) == 3:
+            s = "".join(parts)  # grouping separator
+        else:
+            s = parts[0] + "." + parts[1]  # decimal separator
+
+    match = re.search(r"\d+(?:\.\d+)?", s)
+    return match.group(0) if match else ""
+
+
+def _price_from_parts(whole_raw: str, fraction_raw: str | None) -> str:
+    """Combine `.a-price-whole` and `.a-price-fraction` text into a price.
+
+    `.a-price-whole` holds only the integer part (its text includes the nested
+    decimal span, so a trailing newline and dot), and `.a-price-fraction` holds
+    the cents. Used as a fallback when `.a-offscreen` is missing, so the price
+    keeps its cents instead of truncating to whole dollars. Returns a
+    dot-decimal string, or "" when there's no whole number.
+    """
+    whole = _normalize_price(whole_raw)
+    if not whole:
+        return ""
+    fraction = re.sub(r"\D", "", fraction_raw) if fraction_raw else ""
+    return f"{whole}.{fraction}" if fraction else whole
+
+
 def extract_product_data_from_page(
     driver: Driver,
     asin: str,
@@ -73,20 +127,39 @@ def extract_product_data_from_page(
                 title = title_element.text.strip()
                 break
 
-        # Try multiple selectors for price
+        # Try multiple selectors for price. `.a-offscreen` carries the full
+        # clean price ("$44.99"). Scope to the core price block and skip
+        # `.a-text-price` (the struck-through list/was price) so we don't read
+        # the wrong number; `driver.select` returns the first match, and an
+        # unscoped `.a-price .a-offscreen` can land on a list or per-unit price.
         price_selectors = [
-            ".a-price-whole",
-            ".a-price .a-offscreen",
+            "#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen",
+            "#corePriceDisplay_desktop_feature_div"
+            " .a-price:not(.a-text-price) .a-offscreen",
             "#priceblock_dealprice",
             "#priceblock_ourprice",
-            ".a-price-symbol + .a-price-whole",
+            ".a-price:not(.a-text-price) .a-offscreen",
+            ".a-price .a-offscreen",
         ]
 
         for selector in price_selectors:
             price_element = driver.select(selector)
             if price_element:
-                price = price_element.text.strip()
-                break
+                normalized = _normalize_price(price_element.text)
+                if normalized:
+                    price = normalized
+                    break
+
+        # Fallback when no `.a-offscreen` price is present: reconstruct from the
+        # split whole/fraction spans so the price keeps its cents.
+        if not price:
+            whole_element = driver.select(".a-price-whole")
+            if whole_element:
+                fraction_element = driver.select(".a-price-fraction")
+                price = _price_from_parts(
+                    whole_element.text,
+                    fraction_element.text if fraction_element else None,
+                )
 
         # Extract description
         desc_selectors = [
