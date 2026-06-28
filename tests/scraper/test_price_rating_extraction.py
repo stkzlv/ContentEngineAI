@@ -12,7 +12,7 @@ back to `serp_rating` so consumers see a value.
 import pytest
 
 from src.scraper.amazon.models import ProductData
-from src.scraper.amazon.product_extractor import _normalize_price
+from src.scraper.amazon.product_extractor import _normalize_price, _price_from_parts
 from src.scraper.base import Platform
 
 
@@ -55,13 +55,30 @@ def test_normalize_price(raw, expected):
     assert _normalize_price(raw) == expected
 
 
+@pytest.mark.parametrize(
+    "whole,fraction,expected",
+    [
+        ("44\n.", "99", "44.99"),  # split spans keep cents
+        ("44\n.", "99\n", "44.99"),  # fraction span has stray whitespace
+        ("1,299", "00", "1299.00"),  # grouping in the whole part
+        ("1.299", "50", "1299.50"),  # European grouping in the whole part
+        ("44", None, "44"),  # no fraction span -> whole dollars
+        ("44", "", "44"),  # empty fraction -> whole dollars
+        ("", "99", ""),  # no whole number -> empty
+        ("Currently unavailable", "99", ""),
+    ],
+)
+def test_price_from_parts(whole, fraction, expected):
+    assert _price_from_parts(whole, fraction) == expected
+
+
 def test_rating_falls_back_to_serp_rating():
     """Rating is None on the detail page but serp_rating was captured."""
     assert _product(rating=None, serp_rating="4.9").rating == "4.9"
 
 
 def test_explicit_rating_is_not_overwritten():
-    """A real detail-page rating wins over serp_rating."""
+    """An explicit rating (if a caller ever sets one) wins over serp_rating."""
     assert _product(rating="4.5", serp_rating="4.9").rating == "4.5"
 
 

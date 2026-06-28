@@ -36,9 +36,10 @@ class ProductData(BaseProductData):
             self.platform = Platform.AMAZON
         if self.asin and (not hasattr(self, "platform_id") or self.platform_id is None):
             self.platform_id = self.asin
-        # The detail-page rating selector is unreliable, so `rating` is often
-        # empty while the search-results card captured `serp_rating`. Fall back
-        # so consumers (e.g. rating-based product filtering) see a value.
+        # The scrape path doesn't populate `rating` from the detail page, so it
+        # arrives empty while the search-results card captured `serp_rating`.
+        # Fall back so consumers (e.g. rating-based product filtering) see a
+        # value. An explicit `rating`, if a caller ever sets one, still wins.
         if not self.rating and self.serp_rating:
             self.rating = self.serp_rating
 
