@@ -21,15 +21,40 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_price(raw: str) -> str:
-    """Extract a clean numeric price string from messy element text.
+    """Extract a clean dot-decimal price string from messy element text.
 
-    Amazon's `.a-price-whole` text includes the nested `.a-price-decimal` span,
-    yielding values with a trailing newline and dot; the `.a-offscreen` span
-    carries the full "$44.99". This drops currency symbols, thousands
-    separators, and stray punctuation, returning the first number with optional
-    decimals ("44.99", "44"). Returns an empty string when no number is present.
+    Handles both US ("$1,234.56") and European ("1.234,56 EUR", "19,95")
+    grouping/decimal conventions, since Amazon's locale domains differ. Drops
+    currency symbols and stray text, then infers which separator is the decimal:
+
+    - Both `.` and `,` present: the last one is the decimal, the other grouping.
+    - One separator, appearing more than once: all grouping ("1.234.567").
+    - One separator followed by exactly 3 digits: grouping ("1.234" -> "1234"),
+      since prices use 2 decimal places, not 3.
+    - One separator otherwise: decimal ("44,99" -> "44.99", "0.50" -> "0.50").
+
+    Returns a dot-decimal string ("1234.56", "44") or "" when no number is
+    present. `.a-price-whole` (a fallback selector) carries only the integer
+    part, so it normalizes to whole dollars with no cents.
     """
-    match = re.search(r"\d+(?:\.\d+)?", raw.replace(",", ""))
+    # Keep digits and separators only; drop currency symbols, text, whitespace.
+    s = re.sub(r"[^\d.,]", "", raw).strip(".,")
+    if not s:
+        return ""
+
+    has_dot, has_comma = "." in s, "," in s
+    if has_dot and has_comma:
+        decimal = "." if s.rfind(".") > s.rfind(",") else ","
+        s = s.replace("," if decimal == "." else ".", "").replace(decimal, ".")
+    elif has_dot or has_comma:
+        sep = "." if has_dot else ","
+        parts = s.split(sep)
+        if len(parts) > 2 or len(parts[1]) == 3:
+            s = "".join(parts)  # grouping separator
+        else:
+            s = parts[0] + "." + parts[1]  # decimal separator
+
+    match = re.search(r"\d+(?:\.\d+)?", s)
     return match.group(0) if match else ""
 
 

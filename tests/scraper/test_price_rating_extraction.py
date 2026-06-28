@@ -31,11 +31,22 @@ def _product(rating, serp_rating):
 @pytest.mark.parametrize(
     "raw,expected",
     [
+        # US grouping/decimal (comma thousands, dot decimal)
         ("44\n.", "44"),  # .a-price-whole with nested decimal span
         ("20\n.", "20"),
         ("$44.99", "44.99"),  # .a-offscreen clean full price
         ("1,299.99", "1299.99"),  # thousands separator
+        ("$1,234.50", "1234.50"),
         ("  $19.95  ", "19.95"),
+        ("$0.50/Count", "0.50"),  # per-unit suffix dropped
+        # European grouping/decimal (dot thousands, comma decimal)
+        ("19,95 EUR", "19.95"),
+        ("44,99", "44.99"),
+        ("1.234,56", "1234.56"),
+        ("2.999.999,99", "2999999.99"),
+        ("1.299", "1299"),  # lone 3-digit group is thousands, not .299
+        ("1.234.567", "1234567"),  # repeated separator is grouping
+        # Degenerate input
         ("", ""),  # no number
         ("Currently unavailable", ""),
     ],
