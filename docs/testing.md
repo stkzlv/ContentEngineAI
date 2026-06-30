@@ -317,6 +317,39 @@ After **publish**: the Late SDK returns a post ID and a per-platform status map.
 
 The one-shot target runs the same phases back-to-back without pausing. When everything works it's fine. When something goes wrong in produce, you've already lost the scrape state (the directory will still exist, but you've burned the scraper's Amazon session and might get throttled re-running). Going step by step means a failed phase leaves the earlier artifacts intact for inspection.
 
+## End-to-end publish-option verification
+
+The smoke test above publishes once. This runbook exercises *every* publishing option and verifies the result on Zernio, which is the right check before a publisher refactor or release. It creates real posts: immediate ones go live, scheduled ones publish at the next free slot. Schedule to a future slot and delete with `python -m src.publisher.late delete <POST_ID>` if you don't want the content to ship.
+
+### The shape
+
+Render one product per option combination with publishing skipped, then publish that product with one option set, then verify. The two publish code paths re-implement the same logic, so cover both (Module/Batch Alignment Rule):
+
+- `single <ASIN>` -- unified (one post, all platforms) by default, or `--platform-specific` (one post per platform); `--immediate` (live now) or default (next free slot); `--link-in-bio` / `--no-link-in-bio`; `--force` (republish).
+- `schedule auto` -- config-driven mode (`use_platform_specific_content`), `--dry-run`, `--auto-resolve`. Runs the `record_publish` + `add_to_registry` writes before cleanup.
+
+Render step (per product), publishing skipped:
+
+```bash
+xvfb-run -a make batch-lowpri \
+  ARGS="--keywords '<keyword>' --max-products 1 --products-per-keyword 1 --random-profile --skip-publish --debug"
+```
+
+A three-product matrix covers the surface: (1) `single --immediate` unified live; (2) `single --platform-specific` scheduled; (3) `schedule auto --auto-resolve`. Across the three you also touch dry-run, the dedup guard (`single <ASIN>` again with no `--force` skips already-published platforms), and conflict resolution.
+
+### Verification surfaces
+
+Local state lives at the outputs root and survives product-dir cleanup: `outputs/publish_history.json` (one row per `<ASIN>:<platform>`), `outputs/published_products.json`, `outputs/schedule.json`. Diff their counts before and after.
+
+Live state comes from Zernio. The authoritative read is the post status, not the local files (`publish_history.json` records queue time, not live time). `client.posts.get(<id>)` returns the payload under `.post`; dump with `model_dump(by_alias=True, mode="json")["post"]` and read top `status` plus `platforms[*].status` / `scheduledFor`. Check the disclosure flags while you're there: each YouTube leg carries `containsSyntheticMedia: true`, and each TikTok leg carries `platformSpecificData.tiktokSettings.commercial_content_type: brand_organic` + `is_brand_organic_post: true` (without these TikTok rejects the post at publish time). First-comment delivery is only visible in the platform inbox, not in `posts.get` -- use `verify-comments`, or `LatePublisher.get_post_comments(<platformPostId>, <accountId>)` and look for the comment with `from.isOwner == true`.
+
+### Behaviors and gotchas
+
+- `link-in-bio` runs only on the `single` path, after a successful publish, and reads `outputs/<ASIN>/data.json`. Config defaults it on, so pass `--no-link-in-bio` to keep it off. If the platforms are all already published, `single` returns before the link-in-bio step, so `--link-in-bio` alone is a no-op there. After the product dir is cleaned the `data.json` is gone; to set the link later, reconstruct a minimal `data.json` (`title` + `affiliate_link`) from `published_products.json` in a temp dir and call `LinkInBioManager.update(<ASIN>, <tmp_outputs>)`.
+- `schedule auto` needs `--auto-resolve` to take an alternative slot when the preferred slot is occupied (2h `min_post_spacing` by default). Without it, a conflict counts the product as failed and suggests slots. The publisher schedule path exits non-zero on failure; `make batch-lowpri` exits 0 even on total failure, so verify the batch by grepping the phase-summary log lines, not `$?`.
+- Cleanup is conservative: it skips while a leg is still `publishing` (immediate runs, the dir stays) and runs once a post is `scheduled` (the dir is removed after the tracking/registry writes).
+- A published TikTok leg often has `platformPostUrl: ""`, which the SDK's strict model rejects, so `posts.list` / `posts.get` raise on any page containing it. `verify-comments` hard-fails (exit non-zero) and `single` / `schedule` lose API-side slot visibility until that post ages off page 1. Read status via the raw REST API (`GET /api/v1/posts/<id>` or `?page=N&limit=50` with `Authorization: Bearer $LATE_API_KEY`) and check comments via the inbox, both of which bypass the failing model. See the publisher notes in `CLAUDE.md` and the linked follow-up issue.
+
 ## Continuous Integration
 
 Tests run automatically on:

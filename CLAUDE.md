@@ -202,6 +202,17 @@ poetry run python -m src.publisher.late single <ASIN>
 - **Coqui TTS `No espeak backend` ERROR is non-fatal** and appears only when `espeak-ng` isn't installed (it's the unused fallback provider failing to load; Gemini TTS is primary). Install `espeak-ng` (`sudo apt install -y espeak-ng`) to silence it.
 - **Random profile is per-run, not pinned** — the same product can draw a different profile across runs.
 
+### Publish-option verification (every publishing path)
+
+Full runbook in `docs/testing.md` -> "End-to-end publish-option verification". Use it to exercise all publishing options before a publisher refactor/release. Render each product with `make batch-lowpri ARGS="... --skip-publish"`, then publish one option combo per product and verify on Zernio. Real posts are created (immediate goes live; scheduled ships at the next slot — `python -m src.publisher.late delete <POST_ID>` to drop one). Cover both publish paths (`single` and `schedule auto`) and both modes (unified, `--platform-specific`) — they re-implement the same logic.
+
+Operational gotchas the runbook captures (must-know inline):
+- **Verify surfaces**: `outputs/publish_history.json` / `published_products.json` / `schedule.json` live at the outputs root and survive product-dir cleanup — diff their counts. Authoritative live status is `client.posts.get(<id>)` `.post` (`by_alias=True`), not `publish_history.json` (queue time). Disclosures to confirm: YouTube `containsSyntheticMedia: true`, TikTok `platformSpecificData.tiktokSettings.commercial_content_type: brand_organic` + `is_brand_organic_post: true` (both unified and platform-specific).
+- **link-in-bio** runs only on the `single` path after a successful publish and reads `outputs/<asin>/data.json`. Config defaults it ON — pass `--no-link-in-bio` to skip. If all platforms are already published, `single` returns before the link-in-bio step (so `--link-in-bio` alone is a no-op there). After cleanup the dir is gone; to set the link later, reconstruct a minimal `data.json` (`title` + `affiliate_link`) from `published_products.json` in a temp dir and call `LinkInBioManager.update(<asin>, <tmp_outputs>)`.
+- **`schedule auto` needs `--auto-resolve`** to take an alternative when the preferred slot conflicts (2h `min_post_spacing`); without it the product is counted failed (and the schedule path exits non-zero, unlike `make batch-lowpri` which exits 0 even on total failure — grep phase summaries, not `$?`).
+- **Cleanup** skips while a leg is still `publishing` (immediate runs keep the dir) and runs once `scheduled` (dir removed after tracking/registry writes — the #175 path).
+- **The #177 SDK crash blocks verification**: a published TikTok leg with `platformPostUrl: ""` makes `posts.list`/`get` raise, so `verify-comments` hard-fails and slot-occupancy degrades. Read status via the raw REST API and first-comment delivery via `get_post_comments(<platformPostId>, <accountId>)`, both of which bypass the failing model.
+
 ## Code Standards
 
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
