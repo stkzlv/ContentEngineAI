@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Scheduled posts now get a local record. The `schedule auto` path writes `publish_history.json` and the `published_products.json` registry entry before cleaning the product directory, matching the single-publish path. Previously scheduled posts left no local trace, the duplicate-publish guard couldn't see them, and a cleaned directory couldn't be rebuilt into the registry.
+
 ## [0.55.0] - 2026-06-28
 
 ### Changed
