@@ -161,7 +161,9 @@ poetry run python tools/performance_report.py --report-type detailed --format cs
 
 ## End-to-End Pipeline Test Cases
 
-Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see Module/Batch Alignment Rule).
+After any change that alters runtime behavior, run the real path it touches and inspect the real artifact (file, video, log line, published post), not just a green test run. Match the check to the change: scraper change -> a scrape; producer/subtitle/audio change -> a produce + `ffprobe`/frame check; publisher change -> the publish-option runbook; config-model change -> the one path that consumes the field; cross-phase change -> a full batch. When the changed logic exists in both a standalone module CLI and `global_batch` (Module/Batch Alignment Rule), verify BOTH paths. Trust the artifact over the exit code (`make batch-lowpri` exits 0 even on total failure — grep the phase-summary log lines). Full change-type -> check table and worked runbooks in `docs/testing.md` ("Verifying a change end-to-end").
+
+The full-pipeline cases below are one instance. Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see Module/Batch Alignment Rule).
 
 **On this Wayland box, wrap any producer run in `xvfb-run -a`** — the CSS pycaps renderer (bundled default) needs an X display or its per-word screenshots hang. `pictex` doesn't.
 

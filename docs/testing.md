@@ -274,6 +274,33 @@ poetry run pytest -vv --tb=long
 
 </details>
 
+## Verifying a change end-to-end
+
+The automated suite catches regressions in code paths it covers; it does not prove your change produces a correct real artifact. After any change that alters runtime behavior, run the real path it touches and inspect the real output (a file, a video, a log line, a published post), not just a green test run. Two principles drive everything below:
+
+- **Run the narrowest path that exercises the change, then widen.** A scraper change needs a scrape, not a full batch. Only run the whole pipeline when the change spans phases or you're verifying a release.
+- **Verify both implementations when the logic is duplicated.** The standalone module CLIs (scraper, producer, publisher) and `global_batch` re-implement the same logic (Module/Batch Alignment Rule in `CLAUDE.md`). A change to shared behavior has to be checked on both paths, because they drift silently.
+
+Match the change to the check:
+
+| Change touches | Run | Inspect |
+|---|---|---|
+| Scraper (`src/scraper/`) | `make scrape-lowpri` on a keyword, plus an ASIN and a URL | `data.json` fields, image count vs the media-validation floor, `outputs/logs/scraper.log` warnings |
+| Producer / assembler (`src/video/`) | `xvfb-run -a make produce-lowpri` on an existing ASIN | `ffprobe` the video (codec/resolution/duration), eyeball a frame, `producer.log` step summaries and threshold warnings |
+| Subtitles / pycaps (`src/video/pycaps_engine/`, `subtitle_*`) | produce with the affected `--subtitle-engine` / `--pycaps-renderer` | captions on a sampled frame; no `overlay skipped` or pycaps burn-fail warnings |
+| Audio (`src/audio/`, `audio_builder`) | produce | `ffprobe`/loudness on the output audio; no provider-chain errors |
+| AI / prompts (`src/ai/`) | produce, or `--step generate_script` | the rendered prompt at `outputs/<ASIN>/temp/script_prompt.txt` and the script output |
+| Publisher (`src/publisher/`) | the publish-option runbook below | Zernio post status, `publish_history.json` / `published_products.json`, disclosures, first comments |
+| Config models / YAML (`config/`, `src/*/config/`) | load the config, then run the one path that consumes the field | the override actually reaches the runtime (profile-level gating and the secrets dict are the usual silent-drop traps) |
+| Pipeline / batch orchestration (`src/pipeline/`) | full `make batch-lowpri` | phase-summary log lines and exit behavior on both the standalone and batch paths |
+| Pure refactor (no behavior change) | `make test` + `make lint`, plus one targeted smoke on the touched path | output unchanged vs before |
+
+Resource and environment rules apply to every row: heavy scrape/produce/batch runs go through the `*-lowpri` make targets (cgroup memory cap), and on a Wayland box any producer run is wrapped in `xvfb-run -a` (the bundled pycaps CSS renderer hangs without an X display). One heavy job at a time.
+
+Trust the artifact over the exit code. `make batch-lowpri` exits 0 even when every product fails, so confirm success by grepping the phase-summary log lines (`Scraping phase complete:`, `Production phase complete:`, `Publishing phase complete:`), not `$?`.
+
+The two runbooks below are worked instances of this: the smoke test exercises the full scrape -> produce -> publish chain, and the publish-option runbook exercises every publishing path.
+
 ## Step-by-step pipeline smoke test
 
 Before a release, or after a refactor that touched the scraper, producer, or publisher surfaces, it's worth running the full pipeline end-to-end against a single product and stopping between phases to eyeball the outputs. This is slower than `make batch-lowpri` in one shot, but catches regressions the automated suite doesn't: Whisper transcript drift, subtitle positioning on a new product, publish-side SDK changes.
