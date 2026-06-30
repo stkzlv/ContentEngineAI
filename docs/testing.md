@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1888 tests** across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite (**2578 tests collected**) across unit, integration, and end-to-end categories.
 
 ## Quick Start
 
@@ -298,7 +298,7 @@ make publish-lowpri ARGS="single B0ASIN123 --debug" \
 
 ### What to check between phases
 
-After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, an affiliate link, and a Picsee shortened URL. Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
+After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, and an affiliate link (the full `?tag=` Amazon URL; the bundled `config/url_shortener.yaml` ships `provider: bare`, so there's no shortened link unless Picsee is enabled). Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
 
 After **produce**: `ffprobe` the output video.
 
@@ -345,7 +345,7 @@ Live state comes from Zernio. The authoritative read is the post status, not the
 
 ### Behaviors and gotchas
 
-- `link-in-bio` runs only on the `single` path, after a successful publish, and reads `outputs/<ASIN>/data.json`. Config defaults it on, so pass `--no-link-in-bio` to keep it off. If the platforms are all already published, `single` returns before the link-in-bio step, so `--link-in-bio` alone is a no-op there. After the product dir is cleaned the `data.json` is gone; to set the link later, reconstruct a minimal `data.json` (`title` + `affiliate_link`) from `published_products.json` in a temp dir and call `LinkInBioManager.update(<ASIN>, <tmp_outputs>)`.
+- `link-in-bio` runs only on the `single` path, after a successful publish, and reads `outputs/<ASIN>/data.json`. Config defaults it on, so pass `--no-link-in-bio` to keep it off. If the platforms are all already published, `single` returns before the link-in-bio step, so `--link-in-bio` alone is a no-op there. After the product dir is cleaned the `data.json` is gone; to set the link later, reconstruct a `data.json` from `published_products.json` in a temp dir and call `LinkInBioManager.update(<ASIN>, <tmp_outputs>)`. The bio thumbnail comes from `images[0]` (remote URL) or `downloaded_images[0]` (local file) in `data.json`, neither of which the registry stores, so a title-plus-`affiliate_link` reconstruction produces a text-only link with no thumbnail. Re-scrape the ASIN (regenerates `images/` + `data.json`) if the thumbnail matters.
 - `schedule auto` needs `--auto-resolve` to take an alternative slot when the preferred slot is occupied (2h `min_post_spacing` by default). Without it, a conflict counts the product as failed and suggests slots. The publisher schedule path exits non-zero on failure; `make batch-lowpri` exits 0 even on total failure, so verify the batch by grepping the phase-summary log lines, not `$?`.
 - Cleanup is conservative: it skips while a leg is still `publishing` (immediate runs, the dir stays) and runs once a post is `scheduled` (the dir is removed after the tracking/registry writes).
 - A published TikTok leg often has `platformPostUrl: ""`, which the SDK's strict model rejects, so `posts.list` / `posts.get` raise on any page containing it. `verify-comments` hard-fails (exit non-zero) and `single` / `schedule` lose API-side slot visibility until that post ages off page 1. Read status via the raw REST API (`GET /api/v1/posts/<id>` or `?page=N&limit=50` with `Authorization: Bearer $LATE_API_KEY`) and check comments via the inbox, both of which bypass the failing model. See the publisher notes in `CLAUDE.md` and the linked follow-up issue.
@@ -397,8 +397,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1741 passing
-- **Coverage**: 56% (target 50% minimum)
+- **Total Tests**: 2578 collected
+- **Coverage**: target 50% minimum (CI `--cov-fail-under=50`)
 
 ## Quick Reference
 
