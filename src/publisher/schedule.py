@@ -21,8 +21,9 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
 )
+from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
-from src.publisher.tracking import is_already_published
+from src.publisher.tracking import is_already_published, record_publish
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -943,6 +944,10 @@ class ScheduleManager:
                                         "first_comment"
                                     ] = comment
 
+                        # Per-platform (platform, post_id) legs to record in
+                        # local tracking/registry before cleanup removes the dir.
+                        scheduled_legs: list[tuple[str, str]] = []
+
                         if self.config.use_platform_specific_content:
                             # Platform-specific mode: Create separate posts per platform
                             # with optimized metadata for each platform
@@ -973,6 +978,10 @@ class ScheduleManager:
                                 )
 
                                 self.entries.append(platform_entry)
+                                if platform_entry.post_id:
+                                    scheduled_legs.append(
+                                        (p_name, platform_entry.post_id)
+                                    )
                                 logger.info(
                                     "Scheduled %s on %s (post: %s)",
                                     product_id,
@@ -1035,6 +1044,11 @@ class ScheduleManager:
                             )
 
                             self.entries.append(unified_entry)
+                            if unified_entry.post_id:
+                                for p_dict in platform_dicts:
+                                    scheduled_legs.append(
+                                        (p_dict["platform"], unified_entry.post_id)
+                                    )
                             platform_names = ", ".join(
                                 p["platform"] for p in platform_dicts
                             )
@@ -1052,6 +1066,35 @@ class ScheduleManager:
 
                         self._save_schedule()
                         scheduled_count += 1
+
+                        # Record local tracking + registry BEFORE cleanup removes
+                        # the dir (add_to_registry reads data.json). Mirrors the
+                        # single publish path so scheduled posts keep a local
+                        # record and the duplicate-publish guard sees them.
+                        if outputs_dir and not dry_run:
+                            for leg_platform, leg_post_id in scheduled_legs:
+                                try:
+                                    record_publish(
+                                        product_id,
+                                        leg_platform,
+                                        leg_post_id,
+                                        outputs_dir,
+                                    )
+                                except OSError as track_error:
+                                    logger.error(
+                                        "Failed to record publish %s:%s: %s",
+                                        product_id,
+                                        leg_platform,
+                                        track_error,
+                                    )
+                            try:
+                                add_to_registry(product_id, outputs_dir)
+                            except (OSError, ValueError) as reg_error:
+                                logger.warning(
+                                    "Failed to update registry for %s: %s",
+                                    product_id,
+                                    reg_error,
+                                )
 
                         # Cleanup product directory if enabled
                         if cleanup_manager and not dry_run:

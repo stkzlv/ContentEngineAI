@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite with **1888 tests** across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite (**2578 tests collected**) across unit, integration, and end-to-end categories.
 
 ## Quick Start
 
@@ -274,6 +274,33 @@ poetry run pytest -vv --tb=long
 
 </details>
 
+## Verifying a change end-to-end
+
+The automated suite catches regressions in code paths it covers; it does not prove your change produces a correct real artifact. After any change that alters runtime behavior, run the real path it touches and inspect the real output (a file, a video, a log line, a published post), not just a green test run. Two principles drive everything below:
+
+- **Run the narrowest path that exercises the change, then widen.** A scraper change needs a scrape, not a full batch. Only run the whole pipeline when the change spans phases or you're verifying a release.
+- **Verify both implementations when the logic is duplicated.** The standalone module CLIs (scraper, producer, publisher) and `global_batch` re-implement the same logic (Module/Batch Alignment Rule in `CLAUDE.md`). A change to shared behavior has to be checked on both paths, because they drift silently.
+
+Match the change to the check:
+
+| Change touches | Run | Inspect |
+|---|---|---|
+| Scraper (`src/scraper/`) | `make scrape-lowpri` on a keyword, plus an ASIN and a URL | `data.json` fields, image count vs the media-validation floor, `outputs/logs/scraper.log` warnings |
+| Producer / assembler (`src/video/`) | `xvfb-run -a make produce-lowpri` on an existing ASIN | `ffprobe` the video (codec/resolution/duration), eyeball a frame, `producer.log` step summaries and threshold warnings |
+| Subtitles / pycaps (`src/video/pycaps_engine/`, `subtitle_*`) | produce with the affected `--subtitle-engine` / `--pycaps-renderer` | captions on a sampled frame; no `overlay skipped` or pycaps burn-fail warnings |
+| Audio (`src/audio/`, `audio_builder`) | produce | `ffprobe`/loudness on the output audio; no provider-chain errors |
+| AI / prompts (`src/ai/`) | produce, or `--step generate_script` | the rendered prompt at `outputs/<ASIN>/temp/script_prompt.txt` and the script output |
+| Publisher (`src/publisher/`) | the publish-option runbook below | Zernio post status, `publish_history.json` / `published_products.json`, disclosures, first comments |
+| Config models / YAML (`config/`, `src/*/config/`) | load the config, then run the one path that consumes the field | the override actually reaches the runtime (profile-level gating and the secrets dict are the usual silent-drop traps) |
+| Pipeline / batch orchestration (`src/pipeline/`) | full `make batch-lowpri` | phase-summary log lines and exit behavior on both the standalone and batch paths |
+| Pure refactor (no behavior change) | `make test` + `make lint`, plus one targeted smoke on the touched path | output unchanged vs before |
+
+Resource and environment rules apply to every row: heavy scrape/produce/batch runs go through the `*-lowpri` make targets (cgroup memory cap), and on a Wayland box any producer run is wrapped in `xvfb-run -a` (the bundled pycaps CSS renderer hangs without an X display). One heavy job at a time.
+
+Trust the artifact over the exit code. `make batch-lowpri` exits 0 even when every product fails, so confirm success by grepping the phase-summary log lines (`Scraping phase complete:`, `Production phase complete:`, `Publishing phase complete:`), not `$?`.
+
+The two runbooks below are worked instances of this: the smoke test exercises the full scrape -> produce -> publish chain, and the publish-option runbook exercises every publishing path.
+
 ## Step-by-step pipeline smoke test
 
 Before a release, or after a refactor that touched the scraper, producer, or publisher surfaces, it's worth running the full pipeline end-to-end against a single product and stopping between phases to eyeball the outputs. This is slower than `make batch-lowpri` in one shot, but catches regressions the automated suite doesn't: Whisper transcript drift, subtitle positioning on a new product, publish-side SDK changes.
@@ -298,7 +325,7 @@ make publish-lowpri ARGS="single B0ASIN123 --debug" \
 
 ### What to check between phases
 
-After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, an affiliate link, and a Picsee shortened URL. Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
+After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, and an affiliate link (the full `?tag=` Amazon URL; the bundled `config/url_shortener.yaml` ships `provider: bare`, so there's no shortened link unless Picsee is enabled). Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
 
 After **produce**: `ffprobe` the output video.
 
@@ -316,6 +343,39 @@ After **publish**: the Late SDK returns a post ID and a per-platform status map.
 ### Why not just `make batch-lowpri`
 
 The one-shot target runs the same phases back-to-back without pausing. When everything works it's fine. When something goes wrong in produce, you've already lost the scrape state (the directory will still exist, but you've burned the scraper's Amazon session and might get throttled re-running). Going step by step means a failed phase leaves the earlier artifacts intact for inspection.
+
+## End-to-end publish-option verification
+
+The smoke test above publishes once. This runbook exercises *every* publishing option and verifies the result on Zernio, which is the right check before a publisher refactor or release. It creates real posts: immediate ones go live, scheduled ones publish at the next free slot. Schedule to a future slot and delete with `python -m src.publisher.late delete <POST_ID>` if you don't want the content to ship.
+
+### The shape
+
+Render one product per option combination with publishing skipped, then publish that product with one option set, then verify. The two publish code paths re-implement the same logic, so cover both (Module/Batch Alignment Rule):
+
+- `single <ASIN>` -- unified (one post, all platforms) by default, or `--platform-specific` (one post per platform); `--immediate` (live now) or default (next free slot); `--link-in-bio` / `--no-link-in-bio`; `--force` (republish).
+- `schedule auto` -- config-driven mode (`use_platform_specific_content`), `--dry-run`, `--auto-resolve`. Runs the `record_publish` + `add_to_registry` writes before cleanup.
+
+Render step (per product), publishing skipped:
+
+```bash
+xvfb-run -a make batch-lowpri \
+  ARGS="--keywords '<keyword>' --max-products 1 --products-per-keyword 1 --random-profile --skip-publish --debug"
+```
+
+A three-product matrix covers the surface: (1) `single --immediate` unified live; (2) `single --platform-specific` scheduled; (3) `schedule auto --auto-resolve`. Across the three you also touch dry-run, the dedup guard (`single <ASIN>` again with no `--force` skips already-published platforms), and conflict resolution.
+
+### Verification surfaces
+
+Local state lives at the outputs root and survives product-dir cleanup: `outputs/publish_history.json` (one row per `<ASIN>:<platform>`), `outputs/published_products.json`, `outputs/schedule.json`. Diff their counts before and after.
+
+Live state comes from Zernio. The authoritative read is the post status, not the local files (`publish_history.json` records queue time, not live time). `client.posts.get(<id>)` returns the payload under `.post`; dump with `model_dump(by_alias=True, mode="json")["post"]` and read top `status` plus `platforms[*].status` / `scheduledFor`. Check the disclosure flags while you're there: each YouTube leg carries `containsSyntheticMedia: true`, and each TikTok leg carries `platformSpecificData.tiktokSettings.commercial_content_type: brand_organic` + `is_brand_organic_post: true` (without these TikTok rejects the post at publish time). First-comment delivery is only visible in the platform inbox, not in `posts.get` -- use `verify-comments`, or `LatePublisher.get_post_comments(<platformPostId>, <accountId>)` and look for the comment with `from.isOwner == true`.
+
+### Behaviors and gotchas
+
+- `link-in-bio` runs only on the `single` path, after a successful publish, and reads `outputs/<ASIN>/data.json`. Config defaults it on, so pass `--no-link-in-bio` to keep it off. If the platforms are all already published, `single` returns before the link-in-bio step, so `--link-in-bio` alone is a no-op there. After the product dir is cleaned the `data.json` is gone; to set the link later, reconstruct a `data.json` from `published_products.json` in a temp dir and call `LinkInBioManager.update(<ASIN>, <tmp_outputs>)`. The bio thumbnail comes from `images[0]` (remote URL) or `downloaded_images[0]` (local file) in `data.json`, neither of which the registry stores, so a title-plus-`affiliate_link` reconstruction produces a text-only link with no thumbnail. Re-scrape the ASIN (regenerates `images/` + `data.json`) if the thumbnail matters.
+- `schedule auto` needs `--auto-resolve` to take an alternative slot when the preferred slot is occupied (2h `min_post_spacing` by default). Without it, a conflict counts the product as failed and suggests slots. The publisher schedule path exits non-zero on failure; `make batch-lowpri` exits 0 even on total failure, so verify the batch by grepping the phase-summary log lines, not `$?`.
+- Cleanup is conservative: it skips while a leg is still `publishing` (immediate runs, the dir stays) and runs once a post is `scheduled` (the dir is removed after the tracking/registry writes).
+- A published TikTok leg often has `platformPostUrl: ""`, which the SDK's strict model rejects, so `posts.list` / `posts.get` raise on any page containing it. `verify-comments` hard-fails (exit non-zero) and `single` / `schedule` lose API-side slot visibility until that post ages off page 1. Read status via the raw REST API (`GET /api/v1/posts/<id>` or `?page=N&limit=50` with `Authorization: Bearer $LATE_API_KEY`) and check comments via the inbox, both of which bypass the failing model. See the publisher notes in `CLAUDE.md` and the linked follow-up issue.
 
 ## Continuous Integration
 
@@ -364,8 +424,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 1741 passing
-- **Coverage**: 56% (target 50% minimum)
+- **Total Tests**: 2578 collected
+- **Coverage**: target 50% minimum (CI `--cov-fail-under=50`)
 
 ## Quick Reference
 

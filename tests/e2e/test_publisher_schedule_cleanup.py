@@ -378,6 +378,67 @@ class TestScheduleWorkflowIntegration:
         assert summary["scheduled"] == 2
         assert summary["skipped"] == 1
 
+    @pytest.mark.asyncio
+    async def test_auto_schedule_records_tracking_and_registry(
+        self,
+        temp_outputs_dir,
+        schedule_config,
+        cleanup_config,
+        mock_publisher,
+        product_directory,
+    ):
+        """Schedule path writes tracking + registry before cleanup (#175)."""
+        schedule_path = temp_outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
+        product_id = product_directory["product_id"]
+
+        summary = await manager.auto_schedule(
+            videos=[product_directory["video_path"]],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+            cleanup_config=cleanup_config,
+            outputs_dir=temp_outputs_dir,
+        )
+
+        assert summary["scheduled"] == 1
+        # Tracking ran before cleanup: the dir is gone but the records persist.
+        assert not product_directory["product_dir"].exists()
+
+        history = json.loads((temp_outputs_dir / "publish_history.json").read_text())
+        leg = history["posts"][f"{product_id}:youtube"]
+        assert leg["post_id"] == "post_123"
+
+        registry = json.loads(
+            (temp_outputs_dir / "published_products.json").read_text()
+        )
+        assert product_id in [entry["product_id"] for entry in registry]
+
+    @pytest.mark.asyncio
+    async def test_auto_schedule_dry_run_skips_tracking(
+        self,
+        temp_outputs_dir,
+        schedule_config,
+        mock_publisher,
+        product_directory,
+    ):
+        """Dry-run schedule writes no tracking/registry files (#175)."""
+        schedule_path = temp_outputs_dir / "schedule.json"
+        manager = ScheduleManager(schedule_path=schedule_path, config=schedule_config)
+
+        await manager.auto_schedule(
+            videos=[product_directory["video_path"]],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=True,
+            outputs_dir=temp_outputs_dir,
+        )
+
+        assert not (temp_outputs_dir / "publish_history.json").exists()
+        assert not (temp_outputs_dir / "published_products.json").exists()
+
 
 # ============================================================================
 # Cleanup Workflow Integration Tests
