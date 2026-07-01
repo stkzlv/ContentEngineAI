@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import pydantic
 from late import Late
+from late.models import PostGetResponse, PostsListResponse
 
 from src.publisher.base import (
     AuthenticationError,
@@ -35,6 +37,24 @@ from src.video.config.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _coerce_empty_platform_urls(data: Any) -> None:
+    """Set any empty-string ``platformPostUrl`` to ``None`` in-place.
+
+    A published TikTok leg often returns ``platformPostUrl: ""`` (TikTok gives
+    no post URL). The SDK's strict URL model rejects ``""`` but accepts
+    ``None``, so a single such post breaks ``posts.list`` / ``posts.get`` for
+    every later read. Normalizing before validation keeps those calls working.
+    """
+    if isinstance(data, dict):
+        if data.get("platformPostUrl") == "":
+            data["platformPostUrl"] = None
+        for value in data.values():
+            _coerce_empty_platform_urls(value)
+    elif isinstance(data, list):
+        for item in data:
+            _coerce_empty_platform_urls(item)
 
 
 def _extract_account_id(acc: Any) -> str | None:
@@ -167,6 +187,33 @@ class LatePublisher(BasePublisher):
         if asyncio.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return method(*args, **kwargs)
+
+    def _posts_list_safe(self, **kwargs: Any) -> PostsListResponse:
+        """``posts.list`` tolerant of empty-string ``platformPostUrl``.
+
+        A published TikTok leg can return ``platformPostUrl: ""``, which the
+        SDK's strict URL model rejects, breaking the normal call. On that
+        validation error, refetch the raw response through the SDK's HTTP layer,
+        normalize empty URLs, and validate the sanitized payload.
+        """
+        posts = self.client.posts
+        try:
+            return posts.list(**kwargs)
+        except pydantic.ValidationError:
+            params = posts._build_params(**kwargs)
+            data = posts._client._get(posts._BASE_PATH, params=params)
+            _coerce_empty_platform_urls(data)
+            return PostsListResponse.model_validate(data)
+
+    def _posts_get_safe(self, post_id: str) -> PostGetResponse:
+        """``posts.get`` tolerant of empty-string ``platformPostUrl`` (see above)."""
+        posts = self.client.posts
+        try:
+            return posts.get(post_id)
+        except pydantic.ValidationError:
+            data = posts._client._get(posts._path(post_id))
+            _coerce_empty_platform_urls(data)
+            return PostGetResponse.model_validate(data)
 
     @property
     def provider(self) -> PublisherProvider:
@@ -612,7 +659,7 @@ class LatePublisher(BasePublisher):
 
                 async def _fetch_posts_page(current_page=page):
                     return await self._call_sdk(
-                        self.client.posts.list,
+                        self._posts_list_safe,
                         page=current_page,
                         limit=page_size,
                     )
@@ -713,7 +760,7 @@ class LatePublisher(BasePublisher):
         """
 
         async def _get_post():
-            return await self._call_sdk(self.client.posts.get, post_id)
+            return await self._call_sdk(self._posts_get_safe, post_id)
 
         resp = await self._retry_with_backoff(_get_post, f"Get platforms for {post_id}")
         post_data = resp.post if getattr(resp, "post", None) else resp
@@ -757,7 +804,7 @@ class LatePublisher(BasePublisher):
 
             async def _fetch(current_page=page):
                 return await self._call_sdk(
-                    self.client.posts.list, page=current_page, limit=SDK_LIST_PAGE_SIZE
+                    self._posts_list_safe, page=current_page, limit=SDK_LIST_PAGE_SIZE
                 )
 
             resp = await self._retry_with_backoff(_fetch, f"List posts page {page}")
@@ -1421,7 +1468,7 @@ class LatePublisher(BasePublisher):
         try:
 
             async def _get_post():
-                return await self._call_sdk(self.client.posts.get, post_id)
+                return await self._call_sdk(self._posts_get_safe, post_id)
 
             post_response = await self._retry_with_backoff(
                 _get_post, f"Get status for {post_id}"
