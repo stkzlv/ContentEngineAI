@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.2] - 2026-07-02
+
 ### Fixed
 - `posts.list` / `posts.get` no longer crash when a published leg has an empty `platformPostUrl` (TikTok often returns none). The read wrappers coerce the empty URL to null before validating, so `verify-comments` runs again and scheduling sees API-side occupied slots instead of degrading to the local schedule.
 
