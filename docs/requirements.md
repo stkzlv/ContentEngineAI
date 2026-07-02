@@ -376,6 +376,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Publish via third-party scheduling services (e.g., Late.dev)
 - Multi-platform support: YouTube, TikTok, Instagram
 - API-based upload and status tracking
+- Reading a post's status or listing posts tolerates a published leg that reports no platform URL (some platforms return none), so status checks, first-comment verification, slot-occupancy detection, and media cleanup keep working instead of failing on such a post.
 
 ### Per-Platform Profile Routing
 - Optional mapping from platform to video profile so the publisher uploads a platform-tailored render per platform (e.g., the short hook-iteration cut for YouTube, the longer cut for TikTok and Instagram).

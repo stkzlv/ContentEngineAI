@@ -89,9 +89,11 @@ Gap: 27% - approximately 50-60 additional integration tests needed
 import asyncio
 from datetime import UTC, datetime, timezone
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 import aiohttp
+import pydantic
 import pytest
 
 from src.publisher.base import (
@@ -101,7 +103,96 @@ from src.publisher.base import (
     UploadError,
     ValidationError,
 )
-from src.publisher.late.client import LatePublisher
+from src.publisher.late.client import (
+    LatePublisher,
+    _coerce_empty_platform_urls,
+)
+
+
+def _make_validation_error() -> pydantic.ValidationError:
+    """A real pydantic.ValidationError instance, like the SDK raises on ""."""
+
+    class _M(pydantic.BaseModel):
+        x: int
+
+    try:
+        _M(x="not-an-int")
+    except pydantic.ValidationError as exc:
+        return exc
+    raise AssertionError("expected a ValidationError")
+
+
+class TestEmptyPlatformUrlHandling:
+    """Safe wrappers tolerate an empty-string platformPostUrl (#177).
+
+    A published TikTok leg can return platformPostUrl="" which the SDK's strict
+    URL model rejects; the wrappers fall back to a raw fetch and coerce it.
+    """
+
+    def test_coerce_empty_platform_urls_nested(self):
+        data: Any = {
+            "posts": [
+                {
+                    "platforms": [
+                        {"platformPostUrl": ""},
+                        {"platformPostUrl": "https://x/1"},
+                    ]
+                },
+                {"platforms": [{"platformPostUrl": None}]},
+            ]
+        }
+        _coerce_empty_platform_urls(data)
+        legs0 = data["posts"][0]["platforms"]
+        assert legs0[0]["platformPostUrl"] is None
+        assert legs0[1]["platformPostUrl"] == "https://x/1"
+        assert data["posts"][1]["platforms"][0]["platformPostUrl"] is None
+
+    def test_posts_list_safe_coerces_on_validation_error(self):
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        raw = {"posts": [{"platforms": [{"platformPostUrl": ""}]}], "pagination": {}}
+        publisher.client.posts = MagicMock()
+        publisher.client.posts.list.side_effect = _make_validation_error()
+        publisher.client.posts._build_params.return_value = {"page": 1, "limit": 50}
+        publisher.client.posts._BASE_PATH = "/v1/posts"
+        publisher.client.posts._client._get.return_value = raw
+
+        def _capture(data):
+            # the empty url was coerced to None before validation
+            assert data["posts"][0]["platforms"][0]["platformPostUrl"] is None
+            return "SENTINEL"
+
+        with patch(
+            "src.publisher.late.client.PostsListResponse.model_validate",
+            side_effect=_capture,
+        ):
+            result = publisher._posts_list_safe(page=1, limit=50)
+        assert result == "SENTINEL"
+
+    def test_posts_list_safe_passthrough_when_valid(self):
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        publisher.client.posts = MagicMock()
+        publisher.client.posts.list.return_value = "OK"
+        assert publisher._posts_list_safe(page=1, limit=50) == "OK"
+        publisher.client.posts._client._get.assert_not_called()
+
+    def test_posts_get_safe_coerces_on_validation_error(self):
+        publisher = LatePublisher(api_key="sk_test_abc123")
+        raw = {"post": {"platforms": [{"platformPostUrl": ""}]}}
+        publisher.client.posts = MagicMock()
+        publisher.client.posts.get.side_effect = _make_validation_error()
+        publisher.client.posts._path.return_value = "/v1/posts/abc"
+        publisher.client.posts._client._get.return_value = raw
+
+        def _capture(data):
+            assert data["post"]["platforms"][0]["platformPostUrl"] is None
+            return "SENTINEL"
+
+        with patch(
+            "src.publisher.late.client.PostGetResponse.model_validate",
+            side_effect=_capture,
+        ):
+            result = publisher._posts_get_safe("abc")
+        assert result == "SENTINEL"
 
 
 class TestLatePublisherInit:
@@ -386,7 +477,7 @@ class TestLatePublisherGetStatus:
             "platforms": ["youtube", "tiktok"],
         }
         publisher.client.posts = MagicMock()
-        publisher.client.posts.get = AsyncMock(return_value=mock_response)
+        publisher.client.posts.get = Mock(return_value=mock_response)
 
         result = await publisher.get_status("post_456")
 
@@ -407,7 +498,7 @@ class TestLatePublisherGetStatus:
             "platforms": ["youtube"],
         }
         publisher.client.posts = MagicMock()
-        publisher.client.posts.get = AsyncMock(return_value=mock_response)
+        publisher.client.posts.get = Mock(return_value=mock_response)
 
         result = await publisher.get_status("post_789")
 
@@ -429,7 +520,7 @@ class TestLatePublisherGetStatus:
             "published_urls": ["https://youtube.com/watch?v=abc"],
         }
         publisher.client.posts = MagicMock()
-        publisher.client.posts.get = AsyncMock(return_value=mock_response)
+        publisher.client.posts.get = Mock(return_value=mock_response)
 
         result = await publisher.get_status(
             "post_tz", local_timezone="America/New_York"
