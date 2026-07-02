@@ -189,6 +189,8 @@ Quick reference for all publisher commands and options.
 | `calendar` | View scheduled posts | `python -m src.publisher.late calendar list` |
 | `cleanup` | Remove published products | `python -m src.publisher.late cleanup --all --confirm` |
 | `delete` | Delete a post from Late.dev | `python -m src.publisher.late delete POST_ID` |
+| `verify-comments` | Check first comments landed on recent posts | `python -m src.publisher.late verify-comments --limit 25` |
+| `verify-delivery` | Sweep recent posts for silently-failed platform legs | `python -m src.publisher.late verify-delivery --limit 25` |
 
 ### Global Options
 
@@ -1772,7 +1774,10 @@ instagram container error: ERROR
 
 3. **If retry fails again**, the video likely violates a Reels spec (aspect ratio, duration, codec, frame rate). Re-render and re-upload.
 
-**Note**: There is currently no automatic sweep for `partial` / `failed` posts after their scheduled fire time, so a silently-failed leg can sit unnoticed for days (tracked in [#156](https://github.com/stkzlv/ContentEngineAI/issues/156)). Until that lands, spot-check recent posts by scanning `posts.list()` for any `platforms[*].status in (failed, partial)`.
+**Finding these posts**: run `verify-delivery` to sweep recent posts for incomplete delivery. It WARNs on every post whose top status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix. Run it after a batch goes live, the same way `verify-comments` sweeps first comments.
+```bash
+python -m src.publisher.late verify-delivery --limit 25
+```
 
 </details>
 

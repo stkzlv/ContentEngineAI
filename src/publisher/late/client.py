@@ -754,9 +754,11 @@ class LatePublisher(BasePublisher):
     async def get_post_platforms(self, post_id: str) -> list[dict[str, Any]]:
         """Return normalized per-platform targets for a post.
 
-        Each item: ``{platform, platform_post_id, account_id, status}``. Used to
-        find the platform post id and account needed to read inbox comments.
-        ``platform_post_id`` is None until the platform actually publishes.
+        Each item: ``{platform, platform_post_id, account_id, status,
+        error_message, error_category}``. Used to find the platform post id and
+        account for inbox comments, and the per-leg status/error for the
+        delivery sweep. ``platform_post_id`` is None until the platform
+        actually publishes; ``error_*`` are None unless the leg failed.
         """
 
         async def _get_post():
@@ -774,18 +776,24 @@ class LatePublisher(BasePublisher):
                 ppid = p.get("platformPostId")
                 acc = p.get("accountId")
                 status = p.get("status")
+                error_message = p.get("errorMessage")
+                error_category = p.get("errorCategory")
             else:
                 platform = str(getattr(p, "platform", "")).split(".")[-1].lower()
                 ppid = getattr(p, "platformPostId", None)
                 acc = getattr(p, "accountId", None)
                 raw_status = getattr(p, "status", None)
                 status = str(raw_status).split(".")[-1].lower() if raw_status else None
+                error_message = getattr(p, "errorMessage", None)
+                error_category = getattr(p, "errorCategory", None)
             out.append(
                 {
                     "platform": platform,
                     "platform_post_id": ppid,
                     "account_id": _extract_account_id(acc),
                     "status": status,
+                    "error_message": error_message,
+                    "error_category": error_category,
                 }
             )
         return out
