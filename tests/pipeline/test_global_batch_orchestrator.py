@@ -340,7 +340,7 @@ async def test_production_phase_with_skipped_products(orchestrator, mock_video_c
         mock_load_config.return_value = mock_video_config
         mock_session = AsyncMock()
         mock_session_class.return_value.__aenter__.return_value = mock_session
-        mock_create_video.return_value = None  # Skipped
+        mock_create_video.return_value = "SKIPPED"  # insufficient media
 
         summary, produced_videos = await orchestrator._execute_production_phase(
             mock_products
@@ -351,6 +351,47 @@ async def test_production_phase_with_skipped_products(orchestrator, mock_video_c
         assert summary.failed == 0
         assert summary.skipped == 1
         assert "B0ABC123" in summary.skipped_products
+
+
+@pytest.mark.asyncio
+async def test_production_phase_step_failure_counts_as_failed(
+    orchestrator, mock_video_config
+):
+    """A producer step failure counts as failed (not skipped) and is named."""
+    mock_products = [
+        (
+            Path("outputs/B0ABC123"),
+            ProductData(
+                asin="B0ABC123",
+                title="Product 1",
+                price="$29.99",
+                url="https://amazon.com/dp/B0ABC123",
+                platform=Platform.AMAZON,
+            ),
+        )
+    ]
+
+    with (
+        patch("src.video.config.load_video_config") as mock_load_config,
+        patch("aiohttp.ClientSession") as mock_session_class,
+        patch(
+            "src.video.producer.orchestration.create_video_for_product"
+        ) as mock_create_video,
+    ):
+        mock_load_config.return_value = mock_video_config
+        mock_session = AsyncMock()
+        mock_session_class.return_value.__aenter__.return_value = mock_session
+        mock_create_video.return_value = "FAILED:generate_subtitles"
+
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
+
+        assert summary.failed == 1
+        assert summary.skipped == 0
+        assert summary.successful == 0
+        assert "B0ABC123" in summary.failed_products
+        assert produced_videos == []
 
 
 @pytest.mark.asyncio
@@ -685,6 +726,45 @@ def test_generate_final_summary():
     assert summary.partial_success == 1
     assert summary.total_failures == 2
     assert summary.total_duration_sec == 60.7
+
+
+def _summary_with(end_to_end_success: int, total_failures: int) -> PipelineSummary:
+    empty_scrape = ScrapingPhaseSummary(
+        total_attempted=0,
+        successful=0,
+        failed=0,
+        successful_products=[],
+        failed_products=[],
+        media_stats={},
+        duration_sec=0.0,
+    )
+    empty_prod = ProductionPhaseSummary(
+        total_attempted=0,
+        successful=0,
+        failed=0,
+        skipped=0,
+        failed_products=[],
+        skipped_products=[],
+        profile_distribution={},
+        duration_sec=0.0,
+    )
+    return PipelineSummary(
+        scraping=empty_scrape,
+        production=empty_prod,
+        publishing=None,
+        end_to_end_success=end_to_end_success,
+        partial_success=0,
+        total_failures=total_failures,
+        total_duration_sec=0.0,
+    )
+
+
+def test_summary_exit_code():
+    """exit_code is non-zero only when nothing completed end-to-end."""
+    assert _summary_with(end_to_end_success=0, total_failures=2).exit_code() == 1
+    assert _summary_with(end_to_end_success=2, total_failures=0).exit_code() == 0
+    # partial: some succeeded, some failed -> still a zero exit
+    assert _summary_with(end_to_end_success=1, total_failures=1).exit_code() == 0
 
 
 def test_summary_format_method():

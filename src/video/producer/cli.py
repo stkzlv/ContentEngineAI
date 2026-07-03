@@ -25,7 +25,10 @@ from src.utils.performance import PerformanceHistoryManager
 from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
-from src.video.producer.orchestration import create_video_for_product
+from src.video.producer.orchestration import (
+    create_video_for_product,
+    failed_step_from_result,
+)
 from src.video.producer.state import VALID_STEPS
 from src.video.producer.utils import (
     ProfileUsageTracker,
@@ -880,6 +883,7 @@ async def main():
 
         duration = (datetime.now(UTC) - product_start_time).total_seconds()
 
+        failed_step = failed_step_from_result(result_path)
         if result_path == "SKIPPED":
             batch_summary.skipped_count += 1
             batch_summary.results.append(
@@ -895,6 +899,28 @@ async def main():
                     f"[{i+1}/{total_products}] Skipped {product_id} "
                     f"(insufficient media)"
                 )
+        elif failed_step is not None:
+            batch_summary.failed_count += 1
+            batch_summary.results.append(
+                ProductResult(
+                    id=product_id,
+                    status="FAILED",
+                    profile=current_profile,
+                    duration_sec=duration,
+                    error=product_error or f"pipeline step '{failed_step}' failed",
+                )
+            )
+            if args.batch:
+                logger.error(
+                    f"[{i+1}/{total_products}] Failed to process {product_id}: "
+                    f"step '{failed_step}' failed"
+                )
+                if args.fail_fast:
+                    logger.error(
+                        f"Stopping batch processing due to --fail-fast "
+                        f"(failed on product {product_id})"
+                    )
+                    break
         elif result_path:
             batch_summary.succeeded_count += 1
             batch_summary.results.append(

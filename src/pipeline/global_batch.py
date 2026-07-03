@@ -1130,7 +1130,10 @@ class GlobalPipelineOrchestrator:
         import aiohttp
 
         from src.video.config import load_video_config
-        from src.video.producer.orchestration import create_video_for_product
+        from src.video.producer.orchestration import (
+            create_video_for_product,
+            failed_step_from_result,
+        )
         from src.video.producer.utils import (
             ProfileUsageTracker,
             select_profile_for_product,
@@ -1231,7 +1234,25 @@ class GlobalPipelineOrchestrator:
                         timeout=config.pipeline_timeout_sec,
                     )
 
-                    if result_path:
+                    failed_step = failed_step_from_result(result_path)
+                    if result_path == "SKIPPED":
+                        skipped += 1
+                        skipped_products.append(product_id)
+                        logger.warning(
+                            f"⊘ [{idx}/{total_products}] Skipped {product_id} "
+                            f"(insufficient media)"
+                        )
+                    elif failed_step is not None:
+                        failed += 1
+                        failed_products.append(product_id)
+                        logger.error(
+                            f"✗ [{idx}/{total_products}] Failed to produce "
+                            f"{product_id}: pipeline step '{failed_step}' failed"
+                        )
+                        if self.config.fail_fast:
+                            logger.error("Fail-fast enabled, stopping production phase")
+                            break
+                    elif result_path:
                         successful += 1
                         produced_videos.append((result_path, product_id))
                         logger.info(
@@ -1239,12 +1260,13 @@ class GlobalPipelineOrchestrator:
                             f"for {product_id}"
                         )
                     else:
-                        # Producer returned None - treat as skipped
+                        # None with no failure sentinel: a partial (--step) run
+                        # with no final video. Count as skipped, not failed.
                         skipped += 1
                         skipped_products.append(product_id)
                         logger.warning(
                             f"⊘ [{idx}/{total_products}] Skipped {product_id} "
-                            f"(insufficient media)"
+                            f"(no video produced)"
                         )
 
                 except TimeoutError:
@@ -2048,6 +2070,12 @@ async def main():
         )
         summary = await orchestrator.run_pipeline()
 
+        # Exit code reflects whether the run did what was asked: non-zero when
+        # no product completed end-to-end, so CI, cron, and wrappers checking
+        # $? see the failure instead of a false success.
+        no_success = summary.end_to_end_success == 0
+        exit_code = summary.exit_code()
+
         # Output summary in requested format
         if config.output_format == "json":
             # JSON output to stdout for machine parsing
@@ -2055,12 +2083,20 @@ async def main():
         else:
             # Text output (already logged by _generate_final_summary)
             logger.info("=" * 80)
-            logger.info("PIPELINE COMPLETED SUCCESSFULLY")
+            if no_success:
+                logger.error("PIPELINE FAILED: no products completed end-to-end")
+            elif summary.total_failures > 0:
+                logger.warning(
+                    f"PIPELINE COMPLETED WITH FAILURES: "
+                    f"{summary.end_to_end_success} succeeded, "
+                    f"{summary.total_failures} failed"
+                )
+            else:
+                logger.info("PIPELINE COMPLETED SUCCESSFULLY")
             logger.info("=" * 80)
             logger.info(f"Complete log saved to: {log_file}")
 
-        # Exit with success code
-        sys.exit(0)
+        sys.exit(exit_code)
 
     except KeyboardInterrupt:
         logger.warning("\n" + "=" * 80)

@@ -182,6 +182,21 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
         return False
 
 
+def failed_step_from_result(result: str | None) -> str | None:
+    """Return the failing step name if a producer result signals a step failure.
+
+    ``create_video_for_product`` returns a path on success, ``"SKIPPED"`` for
+    insufficient media, ``"FAILED:<step>"`` when a pipeline step raised, or
+    ``None`` for a partial (`--step`) run with no final video. This parses the
+    failure sentinel so callers count it as a failure and name the step,
+    instead of mistaking it for a skip or a success.
+    """
+    prefix = "FAILED:"
+    if isinstance(result, str) and result.startswith(prefix):
+        return result[len(prefix) :] or "unknown"
+    return None
+
+
 async def create_video_for_product(
     config: VideoConfig,
     product: ProductData,
@@ -411,7 +426,9 @@ async def create_video_for_product(
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
         await cleanup_global_background_processor()
-        return None
+        # Signal a step failure, distinct from "SKIPPED" and from a partial
+        # None return, naming the step so callers can report it.
+        return f"FAILED:{step or 'unknown'}"
     except Exception as e:
         logger.error(
             f"An unexpected error occurred in pipeline for '{product_id}': {e}",
@@ -421,7 +438,7 @@ async def create_video_for_product(
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
         await cleanup_global_background_processor()
-        return None
+        return f"FAILED:{step or 'unknown'}"
     finally:
         # Log performance summary
         summary = performance_monitor.get_pipeline_summary()
