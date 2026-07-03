@@ -1239,14 +1239,14 @@ class GlobalPipelineOrchestrator:
                         skipped += 1
                         skipped_products.append(product_id)
                         logger.warning(
-                            f"⊘ [{idx}/{total_products}] Skipped {product_id} "
+                            f"[{idx}/{total_products}] Skipped {product_id} "
                             f"(insufficient media)"
                         )
                     elif failed_step is not None:
                         failed += 1
                         failed_products.append(product_id)
                         logger.error(
-                            f"✗ [{idx}/{total_products}] Failed to produce "
+                            f"[{idx}/{total_products}] Failed to produce "
                             f"{product_id}: pipeline step '{failed_step}' failed"
                         )
                         if self.config.fail_fast:
@@ -1260,14 +1260,18 @@ class GlobalPipelineOrchestrator:
                             f"for {product_id}"
                         )
                     else:
-                        # None with no failure sentinel: a partial (--step) run
-                        # with no final video. Count as skipped, not failed.
-                        skipped += 1
-                        skipped_products.append(product_id)
-                        logger.warning(
-                            f"⊘ [{idx}/{total_products}] Skipped {product_id} "
-                            f"(no video produced)"
+                        # The producer never returns None; a None here means
+                        # the result contract was broken. Count as failed so
+                        # the run doesn't underreport.
+                        failed += 1
+                        failed_products.append(product_id)
+                        logger.error(
+                            f"[{idx}/{total_products}] Failed to produce "
+                            f"{product_id}: producer returned no result"
                         )
+                        if self.config.fail_fast:
+                            logger.error("Fail-fast enabled, stopping production phase")
+                            break
 
                 except TimeoutError:
                     failed += 1
@@ -2084,7 +2088,11 @@ async def main():
             # Text output (already logged by _generate_final_summary)
             logger.info("=" * 80)
             if no_success:
-                logger.error("PIPELINE FAILED: no products completed end-to-end")
+                logger.error(
+                    f"PIPELINE FAILED: no products completed end-to-end "
+                    f"({summary.total_failures} failed, "
+                    f"{summary.production.skipped} skipped)"
+                )
             elif summary.total_failures > 0:
                 logger.warning(
                     f"PIPELINE COMPLETED WITH FAILURES: "

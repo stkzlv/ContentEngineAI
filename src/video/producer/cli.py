@@ -907,7 +907,7 @@ async def main():
                     status="FAILED",
                     profile=current_profile,
                     duration_sec=duration,
-                    error=product_error or f"pipeline step '{failed_step}' failed",
+                    error=f"pipeline step '{failed_step}' failed",
                 )
             )
             if args.batch:
@@ -1022,7 +1022,17 @@ async def main():
     if args.batch and args.fail_fast and batch_summary.failed_count > 0:
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
-    logger.info("Video producer completed successfully")
+    # Non-zero exit when nothing was produced, so CI, cron, and wrappers
+    # checking $? see the failure. Any success exits 0 (batch is best-effort).
+    exit_code = 0 if batch_summary.succeeded_count > 0 else 1
+    if exit_code == 0:
+        logger.info("Video producer completed successfully")
+    else:
+        logger.error(
+            "Video producer failed: no videos produced (%d failed, %d skipped)",
+            batch_summary.failed_count,
+            batch_summary.skipped_count,
+        )
     logger.info(f"Complete log saved to: {log_file}")
 
     # Clean up HTTP connection pool
@@ -1033,6 +1043,9 @@ async def main():
     # Ensure all log messages are flushed
     for handler in logging.getLogger().handlers:
         handler.flush()
+
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

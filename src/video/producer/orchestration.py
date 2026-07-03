@@ -62,7 +62,9 @@ from src.video.producer.utils import setup_logging, validate_media_requirements
 logger = logging.getLogger(__name__)
 
 
-async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
+async def execute_pipeline_parallel(
+    ctx: PipelineContext,
+) -> tuple[bool, str | None]:
     """Execute pipeline steps using parallel execution framework.
 
     Args:
@@ -71,7 +73,9 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
 
     Returns:
     -------
-        True if pipeline completed successfully, False otherwise
+        Tuple of (success, failed_step_name). ``failed_step_name`` is the
+        first failed step when success is False, or None when the failure
+        happened outside any step.
 
     """
     logger.info("Using parallel pipeline execution framework")
@@ -161,7 +165,7 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
                 logger.error(
                     f"Step '{failed_result.step_name}' failed: {failed_result.error}"
                 )
-            return False
+            return False, failed_steps[0].step_name
 
         # Update state for newly completed steps with synchronization
         async with ctx._state_lock:
@@ -172,24 +176,25 @@ async def execute_pipeline_parallel(ctx: PipelineContext) -> bool:
                     logger.info(f"Step '{step_name}' completed successfully")
 
             await _save_pipeline_state(ctx)
-        return True
+        return True, None
 
     except InsufficientMediaError:
         # Re-raise InsufficientMediaError so main handler can process it cleanly
         raise
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}", exc_info=True)
-        return False
+        return False, None
 
 
-def failed_step_from_result(result: str | None) -> str | None:
+def failed_step_from_result(result: str | Path | None) -> str | None:
     """Return the failing step name if a producer result signals a step failure.
 
-    ``create_video_for_product`` returns a path on success, ``"SKIPPED"`` for
-    insufficient media, ``"FAILED:<step>"`` when a pipeline step raised, or
-    ``None`` for a partial (`--step`) run with no final video. This parses the
-    failure sentinel so callers count it as a failure and name the step,
-    instead of mistaking it for a skip or a success.
+    ``create_video_for_product`` returns the final video path on success,
+    ``"SKIPPED"`` for insufficient media, or ``"FAILED:<step>"`` when a
+    pipeline step raised. Callers may also hold ``None`` when their own
+    exception handling (timeout, unexpected error) produced no result. This
+    parses the failure sentinel so callers count it as a failure and name the
+    step, instead of mistaking it for a skip or a success.
     """
     prefix = "FAILED:"
     if isinstance(result, str) and result.startswith(prefix):
@@ -361,8 +366,11 @@ async def create_video_for_product(
                     await _save_pipeline_state(ctx)
         else:
             # Use parallel pipeline execution for normal runs
-            successful_run = await execute_pipeline_parallel(ctx)
+            successful_run, parallel_failed_step = await execute_pipeline_parallel(ctx)
             if not successful_run:
+                # Record the failing step so the FAILED:<step> sentinel names
+                # it instead of reporting 'unknown'.
+                step = parallel_failed_step or ""
                 raise PipelineError("Parallel pipeline execution failed")
 
         successful_run = True

@@ -1,5 +1,7 @@
 """Tests for the producer result sentinel parsing."""
 
+from pathlib import Path
+
 from src.video.producer.orchestration import failed_step_from_result
 
 
@@ -12,7 +14,9 @@ def test_failed_step_empty_step_reads_unknown():
 
 
 def test_non_failure_results_return_none():
-    # success path, skip sentinel, and partial None are not step failures
+    # success paths (str or Path), the skip sentinel, and a caller-level None
+    # (set by the caller's own timeout/exception handling) are not failures
     assert failed_step_from_result("outputs/B0ABC123/video.mp4") is None
+    assert failed_step_from_result(Path("outputs/B0ABC123/video.mp4")) is None
     assert failed_step_from_result("SKIPPED") is None
     assert failed_step_from_result(None) is None

@@ -395,6 +395,47 @@ async def test_production_phase_step_failure_counts_as_failed(
 
 
 @pytest.mark.asyncio
+async def test_production_phase_none_result_counts_as_failed(
+    orchestrator, mock_video_config
+):
+    """A None result breaks the producer contract and counts as failed."""
+    mock_products = [
+        (
+            Path("outputs/B0ABC123"),
+            ProductData(
+                asin="B0ABC123",
+                title="Product 1",
+                price="$29.99",
+                url="https://amazon.com/dp/B0ABC123",
+                platform=Platform.AMAZON,
+            ),
+        )
+    ]
+
+    with (
+        patch("src.video.config.load_video_config") as mock_load_config,
+        patch("aiohttp.ClientSession") as mock_session_class,
+        patch(
+            "src.video.producer.orchestration.create_video_for_product"
+        ) as mock_create_video,
+    ):
+        mock_load_config.return_value = mock_video_config
+        mock_session = AsyncMock()
+        mock_session_class.return_value.__aenter__.return_value = mock_session
+        mock_create_video.return_value = None
+
+        summary, produced_videos = await orchestrator._execute_production_phase(
+            mock_products
+        )
+
+        assert summary.failed == 1
+        assert summary.skipped == 0
+        assert summary.successful == 0
+        assert "B0ABC123" in summary.failed_products
+        assert produced_videos == []
+
+
+@pytest.mark.asyncio
 async def test_production_phase_with_timeout(orchestrator, mock_video_config):
     """Test production phase handles timeout errors."""
     import asyncio

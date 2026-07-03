@@ -216,5 +216,34 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
         patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
     ):
         mock_create.side_effect = Exception("Failed!")
-        await main()
+        # Nothing succeeded, so the producer exits non-zero
+        with pytest.raises(SystemExit) as exc_info:
+            await main()
+        assert exc_info.value.code == 1
         assert mock_create.call_count == 1
+
+    # Scenario 3: step-failure sentinel counts as failed and exits non-zero
+    mock_args.fail_fast = False
+    with (
+        patch("argparse.ArgumentParser.parse_args", return_value=mock_args),
+        patch(
+            "src.video.producer.cli.load_video_config_modular", return_value=mock_config
+        ),
+        patch("src.video.producer.cli.setup_logging", return_value=Path("test.log")),
+        patch("src.video.producer.cli.validate_config_and_exit_on_error"),
+        patch("src.video.producer.cli.load_dotenv"),
+        patch("os.getenv", return_value="dummy_key"),
+        patch("shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch(
+            "src.video.producer.cli.create_video_for_product",
+            new_callable=AsyncMock,
+        ) as mock_create,
+        patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
+    ):
+        mock_create.return_value = "FAILED:assemble_video"
+        with pytest.raises(SystemExit) as exc_info:
+            await main()
+        assert exc_info.value.code == 1
+        # No fail-fast: both products are attempted despite the failures
+        assert mock_create.call_count == 2
