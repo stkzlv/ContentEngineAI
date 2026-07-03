@@ -31,6 +31,7 @@ from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.models import DEFAULT_PLATFORMS, Platform
+from src.publisher.partial_post_sweep import sweep_partial_posts
 from src.publisher.product_registry import add_to_registry, rebuild_registry
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
@@ -251,6 +252,53 @@ async def cmd_verify_comments(
         checked,
         len(posts),
     )
+
+
+async def cmd_verify_delivery(
+    args: argparse.Namespace, config, session: aiohttp.ClientSession
+):
+    """Sweep recent posts for silently-failed platform legs.
+
+    Zernio leaves a post ``partial`` when one platform fails at publish time
+    and flags it nowhere. This WARNs on every partial/failed recent post with
+    its failing platform and error. Fix a flagged post with
+    ``posts.retry(post_id)`` (re-publishes only the failed leg, no re-render).
+    """
+    publisher = _create_publisher_from_config(config, session)
+    if not await publisher.authenticate():
+        logger.error("Authentication failed - check your API key")
+        sys.exit(1)
+
+    results = await sweep_partial_posts(publisher, args.limit)
+    product_map = _load_product_map(args.outputs_dir)
+    logger.info("Swept %d recent post(s) for incomplete delivery", args.limit)
+
+    for post in results:
+        product = product_map.get(post.post_id, post.post_id)
+        legs = (
+            ", ".join(
+                f"{leg.platform} ({leg.error_category or leg.status})"
+                for leg in post.failed_legs
+            )
+            if post.failed_legs
+            else "no per-leg detail"
+        )
+        logger.warning(
+            "Delivery incomplete: %s post %s status=%s failing: %s",
+            product,
+            post.post_id,
+            post.top_status,
+            legs,
+        )
+        for leg in post.failed_legs:
+            if leg.error_message:
+                logger.warning("  %s error: %s", leg.platform, leg.error_message)
+    logger.info("Delivery sweep: %d post(s) with failed/partial delivery", len(results))
+    if results:
+        logger.info(
+            "Retry a failed leg with posts.retry(<post_id>): re-publishes only "
+            "the failed platform from Zernio's CDN, no re-render"
+        )
 
 
 async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSession):
@@ -1308,6 +1356,28 @@ Examples:
         help="Enable debug logging",
     )
 
+    verify_delivery_parser = subparsers.add_parser(
+        "verify-delivery",
+        help="Sweep recent posts for silently-failed platform legs",
+    )
+    verify_delivery_parser.add_argument(
+        "--limit",
+        type=int,
+        default=25,
+        help="Number of recent posts to sweep (default: 25)",
+    )
+    verify_delivery_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=Path("outputs"),
+        help="Directory holding publish_history.json for product names",
+    )
+    verify_delivery_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -1408,6 +1478,8 @@ Examples:
             cmd_registry(args)
         elif args.command == "verify-comments":
             await cmd_verify_comments(args, config, session)
+        elif args.command == "verify-delivery":
+            await cmd_verify_delivery(args, config, session)
 
 
 if __name__ == "__main__":

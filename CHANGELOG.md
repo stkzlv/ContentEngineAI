@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-07-03
+
+### Added
+- `verify-delivery` publisher command sweeps recent posts and warns on any whose delivery is incomplete (top status `partial`, or a `failed` platform leg), naming the failing platform and its error. Sibling to `verify-comments`, it surfaces a silently-dropped leg that would otherwise sit unnoticed.
+
 ## [0.55.2] - 2026-07-02
 
 ### Fixed
