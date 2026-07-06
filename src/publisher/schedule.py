@@ -13,9 +13,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.publisher.base import PublishError
 from src.publisher.first_comment import build_first_comment
+from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
+    LinkInBioConfig,
     Platform,
     RecurringSlot,
     ScheduleConfig,
@@ -534,6 +536,7 @@ class ScheduleManager:
         outputs_dir: Path | None = None,
         auto_resolve: bool = False,
         force: bool = False,
+        link_in_bio_config: LinkInBioConfig | None = None,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -553,6 +556,8 @@ class ScheduleManager:
                 is enabled)
             auto_resolve: Automatically resolve conflicts using first alternative
             force: Skip already-published check and schedule regardless
+            link_in_bio_config: Link-in-bio configuration (default: enabled).
+                Bio link is added after each successful schedule, before cleanup
 
         Returns:
         -------
@@ -1095,6 +1100,12 @@ class ScheduleManager:
                                     product_id,
                                     reg_error,
                                 )
+
+                            # Link-in-bio before cleanup (reads data.json;
+                            # non-blocking, enabled by default)
+                            await update_link_in_bio_safe(
+                                product_id, outputs_dir, link_in_bio_config
+                            )
 
                         # Cleanup product directory if enabled
                         if cleanup_manager and not dry_run:

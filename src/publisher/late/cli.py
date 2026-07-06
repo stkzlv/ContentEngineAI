@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import sys
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
+from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import DEFAULT_PLATFORMS, Platform
 from src.publisher.partial_post_sweep import sweep_partial_posts
 from src.publisher.product_registry import add_to_registry, rebuild_registry
@@ -324,6 +326,32 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         args.platforms = list(DEFAULT_PLATFORMS)
         logger.info("Using default platforms: youtube, tiktok, instagram")
 
+    # Link-in-bio enablement (CLI flags override config)
+    link_in_bio_enabled = config.link_in_bio_config.enabled
+    if getattr(args, "no_link_in_bio", False):
+        link_in_bio_enabled = False
+    elif getattr(args, "link_in_bio", None):
+        link_in_bio_enabled = True
+
+    # A fully-published product needs no video or upload: keep its bio link
+    # fresh and exit. This also works after cleanup removed the rendered
+    # video (only data.json is needed for the link).
+    if not args.force and all(
+        is_already_published(product_id, p.value, outputs_dir) for p in args.platforms
+    ):
+        logger.warning(
+            "Product %s already published to all requested platforms. "
+            "Use --force to republish.",
+            product_id,
+        )
+        if link_in_bio_enabled:
+            await update_link_in_bio_safe(
+                product_id,
+                outputs_dir,
+                replace(config.link_in_bio_config, enabled=True),
+            )
+        return
+
     # Auto-discover video file. If profiles are configured, prefer the
     # render for the first platform in the list. The unified upload path
     # uses one file for all platforms; full per-platform uploads are a
@@ -437,6 +465,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         # Build platforms list (filter duplicates and validate accounts)
         platforms_to_publish = []
+        skipped_already_published = False
         for platform in args.platforms:
             # Check for duplicates (unless --force)
             if not args.force and is_already_published(
@@ -447,6 +476,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                     product_id,
                     platform.value,
                 )
+                skipped_already_published = True
                 continue
 
             # Find account for this platform
@@ -468,6 +498,14 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         if not platforms_to_publish:
             logger.warning("No platforms to publish to after filtering")
+            # The product is already live; make sure its bio link exists so
+            # `single <id>` on a published product isn't a link-in-bio no-op.
+            if skipped_already_published and link_in_bio_enabled:
+                await update_link_in_bio_safe(
+                    product_id,
+                    outputs_dir,
+                    replace(config.link_in_bio_config, enabled=True),
+                )
             return
 
         # Publish (unified or platform-specific mode)
@@ -501,32 +539,13 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         except Exception as exc:
             logger.warning("Failed to update product registry: %s", exc)
 
-        # Link-in-bio update if enabled (CLI flags override config)
-        link_in_bio_enabled = config.link_in_bio_config.enabled
-        if getattr(args, "no_link_in_bio", False):
-            link_in_bio_enabled = False
-        elif getattr(args, "link_in_bio", None):
-            link_in_bio_enabled = True
+        # Link-in-bio update if enabled (flags resolved above)
         if link_in_bio_enabled:
-            try:
-                from src.publisher.link_in_bio.manager import (
-                    create_link_in_bio_manager,
-                )
-
-                link_bio_mgr = create_link_in_bio_manager(
-                    provider_name=config.link_in_bio_config.provider,
-                    max_links=config.link_in_bio_config.max_links,
-                    max_title_length=config.link_in_bio_config.max_title_length,
-                )
-                bio_result = await link_bio_mgr.update(product_id, outputs_dir)
-                if bio_result.get("success"):
-                    logger.info("Link-in-bio updated for %s", product_id)
-                else:
-                    logger.warning(
-                        "Link-in-bio skipped: %s", bio_result.get("reason", "unknown")
-                    )
-            except Exception as bio_error:
-                logger.warning("Link-in-bio failed: %s", bio_error)
+            await update_link_in_bio_safe(
+                product_id,
+                outputs_dir,
+                replace(config.link_in_bio_config, enabled=True),
+            )
 
         # Automatic cleanup if enabled
         if config.cleanup_config.enabled and not args.no_cleanup:
@@ -698,6 +717,7 @@ async def cmd_schedule_auto(
             outputs_dir=args.outputs_dir,
             auto_resolve=getattr(args, "auto_resolve", False),
             force=getattr(args, "force", False),
+            link_in_bio_config=config.link_in_bio_config,
         )
 
         logger.info("--- PUBLISHER SUMMARY ---")
@@ -806,6 +826,7 @@ async def _run_immediate_batch(
         stagger_delay_max=config.stagger_delay_max,
         fail_fast=getattr(args, "fail_fast", False),
         retry_failed=getattr(args, "retry_failed", False),
+        link_in_bio_config=config.link_in_bio_config,
     )
 
     summary = await batch_publisher.publish_batch()

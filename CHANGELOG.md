@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-07-06
+
+### Added
+- Shared `update_link_in_bio_safe()` post-publish hook wired into global batch, batch, schedule, and single publish paths. Replaces inline link-in-bio logic with a never-raises helper used by all four paths.
+
+### Fixed
+- Jamendo music downloads now use curl via subprocess (HTTP/2) instead of aiohttp (HTTP/1.1). The Jamendo CDN serves a blocking HTML page on HTTP/1.1, causing every download to time out silently and skip to the next provider.
+
 ## [0.56.0] - 2026-07-03
 
 ### Added
