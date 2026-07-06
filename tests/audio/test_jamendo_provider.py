@@ -1,6 +1,8 @@
 """Tests for Jamendo audio provider."""
 
 import re
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
@@ -28,6 +30,31 @@ def provider():
 @pytest.fixture
 def provider_no_key():
     return JamendoProvider(secrets={})
+
+
+def _mock_curl_success(content: bytes = b"audio data here") -> MagicMock:
+    """Build a mock for asyncio.create_subprocess_exec that writes ``content`` to -o."""
+
+    async def _fake_exec(*args: str, **kwargs):
+        # args: ('curl', '-sS', '--max-time', '60', '-o', '<path>', '<url>')
+        out_path = args[args.index("-o") + 1]
+        Path(out_path).write_bytes(content)
+        proc = MagicMock()
+        proc.wait = AsyncMock(return_value=0)
+        return proc
+
+    return _fake_exec
+
+
+def _mock_curl_failure(rc: int = 1) -> MagicMock:
+    """Build a mock for asyncio.create_subprocess_exec that fails with rc."""
+
+    async def _fake_exec(*args: str, **kwargs):
+        proc = MagicMock()
+        proc.wait = AsyncMock(return_value=rc)
+        return proc
+
+    return _fake_exec
 
 
 @pytest.mark.asyncio
@@ -116,7 +143,7 @@ async def test_search_timeout(provider, mock_aioresponses):
 
 
 @pytest.mark.asyncio
-async def test_download_success(provider, mock_aioresponses, temp_dir):
+async def test_download_success(provider, temp_dir):
     from src.audio.base import AudioTrack
 
     track = AudioTrack(
@@ -133,24 +160,24 @@ async def test_download_success(provider, mock_aioresponses, temp_dir):
         },
     )
 
-    mock_aioresponses.get(
-        "https://prod-1.storage.jamendo.com/download/track/12345/mp32/",
-        body=b"audio data here",
-        status=200,
-    )
+    with patch(
+        "src.audio.jamendo_provider.asyncio.create_subprocess_exec",
+        new=_mock_curl_success(b"audio data here"),
+    ):
+        async with aiohttp.ClientSession() as session:
+            result = await provider.download(track, temp_dir, session)
 
-    async with aiohttp.ClientSession() as session:
-        result = await provider.download(track, temp_dir, session)
-        assert result is not None
-        path, attribution = result
-        assert path.exists()
-        assert attribution["source"] == "Jamendo"
-        assert attribution["author"] == "Test Artist"
-        assert attribution["id"] == "12345"
+    assert result is not None
+    path, attribution = result
+    assert path.exists()
+    assert path.read_bytes() == b"audio data here"
+    assert attribution["source"] == "Jamendo"
+    assert attribution["author"] == "Test Artist"
+    assert attribution["id"] == "12345"
 
 
 @pytest.mark.asyncio
-async def test_download_falls_back_to_stream(provider, mock_aioresponses, temp_dir):
+async def test_download_falls_back_to_stream(provider, temp_dir):
     from src.audio.base import AudioTrack
 
     track = AudioTrack(
@@ -167,17 +194,17 @@ async def test_download_falls_back_to_stream(provider, mock_aioresponses, temp_d
         },
     )
 
-    mock_aioresponses.get(
-        "https://prod-1.storage.jamendo.com/?trackid=999",
-        body=b"stream data",
-        status=200,
-    )
+    with patch(
+        "src.audio.jamendo_provider.asyncio.create_subprocess_exec",
+        new=_mock_curl_success(b"stream data"),
+    ):
+        async with aiohttp.ClientSession() as session:
+            result = await provider.download(track, temp_dir, session)
 
-    async with aiohttp.ClientSession() as session:
-        result = await provider.download(track, temp_dir, session)
-        assert result is not None
-        path, _ = result
-        assert path.exists()
+    assert result is not None
+    path, _ = result
+    assert path.exists()
+    assert path.read_bytes() == b"stream data"
 
 
 @pytest.mark.asyncio
@@ -236,7 +263,8 @@ async def test_search_uses_random_query(mock_aioresponses):
 
 
 @pytest.mark.asyncio
-async def test_download_http_error(provider, mock_aioresponses, temp_dir):
+async def test_download_curl_failure(provider, temp_dir):
+    """A non-zero curl exit code returns None and cleans up the partial file."""
     from src.audio.base import AudioTrack
 
     track = AudioTrack(
@@ -252,11 +280,11 @@ async def test_download_http_error(provider, mock_aioresponses, temp_dir):
         },
     )
 
-    mock_aioresponses.get(
-        "https://prod-1.storage.jamendo.com/download/track/222/mp32/",
-        status=403,
-    )
+    with patch(
+        "src.audio.jamendo_provider.asyncio.create_subprocess_exec",
+        new=_mock_curl_failure(rc=22),
+    ):
+        async with aiohttp.ClientSession() as session:
+            result = await provider.download(track, temp_dir, session)
 
-    async with aiohttp.ClientSession() as session:
-        result = await provider.download(track, temp_dir, session)
-        assert result is None
+    assert result is None

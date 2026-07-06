@@ -1,5 +1,6 @@
 """Jamendo Music API provider (https://developer.jamendo.com/v3.0)."""
 
+import asyncio
 import logging
 import random
 from pathlib import Path
@@ -17,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
 JAMENDO_MAX_RESULTS = 200  # Jamendo API hard limit
-DOWNLOAD_CHUNK_SIZE = 65536
 
 # Separate circuit breaker for Jamendo
 jamendo_circuit_breaker = CircuitBreaker(
@@ -174,24 +174,30 @@ class JamendoProvider(BaseAudioProvider):
         file_path = output_dir / filename
 
         try:
-            timeout = aiohttp.ClientTimeout(total=self._download_timeout_sec)
-            async with session.get(  # type: ignore[attr-defined]
+            proc = await asyncio.create_subprocess_exec(
+                "curl",
+                "-sS",
+                "--max-time",
+                str(self._download_timeout_sec),
+                "-o",
+                str(file_path),
                 download_url,
-                timeout=timeout,
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning(
-                        "Jamendo download returned %d for '%s'",
-                        resp.status,
-                        track.name,
-                    )
-                    return None
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            rc = await proc.wait()
 
-                with open(file_path, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(DOWNLOAD_CHUNK_SIZE):
-                        f.write(chunk)
+            if rc != 0:
+                logger.warning(
+                    "Jamendo download failed for '%s' (rc=%d)",
+                    track.name,
+                    rc,
+                )
+                if file_path.exists():
+                    file_path.unlink()
+                return None
 
-        except (TimeoutError, aiohttp.ClientError, OSError) as exc:
+        except (OSError, ValueError) as exc:
             logger.warning("Jamendo download failed for '%s': %s", track.name, exc)
             if file_path.exists():
                 file_path.unlink()
