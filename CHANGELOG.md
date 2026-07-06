@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-07-06
+
 ### Added
 - Shared `update_link_in_bio_safe()` post-publish hook wired into global batch, batch, schedule, and single publish paths. Replaces inline link-in-bio logic with a never-raises helper used by all four paths.
 
