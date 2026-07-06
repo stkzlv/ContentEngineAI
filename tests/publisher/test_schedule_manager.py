@@ -11,6 +11,15 @@ from src.publisher.models import Platform, RecurringSlot, ScheduleConfig, Schedu
 from src.publisher.schedule import ScheduleManager
 
 
+@pytest.fixture(autouse=True)
+def mock_link_in_bio():
+    """Keep link-in-bio (enabled by default) from hitting the real API."""
+    with patch(
+        "src.publisher.schedule.update_link_in_bio_safe", new_callable=AsyncMock
+    ) as mock:
+        yield mock
+
+
 # Fixtures
 @pytest.fixture
 def tmp_schedule_path(tmp_path):

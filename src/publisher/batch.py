@@ -13,10 +13,12 @@ from pathlib import Path
 
 from src.publisher.base import BasePublisher, PublishError
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
+from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import (
     DEFAULT_PLATFORMS,
     BatchPublishSummary,
+    LinkInBioConfig,
     Platform,
     PublishStatus,
 )
@@ -57,6 +59,7 @@ class BatchPublisher:
         stagger_delay_max: int = 60,
         fail_fast: bool = False,
         retry_failed: bool = False,
+        link_in_bio_config: LinkInBioConfig | None = None,
     ):
         """Initialize batch publisher.
 
@@ -69,6 +72,8 @@ class BatchPublisher:
             stagger_delay_max: Maximum delay between posts in seconds (default: 60)
             fail_fast: Stop processing on first failure (default: False)
             retry_failed: Only process items from retry queue (default: False)
+            link_in_bio_config: Link-in-bio configuration (default: enabled).
+                Bio link is added after each successful publish
 
         Example:
         -------
@@ -100,6 +105,7 @@ class BatchPublisher:
         self.stagger_delay_max = stagger_delay_max
         self.fail_fast = fail_fast
         self.retry_failed = retry_failed
+        self.link_in_bio_config = link_in_bio_config
 
         platforms_str = [p.value for p in self.platforms]
         mode = "RETRY MODE" if retry_failed else "normal"
@@ -227,6 +233,10 @@ class BatchPublisher:
                         add_to_registry(product_id, self.outputs_dir)
                     except (OSError, ValueError) as exc:
                         logger.warning("Failed to update product registry: %s", exc)
+                    # Link-in-bio after publish (non-blocking, default enabled)
+                    await update_link_in_bio_safe(
+                        product_id, self.outputs_dir, self.link_in_bio_config
+                    )
 
                 elif publish_result["status"] == "skipped":
                     skipped += 1

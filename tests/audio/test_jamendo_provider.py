@@ -1,7 +1,9 @@
 """Tests for Jamendo audio provider."""
 
 import re
+from collections.abc import Callable, Coroutine
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -32,7 +34,9 @@ def provider_no_key():
     return JamendoProvider(secrets={})
 
 
-def _mock_curl_success(content: bytes = b"audio data here") -> MagicMock:
+def _mock_curl_success(
+    content: bytes = b"audio data here",
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """Build a mock for asyncio.create_subprocess_exec that writes ``content`` to -o."""
 
     async def _fake_exec(*args: str, **kwargs):
@@ -46,7 +50,9 @@ def _mock_curl_success(content: bytes = b"audio data here") -> MagicMock:
     return _fake_exec
 
 
-def _mock_curl_failure(rc: int = 1) -> MagicMock:
+def _mock_curl_failure(
+    rc: int = 1,
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """Build a mock for asyncio.create_subprocess_exec that fails with rc."""
 
     async def _fake_exec(*args: str, **kwargs):

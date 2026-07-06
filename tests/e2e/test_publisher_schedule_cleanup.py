@@ -31,6 +31,15 @@ from src.publisher.schedule import ScheduleManager
 # ============================================================================
 
 
+@pytest.fixture(autouse=True)
+def mock_link_in_bio():
+    """Keep link-in-bio (enabled by default) from hitting the real API."""
+    with patch(
+        "src.publisher.schedule.update_link_in_bio_safe", new_callable=AsyncMock
+    ) as mock:
+        yield mock
+
+
 @pytest.fixture
 def temp_outputs_dir(tmp_path):
     """Create temporary outputs directory with realistic structure."""

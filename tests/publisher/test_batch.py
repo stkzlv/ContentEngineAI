@@ -18,6 +18,15 @@ from src.publisher.batch import BatchPublisher
 from src.publisher.models import BatchPublishSummary, Platform
 
 
+@pytest.fixture(autouse=True)
+def mock_link_in_bio():
+    """Keep link-in-bio (enabled by default) from hitting the real API."""
+    with patch(
+        "src.publisher.batch.update_link_in_bio_safe", new_callable=AsyncMock
+    ) as mock:
+        yield mock
+
+
 @pytest.fixture
 def mock_publisher():
     """Create mock publisher with common behaviors."""

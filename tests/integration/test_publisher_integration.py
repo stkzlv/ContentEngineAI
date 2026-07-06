@@ -33,6 +33,20 @@ from src.publisher.tracking import (
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def mock_link_in_bio():
+    """Keep link-in-bio (enabled by default) from hitting the real API."""
+    with (
+        patch(
+            "src.publisher.batch.update_link_in_bio_safe", new_callable=AsyncMock
+        ) as batch_mock,
+        patch(
+            "src.publisher.schedule.update_link_in_bio_safe", new_callable=AsyncMock
+        ) as schedule_mock,
+    ):
+        yield {"batch": batch_mock, "schedule": schedule_mock}
+
+
 @pytest.fixture
 def outputs_dir(tmp_path: Path) -> Path:
     """Create a temporary outputs directory structure."""

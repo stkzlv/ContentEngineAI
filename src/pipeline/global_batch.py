@@ -1720,37 +1720,26 @@ class GlobalPipelineOrchestrator:
                         f"Successfully published {product_id} to all platforms"
                     )
 
-                    # Link-in-bio (non-blocking, before cleanup)
-                    link_in_bio_cfg = publisher_config.get("link_in_bio", {})
-                    if link_in_bio_cfg.get("enabled", False):
-                        try:
-                            from src.publisher.link_in_bio.manager import (
-                                create_link_in_bio_manager,
-                            )
+                    # Link-in-bio (non-blocking, before cleanup, default ON to
+                    # match the LinkInBioConfig dataclass and the other paths)
+                    from src.publisher.link_in_bio.manager import (
+                        update_link_in_bio_safe,
+                    )
+                    from src.publisher.models import LinkInBioConfig
 
-                            mgr = create_link_in_bio_manager(
-                                provider_name=link_in_bio_cfg.get("provider", "lnkbio"),
-                                max_links=link_in_bio_cfg.get("max_links", 0),
-                                max_title_length=link_in_bio_cfg.get(
-                                    "max_title_length", 80
-                                ),
-                            )
-                            bio_result = await mgr.update(
-                                product_id, self.config.outputs_dir
-                            )
-                            if bio_result.get("success"):
-                                logger.info("Link-in-bio updated for %s", product_id)
-                            else:
-                                logger.warning(
-                                    "Link-in-bio skipped: %s",
-                                    bio_result.get("reason", "unknown"),
-                                )
-                        except Exception as bio_err:
-                            logger.warning(
-                                "Link-in-bio failed for %s: %s",
-                                product_id,
-                                bio_err,
-                            )
+                    link_in_bio_cfg = publisher_config.get("link_in_bio", {})
+                    await update_link_in_bio_safe(
+                        product_id,
+                        self.config.outputs_dir,
+                        LinkInBioConfig(
+                            enabled=link_in_bio_cfg.get("enabled", True),
+                            provider=link_in_bio_cfg.get("provider", "lnkbio"),
+                            max_links=link_in_bio_cfg.get("max_links", 0),
+                            max_title_length=link_in_bio_cfg.get(
+                                "max_title_length", 80
+                            ),
+                        ),
+                    )
 
                     # Cleanup product directory if configured
                     cleanup_config = publisher_config.get("cleanup", {})

@@ -3,8 +3,12 @@
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.publisher.link_in_bio.base import BaseLinkInBioProvider
+
+if TYPE_CHECKING:
+    from src.publisher.models import LinkInBioConfig
 
 logger = logging.getLogger(__name__)
 
@@ -128,3 +132,38 @@ def create_link_in_bio_manager(
         )
 
     raise ValueError(f"Unknown link-in-bio provider: {provider_name}")
+
+
+async def update_link_in_bio_safe(
+    product_id: str,
+    outputs_dir: Path,
+    config: "LinkInBioConfig | None" = None,
+) -> None:
+    """Update the bio link for a published product; never raises.
+
+    Shared post-publish hook for every publish path (single, schedule,
+    batch, global batch). Defaults to an enabled ``LinkInBioConfig`` when
+    none is given; failures only WARN so they can't block publishing.
+    """
+    from src.publisher.models import LinkInBioConfig
+
+    cfg = config if config is not None else LinkInBioConfig()
+    if not cfg.enabled:
+        return
+    try:
+        mgr = create_link_in_bio_manager(
+            provider_name=cfg.provider,
+            max_links=cfg.max_links,
+            max_title_length=cfg.max_title_length,
+        )
+        result = await mgr.update(product_id, outputs_dir)
+        if result.get("success"):
+            logger.info("Link-in-bio updated for %s", product_id)
+        else:
+            logger.warning(
+                "Link-in-bio skipped for %s: %s",
+                product_id,
+                result.get("reason", "unknown"),
+            )
+    except Exception as bio_error:
+        logger.warning("Link-in-bio failed for %s: %s", product_id, bio_error)
