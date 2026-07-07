@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.1] - 2026-07-07
+
 ### Fixed
 - Batch pipeline no longer hides producer step failures as "skipped (insufficient media)". Step failures are counted as failures and name the failing step. The global batch, producer CLI, and scraper CLI exit non-zero when nothing completed end-to-end, so CI and cron detect broken runs.
 - Producer result sentinel `FAILED:<step>` extracted to a named constant. New logging uses lazy `%s` format, complying with project convention.
