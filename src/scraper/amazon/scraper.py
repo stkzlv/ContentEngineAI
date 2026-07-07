@@ -177,7 +177,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             global _BROWSER_CONFIG
             _BROWSER_CONFIG.update(
                 {
-                    "headless": False,  # Disabled - Botasaurus bug in headless mode
+                    "headless": False,  # Headed under Xvfb; Botasaurus headless bug
                     "close_on_crash": not DEBUG_MODE,
                 }
             )

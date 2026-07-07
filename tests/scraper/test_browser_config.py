@@ -1,8 +1,10 @@
 """Tests for _build_browser_config display/Xvfb wiring in browser_functions.py.
 
-Normal runs must request Botasaurus's Xvfb virtual display (the Wayland fix); debug runs
-must resolve a real display via resolve_debug_display and set DISPLAY/XAUTHORITY, falling
-back to the virtual display when no real display exists.
+Normal runs use headed mode under Botasaurus's Xvfb virtual display because this
+Botasaurus version raises StopIteration in headless mode. When headless="new" is
+configured explicitly, no display is requested. Debug runs must resolve a real display
+via resolve_debug_display and set DISPLAY/XAUTHORITY, falling back to the virtual
+display when no real display exists.
 """
 
 from src.scraper.amazon import browser_functions
@@ -11,12 +13,21 @@ from src.scraper.base.display import DisplayInfo
 
 
 class TestNormalMode:
-    def test_enables_virtual_display(self, monkeypatch):
+    def test_headed_mode_uses_xvfb(self, monkeypatch):
+        # Default config uses headed mode under Xvfb (Botasaurus headless bug).
         monkeypatch.delenv("DISPLAY", raising=False)
         cfg = _build_browser_config(debug_mode=False)
-        assert cfg["enable_xvfb_virtual_display"] is True
         assert cfg["headless"] is False
-        # Normal mode must not touch DISPLAY; pyvirtualdisplay sets it itself.
+        assert cfg["enable_xvfb_virtual_display"] is True
+        assert "DISPLAY" not in __import__("os").environ
+
+    def test_modern_headless_skips_xvfb(self, monkeypatch):
+        # When headless="new" is configured explicitly, no virtual display is needed.
+        monkeypatch.delenv("DISPLAY", raising=False)
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": "new"})
+        cfg = _build_browser_config(debug_mode=False)
+        assert cfg["headless"] == "new"
+        assert "enable_xvfb_virtual_display" not in cfg
         assert "DISPLAY" not in __import__("os").environ
 
     def test_forces_x11_ozone(self, monkeypatch):
@@ -28,6 +39,7 @@ class TestNormalMode:
         assert "--ozone-platform=x11" in cfg["add_arguments"]
 
     def test_warns_when_xvfb_missing(self, monkeypatch, caplog):
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": False})
         monkeypatch.setattr(browser_functions.shutil, "which", lambda _: None)
         with caplog.at_level("WARNING"):
             cfg = _build_browser_config(debug_mode=False)
@@ -49,6 +61,7 @@ class TestDebugMode:
         # `make scrape-watch` provides): debug uses the resolved real display.
         self._patch_monitors(monkeypatch)
         monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": False})
         monkeypatch.setattr(
             browser_functions,
             "resolve_debug_display",
@@ -66,6 +79,7 @@ class TestDebugMode:
         # debug must fall back to a virtual Xvfb display instead of the live one.
         self._patch_monitors(monkeypatch)
         monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": False})
         monkeypatch.setattr(
             browser_functions,
             "resolve_debug_display",
@@ -78,6 +92,7 @@ class TestDebugMode:
 
     def test_none_source_falls_back_to_virtual(self, monkeypatch, caplog):
         self._patch_monitors(monkeypatch)
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": False})
         monkeypatch.setattr(
             browser_functions,
             "resolve_debug_display",
@@ -87,3 +102,14 @@ class TestDebugMode:
             cfg = _build_browser_config(debug_mode=True)
         assert cfg["enable_xvfb_virtual_display"] is True
         assert any("display" in r.message.lower() for r in caplog.records)
+
+    def test_modern_headless_skips_display(self, monkeypatch):
+        # Chrome's modern headless mode needs no display even in debug mode.
+        self._patch_monitors(monkeypatch)
+        monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+        monkeypatch.delenv("DISPLAY", raising=False)
+        monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": "new"})
+        cfg = _build_browser_config(debug_mode=True)
+        assert cfg["headless"] == "new"
+        assert "enable_xvfb_virtual_display" not in cfg
+        assert "DISPLAY" not in __import__("os").environ

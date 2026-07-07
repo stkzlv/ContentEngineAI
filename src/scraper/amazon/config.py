@@ -422,7 +422,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 # anti-detection
                 # Desktop-width only; see desktop_window_sizes note above (#161).
                 "window_size": random.choice(desktop_window_sizes),  # noqa: S311
-                "headless": False,  # Disabled - Botasaurus bug in headless mode
+                "headless": False,  # headed under Xvfb (Botasaurus headless bug)
                 "output": get_output_path(
                     "botasaurus"
                 ),  # Configurable output directory
@@ -431,7 +431,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
             # Fallback if botasaurus not available
             debug_mode = global_settings.get("debug_mode", False)
             _BROWSER_CONFIG = {
-                "headless": False,  # Disabled - Botasaurus bug in headless mode
+                "headless": False,  # headed under Xvfb (Botasaurus headless bug)
                 "close_on_crash": not debug_mode,
             }
 
@@ -472,7 +472,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         }
 
         _BROWSER_CONFIG = {
-            "headless": False,  # Disabled - Botasaurus bug in headless mode
+            "headless": False,  # headed under Xvfb (Botasaurus headless bug)
             "close_on_crash": True,
             "max_retry": 3,
             "cache": False,
@@ -518,7 +518,7 @@ except Exception as init_error:
     }
 
     _BROWSER_CONFIG = {
-        "headless": False,  # Disabled - Botasaurus bug in headless mode
+        "headless": False,  # headed under Xvfb (Botasaurus headless bug)
         "close_on_crash": True,
         "max_retry": 3,
         "cache": False,
