@@ -177,7 +177,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             global _BROWSER_CONFIG
             _BROWSER_CONFIG.update(
                 {
-                    "headless": False,  # Disabled - Botasaurus bug in headless mode
+                    "headless": False,  # Headed under Xvfb; Botasaurus headless bug
                     "close_on_crash": not DEBUG_MODE,
                 }
             )
@@ -1819,6 +1819,10 @@ def main():
             profile_uses_videos=profile_uses_videos,
         )
 
+        # Products successfully scraped, across whichever mode ran. Used to set
+        # a non-zero exit code when nothing was scraped, so CI/cron see it.
+        products_scraped = 0
+
         # Batch mode: use BatchController for multiple products
         if is_batch_mode:
             from .batch_controller import BatchController
@@ -1882,8 +1886,9 @@ def main():
 
             if total_summary is None:
                 logger.warning("No batches were processed")
-                return
+                raise SystemExit(1)
             summary = total_summary
+            products_scraped = summary.successful
 
             # Display final summary
             logger.info("--- SCRAPER SUMMARY ---")
@@ -1906,6 +1911,7 @@ def main():
         # Single-product mode: use existing scraper.scrape_products()
         else:
             products = scraper.scrape_products(args.keywords, search_params)
+            products_scraped = len(products)
 
             logger.info("--- SCRAPER SUMMARY ---")
             if products:
@@ -1917,6 +1923,10 @@ def main():
             else:
                 logger.info("Products: 0 scraped")
             logger.info("---")
+
+        if products_scraped == 0:
+            logger.error("Scraper failed: 0 products scraped")
+            raise SystemExit(1)
 
     except Exception as e:
         logger.error("Scraper failed: %s", e)

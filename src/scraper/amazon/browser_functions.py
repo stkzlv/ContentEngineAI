@@ -29,6 +29,16 @@ from .product_extractor import (  # noqa: F401
 from .search_builder import SearchParameterBuilder
 from .utils import build_affiliate_url, detect_monitors, get_optimal_browser_position
 
+# Botasaurus connects to Chrome's CDP endpoint via urllib on 127.0.0.1. Python's
+# urllib does not understand CIDR notation in NO_PROXY (e.g. 127.0.0.0/8), so a
+# configured HTTP proxy intercepts the loopback request and the connection fails.
+# Ensure the exact loopback host is bypassed before any Browser launch.
+_NO_PROXY_VALUE = os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or ""
+if "127.0.0.1" not in _NO_PROXY_VALUE:
+    _NO_PROXY_VALUE = f"{_NO_PROXY_VALUE},127.0.0.1,localhost,::1".lstrip(",")
+    os.environ["NO_PROXY"] = _NO_PROXY_VALUE
+    os.environ["no_proxy"] = _NO_PROXY_VALUE
+
 # Module-level logger for browser functions
 logger = logging.getLogger(__name__)
 
@@ -736,40 +746,46 @@ def _build_browser_config(debug_mode=False):
     force_real_browser = debug_mode
 
     if force_real_browser:
-        # A real visible window on a live Wayland session makes Chromium's CDP
-        # endpoint go unresponsive: every command times out with "Response not
-        # received", so a headful browser cannot be driven on the live compositor.
-        # When WAYLAND_DISPLAY is set we run on a virtual X display (Xvfb) instead.
-        # To WATCH a debug run, use `make scrape-watch`: it starts a dedicated Xvfb
-        # + x11vnc and unsets WAYLAND_DISPLAY, so the else-branch below uses that
-        # X-only display and the window is visible over VNC.
-        on_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
-        display_info = resolve_debug_display()
-        if on_wayland or display_info.source == "none":
-            if on_wayland:
-                logger.warning(
-                    "Live Wayland session (WAYLAND_DISPLAY=%s): a headful window "
-                    "freezes Chromium's CDP, so running on a virtual Xvfb display "
-                    "(no visible window). Use `make scrape-watch` to watch over VNC.",
-                    os.environ.get("WAYLAND_DISPLAY"),
-                )
-            else:
-                logger.warning(
-                    "No real display found for debug run; falling back to a virtual "
-                    "display, so the browser window will not be visible."
-                )
-            current_config["enable_xvfb_virtual_display"] = True
+        if current_config.get("headless") == "new":
+            # Chrome's modern headless mode renders without any display, so the
+            # Wayland/Xvfb display dance is unnecessary.
+            logger.info("Debug mode with modern headless Chrome: no display required")
         else:
-            current_config["enable_xvfb_virtual_display"] = False
-            os.environ["DISPLAY"] = display_info.display or ":0"
-            if display_info.xauthority:
-                os.environ["XAUTHORITY"] = display_info.xauthority
-            logger.info(
-                "Using display %s (source: %s, xauthority: %s)",
-                display_info.display,
-                display_info.source,
-                display_info.xauthority or "none",
-            )
+            # A real visible window on a live Wayland session makes Chromium's CDP
+            # endpoint go unresponsive: every command times out with "Response not
+            # received", so a headful browser cannot be driven on the live compositor.
+            # When WAYLAND_DISPLAY is set we run on a virtual X display (Xvfb) instead.
+            # To WATCH a debug run, use `make scrape-watch`: it starts a dedicated Xvfb
+            # + x11vnc and unsets WAYLAND_DISPLAY, so the else-branch below uses that
+            # X-only display and the window is visible over VNC.
+            on_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+            display_info = resolve_debug_display()
+            if on_wayland or display_info.source == "none":
+                if on_wayland:
+                    logger.warning(
+                        "Live Wayland session (WAYLAND_DISPLAY=%s): a headful window "
+                        "freezes Chromium's CDP, so running on a virtual Xvfb display "
+                        "(no visible window). Use `make scrape-watch` to watch "
+                        "over VNC.",
+                        os.environ.get("WAYLAND_DISPLAY"),
+                    )
+                else:
+                    logger.warning(
+                        "No real display found for debug run; falling back to a "
+                        "virtual display, so the browser window will not be visible."
+                    )
+                current_config["enable_xvfb_virtual_display"] = True
+            else:
+                current_config["enable_xvfb_virtual_display"] = False
+                os.environ["DISPLAY"] = display_info.display or ":0"
+                if display_info.xauthority:
+                    os.environ["XAUTHORITY"] = display_info.xauthority
+                logger.info(
+                    "Using display %s (source: %s, xauthority: %s)",
+                    display_info.display,
+                    display_info.source,
+                    display_info.xauthority or "none",
+                )
 
         logger.info("Auto-discovering multi-monitor setup...")
         monitors = detect_monitors()
@@ -813,7 +829,6 @@ def _build_browser_config(debug_mode=False):
                 "--no-default-browser-check",
                 "--no-first-run",
                 "--disable-infobars",
-                "--remote-debugging-port=0",
                 "--enable-logging",
                 "--v=1",
             ]
@@ -840,16 +855,17 @@ def _build_browser_config(debug_mode=False):
             browser_height,
         )
     else:
-        # Normal runs: no real display on Wayland, so let Botasaurus start its own Xvfb
-        # virtual display (headful but invisible). is_vmish is false on a desktop, so
-        # the flag must be set explicitly or no display starts and google_get hangs 60s.
-        current_config["enable_xvfb_virtual_display"] = True
-        if shutil.which("Xvfb") is None:
-            logger.warning(
-                "Xvfb binary not found; Botasaurus will fall back to detectable "
-                "headless mode and likely crash. Install it: "
-                "sudo apt-get install -y xvfb"
-            )
+        # Chrome's modern headless mode ("new") renders without a display and does not
+        # need Xvfb. Only fall back to a virtual display if a legacy headed mode is
+        # configured, otherwise Botasaurus's Xvfb + Chrome 149+ fails to expose CDP.
+        if current_config.get("headless") in (False, "false", "no"):
+            current_config["enable_xvfb_virtual_display"] = True
+            if shutil.which("Xvfb") is None:
+                logger.warning(
+                    "Xvfb binary not found; Botasaurus will fall back to detectable "
+                    "headless mode and likely crash. Install it: "
+                    "sudo apt-get install -y xvfb"
+                )
 
     is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER", False)
     is_ci = os.environ.get("CI", False)
@@ -863,9 +879,11 @@ def _build_browser_config(debug_mode=False):
         logger.info("   • Has DISPLAY: %s", has_display)
         logger.info("   • DISPLAY value: %s", os.environ.get("DISPLAY", "Not set"))
 
+    # Respect the headless mode from config; the default stays headed under Xvfb
+    # because this Botasaurus version raises StopIteration in headless mode.
+    current_config.setdefault("headless", False)
     current_config.update(
         {
-            "headless": False,
             "close_on_crash": not debug_mode,
             "reuse_driver": False,
             "create_driver": True,

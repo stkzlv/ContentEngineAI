@@ -493,6 +493,13 @@ class PipelineSummary:
     total_failures: int
     total_duration_sec: float
 
+    def exit_code(self) -> int:
+        """Process exit code for the run: 0 if any product completed
+        end-to-end, else 1 so CI, cron, and wrappers checking ``$?`` see a
+        run that produced nothing as a failure.
+        """
+        return 0 if self.end_to_end_success > 0 else 1
+
     def format(self) -> str:
         """Format pipeline summary as human-readable string.
 

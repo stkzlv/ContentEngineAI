@@ -25,7 +25,10 @@ from src.utils.performance import PerformanceHistoryManager
 from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
-from src.video.producer.orchestration import create_video_for_product
+from src.video.producer.orchestration import (
+    create_video_for_product,
+    failed_step_from_result,
+)
 from src.video.producer.state import VALID_STEPS
 from src.video.producer.utils import (
     ProfileUsageTracker,
@@ -880,6 +883,7 @@ async def main():
 
         duration = (datetime.now(UTC) - product_start_time).total_seconds()
 
+        failed_step = failed_step_from_result(result_path)
         if result_path == "SKIPPED":
             batch_summary.skipped_count += 1
             batch_summary.results.append(
@@ -895,6 +899,32 @@ async def main():
                     f"[{i+1}/{total_products}] Skipped {product_id} "
                     f"(insufficient media)"
                 )
+        elif failed_step is not None:
+            batch_summary.failed_count += 1
+            batch_summary.results.append(
+                ProductResult(
+                    id=product_id,
+                    status="FAILED",
+                    profile=current_profile,
+                    duration_sec=duration,
+                    error=f"pipeline step '{failed_step}' failed",
+                )
+            )
+            if args.batch:
+                logger.error(
+                    "[%d/%d] Failed to process %s: step '%s' failed",
+                    i + 1,
+                    total_products,
+                    product_id,
+                    failed_step,
+                )
+                if args.fail_fast:
+                    logger.error(
+                        "Stopping batch processing due to --fail-fast "
+                        "(failed on product %s)",
+                        product_id,
+                    )
+                    break
         elif result_path:
             batch_summary.succeeded_count += 1
             batch_summary.results.append(
@@ -996,7 +1026,17 @@ async def main():
     if args.batch and args.fail_fast and batch_summary.failed_count > 0:
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
-    logger.info("Video producer completed successfully")
+    # Non-zero exit when nothing was produced, so CI, cron, and wrappers
+    # checking $? see the failure. Any success exits 0 (batch is best-effort).
+    exit_code = 0 if batch_summary.succeeded_count > 0 else 1
+    if exit_code == 0:
+        logger.info("Video producer completed successfully")
+    else:
+        logger.error(
+            "Video producer failed: no videos produced (%d failed, %d skipped)",
+            batch_summary.failed_count,
+            batch_summary.skipped_count,
+        )
     logger.info(f"Complete log saved to: {log_file}")
 
     # Clean up HTTP connection pool
@@ -1007,6 +1047,9 @@ async def main():
     # Ensure all log messages are flushed
     for handler in logging.getLogger().handlers:
         handler.flush()
+
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
