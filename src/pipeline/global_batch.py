@@ -1239,15 +1239,21 @@ class GlobalPipelineOrchestrator:
                         skipped += 1
                         skipped_products.append(product_id)
                         logger.warning(
-                            f"[{idx}/{total_products}] Skipped {product_id} "
-                            f"(insufficient media)"
+                            "[%d/%d] Skipped %s (insufficient media)",
+                            idx,
+                            total_products,
+                            product_id,
                         )
                     elif failed_step is not None:
                         failed += 1
                         failed_products.append(product_id)
                         logger.error(
-                            f"[{idx}/{total_products}] Failed to produce "
-                            f"{product_id}: pipeline step '{failed_step}' failed"
+                            "[%d/%d] Failed to produce %s: "
+                            "pipeline step '%s' failed",
+                            idx,
+                            total_products,
+                            product_id,
+                            failed_step,
                         )
                         if self.config.fail_fast:
                             logger.error("Fail-fast enabled, stopping production phase")
@@ -1266,8 +1272,11 @@ class GlobalPipelineOrchestrator:
                         failed += 1
                         failed_products.append(product_id)
                         logger.error(
-                            f"[{idx}/{total_products}] Failed to produce "
-                            f"{product_id}: producer returned no result"
+                            "[%d/%d] Failed to produce %s: "
+                            "producer returned no result",
+                            idx,
+                            total_products,
+                            product_id,
                         )
                         if self.config.fail_fast:
                             logger.error("Fail-fast enabled, stopping production phase")
@@ -2077,7 +2086,6 @@ async def main():
         # Exit code reflects whether the run did what was asked: non-zero when
         # no product completed end-to-end, so CI, cron, and wrappers checking
         # $? see the failure instead of a false success.
-        no_success = summary.end_to_end_success == 0
         exit_code = summary.exit_code()
 
         # Output summary in requested format
@@ -2087,17 +2095,18 @@ async def main():
         else:
             # Text output (already logged by _generate_final_summary)
             logger.info("=" * 80)
-            if no_success:
+            if exit_code:
                 logger.error(
-                    f"PIPELINE FAILED: no products completed end-to-end "
-                    f"({summary.total_failures} failed, "
-                    f"{summary.production.skipped} skipped)"
+                    "PIPELINE FAILED: no products completed end-to-end "
+                    "(%d failed, %d skipped)",
+                    summary.total_failures,
+                    summary.production.skipped,
                 )
             elif summary.total_failures > 0:
                 logger.warning(
-                    f"PIPELINE COMPLETED WITH FAILURES: "
-                    f"{summary.end_to_end_success} succeeded, "
-                    f"{summary.total_failures} failed"
+                    "PIPELINE COMPLETED WITH FAILURES: " "%d succeeded, %d failed",
+                    summary.end_to_end_success,
+                    summary.total_failures,
                 )
             else:
                 logger.info("PIPELINE COMPLETED SUCCESSFULLY")

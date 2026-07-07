@@ -912,13 +912,17 @@ async def main():
             )
             if args.batch:
                 logger.error(
-                    f"[{i+1}/{total_products}] Failed to process {product_id}: "
-                    f"step '{failed_step}' failed"
+                    "[%d/%d] Failed to process %s: step '%s' failed",
+                    i + 1,
+                    total_products,
+                    product_id,
+                    failed_step,
                 )
                 if args.fail_fast:
                     logger.error(
-                        f"Stopping batch processing due to --fail-fast "
-                        f"(failed on product {product_id})"
+                        "Stopping batch processing due to --fail-fast "
+                        "(failed on product %s)",
+                        product_id,
                     )
                     break
         elif result_path:

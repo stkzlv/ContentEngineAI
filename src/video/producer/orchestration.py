@@ -61,6 +61,8 @@ from src.video.producer.utils import setup_logging, validate_media_requirements
 
 logger = logging.getLogger(__name__)
 
+FAILED_PREFIX = "FAILED:"
+
 
 async def execute_pipeline_parallel(
     ctx: PipelineContext,
@@ -196,9 +198,8 @@ def failed_step_from_result(result: str | Path | None) -> str | None:
     parses the failure sentinel so callers count it as a failure and name the
     step, instead of mistaking it for a skip or a success.
     """
-    prefix = "FAILED:"
-    if isinstance(result, str) and result.startswith(prefix):
-        return result[len(prefix) :] or "unknown"
+    if isinstance(result, str) and result.startswith(FAILED_PREFIX):
+        return result[len(FAILED_PREFIX) :] or "unknown"
     return None
 
 
@@ -436,7 +437,7 @@ async def create_video_for_product(
         await cleanup_global_background_processor()
         # Signal a step failure, distinct from "SKIPPED" and from a partial
         # None return, naming the step so callers can report it.
-        return f"FAILED:{step or 'unknown'}"
+        return f"{FAILED_PREFIX}{step or 'unknown'}"
     except Exception as e:
         logger.error(
             f"An unexpected error occurred in pipeline for '{product_id}': {e}",
@@ -446,7 +447,7 @@ async def create_video_for_product(
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
         await cleanup_global_background_processor()
-        return f"FAILED:{step or 'unknown'}"
+        return f"{FAILED_PREFIX}{step or 'unknown'}"
     finally:
         # Log performance summary
         summary = performance_monitor.get_pipeline_summary()
