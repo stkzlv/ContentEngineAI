@@ -91,3 +91,4 @@ ROADMAP.private.md
 # Playwright MCP runtime captures (page snapshots, console logs). Capture
 # logged-in session state, so they must never be committed.
 .playwright-mcp/
+error_logs/
