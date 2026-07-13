@@ -18,6 +18,8 @@ The persistent on-frame overlay, first-line caption disclosure, platform-tag aud
 
 Add a configurable literal-phrase block that ships the affiliate program's required identification text. For Amazon Associates: "As an Amazon Associate I earn from qualifying purchases" (or a substantially similar pre-approved statement). Render in at least one of: profile bio, the closing frame of the video, or the caption body. Drive from a new `affiliate_disclosure` config keyed by program name so non-Amazon programs (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
 
+**Status:** Caption-body rendering shipped. Closing-frame overlay deferred.
+
 **Done when:** every published video includes the configured affiliate program literal phrase in at least one of bio / on-frame / caption.
 
 ### 0.4 Localized disclosure variants

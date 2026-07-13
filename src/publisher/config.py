@@ -17,6 +17,7 @@ import yaml
 from src.publisher.models import (
     DEFAULT_PLATFORMS,
     AccountConfig,
+    AffiliateDisclosureConfig,
     BlobRetentionConfig,
     CleanupConfig,
     FirstCommentConfig,
@@ -327,12 +328,32 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     else:
         result["blob_retention_config"] = BlobRetentionConfig()
 
+    # Parse affiliate_disclosure config
+    affiliate_disclosure_section = result.get("affiliate_disclosure", {})
+    if affiliate_disclosure_section:
+        try:
+            result["affiliate_disclosure_config"] = AffiliateDisclosureConfig(
+                **affiliate_disclosure_section
+            )
+            logger.debug(
+                "Parsed affiliate_disclosure config: %s",
+                affiliate_disclosure_section,
+            )
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse affiliate_disclosure config: %s, using defaults", e
+            )
+            result["affiliate_disclosure_config"] = AffiliateDisclosureConfig()
+    else:
+        result["affiliate_disclosure_config"] = AffiliateDisclosureConfig()
+
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
     result.pop("cleanup", None)
     result.pop("link_in_bio", None)
     result.pop("first_comment", None)
+    result.pop("affiliate_disclosure", None)
     # Keep use_platform_specific_content for PublisherConfig (don't pop)
 
     return result

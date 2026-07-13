@@ -1676,6 +1676,10 @@ class GlobalPipelineOrchestrator:
                     or publisher_config.get("use_platform_specific_content", False)
                 )
 
+                disc_raw = publisher_config.get("affiliate_disclosure", {})
+                disclosure_phrase = (
+                    disc_raw.get("phrase") if disc_raw.get("enabled", True) else None
+                )
                 publish_results = await publish_product(
                     publisher=publisher,
                     media_id=media_id,
@@ -1684,6 +1688,7 @@ class GlobalPipelineOrchestrator:
                     outputs_dir=self.config.outputs_dir,
                     platform_specific=platform_specific,
                     schedule_time=product_schedule_time,
+                    disclosure_phrase=disclosure_phrase,
                 )
 
                 # Process results and record publish

@@ -129,6 +129,21 @@ class PublishResult:
 
 
 @dataclass
+class AffiliateDisclosureConfig:
+    """Configuration for the affiliate program literal-phrase disclosure.
+
+    Renders the configured literal phrase in the caption body after the
+    standard ``disclosure`` (``#ad``) line. Driven from
+    ``config/publisher.yaml::affiliate_disclosure`` so non-Amazon programs
+    (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
+    """
+
+    enabled: bool = True
+    phrase: str = "As an Amazon Associate I earn from qualifying purchases"
+    program: str = "amazon"
+
+
+@dataclass
 class PublishMetadata:
     """Platform-specific metadata for video publishing.
 
@@ -155,6 +170,7 @@ class PublishMetadata:
     character_counts: dict[str, int] = field(default_factory=dict)
     product_id: str | None = None
     disclosure: str = "#ad"
+    affiliate_disclosure: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and normalization."""
@@ -280,6 +296,12 @@ class PublishMetadata:
         # Disclosure leads the caption (FTC: clear and conspicuous, top of caption)
         if self.disclosure:
             parts.append(self.disclosure)
+
+        # Affiliate program literal phrase (Amazon Associates requirement).
+        # Sits between the #ad disclosure and the description so both are
+        # visible above the "more" fold on Instagram/TikTok.
+        if self.affiliate_disclosure:
+            parts.append(self.affiliate_disclosure)
 
         # Description only - title is handled separately by platform APIs
         parts.append(self.description)
@@ -430,6 +452,9 @@ class PublisherConfig:
     )
     blob_retention_config: "BlobRetentionConfig" = field(
         default_factory=lambda: BlobRetentionConfig()
+    )
+    affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
+        default_factory=lambda: AffiliateDisclosureConfig()
     )
     use_platform_specific_content: bool = False
     # Per-platform video profile routing (Phase 1.3).

@@ -317,6 +317,23 @@ class TestPublishMetadata:
         # Disclosure leads, then description, separated by blank line
         assert content == "#ad\n\nDescription only"
 
+    def test_format_content_with_affiliate_disclosure(self):
+        """Affiliate disclosure phrase appears between #ad and description."""
+        metadata = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="Title",
+            description="Check out this product.",
+            affiliate_disclosure="As an Amazon Associate I earn from qualifying purchases",
+        )
+        content = metadata.format_content()
+        assert content.startswith("#ad\n")
+        assert "As an Amazon Associate I earn from qualifying purchases" in content
+        assert "Check out this product." in content
+        lines = content.split("\n\n")
+        assert lines[0] == "#ad"
+        assert "As an Amazon Associate I earn from qualifying purchases" in lines[1]
+        assert lines[2] == "Check out this product."
+
     def test_format_content_disclosure_leads(self):
         """Disclosure must be the first line of the formatted content."""
         metadata = PublishMetadata(

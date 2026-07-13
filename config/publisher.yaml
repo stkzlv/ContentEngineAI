@@ -311,3 +311,17 @@ link_in_bio:
 
   # Maximum characters for link title (truncated with "..." if exceeded)
   max_title_length: 80
+
+# ============================================================================
+# AFFILIATE DISCLOSURE (Phase 0.3)
+# ============================================================================
+# Amazon Associates and other affiliate programs require a literal
+# identification phrase wherever Program Content is displayed. This
+# setting renders the phrase in the caption body after the #ad line.
+#
+# Enable for the Amazon Associates literal phrase, override for other
+# programs (ShareASale, Impact, eBay Partner Network, etc.).
+affiliate_disclosure:
+  enabled: true
+  phrase: "As an Amazon Associate I earn from qualifying purchases"
+  program: "amazon"

@@ -55,6 +55,7 @@ async def publish_product(
     outputs_dir: Path | str,
     platform_specific: bool = False,
     schedule_time: datetime | None = None,
+    disclosure_phrase: str | None = None,
 ) -> list[dict]:
     """Publish a product video in unified or platform-specific mode.
 
@@ -68,6 +69,8 @@ async def publish_product(
         platform_specific: If True, create separate posts per platform
             with per-platform optimized metadata.
         schedule_time: Optional scheduled time.
+        disclosure_phrase: Optional affiliate program literal phrase to
+            include in the caption between the disclosure and description.
 
     Returns:
     -------
@@ -81,11 +84,23 @@ async def publish_product(
 
     if platform_specific:
         results = await _publish_platform_specific(
-            publisher, media_id, product_id, platforms, outputs_dir, schedule_time
+            publisher,
+            media_id,
+            product_id,
+            platforms,
+            outputs_dir,
+            schedule_time,
+            disclosure_phrase=disclosure_phrase,
         )
     else:
         results = await _publish_unified(
-            publisher, media_id, product_id, platforms, outputs_dir, schedule_time
+            publisher,
+            media_id,
+            product_id,
+            platforms,
+            outputs_dir,
+            schedule_time,
+            disclosure_phrase=disclosure_phrase,
         )
 
     return results
@@ -98,6 +113,7 @@ async def _publish_unified(
     platforms: list[dict[str, str]],
     outputs_dir: Path,
     schedule_time: datetime | None,
+    disclosure_phrase: str | None = None,
 ) -> list[dict]:
     """Single post for all platforms with unified metadata."""
     # Load metadata from first available platform
@@ -111,6 +127,9 @@ async def _publish_unified(
 
     if not metadata:
         raise ValueError(f"No metadata found for {product_id}")
+
+    if disclosure_phrase:
+        metadata.affiliate_disclosure = disclosure_phrase
 
     trimmed = metadata.clamp_to_limits()
     if trimmed:
@@ -150,6 +169,7 @@ async def _publish_platform_specific(
     platforms: list[dict[str, str]],
     outputs_dir: Path,
     schedule_time: datetime | None,
+    disclosure_phrase: str | None = None,
 ) -> list[dict]:
     """Separate post per platform with platform-specific metadata."""
     results: list[dict] = []
@@ -174,6 +194,9 @@ async def _publish_platform_specific(
 
         if not metadata:
             raise ValueError(f"No metadata found for {product_id}/{platform_name}")
+
+        if disclosure_phrase:
+            metadata.affiliate_disclosure = disclosure_phrase
 
         trimmed = metadata.clamp_to_limits()
         if trimmed:
