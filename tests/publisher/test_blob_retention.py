@@ -102,7 +102,7 @@ async def test_run_deletes_selected_blobs(monkeypatch):
     monkeypatch.setattr(blob_retention, "delete_blobs", fake_delete)
 
     policy = BlobRetentionConfig(enabled=True, max_age_days=30, max_total_mb=10_000)
-    await run_blob_retention(pub, policy)
+    await run_blob_retention(pub, policy, now=NOW)
 
     assert deleted == [["old"]]
 

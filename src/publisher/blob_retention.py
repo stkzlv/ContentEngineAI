@@ -112,7 +112,9 @@ def select_blobs_to_delete(
 
 
 async def run_blob_retention(
-    publisher: LatePublisher, policy: BlobRetentionConfig | None
+    publisher: LatePublisher,
+    policy: BlobRetentionConfig | None,
+    now: datetime | None = None,
 ) -> None:
     """Apply the retention policy once after a publish run.
 
@@ -127,13 +129,14 @@ async def run_blob_retention(
         logger.debug("No Vercel token configured - skipping blob retention")
         return
 
+    if now is None:
+        now = datetime.now(UTC)
+
     try:
         protected = await publisher.get_unpublished_media_urls()
         async with aiohttp.ClientSession() as session:
             blobs = await list_blobs(session, token)
-            to_delete = select_blobs_to_delete(
-                blobs, policy, protected, datetime.now(UTC)
-            )
+            to_delete = select_blobs_to_delete(blobs, policy, protected, now)
             if not to_delete:
                 logger.info(
                     "Blob retention: nothing to delete (%d blobs, %d protected)",
