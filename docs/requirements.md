@@ -425,6 +425,13 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Non-blocking: failures never affect video publishing
 - Disabled by default, toggled via config
 
+### Affiliate Program Literal Phrase
+- Render the configured affiliate program identification phrase in the caption body of every published post when enabled
+- Phrase is placed between the leading disclosure line and the description
+- Configurable phrase and program name; defaults to the Amazon Associates identification phrase
+- Works in both unified and platform-specific publishing modes
+- Applies consistently across the standalone publisher CLI and the global batch pipeline
+
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory
 - Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content pillar

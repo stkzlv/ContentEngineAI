@@ -20,6 +20,7 @@ Disclosure is a default render output, not a per-video manual checklist. Where t
 |---|---|---|
 | Persistent on-frame disclosure overlay (`#ad` burned in a fixed corner, full-clip duration) | Shipped | FTC two-punch (overlay component). Configurable via `video_settings.disclosure_overlay` in `config/video_production.yaml` (text, position, size, color, background). Sized at 45% of subtitle font by default (slightly under FTC's 50-60% band, tuned for tighter corner placement against the platform UI corridor). Survives the pycaps subtitle pass because pycaps burns its captions onto the assembler's output rather than replacing it. |
 | First-line caption disclosure (`#ad` leads every caption on TikTok / Instagram / YouTube) | Shipped | FTC two-punch (caption component) and Spain CNMC. Configurable per render via the `disclosure` field on `PublishMetadata`; defaults to `#ad`. The string-only escape hatch lets language-aware variants inject `#publi` for Spanish renders without further code change. |
+| Affiliate program literal phrase (`As an Amazon Associate I earn from qualifying purchases` rendered in the caption body after `#ad`) | Shipped | Amazon Associates Operating Agreement. Configurable via `config/publisher.yaml::affiliate_disclosure` (enabled, phrase, program). Non-Amazon programs can override the phrase. |
 | TikTok branded-content disclosure (`commercialContentType=brand_organic`, `isBrandOrganicPost=true`) | Shipped | TikTok platform policy. Without it, TikTok rejects affiliate posts. |
 | YouTube AI-content disclosure (`containsSyntheticMedia=true`) | Shipped | YouTube platform policy. Required for AI-generated video. |
 
@@ -27,7 +28,6 @@ Disclosure is a default render output, not a per-video manual checklist. Where t
 
 | Layer | Status | What it satisfies |
 |---|---|---|
-| Affiliate program literal-phrase rendering | **(planned)** | Amazon Associates Operating Agreement. The literal "As an Amazon Associate I earn from qualifying purchases" phrase rendered in at least one of bio / on-frame / caption. |
 | Localized disclosure variants | **(planned)** | FTC same-language rule + Spain Royal Decree 444/2024. Spanish renders emit `#publi` or `#publicidad`; English renders emit `#ad`. The plumbing is already in place via the `disclosure` field on `PublishMetadata` and `DisclosureSettings`; remaining work wires script language to the field value. |
 
 ## Manual steps
@@ -58,16 +58,16 @@ Instagram's "Paid partnership" label is set in the post-edit flow. The publisher
 
 Same regulatory framing as YouTube above: this is a platform-policy layer, not the FTC floor.
 
-### Profile bio: Amazon Associates identification
+### Profile bio: Amazon Associates identification (optional)
 
-Amazon's Operating Agreement requires the literal phrase "As an Amazon Associate I earn from qualifying purchases" (or a substantially similar pre-approved statement) wherever Program Content is displayed. Render it in the profile bio of every social account that links to Amazon affiliate URLs:
+The pipeline renders the required literal phrase in the caption body of every post by default, so the per-account bio step is optional. If you want extra coverage, add it to the profile bio of every social account that links to Amazon affiliate URLs:
 
 - TikTok bio: tight character cap (80 chars). Use the shortened form: "Amazon Associate. I earn from qualifying purchases."
 - Instagram bio: 150-char cap. Same shortened form fits.
 - YouTube channel description (About tab): no character pressure; use the full literal phrase.
 - Link-in-bio page header: same as TikTok.
 
-This is a one-time manual setup per account, not per-video. The phrase doesn't need to appear on every video as long as the account that posts the video carries it in the bio. A closing-frame render of the same phrase is planned as a belt-and-suspenders measure.
+This is a one-time manual setup per account. A closing-frame render of the same phrase is deferred as a future belt-and-suspenders measure.
 
 ## Tracked SDK gaps
 

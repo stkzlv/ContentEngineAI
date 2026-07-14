@@ -23,6 +23,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - [Webhooks](#-webhooks)
 - [Post-Publication Cleanup](#-post-publication-cleanup)
 - [Link-in-Bio Integration](#-link-in-bio-integration)
+- [Affiliate Disclosure](#-affiliate-disclosure)
 - [First Comment](#-first-comment)
 - [Blob Store Retention](#-blob-store-retention)
 - [Published Products Registry](#-published-products-registry)
@@ -48,6 +49,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **✅ Progress Tracking**: Real-time upload progress with callbacks
 - **🔗 Link-in-Bio**: Auto-add affiliate links to bio page after publishing (Lnk.Bio, etc.)
 - **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
+- **🛡️ Affiliate Disclosure**: Renders the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
 For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).
@@ -493,6 +495,12 @@ privacy_settings:
   facebook: public                 # public, friends
   twitter: public                  # public
   linkedin: public                 # public, connections
+
+# === Affiliate Disclosure ===
+affiliate_disclosure:
+  enabled: true                                       # Render the literal phrase
+  phrase: "As an Amazon Associate I earn from qualifying purchases"
+  program: "amazon"                                   # Override for non-Amazon programs
 ```
 
 </details>
@@ -1387,6 +1395,42 @@ class BaseLinkInBioProvider(ABC):
 ```
 
 Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager()`.
+
+</details>
+
+---
+
+## 🛡️ Affiliate Disclosure
+
+Renders the affiliate program's required literal identification phrase in every post's caption body, between the `#ad` disclosure line and the description. This satisfies the Amazon Associates Operating Agreement by default, and non-Amazon programs can override the phrase and program name.
+
+<details>
+<summary><strong>Configuration</strong></summary>
+
+**YAML** (`config/publisher.yaml`):
+
+```yaml
+affiliate_disclosure:
+  enabled: true                                       # Render the literal phrase
+  phrase: "As an Amazon Associate I earn from qualifying purchases"
+  program: "amazon"                                   # Override for non-Amazon programs
+```
+
+**Behavior**:
+- Works in both unified and platform-specific publishing modes.
+- When `enabled: true`, the phrase is injected after `#ad` and before the description.
+- When `enabled: false`, captions stay as before (only `#ad` and description).
+- The `program` key is metadata only; it does not change how the phrase is rendered.
+
+</details>
+
+<details>
+<summary><strong>How It Works</strong></summary>
+
+1. `load_publisher_config()` parses `affiliate_disclosure` into `AffiliateDisclosureConfig`.
+2. `cmd_single()` and the global batch pass `disclosure_phrase` to `publish_product()` only when enabled.
+3. `publish_product()` sets `PublishMetadata.affiliate_disclosure`, and `format_content()` places it between the disclosure line and the description.
+4. The phrase is included in `PublishMetadata.to_dict()` and `PublisherConfig.to_dict()` for serialization.
 
 </details>
 
