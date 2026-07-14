@@ -142,6 +142,14 @@ class AffiliateDisclosureConfig:
     phrase: str = "As an Amazon Associate I earn from qualifying purchases"
     program: str = "amazon"
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "enabled": self.enabled,
+            "phrase": self.phrase,
+            "program": self.program,
+        }
+
 
 @dataclass
 class PublishMetadata:
@@ -334,6 +342,7 @@ class PublishMetadata:
             "character_counts": self.character_counts,
             "product_id": self.product_id,
             "disclosure": self.disclosure,
+            "affiliate_disclosure": self.affiliate_disclosure,
         }
 
 
@@ -541,6 +550,7 @@ class PublisherConfig:
             "stagger_delay_max": self.stagger_delay_max,
             "schedule_config": self.schedule_config.to_dict(),
             "cleanup_config": self.cleanup_config.to_dict(),
+            "affiliate_disclosure_config": self.affiliate_disclosure_config.to_dict(),
         }
 
 

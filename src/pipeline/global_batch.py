@@ -1354,7 +1354,7 @@ class GlobalPipelineOrchestrator:
         import yaml
 
         from src.publisher import PublisherProvider, create_publisher
-        from src.publisher.models import Platform
+        from src.publisher.models import AffiliateDisclosureConfig, Platform
 
         phase_start = time.time()
 
@@ -1676,9 +1676,14 @@ class GlobalPipelineOrchestrator:
                     or publisher_config.get("use_platform_specific_content", False)
                 )
 
-                disc_raw = publisher_config.get("affiliate_disclosure", {})
+                disc_raw = publisher_config.get("affiliate_disclosure", {}) or {}
+                affiliate_cfg = (
+                    AffiliateDisclosureConfig(**disc_raw)
+                    if disc_raw
+                    else AffiliateDisclosureConfig()
+                )
                 disclosure_phrase = (
-                    disc_raw.get("phrase") if disc_raw.get("enabled", True) else None
+                    affiliate_cfg.phrase if affiliate_cfg.enabled else None
                 )
                 publish_results = await publish_product(
                     publisher=publisher,

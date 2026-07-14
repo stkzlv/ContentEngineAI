@@ -253,6 +253,72 @@ class TestPublishProductPlatformSpecific:
         assert isinstance(call_args.args[2], Path)
 
 
+class TestAffiliateDisclosure:
+    """Affiliate program literal phrase is threaded into captions."""
+
+    PHRASE = "As an Amazon Associate I earn from qualifying purchases"
+
+    @pytest.mark.asyncio
+    async def test_unified_includes_disclosure_phrase(self, mock_publisher, platforms, mock_metadata):
+        """Unified publish content includes the affiliate phrase."""
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=mock_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                disclosure_phrase=self.PHRASE,
+            )
+
+        content = mock_publisher.publish.call_args.kwargs["content"]
+        assert self.PHRASE in content
+        assert content.startswith("#ad\n")
+
+    @pytest.mark.asyncio
+    async def test_unified_omits_phrase_when_none(self, mock_publisher, platforms, mock_metadata):
+        """No affiliate phrase is inserted when disclosure_phrase is None."""
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=mock_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                disclosure_phrase=None,
+            )
+
+        content = mock_publisher.publish.call_args.kwargs["content"]
+        assert self.PHRASE not in content
+        assert content.startswith("#ad\n")
+
+    @pytest.mark.asyncio
+    async def test_platform_specific_includes_disclosure_phrase(self, mock_publisher, platforms, mock_metadata):
+        """Platform-specific mode includes the phrase in every post."""
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=mock_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=True,
+                disclosure_phrase=self.PHRASE,
+            )
+
+        for call in mock_publisher.publish.call_args_list:
+            assert self.PHRASE in call.kwargs["content"]
+
+
 class TestPublishClampsMetadata:
     """Metadata exceeding platform limits is clamped before publish (#109)."""
 
