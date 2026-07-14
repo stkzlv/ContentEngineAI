@@ -419,6 +419,17 @@ class TestPublishMetadata:
         as_dict = metadata.to_dict()
         assert as_dict["disclosure"] == "#publi"
 
+    def test_to_dict_includes_affiliate_disclosure(self):
+        """to_dict serialization carries the affiliate disclosure phrase."""
+        metadata = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Body.",
+            affiliate_disclosure="Paid promotion.",
+        )
+        as_dict = metadata.to_dict()
+        assert as_dict["affiliate_disclosure"] == "Paid promotion."
+
 
 class TestPublisherConfig:
     """Test PublisherConfig dataclass."""

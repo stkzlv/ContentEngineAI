@@ -524,3 +524,41 @@ affiliate_disclosure:
             config.affiliate_disclosure_config.phrase
             == "As an Amazon Associate I earn from qualifying purchases"
         )
+
+    def test_affiliate_disclosure_to_dict(self):
+        """AffiliateDisclosureConfig serializes to a plain dict."""
+        cfg = AffiliateDisclosureConfig(
+            enabled=True,
+            phrase="Paid promotion by ShareASale partner",
+            program="shareasale",
+        )
+        assert cfg.to_dict() == {
+            "enabled": True,
+            "phrase": "Paid promotion by ShareASale partner",
+            "program": "shareasale",
+        }
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_publisher_config_to_dict_includes_affiliate_disclosure(self, tmp_path):
+        """PublisherConfig.to_dict() includes the affiliate disclosure section."""
+        config_file = tmp_path / "publisher.yaml"
+        config_file.write_text(
+            """
+provider: late
+api_key: sk_live_key_12345
+affiliate_disclosure:
+  enabled: true
+  phrase: "Paid promotion by ShareASale partner"
+  program: "shareasale"
+"""
+        )
+
+        config = load_publisher_config(config_path=config_file)
+        as_dict = config.to_dict()
+
+        assert "affiliate_disclosure_config" in as_dict
+        assert as_dict["affiliate_disclosure_config"] == {
+            "enabled": True,
+            "phrase": "Paid promotion by ShareASale partner",
+            "program": "shareasale",
+        }
