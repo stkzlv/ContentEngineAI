@@ -259,7 +259,9 @@ class TestAffiliateDisclosure:
     PHRASE = "As an Amazon Associate I earn from qualifying purchases"
 
     @pytest.mark.asyncio
-    async def test_unified_includes_disclosure_phrase(self, mock_publisher, platforms, mock_metadata):
+    async def test_unified_includes_disclosure_phrase(
+        self, mock_publisher, platforms, mock_metadata
+    ):
         """Unified publish content includes the affiliate phrase."""
         with patch(
             "src.publisher.publish_modes.load_platform_metadata",
@@ -279,7 +281,9 @@ class TestAffiliateDisclosure:
         assert content.startswith("#ad\n")
 
     @pytest.mark.asyncio
-    async def test_unified_omits_phrase_when_none(self, mock_publisher, platforms, mock_metadata):
+    async def test_unified_omits_phrase_when_none(
+        self, mock_publisher, platforms, mock_metadata
+    ):
         """No affiliate phrase is inserted when disclosure_phrase is None."""
         with patch(
             "src.publisher.publish_modes.load_platform_metadata",
@@ -299,7 +303,9 @@ class TestAffiliateDisclosure:
         assert content.startswith("#ad\n")
 
     @pytest.mark.asyncio
-    async def test_platform_specific_includes_disclosure_phrase(self, mock_publisher, platforms, mock_metadata):
+    async def test_platform_specific_includes_disclosure_phrase(
+        self, mock_publisher, platforms, mock_metadata
+    ):
         """Platform-specific mode includes the phrase in every post."""
         with patch(
             "src.publisher.publish_modes.load_platform_metadata",

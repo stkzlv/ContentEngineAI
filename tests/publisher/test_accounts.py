@@ -496,7 +496,10 @@ affiliate_disclosure:
         config = load_publisher_config(config_path=config_file)
 
         assert config.affiliate_disclosure_config.enabled is True
-        assert config.affiliate_disclosure_config.phrase == "Paid promotion by ShareASale partner"
+        assert (
+            config.affiliate_disclosure_config.phrase
+            == "Paid promotion by ShareASale partner"
+        )
         assert config.affiliate_disclosure_config.program == "shareasale"
 
     @patch.dict("os.environ", {}, clear=True)
@@ -517,4 +520,7 @@ affiliate_disclosure:
         config = load_publisher_config(config_path=config_file)
 
         assert config.affiliate_disclosure_config.enabled is False
-        assert config.affiliate_disclosure_config.phrase == "As an Amazon Associate I earn from qualifying purchases"
+        assert (
+            config.affiliate_disclosure_config.phrase
+            == "As an Amazon Associate I earn from qualifying purchases"
+        )
