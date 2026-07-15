@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-31
+Last updated: 2026-07-16
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
@@ -12,15 +12,7 @@ Issues and PRs are welcome on any item. If you want to pick something up, open a
 
 Targeted to gate the 1.0.0 release. Creators using the pipeline for affiliate marketing have legal disclosure obligations under the FTC Endorsement Guides (any US-facing content), the Amazon Associates Operating Agreement (any Amazon affiliate program participant), and per-platform policy (TikTok / Instagram / YouTube). Compliance is not a polish item: FTC penalties reach $53,088 per violation per post in 2025 and Amazon Associates enforces with account termination, no warning. The pipeline should make compliance the default render output, not a per-video checklist.
 
-The persistent on-frame overlay, first-line caption disclosure, platform-tag audit, regression suite, and `docs/compliance.md` shipped together. What remains gates 1.0.0:
-
-### 0.3 Affiliate program literal-phrase rendering
-
-Add a configurable literal-phrase block that ships the affiliate program's required identification text. For Amazon Associates: "As an Amazon Associate I earn from qualifying purchases" (or a substantially similar pre-approved statement). Render in at least one of: profile bio, the closing frame of the video, or the caption body. Drive from a new `affiliate_disclosure` config keyed by program name so non-Amazon programs (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
-
-**Status:** Caption-body rendering shipped. Closing-frame overlay deferred.
-
-**Done when:** every published video includes the configured affiliate program literal phrase in at least one of bio / on-frame / caption.
+The persistent on-frame overlay, first-line caption disclosure, platform-tag audit, regression suite, `docs/compliance.md`, and affiliate program literal phrase shipped together. What remains gates 1.0.0:
 
 ### 0.4 Localized disclosure variants
 
@@ -370,6 +362,9 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Phase 0.6 cross-cutting disclosure regression suite at `tests/test_disclosure_stack.py` covers all four disclosure surfaces with consistency invariants.
 - Phase 0.7 `docs/compliance.md` describes the disclosure stack, regulator coverage, and the per-video manual workarounds for SDK gaps.
 - Phase 2.1 registry side: `pillar` column on the published-products registry; `--rebuild` retroactively tags rows from the producer state file. Backward-compatible loader.
+
+**Affiliate program literal phrase (0.58.1)**
+- Phase 0.3 caption-body rendering of the configured affiliate program identification phrase via `config/publisher.yaml::affiliate_disclosure` (enabled, phrase, program). Defaults to the Amazon Associates text; non-Amazon programs can override the phrase and program name. Closing-frame overlay deferred.
 
 **Script template hook and closing rules (0.48.x)**
 - Phase 1.1 long-tail audio keyword required in line 1 of every script template. Six proven hook patterns listed in each template's Rules block; literal Google-query shape called out as anti-pattern.

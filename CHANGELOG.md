@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.58.1] - 2026-07-16
+
 ### Added
 - Affiliate program literal phrase rendered in the caption body between the `#ad` disclosure and the description. Configurable via `config/publisher.yaml::affiliate_disclosure` (enabled, phrase, program). Supports Amazon Associates and non-Amazon programs.
+
+### Fixed
+- Added missing documentation updates for the affiliate literal-phrase feature (`README.md`, `docs/compliance.md`, `docs/publisher.md`, `docs/requirements.md`) and corrected the release metadata.
 
 ## [0.57.1] - 2026-07-07
 
