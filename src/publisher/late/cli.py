@@ -516,6 +516,8 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             or config.use_platform_specific_content
         )
 
+        disc_cfg = config.affiliate_disclosure_config
+        disclosure_phrase = disc_cfg.phrase if disc_cfg.enabled else None
         publish_results = await publish_product(
             publisher=publisher,
             media_id=media_url,
@@ -524,6 +526,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             outputs_dir=outputs_dir,
             platform_specific=platform_specific,
             schedule_time=schedule_time,
+            disclosure_phrase=disclosure_phrase,
         )
 
         # Record successful publish for each result

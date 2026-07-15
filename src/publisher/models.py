@@ -129,6 +129,29 @@ class PublishResult:
 
 
 @dataclass
+class AffiliateDisclosureConfig:
+    """Configuration for the affiliate program literal-phrase disclosure.
+
+    Renders the configured literal phrase in the caption body after the
+    standard ``disclosure`` (``#ad``) line. Driven from
+    ``config/publisher.yaml::affiliate_disclosure`` so non-Amazon programs
+    (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
+    """
+
+    enabled: bool = True
+    phrase: str = "As an Amazon Associate I earn from qualifying purchases"
+    program: str = "amazon"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "enabled": self.enabled,
+            "phrase": self.phrase,
+            "program": self.program,
+        }
+
+
+@dataclass
 class PublishMetadata:
     """Platform-specific metadata for video publishing.
 
@@ -155,6 +178,7 @@ class PublishMetadata:
     character_counts: dict[str, int] = field(default_factory=dict)
     product_id: str | None = None
     disclosure: str = "#ad"
+    affiliate_disclosure: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and normalization."""
@@ -281,6 +305,12 @@ class PublishMetadata:
         if self.disclosure:
             parts.append(self.disclosure)
 
+        # Affiliate program literal phrase (Amazon Associates requirement).
+        # Sits between the #ad disclosure and the description so both are
+        # visible above the "more" fold on Instagram/TikTok.
+        if self.affiliate_disclosure:
+            parts.append(self.affiliate_disclosure)
+
         # Description only - title is handled separately by platform APIs
         parts.append(self.description)
 
@@ -312,6 +342,7 @@ class PublishMetadata:
             "character_counts": self.character_counts,
             "product_id": self.product_id,
             "disclosure": self.disclosure,
+            "affiliate_disclosure": self.affiliate_disclosure,
         }
 
 
@@ -431,6 +462,9 @@ class PublisherConfig:
     blob_retention_config: "BlobRetentionConfig" = field(
         default_factory=lambda: BlobRetentionConfig()
     )
+    affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
+        default_factory=lambda: AffiliateDisclosureConfig()
+    )
     use_platform_specific_content: bool = False
     # Per-platform video profile routing (Phase 1.3).
     # Maps platform name (lowercased: "tiktok"/"youtube"/"instagram") to a
@@ -516,6 +550,7 @@ class PublisherConfig:
             "stagger_delay_max": self.stagger_delay_max,
             "schedule_config": self.schedule_config.to_dict(),
             "cleanup_config": self.cleanup_config.to_dict(),
+            "affiliate_disclosure_config": self.affiliate_disclosure_config.to_dict(),
         }
 
 
