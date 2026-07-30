@@ -1,7 +1,5 @@
 # Platform Safe Zones for Vertical Video (9:16)
 
-Last updated: 2026-05-31
-
 Canonical reference for UI overlay areas on TikTok, YouTube Shorts, and
 Instagram Reels. All measurements are for a **1080x1920** frame. This is the
 single source of truth for safe-zone numbers in the project. The subtitle and

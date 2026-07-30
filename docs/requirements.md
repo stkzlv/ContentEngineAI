@@ -373,7 +373,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 ## Publisher Module
 
 ### Service Integration
-- Publish via third-party scheduling services (e.g., Late.dev)
+- Publish via third-party scheduling services (Zernio, formerly Late)
 - Multi-platform support: YouTube, TikTok, Instagram
 - API-based upload and status tracking
 - Reading a post's status or listing posts tolerates a published leg that reports no platform URL (some platforms return none), so status checks, first-comment verification, slot-occupancy detection, and media cleanup keep working instead of failing on such a post.

@@ -23,7 +23,7 @@ poetry run python -c "
 import os
 from dotenv import load_dotenv
 load_dotenv()
-keys = ['OPENROUTER_API_KEY', 'PEXELS_API_KEY', 'FREESOUND_API_KEY']
+keys = ['GEMINI_API_KEY', 'PEXELS_API_KEY', 'FREESOUND_API_KEY']
 for key in keys:
     status = '✓' if os.getenv(key) else '✗'
     print(f'{status} {key}')
@@ -311,8 +311,8 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
 
 **Diagnostics:**
 1. **Check Debug Files:**
-   - `outputs/temp/[product_id]/steps/formatted_prompt.txt` - Sent to LLM
-   - `outputs/temp/[product_id]/steps/script.txt` - LLM response
+   - `outputs/[product_id]/temp/script_prompt.txt` - Rendered prompt sent to LLM
+   - `outputs/[product_id]/script.txt` - Generated script (LLM response)
 
 2. **Test LLM Connection:**
    ```bash
@@ -397,8 +397,8 @@ for voice in voices.voices[:5]:
 
 **Diagnostics:**
 1. **Check Debug Files:**
-   - `outputs/temp/[product_id]/temp_subtitles/` - Generated SRT files
-   - `outputs/temp/[product_id]/steps/voiceover_timings.json` - Timing data
+   - `outputs/[product_id]/temp/temp_subtitles/` - Generated SRT files
+   - `outputs/[product_id]/temp/voiceover_timings.json` - Timing data
 
 2. **Test Whisper Installation:**
    ```bash
@@ -443,13 +443,13 @@ for voice in voices.voices[:5]:
 
 **Diagnostics:**
 1. **Check FFmpeg Command:**
-   - Look in `outputs/temp/[product_id]/ffmpeg_command.log`
+   - Look in `outputs/[product_id]/temp/ffmpeg_command.log`
    - Check console logs for FFmpeg errors
 
 2. **Verify Input Files:**
    ```bash
    # Check temp directory has all required files
-   ls -la outputs/temp/[product_id]/
+   ls -la outputs/[product_id]/temp/
    ```
 
 **Solutions:**
@@ -605,7 +605,7 @@ make perf-report
      model_size: "tiny"            # Fastest Whisper model
    
    llm_settings:
-     models: ["anthropic/claude-3-haiku"]  # Fastest LLM
+     models: ["gemini-2.5-flash-lite"]  # Fast Gemini model (primary provider)
    ```
 
 ### Memory Issues
@@ -669,11 +669,11 @@ for file in config_files:
 3. **Validate Lists:**
    ```yaml
    # Wrong
-   models: anthropic/claude-3-haiku
+   models: gemini-2.5-flash-lite
    
    # Right
    models:
-     - anthropic/claude-3-haiku
+     - gemini-2.5-flash-lite
    ```
 
 ### Pydantic Validation Errors

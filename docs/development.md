@@ -499,26 +499,7 @@ def expensive_operation(param):
 
 ## Release Process
 
-### Version Management
-
-1. **Update Version:**
-```bash
-# Update pyproject.toml version
-poetry version patch  # or minor, major
-```
-
-2. **Update Documentation:**
-- Update README.md with new features
-- Update CHANGELOG.md with changes
-- Update configuration examples if needed
-
-3. **Run Full Test Suite:**
-```bash
-make lint
-make test
-make security
-make vulture
-```
+The semantic-versioning rules, version-bump steps, and the automated tag-driven release flow live in [docs/versioning.md](versioning.md). Follow that as the single source of truth; don't duplicate the steps here.
 
 ### Performance Benchmarking
 

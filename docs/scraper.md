@@ -6,7 +6,7 @@ The scraper extracts product data from Amazon for video production. It handles m
 
 ```bash
 # Single product by ASIN
-poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug
+poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
 
 # Keyword search
 poetry run python -m src.scraper.amazon.scraper --keywords "wireless earbuds" --min-rating 4.5 --debug
@@ -70,13 +70,16 @@ Two settings control how many products get scraped:
 | Setting | Config path | Default | CLI override |
 |---------|------------|---------|--------------|
 | `products_per_keyword` | `batch.products_per_keyword` | `1` | `--products-per-keyword N` |
-| `max_products` | `scrapers.amazon.max_products` | `50` | `--max-products N` |
+| `max_products` | `scrapers.amazon.max_products` | `5` code default (bundled `config/scraper.yaml` sets `1`) | `--max-products N` |
+| `max_products_per_search` | `scrapers.amazon.max_products_per_search` | `10` (Pydantic default `5`) | none |
+
+`max_products` is the total validated-product cap for the run. `max_products_per_search` is the distinct per-page extraction cap (how many products are read from a single search results page).
 
 ### How they interact
 
 Each keyword is scraped independently with `products_per_keyword` as the per-keyword limit. After collecting results from a keyword, the total is checked against `max_products`. If the total reaches `max_products`, remaining keywords are skipped.
 
-With the defaults (1 per keyword, 50 max), every keyword in the batch gets processed and contributes 1 product each. The `max_products: 50` just acts as a safety cap.
+The bundled `config/scraper.yaml` sets `max_products: 1`, so a run stops after the first validated product. Raise `scrapers.amazon.max_products` (or pass `--max-products N`) to collect more across keywords.
 
 ### Product IDs vs keywords
 
@@ -110,12 +113,12 @@ For example, if `products_per_keyword: 3`, the scraper fetches ~9 products per p
 
 ### Config precedence
 
-CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword` in both `config/scraper.yaml` and `config/pipeline.yaml`, 10 for `max_products`).
+CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword`; `scrapers.amazon.max_products` is 1 in the bundled `config/scraper.yaml`, with a code default of 5 when unset).
 
 ### Examples
 
-**Default config (no CLI args)**: 11 keywords configured, `products_per_keyword: 1`, `max_products: 50`
-- Result: 11 products (1 per keyword, all keywords processed)
+**Default config (no CLI args)**: keywords from config, `products_per_keyword: 1`, bundled `max_products: 1`
+- Result: 1 product (the run stops once the cap is reached). Raise `--max-products` to collect one per keyword across the pool.
 
 **3 keywords, 2 per keyword, no cap**: `--keywords "a" "b" "c" --products-per-keyword 2`
 - Result: up to 6 products (2 per keyword x 3 keywords)
@@ -135,7 +138,8 @@ scrapers:
   amazon:
     enabled: true
     headless: true
-    max_products: 50  # global cap across all keywords
+    max_products: 1  # total validated-product cap for the run
+    max_products_per_search: 10  # per-page extraction cap
 
 batch:
   keywords: ["smart ring", "mini projector"]  # default keywords when no CLI args

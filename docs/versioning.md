@@ -109,11 +109,10 @@ Automated dependency updates (Dependabot) follow the **batch into patch releases
 
 ContentEngineAI will reach 1.0.0 when:
 
-- ✅ **Core Pipeline**: End-to-end video production pipeline stable
-- ✅ **Multi-Platform Support**: Amazon + 2 additional platforms
+- ✅ **Core Pipeline**: End-to-end video production pipeline stable on Amazon
 - ✅ **API Stability**: Public APIs finalized with backward compatibility
 - ✅ **Documentation**: Complete user and developer documentation
-- ✅ **Test Coverage**: >95% code coverage with comprehensive integration tests
+- ✅ **Test Coverage**: Critical paths (scraper, producer, publisher) covered by unit + integration tests at >=80% module level; a global coverage floor enforced in CI. The >=90% global target is a post-1.0.0 aspiration, not a release blocker.
 - ✅ **Performance**: Consistent sub-5-minute video generation
 - ✅ **Community**: Active contributor base and issue resolution
 - ✅ **Production Use**: Successfully deployed in production environments

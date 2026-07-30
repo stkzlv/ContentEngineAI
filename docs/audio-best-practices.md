@@ -73,6 +73,17 @@ Mix targets converge across audio-for-video guidance:
 the "music under voice" band above. Fades are `music_fade_in_duration` /
 `music_fade_out_duration`.
 
+These two numbers are not the same measure as the target levels in the table.
+`voiceover_volume_db` and `music_volume_db` are per-track gain offsets applied
+at the `amix` stage (the voiceover track gets +3 dB, the music track -24 dB),
+not absolute peak or LUFS targets. The "-3 to -6 dB peak" figure is the goal
+for the voiceover's peak level in the finished mix. A +3 dB mix offset and a
+-3 to -6 dB peak target don't conflict: the offset sets the voice above the
+music inside the mix, and the source voiceover level plus that offset is what
+lands near the peak target. There's no separate peak-normalization or
+loudness-target stage in the pipeline yet, so treat the table as the goal and
+the config gains as the lever.
+
 **Ducking** (music level keyed to the presence of voice) keeps the gap clean:
 the music drops when narration plays and recovers in the gaps, instead of one
 fixed level for the whole clip. The assembler's audio builder
@@ -81,8 +92,12 @@ fixed level for the whole clip. The assembler's audio builder
 sidechain duck (FFmpeg `sidechaincompress`) is a future improvement.
 
 **`silence_min_duration_sec` is a trim knob, not a level knob.** Audio
-trimming and music ducking are separate concerns; see the audio module notes in
-CLAUDE.md for the trimming semantics.
+trimming and music ducking are separate concerns. The field maps to the ffmpeg
+`silenceremove` `start_duration`: the continuous non-silence window the filter
+must detect before it stops trimming, so larger values trim MORE, not less, and
+audio inside that window is discarded. Short trailing words (under ~0.4 s) get
+eaten if the value exceeds the word length, so keep it at 0.1 s or below. It
+lives in `config/ai_services.yaml::audio_processing`.
 
 ## 3. Trending sound vs. original audio
 
@@ -98,8 +113,10 @@ narration-led, so the trade-off is different:
   the trend signal without burying the narration. Keep it ducked per section 2.
 - **Licensing matters for a commercial pipeline.** Borrowed commercial music
   carries takedown and monetization risk. The pipeline's audio providers
-  (Jamendo CC-licensed, Freesound) exist for this reason; see the audio module
-  notes in CLAUDE.md and `config/video_production.yaml`.
+  (Jamendo CC-licensed as primary, then Freesound, with local files as the last
+  resort) exist for this reason. The provider chain is configured via the
+  `audio_providers` list in `config/video_production.yaml` and tried in order,
+  first successful download wins.
 
 ## 4. The audio hook
 

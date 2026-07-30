@@ -23,7 +23,7 @@ Base: `https://lnk.bio/oauth/v1`.
 |---|---|---|---|
 | POST | `/lnk/add` | `title`, `link`, optional `image` (URL) or multipart `image` (file) | Returns `{data: {id, url}}`. New link appears at the **top** of the bio. |
 | GET | `/lnk/list` | — | Returns at most **50** links per call, see below. |
-| POST | `/lnk/edit` | `link_id`, `title` | **Undocumented but real.** In-place edit; same `id`, same position in the bio. Verified working as of 2026-05. |
+| POST | `/lnk/edit` | `link_id`, `title` | **Undocumented but real.** In-place edit; same `id`, same position in the bio. Verified working. |
 | POST | `/lnk/delete` | `link_id` | Returns `{status: true}` on success. |
 
 `/lnk/edit` is the right tool when you only need to change the title; reach for delete + re-add only if you also need to change the image or move the link to the top.

@@ -200,7 +200,7 @@ Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via
 
 ## Toward 1.0.0
 
-The current line is `0.42.x`, status pre-production. Most of the feature surface is built. What stands between today and 1.0.0 is consolidation: API stability, test coverage at target, distribution, and proof that the pipeline runs reliably at volume.
+The current line is `0.58.x`, status pre-production. Most of the feature surface is built. What stands between today and 1.0.0 is consolidation: API stability, test coverage at target, distribution, and proof that the pipeline runs reliably at volume.
 
 Concrete gates for the 1.0.0 release:
 
@@ -208,7 +208,7 @@ Concrete gates for the 1.0.0 release:
 - Config schema frozen for one full minor cycle. No breaking field renames or removals; new fields are additive with sensible defaults.
 - CLI flags stable across producer, scraper, publisher, and global batch. Removals go through a one-release deprecation with a `DeprecationWarning`.
 - Public Python entry points (`src/pipeline.global_batch`, `src/video.producer.cli`, `src/scraper.amazon.scraper`, `src/publisher.late.cli`) treated as a stable surface; signature changes need a major bump.
-- Module/Batch Alignment Rule covers every flag pair (CLAUDE.md), enforced in CI by a parity test.
+- Every flag pair shared between a standalone module CLI and the global batch stays in sync (same names, choices, and override keys), enforced in CI by a parity test.
 
 **Test coverage on the critical paths**
 - Critical-path coverage is the gate, not a global percentage: scraper end-to-end, producer end-to-end, and publisher per-platform each covered by unit + integration tests, at >=80% module-level on those paths.
@@ -247,7 +247,7 @@ Concrete gates for the 1.0.0 release:
 - Subtitled videos render correctly on TikTok, YouTube Shorts, and Instagram Reels under manual QA on each platform's safe-zone overlays.
 - Affiliate links land in the link-in-bio destination automatically with no manual cleanup.
 
-When all gates are green, the next release is `1.0.0`, not `0.43.x`. Anything not on this list is a 1.x or 2.x conversation.
+When all gates are green, the next release is `1.0.0`. Anything not on this list is a 1.x or 2.x conversation.
 
 ## Update rules
 
@@ -309,7 +309,7 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Metadata cache with TTL, A/B testing scaffolding, batch generation, multi-format export, trend-aware hashtag merging.
 
 **Publisher (0.18.x - 0.19.x, 0.22.x, 0.24.x, 0.29.x, 0.33.x, 0.38.x)**
-- Late.dev integration (rebranded as Zernio) with multi-platform support: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn.
+- Zernio integration (formerly Late) with multi-platform support: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn.
 - Auto-scheduling with occupied-slot detection across an 8-week lookahead.
 - Post-publication cleanup with safety checks.
 - Multi-account support, conflict resolution with alternatives, retry queue, webhook handler with HMAC verification.

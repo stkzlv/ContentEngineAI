@@ -55,7 +55,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Pycaps Subtitles](docs/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
 | [Platform Safe Zones](docs/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
 | [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
-| [Publisher](docs/publisher.md) | Social media publishing via Late.dev |
+| [Publisher](docs/publisher.md) | Social media publishing via Zernio |
 | [Compliance](docs/compliance.md) | FTC, Amazon Associates, and EU disclosure stack with manual workarounds |
 | [Architecture](docs/architecture.md) | System design and module overview |
 | [Roadmap](docs/roadmap.md) | Planned work by horizon (Now / Next / Later) |

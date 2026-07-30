@@ -228,7 +228,7 @@ For downloading full-quality audio files from Freesound:
 For social media publishing and link-in-bio integration, add these to your `.env`:
 
 ```bash
-# Publishing (Late.dev)
+# Publishing (Zernio, published via the legacy Late SDK)
 LATE_API_KEY=your-late-api-key
 
 # Amazon affiliate tag

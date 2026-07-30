@@ -551,7 +551,7 @@ Total Pipeline Duration: 158.2s
 - **Dry-Run Mode**: Preview pipeline plan without executing with `--dry-run` flag
 - **JSON Output**: Machine-readable summaries with `--output-format json` for automation
 - **Webhook Notifications**: Non-blocking POST to configured URL on phase/pipeline events
-- **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying Late.co API
+- **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying the Zernio API
 - **Smart Cleanup**: Removes product directories after successful multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
 - **Error Resilience**: Graceful failure handling with optional fail-fast mode per phase
