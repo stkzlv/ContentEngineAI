@@ -1,6 +1,6 @@
 # Testing Guide
 
-ContentEngineAI uses a comprehensive test suite (**2578 tests collected**) across unit, integration, and end-to-end categories.
+ContentEngineAI uses a comprehensive test suite across unit, integration, and end-to-end categories. Run `make test` (or `poetry run pytest --collect-only -q | tail -1`) for the current count.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ poetry run pytest tests/test_slideshow_images1_verification.py -v
 poetry run pytest tests/test_slideshow_images1_verification.py::TestSlideshowImagesVerification::test_slideshow_images1_background_music_verification -v
 ```
 
-**Verification artifacts** stored in: `outputs/videos/{product_id}/{profile_name}/temp/verification/`
+**Verification artifacts** stored in: `outputs/<ASIN>/temp/verification/`
 
 </details>
 
@@ -89,7 +89,7 @@ tests/
 ├── # Integration Tests
 ├── integration/
 │   ├── test_freesound_integration.py  # Freesound API integration
-│   ├── test_late_publisher.py       # Late.dev publisher integration
+│   ├── test_late_publisher.py       # Zernio publisher integration
 │   └── test_platform_metadata_integration.py  # Metadata integration
 │
 ├── # Pipeline Tests
@@ -101,7 +101,7 @@ tests/
 ├── # Publisher Tests
 ├── publisher/
 │   ├── late/
-│   │   └── test_client.py           # Late.dev API client
+│   │   └── test_client.py           # Zernio API client
 │   ├── test_accounts.py             # Account management
 │   ├── test_base.py                 # Base publisher interface
 │   ├── test_batch.py                # Batch publishing
@@ -185,7 +185,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: 50% (currently at 56%)
+- **Overall minimum**: enforced by the CI `--cov-fail-under` gate; run `make test-cov` for the current number
 
 **Generate coverage report:**
 ```bash
@@ -279,7 +279,7 @@ poetry run pytest -vv --tb=long
 The automated suite catches regressions in code paths it covers; it does not prove your change produces a correct real artifact. After any change that alters runtime behavior, run the real path it touches and inspect the real output (a file, a video, a log line, a published post), not just a green test run. Two principles drive everything below:
 
 - **Run the narrowest path that exercises the change, then widen.** A scraper change needs a scrape, not a full batch. Only run the whole pipeline when the change spans phases or you're verifying a release.
-- **Verify both implementations when the logic is duplicated.** The standalone module CLIs (scraper, producer, publisher) and `global_batch` re-implement the same logic (Module/Batch Alignment Rule in `CLAUDE.md`). A change to shared behavior has to be checked on both paths, because they drift silently.
+- **Verify both implementations when the logic is duplicated.** The standalone module CLIs (scraper, producer, publisher) and `global_batch` re-implement the same logic (scheduling, validation, retry, cleanup) rather than calling each other. A change to shared behavior has to be checked on both paths, because they drift silently.
 
 Match the change to the check:
 
@@ -338,7 +338,7 @@ ffprobe -v error \
 
 Codec should be `h264 + aac`, resolution `1080×1920`, duration within a second of the voiceover length. The producer log calls out any warnings worth a closer look: `Duration mismatch`, `Subtitle content similarity to script is low`, threshold breaches for a particular step.
 
-After **publish**: the Late SDK returns a post ID and a per-platform status map. All three platforms (TikTok, YouTube, Instagram) should show `scheduled`. The publisher cleanup step removes the product directory once the Late API confirms the scheduled state, so `outputs/<ASIN>/` disappears when this phase finishes cleanly.
+After **publish**: the Late SDK returns a post ID and a per-platform status map. All three platforms (TikTok, YouTube, Instagram) should show `scheduled`. The publisher cleanup step removes the product directory once Zernio confirms the scheduled state, so `outputs/<ASIN>/` disappears when this phase finishes cleanly.
 
 ### Why not just `make batch-lowpri`
 
@@ -375,7 +375,7 @@ Live state comes from Zernio. The authoritative read is the post status, not the
 - `link-in-bio` runs only on the `single` path, after a successful publish, and reads `outputs/<ASIN>/data.json`. Config defaults it on, so pass `--no-link-in-bio` to keep it off. If the platforms are all already published, `single` returns before the link-in-bio step, so `--link-in-bio` alone is a no-op there. After the product dir is cleaned the `data.json` is gone; to set the link later, reconstruct a `data.json` from `published_products.json` in a temp dir and call `LinkInBioManager.update(<ASIN>, <tmp_outputs>)`. The bio thumbnail comes from `images[0]` (remote URL) or `downloaded_images[0]` (local file) in `data.json`, neither of which the registry stores, so a title-plus-`affiliate_link` reconstruction produces a text-only link with no thumbnail. Re-scrape the ASIN (regenerates `images/` + `data.json`) if the thumbnail matters.
 - `schedule auto` needs `--auto-resolve` to take an alternative slot when the preferred slot is occupied (2h `min_post_spacing` by default). Without it, a conflict counts the product as failed and suggests slots. The publisher schedule path exits non-zero on failure; the global batch exits non-zero when nothing completes end-to-end, but partial failures still exit 0. Verify the batch by grepping the phase-summary log lines, not `$?`.
 - Cleanup is conservative: it skips while a leg is still `publishing` (immediate runs, the dir stays) and runs once a post is `scheduled` (the dir is removed after the tracking/registry writes).
-- A published TikTok leg often returns `platformPostUrl: ""`, which the SDK's strict URL model rejects. `list_posts` / `get_status` tolerate this (they coerce the empty URL to null before validating), so `verify-comments`, slot detection, and blob retention keep working through them. A **direct** `client.posts.list` / `posts.get` call still raises on such a post, so for a one-off script read status via the raw REST API (`GET /api/v1/posts/<id>` or `?page=N&limit=50` with `Authorization: Bearer $LATE_API_KEY`) and check comments via the inbox. See the publisher notes in `CLAUDE.md`.
+- A published TikTok leg often returns `platformPostUrl: ""`, which the SDK's strict URL model rejects. `list_posts` / `get_status` tolerate this (they coerce the empty URL to null before validating), so `verify-comments`, slot detection, and blob retention keep working through them. A **direct** `client.posts.list` / `posts.get` call still raises on such a post, so for a one-off script read status via the raw REST API (`GET /api/v1/posts/<id>` or `?page=N&limit=50` with `Authorization: Bearer $LATE_API_KEY`) and check comments via the inbox rather than the SDK.
 
 ## Continuous Integration
 
@@ -424,8 +424,8 @@ poetry run pytest -n auto
 ### Test Status
 
 **Current Statistics:**
-- **Total Tests**: 2578 collected
-- **Coverage**: target 50% minimum (CI `--cov-fail-under=50`)
+- **Total Tests**: run `poetry run pytest --collect-only -q | tail -1` for the current count
+- **Coverage**: enforced by the CI `--cov-fail-under` gate; see the CI config for the current threshold
 
 ## Quick Reference
 

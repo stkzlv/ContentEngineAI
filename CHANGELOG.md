@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.58.2] - 2026-07-30
+
+### Fixed
+- Finished the Late to Zernio rename in the docs prose; code identifiers (`LATE_API_KEY`, `late-sdk`, `src.publisher.late`) are unchanged.
+- Corrected the LLM and TTS documentation: Gemini is the primary provider and required key, with OpenRouter and Google Cloud as fallbacks.
+- Rewrote the architecture audio and subtitle sections to match the current provider registry (Jamendo primary, Freesound fallback) and the pycaps caption engine.
+- Fixed stale output paths, a broken LICENSE link, the TikTok caption cap, and version claims across the docs.
+
 ## [0.58.1] - 2026-07-16
 
 ### Added

@@ -1,11 +1,11 @@
 # TTS Voice Profiles
 
-Voice profiles give each product video a distinct vocal identity: style direction, inline markup (pauses, whispers), and deterministic voice selection so the same product always gets the same voice.
+Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline markup (pauses, whispers). Voice character comes from the selected voice name, not from a text style prompt.
 
 ## How it works
 
 1. A voice profile is selected per product using deterministic hashing (md5 of product ID, hex slice `[16:24]`)
-2. If the profile uses Gemini TTS, the text gets a `prompt` field for style control and optional inline markup like `[short pause]`
+2. If the profile uses Gemini TTS, the text is synthesized with the profile's named voice (e.g. Charon) plus optional inline markup like `[short pause]`
 3. If Gemini fails, markup is stripped and the standard provider chain handles it (Google Cloud TTS preferring Chirp3-HD voices, then Coqui as final fallback)
 4. The selected profile name and voice name are saved to `pipeline_state.json` under `tts_metadata`
 
@@ -58,7 +58,7 @@ The current default. Uses the Cloud Text-to-Speech API with SSML input. Voices h
 
 ### Gemini TTS
 
-Uses the same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=..., prompt=...)` instead of SSML. The `prompt` field controls speaking style.
+Uses the same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=...)` instead of SSML. Speaking style comes from the selected voice name, not from a style prompt (see the note below).
 
 - Voices use simple names: `Kore`, `Charon`, `Aoede`, `Puck`, etc.
 - Requires `model_name` on `VoiceSelectionParams` (e.g. `gemini-2.5-flash-tts`)
@@ -158,27 +158,25 @@ Puck, Zephyr, Fenrir, Leda, Sadachbia, Laomedeia, Autonoe (all bright/upbeat/exc
 
 The bundled `puck`, `charon`, `fenrir`, and `orus` named profiles exist as A/B candidates for picking a default voice; only `charon` ships as `default_voice_profile`. The other three are available via `--voice-profile <name>` for testing the trade-off (energy vs. trust) on your script style.
 
-## Style prompt tips
+## Voice character and the `style_prompt` field
 
-The `style_prompt` field is a natural language instruction passed as the Gemini `SynthesisInput.prompt`. It's the primary lever for tone control.
+Tone and character come from the voice you pick by name (Charon, Puck, Kore, and so on), not from a text prompt. The `style_prompt` field on each profile is documentation only and is not wired to the Gemini API. Early versions passed it as `SynthesisInput.prompt`, but the model reads that text aloud as spoken content instead of treating it as a style directive, so it is no longer sent. Keep `style_prompt` in config to describe a profile's intended character for readers; to change how a profile sounds, select a different voice name.
 
-**Keep prompts concise** (2-3 sentences). Over-specifying can make the output worse.
-
-**Parameters that stack with style_prompt:**
+**Parameters that adjust output:**
 
 | Field | Range | Effect |
 |-------|-------|--------|
-| `speaking_rate` | 0.25-4.0 | Speed. 0.85-0.93 for calm. **Gemini caveat below.** |
+| `speaking_rate` | 0.25-4.0 | Speed. 0.85-0.93 for calm. Gemini caveat below. |
 | `pitch` | -20.0 to 20.0 | Semitones. -1.0 to -3.0 adds warmth. |
 | `volume_gain_db` | -96.0 to 16.0 | Global only, not per-profile. |
 
-**Gemini caveat on `speaking_rate`:** empirically, the Gemini TTS API appears to ignore the numeric `speaking_rate` parameter for Gemini-model voices. A 1.05 vs 1.00 A/B render produced near-identical durations (38.23s vs 38.03s). For Gemini voices, pacing direction realistically flows through the `style_prompt` ("at a relaxed conversational pace", "never rushed") rather than the rate field. The rate field is honored on Chirp 3 HD voices via the same Cloud TTS client.
+**Gemini caveat on `speaking_rate`:** empirically, the Gemini TTS API appears to ignore the numeric `speaking_rate` parameter for Gemini-model voices. A 1.05 vs 1.00 A/B render produced near-identical durations (38.23s vs 38.03s). For Gemini voices, pacing is a property of the voice itself, not an API parameter. The rate field is honored on Chirp 3 HD voices via the same Cloud TTS client.
 
 **Markup tags** Gemini understands: `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`. Injected via `markup_rules` regex patterns. Stripped automatically when falling back to Google Cloud TTS.
 
 ## Setup
 
-1. Ensure `google-cloud-texttospeech >= 2.29.0` (for `SynthesisInput.prompt` support)
+1. Ensure `google-cloud-texttospeech >= 2.29.0` (for Gemini voice support)
 2. Enable Vertex AI API in GCP console for Gemini profiles
 3. Configure profiles in `config/subtitles.yaml`
 4. Run: `poetry run python -m src.video.producer outputs/<ASIN>/data.json <profile> --debug`

@@ -1,10 +1,10 @@
 # Publisher Module - Social Media Publishing
 
-[![Late.dev Integration](https://img.shields.io/badge/Late.dev-Integrated-brightgreen)](https://late.dev)
+[![Zernio Integration](https://img.shields.io/badge/Zernio-Integrated-brightgreen)](https://zernio.com)
 
-**Automatically publish your generated videos to social media platforms via Late.dev**
+**Automatically publish your generated videos to social media platforms via Zernio (published via the legacy Late SDK)**
 
-The Publisher module provides a complete solution for distributing your AI-generated product videos across YouTube, TikTok, Instagram, Facebook, Twitter, and LinkedIn. It integrates seamlessly with [Late.dev](https://late.dev) for multi-platform publishing with scheduling, metadata management, and batch processing.
+The Publisher module provides a complete solution for distributing your AI-generated product videos across YouTube, TikTok, Instagram, Facebook, Twitter, and LinkedIn. It uses [Zernio](https://zernio.com) (still integrated via the legacy `late-sdk` package and `LATE_API_KEY` env var) for multi-platform publishing with scheduling, metadata management, and batch processing. Zernio was formerly named Late; old `getlate.dev` / `late.dev` URLs redirect to `zernio.com`.
 
 ---
 
@@ -59,15 +59,15 @@ For the disclosure stack the publisher produces (FTC, Amazon Associates, platfor
 ## 🚀 Quick Start
 
 ```bash
-# 1. Get Late.dev API credentials
-# Sign up at https://late.dev and get your API key from Dashboard → Developers
+# 1. Get Zernio API credentials
+# Sign up at https://zernio.com and get your API key from Dashboard -> Developers
 
 # 2. Configure credentials in .env
 echo "LATE_API_KEY=sk_live_your_key_here" >> .env
 echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env  # Optional, for large files >4MB
 
 # 3. Connect your social media accounts
-# Visit https://getlate.dev/dashboard/accounts and connect platforms
+# Visit https://zernio.com/dashboard/accounts and connect platforms
 
 # 4. Verify setup - list connected accounts
 poetry run python -m src.publisher.late list-accounts --debug
@@ -92,9 +92,9 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 
 ## 🔧 Setup
 
-### 1. Late.dev Account Setup
+### 1. Zernio Account Setup
 
-1. **Create Account**: Sign up at [https://late.dev](https://late.dev)
+1. **Create Account**: Sign up at [https://zernio.com](https://zernio.com)
 2. **Get API Credentials**:
    - Navigate to Dashboard → Developers
    - Create a new API key (starts with `sk_live_` or `sk_test_`)
@@ -109,7 +109,7 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 Create or update your `.env` file:
 
 ```bash
-# Required: Late.dev API Key
+# Required: Zernio API Key
 LATE_API_KEY=sk_live_your_api_key_here
 
 # Optional: Vercel Blob Token for large file uploads (>4MB)
@@ -149,7 +149,7 @@ cleanup:
 **Multi-Account Configuration** (optional):
 
 ```yaml
-# Define multiple Late.dev accounts
+# Define multiple Zernio accounts
 accounts:
   production:
     api_key: sk_live_prod_key_12345
@@ -190,7 +190,7 @@ Quick reference for all publisher commands and options.
 | `schedule` | Auto-schedule or batch publish videos | `python -m src.publisher.late schedule --debug` |
 | `calendar` | View scheduled posts | `python -m src.publisher.late calendar list` |
 | `cleanup` | Remove published products | `python -m src.publisher.late cleanup --all --confirm` |
-| `delete` | Delete a post from Late.dev | `python -m src.publisher.late delete POST_ID` |
+| `delete` | Delete a post from Zernio | `python -m src.publisher.late delete POST_ID` |
 | `verify-comments` | Check first comments landed on recent posts | `python -m src.publisher.late verify-comments --limit 25` |
 | `verify-delivery` | Sweep recent posts for silently-failed platform legs | `python -m src.publisher.late verify-delivery --limit 25` |
 
@@ -297,7 +297,7 @@ python -m src.publisher.late delete <post_id>
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `post_id` | Yes | Late.dev post ID to delete |
+| `post_id` | Yes | Zernio post ID to delete |
 
 ### Command: `registry`
 
@@ -536,7 +536,7 @@ export LATE_STAGGER_MAX=30
 **TikTok:**
 - Privacy: `public`, `friends`, `private`
 - Supports scheduled publishing
-- Max caption length: 150 characters (includes hashtags)
+- Caption hard cap: 2200 characters (includes hashtags). 150 is only a soft prompt target for punchier captions, not the platform limit.
 - **Content Disclosure** (required for commercial accounts):
   - `commercial_content_type`: `"brand_organic"` (Your Brand) or `"branded_content"` (Branded Content)
   - `is_brand_organic_post`: `true` for Your Brand posts
@@ -830,12 +830,12 @@ print(f"Cleared {cleared} items")
 
 ## 📡 Webhooks
 
-Receive real-time status updates from Late.dev without polling.
+Receive real-time status updates from Zernio without polling.
 
 <details>
 <summary><strong>Webhook Events</strong></summary>
 
-Late.dev sends webhooks for these events:
+Zernio sends webhooks for these events:
 
 | Event | Description |
 |-------|-------------|
@@ -851,7 +851,7 @@ Late.dev sends webhooks for these events:
 <summary><strong>Setting Up Webhooks</strong></summary>
 
 1. **Create webhook endpoint** in your application
-2. **Configure webhook** in Late.dev dashboard:
+2. **Configure webhook** in Zernio dashboard:
    - URL: `https://your-app.com/webhooks/late`
    - Secret: Generate a secure random string
    - Events: Select events to receive
@@ -1016,7 +1016,7 @@ poetry run python -m src.publisher.late calendar list \
 SCHEDULED POSTS
 ================================================================================
 [1/5] 2025-12-19 09:00:00 UTC (10:00 CET)
-      Product: B09LYF2ST7
+      Product: B0EXAMPLE1
       Platforms: youtube, tiktok, instagram
       Post IDs: 6943cf76... (instagram), 6943cf78... (tiktok), 6943cf7a... (youtube)
       Status: scheduled
@@ -1078,7 +1078,7 @@ poetry run python -m src.publisher.late schedule auto \
 **Auto-Scheduling Behavior:**
 1. Loads recurring schedule from configuration
 2. Scans outputs directory for unpublished videos
-3. **Queries Late.co API** to find occupied slots (8-week lookahead)
+3. **Queries the Zernio API** to find occupied slots (8-week lookahead)
 4. Finds first available unoccupied slot by comparing scheduled times
 5. **Creates separate posts per platform when metadata files exist**
    - Reads `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
@@ -1261,9 +1261,9 @@ CLEANUP SUMMARY
 ================================================================================
 Total products evaluated: 10
 ✅ Cleaned up: 7 products
-   - B0BTYCRJSS (youtube, tiktok, instagram)
-   - B0CPSY5HJY (youtube, instagram)
-   - B0CTTZJRL6 (youtube, tiktok)
+   - B0EXAMPLE1 (youtube, tiktok, instagram)
+   - B0EXAMPLE2 (youtube, instagram)
+   - B0EXAMPLE3 (youtube, tiktok)
    ...
 ⏭️  Skipped: 3 products
    - B0ABC123 (not published to all platforms)
@@ -1306,7 +1306,7 @@ cleanup:
 - [ ] Always use `--dry-run` first on production data
 - [ ] Verify `require_all_platforms: true` is set if publishing to multiple platforms
 - [ ] Enable `archive_before_delete` for valuable content
-- [ ] Check Late.dev dashboard to confirm posts are live before cleanup
+- [ ] Check Zernio dashboard to confirm posts are live before cleanup
 - [ ] Review `outputs/logs/cleanup_audit.log` after cleanup
 - [ ] Keep backups for at least 7 days (`keep_published_days: 7`)
 
@@ -1440,7 +1440,7 @@ affiliate_disclosure:
 
 Post affiliate links as the first comment instead of embedding them in captions. Meta's algorithm deprioritizes posts with outbound links in descriptions, so moving them to a comment keeps captions clean and avoids the penalty.
 
-Supported on YouTube and Instagram. TikTok is skipped (Late API doesn't support `firstComment`).
+Supported on YouTube and Instagram. TikTok is skipped (the Zernio API doesn't support `firstComment`).
 
 <details>
 <summary><strong>Configuration</strong></summary>
@@ -1472,7 +1472,7 @@ first_comment:
 1. After metadata is loaded, `build_first_comment()` renders the platform template with product data from `outputs/<product_id>/data.json`
 2. Each platform gets its own rendered comment based on its template in `first_comment.platforms`
 3. The rendered comments are passed via `platform_contents` to `publisher.publish()`
-4. Late API receives each as `firstComment` inside that platform's `platformSpecificData`
+4. The Zernio API receives each as `firstComment` inside that platform's `platformSpecificData`
 5. If data.json is missing or has no affiliate link, the comment is silently skipped (warning logged)
 6. TikTok entries are always skipped regardless of config
 
@@ -1564,7 +1564,7 @@ The publisher implements automatic retry with exponential backoff for transient 
 
 ### Rate Limiting
 
-**Late.dev Rate Limits** (as of v0.17.0):
+**Zernio Rate Limits** (as of v0.17.0):
 - Standard tier: 100 requests/hour
 - Pro tier: 1000 requests/hour
 
@@ -1577,7 +1577,7 @@ The publisher implements automatic retry with exponential backoff for transient 
 **Best Practices:**
 - Use batch mode with default stagger delays (30-60s)
 - Monitor rate limit headers in debug logs
-- Upgrade Late.dev tier for higher limits
+- Upgrade Zernio tier for higher limits
 
 </details>
 
@@ -1602,7 +1602,7 @@ ERROR: Video file not found: outputs/B0ABC/video.mp4
 ```
 ERROR: No connected accounts found
 ```
-**Solution**: Connect platforms at https://getlate.dev/dashboard/accounts
+**Solution**: Connect platforms at https://zernio.com/dashboard/accounts
 
 **Metadata Not Found:**
 ```
@@ -1633,7 +1633,7 @@ WARNING: No metadata found for youtube, using basic content
    ```
 
 3. Regenerate API key:
-   - Go to https://getlate.dev/dashboard/developers
+   - Go to https://zernio.com/dashboard/developers
    - Revoke old key
    - Create new key
    - Update `.env`
@@ -1669,10 +1669,10 @@ WARNING: No metadata found for youtube, using basic content
    - Process fewer products per batch
    - Split large batches into smaller chunks
 
-4. Upgrade Late.dev tier:
+4. Upgrade Zernio tier:
    - Standard: 100 req/hour
    - Pro: 1000 req/hour
-   - Visit https://getlate.dev/pricing
+   - Visit https://zernio.com/pricing
 
 </details>
 
@@ -1684,7 +1684,7 @@ WARNING: No metadata found for youtube, using basic content
 **Solutions:**
 1. Check internet connection:
    ```bash
-   ping late.dev
+   ping zernio.com
    ```
 
 2. Increase timeout:
@@ -1704,8 +1704,8 @@ WARNING: No metadata found for youtube, using basic content
    # Should be set for files >4MB (get from Vercel Dashboard → Storage → Blob)
    ```
 
-5. Check Late.dev status:
-   - Visit https://getlate.dev/status
+5. Check Zernio status:
+   - Visit https://zernio.com/status
    - Check for ongoing incidents
 
 </details>
@@ -1755,7 +1755,7 @@ WARNING: No metadata found for youtube, using basic content
    ```
 
 2. Connect platform:
-   - Visit https://getlate.dev/dashboard/accounts
+   - Visit https://zernio.com/dashboard/accounts
    - Click "Connect Account" for the platform
    - Complete OAuth authorization
    - Verify account appears in dashboard
@@ -1766,7 +1766,7 @@ WARNING: No metadata found for youtube, using basic content
 
 4. Verify platform is supported:
    - Supported: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
-   - Check Late.dev documentation for platform-specific requirements
+   - Check Zernio documentation for platform-specific requirements
 
 </details>
 
@@ -1982,7 +1982,7 @@ results = await publish_product(
 
 **`src/publisher/tracking.py`** — Publish history tracking with atomic writes (temp-file + rename) to prevent corruption on crash. Key functions: `record_publish()`, `is_already_published()`, `load_tracking()`, `save_tracking()`.
 
-**`src/publisher/webhooks.py`** — Late.dev webhook event handling for post-publish status updates, failure notifications, and retry triggers.
+**`src/publisher/webhooks.py`** — Zernio webhook event handling for post-publish status updates, failure notifications, and retry triggers.
 
 </details>
 
@@ -2009,8 +2009,8 @@ poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_i
 poetry run python -m src.publisher.late single B0BTYCRJSS \
   --platform youtube --immediate --debug
 
-# Step 5: Verify in Late.dev dashboard
-# Visit https://getlate.dev/dashboard/posts
+# Step 5: Verify in Zernio dashboard
+# Visit https://zernio.com/dashboard/posts
 ```
 
 ### Workflow 2: Weekly Content Pipeline
@@ -2132,11 +2132,11 @@ poetry run python -m src.publisher.late cleanup --all --confirm --debug
 
 ## 🔗 External Resources
 
-- **Late.dev Documentation**: https://docs.getlate.dev
-- **Late.dev API Reference**: https://docs.getlate.dev/api
-- **Late.dev Dashboard**: https://getlate.dev/dashboard
-- **Late.dev Pricing**: https://getlate.dev/pricing
-- **Late.dev Status**: https://getlate.dev/status
+- **Zernio Documentation**: https://docs.zernio.com
+- **Zernio API Reference**: https://docs.zernio.com/api
+- **Zernio Dashboard**: https://zernio.com/dashboard
+- **Zernio Pricing**: https://zernio.com/pricing
+- **Zernio Status**: https://zernio.com/status
 
 ---
 
@@ -2148,4 +2148,4 @@ Contributions welcome! See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details
+MIT License - see [LICENSE](../LICENSE) for details

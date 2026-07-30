@@ -122,7 +122,7 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 - **`config/performance.yaml`** - Resource limits and optimization
 - **`config/scraper.yaml`** - Web scraping and browser settings
 - **`config/pipeline.yaml`** - Batch processing and global pipeline settings
-- **`config/publisher.yaml`** - Social media publishing via Late.dev
+- **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK)
 - **`config/url_shortener.yaml`** - URL shortening providers and integration
 
 ### How Configuration Loading Works
@@ -136,11 +136,11 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 ```yaml
 # In config/ai_services.yaml
 llm_settings:
-  api_key_env_var: "OPENROUTER_API_KEY"  # References env var
-  models: ["anthropic/claude-3-haiku"]   # Direct config value
+  provider: "gemini"                     # Primary LLM provider (required)
+  api_key_env_var: "GEMINI_API_KEY"      # References env var
 
 # In .env file
-OPENROUTER_API_KEY=sk-or-v1-your-actual-key-here
+GEMINI_API_KEY=your-actual-key-here
 
 # CLI override
 poetry run python -m src.video.producer --models "gpt-4"
@@ -211,11 +211,11 @@ LLM and description generation settings (TTS is in `config/subtitles.yaml`):
 
 ```yaml
 llm_settings:
-  api_key_env_var: "OPENROUTER_API_KEY"
-  auto_select_free_model: true
-  random_model_selection: true
-  models: ["tngtech/deepseek-r1t2-chimera:free"]
+  provider: "gemini"                     # Primary provider (required)
+  api_key_env_var: "GEMINI_API_KEY"
+  models: ["gemini-2.5-flash-lite"]
   temperature: 0.7
+  # OpenRouter is an optional fallback (OPENROUTER_API_KEY); see the fallback_provider section below
 
 description_settings:
   enabled: true
@@ -389,7 +389,7 @@ output_structure:
     script: "script.txt"                # Generated script
     voiceover: "voiceover.wav"          # Generated audio
     subtitles: "subtitles.srt"          # Generated subtitles
-    final_video: "video_{profile}.mp4"  # Final video output
+    final_video: "video_{product_id}_{profile}.mp4"  # Final video output
     metadata: "metadata.json"           # Pipeline metadata
     ffmpeg_log: "ffmpeg_command.log"    # FFmpeg execution log
   
@@ -426,7 +426,7 @@ outputs/
 │   ├── script.txt                 # Generated script
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
-│   ├── video_slideshow_images1.mp4 # Final video
+│   ├── video_B0DLKB5V35_slideshow_images1.mp4 # Final video
 │   ├── metadata.json              # Pipeline metadata
 │   ├── ffmpeg_command.log         # FFmpeg execution log
 │   ├── images/                    # Product images
@@ -675,6 +675,8 @@ cta_detection:
 
 **Location**: `config/subtitles.yaml` (under `tts_config` section)
 
+**Note**: The bundled config's current default TTS path is Gemini voice profiles, selected by voice name (Charon, Puck, etc.), configured under `tts_config.voice_profiles`. See [docs/tts-voice-profiles.md](tts-voice-profiles.md). The `google_cloud` (Chirp 3 HD) and `coqui` schema below is the underlying provider config those profiles build on and the fallback path.
+
 ```yaml
 tts_config:
   # Provider priority order (first = primary)
@@ -917,11 +919,12 @@ Platform metadata includes both **hashtags** and **keywords** - they serve diffe
 
 **Output Files:**
 
-When platform metadata generation is enabled, the following files are created in `outputs/{product_id}/text/`:
+When platform metadata generation is enabled, the following files are created in the product directory root (`outputs/{product_id}/`):
 
 ```
-outputs/B0ASIN123/text/
+outputs/B0ASIN123/
 ├── description.txt              # Legacy unified description (backward compatible)
+├── metadata.json               # Unified metadata
 ├── metadata_youtube.json       # YouTube Shorts metadata
 ├── metadata_tiktok.json        # TikTok metadata
 ├── metadata_instagram.json     # Instagram Reels metadata
@@ -1774,7 +1777,7 @@ These enhance functionality but are not required for basic operation.
 |----------|------|---------|-------------|
 | `OPENROUTER_API_KEY` | string | None | OpenRouter API key for LLM fallback when Gemini fails |
 | `GOOGLE_APPLICATION_CREDENTIALS` | path | None | Path to Google Cloud service account JSON for TTS |
-| `LATE_API_KEY` | string | None | Late.dev API key for social media publishing (alt: `PUBLISHER_API_KEY`) |
+| `LATE_API_KEY` | string | None | Zernio API key for social media publishing, still named for the legacy Late SDK (alt: `PUBLISHER_API_KEY`) |
 | `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
 | `AMAZON_ASSOCIATE_TAG` | string | None | Amazon Associates affiliate tag for monetization |
 | `LNKBIO_CLIENT_ID` | string | None | Lnk.Bio OAuth2 client ID for link-in-bio |
@@ -2329,15 +2332,15 @@ speaking_rate = (
 **Symptom**: Application exits immediately with message about missing secrets.
 
 ```
-ERROR: Missing required environment variable: OPENROUTER_API_KEY
+ERROR: Missing required environment variable: GEMINI_API_KEY
        Set this in your .env file or environment.
-       Get your API key at: https://openrouter.ai/
+       Get your API key at: https://aistudio.google.com/apikey
 ```
 
 **Solution**:
 1. Copy `.env.example` to `.env`: `cp .env.example .env`
 2. Edit `.env` and add your API keys
-3. Required keys: `OPENROUTER_API_KEY`, `PEXELS_API_KEY`, `FREESOUND_API_KEY`
+3. Required keys: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `FREESOUND_API_KEY` (`OPENROUTER_API_KEY` is an optional fallback)
 
 **Verify secrets are loaded**:
 ```bash
@@ -2512,8 +2515,7 @@ for f in sorted(Path('config').glob('*.yaml')):
 **Default configuration file locations**:
 - `config/core.yaml` - Core pipeline settings
 - `config/subtitles.yaml` - Subtitle styling and positioning
-- `config/video_production.yaml` - Video production settings
-- `config/video_profiles/` - Video profile definitions
+- `config/video_production.yaml` - Video production settings and profile definitions
 - `config/scraper.yaml` - Scraper settings
 
 ### Reset to Defaults

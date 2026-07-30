@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the ContentEngineAI architect
 
 ## System Overview
 
-ContentEngineAI is a modular, async-first pipeline system designed for automated video production. The architecture follows a seven-step workflow with parallel execution capabilities and comprehensive error handling.
+ContentEngineAI is a modular, async-first pipeline system designed for automated video production. The architecture follows an eight-step workflow with parallel execution capabilities and comprehensive error handling.
 
 ### High-Level Architecture
 
@@ -12,9 +12,9 @@ ContentEngineAI is a modular, async-first pipeline system designed for automated
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Data Sources  │    │   AI Services   │    │  Media Sources  │
 │                 │    │                 │    │                 │
-│ • Amazon Pages  │    │ • Gemini / OR   │    │ • Pexels API    │
-│ • Product Data  │    │ • Google Cloud  │    │ • Freesound     │
-│ • Images/Videos │    │ • Local Models  │    │ • Local Files   │
+│ • Amazon Pages  │    │ • Gemini (LLM)  │    │ • Jamendo       │
+│ • Product Data  │    │ • Gemini TTS    │    │ • Freesound     │
+│ • Images/Videos │    │ • Whisper STT   │    │ • Pexels/Local  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
@@ -56,16 +56,18 @@ Step 1: Gather Visuals
     ├── Download Product Media
     └── Fetch Stock Media (Pexels)
          │
-Step 2: Generate Script (LLM via OpenRouter)
+Step 2: Generate Script (LLM: Gemini primary, OpenRouter fallback)
          │
-Step 3: Generate Description (LLM via OpenRouter)
+Step 3: Generate Description (LLM: Gemini primary, OpenRouter fallback)
          │
-Step 4: Create Voiceover (TTS: Google Cloud/Coqui)
+Step 4: Create Voiceover (TTS: Gemini primary, Google Cloud fallback)
          │
-         ├── Step 5a: Generate Subtitles (Whisper/Google STT)
-         └── Step 5b: Download Music (Freesound)
+         ├── Step 5a: Generate Subtitles (Whisper STT)
+         └── Step 5b: Download Music (Jamendo primary, Freesound fallback)
                  │
          Step 6: Assemble Video (FFmpeg)
+                 │
+         Step 7: Burn Pycaps Subtitles (pycaps engine; skipped when engine is ffmpeg)
 ```
 
 **Key Features:**
@@ -114,7 +116,12 @@ src/
 │   ├── subtitle_utils.py      # Subtitle generation utilities
 │   ├── subtitle_validation.py # Subtitle validation logic
 │   ├── tts.py                 # Text-to-speech with provider fallbacks
-│   └── unified_subtitle_generator.py  # Unified subtitle generation system
+│   ├── subtitle_timing_smoother.py # Post-processes Whisper word timings
+│   ├── unified_subtitle_generator.py  # FFmpeg ASS/SRT subtitle generation
+│   └── pycaps_engine/         # Animated-caption engine (bundled default)
+│       ├── renderer.py        # Pycaps render + content-aware layout
+│       ├── gemini_llm.py      # Gemini adapter for AI word tagging
+│       └── transcript_adapter.py # Whisper transcript to pycaps format
 │
 ├── ai/                        # AI & LLM integration
 │   ├── llm_client.py          # Shared LLM dispatch (Gemini, OpenRouter)
@@ -153,8 +160,13 @@ src/
 │   ├── config_adapter.py     # Backward-compatible config loader
 │   └── __init__.py           # ScraperFactory & platform registry
 │
-├── audio/                     # Audio processing components
-│   └── freesound_client.py   # Music download from Freesound
+├── audio/                     # Background-music provider platform
+│   ├── base.py               # BaseAudioProvider ABC
+│   ├── registry.py           # AudioProviderRegistry (decorator-based)
+│   ├── manager.py            # AudioManager: runs the provider chain
+│   ├── jamendo_provider.py   # Jamendo download (primary)
+│   ├── freesound_provider.py # Freesound download (fallback)
+│   └── freesound_client.py   # Freesound API client (wrapped by the provider)
 │
 ├── utils/                     # Performance optimization & utilities
 │   ├── performance.py         # Metrics collection & monitoring
@@ -184,10 +196,10 @@ src/
 │   ├── schedule_validator.py # Schedule validation
 │   ├── tracking.py           # Publish status tracking (atomic writes)
 │   ├── product_registry.py   # Published products registry (JSON + CSV)
-│   ├── webhooks.py           # Late.dev webhook event handling
-│   ├── late/                 # Late.dev integration
-│   │   ├── client.py         # Late API client
-│   │   └── cli.py            # Late publisher CLI
+│   ├── webhooks.py           # Zernio webhook event handling
+│   ├── late/                 # Zernio integration (formerly Late)
+│   │   ├── client.py         # Zernio API client (late-sdk)
+│   │   └── cli.py            # Zernio publisher CLI
 │   └── link_in_bio/          # Link-in-bio integration
 │       ├── base.py           # Provider interface
 │       ├── lnkbio.py         # Lnk.Bio provider
@@ -207,7 +219,7 @@ src/
 **Purpose**: Orchestrates the entire video production workflow.
 
 **Key Responsibilities:**
-- Manages seven-step pipeline execution
+- Manages eight-step pipeline execution
 - Handles pipeline context and state
 - Creates directory structures
 - Implements configurable delays between products
@@ -363,24 +375,29 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 - **Attribution Tracking**: Automatic attribution file generation
 - **Concurrent Downloads**: Semaphore-based concurrency control
 
+#### Background Music (`src/audio/`)
+- **Provider Platform**: `BaseAudioProvider` ABC + `AudioProviderRegistry` + `AudioManager`, the same chain pattern used by the publisher module
+- **Provider Chain**: Jamendo (primary) then Freesound, with local files as the last resort; first successful download wins
+- **Configuration**: `audio_providers` list in `config/video_production.yaml`, tried in order
+- **Jamendo**: `client_id` auth, `fuzzytags` search for genre/mood, downloads over HTTP/2 via curl (its CDN blocks HTTP/1.1)
+- **Freesound**: `FreesoundProvider` wraps the existing `FreesoundClient`; OAuth2 for full quality, API key for previews
+
 #### TTS Engine (`src/video/tts.py`)
-- **Multi-Provider**: Google Cloud TTS, Coqui TTS with fallbacks
-- **Voice Selection**: Configurable criteria (language, gender, name)
+- **Primary Provider**: Gemini TTS via the `google.cloud.texttospeech` SDK; falls back to Google Cloud TTS on failure (Coqui TTS is an optional extra fallback)
+- **Voice Selection**: Configurable voice profiles (provider, voice criteria, style)
 - **Async Generation**: Non-blocking TTS with timeout handling
 - **Caching**: Client and model caching for performance
 
-#### Subtitle Generation (`src/video/unified_subtitle_generator.py`, `src/video/stt_functions.py`)
-- **Multi-Provider STT**: Whisper (primary), Google Cloud STT with word-level timing extraction
-- **Audio-Based Synchronization**: Perfect timing via actual voiceover transcription (implemented September 2025)
-- **Unified Generation System**: Single path for both ASS and SRT formats with content-aware positioning
+#### Subtitle Generation (`src/video/pycaps_engine/`, `src/video/unified_subtitle_generator.py`, `src/video/stt_functions.py`)
+- **Two Engines**: the bundled default is the pycaps engine (animated captions rendered per word); the FFmpeg ASS/SRT burn is the fallback. Selected via `subtitle_settings.subtitle_engine`
+- **Pycaps Engine**: runs as a post-assembly burn step (`src/video/pycaps_engine/renderer.py`), consumes the raw Whisper transcript, positions captions with a content-aware layout, and supports optional Gemini AI word tagging
+- **STT**: Whisper (primary) with word-level timing extraction; a timing smoother post-processes the word timestamps before either engine
 - **Content-Aware Positioning**: Dynamic subtitle placement that analyzes visual content to avoid overlaps
 - **Configurable Video/Subtitle Layout**: Per-profile control of video positioning and subtitle gaps
   - `video_top_position_percent`: Vertical video start position (default: 10% from top)
   - `video_content_height_percent`: Video height as frame percentage (default: 75%)
   - `subtitle_margin`: Gap between content and subtitles (default: 2%)
-- **Pixel-Based Width Constraints**: Intelligent width calculation using font metrics and character-specific sizing
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
-- **Dual ASS Generation**: Regular positioned subtitles + content-aware positioned subtitles for comparison
 
 ### 6. URL Shortening System (`src/utils/url_shortener/`)
 
@@ -722,6 +739,8 @@ available_platforms = ScraperRegistry.get_available_platforms()
 # Returns: [Platform.AMAZON, Platform.EBAY, Platform.WALMART, ...]
 ```
 
+**Note**: only the Amazon scraper is implemented today. The eBay/Walmart entries above are illustrative placeholders showing how the registry extends to new platforms, not shipping code.
+
 #### **Base Scraper Interface (`src/scraper/base/models.py`)**
 
 **Purpose**: Platform-agnostic foundation for all e-commerce scrapers.
@@ -752,60 +771,7 @@ class BaseScraper(ABC):
 
 ## Performance Optimization Architecture
 
-<details>
-<summary><b>Performance Optimization Categories</b> (click to expand)</summary>
-
-ContentEngineAI implements five major optimization categories:
-
-### 1. Pipeline Parallelization
-
-**Implementation**: `PipelineGraph` manages dependency-aware parallel execution
-**Impact**: 1.35x speedup (26% reduction in pipeline time)
-**Technical Details**:
-- Topological sorting for execution order
-- Concurrent subtitle generation and music download
-- Resource allocation optimization
-
-### 2. I/O Operations Optimization
-
-**Implementation**: `AsyncIOManager` for non-blocking operations
-**Components**:
-- Async subprocess execution with timeouts
-- Semaphore-based concurrency control
-- Proper resource cleanup and management
-
-**Scraper Async Architecture (v0.14.0+)**:
-- `download_file_async()`: aiohttp-based downloads with retry logic
-- Concurrent image downloads (semaphore limit: 5)
-- Concurrent video downloads (semaphore limit: 3)
-- `convert_m3u8_to_mp4()`: Async FFmpeg subprocess execution
-- Prevents resource exhaustion during high-volume scraping
-
-### 3. Multi-Level Caching System
-
-**Implementation**: `CacheManager` with TTL support
-**Cache Types**:
-- Media metadata cache (eliminates redundant ffprobe calls)
-- API response cache (LLM, stock media, TTS)
-- File-based persistence with thread safety
-
-### 4. Resource Management
-
-**Implementation**: Global connection pooling and memory mapping
-**Components**:
-- `ConnectionPool`: HTTP session management
-- `MemoryMappedIO`: Efficient large file operations
-- Resource lifecycle management
-
-### 5. Background Processing
-
-**Implementation**: `BackgroundProcessor` for preloading
-**Features**:
-- TTS model warming during pipeline startup
-- Stock media pre-fetching based on keywords
-- Background task lifecycle management
-
-</details>
+ContentEngineAI implements five optimization categories: pipeline parallelization, I/O optimization, multi-level caching, resource management, and background processing. See the "Performance Optimization" section in `docs/development.md` for the full breakdown of each category and its implementation.
 
 ## Performance Monitoring
 
@@ -853,7 +819,7 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 | `config/performance.yaml` | Resource limits | Memory, concurrency, optimization |
 | `config/scraper.yaml` | Web scraping | Browser, timing, validation, async downloads |
 | `config/pipeline.yaml` | Batch processing | Global batch settings, fail-fast mode |
-| `config/publisher.yaml` | Social publishing | Late.dev integration, platform settings |
+| `config/publisher.yaml` | Social publishing | Zernio integration, platform settings |
 | `config/url_shortener.yaml` | URL shortening | Provider settings, affiliate links |
 
 **Type-Safe Configuration (v0.14.0+):**
@@ -932,9 +898,10 @@ Final Video ← Video Assembly ← Music Download + Subtitle Generation
 ### Multi-Level Error Handling
 
 **Level 1: Provider Fallbacks**
-- TTS: Google Cloud → Coqui TTS
-- STT: Whisper → Google Cloud STT → Script-based fallback
-- LLM: Primary model → Secondary models
+- LLM: Gemini (primary) -> OpenRouter (fallback)
+- TTS: Gemini TTS (primary) -> Google Cloud TTS (fallback)
+- STT: Whisper -> script-based fallback
+- Music: Jamendo (primary) -> Freesound -> local files
 
 **Level 2: Retry Logic**
 - Exponential backoff for transient failures
@@ -997,18 +964,18 @@ class BaseProvider(ABC):
 
 - **🐍 Python 3.12**: Modern async/await patterns
 - **🎥 FFmpeg**: Professional video processing
-- **🤖 AI Services**: OpenRouter, Google Cloud, OpenAI Whisper
-- **🌐 Web Scraping**: Playwright with stealth techniques
-- **📱 Media APIs**: Pexels (images/videos), Freesound (audio)
+- **🤖 AI Services**: Gemini (LLM + TTS, primary), OpenRouter and Google Cloud (fallbacks), OpenAI Whisper (STT)
+- **🌐 Web Scraping**: Playwright with stealth techniques (Amazon only today)
+- **📱 Media APIs**: Jamendo and Freesound (music), Pexels (stock images/videos)
 - **⚙️ Configuration**: YAML + Pydantic validation
 - **🧪 Testing**: Pytest with async support
 
 ## Acknowledgments
 
 - **OpenAI Whisper** for speech-to-text capabilities
-- **Google Cloud** for TTS and STT services
+- **Google Gemini** for script generation and TTS, with Google Cloud as fallback
 - **Pexels** for stock media content
-- **Freesound** for background music
+- **Jamendo** and **Freesound** for background music
 - **FFmpeg** for video processing excellence
 
 This architecture enables ContentEngineAI to be highly extensible while maintaining performance, reliability, and maintainability across all components.
