@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.58.3] - 2026-07-31
+
+### Added
+- Zernio client usage guide (`docs/zernio-client.md`) covering direct SDK use, listing and retrying posts, raw REST calls, and common SDK workarounds. Linked from the README, publisher docs, and contributor notes, and documents sanitizing angle brackets in YouTube descriptions.
+
 ## [0.58.2] - 2026-07-30
 
 ### Fixed

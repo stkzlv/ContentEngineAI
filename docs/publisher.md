@@ -1855,6 +1855,8 @@ outputs/logs/publisher.log
 
 ## 📚 API Reference
 
+For detailed instructions on using the Zernio SDK directly — listing posts, retrying failed legs, raw REST calls, and common SDK workarounds — see [Zernio Client Guide](zernio-client.md).
+
 <details>
 <summary><strong>Python API Usage</strong></summary>
 
