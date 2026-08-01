@@ -187,15 +187,20 @@ video_settings:
     # Wraps long hooks to <=2 lines and shrinks the font to fit the frame (#160).
     enabled: true
     duration_sec: 1.5
-    size_factor: 1.35
+    size_factor: 1.1              # x subtitle base font (~106px); prominent, not oversized
     font_color: "white"
     outline_color: "black"
     outline_thickness: 6
     background_enabled: false
     background_color: "black@0.5"
-    margin_y_percent: 0.28
+    margin_y_percent: 0.28        # top of hook at 28% frame height, inside the safe band
     max_words: 7
-    max_width_fraction: 0.9
+    # Per-line width cap. Centered, so 0.78 keeps a line within ~[0.11, 0.89]:
+    # ~120px clear of each physical edge and the Instagram 0.056 side inset.
+    # The top-of-frame hook sits above the bottom action-button column, so it
+    # uses a symmetric margin rather than the asymmetric subtitle safe_zone
+    # (min_x 0.056 / max_x 0.833). See docs/platform-safe-zones.md.
+    max_width_fraction: 0.78
 
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by

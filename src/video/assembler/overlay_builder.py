@@ -201,7 +201,11 @@ def extract_hook_line(script: str, max_words: int) -> str:
 # hook drawtext sets no ``fontfile``). Kept as constants so the fit logic stays a
 # pure function testable without a loaded config, mirroring the character classes
 # in unified_subtitle_generator.estimate_text_width_pixels.
-_HOOK_WIDTH_TO_HEIGHT_RATIO = 0.5
+# Average glyph width as a fraction of font size for FFmpeg's default drawtext
+# font (no fontfile). Measured against real renders: 0.5 underestimated width by
+# ~13%, so long hooks that the estimator judged as fitting rendered edge-to-edge
+# (#160). 0.58 matches the observed rendered width so max_width_fraction holds.
+_HOOK_WIDTH_TO_HEIGHT_RATIO = 0.58
 _NARROW_CHARS = "iIjl|':;,.`!"
 _WIDE_CHARS = "mwMWAGOQ@"
 
