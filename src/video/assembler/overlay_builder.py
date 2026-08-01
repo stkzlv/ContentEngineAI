@@ -197,47 +197,132 @@ def extract_hook_line(script: str, max_words: int) -> str:
     return _truncate_to_words(head, max_words)
 
 
+# Approximate per-character width factors for FFmpeg's built-in hook font (the
+# hook drawtext sets no ``fontfile``). Kept as constants so the fit logic stays a
+# pure function testable without a loaded config, mirroring the character classes
+# in unified_subtitle_generator.estimate_text_width_pixels.
+_HOOK_WIDTH_TO_HEIGHT_RATIO = 0.5
+_NARROW_CHARS = "iIjl|':;,.`!"
+_WIDE_CHARS = "mwMWAGOQ@"
+
+
+def _estimate_hook_text_width(text: str, font_size: int) -> int:
+    """Estimate the rendered pixel width of a hook line at ``font_size``."""
+    avg = font_size * _HOOK_WIDTH_TO_HEIGHT_RATIO
+    total = 0.0
+    for char in text:
+        if char in _NARROW_CHARS:
+            total += avg * 0.4
+        elif char in _WIDE_CHARS:
+            total += avg * 1.2
+        elif char == " ":
+            total += avg * 0.3
+        else:
+            total += avg
+    return int(total)
+
+
+def _wrap_hook_words(words: list[str], font_size: int, max_px: int) -> list[str]:
+    """Greedy word-wrap so each line's estimated width stays within ``max_px``."""
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and _estimate_hook_text_width(candidate, font_size) > max_px:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _fit_hook_lines(
+    hook_text: str,
+    start_font_size: int,
+    frame_width: int,
+    settings: HookOverlaySettings,
+) -> tuple[list[str], int]:
+    """Fit the hook to the frame width (#160).
+
+    Wrap into at most ``settings.max_lines`` lines each within
+    ``max_width_fraction`` of the frame width; when wrapping alone can't fit
+    (too many words, or a single word wider than the frame) shrink the font and
+    re-wrap, down to the 8px floor. Returns the wrapped lines and their font
+    size. A hook that already fits on one line returns unchanged.
+    """
+    max_px = max(1, int(frame_width * settings.max_width_fraction))
+    words = hook_text.split()
+    font_size = start_font_size
+    while True:
+        lines = _wrap_hook_words(words, font_size, max_px) or [hook_text]
+        fits = len(lines) <= settings.max_lines and all(
+            _estimate_hook_text_width(line, font_size) <= max_px for line in lines
+        )
+        if fits or font_size <= 8:
+            return lines[: settings.max_lines], font_size
+        font_size = max(8, font_size - 6)
+
+
 def build_hook_drawtext(
     settings: HookOverlaySettings,
     hook_text: str,
     subtitle_font_size_pixels: int,
+    frame_width: int,
     input_stream: str,
     output_stream: str,
 ) -> str:
-    r"""Build a time-gated centre-upper FFmpeg drawtext for the hook overlay.
+    r"""Build a time-gated centre-upper FFmpeg hook overlay.
 
-    The drawtext is `enable`-gated to the first ``duration_sec`` seconds so
-    it disappears for the rest of the clip without changing the filter
-    graph length. Position is centred horizontally (``(w-text_w)/2``) and
-    placed ``margin_y_percent`` from the top.
+    The hook is wrapped to at most ``settings.max_lines`` lines sized to the
+    frame width, and the font shrinks when wrapping alone can't fit, so a long
+    hook never clips off-frame (#160). Each wrapped line is rendered as its own
+    horizontally-centred ``drawtext`` (``(w-text_w)/2``), stacked vertically and
+    chained with ``;`` (the filter separator core.py joins the list with); a
+    single-line hook produces one drawtext identical to the pre-#160 output.
 
-    The ``enable`` expression uses backslash-escaped commas (``\,``) per
-    FFmpeg's filtergraph escaping rules. Single-quoting the expression
-    (``enable='between(t,0,X)'``) is the documented form but breaks in
-    practice when the filter sits inside a comma-separated chain — FFmpeg's
-    parser still splits at the inner commas. ``between(t\,0\,X)`` survives
-    cleanly. Same trick applies to any FFmpeg filter expression with
-    embedded commas (``if``, ``lt``, ``gte``, etc.).
+    The drawtext is `enable`-gated to the first ``duration_sec`` seconds so it
+    disappears for the rest of the clip without changing the filter graph length.
+
+    The ``enable`` expression uses backslash-escaped commas (``\,``) per FFmpeg's
+    filtergraph escaping rules. Single-quoting the expression
+    (``enable='between(t,0,X)'``) is the documented form but breaks in practice
+    when the filter sits inside a comma-separated chain — FFmpeg's parser still
+    splits at the inner commas. ``between(t\,0\,X)`` survives cleanly. Same trick
+    applies to any FFmpeg filter expression with embedded commas.
     """
-    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-    text = _escape_drawtext_text(hook_text)
+    start_font = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    lines, font_size = _fit_hook_lines(hook_text, start_font, frame_width, settings)
+    line_height = int(font_size * 1.2)
     x_expr = "(w-text_w)/2"
-    y_expr = f"h*{settings.margin_y_percent}"
 
-    parts = [
-        f"{input_stream}drawtext=",
-        f"text='{text}':",
-        f"fontsize={font_size}:",
-        f"fontcolor={settings.font_color}:",
-        f"borderw={settings.outline_thickness}:",
-        f"bordercolor={settings.outline_color}:",
-    ]
-    if settings.background_enabled:
-        parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
-    parts.append(f"x={x_expr}:y={y_expr}:")
-    parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){output_stream}")
+    drawtexts: list[str] = []
+    last_index = len(lines) - 1
+    for i, line in enumerate(lines):
+        stream_in = input_stream if i == 0 else f"[v_hkl{i}]"
+        stream_out = output_stream if i == last_index else f"[v_hkl{i + 1}]"
+        text = _escape_drawtext_text(line)
+        y_expr = (
+            f"h*{settings.margin_y_percent}+{i * line_height}"
+            if i
+            else f"h*{settings.margin_y_percent}"
+        )
+        parts = [
+            f"{stream_in}drawtext=",
+            f"text='{text}':",
+            f"fontsize={font_size}:",
+            f"fontcolor={settings.font_color}:",
+            f"borderw={settings.outline_thickness}:",
+            f"bordercolor={settings.outline_color}:",
+        ]
+        if settings.background_enabled:
+            parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
+        parts.append(f"x={x_expr}:y={y_expr}:")
+        parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){stream_out}")
+        drawtexts.append("".join(parts))
 
-    return "".join(parts)
+    return ";".join(drawtexts)
 
 
 def apply_hook_overlay(
@@ -245,6 +330,7 @@ def apply_hook_overlay(
     settings: HookOverlaySettings,
     hook_text: str,
     subtitle_font_size_pixels: int,
+    frame_width: int,
 ) -> list[str]:
     """Insert the hook overlay before the disclosure overlay's rewrite slot.
 
@@ -283,6 +369,7 @@ def apply_hook_overlay(
         settings,
         hook_text,
         subtitle_font_size_pixels,
+        frame_width,
         input_stream=input_stream,
         output_stream="[v_hook]",
     )

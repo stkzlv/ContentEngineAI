@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Hook overlay no longer clips off-frame on long hook lines. It wraps to at most two frame-width-sized lines and shrinks the font when wrapping alone doesn't fit, so `hook_overlay.enabled` is re-enabled in the bundled config (was disabled as a stopgap).
+
 ## [0.58.3] - 2026-07-31
 
 ### Added

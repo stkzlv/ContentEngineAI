@@ -184,9 +184,8 @@ video_settings:
   # top. Default ON; short profiles benefit most but the overlay works
   # for any profile that ships a payoff-first first sentence.
   hook_overlay:
-    # Disabled pending the wrap + fit-shrink fix (#160): a long hook line overflows
-    # the frame width (single unwrapped drawtext line clips at both edges).
-    enabled: false
+    # Wraps long hooks to <=2 lines and shrinks the font to fit the frame (#160).
+    enabled: true
     duration_sec: 1.5
     size_factor: 1.35
     font_color: "white"
@@ -196,6 +195,7 @@ video_settings:
     background_color: "black@0.5"
     margin_y_percent: 0.28
     max_words: 7
+    max_width_fraction: 0.9
 
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by

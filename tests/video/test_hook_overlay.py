@@ -1,10 +1,12 @@
-"""Tests for the Phase 1.2c hook overlay (closes #102)."""
+"""Tests for the Phase 1.2c hook overlay (closes #102, #160)."""
 
 from __future__ import annotations
 
 import pytest
 
 from src.video.assembler.overlay_builder import (
+    _estimate_hook_text_width,
+    _fit_hook_lines,
     apply_hook_overlay,
     build_hook_drawtext,
     extract_hook_line,
@@ -44,14 +46,17 @@ class TestBuildHookDrawtext:
         settings = HookOverlaySettings(enabled=True, duration_sec=1.5)
         out = build_hook_drawtext(
             settings,
-            "Best earbuds under fifty",
+            "Best earbuds",  # short: stays a single line at 1080px
             subtitle_font_size_pixels=72,
+            frame_width=1080,
             input_stream="[v_sub]",
             output_stream="[v_hook]",
         )
         assert out.startswith("[v_sub]drawtext=")
         assert out.endswith("[v_hook]")
-        assert "Best earbuds under fifty" in out
+        assert "Best earbuds" in out
+        # single line, no intermediate stream
+        assert out.count("drawtext=") == 1
         # 72 * 1.35 = 97.2 -> 97
         assert "fontsize=97" in out
         # Centre-horizontal
@@ -65,6 +70,7 @@ class TestBuildHookDrawtext:
             settings,
             "hook line",
             subtitle_font_size_pixels=60,
+            frame_width=1080,
             input_stream="[in]",
             output_stream="[out]",
         )
@@ -76,6 +82,7 @@ class TestBuildHookDrawtext:
             settings,
             "hook line",
             subtitle_font_size_pixels=60,
+            frame_width=1080,
             input_stream="[in]",
             output_stream="[out]",
         )
@@ -88,31 +95,82 @@ class TestBuildHookDrawtext:
             settings,
             "x",
             subtitle_font_size_pixels=4,  # ridiculous low; clamp expected
+            frame_width=1080,
             input_stream="[in]",
             output_stream="[out]",
         )
         assert "fontsize=8" in out
 
 
+class TestHookFit:
+    """Long hooks wrap to <=2 lines and shrink to fit the frame (#160)."""
+
+    def test_long_hook_wraps_to_two_lines(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        out = build_hook_drawtext(
+            settings,
+            "This cheap gadget quietly replaced my whole expensive desk setup",
+            subtitle_font_size_pixels=72,
+            frame_width=1080,
+            input_stream="[v_sub]",
+            output_stream="[v_hook]",
+        )
+        # Two stacked drawtexts chained through an intermediate stream.
+        assert out.count("drawtext=") == 2
+        assert "[v_hkl1]" in out
+        assert out.startswith("[v_sub]drawtext=")
+        assert out.endswith("[v_hook]")
+        # The second line carries a vertical offset (base + line height).
+        assert "+" in out.split(";")[1]
+
+    def test_fit_lines_stay_within_frame(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        frame_width = 1080
+        max_px = int(frame_width * settings.max_width_fraction)
+        lines, font_size = _fit_hook_lines(
+            "This cheap gadget quietly replaced my whole desk setup",
+            97,
+            frame_width,
+            settings,
+        )
+        assert 1 <= len(lines) <= settings.max_lines
+        assert all(
+            _estimate_hook_text_width(line, font_size) <= max_px for line in lines
+        )
+
+    def test_fit_shrinks_font_when_unwrappable(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        # A single very wide token can't be wrapped, so the font must shrink.
+        lines, font_size = _fit_hook_lines("W" * 60, 97, 1080, settings)
+        assert font_size < 97
+        assert len(lines) == 1
+
+    def test_short_hook_unchanged(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        lines, font_size = _fit_hook_lines("Best earbuds", 97, 1080, settings)
+        assert lines == ["Best earbuds"]
+        assert font_size == 97
+
+
 class TestApplyHookOverlay:
     def test_disabled_returns_unchanged(self) -> None:
         settings = HookOverlaySettings(enabled=False)
         filters = ["a;b", "stream_xcopy[v_out]"]
-        assert apply_hook_overlay(filters, settings, "hook", 60) is filters
+        assert apply_hook_overlay(filters, settings, "hook", 60, 1080) is filters
 
     def test_empty_text_returns_unchanged(self) -> None:
         settings = HookOverlaySettings(enabled=True)
         filters = ["a", "stream_xcopy[v_out]"]
-        assert apply_hook_overlay(filters, settings, "", 60) is filters
+        assert apply_hook_overlay(filters, settings, "", 60, 1080) is filters
 
     def test_empty_filters_returns_unchanged(self) -> None:
         settings = HookOverlaySettings(enabled=True)
-        assert apply_hook_overlay([], settings, "hook", 60) == []
+        assert apply_hook_overlay([], settings, "hook", 60, 1080) == []
 
     def test_unexpected_terminal_returns_unchanged(self, caplog) -> None:
         settings = HookOverlaySettings(enabled=True)
         filters = ["a", "stream_xnocopy[v_other]"]
-        out = apply_hook_overlay(filters, settings, "hook", 60)
+        out = apply_hook_overlay(filters, settings, "hook", 60, 1080)
         assert out is filters
         assert any("unexpected shape" in r.message for r in caplog.records)
 
@@ -120,7 +178,7 @@ class TestApplyHookOverlay:
         """Hook layer must keep copy[v_out] alive for the disclosure layer."""
         settings = HookOverlaySettings(enabled=True)
         filters = ["scaled;padded[v_sub_3];", "[v_sub_3]copy[v_out]"]
-        out = apply_hook_overlay(filters, settings, "Hook line", 60)
+        out = apply_hook_overlay(filters, settings, "Hook line", 60, 1080)
         # Original list extended by one; terminal still copy[v_out]
         assert len(out) == 3
         assert out[-1] == "[v_hook]copy[v_out]"
@@ -152,7 +210,7 @@ class TestHookPlusDisclosureStack:
         disclosure = DisclosureSettings(enabled=True)
         filters = ["scaled;padded[v_sub];", "[v_sub]copy[v_out]"]
 
-        hooked = apply_hook_overlay(filters, hook, "first sentence", 60)
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080)
         final = apply_disclosure_overlay(hooked, disclosure, 60)
 
         # Three filter entries: prefix, hook drawtext, disclosure drawtext.
@@ -175,7 +233,7 @@ class TestHookPlusDisclosureStack:
         disclosure = DisclosureSettings(enabled=True)
         filters = ["prefix", "[v_sub]copy[v_out]"]
 
-        hooked = apply_hook_overlay(filters, hook, "first sentence", 60)
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080)
         final = apply_disclosure_overlay(hooked, disclosure, 60)
 
         # Hook was disabled, so the filter list grew by zero. Disclosure
@@ -208,6 +266,7 @@ class TestApostropheEscape:
             settings,
             "you're trying",
             subtitle_font_size_pixels=72,
+            frame_width=1080,
             input_stream="[v_sub]",
             output_stream="[v_hook]",
         )
