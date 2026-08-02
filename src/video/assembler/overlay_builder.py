@@ -31,15 +31,15 @@ def _escape_drawtext_text(text: str) -> str:
     Special chars in drawtext's text argument: backslash, single quote, colon,
     percent. The arg is wrapped in single quotes by the caller.
 
-    Apostrophes use the close-quote / backslash-quote / open-quote pattern
-    (``'\''``) rather than ``\'``. The ``\'`` form is documented and works
-    on a standalone drawtext, but breaks when the drawtext sits inside a
-    multi-filter filtergraph chain — FFmpeg's parser consumes characters
-    past the intended quote boundary and absorbs the rest of the chain
-    into the drawtext args, producing a confusing ``Option 'st' not found``
-    style error from later filters. The exit/reenter pattern is the same
-    shell-style trick used to embed apostrophes in any single-quoted
-    string; reliable across filter contexts.
+    WARNING: apostrophes are NOT reliably escapable here. The close-quote /
+    backslash-quote / open-quote pattern (``'\''``) survives a standalone
+    ``-vf`` drawtext but still corrupts inside a multi-filter ``-filter_complex``
+    chain (another filter present): FFmpeg swallows the drawtext's own trailing
+    args as text. This escaper is used only by the disclosure overlay, whose
+    text is config-controlled and apostrophe-free (``#ad`` / ``#publi``). For
+    ARBITRARY text in a filter chain (e.g. the hook overlay), pass it via
+    ``textfile=`` instead, which needs no text escaping. See
+    ``build_hook_drawtext``.
     """
     return (
         text.replace("\\", r"\\")
