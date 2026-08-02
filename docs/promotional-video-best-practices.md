@@ -24,9 +24,9 @@ with sound off.
 
 ## The 6 promo-video rules that matter (cheat-sheet)
 
-1. **First-3-second hook is a static title card, not karaoke.** 5-12 words, on screen for the full 1.5-3 s, larger than narration captions. The decision window is ~1.7 s; if the hook is still revealing word-by-word at 1.5 s, the viewer has already swiped. The hook must also land the search keyword in spoken audio within the first 5 s — TikTok 2026 transcribes audio via ASR and indexes the transcript as a primary search signal.
+1. **First-3-second hook is a large, legible statement, distinct from the running captions.** 5-8 words, on screen for the full 1.5-3 s, visibly larger than narration captions. The swipe decision lands in the first ~1-1.5 s. Whether the hook is a static card or animated word-by-word is not settled (caption tools argue a moving fixation point holds better through the retention cliff); what matters is that it's big, readable sound-off, and lands fast. **Do not render the hook as the same words as the bottom captions at the same time** — that reads as redundant clutter. Make the hook a distinct authored headline (the pattern Submagic/OpusClip use), or suppress the captions while the card is up. The hook should also front-load the search keyword in spoken audio within the first 5 s; spoken audio is one TikTok search signal alongside caption / on-screen text / hashtags, not the dominant one.
 2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Red/orange beats green in independent A/B tests.
-3. **`#ad` disclosure is a persistent on-frame overlay AND first-line caption text.** FTC requires both. Same font family as captions, ~50-60% size, fixed corner, full-clip duration. Penalties up to $53,088 per violation (2025).
+3. **`#ad` disclosure is an on-frame overlay AND first-line caption text.** FTC wants the disclosure in the video itself and at the top of the caption before other text. Same font family as captions, sized for legibility (not a fixed ratio), fixed corner; full-clip persistence is a safe short-form default rather than a codified duration. Max statutory penalty is $53,088 per violation (2025 figure, still current 2026) — a cap reached via a Notice of Penalty Offense or consent-order violation, not an automatic per-post fine.
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
 5. **End with an engagement-bait closing line right before the hard CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. The closing line drives comments and saves, both of which feed the algorithm. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
 6. **Keep something moving every 1.5-3 seconds.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Younger audiences need the tighter end of the band (cut every 2-4 s); a high-density profile pushes to 1.5-3 s with a transition between slides.
@@ -35,13 +35,14 @@ with sound off.
 
 ## 1. Hook patterns (first 1-3 seconds)
 
-The decision window on a vertical autoplay feed is ~1.7 s (WARC eye-tracking,
-TikTok Creative Center). TikTok's first ranking signal triggers at 1.5 s; a
-failed hook produces a cold start the video rarely escapes. **84.3% of 2025
-viral TikToks** used a recognized psychological hook trigger in the first 3
-seconds (TTS Vibes scrape).
+The swipe decision on a vertical autoplay feed lands in the first ~1-1.5 s, and
+a video that fails the first ~3 s of retention gets little algorithmic push.
+(Precise figures that circulate in vendor blogs — a "1.7 s window," a "1.5 s
+ranking trigger," "84.3% of viral TikToks used a hook trigger" — trace to
+single un-sourced posts with no disclosed methodology. Treat them as narrative,
+not data; measure your own 2 s / 3 s view-through by hook style instead.)
 
-**Word budget**: read aloud in ≤3 s. ~5-12 words, ideally 5-8.
+**Word budget**: read aloud in ≤3 s. 5-8 words.
 
 **Patterns that work for product video specifically:**
 
@@ -54,12 +55,17 @@ seconds (TTS Vibes scrape).
 | Numbered teardown | "3 reasons I'm returning this" | Lists promise structure → lower cognitive cost |
 | Comparison | "$15 vs $200 — same thing?" | Pattern interrupt + value framing |
 
-**Caption-rendering implication**: render the hook as a static title card,
-not karaoke. Karaoke is still revealing word-by-word at 1.5 s — the viewer
-has already swiped. Pin the full hook caption on screen for the entire
-1.5-3 s, 1.2-1.5× the size of narration captions, single fade-in (no
-scale-pop, no per-word reveal). See subtitle-best-practices for caption
-design rules; the deviation here is "no per-word reveal on the hook."
+**Caption-rendering implication**: the hook needs its own on-screen treatment,
+**distinct from the running captions**. Two shapes both work: a static title
+card (single fade-in, no per-word reveal) or an animated word-by-word hook. The
+evidence doesn't settle which holds better through the retention cliff, so A/B
+test it. What is NOT defensible is rendering the hook as the same words as the
+bottom captions at the same time: for ~1.5 s the viewer reads the first sentence
+twice, which is clutter. The standard (what Submagic and OpusClip do) is a
+distinct authored hook headline — different, punchier copy than the first spoken
+line — layered above the running captions; the alternative is to suppress the
+captions while the card is up. Size the hook visibly larger than narration
+captions. See subtitle-best-practices for caption design rules.
 
 **Title card vs. text-over-frame — two shapes, different timing**:
 
@@ -78,10 +84,13 @@ controls the duration. Set `duration_sec: 1.5` for title-card behaviour,
 `duration_sec: 2.5` for text-over-frame. Both share the same drawtext
 implementation; the duration choice carries the design intent.
 
-**Pre-motion on static product photos**: the first slide must already be
-mid-motion when frame 1 lands. Inject **0.3-0.5 s of Ken Burns settle-zoom**
-on static product photos by default. 0.2 s is defensible only when burned-in
-text is on frame 1 (the text alone gives the eye a focal point). The
+**Pre-motion on static product photos**: the first slide should already be
+mid-motion when frame 1 lands. The sourced practice is continuous slow Ken
+Burns motion on any still (2-5 s per image is the cited range); the specific
+**0.3-0.5 s settle-zoom** micro-timing here is a project heuristic, not an
+industry-sourced number, so tune it by measured retention rather than treating
+it as a spec. 0.2 s is defensible only when burned-in text is on frame 1 (the
+text alone gives the eye a focal point). The
 pipeline's `first_frame_pre_motion: true` + `pre_motion_peak_zoom: 1.10`
 defaults sit at the upper edge of the band; tune `pre_motion_peak_zoom`
 between 1.05 and 1.15 to taste.
@@ -96,11 +105,13 @@ chosen variant in `pipeline_state.json` for downstream analytics.
 Hook caption sizing and word budget converge across Captions.ai, OpusClip,
 and Submagic 2025-2026 guidance.
 
-**Audio is its own search signal.** TikTok 2026 transcribes spoken audio via
-ASR and indexes the transcript alongside captions and hashtags. The hook
-keyword (product category, price band, audience cue, pain point) must land
-in the first 5 seconds of spoken audio — not just on-screen — for the video
-to surface in search. All six patterns above embed the keyword naturally
+**Audio is one search signal.** TikTok indexes spoken-audio transcripts
+alongside captions, on-screen text, and hashtags. Front-loading the hook
+keyword (product category, price band, audience cue, pain point) in the first
+5 seconds of spoken audio is a robust, low-risk move regardless of the exact
+ranking weight. (Vendor claims that ASR is "the primary" signal, or that a
+triple-mention ranks "2-3x" better, are un-sourced precision — keep the tactic,
+drop the numbers.) All six patterns above embed the keyword naturally
 without the opener reading as a search-bar query. **Anti-pattern**: literal
 Google-query syntax like "Best [category] under $[N] for [audience]." Reads
 as keyword stuffing in voiceover; sacrifices the conversational register
@@ -151,10 +162,11 @@ a cadence.
 
 ## 3. Sound-off as the primary audience
 
-**85% of social video views are sound-off** (Manchester Digital,
-Clicks.video, Zebracat 2025 — number converges across sources). Design
-the entire video assuming sound-off is the default; treat sound-on as the
-accessibility layer for the 15%, not the source of truth.
+**A large majority of feed video is watched sound-off.** (The widely-cited
+"85%" traces to a 2016 Facebook, publisher-reported figure, so treat the exact
+number as dated; the direction is solid and repeated across 2025-2026 sources.)
+Design the entire video assuming sound-off is the default; treat sound-on as
+the accessibility layer, not the source of truth.
 
 **What this changes:**
 
@@ -170,9 +182,10 @@ accessibility layer for the 15%, not the source of truth.
   is the only signal of "this is a beat, not a continuation." Strip
   mid-script periods for karaoke flow but keep beat punctuation at
   intentional pause points (hook → narration handoff, before CTA).
-- **Mute resistance**: 39% of viewers mute video ads by default; only 22%
-  skip if captions are present (vs. higher skip rates without). Captions
-  don't directly boost CTR — they prevent the skip that kills CTR.
+- **Mute resistance**: the defensible stat behind the folklore is a skip
+  comparison, not a mute rate — roughly 22% skip captioned videos vs ~39%
+  skip uncaptioned ones. Captions don't directly boost CTR; they prevent the
+  skip that kills CTR.
 
 ## 4. Trust signals & FTC `#ad` disclosure
 
@@ -183,12 +196,17 @@ accessibility layer for the 15%, not the source of truth.
   `Paid partnership`) PLUS the same disclosure at the **top of the
   caption text**, before any other text or hashtags.
 - Disclosure must be **on screen long enough to read**, in a font/color
-  that contrasts the background, **persistent for the entire clip** (not
-  a flash card).
-- Penalties: **up to $53,088 per violation** as of 2025.
+  that contrasts the background. Full-clip persistence is a safe short-form
+  default (a viewer can enter mid-scroll), not a codified FTC duration; the
+  binding test is "clear and conspicuous / unavoidable."
+- Penalties: statutory **maximum of $53,088 per violation** (2025 figure,
+  still current in 2026). It's a cap reached via a Notice of Penalty Offense
+  or consent-order violation, not an automatic fine on a single mislabeled post.
 - Practical rendering: same font family as the project's caption
-  configuration, ~50-60% caption size, fixed top-left or top-right
-  corner, full-clip duration.
+  configuration, fixed top-left or top-right corner, full-clip duration. The
+  FTC judges legibility and unavoidability (large enough to read on a phone,
+  high contrast, stable placement clear of platform UI), not a pixel ratio —
+  "~50-60% of caption size" is a design heuristic, not an FTC rule.
 - **Corner conflict**: when the burned-in hook overlay sits centre-upper
   (the pipeline's default), the `#ad` disclosure goes top-left (or
   top-right). Don't stack both at top-centre — they compete for the
@@ -223,10 +241,13 @@ script template prompts (CHANGELOG `0.43.1`).
 ## 5. Closing-line beat — comment-fork or spec-correction
 
 One short engagement-bait line, right before the hard CTA, not replacing it.
-TikTok's algorithm rewards comments and saves as primary engagement signals;
+TikTok's algorithm rewards comments and saves as high-intent engagement signals;
 a closing line that invites a reply outperforms a video that ends on the
-sponsor pitch. Generic engagement bait ("Comment YES if you agree") is
-spam-filtered and reduces reach; specific, opinion-driven prompts pass.
+sponsor pitch. Generic engagement bait ("Comment YES if you agree") is widely
+reported to be down-ranked by the moderation layer while specific, opinion-driven
+prompts pass. This is industry consensus and aligns with TikTok's stated stance
+against engagement-bait, though the exact "spam-filtered" mechanism isn't
+documented by the platform — keep the tactic, hold the mechanism loosely.
 
 **Two flavours, picked by template framing:**
 
@@ -259,11 +280,12 @@ templates and spec-correction for analytical/comparison templates. See
 
 **Wistia State of Video 2025** analyzed 36,000+ video CTAs:
 
-- Post-roll CTAs convert at **~16% on average**, well-placed CTAs reach **~40%**.
-- For videos under 60 s, **CTAs in the first quarter** convert nearly
-  40% of viewers.
-- Surprising data point: a **soft early CTA + hard late CTA double-tap**
-  outperforms a single end-card.
+- Video CTAs convert at **~16% on average** across the Wistia platform (verified).
+- For videos under 60 s, place the **CTA in the first quarter** (verified Wistia guidance).
+- The "well-placed CTAs reach ~40%" figure and the "soft-early + hard-late
+  double-tap outperforms a single end-card" framing are NOT in Wistia's report:
+  the 40% is an unattributed secondary citation, and the double-tap is a
+  playbook tactic (a sound one worth testing), not a Wistia finding.
 
 **Two-stage pattern (vendor consensus):**
 
@@ -274,14 +296,13 @@ templates and spec-correction for analytical/comparison templates. See
 
 **Hard-CTA caption rendering:**
 
-- Different color from the karaoke highlight (e.g., brand accent vs. the
-  per-word highlight color). Red/orange beat green in independent A/B
-  tests (CapCut/Nemo case studies).
-- Larger font (1.3-1.5× narration).
-- **Static**, not karaoke. Karaoke on the CTA reads as "more text
-  coming"; static reads as "stop, act."
-- On screen ≥1.5 s minimum. Faster than that, the CTA blinks past in
-  autoplay.
+- High-contrast accent color, different from the karaoke highlight. "Red/orange
+  beats green" replicates in A/B data, but the tests measure **contrast, not
+  color** — a CTA wins by standing out against its surrounding palette, and copy
+  and placement beat color as levers. Use whatever contrasts your palette.
+- Larger font (~1.3-1.5× narration), **static** not karaoke, on screen ≥1.5 s.
+  These are sound UX defaults (static reads as "stop, act"; sub-1.5 s blinks
+  past in autoplay), not sourced findings — treat as craft heuristics to A/B.
 
 **Verb choice**: imperative + specific outcome. "Get the $15 fix" beats
 "Shop now". "Link to the bag in bio" beats "Click here".
@@ -292,24 +313,50 @@ YouTube and TikTok treat AI-generated content separately from sponsored
 content. The disclosure surfaces are different and both apply on top of
 the FTC `#ad` overlay above.
 
-- **YouTube**: in July 2025 YouTube revoked monetization eligibility for
-  "purely AI-generated videos without human creative input." The pipeline
-  output qualifies as "significantly AI-modified" (LLM-written script +
-  AI TTS + AI subtitle styling), not "purely AI-generated", but the
-  publisher payload sets `containsSyntheticMedia: true` on every YouTube
-  publish to stay on the safe side. The flag is necessary, not optional.
+- **YouTube**: the July 2025 policy update (renamed "repetitious" to
+  "inauthentic content") targets mass-produced, templated, low-human-input
+  content for reduced reach and demonetization — the trigger is *unoriginality*,
+  not AI generation itself. For an automated render pipeline the real exposure
+  is shipping near-identical videos at scale, so vary hooks, scripts, templates,
+  voices, and cadence across renders (see the originality note below).
+  Separately, YouTube's "altered or synthetic content" disclosure applies only
+  to *realistic* synthetic media; a product slideshow with AI voiceover over
+  obvious product imagery generally doesn't require it, so the publisher's
+  `containsSyntheticMedia: true` on every YouTube publish is a conservative
+  default rather than a strict mandate.
 - **TikTok**: as of 2026, TikTok auto-flags AI content via C2PA detection.
   Auto-flagging suppresses distribution BEFORE removal; explicit
   disclosure via TikTok's AI-content label keeps reach intact. The
   publisher does not currently set this flag because the Zernio SDK does
   not expose it; the platform-side label is set manually per render
   (documented as a known gap in `docs/compliance.md`).
-- **Instagram / Reels**: no automatic AI-detection enforcement yet (May 2026),
-  but Meta has published draft policy. Watch for changes if the pipeline
-  expands its Instagram footprint.
+- **Instagram / Reels**: enforced now, not draft. As of 2026 Meta runs
+  automatic AI detection-and-enforcement, strongest on the paid/ads surface
+  (auto-applies a disclosure label, rejects undisclosed AI creative, can
+  retroactively flag running campaigns); organic-Reels detection is more
+  metadata- and self-declaration-driven. Self-declare AI provenance (embed
+  C2PA / IPTC at generation) and set the platform AI toggle — self-labeling
+  preserves reach; getting auto-flagged undisclosed is what costs distribution.
 
 The pipeline already prepends `#ad` to caption text and burns the corner
 disclosure. AI-content disclosure is additive, not a replacement.
+
+**Originality is the real 2026 AI-reach risk.** No platform penalizes *labeled*
+AI content on its own, but all three deprioritize unoriginal, templated,
+mass-produced output, and that is exactly the failure mode of an automated
+pipeline that renders the same shapes repeatedly. Treat variety as a
+reach-preservation requirement: rotate hook patterns, script templates, voice,
+cut cadence, and cold-open variant per render so the aggregate output doesn't
+read as a template factory. The pipeline already has the variant frameworks;
+the discipline is using them.
+
+**2026 platform shifts a 2025 playbook would miss.** TikTok's US operation was
+divested to a US joint venture in January 2026 and its recommendation algorithm
+is being retrained on US-only data, so US-reach assumptions are provisional
+right now. Instagram removed the longer-Reels penalty (recommends up to ~3 min
+to non-followers), weights DM-sends ~3-5x above likes for reaching new
+audiences, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
+guidance now hurts reach.
 
 ## 8. Honest gaps in the evidence
 

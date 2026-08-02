@@ -22,7 +22,7 @@ When the script language is not English, the disclosure must match. Add per-lang
 
 ## Phase 1 — Hook and retention surgery (Now)
 
-The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engagement-bait closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile). One Gen Z cut-density profile remains.
+The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engagement-bait closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile), plus hook-overlay hardening (frame-fit wrap and shrink, apostrophe-safe rendering via `textfile=`). Remaining: a distinct authored hook headline (1.9), a Gen Z cut-density profile (1.4), and the A/B measurement layer (1.7).
 
 ### 1.4 High-density cut profile
 
@@ -41,6 +41,18 @@ The cold-open variant framework already selects one of several hook variants per
 Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds. Config flag per profile, off by default.
 
 **Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
+
+### 1.9 Authored hook headline (de-duplicate hook vs captions)
+
+The burned-in hook overlay reuses the script's first spoken sentence, which the running captions also transcribe, so for the hook window the viewer reads the same words twice (top overlay plus bottom captions) — redundant clutter. Generate a distinct short headline (<=8 words, punchline-first, keyword front-loaded) separate from the spoken line and render that as the hook, matching the pattern the AI caption tools use (a designed headline above running captions). Falls back to the first-sentence extraction when no headline is available. Strategy in `docs/promotional-video-best-practices.md` section 1.
+
+**Done when:** the hook overlay renders an authored headline distinct from the caption text, with a first-sentence fallback.
+
+### 1.10 Output-variety guard (reach preservation)
+
+Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 2025 "inauthentic content" policy; the equivalent unoriginality signal on TikTok and Instagram). An automated pipeline that renders the same shapes repeatedly is the exact failure mode. The variant frameworks already exist (hook pattern, script template, voice, cut density, cold-open variant); the item is to select across them so aggregate output stays varied, and to surface a "sameness" check (e.g. recent-render template/voice/hook distribution) in the analytics reports. Reach preservation, not polish. Background in `docs/promotional-video-best-practices.md` section 7.
+
+**Done when:** a batch run spreads renders across the variant dimensions and a report shows the recent-render variety distribution.
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
