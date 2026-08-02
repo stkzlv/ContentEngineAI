@@ -933,3 +933,75 @@ async def generate_script(
 
     logger.error("All models failed to generate a script.")
     return None, None
+
+
+def _sanitize_hook_headline(text: str | None, max_words: int = 7) -> str:
+    """Clean an LLM-produced hook headline into a single burnable line.
+
+    Takes the first non-empty line, strips wrapping quotes and trailing
+    sentence punctuation, and caps to ``max_words`` words. Returns an empty
+    string for empty/whitespace input so callers can fall back to the
+    first-sentence extraction.
+    """
+    if not text:
+        return ""
+    line = ""
+    for candidate in text.strip().splitlines():
+        if candidate.strip():
+            line = candidate.strip()
+            break
+    if not line:
+        return ""
+    line = line.strip("\"'`").rstrip(".!?,;:").strip()
+    words = line.split()
+    if len(words) > max_words:
+        line = " ".join(words[:max_words])
+    return line
+
+
+async def generate_hook_headline(
+    product: ProductData,
+    settings: LLMSettings,
+    secrets: dict[str, str],
+    session: aiohttp.ClientSession,
+    api_settings=None,
+    debug_mode: bool = False,
+    video_script: str | None = None,
+    narrator_profile: str = "",
+    pillar: str | None = None,
+    pillar_preambles: dict[str, str] | None = None,
+    max_words: int = 7,
+) -> str:
+    """Generate a short on-screen hook headline distinct from the spoken script.
+
+    The headline is burned across the top of the frame for the first ~1.5s as a
+    designed line, not a transcript, so the hook overlay no longer repeats the
+    first spoken sentence that the running captions already show. Returns an
+    empty string on any failure (missing key, LLM error) so the caller falls
+    back to extracting the first sentence of the script. Never raises.
+    """
+    api_key = secrets.get(settings.api_key_env_var) if secrets else None
+    if not api_key:
+        logger.debug("Hook headline skipped: no API key (%s)", settings.api_key_env_var)
+        return ""
+    from src.ai.platform_metadata.utilities import generate_with_llm
+
+    try:
+        raw = await generate_with_llm(
+            Path("src/ai/prompts/hook_headline.md"),
+            product,
+            settings,
+            api_key,
+            session,
+            api_settings,
+            debug_mode,
+            secrets=secrets,
+            video_script=video_script,
+            narrator_profile=narrator_profile,
+            pillar=pillar,
+            pillar_preambles=pillar_preambles,
+        )
+    except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
+        logger.warning("Hook headline generation failed: %s", e)
+        return ""
+    return _sanitize_hook_headline(raw, max_words=max_words)

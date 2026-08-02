@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Hook overlay renders a distinct authored headline (a short LLM-generated line, keyword front-loaded, 3-7 words) instead of repeating the script's first spoken sentence that the running captions already show. Removes the duplicated-text look where the same words appeared as both the top hook and the bottom captions. Generated in the script step from a new `hook_headline` prompt; falls back to first-sentence extraction when no headline is available, so behavior is unchanged for forks without the prompt.
+
 ### Fixed
 - Hook overlay no longer clips off-frame on long hook lines. It wraps to at most two frame-width-sized lines and shrinks the font when wrapping alone doesn't fit, so `hook_overlay.enabled` is re-enabled in the bundled config (was disabled as a stopgap). The width estimate now matches FFmpeg's default font so the width cap is honored, the bundled hook font is smaller (`size_factor` 1.35 to 1.1), and the per-line width cap tightens to leave a clear margin from the frame edges (`max_width_fraction` 0.9 to 0.78).
 - Hook overlay no longer corrupts on a hook whose first sentence contains an apostrophe ("you're", "it's", "don't"). Inline `text=` with the escaped apostrophe rendered as garbage inside the assembler's multi-filter chain; the hook now passes text via `textfile=`, matching the subtitle burn-in path.

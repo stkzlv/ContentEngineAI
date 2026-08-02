@@ -10,6 +10,7 @@ from src.video.assembler.overlay_builder import (
     apply_hook_overlay,
     build_hook_drawtext,
     extract_hook_line,
+    resolve_hook_line,
 )
 from src.video.config.visual_models import HookOverlaySettings
 
@@ -39,6 +40,31 @@ class TestExtractHookLine:
     def test_no_terminator_returns_whole_text(self) -> None:
         text = "Short line with no period"
         assert extract_hook_line(text, 10) == "Short line with no period"
+
+
+class TestResolveHookLine:
+    """The authored headline wins over first-sentence extraction (#160, 1.9)."""
+
+    def test_headline_wins_verbatim(self) -> None:
+        # A headline is used as-is, not re-extracted, even if it looks like prose.
+        out = resolve_hook_line(
+            "This $15 hub replaced my $200 one",
+            "Some totally different spoken first sentence. And more.",
+            7,
+        )
+        assert out == "This $15 hub replaced my $200 one"
+
+    def test_falls_back_to_extraction_without_headline(self) -> None:
+        out = resolve_hook_line(None, "First sentence here. Second one.", 7)
+        assert out == "First sentence here"
+
+    def test_empty_headline_falls_back(self) -> None:
+        out = resolve_hook_line("", "First sentence here. Second.", 7)
+        assert out == "First sentence here"
+
+    def test_neither_returns_empty(self) -> None:
+        assert resolve_hook_line(None, None, 7) == ""
+        assert resolve_hook_line("", "", 7) == ""
 
 
 class TestBuildHookDrawtext:

@@ -198,6 +198,26 @@ def extract_hook_line(script: str, max_words: int) -> str:
     return _truncate_to_words(head, max_words)
 
 
+def resolve_hook_line(
+    hook_headline: str | None, hook_text: str | None, max_words: int
+) -> str:
+    """Choose the hook overlay line: an authored headline wins over the script.
+
+    When a distinct authored ``hook_headline`` is available it is used verbatim
+    (it is already short and already the final line, so it is not re-extracted).
+    This is what makes the hook read as a designed headline rather than a copy of
+    the first spoken sentence the running captions already show. Otherwise the
+    first sentence of the spoken ``hook_text`` is extracted and capped, the
+    pre-headline behaviour. Returns an empty string when neither is available, so
+    the overlay becomes a no-op.
+    """
+    if hook_headline:
+        return hook_headline
+    if hook_text:
+        return extract_hook_line(hook_text, max_words)
+    return ""
+
+
 # Approximate per-character width factors for FFmpeg's built-in hook font (the
 # hook drawtext sets no ``fontfile``). Kept as constants so the fit logic stays a
 # pure function testable without a loaded config, mirroring the character classes

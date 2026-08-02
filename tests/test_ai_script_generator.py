@@ -9,6 +9,7 @@ import pytest
 from src.ai.script_generator import (
     ScriptGenerationError,
     _normalize_for_llm,
+    _sanitize_hook_headline,
     _short_product_name,
     format_prompt,
     generate_script,
@@ -701,3 +702,30 @@ class TestGenerateScript:
         assert result[0] == "Generated script content"
         # Check that debug file was created
         assert (temp_dir / "prompt.txt").exists()
+
+
+class TestSanitizeHookHeadline:
+    """The authored hook headline is cleaned into one burnable line (1.9)."""
+
+    def test_empty_and_none(self) -> None:
+        assert _sanitize_hook_headline(None) == ""
+        assert _sanitize_hook_headline("") == ""
+        assert _sanitize_hook_headline("   \n  ") == ""
+
+    def test_takes_first_nonempty_line(self) -> None:
+        assert _sanitize_hook_headline("\n\nThis $15 hub wins\nignored") == (
+            "This $15 hub wins"
+        )
+
+    def test_strips_wrapping_quotes_and_trailing_punctuation(self) -> None:
+        assert _sanitize_hook_headline('"Best cheap hub."') == "Best cheap hub"
+        assert _sanitize_hook_headline("Stop wasting money!") == "Stop wasting money"
+
+    def test_caps_to_max_words(self) -> None:
+        out = _sanitize_hook_headline("one two three four five six seven eight", 7)
+        assert out == "one two three four five six seven"
+
+    def test_short_headline_unchanged(self) -> None:
+        assert _sanitize_hook_headline("This $15 hub replaced my $200 one") == (
+            "This $15 hub replaced my $200 one"
+        )

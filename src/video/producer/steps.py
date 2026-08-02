@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from src.ai.description_generator import generate_description as generate_ai_description
+from src.ai.script_generator import generate_hook_headline
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.manager import AudioManager
 from src.audio.registry import create_audio_provider
@@ -360,6 +361,28 @@ async def step_generate_script(ctx: PipelineContext):
             template_name,
             ctx.run_paths["script_file"].name,
         )
+
+        # Authored hook headline: a short designed line for the burned-in hook
+        # overlay, distinct from the spoken first sentence the captions transcribe
+        # (roadmap 1.9). Best-effort: an empty result falls back to first-sentence
+        # extraction in the assembler. Persisted to pipeline_state via ctx.state.
+        script_cfg = ctx.config.llm_settings.script_templates
+        headline = await generate_hook_headline(
+            ctx.product,
+            ctx.config.llm_settings,
+            ctx.secrets,
+            ctx.session,
+            ctx.config.api_settings,
+            ctx.debug_mode,
+            video_script=ctx.script,
+            narrator_profile=script_cfg.narrator_profile,
+            pillar=pillar,
+            pillar_preambles=script_cfg.pillar_preambles,
+            max_words=ctx.config.video_settings.hook_overlay.max_words,
+        )
+        if headline:
+            ctx.state["hook_headline"] = headline
+            logger.info("Authored hook headline: %s", headline)
 
 
 def _extract_hashtags_from_title(title: str) -> list[str]:
@@ -1135,6 +1158,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 debug_mode=ctx.debug_mode,
                 subtitle_upper_path=ctx.run_paths.get("subtitle_upper_file"),
                 hook_text=hook_text,
+                hook_headline=ctx.state.get("hook_headline"),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
