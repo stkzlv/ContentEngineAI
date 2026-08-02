@@ -18,6 +18,7 @@ Two overlays live here:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from src.video.config.visual_models import DisclosureSettings, HookOverlaySettings
 
@@ -274,6 +275,7 @@ def build_hook_drawtext(
     hook_text: str,
     subtitle_font_size_pixels: int,
     frame_width: int,
+    temp_dir: Path,
     input_stream: str,
     output_stream: str,
 ) -> str:
@@ -284,7 +286,16 @@ def build_hook_drawtext(
     hook never clips off-frame (#160). Each wrapped line is rendered as its own
     horizontally-centred ``drawtext`` (``(w-text_w)/2``), stacked vertically and
     chained with ``;`` (the filter separator core.py joins the list with); a
-    single-line hook produces one drawtext identical to the pre-#160 output.
+    single-line hook produces one drawtext.
+
+    Each line's text is passed via ``textfile=`` (written to ``temp_dir``), not
+    inline ``text=``. Inline text with a literal apostrophe silently corrupts:
+    the ``'\''`` exit/reenter escape works on a standalone ``-vf`` drawtext but
+    NOT inside the assembler's multi-filter ``-filter_complex`` chain, where the
+    parser swallows the drawtext's own trailing args as text (so a hook like
+    "you're ..." renders its args as tiny garbage). ``textfile=`` sidesteps all
+    text escaping. The subtitle builder uses the same approach. Only the file
+    path needs escaping (colons).
 
     The drawtext is `enable`-gated to the first ``duration_sec`` seconds so it
     disappears for the rest of the clip without changing the filter graph length.
@@ -306,7 +317,9 @@ def build_hook_drawtext(
     for i, line in enumerate(lines):
         stream_in = input_stream if i == 0 else f"[v_hkl{i}]"
         stream_out = output_stream if i == last_index else f"[v_hkl{i + 1}]"
-        text = _escape_drawtext_text(line)
+        line_file = temp_dir / f"hook_line_{i}.txt"
+        line_file.write_text(line, encoding="utf-8")
+        text_path = line_file.as_posix().replace(":", r"\:")
         y_expr = (
             f"h*{settings.margin_y_percent}+{i * line_height}"
             if i
@@ -314,7 +327,7 @@ def build_hook_drawtext(
         )
         parts = [
             f"{stream_in}drawtext=",
-            f"text='{text}':",
+            f"textfile='{text_path}':",
             f"fontsize={font_size}:",
             f"fontcolor={settings.font_color}:",
             f"borderw={settings.outline_thickness}:",
@@ -335,6 +348,7 @@ def apply_hook_overlay(
     hook_text: str,
     subtitle_font_size_pixels: int,
     frame_width: int,
+    temp_dir: Path,
 ) -> list[str]:
     """Insert the hook overlay before the disclosure overlay's rewrite slot.
 
@@ -374,6 +388,7 @@ def apply_hook_overlay(
         hook_text,
         subtitle_font_size_pixels,
         frame_width,
+        temp_dir,
         input_stream=input_stream,
         output_stream="[v_hook]",
     )

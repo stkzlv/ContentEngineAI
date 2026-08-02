@@ -42,19 +42,23 @@ class TestExtractHookLine:
 
 
 class TestBuildHookDrawtext:
-    def test_filter_shape(self) -> None:
+    def test_filter_shape(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True, duration_sec=1.5)
         out = build_hook_drawtext(
             settings,
             "Best earbuds",  # short: stays a single line at 1080px
             subtitle_font_size_pixels=72,
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[v_sub]",
             output_stream="[v_hook]",
         )
         assert out.startswith("[v_sub]drawtext=")
         assert out.endswith("[v_hook]")
-        assert "Best earbuds" in out
+        # Text lives in a textfile, not inline (inline apostrophes corrupt the
+        # multi-filter chain), so the line content is on disk, not in `out`.
+        assert "textfile=" in out
+        assert (tmp_path / "hook_line_0.txt").read_text() == "Best earbuds"
         # single line, no intermediate stream
         assert out.count("drawtext=") == 1
         # 72 * 1.35 = 97.2 -> 97
@@ -64,31 +68,33 @@ class TestBuildHookDrawtext:
         # time-gated
         assert "enable=between(t\\,0\\,1.500)" in out
 
-    def test_disabled_background_skips_box(self) -> None:
+    def test_disabled_background_skips_box(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True, background_enabled=False)
         out = build_hook_drawtext(
             settings,
             "hook line",
             subtitle_font_size_pixels=60,
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[in]",
             output_stream="[out]",
         )
         assert "box=1" not in out
 
-    def test_enabled_background_includes_box(self) -> None:
+    def test_enabled_background_includes_box(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True, background_enabled=True)
         out = build_hook_drawtext(
             settings,
             "hook line",
             subtitle_font_size_pixels=60,
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[in]",
             output_stream="[out]",
         )
         assert "box=1:boxcolor=black@0.5" in out
 
-    def test_fontsize_floor_at_8(self) -> None:
+    def test_fontsize_floor_at_8(self, tmp_path) -> None:
         """Even with tiny narration size + low size_factor, never go below 8px."""
         settings = HookOverlaySettings(enabled=True, size_factor=1.0)
         out = build_hook_drawtext(
@@ -96,6 +102,7 @@ class TestBuildHookDrawtext:
             "x",
             subtitle_font_size_pixels=4,  # ridiculous low; clamp expected
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[in]",
             output_stream="[out]",
         )
@@ -105,13 +112,14 @@ class TestBuildHookDrawtext:
 class TestHookFit:
     """Long hooks wrap to <=2 lines and shrink to fit the frame (#160)."""
 
-    def test_long_hook_wraps_to_two_lines(self) -> None:
+    def test_long_hook_wraps_to_two_lines(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True)
         out = build_hook_drawtext(
             settings,
             "This cheap gadget quietly replaced my whole expensive desk setup",
             subtitle_font_size_pixels=72,
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[v_sub]",
             output_stream="[v_hook]",
         )
@@ -120,6 +128,9 @@ class TestHookFit:
         assert "[v_hkl1]" in out
         assert out.startswith("[v_sub]drawtext=")
         assert out.endswith("[v_hook]")
+        # Each line is written to its own textfile.
+        assert (tmp_path / "hook_line_0.txt").exists()
+        assert (tmp_path / "hook_line_1.txt").exists()
         # The second line carries a vertical offset (base + line height).
         assert "+" in out.split(";")[1]
 
@@ -153,32 +164,34 @@ class TestHookFit:
 
 
 class TestApplyHookOverlay:
-    def test_disabled_returns_unchanged(self) -> None:
+    def test_disabled_returns_unchanged(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=False)
         filters = ["a;b", "stream_xcopy[v_out]"]
-        assert apply_hook_overlay(filters, settings, "hook", 60, 1080) is filters
+        assert (
+            apply_hook_overlay(filters, settings, "hook", 60, 1080, tmp_path) is filters
+        )
 
-    def test_empty_text_returns_unchanged(self) -> None:
+    def test_empty_text_returns_unchanged(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True)
         filters = ["a", "stream_xcopy[v_out]"]
-        assert apply_hook_overlay(filters, settings, "", 60, 1080) is filters
+        assert apply_hook_overlay(filters, settings, "", 60, 1080, tmp_path) is filters
 
-    def test_empty_filters_returns_unchanged(self) -> None:
+    def test_empty_filters_returns_unchanged(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True)
-        assert apply_hook_overlay([], settings, "hook", 60, 1080) == []
+        assert apply_hook_overlay([], settings, "hook", 60, 1080, tmp_path) == []
 
-    def test_unexpected_terminal_returns_unchanged(self, caplog) -> None:
+    def test_unexpected_terminal_returns_unchanged(self, tmp_path, caplog) -> None:
         settings = HookOverlaySettings(enabled=True)
         filters = ["a", "stream_xnocopy[v_other]"]
-        out = apply_hook_overlay(filters, settings, "hook", 60, 1080)
+        out = apply_hook_overlay(filters, settings, "hook", 60, 1080, tmp_path)
         assert out is filters
         assert any("unexpected shape" in r.message for r in caplog.records)
 
-    def test_rewrite_preserves_terminal_copy(self) -> None:
+    def test_rewrite_preserves_terminal_copy(self, tmp_path) -> None:
         """Hook layer must keep copy[v_out] alive for the disclosure layer."""
         settings = HookOverlaySettings(enabled=True)
         filters = ["scaled;padded[v_sub_3];", "[v_sub_3]copy[v_out]"]
-        out = apply_hook_overlay(filters, settings, "Hook line", 60, 1080)
+        out = apply_hook_overlay(filters, settings, "Hook line", 60, 1080, tmp_path)
         # Original list extended by one; terminal still copy[v_out]
         assert len(out) == 3
         assert out[-1] == "[v_hook]copy[v_out]"
@@ -199,7 +212,7 @@ class TestHookPlusDisclosureStack:
     the original prefix, the hook drawtext, and the disclosure drawtext.
     """
 
-    def test_hook_then_disclosure_produces_three_entries(self) -> None:
+    def test_hook_then_disclosure_produces_three_entries(self, tmp_path) -> None:
         from src.video.assembler.overlay_builder import (
             apply_disclosure_overlay,
             apply_hook_overlay,
@@ -210,7 +223,7 @@ class TestHookPlusDisclosureStack:
         disclosure = DisclosureSettings(enabled=True)
         filters = ["scaled;padded[v_sub];", "[v_sub]copy[v_out]"]
 
-        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080)
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)
         final = apply_disclosure_overlay(hooked, disclosure, 60)
 
         # Three filter entries: prefix, hook drawtext, disclosure drawtext.
@@ -222,7 +235,7 @@ class TestHookPlusDisclosureStack:
         assert final[2].startswith("[v_hook]drawtext=")
         assert final[2].endswith("[v_out]")
 
-    def test_disclosure_only_when_hook_disabled(self) -> None:
+    def test_disclosure_only_when_hook_disabled(self, tmp_path) -> None:
         from src.video.assembler.overlay_builder import (
             apply_disclosure_overlay,
             apply_hook_overlay,
@@ -233,7 +246,7 @@ class TestHookPlusDisclosureStack:
         disclosure = DisclosureSettings(enabled=True)
         filters = ["prefix", "[v_sub]copy[v_out]"]
 
-        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080)
+        hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)
         final = apply_disclosure_overlay(hooked, disclosure, 60)
 
         # Hook was disabled, so the filter list grew by zero. Disclosure
@@ -243,36 +256,39 @@ class TestHookPlusDisclosureStack:
         assert final[-1].endswith("[v_out]")
 
 
-class TestApostropheEscape:
-    r"""Regression guard for the FFmpeg multi-filter chain apostrophe bug.
+class TestApostropheHandling:
+    r"""The hook must survive an apostrophe in the first sentence.
 
-    The naive ``\'`` escape works on a standalone drawtext but breaks inside
-    a multi-filter filtergraph chain: FFmpeg's parser consumes past the
-    intended quote boundary and absorbs the downstream filters' args,
-    producing a misleading ``Option 'st' not found`` error from later
-    filters. The exit/reenter pattern (``'\''``) survives.
+    Inline ``text='...'`` corrupts silently inside the assembler's multi-filter
+    ``-filter_complex`` chain: the ``'\''`` exit/reenter escape works on a lone
+    ``-vf`` drawtext but not when another filter follows, where FFmpeg swallows
+    the drawtext's own trailing args as literal text. A hook like "you're ..."
+    then rendered as tiny garbage. The fix routes hook text through
+    ``textfile=``, which needs no text escaping.
     """
 
-    def test_apostrophe_uses_exit_reenter_pattern(self) -> None:
+    def test_disclosure_escaper_still_uses_exit_reenter(self) -> None:
+        # The disclosure overlay still inlines its text (config-controlled,
+        # e.g. "#ad", no apostrophe), so its escaper is unchanged.
         from src.video.assembler.overlay_builder import _escape_drawtext_text
 
-        # `you're` becomes `you'\''re` (close-quote, backslash-quote,
-        # open-quote). Two literal apostrophes plus an escaped one.
         assert _escape_drawtext_text("you're") == r"you'\''re"
 
-    def test_filter_uses_correct_apostrophe_escape(self) -> None:
+    def test_apostrophe_hook_uses_textfile(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True)
         out = build_hook_drawtext(
             settings,
             "you're trying",
             subtitle_font_size_pixels=72,
             frame_width=1080,
+            temp_dir=tmp_path,
             input_stream="[v_sub]",
             output_stream="[v_hook]",
         )
-        # Naive escape `you\'re` must NOT appear. Exit/reenter must.
-        assert "you\\'re" not in out
-        assert "you'\\''re" in out
+        # No inline text at all; text is on disk with the literal apostrophe.
+        assert "textfile=" in out
+        assert "text='" not in out
+        assert (tmp_path / "hook_line_0.txt").read_text() == "you're trying"
 
 
 class TestVideoSettingsField:

@@ -656,6 +656,7 @@ class VideoAssembler:
                     hook_line,
                     subtitle_font_size_pixels,
                     self.config.video_settings.resolution[0],
+                    temp_dir,
                 )
 
             disclosure = self.config.video_settings.disclosure_overlay
