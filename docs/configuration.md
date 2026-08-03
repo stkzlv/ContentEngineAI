@@ -496,6 +496,60 @@ video_settings:
 </details>
 
 <details>
+<summary><strong>3.1. Overlay Settings (Disclosure and Hook)</strong></summary>
+
+### 3.1. Overlay Settings
+
+Two text overlays are burned into the frame by the assembler. Both are nested under `video_settings`. They are drawn in a fixed order: subtitles first, then the hook, then the disclosure, so the disclosure always stays on top of the z-order.
+
+**Disclosure overlay** — the persistent FTC affiliate marker. Required for affiliate content; disable only for non-affiliate renders.
+
+```yaml
+video_settings:
+  disclosure_overlay:
+    enabled: true                # Skip the overlay (not recommended for affiliate content)
+    text: "#ad"                  # Override for non-English renders, e.g. "#publi"
+    position: "top-right"        # top-left, top-right, bottom-left, bottom-right
+    size_factor: 0.45            # Font size as a fraction of the subtitle font (0.2-1.0)
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 3         # 0 disables the outline
+    background_enabled: true     # Semi-transparent box behind the text
+    background_color: "black@0.5"  # FFmpeg color@alpha
+    margin_x_percent: 0.04       # Distance from the horizontal edge (0.0-0.5)
+    margin_y_percent: 0.12       # Distance from the vertical edge (0.0-0.5)
+```
+
+`size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
+
+**Hook overlay** — a short headline held on the opening seconds to win the scroll-past decision.
+
+```yaml
+video_settings:
+  hook_overlay:
+    enabled: true                # Bundled config enables it; the model default is false
+    duration_sec: 1.5            # How long the hook is held (0.5-3.0)
+    size_factor: 1.1             # Font size as a multiple of the subtitle font (1.0-2.5)
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 6
+    background_enabled: false    # Outline alone usually reads better here
+    background_color: "black@0.5"
+    margin_y_percent: 0.28       # Distance from the top of the frame (0.0-0.5)
+    max_words: 7                 # Word budget, also passed to the headline prompt (3-12)
+    max_width_fraction: 0.78     # Max width of one line as a fraction of the frame (0.5-1.0)
+    max_lines: 2                 # Wrap limit before the font shrinks to fit (1-2)
+```
+
+The overlay text is an authored headline generated separately from the spoken script, so the hook does not repeat the first caption line; when no headline is available it falls back to the script's first sentence. `max_words` does double duty: it is the cap applied to the generated headline and the budget the headline prompt asks for, so raising it changes what the model writes rather than only truncating afterwards.
+
+Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone cannot fit. Text that still does not fit at the minimum size is ellipsized and logged. Because the hook is centred, `max_width_fraction: 0.78` leaves roughly an 11% margin on each side, clearing the platform side insets.
+
+**Bundled config differs from the model defaults** for the hook, the same pattern used by the subtitle engine. The Pydantic defaults (`enabled: false`, `size_factor: 1.35`, `max_width_fraction: 0.9`) apply when constructing settings programmatically without YAML; `config/video_production.yaml` ships the tuned values above.
+
+</details>
+
+<details>
 <summary><strong>4. Audio Settings</strong></summary>
 
 ### 4. Audio Settings

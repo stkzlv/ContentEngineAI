@@ -72,7 +72,7 @@ def mock_publisher(mock_late_sdk):
 class TestOnFrameOverlay:
     """Surface 1: persistent #ad burned in a fixed corner of every render."""
 
-    def test_assembler_filter_chain_gains_drawtext_overlay(self):
+    def test_assembler_filter_chain_gains_drawtext_overlay(self, tmp_path):
         # The assembler always ends with a "[stream]copy[v_out]" no-op. The
         # overlay rewrites that to a drawtext filter producing the same
         # [v_out] label so the rest of the FFmpeg command needs no changes.
@@ -81,26 +81,42 @@ class TestOnFrameOverlay:
             "[v0]copy[v_subtitle]",
             "[v_subtitle]copy[v_out]",
         ]
-        out = apply_disclosure_overlay(chain, DisclosureSettings(), 80)
+        out = apply_disclosure_overlay(chain, DisclosureSettings(), 80, tmp_path)
 
         assert len(out) == len(chain)
         assert out[-1].startswith("[v_subtitle]drawtext=")
         assert out[-1].endswith("[v_out]")
-        assert "text='#ad'" in out[-1]
+        # Text goes through textfile=, not inline text=, so a localized value
+        # with an apostrophe can't corrupt the multi-filter chain.
+        assert "textfile=" in out[-1]
+        assert (tmp_path / "disclosure_text.txt").read_text() == "#ad"
 
-    def test_overlay_can_be_disabled_for_non_affiliate_renders(self):
+    def test_overlay_can_be_disabled_for_non_affiliate_renders(self, tmp_path):
         # The Phase 2.2 "non_affiliate" pillar mode (educational track) needs
         # an escape hatch so educational videos don't ship with #ad.
         chain = ["[v_subtitle]copy[v_out]"]
-        out = apply_disclosure_overlay(chain, DisclosureSettings(enabled=False), 80)
+        out = apply_disclosure_overlay(
+            chain, DisclosureSettings(enabled=False), 80, tmp_path
+        )
         assert out == chain
 
-    def test_overlay_text_propagates_through_to_filter(self):
+    def test_overlay_text_propagates_through_to_filter(self, tmp_path):
         # Phase 0.4 will inject Spanish #publi via this same DisclosureSettings
         # path; verify the text override reaches the rendered filter today.
         chain = ["[v_subtitle]copy[v_out]"]
-        out = apply_disclosure_overlay(chain, DisclosureSettings(text="#publi"), 80)
-        assert "text='#publi'" in out[-1]
+        apply_disclosure_overlay(chain, DisclosureSettings(text="#publi"), 80, tmp_path)
+        assert (tmp_path / "disclosure_text.txt").read_text() == "#publi"
+
+    def test_localized_text_with_apostrophe_survives(self, tmp_path):
+        # The disclosure sits inside the assembler's multi-filter chain, where
+        # an inline text= carrying an apostrophe made FFmpeg swallow the
+        # filter's own trailing args and drop the disclosure entirely.
+        chain = ["[v_subtitle]copy[v_out]"]
+        out = apply_disclosure_overlay(
+            chain, DisclosureSettings(text="Pub d'affiliation"), 80, tmp_path
+        )
+        assert "text='" not in out[-1]
+        assert (tmp_path / "disclosure_text.txt").read_text() == "Pub d'affiliation"
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +227,7 @@ class TestStackInvariants:
         caption_default = meta.disclosure
         assert overlay_default == caption_default == "#ad"
 
-    def test_custom_disclosure_propagates_to_both_surfaces(self):
+    def test_custom_disclosure_propagates_to_both_surfaces(self, tmp_path):
         # When a future Phase 0.4 wires Spanish renders, setting the disclosure
         # value on both DisclosureSettings and PublishMetadata is what the
         # pipeline needs to do consistently. Verify the propagation today.
@@ -224,8 +240,8 @@ class TestStackInvariants:
         )
         assert spanish_overlay.text == meta.disclosure == "#publi"
 
-        chain = apply_disclosure_overlay(
-            ["[v_subtitle]copy[v_out]"], spanish_overlay, 80
+        apply_disclosure_overlay(
+            ["[v_subtitle]copy[v_out]"], spanish_overlay, 80, tmp_path
         )
-        assert "text='#publi'" in chain[-1]
+        assert (tmp_path / "disclosure_text.txt").read_text() == "#publi"
         assert meta.format_content().startswith("#publi\n")

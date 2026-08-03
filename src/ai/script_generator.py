@@ -933,3 +933,140 @@ async def generate_script(
 
     logger.error("All models failed to generate a script.")
     return None, None
+
+
+# Minimum words for a headline to read as a headline rather than a fragment.
+_HOOK_HEADLINE_MIN_WORDS = 2
+
+# Openers that mark the line as conversational filler rather than the headline
+# itself: a preamble the model wrote before answering, or a refusal. Either one
+# would otherwise be burned across the top of a published video.
+_HOOK_HEADLINE_REJECT_PREFIXES = (
+    "sure",
+    "here is",
+    "here's",
+    "here are",
+    "okay",
+    "ok,",
+    "certainly",
+    "of course",
+    "absolutely",
+    "i can't",
+    "i cannot",
+    "i can not",
+    "i'm sorry",
+    "i am sorry",
+    "sorry,",
+    "as an ai",
+    "unfortunately",
+    "headline:",
+    "hook:",
+    "note:",
+)
+
+
+def _strip_headline_wrapping(line: str) -> str:
+    """Strip wrapping quotes and trailing sentence punctuation, in any order.
+
+    A single pass is not enough: the LLM commonly closes with punctuation
+    *outside* the quote (``"Best cheap hub".``), where stripping quotes first
+    stops at the period and leaves a dangling quote behind. Alternating until
+    the string stops changing handles both nestings.
+    """
+    previous = None
+    while line != previous:
+        previous = line
+        line = line.strip("\"'`“”‘’").rstrip(".!?,;:").strip()
+    return line
+
+
+def _sanitize_hook_headline(text: str | None, max_words: int = 7) -> str:
+    """Clean an LLM-produced hook headline into a single burnable line.
+
+    Takes the first non-empty line, strips wrapping quotes and trailing
+    sentence punctuation, caps to ``max_words`` words (with an ellipsis marking
+    the cut, matching ``overlay_builder._truncate_to_words``), and rejects
+    output that reads as a preamble or refusal rather than a headline.
+
+    Returns an empty string for anything unusable so callers fall back to
+    first-sentence extraction. The result is burned into a published video, so
+    the bar for accepting a line is deliberately higher than "non-empty":
+    unlike the spoken script it passes through no other validation.
+    """
+    if not text:
+        return ""
+    line = ""
+    for candidate in text.strip().splitlines():
+        if candidate.strip():
+            line = candidate.strip()
+            break
+    if not line:
+        return ""
+    line = _strip_headline_wrapping(line)
+    if not line:
+        return ""
+
+    lowered = line.lower()
+    if lowered.startswith(_HOOK_HEADLINE_REJECT_PREFIXES):
+        logger.warning("Rejecting hook headline (reads as preamble): %s", line)
+        return ""
+
+    words = line.split()
+    if len(words) < _HOOK_HEADLINE_MIN_WORDS:
+        logger.warning("Rejecting hook headline (too short): %s", line)
+        return ""
+    if len(words) > max_words:
+        line = " ".join(words[:max_words]).rstrip(",.;:!?") + "..."
+    return line
+
+
+async def generate_hook_headline(
+    product: ProductData,
+    settings: LLMSettings,
+    secrets: dict[str, str],
+    session: aiohttp.ClientSession,
+    api_settings=None,
+    debug_mode: bool = False,
+    video_script: str | None = None,
+    narrator_profile: str = "",
+    pillar: str | None = None,
+    pillar_preambles: dict[str, str] | None = None,
+    max_words: int = 7,
+) -> str:
+    """Generate a short on-screen hook headline distinct from the spoken script.
+
+    The headline is burned across the top of the frame for the first ~1.5s as a
+    designed line, not a transcript, so the hook overlay no longer repeats the
+    first spoken sentence that the running captions already show. Returns an
+    empty string on any failure (missing key, LLM error) so the caller falls
+    back to extracting the first sentence of the script. Never raises.
+    """
+    api_key = secrets.get(settings.api_key_env_var) if secrets else None
+    if not api_key:
+        logger.debug("Hook headline skipped: no API key (%s)", settings.api_key_env_var)
+        return ""
+    from src.ai.platform_metadata.utilities import generate_with_llm
+
+    try:
+        raw = await generate_with_llm(
+            Path("src/ai/prompts/hook_headline.md"),
+            product,
+            settings,
+            api_key,
+            session,
+            api_settings,
+            debug_mode,
+            secrets=secrets,
+            video_script=video_script,
+            narrator_profile=narrator_profile,
+            pillar=pillar,
+            pillar_preambles=pillar_preambles,
+            # The word budget is a config field, so the prompt asks for it
+            # rather than hardcoding a number that would drift from
+            # hook_overlay.max_words. Sanitizing still enforces the cap.
+            extra_placeholders={"MAX_WORDS": str(max_words)},
+        )
+    except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
+        logger.warning("Hook headline generation failed: %s", e)
+        return ""
+    return _sanitize_hook_headline(raw, max_words=max_words)

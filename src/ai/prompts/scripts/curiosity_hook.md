@@ -16,6 +16,6 @@ Close with one short CTA per the narrator profile. Keep it casual.
 ## Product Data
 
 - **Product name (full):** {FULL_PRODUCT_NAME}
-- **Refer to it as:** {SHORT_PRODUCT_NAME}
+- **Suggested short alias:** {SHORT_PRODUCT_NAME} (auto-trimmed from the title, so it may be a fragment or carry a model code. Use it only if it reads like a name a person would say out loud; otherwise call the product by its plain category noun, e.g. "this 3D pen".)
 - **Description:** {PRODUCT_DESCRIPTION}
 - **Target audience:** {AUDIENCE}

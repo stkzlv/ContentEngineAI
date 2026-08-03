@@ -22,7 +22,7 @@ When the script language is not English, the disclosure must match. Add per-lang
 
 ## Phase 1 — Hook and retention surgery (Now)
 
-The foundational items shipped across 0.48.0-0.49.0 (audio-keyword opener, engagement-bait closing line, caption mirror) and on the current branch (punchline-first opener with visual interrupt, short profile). One Gen Z cut-density profile remains.
+The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engagement-bait closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile), plus hook-overlay hardening (frame-fit wrap and shrink, apostrophe- and percent-safe rendering via `textfile=`) and the authored hook headline (1.9). Remaining: a Gen Z cut-density profile (1.4) and the A/B measurement layer (1.7).
 
 ### 1.4 High-density cut profile
 
@@ -41,6 +41,18 @@ The cold-open variant framework already selects one of several hook variants per
 Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds. Config flag per profile, off by default.
 
 **Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
+
+### 1.9 Authored hook headline (de-duplicate hook vs captions) — shipped
+
+The burned-in hook overlay reused the script's first spoken sentence, which the running captions also transcribe, so for the hook window the viewer read the same words twice (top overlay plus bottom captions) — redundant clutter. A distinct short headline (punchline-first, keyword front-loaded, capped by `hook_overlay.max_words`) is now generated separately from the spoken line and rendered as the hook, matching the pattern the AI caption tools use (a designed headline above running captions). Falls back to first-sentence extraction when no headline is available. Strategy in `docs/promotional-video-best-practices.md` section 1.
+
+**Done when:** the hook overlay renders an authored headline distinct from the caption text, with a first-sentence fallback. Met.
+
+### 1.10 Output-variety guard (reach preservation)
+
+Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 2025 "inauthentic content" policy; the equivalent unoriginality signal on TikTok and Instagram). An automated pipeline that renders the same shapes repeatedly is the exact failure mode. The variant frameworks already exist (hook pattern, script template, voice, cut density, cold-open variant); the item is to select across them so aggregate output stays varied, and to surface a "sameness" check (e.g. recent-render template/voice/hook distribution) in the analytics reports. Reach preservation, not polish. Background in `docs/promotional-video-best-practices.md` section 7.
+
+**Done when:** a batch run spreads renders across the variant dimensions and a report shows the recent-render variety distribution.
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
@@ -373,19 +385,19 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 **Caption-side mirror of the engagement-bait closing line (0.49.x)**
 - Per-platform caption generators receive the rendered spoken script and mirror its closing engagement-bait line into each caption body. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s). Empty or missing script produces a normal caption with no closing line.
 
-**Hook retention surgery and short profile (Unreleased)**
-- Phase 1.2 punchline-first opener. Anti-setup clause across all 15 script templates so line 1 states a concrete fact instead of a setup framing. Pre-motion (Ken Burns settle-zoom) on the first image segment (`first_frame_pre_motion` + `pre_motion_peak_zoom`). Burned-in hook overlay renders the first sentence of the spoken script as centre-upper static text on the first 1.5 s, drawn after subtitles and before the disclosure rewrite. Cold-open variant rotation framework: three named variants selected per product via salted MD5 and persisted to `pipeline_state.json` for analytics. Hook-line lead in the subtitle timing smoother (first 3 words led by an extra 200 ms on top of the base lead).
+**Hook retention surgery and short profile (0.50.0)**
+- Phase 1.2 punchline-first opener. Anti-setup clause across all 15 script templates so line 1 states a concrete fact instead of a setup framing. Pre-motion (Ken Burns settle-zoom) on the first image segment (`first_frame_pre_motion` + `pre_motion_peak_zoom`). Burned-in hook overlay renders the first sentence of the spoken script as centre-upper static text on the first 1.5 s, drawn after subtitles and before the disclosure rewrite. Long hooks wrap to at most two lines and shrink the font to fit the frame width. Cold-open variant rotation framework: three named variants selected per product via salted MD5 and persisted to `pipeline_state.json` for analytics. Hook-line lead in the subtitle timing smoother (first 3 words led by an extra 200 ms on top of the base lead).
 - Phase 1.3 short profile and per-platform routing. New `slideshow_short_20s` (15-30 s canvas at ~50-60 word script budget). `profiles: <platform>: <profile>` mapping in `config/publisher.yaml` routes each platform to a named profile; the publisher prefers `video_<asin>_<profile>.mp4` and falls back to the first matching render when unset.
 - Phase 1.5 closing-line rule pivot. The 8 analytical templates now branch the spec-correction close on whether the description carries a contestable performance number; passive products close with a material-or-use claim instead. Fixes a fabrication case where the LLM invented numeric specs on products that didn't have them.
 
-**Pillar infrastructure and caption voice (Unreleased)**
+**Pillar infrastructure and caption voice (0.51.0)**
 - Keyword-to-pillar attachment in the scraper config. Keywords in `config/scraper.yaml` are a dict keyed by pillar; each scraped product carries the pillar through to the producer and registry without `--pillar`.
 - Narrator profile and pillar preamble shared with platform caption generators (YouTube, TikTok, Instagram) so captions match the video's conversational voice.
 
-**Best-practices docs (Unreleased)**
+**Best-practices docs (0.44.x-0.50.x)**
 - Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button.
 
-**Safe-zone runtime alignment (Unreleased)**
+**Safe-zone runtime alignment (0.51.3)**
 - Phase 1.6 runtime constant refresh. `src/video/config/constants.py` and `config/subtitles.yaml` safe-zone defaults now match the 2026 cross-platform union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920). The old bottom of 1440px let captions land inside Reels' interactive zone. A single cross-platform render clamps to the union, not one platform. The pycaps engine's deliberate lower-third offset is unchanged.
 - New `docs/audio-best-practices.md`: the sound-on layer (trending vs original audio, voiceover/music mix levels, ducking, audio hook, platform loudness).
 - New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary) backing the high-density cut profile (1.4).

@@ -18,6 +18,7 @@ Two overlays live here:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from src.video.config.visual_models import DisclosureSettings, HookOverlaySettings
 
@@ -30,15 +31,15 @@ def _escape_drawtext_text(text: str) -> str:
     Special chars in drawtext's text argument: backslash, single quote, colon,
     percent. The arg is wrapped in single quotes by the caller.
 
-    Apostrophes use the close-quote / backslash-quote / open-quote pattern
-    (``'\''``) rather than ``\'``. The ``\'`` form is documented and works
-    on a standalone drawtext, but breaks when the drawtext sits inside a
-    multi-filter filtergraph chain — FFmpeg's parser consumes characters
-    past the intended quote boundary and absorbs the rest of the chain
-    into the drawtext args, producing a confusing ``Option 'st' not found``
-    style error from later filters. The exit/reenter pattern is the same
-    shell-style trick used to embed apostrophes in any single-quoted
-    string; reliable across filter contexts.
+    WARNING: apostrophes are NOT reliably escapable here. The close-quote /
+    backslash-quote / open-quote pattern (``'\''``) survives a standalone
+    ``-vf`` drawtext but still corrupts inside a multi-filter ``-filter_complex``
+    chain (another filter present): FFmpeg swallows the drawtext's own trailing
+    args as text. This escaper is used only by the disclosure overlay, whose
+    text is config-controlled and apostrophe-free (``#ad`` / ``#publi``). For
+    ARBITRARY text in a filter chain (e.g. the hook overlay), pass it via
+    ``textfile=`` instead, which sidesteps the quoting layer entirely. See
+    ``_escape_drawtext_textfile`` and ``build_hook_drawtext``.
     """
     return (
         text.replace("\\", r"\\")
@@ -46,6 +47,27 @@ def _escape_drawtext_text(text: str) -> str:
         .replace(":", r"\:")
         .replace("%", r"\%")
     )
+
+
+def _escape_drawtext_textfile(text: str) -> str:
+    r"""Escape drawtext's text *expansion* for content written to a ``textfile=``.
+
+    ``textfile=`` removes the filtergraph quoting problem (no colon or
+    apostrophe escaping needed) but NOT the text expansion pass: drawtext still
+    runs ``expansion=normal`` over the file's contents, so backslash and percent
+    keep their special meaning.
+
+    Verified against real renders:
+
+    - a raw ``%`` is read as the start of a ``%{...}`` function, so FFmpeg logs
+      ``Stray %``, exits 0, and draws NOTHING for that line (the frame comes out
+      byte-identical to one with no drawtext at all).
+    - a raw ``\`` is silently swallowed (``a \ b`` renders as ``a  b``).
+
+    Escaping both (``\`` -> ``\\``, ``%`` -> ``\%``) renders them literally.
+    Backslash is doubled first so the escape marker added for ``%`` survives.
+    """
+    return text.replace("\\", "\\\\").replace("%", r"\%")
 
 
 def _position_expressions(
@@ -80,10 +102,19 @@ def _position_expressions(
 def build_disclosure_drawtext(
     settings: DisclosureSettings,
     subtitle_font_size_pixels: int,
+    temp_dir: Path,
     input_stream: str,
     output_stream: str,
 ) -> str:
     """Build a single FFmpeg drawtext filter that renders the disclosure.
+
+    The text is passed via ``textfile=`` for the same reason the hook overlay
+    is: this drawtext sits inside the assembler's multi-filter chain, where an
+    inline ``text=`` carrying an apostrophe makes FFmpeg swallow the filter's
+    own trailing args (see ``_escape_drawtext_text``). ``settings.text`` is
+    user-configurable YAML documented as overridable per language, so a
+    localized value like ``Pub d'affiliation`` would otherwise drop the FTC
+    disclosure from the video with no error.
 
     Parameters
     ----------
@@ -93,6 +124,8 @@ def build_disclosure_drawtext(
         Pixel size of the narration caption font, used as the reference for
         ``size_factor``. Set to a sensible default (e.g. ``frame_height * 0.05``)
         when caption size is unavailable.
+    temp_dir:
+        Directory the disclosure text file is written to.
     input_stream:
         FFmpeg stream label feeding into this filter, e.g. ``[v_subtitle_3]``.
     output_stream:
@@ -104,7 +137,9 @@ def build_disclosure_drawtext(
 
     """
     font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-    text = _escape_drawtext_text(settings.text)
+    text_file = temp_dir / "disclosure_text.txt"
+    text_file.write_text(_escape_drawtext_textfile(settings.text), encoding="utf-8")
+    text_path = text_file.as_posix().replace(":", r"\:")
     x_expr, y_expr = _position_expressions(
         settings.position,
         settings.margin_x_percent,
@@ -113,7 +148,7 @@ def build_disclosure_drawtext(
 
     parts = [
         f"{input_stream}drawtext=",
-        f"text='{text}':",
+        f"textfile='{text_path}':",
         f"fontsize={font_size}:",
         f"fontcolor={settings.font_color}:",
         f"borderw={settings.outline_thickness}:",
@@ -130,6 +165,7 @@ def apply_disclosure_overlay(
     video_filters: list[str],
     settings: DisclosureSettings,
     subtitle_font_size_pixels: int,
+    temp_dir: Path,
 ) -> list[str]:
     """Inject the disclosure overlay as the final filter before ``[v_out]``.
 
@@ -164,6 +200,7 @@ def apply_disclosure_overlay(
     rewritten = build_disclosure_drawtext(
         settings,
         subtitle_font_size_pixels,
+        temp_dir,
         input_stream=input_stream,
         output_stream="[v_out]",
     )
@@ -197,47 +234,187 @@ def extract_hook_line(script: str, max_words: int) -> str:
     return _truncate_to_words(head, max_words)
 
 
+def resolve_hook_line(
+    hook_headline: str | None, hook_text: str | None, max_words: int
+) -> str:
+    """Choose the hook overlay line: an authored headline wins over the script.
+
+    When a distinct authored ``hook_headline`` is available it is used verbatim
+    (it is already short and already the final line, so it is not re-extracted).
+    This is what makes the hook read as a designed headline rather than a copy of
+    the first spoken sentence the running captions already show. Otherwise the
+    first sentence of the spoken ``hook_text`` is extracted and capped, the
+    pre-headline behaviour. Returns an empty string when neither is available, so
+    the overlay becomes a no-op.
+    """
+    if hook_headline:
+        return hook_headline
+    if hook_text:
+        return extract_hook_line(hook_text, max_words)
+    return ""
+
+
+# Approximate per-character width factors for FFmpeg's built-in hook font (the
+# hook drawtext sets no ``fontfile``). Kept as constants so the fit logic stays a
+# pure function testable without a loaded config, mirroring the character classes
+# in unified_subtitle_generator.estimate_text_width_pixels.
+# Average glyph width as a fraction of font size for FFmpeg's default drawtext
+# font (no fontfile). Measured against real renders: 0.5 underestimated width by
+# ~13%, so long hooks that the estimator judged as fitting rendered edge-to-edge
+# (#160). 0.58 matches the observed rendered width so max_width_fraction holds.
+_HOOK_WIDTH_TO_HEIGHT_RATIO = 0.58
+_NARROW_CHARS = "iIjl|':;,.`!"
+_WIDE_CHARS = "mwMWAGOQ@"
+
+
+def _estimate_hook_text_width(text: str, font_size: int) -> int:
+    """Estimate the rendered pixel width of a hook line at ``font_size``."""
+    avg = font_size * _HOOK_WIDTH_TO_HEIGHT_RATIO
+    total = 0.0
+    for char in text:
+        if char in _NARROW_CHARS:
+            total += avg * 0.4
+        elif char in _WIDE_CHARS:
+            total += avg * 1.2
+        elif char == " ":
+            total += avg * 0.3
+        else:
+            total += avg
+    return int(total)
+
+
+def _wrap_hook_words(words: list[str], font_size: int, max_px: int) -> list[str]:
+    """Greedy word-wrap so each line's estimated width stays within ``max_px``."""
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and _estimate_hook_text_width(candidate, font_size) > max_px:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _fit_hook_lines(
+    hook_text: str,
+    start_font_size: int,
+    frame_width: int,
+    settings: HookOverlaySettings,
+) -> tuple[list[str], int]:
+    """Fit the hook to the frame width (#160).
+
+    Wrap into at most ``settings.max_lines`` lines each within
+    ``max_width_fraction`` of the frame width; when wrapping alone can't fit
+    (too many words, or a single word wider than the frame) shrink the font and
+    re-wrap, down to the 8px floor. Returns the wrapped lines and their font
+    size. A hook that already fits on one line returns unchanged.
+
+    If even the 8px floor can't fit the hook in ``max_lines``, the overflow
+    lines are dropped. That case is logged and the surviving text ends in an
+    ellipsis, so a half-rendered hook is visibly a truncation rather than
+    looking like a render glitch, and it leaves a trace in the producer log.
+    """
+    max_px = max(1, int(frame_width * settings.max_width_fraction))
+    words = hook_text.split()
+    font_size = start_font_size
+    while True:
+        lines = _wrap_hook_words(words, font_size, max_px) or [hook_text]
+        fits = len(lines) <= settings.max_lines and all(
+            _estimate_hook_text_width(line, font_size) <= max_px for line in lines
+        )
+        if fits:
+            return lines, font_size
+        if font_size <= 8:
+            kept = lines[: settings.max_lines]
+            if len(lines) > len(kept):
+                logger.warning(
+                    "Hook overlay truncated to %d line(s) at the %dpx font floor; "
+                    "dropped: %r",
+                    settings.max_lines,
+                    font_size,
+                    " ".join(lines[len(kept) :]),
+                )
+                kept[-1] = kept[-1].rstrip(",.;:!?") + "..."
+            return kept, font_size
+        font_size = max(8, font_size - 6)
+
+
 def build_hook_drawtext(
     settings: HookOverlaySettings,
     hook_text: str,
     subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
     input_stream: str,
     output_stream: str,
 ) -> str:
-    r"""Build a time-gated centre-upper FFmpeg drawtext for the hook overlay.
+    r"""Build a time-gated centre-upper FFmpeg hook overlay.
 
-    The drawtext is `enable`-gated to the first ``duration_sec`` seconds so
-    it disappears for the rest of the clip without changing the filter
-    graph length. Position is centred horizontally (``(w-text_w)/2``) and
-    placed ``margin_y_percent`` from the top.
+    The hook is wrapped to at most ``settings.max_lines`` lines sized to the
+    frame width, and the font shrinks when wrapping alone can't fit, so a long
+    hook never clips off-frame (#160). Each wrapped line is rendered as its own
+    horizontally-centred ``drawtext`` (``(w-text_w)/2``), stacked vertically and
+    chained with ``;`` (the filter separator core.py joins the list with); a
+    single-line hook produces one drawtext.
 
-    The ``enable`` expression uses backslash-escaped commas (``\,``) per
-    FFmpeg's filtergraph escaping rules. Single-quoting the expression
-    (``enable='between(t,0,X)'``) is the documented form but breaks in
-    practice when the filter sits inside a comma-separated chain — FFmpeg's
-    parser still splits at the inner commas. ``between(t\,0\,X)`` survives
-    cleanly. Same trick applies to any FFmpeg filter expression with
-    embedded commas (``if``, ``lt``, ``gte``, etc.).
+    Each line's text is passed via ``textfile=`` (written to ``temp_dir``), not
+    inline ``text=``. Inline text with a literal apostrophe silently corrupts:
+    the ``'\''`` exit/reenter escape works on a standalone ``-vf`` drawtext but
+    NOT inside the assembler's multi-filter ``-filter_complex`` chain, where the
+    parser swallows the drawtext's own trailing args as text (so a hook like
+    "you're ..." renders its args as tiny garbage). ``textfile=`` sidesteps the
+    filtergraph quoting layer. The subtitle builder uses the same approach. The
+    file path still needs its colons escaped, and the file *contents* still go
+    through drawtext's text expansion, so backslash and percent are escaped via
+    ``_escape_drawtext_textfile`` (an unescaped ``%`` drops the whole line).
+
+    The drawtext is `enable`-gated to the first ``duration_sec`` seconds so it
+    disappears for the rest of the clip without changing the filter graph length.
+
+    The ``enable`` expression uses backslash-escaped commas (``\,``) per FFmpeg's
+    filtergraph escaping rules. Single-quoting the expression
+    (``enable='between(t,0,X)'``) is the documented form but breaks in practice
+    when the filter sits inside a comma-separated chain — FFmpeg's parser still
+    splits at the inner commas. ``between(t\,0\,X)`` survives cleanly. Same trick
+    applies to any FFmpeg filter expression with embedded commas.
     """
-    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-    text = _escape_drawtext_text(hook_text)
+    start_font = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    lines, font_size = _fit_hook_lines(hook_text, start_font, frame_width, settings)
+    line_height = int(font_size * 1.2)
     x_expr = "(w-text_w)/2"
-    y_expr = f"h*{settings.margin_y_percent}"
 
-    parts = [
-        f"{input_stream}drawtext=",
-        f"text='{text}':",
-        f"fontsize={font_size}:",
-        f"fontcolor={settings.font_color}:",
-        f"borderw={settings.outline_thickness}:",
-        f"bordercolor={settings.outline_color}:",
-    ]
-    if settings.background_enabled:
-        parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
-    parts.append(f"x={x_expr}:y={y_expr}:")
-    parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){output_stream}")
+    drawtexts: list[str] = []
+    last_index = len(lines) - 1
+    for i, line in enumerate(lines):
+        stream_in = input_stream if i == 0 else f"[v_hkl{i}]"
+        stream_out = output_stream if i == last_index else f"[v_hkl{i + 1}]"
+        line_file = temp_dir / f"hook_line_{i}.txt"
+        line_file.write_text(_escape_drawtext_textfile(line), encoding="utf-8")
+        text_path = line_file.as_posix().replace(":", r"\:")
+        y_expr = (
+            f"h*{settings.margin_y_percent}+{i * line_height}"
+            if i
+            else f"h*{settings.margin_y_percent}"
+        )
+        parts = [
+            f"{stream_in}drawtext=",
+            f"textfile='{text_path}':",
+            f"fontsize={font_size}:",
+            f"fontcolor={settings.font_color}:",
+            f"borderw={settings.outline_thickness}:",
+            f"bordercolor={settings.outline_color}:",
+        ]
+        if settings.background_enabled:
+            parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=12:")
+        parts.append(f"x={x_expr}:y={y_expr}:")
+        parts.append(f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){stream_out}")
+        drawtexts.append("".join(parts))
 
-    return "".join(parts)
+    return ";".join(drawtexts)
 
 
 def apply_hook_overlay(
@@ -245,6 +422,8 @@ def apply_hook_overlay(
     settings: HookOverlaySettings,
     hook_text: str,
     subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
 ) -> list[str]:
     """Insert the hook overlay before the disclosure overlay's rewrite slot.
 
@@ -283,6 +462,8 @@ def apply_hook_overlay(
         settings,
         hook_text,
         subtitle_font_size_pixels,
+        frame_width,
+        temp_dir,
         input_stream=input_stream,
         output_stream="[v_hook]",
     )

@@ -199,6 +199,21 @@ class HookOverlaySettings(BaseModel):
             "in the 1.5s window. Lines beyond the cap are truncated with ellipsis."
         ),
     )
+    max_width_fraction: float = Field(
+        0.9,
+        ge=0.5,
+        le=1.0,
+        description=(
+            "Max fraction of frame width a wrapped hook line may occupy before "
+            "the font shrinks to fit. Stops long hooks clipping off-frame (#160)."
+        ),
+    )
+    max_lines: int = Field(
+        2,
+        ge=1,
+        le=2,
+        description="Max wrapped lines for the hook before the font shrinks to fit.",
+    )
 
 
 class VideoSettings(BaseModel):

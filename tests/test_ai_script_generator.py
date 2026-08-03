@@ -9,8 +9,10 @@ import pytest
 from src.ai.script_generator import (
     ScriptGenerationError,
     _normalize_for_llm,
+    _sanitize_hook_headline,
     _short_product_name,
     format_prompt,
+    generate_hook_headline,
     generate_script,
     load_prompt_template,
     save_debug_prompt,
@@ -701,3 +703,178 @@ class TestGenerateScript:
         assert result[0] == "Generated script content"
         # Check that debug file was created
         assert (temp_dir / "prompt.txt").exists()
+
+
+class TestSanitizeHookHeadline:
+    """The authored hook headline is cleaned into one burnable line (1.9)."""
+
+    def test_empty_and_none(self) -> None:
+        assert _sanitize_hook_headline(None) == ""
+        assert _sanitize_hook_headline("") == ""
+        assert _sanitize_hook_headline("   \n  ") == ""
+
+    def test_takes_first_nonempty_line(self) -> None:
+        assert _sanitize_hook_headline("\n\nThis $15 hub wins\nignored") == (
+            "This $15 hub wins"
+        )
+
+    def test_strips_wrapping_quotes_and_trailing_punctuation(self) -> None:
+        assert _sanitize_hook_headline('"Best cheap hub."') == "Best cheap hub"
+        assert _sanitize_hook_headline("Stop wasting money!") == "Stop wasting money"
+
+    def test_strips_punctuation_outside_closing_quote(self) -> None:
+        # The LLM commonly closes outside the quote. Stripping quotes first
+        # stops at the period and would leave a dangling quote on screen.
+        assert _sanitize_hook_headline('"Best cheap hub".') == "Best cheap hub"
+        assert _sanitize_hook_headline("'Cheap hub wins'!") == "Cheap hub wins"
+        assert _sanitize_hook_headline("“Smart curly quotes”.") == (
+            "Smart curly quotes"
+        )
+
+    def test_caps_to_max_words_with_ellipsis(self) -> None:
+        # Marks the cut like overlay_builder._truncate_to_words does, so a
+        # clipped headline doesn't read as a rendering glitch.
+        out = _sanitize_hook_headline("one two three four five six seven eight", 7)
+        assert out == "one two three four five six seven..."
+
+    def test_short_headline_unchanged(self) -> None:
+        assert _sanitize_hook_headline("This $15 hub replaced my $200 one") == (
+            "This $15 hub replaced my $200 one"
+        )
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "Sure! Here is a punchy headline for you",
+            "Here's your hook headline",
+            "Certainly, this one works",
+            "I can't help with that request",
+            "I'm sorry, but I cannot do that",
+            "Headline: cheap hub wins",
+        ],
+    )
+    def test_rejects_preamble_and_refusal(self, raw: str) -> None:
+        """A preamble or refusal must not be burned into the frame."""
+        assert _sanitize_hook_headline(raw) == ""
+
+    def test_rejects_single_word(self) -> None:
+        assert _sanitize_hook_headline("Hub") == ""
+        assert _sanitize_hook_headline('"."') == ""
+
+
+class TestGenerateHookHeadline:
+    """End-to-end behaviour of the authored hook headline generator (1.9).
+
+    The result is burned into a published video and passes through no other
+    validation, so every branch here matters: a failure must degrade to the
+    first-sentence fallback rather than raise or ship bad text.
+    """
+
+    @staticmethod
+    def _settings() -> LLMSettings:
+        return LLMSettings(
+            provider="gemini",
+            api_key_env_var="GEMINI_API_KEY",
+            models=["gemini-2.5-flash"],
+            prompt_template_path="src/ai/prompts/product_script.txt",
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_sanitized_headline(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value='"This $15 hub replaced my $200 one."',
+        ):
+            out = await generate_hook_headline(
+                sample_product_data,
+                self._settings(),
+                {"GEMINI_API_KEY": "key"},
+                None,
+            )
+        assert out == "This $15 hub replaced my $200 one"
+
+    @pytest.mark.asyncio
+    async def test_no_api_key_returns_empty(
+        self, sample_product_data: ProductData
+    ) -> None:
+        """No key must not raise; the caller falls back to the script sentence."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+        ) as mock_llm:
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {}, None
+            )
+        assert out == ""
+        mock_llm.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_llm_returning_none_yields_empty(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [RuntimeError("boom"), ValueError("bad"), OSError("io"), aiohttp.ClientError()],
+    )
+    async def test_errors_are_swallowed(
+        self, sample_product_data: ProductData, error: Exception
+    ) -> None:
+        """Never raises: a headline failure must not fail the whole render."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            side_effect=error,
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""
+
+    @pytest.mark.asyncio
+    async def test_word_budget_reaches_the_prompt(
+        self, sample_product_data: ProductData
+    ) -> None:
+        """max_words is a config field, so the prompt must receive it."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value="a b c",
+        ) as mock_llm:
+            await generate_hook_headline(
+                sample_product_data,
+                self._settings(),
+                {"GEMINI_API_KEY": "k"},
+                None,
+                max_words=5,
+            )
+        call = mock_llm.await_args
+        assert call is not None
+        assert call.kwargs["extra_placeholders"] == {"MAX_WORDS": "5"}
+
+    @pytest.mark.asyncio
+    async def test_preamble_from_llm_is_rejected(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value="Sure! Here is your headline:\n\nCheap hub wins",
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""

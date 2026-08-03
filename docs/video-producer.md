@@ -169,7 +169,7 @@ video_profiles:
 Three visual-layer knobs live on `video_settings` and the per-profile partial override:
 
 - `first_frame_pre_motion` / `pre_motion_peak_zoom` — when enabled, the first image segment starts at `pre_motion_peak_zoom` and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. Default off on the existing 30-45s profiles, on for `slideshow_short_20s`.
-- `hook_overlay` — burns the first sentence of the spoken script as a centre-upper static drawtext on the first `duration_sec` seconds (default 1.5). 1.35x narration size, no per-word reveal. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top.
+- `hook_overlay` — burns a short headline as centre-upper static drawtext on the first `duration_sec` seconds (default 1.5), at `size_factor` times narration size, with no per-word reveal. The text is an authored headline generated separately from the spoken script, so the hook doesn't repeat the first caption line; when no headline is available it falls back to the script's first sentence. Long text wraps to at most `max_lines` lines, each held within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone can't fit. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top. The headline lands in `pipeline_state.json::hook_headline`.
 - `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.

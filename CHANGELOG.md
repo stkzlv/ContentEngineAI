@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-08-03
+
+### Added
+- Burned-in hook overlay is enabled in the bundled config and renders an authored headline: a short line generated separately from the spoken script, required to carry the product category, capped by `hook_overlay.max_words`, and rejected if it reads as a model preamble or refusal. The top-of-frame hook therefore no longer repeats the first spoken sentence that the running captions already show. Generated in the script step from a new `hook_headline` prompt, regenerated on resumed renders when absent, skipped when the overlay is disabled, and falling back to first-sentence extraction when unavailable, so forks without the prompt are unaffected.
+- `hook_overlay.max_width_fraction` and `hook_overlay.max_lines` settings control how the hook is fitted to the frame.
+
+### Fixed
+- Hook overlay no longer clips off-frame on long lines. It wraps to at most two frame-width-sized lines and shrinks the font to fit, which is what allows the overlay to ship enabled (it was disabled as a stopgap). The width estimate matches FFmpeg's default font so the width cap holds, the bundled hook font is smaller, and the per-line width cap leaves a clear margin from the frame edges. A hook that still doesn't fit at the minimum font size is logged and ellipsized rather than silently truncated.
+- Overlay text is passed to FFmpeg through `textfile=` rather than an inline `text=` argument. An apostrophe in the text corrupted the assembler's multi-filter chain, making the filter swallow its own trailing arguments and drop the overlay from the render. This reached users through `disclosure_overlay.text`, which is configurable per language, so a localized value such as a French disclosure lost the required disclosure with no error.
+- Voiceover scripts no longer read model or SKU designations aloud. The short product alias is auto-trimmed from the listing title and can come out a fragment carrying a part number, which every script template handed to the model as the name to use, producing lines like "So this SCRIB3D P1 3D just arrived". Templates now present the alias as a suggestion and tell the model to fall back to the plain category noun.
+- Analytical script templates no longer fabricate a spec the product doesn't have. The closing-line rule demonstrated its spec branch with a worked example about ports, and on a Bluetooth tracker tag the model reproduced that example's subject almost verbatim for a product with no ports. The spec branch now carries no closing-line example to copy, and its self-check requires quoting a measurement verbatim from the description with its unit as a whole word, so a unit found inside a longer word ("supports" is not ports) no longer counts as a match.
+
+### Changed
+- Documented the disclosure and hook overlay settings in the configuration reference. Neither block was covered there, so the only way to find the available keys was to read the bundled YAML or the config models.
+- Corrected the promotional video best-practices guide against current research: removed unsourced retention and sound-off statistics, narrowed the hook word budget, and documented the hook-versus-caption duplication anti-pattern and the platform originality signals that affect reach.
+
 ## [0.58.3] - 2026-07-31
 
 ### Added

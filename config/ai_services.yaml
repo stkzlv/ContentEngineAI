@@ -147,7 +147,7 @@ llm_settings:
       - Write the actual spoken words only. No stage directions or camera notes.
       - Target 30-40 seconds at normal speaking pace (roughly 75-100 words).
       - No emojis, no hashtags, no greetings like "hey guys", no markdown in the output.
-      - Refer to the product by the short alias provided in the product data block, not the full official title.
+      - Name the product the way a person would say it out loud, not the way it is listed. Never speak a model or SKU designation (letter-number codes like "P1", "3DP13D", "Q30", "240D"). Prefer the plain category noun, optionally with the brand: "this 3D pen", "the Anker charger". Use the short alias from the product data block only when it already reads as a name a person would say; if it is a fragment or carries a model code, use the category noun instead. Never read the full official title.
       - Plain text only, suitable for direct text-to-speech.
       - Do not mention the product price.
       - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".

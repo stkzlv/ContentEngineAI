@@ -1332,6 +1332,8 @@ If cleanup runs accidentally:
 
 After publishing a video, the publisher can automatically add the product's Amazon affiliate link to a link-in-bio page (e.g., Lnk.Bio, Linktree).
 
+On the `single` path this also runs when nothing is published: if every requested platform is already done, the command refreshes the bio link and exits without uploading. That is deliberate (a fully-published product still wants a current bio link), so a `single` rerun on an already-published product is not a no-op — it touches the bio. Pass `--no-link-in-bio` if you want a genuinely inert rerun.
+
 <details>
 <summary><strong>Configuration</strong></summary>
 

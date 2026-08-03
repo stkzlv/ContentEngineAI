@@ -30,7 +30,7 @@ from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
-    extract_hook_line,
+    resolve_hook_line,
 )
 from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
 from src.video.assembler.subtitle_utils import SubtitleStyler
@@ -557,6 +557,7 @@ class VideoAssembler:
         debug_mode: bool = False,
         subtitle_upper_path: Path | None = None,
         hook_text: str | None = None,
+        hook_headline: str | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -572,8 +573,13 @@ class VideoAssembler:
             debug_mode: Enable debug output
             subtitle_upper_path: Optional upper subtitle file path (two-part mode only)
             hook_text: Spoken script text used to source the hook overlay's
-                first sentence. None / empty skips the overlay even when
-                hook_overlay.enabled is True. See overlay_builder.extract_hook_line.
+                first sentence when no authored headline is available. None /
+                empty (with no headline) skips the overlay even when
+                hook_overlay.enabled is True. See overlay_builder.resolve_hook_line.
+            hook_headline: Authored short hook headline, distinct from the spoken
+                script. When present it is used verbatim as the overlay text
+                (preferred over hook_text) so the hook is not a copy of the first
+                caption line. See overlay_builder.resolve_hook_line.
 
         Returns:
         -------
@@ -648,18 +654,23 @@ class VideoAssembler:
             # The first sentence of the script is the hook text; an empty
             # hook_text (no script available) makes the overlay a no-op.
             hook_settings = self.config.video_settings.hook_overlay
-            if hook_settings.enabled and hook_text:
-                hook_line = extract_hook_line(hook_text, hook_settings.max_words)
-                video_filters = apply_hook_overlay(
-                    video_filters,
-                    hook_settings,
-                    hook_line,
-                    subtitle_font_size_pixels,
+            if hook_settings.enabled:
+                hook_line = resolve_hook_line(
+                    hook_headline, hook_text, hook_settings.max_words
                 )
+                if hook_line:
+                    video_filters = apply_hook_overlay(
+                        video_filters,
+                        hook_settings,
+                        hook_line,
+                        subtitle_font_size_pixels,
+                        self.config.video_settings.resolution[0],
+                        temp_dir,
+                    )
 
             disclosure = self.config.video_settings.disclosure_overlay
             video_filters = apply_disclosure_overlay(
-                video_filters, disclosure, subtitle_font_size_pixels
+                video_filters, disclosure, subtitle_font_size_pixels, temp_dir
             )
 
             # Add audio inputs to command
