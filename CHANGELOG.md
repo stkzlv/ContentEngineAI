@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-08-03
+
 ### Added
 - Burned-in hook overlay is enabled in the bundled config and renders an authored headline: a short line generated separately from the spoken script, required to carry the product category, capped by `hook_overlay.max_words`, and rejected if it reads as a model preamble or refusal. The top-of-frame hook therefore no longer repeats the first spoken sentence that the running captions already show. Generated in the script step from a new `hook_headline` prompt, regenerated on resumed renders when absent, skipped when the overlay is disabled, and falling back to first-sentence extraction when unavailable, so forks without the prompt are unaffected.
 - `hook_overlay.max_width_fraction` and `hook_overlay.max_lines` settings control how the hook is fitted to the frame.
