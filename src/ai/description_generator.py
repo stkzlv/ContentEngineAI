@@ -73,7 +73,10 @@ def load_prompt_template(path: Path) -> str:
 
 
 def format_prompt(
-    template: str, product: ProductData, video_script: str | None = None
+    template: str,
+    product: ProductData,
+    video_script: str | None = None,
+    extra_placeholders: dict[str, str] | None = None,
 ) -> str:
     """Format the prompt template with product data.
 
@@ -95,6 +98,11 @@ def format_prompt(
             otherwise it substitutes the empty string. Extra `str.format`
             kwargs are silently ignored by templates that don't reference
             the placeholder, so this stays backwards compatible.
+        extra_placeholders: Optional prompt-specific substitutions, for values
+            that come from config rather than from the product (e.g. the hook
+            headline's word budget). Without this a prompt has to hardcode the
+            number, which then silently diverges from the config field that
+            claims to control it.
 
     Returns:
     -------
@@ -110,6 +118,7 @@ def format_prompt(
             FULL_PRODUCT_NAME=product.title or "Product",
             PRODUCT_DESCRIPTION=product.description or "No description available",
             VIDEO_SCRIPT=video_script or "",
+            **(extra_placeholders or {}),
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e

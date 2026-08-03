@@ -109,6 +109,7 @@ async def generate_with_llm(
     narrator_profile: str = "",
     pillar: str | None = None,
     pillar_preambles: dict[str, str] | None = None,
+    extra_placeholders: dict[str, str] | None = None,
 ) -> str | None:
     """High-level helper to generate content using LLM with automatic model fallback.
 
@@ -138,6 +139,9 @@ async def generate_with_llm(
         narrator_profile: Channel-wide voice direction prepended to the prompt.
         pillar: Content pillar name for pillar-specific preamble lookup.
         pillar_preambles: Dict mapping pillar names to preamble text.
+        extra_placeholders: Optional prompt-specific template substitutions for
+            config-derived values (e.g. `{MAX_WORDS}`), so a prompt doesn't have
+            to hardcode a number the config claims to own.
 
     Returns:
     -------
@@ -151,7 +155,12 @@ async def generate_with_llm(
             logger.info(f"Loaded template from {template_path}")
 
         # Step 2: Format with product data
-        prompt = format_prompt(template, product, video_script=video_script)
+        prompt = format_prompt(
+            template,
+            product,
+            video_script=video_script,
+            extra_placeholders=extra_placeholders,
+        )
 
         # Step 2b: Prepend narrator profile and pillar preamble
         if narrator_profile or pillar:

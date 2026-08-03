@@ -102,10 +102,19 @@ def _position_expressions(
 def build_disclosure_drawtext(
     settings: DisclosureSettings,
     subtitle_font_size_pixels: int,
+    temp_dir: Path,
     input_stream: str,
     output_stream: str,
 ) -> str:
     """Build a single FFmpeg drawtext filter that renders the disclosure.
+
+    The text is passed via ``textfile=`` for the same reason the hook overlay
+    is: this drawtext sits inside the assembler's multi-filter chain, where an
+    inline ``text=`` carrying an apostrophe makes FFmpeg swallow the filter's
+    own trailing args (see ``_escape_drawtext_text``). ``settings.text`` is
+    user-configurable YAML documented as overridable per language, so a
+    localized value like ``Pub d'affiliation`` would otherwise drop the FTC
+    disclosure from the video with no error.
 
     Parameters
     ----------
@@ -115,6 +124,8 @@ def build_disclosure_drawtext(
         Pixel size of the narration caption font, used as the reference for
         ``size_factor``. Set to a sensible default (e.g. ``frame_height * 0.05``)
         when caption size is unavailable.
+    temp_dir:
+        Directory the disclosure text file is written to.
     input_stream:
         FFmpeg stream label feeding into this filter, e.g. ``[v_subtitle_3]``.
     output_stream:
@@ -126,7 +137,9 @@ def build_disclosure_drawtext(
 
     """
     font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-    text = _escape_drawtext_text(settings.text)
+    text_file = temp_dir / "disclosure_text.txt"
+    text_file.write_text(_escape_drawtext_textfile(settings.text), encoding="utf-8")
+    text_path = text_file.as_posix().replace(":", r"\:")
     x_expr, y_expr = _position_expressions(
         settings.position,
         settings.margin_x_percent,
@@ -135,7 +148,7 @@ def build_disclosure_drawtext(
 
     parts = [
         f"{input_stream}drawtext=",
-        f"text='{text}':",
+        f"textfile='{text_path}':",
         f"fontsize={font_size}:",
         f"fontcolor={settings.font_color}:",
         f"borderw={settings.outline_thickness}:",
@@ -152,6 +165,7 @@ def apply_disclosure_overlay(
     video_filters: list[str],
     settings: DisclosureSettings,
     subtitle_font_size_pixels: int,
+    temp_dir: Path,
 ) -> list[str]:
     """Inject the disclosure overlay as the final filter before ``[v_out]``.
 
@@ -186,6 +200,7 @@ def apply_disclosure_overlay(
     rewritten = build_disclosure_drawtext(
         settings,
         subtitle_font_size_pixels,
+        temp_dir,
         input_stream=input_stream,
         output_stream="[v_out]",
     )
@@ -297,6 +312,11 @@ def _fit_hook_lines(
     (too many words, or a single word wider than the frame) shrink the font and
     re-wrap, down to the 8px floor. Returns the wrapped lines and their font
     size. A hook that already fits on one line returns unchanged.
+
+    If even the 8px floor can't fit the hook in ``max_lines``, the overflow
+    lines are dropped. That case is logged and the surviving text ends in an
+    ellipsis, so a half-rendered hook is visibly a truncation rather than
+    looking like a render glitch, and it leaves a trace in the producer log.
     """
     max_px = max(1, int(frame_width * settings.max_width_fraction))
     words = hook_text.split()
@@ -306,8 +326,20 @@ def _fit_hook_lines(
         fits = len(lines) <= settings.max_lines and all(
             _estimate_hook_text_width(line, font_size) <= max_px for line in lines
         )
-        if fits or font_size <= 8:
-            return lines[: settings.max_lines], font_size
+        if fits:
+            return lines, font_size
+        if font_size <= 8:
+            kept = lines[: settings.max_lines]
+            if len(lines) > len(kept):
+                logger.warning(
+                    "Hook overlay truncated to %d line(s) at the %dpx font floor; "
+                    "dropped: %r",
+                    settings.max_lines,
+                    font_size,
+                    " ".join(lines[len(kept) :]),
+                )
+                kept[-1] = kept[-1].rstrip(",.;:!?") + "..."
+            return kept, font_size
         font_size = max(8, font_size - 6)
 
 

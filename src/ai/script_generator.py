@@ -1061,6 +1061,10 @@ async def generate_hook_headline(
             narrator_profile=narrator_profile,
             pillar=pillar,
             pillar_preambles=pillar_preambles,
+            # The word budget is a config field, so the prompt asks for it
+            # rather than hardcoding a number that would drift from
+            # hook_overlay.max_words. Sanitizing still enforces the cap.
+            extra_placeholders={"MAX_WORDS": str(max_words)},
         )
     except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
         logger.warning("Hook headline generation failed: %s", e)

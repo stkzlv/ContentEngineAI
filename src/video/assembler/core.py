@@ -670,7 +670,7 @@ class VideoAssembler:
 
             disclosure = self.config.video_settings.disclosure_overlay
             video_filters = apply_disclosure_overlay(
-                video_filters, disclosure, subtitle_font_size_pixels
+                video_filters, disclosure, subtitle_font_size_pixels, temp_dir
             )
 
             # Add audio inputs to command

@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hook overlay no longer drops a line containing a percent sign. Routing text through `textfile=` removed the filtergraph quoting problem but not drawtext's text expansion, so an unescaped `%` was read as a function marker and the whole line rendered as nothing (a silent failure: FFmpeg still exited zero). Percent and backslash are now escaped in the file contents.
 - Authored hook headline survives resumed renders. It was only produced on the run that generated the script, so any re-render against an existing script, and any run whose state file had been truncated, fell back to the duplicated first-sentence hook. The headline is now regenerated whenever it is missing, and skipped entirely when the overlay is disabled so it costs no LLM call.
 - Hook headlines that read as a model preamble or refusal ("Sure! Here is...", "I can't help with that") are rejected instead of being burned into the frame, and over-length headlines are cut with an ellipsis to match the fallback path. A closing quote left behind when the model puts punctuation outside the quotes is now stripped.
+- Disclosure overlay now renders through `textfile=` like the hook does, so a localized `disclosure_overlay.text` containing an apostrophe (for example a French value) no longer corrupts the filter chain and silently drop the disclosure from the video.
+- Hook overlay logs a warning and marks the text with an ellipsis when a hook still doesn't fit at the minimum font size, instead of dropping the overflow silently.
+- The hook headline prompt asks for the configured `hook_overlay.max_words` budget rather than a hardcoded number, so raising or lowering the setting changes what the model generates instead of only truncating afterwards.
 
 ## [0.58.3] - 2026-07-31
 

@@ -228,6 +228,24 @@ class TestHookFit:
         assert lines == ["Best earbuds"]
         assert font_size == 97
 
+    def test_floor_truncation_is_marked_and_logged(self, caplog) -> None:
+        """Dropping overflow at the font floor must be visible, not silent."""
+        settings = HookOverlaySettings(enabled=True, max_lines=1)
+        # A frame too narrow to fit two words even at 8px forces the drop.
+        with caplog.at_level("WARNING"):
+            lines, font_size = _fit_hook_lines(
+                "alpha bravo charlie delta echo", 97, 40, settings
+            )
+        assert len(lines) == 1
+        assert lines[0].endswith("...")
+        assert font_size == 8
+        assert "Hook overlay truncated" in caplog.text
+
+    def test_no_ellipsis_when_everything_fits(self) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        lines, _ = _fit_hook_lines("Best cheap hub wins", 97, 1080, settings)
+        assert not any(line.endswith("...") for line in lines)
+
 
 class TestApplyHookOverlay:
     def test_disabled_returns_unchanged(self, tmp_path) -> None:
@@ -290,7 +308,7 @@ class TestHookPlusDisclosureStack:
         filters = ["scaled;padded[v_sub];", "[v_sub]copy[v_out]"]
 
         hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)
-        final = apply_disclosure_overlay(hooked, disclosure, 60)
+        final = apply_disclosure_overlay(hooked, disclosure, 60, tmp_path)
 
         # Three filter entries: prefix, hook drawtext, disclosure drawtext.
         assert len(final) == 3
@@ -313,7 +331,7 @@ class TestHookPlusDisclosureStack:
         filters = ["prefix", "[v_sub]copy[v_out]"]
 
         hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)
-        final = apply_disclosure_overlay(hooked, disclosure, 60)
+        final = apply_disclosure_overlay(hooked, disclosure, 60, tmp_path)
 
         # Hook was disabled, so the filter list grew by zero. Disclosure
         # still rewrites the terminal copy[v_out] into a drawtext.

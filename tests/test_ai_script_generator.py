@@ -12,6 +12,7 @@ from src.ai.script_generator import (
     _sanitize_hook_headline,
     _short_product_name,
     format_prompt,
+    generate_hook_headline,
     generate_script,
     load_prompt_template,
     save_debug_prompt,
@@ -759,3 +760,121 @@ class TestSanitizeHookHeadline:
     def test_rejects_single_word(self) -> None:
         assert _sanitize_hook_headline("Hub") == ""
         assert _sanitize_hook_headline('"."') == ""
+
+
+class TestGenerateHookHeadline:
+    """End-to-end behaviour of the authored hook headline generator (1.9).
+
+    The result is burned into a published video and passes through no other
+    validation, so every branch here matters: a failure must degrade to the
+    first-sentence fallback rather than raise or ship bad text.
+    """
+
+    @staticmethod
+    def _settings() -> LLMSettings:
+        return LLMSettings(
+            provider="gemini",
+            api_key_env_var="GEMINI_API_KEY",
+            models=["gemini-2.5-flash"],
+            prompt_template_path="src/ai/prompts/product_script.txt",
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_sanitized_headline(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value='"This $15 hub replaced my $200 one."',
+        ):
+            out = await generate_hook_headline(
+                sample_product_data,
+                self._settings(),
+                {"GEMINI_API_KEY": "key"},
+                None,
+            )
+        assert out == "This $15 hub replaced my $200 one"
+
+    @pytest.mark.asyncio
+    async def test_no_api_key_returns_empty(
+        self, sample_product_data: ProductData
+    ) -> None:
+        """No key must not raise; the caller falls back to the script sentence."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+        ) as mock_llm:
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {}, None
+            )
+        assert out == ""
+        mock_llm.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_llm_returning_none_yields_empty(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [RuntimeError("boom"), ValueError("bad"), OSError("io"), aiohttp.ClientError()],
+    )
+    async def test_errors_are_swallowed(
+        self, sample_product_data: ProductData, error: Exception
+    ) -> None:
+        """Never raises: a headline failure must not fail the whole render."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            side_effect=error,
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""
+
+    @pytest.mark.asyncio
+    async def test_word_budget_reaches_the_prompt(
+        self, sample_product_data: ProductData
+    ) -> None:
+        """max_words is a config field, so the prompt must receive it."""
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value="a b c",
+        ) as mock_llm:
+            await generate_hook_headline(
+                sample_product_data,
+                self._settings(),
+                {"GEMINI_API_KEY": "k"},
+                None,
+                max_words=5,
+            )
+        call = mock_llm.await_args
+        assert call is not None
+        assert call.kwargs["extra_placeholders"] == {"MAX_WORDS": "5"}
+
+    @pytest.mark.asyncio
+    async def test_preamble_from_llm_is_rejected(
+        self, sample_product_data: ProductData
+    ) -> None:
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm",
+            new_callable=AsyncMock,
+            return_value="Sure! Here is your headline:\n\nCheap hub wins",
+        ):
+            out = await generate_hook_headline(
+                sample_product_data, self._settings(), {"GEMINI_API_KEY": "k"}, None
+            )
+        assert out == ""

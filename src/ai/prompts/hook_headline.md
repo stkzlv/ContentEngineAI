@@ -11,7 +11,7 @@ Spoken script (for context — do not copy its opening line verbatim):
 ## Rules
 
 - Output ONE line only: the headline text. No quotes, no label, no punctuation at the end, no emoji, no hashtags.
-- 3 to 7 words. Shorter is better. It has to be readable in under a second on a muted phone screen.
+- {MAX_WORDS} words at most, and at least 3. Shorter is better. It has to be readable in under a second on a muted phone screen.
 - Punchline-first: lead with the result, the price, or the contradiction, not a setup. "This $15 hub replaced my $200 one" not "Let me tell you about a hub".
 - Front-load the search keyword (product category, price band, or pain point) in the first two words where it reads naturally.
 - Concrete and specific over hype. No absolute superlatives ("life-changing", "obsessed", "the best ever") — they read as ad copy and reduce trust.
