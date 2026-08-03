@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disclosure overlay now renders through `textfile=` like the hook does, so a localized `disclosure_overlay.text` containing an apostrophe (for example a French value) no longer corrupts the filter chain and silently drop the disclosure from the video.
 - Hook overlay logs a warning and marks the text with an ellipsis when a hook still doesn't fit at the minimum font size, instead of dropping the overflow silently.
 - The hook headline prompt asks for the configured `hook_overlay.max_words` budget rather than a hardcoded number, so raising or lowering the setting changes what the model generates instead of only truncating afterwards.
+- Voiceover scripts no longer read model or SKU designations aloud. The short product alias is auto-trimmed from the listing title and can come out a fragment carrying a part number, which every script template handed to the model as the name to use, producing lines like "So this SCRIB3D P1 3D just arrived". Templates now present the alias as a suggestion and tell the model to fall back to the plain category noun.
+- Hook headlines now have to carry the product category. The keyword rule was advisory, so headlines could come out as short as three words with no category at all ("Draw in 3D"), which reads as meaningless with the sound off and drops the search keyword. The category noun is now required, the floor is four words, and the prompt carries worked good and bad examples.
 
 ## [0.58.3] - 2026-07-31
 
