@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Analytical script templates no longer fabricate a spec the product doesn't have. The closing-line rule demonstrated its spec branch with a worked example about ports, and on a Bluetooth tracker tag the model reproduced that example's subject almost verbatim for a product with no ports. The spec branch now carries no closing-line example to copy, and its self-check requires quoting a measurement verbatim from the description with its unit as a whole word, so a unit found inside a longer word ("supports" is not ports) no longer counts as a match.
 
 ### Changed
+- Documented the disclosure and hook overlay settings in the configuration reference. Neither block was covered there, so the only way to find the available keys was to read the bundled YAML or the config models.
 - Corrected the promotional video best-practices guide against current research: removed unsourced retention and sound-off statistics, narrowed the hook word budget, and documented the hook-versus-caption duplication anti-pattern and the platform originality signals that affect reach.
 
 ## [0.58.3] - 2026-07-31
