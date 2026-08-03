@@ -91,18 +91,60 @@ def test_analytical_close_has_passive_product_branch(template: Path) -> None:
 
     Bug class: the spec-correction close on a passive product (phone holder,
     bracket, organizer) made the LLM fabricate a spec (e.g. "eight hours of
-    battery for phone holders") then walk it back. The rule now branches on
-    a keyword self-check: spec claim if the description has a contestable
-    number, material-or-use claim otherwise.
+    battery for phone holders") then walk it back. The rule branches on a
+    self-check: spec claim only when the description states a measurement,
+    material-or-use claim otherwise.
     """
     text = template.read_text()
-    # Branch condition is grep-able (token list).
-    assert "contestable performance number" in text
-    # Anchor against the canary case from production.
-    assert "don't claim battery life for a phone holder" in text
-    # Both branches' example sets present.
-    assert "65W is the sweet spot for laptop charging" in text
+    # Branch condition is grep-able, and demands a verbatim quote rather than
+    # a loose "does the description mention X" scan.
+    assert "written out with its unit attached" in text
+    assert "quote the measurement verbatim" in text
+    # Anchored against both production canaries.
+    assert "a tracker tag has no ports" in text
+    assert "a phone holder has no battery life" in text
+    # The passive branch keeps worked examples; they are non-numeric.
     assert "Steel beats plastic for any clamp-style mount" in text
+
+
+@pytest.mark.parametrize(
+    "template",
+    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    ids=lambda p: p.stem,
+)
+def test_analytical_close_has_no_worked_spec_example(template: Path) -> None:
+    """The spec branch must not ship a worked closing-line example.
+
+    Regression guard for the second occurrence of the fabrication bug. The
+    rule previously demonstrated its spec branch with "Most people only need
+    two ports, but three is usually better." On a Bluetooth tracker tag the
+    model reproduced that line's *subject* almost verbatim ("four ports is
+    the minimum you need, but honestly, three is usually enough") for a
+    product with no ports. Examples outrank rules, so the spec branch now
+    carries no closing-line example to copy: the model has to derive the
+    subject from the measurement it quoted.
+    """
+    text = template.read_text()
+    assert "only need two ports" not in text
+    assert "65W is the sweet spot for laptop charging" not in text
+    assert "Eight hours is the right battery target" not in text
+
+
+@pytest.mark.parametrize(
+    "template",
+    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    ids=lambda p: p.stem,
+)
+def test_analytical_close_warns_against_substring_units(template: Path) -> None:
+    """The self-check must reject a unit found inside a longer word.
+
+    The tracker's description contained no standalone "port" — only
+    "supports", "Portable", and "Important". A substring scan finds "port"
+    in all three and concludes the product has ports.
+    """
+    text = template.read_text()
+    assert "as a whole word" in text
+    assert '"supports" and "Portable" are not ports' in text
 
 
 @pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
