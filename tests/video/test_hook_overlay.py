@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from src.video.assembler.overlay_builder import (
+    _escape_drawtext_textfile,
     _estimate_hook_text_width,
     _fit_hook_lines,
     apply_hook_overlay,
@@ -133,6 +134,45 @@ class TestBuildHookDrawtext:
             output_stream="[out]",
         )
         assert "fontsize=8" in out
+
+
+class TestTextfileEscaping:
+    r"""textfile= drops the quoting layer but NOT drawtext's text expansion.
+
+    Verified against real renders: an unescaped ``%`` makes FFmpeg log
+    ``Stray %``, exit 0, and draw nothing at all for that line; an unescaped
+    ``\`` is silently swallowed. Both must be escaped in the file contents.
+    """
+
+    def test_percent_is_escaped(self) -> None:
+        assert _escape_drawtext_textfile("Save 40% on this hub") == (
+            r"Save 40\% on this hub"
+        )
+
+    def test_backslash_is_escaped(self) -> None:
+        assert _escape_drawtext_textfile("a \\ b") == "a \\\\ b"
+
+    def test_backslash_escaped_before_percent(self) -> None:
+        # Order matters: doubling the backslash first keeps the marker added
+        # for % from being re-escaped into a literal backslash.
+        assert _escape_drawtext_textfile("100%\\") == "100\\%\\\\"
+
+    def test_quotes_and_colons_pass_through(self) -> None:
+        # These are exactly what textfile= exists to avoid escaping.
+        assert _escape_drawtext_textfile("you're set: really") == "you're set: really"
+
+    def test_written_line_is_escaped(self, tmp_path) -> None:
+        settings = HookOverlaySettings(enabled=True)
+        build_hook_drawtext(
+            settings,
+            "Save 40% here",
+            subtitle_font_size_pixels=72,
+            frame_width=1080,
+            temp_dir=tmp_path,
+            input_stream="[in]",
+            output_stream="[out]",
+        )
+        assert (tmp_path / "hook_line_0.txt").read_text() == r"Save 40\% here"
 
 
 class TestHookFit:

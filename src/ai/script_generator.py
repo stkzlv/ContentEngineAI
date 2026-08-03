@@ -935,13 +935,63 @@ async def generate_script(
     return None, None
 
 
+# Minimum words for a headline to read as a headline rather than a fragment.
+_HOOK_HEADLINE_MIN_WORDS = 2
+
+# Openers that mark the line as conversational filler rather than the headline
+# itself: a preamble the model wrote before answering, or a refusal. Either one
+# would otherwise be burned across the top of a published video.
+_HOOK_HEADLINE_REJECT_PREFIXES = (
+    "sure",
+    "here is",
+    "here's",
+    "here are",
+    "okay",
+    "ok,",
+    "certainly",
+    "of course",
+    "absolutely",
+    "i can't",
+    "i cannot",
+    "i can not",
+    "i'm sorry",
+    "i am sorry",
+    "sorry,",
+    "as an ai",
+    "unfortunately",
+    "headline:",
+    "hook:",
+    "note:",
+)
+
+
+def _strip_headline_wrapping(line: str) -> str:
+    """Strip wrapping quotes and trailing sentence punctuation, in any order.
+
+    A single pass is not enough: the LLM commonly closes with punctuation
+    *outside* the quote (``"Best cheap hub".``), where stripping quotes first
+    stops at the period and leaves a dangling quote behind. Alternating until
+    the string stops changing handles both nestings.
+    """
+    previous = None
+    while line != previous:
+        previous = line
+        line = line.strip("\"'`“”‘’").rstrip(".!?,;:").strip()
+    return line
+
+
 def _sanitize_hook_headline(text: str | None, max_words: int = 7) -> str:
     """Clean an LLM-produced hook headline into a single burnable line.
 
     Takes the first non-empty line, strips wrapping quotes and trailing
-    sentence punctuation, and caps to ``max_words`` words. Returns an empty
-    string for empty/whitespace input so callers can fall back to the
-    first-sentence extraction.
+    sentence punctuation, caps to ``max_words`` words (with an ellipsis marking
+    the cut, matching ``overlay_builder._truncate_to_words``), and rejects
+    output that reads as a preamble or refusal rather than a headline.
+
+    Returns an empty string for anything unusable so callers fall back to
+    first-sentence extraction. The result is burned into a published video, so
+    the bar for accepting a line is deliberately higher than "non-empty":
+    unlike the spoken script it passes through no other validation.
     """
     if not text:
         return ""
@@ -952,10 +1002,21 @@ def _sanitize_hook_headline(text: str | None, max_words: int = 7) -> str:
             break
     if not line:
         return ""
-    line = line.strip("\"'`").rstrip(".!?,;:").strip()
+    line = _strip_headline_wrapping(line)
+    if not line:
+        return ""
+
+    lowered = line.lower()
+    if lowered.startswith(_HOOK_HEADLINE_REJECT_PREFIXES):
+        logger.warning("Rejecting hook headline (reads as preamble): %s", line)
+        return ""
+
     words = line.split()
+    if len(words) < _HOOK_HEADLINE_MIN_WORDS:
+        logger.warning("Rejecting hook headline (too short): %s", line)
+        return ""
     if len(words) > max_words:
-        line = " ".join(words[:max_words])
+        line = " ".join(words[:max_words]).rstrip(",.;:!?") + "..."
     return line
 
 

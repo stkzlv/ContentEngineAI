@@ -721,11 +721,41 @@ class TestSanitizeHookHeadline:
         assert _sanitize_hook_headline('"Best cheap hub."') == "Best cheap hub"
         assert _sanitize_hook_headline("Stop wasting money!") == "Stop wasting money"
 
-    def test_caps_to_max_words(self) -> None:
+    def test_strips_punctuation_outside_closing_quote(self) -> None:
+        # The LLM commonly closes outside the quote. Stripping quotes first
+        # stops at the period and would leave a dangling quote on screen.
+        assert _sanitize_hook_headline('"Best cheap hub".') == "Best cheap hub"
+        assert _sanitize_hook_headline("'Cheap hub wins'!") == "Cheap hub wins"
+        assert _sanitize_hook_headline("“Smart curly quotes”.") == (
+            "Smart curly quotes"
+        )
+
+    def test_caps_to_max_words_with_ellipsis(self) -> None:
+        # Marks the cut like overlay_builder._truncate_to_words does, so a
+        # clipped headline doesn't read as a rendering glitch.
         out = _sanitize_hook_headline("one two three four five six seven eight", 7)
-        assert out == "one two three four five six seven"
+        assert out == "one two three four five six seven..."
 
     def test_short_headline_unchanged(self) -> None:
         assert _sanitize_hook_headline("This $15 hub replaced my $200 one") == (
             "This $15 hub replaced my $200 one"
         )
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "Sure! Here is a punchy headline for you",
+            "Here's your hook headline",
+            "Certainly, this one works",
+            "I can't help with that request",
+            "I'm sorry, but I cannot do that",
+            "Headline: cheap hub wins",
+        ],
+    )
+    def test_rejects_preamble_and_refusal(self, raw: str) -> None:
+        """A preamble or refusal must not be burned into the frame."""
+        assert _sanitize_hook_headline(raw) == ""
+
+    def test_rejects_single_word(self) -> None:
+        assert _sanitize_hook_headline("Hub") == ""
+        assert _sanitize_hook_headline('"."') == ""

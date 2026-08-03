@@ -38,8 +38,8 @@ def _escape_drawtext_text(text: str) -> str:
     args as text. This escaper is used only by the disclosure overlay, whose
     text is config-controlled and apostrophe-free (``#ad`` / ``#publi``). For
     ARBITRARY text in a filter chain (e.g. the hook overlay), pass it via
-    ``textfile=`` instead, which needs no text escaping. See
-    ``build_hook_drawtext``.
+    ``textfile=`` instead, which sidesteps the quoting layer entirely. See
+    ``_escape_drawtext_textfile`` and ``build_hook_drawtext``.
     """
     return (
         text.replace("\\", r"\\")
@@ -47,6 +47,27 @@ def _escape_drawtext_text(text: str) -> str:
         .replace(":", r"\:")
         .replace("%", r"\%")
     )
+
+
+def _escape_drawtext_textfile(text: str) -> str:
+    r"""Escape drawtext's text *expansion* for content written to a ``textfile=``.
+
+    ``textfile=`` removes the filtergraph quoting problem (no colon or
+    apostrophe escaping needed) but NOT the text expansion pass: drawtext still
+    runs ``expansion=normal`` over the file's contents, so backslash and percent
+    keep their special meaning.
+
+    Verified against real renders:
+
+    - a raw ``%`` is read as the start of a ``%{...}`` function, so FFmpeg logs
+      ``Stray %``, exits 0, and draws NOTHING for that line (the frame comes out
+      byte-identical to one with no drawtext at all).
+    - a raw ``\`` is silently swallowed (``a \ b`` renders as ``a  b``).
+
+    Escaping both (``\`` -> ``\\``, ``%`` -> ``\%``) renders them literally.
+    Backslash is doubled first so the escape marker added for ``%`` survives.
+    """
+    return text.replace("\\", "\\\\").replace("%", r"\%")
 
 
 def _position_expressions(
@@ -313,9 +334,11 @@ def build_hook_drawtext(
     the ``'\''`` exit/reenter escape works on a standalone ``-vf`` drawtext but
     NOT inside the assembler's multi-filter ``-filter_complex`` chain, where the
     parser swallows the drawtext's own trailing args as text (so a hook like
-    "you're ..." renders its args as tiny garbage). ``textfile=`` sidesteps all
-    text escaping. The subtitle builder uses the same approach. Only the file
-    path needs escaping (colons).
+    "you're ..." renders its args as tiny garbage). ``textfile=`` sidesteps the
+    filtergraph quoting layer. The subtitle builder uses the same approach. The
+    file path still needs its colons escaped, and the file *contents* still go
+    through drawtext's text expansion, so backslash and percent are escaped via
+    ``_escape_drawtext_textfile`` (an unescaped ``%`` drops the whole line).
 
     The drawtext is `enable`-gated to the first ``duration_sec`` seconds so it
     disappears for the rest of the clip without changing the filter graph length.
@@ -338,7 +361,7 @@ def build_hook_drawtext(
         stream_in = input_stream if i == 0 else f"[v_hkl{i}]"
         stream_out = output_stream if i == last_index else f"[v_hkl{i + 1}]"
         line_file = temp_dir / f"hook_line_{i}.txt"
-        line_file.write_text(line, encoding="utf-8")
+        line_file.write_text(_escape_drawtext_textfile(line), encoding="utf-8")
         text_path = line_file.as_posix().replace(":", r"\:")
         y_expr = (
             f"h*{settings.margin_y_percent}+{i * line_height}"

@@ -319,6 +319,8 @@ async def step_generate_script(ctx: PipelineContext):
     ):
         logger.info("Executing step: GENERATE_SCRIPT")
 
+        pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
+
         # Check if script already exists from previous run
         script_file = ctx.run_paths["script_file"]
         if script_file.exists():
@@ -328,61 +330,83 @@ async def step_generate_script(ctx: PipelineContext):
                 f"Loaded existing script from {script_file.name} "
                 f"({len(ctx.script or '')} characters)"
             )
-            return
+        else:
+            try:
+                script_text, template_name = await generate_ai_script(
+                    ctx.product,
+                    ctx.config.llm_settings,
+                    ctx.secrets,
+                    ctx.session,
+                    {
+                        "script": ctx.run_paths["script_file"],
+                        "formatted_prompt": ctx.run_paths["script_prompt"],
+                    },
+                    ctx.debug_mode,
+                    ctx.config.api_settings,
+                    product_id=ctx.product.asin,
+                    pillar=pillar,
+                )
+            except (RuntimeError, ValueError, OSError) as e:
+                raise PipelineError(f"Script generation failed: {e}") from e
 
-        try:
-            pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
-            script_text, template_name = await generate_ai_script(
-                ctx.product,
-                ctx.config.llm_settings,
-                ctx.secrets,
-                ctx.session,
-                {
-                    "script": ctx.run_paths["script_file"],
-                    "formatted_prompt": ctx.run_paths["script_prompt"],
-                },
-                ctx.debug_mode,
-                ctx.config.api_settings,
-                product_id=ctx.product.asin,
-                pillar=pillar,
+            if not script_text:
+                raise PipelineError("Script generation failed to produce text.")
+            ctx.script = sanitize_script(script_text)
+            ensure_dirs_exist(ctx.run_paths["script_file"].parent)
+            ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
+            if template_name:
+                ctx.state["script_template"] = template_name
+            logger.info(
+                "Script generated (template=%s) and saved to %s",
+                template_name,
+                ctx.run_paths["script_file"].name,
             )
-        except (RuntimeError, ValueError, OSError) as e:
-            raise PipelineError(f"Script generation failed: {e}") from e
 
-        if not script_text:
-            raise PipelineError("Script generation failed to produce text.")
-        ctx.script = sanitize_script(script_text)
-        ensure_dirs_exist(ctx.run_paths["script_file"].parent)
-        ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
-        if template_name:
-            ctx.state["script_template"] = template_name
-        logger.info(
-            "Script generated (template=%s) and saved to %s",
-            template_name,
-            ctx.run_paths["script_file"].name,
-        )
+        await _ensure_hook_headline(ctx, pillar)
 
-        # Authored hook headline: a short designed line for the burned-in hook
-        # overlay, distinct from the spoken first sentence the captions transcribe
-        # (roadmap 1.9). Best-effort: an empty result falls back to first-sentence
-        # extraction in the assembler. Persisted to pipeline_state via ctx.state.
-        script_cfg = ctx.config.llm_settings.script_templates
-        headline = await generate_hook_headline(
-            ctx.product,
-            ctx.config.llm_settings,
-            ctx.secrets,
-            ctx.session,
-            ctx.config.api_settings,
-            ctx.debug_mode,
-            video_script=ctx.script,
-            narrator_profile=script_cfg.narrator_profile,
-            pillar=pillar,
-            pillar_preambles=script_cfg.pillar_preambles,
-            max_words=ctx.config.video_settings.hook_overlay.max_words,
-        )
-        if headline:
-            ctx.state["hook_headline"] = headline
-            logger.info("Authored hook headline: %s", headline)
+
+async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> None:
+    """Generate the authored hook headline if the run doesn't already have one.
+
+    A short designed line for the burned-in hook overlay, distinct from the
+    spoken first sentence the captions already transcribe (roadmap 1.9).
+
+    Runs on the resume path too, not only when the script is freshly generated.
+    ``hook_headline`` is a top-level ``ctx.state`` key, and the partial-state
+    loader keeps only per-step entries, so a truncated state file drops it; a
+    product scripted before this feature existed never had one. In both cases
+    the headline has to be re-derived here, otherwise the assembler silently
+    falls back to the script's first sentence and the hook duplicates the
+    captions underneath it, which is the defect the headline exists to remove.
+
+    Best-effort: an empty result leaves the fallback in place. Skipped entirely
+    when the overlay is off, so a disabled overlay costs no LLM round-trip.
+    """
+    if ctx.state.get("hook_headline"):
+        return
+    if not ctx.config.video_settings.hook_overlay.enabled:
+        logger.debug("Hook headline skipped: hook overlay disabled")
+        return
+
+    script_cfg = ctx.config.llm_settings.script_templates
+    headline = await generate_hook_headline(
+        ctx.product,
+        ctx.config.llm_settings,
+        ctx.secrets,
+        ctx.session,
+        ctx.config.api_settings,
+        ctx.debug_mode,
+        video_script=ctx.script,
+        narrator_profile=script_cfg.narrator_profile,
+        pillar=pillar,
+        pillar_preambles=script_cfg.pillar_preambles,
+        max_words=ctx.config.video_settings.hook_overlay.max_words,
+    )
+    if headline:
+        ctx.state["hook_headline"] = headline
+        logger.info("Authored hook headline: %s", headline)
+    else:
+        logger.info("No authored hook headline; hook falls back to script sentence")
 
 
 def _extract_hashtags_from_title(title: str) -> list[str]:
