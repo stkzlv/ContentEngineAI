@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.1] - 2026-08-04
+
+### Fixed
+- The `*-lowpri` make targets run the project interpreter directly instead of `poetry run python`. `systemd-run --user --scope` does not carry the caller's virtualenv, so every low-priority scrape, produce, publish and batch run failed on import with a missing project dependency. The targets now resolve a real interpreter, verify it can import a project dependency before using it, and fail with a clear message when none is found.
+
 ## [0.59.0] - 2026-08-03
 
 ### Added

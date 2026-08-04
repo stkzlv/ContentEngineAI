@@ -69,6 +69,8 @@ The scraper and the producer are the heavy commands. The producer pipeline peaks
 
 If the command will scrape products, render audio/video, or run the full pipeline end-to-end, use lowpri. No exceptions for "I just need one quick test render" — quick test renders are exactly when the user is also using the machine.
 
+**The `*-lowpri` recipes deliberately do NOT use `poetry run` — don't "simplify" them back to it.** `systemd-run --user --scope` starts the process through the user service manager, which doesn't carry the caller's virtualenv, so `poetry run python` inside the scope resolves an interpreter without the project's dependencies and the run dies on import (which module varies by entry point). The recipes resolve an interpreter that can actually import a project dependency and exec it directly with `PATH` forwarded. `poetry run python` is also unusable as the probe: with `virtualenvs.create=false` in `poetry.toml` it reports the base interpreter, not the project venv. Only the lowpri targets need this; the plain targets run outside the scope and `poetry run` is correct there.
+
 When invoking lowpri, pass the args via `ARGS="..."`:
 
 ```bash
