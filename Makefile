@@ -440,6 +440,7 @@ batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -455,6 +456,7 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -497,6 +499,7 @@ scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:590
 produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -515,6 +518,7 @@ publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
