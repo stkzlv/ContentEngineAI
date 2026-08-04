@@ -632,6 +632,21 @@ make perf-report
    rm -rf outputs/cache/
    ```
 
+### `make *-lowpri` reports `No project interpreter found`
+
+**Error:** `scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, or `publish-lowpri` stops immediately with `No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.`
+
+**Cause:** these targets deliberately do not use `poetry run`. They run the pipeline inside a `systemd-run --user --scope` cgroup to cap memory, and that scope starts the process through the user service manager, which does not carry the caller's virtualenv. `poetry run python` inside the scope resolves an interpreter without the project's dependencies and the run dies on import. The targets instead probe for an interpreter that can import a project dependency, and this error means no candidate passed.
+
+**Fix:** install the dependencies into an environment one of the probes can find:
+
+```bash
+poetry install
+# or activate the project virtualenv first, then retry
+```
+
+The probe checks the active virtualenv, the interpreter `python3` resolves to, and the environment `poetry env info -p` reports, in that order. An unusual setup that satisfies none of those (a bare conda env, or a Poetry install the shell can't see) needs the virtualenv activated before running `make`. The plain, non-`lowpri` targets are unaffected because they run outside the scope.
+
 ## Configuration Issues
 
 ### YAML Parsing Errors
