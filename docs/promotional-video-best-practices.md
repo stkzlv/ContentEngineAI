@@ -307,6 +307,32 @@ templates and spec-correction for analytical/comparison templates. See
 **Verb choice**: imperative + specific outcome. "Get the $15 fix" beats
 "Shop now". "Link to the bag in bio" beats "Click here".
 
+**Where the CTA can actually point, per surface.** The wording only matters if
+the destination is reachable, and that varies by platform in ways that decide
+the whole CTA design:
+
+| Surface | Clickable destination? |
+|---|---|
+| YouTube Shorts description | No. URLs render as plain text |
+| YouTube Shorts comments (incl. pinned) | No. Same anti-spam rule |
+| YouTube channel profile / About | Yes, up to 14 links |
+| Instagram Reels caption | No. Bio link only |
+| Instagram Stories link sticker | Yes, open to all accounts |
+| TikTok caption | No. Bio link only |
+
+YouTube's restriction is the one that surprises people, and it is decisive for
+short vertical video: a video classified as a Short cannot carry a clickable
+link on any surface the uploader controls per-video. Classification is
+automatic from aspect ratio and duration, so opting out is not available to a
+9:16 promo clip. The practical consequences: point the CTA at the profile
+("link in bio", "links on my channel") rather than at a description or comment
+URL; treat the pinned comment as a device for earning a profile visit, not for
+delivering a destination; and do not spend engineering effort on injecting
+destination URLs into YouTube Shorts metadata, because the platform will render
+them inert.
+
+Sources: [Sharing links with your audiences — YouTube Help](https://support.google.com/youtube/answer/13748639?hl=en).
+
 ## 7. AI-content disclosure (platform policy, not FTC)
 
 YouTube and TikTok treat AI-generated content separately from sponsored

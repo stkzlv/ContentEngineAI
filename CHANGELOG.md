@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Documented which CTA destinations are actually reachable per platform surface in the promotional video best-practices guide. YouTube renders URLs in Shorts descriptions and Shorts comments as plain text, and any 9:16 clip under the duration ceiling is classified as a Short, so a promo render cannot carry a clickable link on any per-video YouTube surface. CTAs should point at the profile instead.
+
 ## [0.59.2] - 2026-08-05
 
 ### Fixed

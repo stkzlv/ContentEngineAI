@@ -122,9 +122,11 @@ After publishing a Reel, the publisher automatically schedules a Story re-share 
 
 ### 4.2 YouTube engagement-bait pinned comment
 
-Add a "pinned comment" field to the YouTube publish path. Generate the pinned comment from the script's closing fork (Phase 1.5) — the comment is the spec-correction or two-option fork phrased as a direct question. Don't pin a "subscribe" CTA; pinned subscribe asks underperform, and the closing 5s of the video already carries a script-level subscribe CTA. End screens are not available on Shorts (long-form only), so the pinned comment is the equivalent placement.
+Generate the YouTube first comment from the script's closing fork — the spec-correction or two-option fork phrased as a direct question. Don't pin a "subscribe" CTA; pinned subscribe asks underperform, and the closing 5s of the video already carries a script-level subscribe CTA. End screens are not available on Shorts (long-form only), so the pinned comment is the equivalent placement.
 
-**Done when:** every YouTube Short publishes with an engagement-bait pinned comment derived from the script.
+This is also the only sensible use of that slot. YouTube renders URLs in Shorts descriptions and Shorts comments as plain text, not links, to limit spam, and every render this pipeline produces is classified as a Short (vertical, well under the duration ceiling). A destination URL placed in either surface is dead text. The clickable paths off a Short are the channel profile links and the Related Video slot, so the job of the comment is to earn a profile visit, not to carry a link.
+
+**Done when:** every YouTube Short publishes with an engagement-bait pinned comment derived from the script, and no publish path puts a destination URL in a YouTube Shorts description or comment expecting it to be clickable.
 
 ### 4.3 Comment-reply video mode
 
@@ -152,9 +154,11 @@ Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a n
 
 ### 4.7 Cover / poster-frame generation
 
-Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Shorts/Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
+Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
 
-**Done when:** every render produces a cover image and the publish payload sets it as the poster where the platform supports it.
+Scope note: this does not apply to YouTube. Custom thumbnails are not supported on Shorts, so the YouTube poster frame is whatever frame YouTube picks and no API accepts an override. The item is worth doing for the platforms that do accept a cover, and the first frame of the render is the only thumbnail lever on YouTube, which is another reason the opening frame carries the hook.
+
+**Done when:** every render produces a cover image and the publish payload sets it as the poster on the platforms that accept one.
 
 ### 4.8 Episodic series framing per pillar
 
@@ -169,6 +173,8 @@ Targeted for the following quarter. Closes the loop between pipeline output and 
 ### 5.1 Companion analytics module
 
 Optional analytics tooling that pulls platform metrics (TikTok, Instagram, YouTube, Amazon Associates, link-in-bio) into a local SQLite store and produces weekly reports segmented by pillar, template, voice profile, and A/B variant. Either a sister module in this repo or a separately released companion tool, to be decided when the work starts. Avoid building against Amazon's PA-API — it deprecates May 15, 2026; use the new Creators API or scraping instead.
+
+Smaller than it looks. The scheduling API the publisher already authenticates against exposes per-video and per-account metrics of its own (daily views and demographics for YouTube, account insights and demographics for Instagram, plus content decay, post timeline, posting frequency, and best-time-to-post across platforms). The first useful version of this item reads those through the existing client and stores them, rather than standing up a separate OAuth integration per platform. Only the Amazon and link-in-bio halves need their own sources.
 
 ### 5.2 Listing-side drift diagnostic
 
