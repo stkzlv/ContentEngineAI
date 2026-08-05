@@ -6,15 +6,23 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.publisher.models import Platform
+from src.publisher.models import FirstCommentConfig, Platform
 from src.publisher.publish_modes import publish_product
 
 
 @pytest.fixture
 def mock_publisher():
-    """Create mock publisher with publish method."""
+    """Create mock publisher with publish method.
+
+    ``first_comment_config`` is a real config object rather than an auto-created
+    mock attribute. On an ``AsyncMock`` every attribute call returns a coroutine,
+    so ``platforms.get(...)`` would hand the builder a coroutine where its
+    contract says ``str``. These tests don't exercise first comments, so the
+    faithful stand-in is a disabled config.
+    """
     publisher = AsyncMock()
     publisher.publish.return_value = {"post_id": "post_123", "status": "published"}
+    publisher.first_comment_config = FirstCommentConfig(enabled=False)
     return publisher
 
 

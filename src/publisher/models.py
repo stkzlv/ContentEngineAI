@@ -1138,7 +1138,10 @@ class FirstCommentConfig:
     ----------
         enabled: Enable first-comment publishing
         platforms: Map of platform name to comment template string.
-            Placeholders: {affiliate_link}, {hashtags}, {product_title}
+            Placeholders: {affiliate_link}, {hashtags}, {product_title},
+            {closing_line}. Only the placeholders a template uses are
+            required, so a script-derived template still renders for a
+            product with no affiliate link.
         move_hashtags_to_comment: Move hashtags from caption to comment
 
     """

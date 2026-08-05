@@ -19,6 +19,7 @@ import pytest
 
 from src.pipeline.config import GlobalBatchConfig, PublishingPhaseSummary
 from src.pipeline.global_batch import GlobalPipelineOrchestrator
+from src.publisher.models import FirstCommentConfig
 from src.scraper.amazon.models import SearchParameters
 
 # Test markers
@@ -155,11 +156,13 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
         # Mock publisher for slot checking
         temp_publisher = AsyncMock()
         temp_publisher.authenticate = AsyncMock()
+        temp_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         temp_publisher.list_posts = AsyncMock(return_value=occupied_posts)
 
         # Mock publisher for actual publishing
         main_publisher = AsyncMock()
         main_publisher.authenticate = AsyncMock()
+        main_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         main_publisher.get_accounts = AsyncMock(
             return_value=[{"platform": "youtube", "account_id": "acc1"}]
         )
@@ -240,10 +243,12 @@ async def test_auto_scheduling_falls_back_to_immediate_when_all_slots_occupied(
     ):
         temp_publisher = AsyncMock()
         temp_publisher.authenticate = AsyncMock()
+        temp_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         temp_publisher.list_posts = AsyncMock(return_value=occupied_posts)
 
         main_publisher = AsyncMock()
         main_publisher.authenticate = AsyncMock()
+        main_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         main_publisher.get_accounts = AsyncMock(
             return_value=[{"platform": "youtube", "account_id": "acc1"}]
         )
@@ -312,11 +317,13 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
         # Temp publisher for slot checking (returns no occupied slots)
         temp_publisher = AsyncMock()
         temp_publisher.authenticate = AsyncMock()
+        temp_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         temp_publisher.list_posts = AsyncMock(return_value=[])
 
         # Main publisher for actual publishing
         main_publisher = AsyncMock()
         main_publisher.authenticate = AsyncMock()
+        main_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         main_publisher.get_accounts = AsyncMock(
             return_value=[{"platform": "youtube", "account_id": "acc1"}]
         )
@@ -391,6 +398,7 @@ async def test_cleanup_removes_directory_after_successful_publish(
     ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(enabled=False)
         publisher.get_accounts = AsyncMock(
             return_value=[
                 {"platform": "youtube", "account_id": "acc1"},
@@ -453,6 +461,7 @@ async def test_cleanup_preserves_directory_on_partial_failure(
     ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(enabled=False)
         publisher.get_accounts = AsyncMock(
             return_value=[
                 {"platform": "youtube", "account_id": "acc1"},
@@ -524,6 +533,7 @@ async def test_vercel_token_loaded_from_environment(
     ):
         publisher = AsyncMock()
         publisher.authenticate = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(enabled=False)
         mock_create_publisher.return_value = publisher
 
         produced_videos = [(product_dir / "video.mp4", "B0TEST1")]

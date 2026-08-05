@@ -276,7 +276,11 @@ first_comment:
   enabled: true
   move_hashtags_to_comment: false
   platforms:
-    youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
+    # YouTube renders URLs in Shorts comments as plain text, and every render
+    # here is a Short, so a link in this slot is inert. Spend it on the script's
+    # engagement-bait closing beat instead: replies and profile visits are the
+    # only route to a clickable destination (the channel's profile links).
+    youtube: "{closing_line}"
     instagram: "{product_title}\n🔗 Link in bio!"
 
 # Retention for the Vercel Blob store that stages large video uploads
