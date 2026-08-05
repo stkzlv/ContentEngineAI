@@ -429,10 +429,14 @@ MEM_LIMIT := 6G
 # (ModuleNotFoundError). Resolve the real interpreter and run it directly inside
 # the scope with PATH forwarded. `poetry run python` is unreliable as the probe:
 # with virtualenvs.create=false it returns the base interpreter, not the venv.
-# So try the active venv, the shim's real target, then poetry's env, and pick
-# the first that can import a project dep. Lazily assigned (=) so it only runs
-# when a *-lowpri recipe needs it, not on every `make` invocation.
-LOWPRI_PYTHON = $(shell for p in "$$VIRTUAL_ENV/bin/python" "$$(python3 -c 'import sys;print(sys.executable)' 2>/dev/null)" "$$(poetry env info -p 2>/dev/null)/bin/python"; do [ -x "$$p" ] && "$$p" -c 'import yaml' >/dev/null 2>&1 && { echo "$$p"; break; }; done)
+# Candidates are tried in order and the first that can import a project dep wins.
+# `.python-version` comes first because it is the only candidate that names THIS
+# project: the other three read the ambient environment, so an unrelated venv
+# active in the shell hijacks all of them at once ($$VIRTUAL_ENV and PATH both
+# point at it, and poetry reports it too under virtualenvs.create=false), leaving
+# no usable candidate even though the project's own interpreter is installed.
+# Lazily assigned (=) so it only runs when a *-lowpri recipe needs it.
+LOWPRI_PYTHON = $(shell for p in "$$HOME/.pyenv/versions/$$(cat .python-version 2>/dev/null)/bin/python" "$$VIRTUAL_ENV/bin/python" "$$(python3 -c 'import sys;print(sys.executable)' 2>/dev/null)" "$$(poetry env info -p 2>/dev/null)/bin/python"; do [ -x "$$p" ] && "$$p" -c 'import yaml' >/dev/null 2>&1 && { echo "$$p"; break; }; done)
 
 batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 	poetry run python -m src.pipeline.global_batch $(ARGS)
@@ -440,7 +444,7 @@ batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
-	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -456,7 +460,7 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
-	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -499,7 +503,7 @@ scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:590
 produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
-	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
@@ -518,7 +522,7 @@ publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
-	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \

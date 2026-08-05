@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The `*-lowpri` make targets pick the project's own interpreter when an unrelated virtualenv is active in the shell. The interpreter probe read only ambient sources, so another project's venv captured all of them at once and the targets refused to run even though the project's interpreter was installed. The pyenv virtualenv named in `.python-version` is now tried first.
+
 ## [0.59.1] - 2026-08-04
 
 ### Fixed
