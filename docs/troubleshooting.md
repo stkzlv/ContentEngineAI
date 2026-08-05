@@ -645,7 +645,7 @@ poetry install
 # or activate the project virtualenv first, then retry
 ```
 
-The probe checks the active virtualenv, the interpreter `python3` resolves to, and the environment `poetry env info -p` reports, in that order. An unusual setup that satisfies none of those (a bare conda env, or a Poetry install the shell can't see) needs the virtualenv activated before running `make`. The plain, non-`lowpri` targets are unaffected because they run outside the scope.
+The probe checks the pyenv virtualenv named in `.python-version`, then the active virtualenv, the interpreter `python3` resolves to, and the environment `poetry env info -p` reports, in that order. `.python-version` comes first because it is the only one of the four that names this project; the rest read the ambient environment, so an unrelated project's virtualenv active in the shell captures all three at once and none of them can import the project's dependencies. An unusual setup that satisfies none of the four (a bare conda env, or a Poetry install the shell can't see) needs the project virtualenv activated before running `make`. The plain, non-`lowpri` targets are unaffected because they run outside the scope.
 
 ## Configuration Issues
 

@@ -23,6 +23,8 @@ If pyenv version shows something else, fix with:
 pyenv activate ContentEngineAI
 ```
 
+**A foreign `VIRTUAL_ENV` breaks more than it looks like.** If another project's virtualenv is active in the shell (`echo $VIRTUAL_ENV` points outside this repo), it sets `VIRTUAL_ENV`, leads `PATH`, and is what Poetry reports, because `poetry.toml` sets `virtualenvs.create=false`. `poetry run <anything>` then fails with `Please change python executable via the "env use" command`, so the CI gates can't be run through `poetry run` at all. Deactivate it, or run the gates through the venv directly (`~/.pyenv/versions/ContentEngineAI/bin/ruff`, `.../mypy`, `.../pytest`). The same hijack is why the `*-lowpri` targets consult `.python-version` before any ambient source.
+
 ## Private Overlay Files
 
 The repo supports private, contributor-specific overlays that stay out of git. Any file matching `*.private.md` or living under `.business/` is gitignored (see `.gitignore`). Use this for business motivation, account-specific context, personal planning, or decisions you don't want to publish.
