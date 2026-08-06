@@ -23,6 +23,7 @@ import yaml
 
 from src.pipeline.config import GlobalBatchConfig
 from src.pipeline.global_batch import GlobalPipelineOrchestrator
+from src.publisher.models import FirstCommentConfig
 from src.scraper.amazon.models import ProductData, SearchParameters
 from src.scraper.base.models import Platform
 
@@ -250,6 +251,7 @@ async def test_pipeline_with_product_ids_only(
         # Mock publishing phase
         mock_publisher = AsyncMock()
         mock_publisher.authenticate = AsyncMock()
+        mock_publisher.first_comment_config = FirstCommentConfig(enabled=False)
         mock_publisher.get_accounts = AsyncMock(
             return_value=[
                 {"id": "test1", "platform": "youtube", "account_id": "acc1"},

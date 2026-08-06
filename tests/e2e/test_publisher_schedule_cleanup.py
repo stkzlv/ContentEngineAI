@@ -19,6 +19,7 @@ import pytest
 from src.publisher.cleanup import CleanupManager
 from src.publisher.models import (
     CleanupConfig,
+    FirstCommentConfig,
     Platform,
     RecurringSlot,
     ScheduleConfig,
@@ -52,6 +53,7 @@ def temp_outputs_dir(tmp_path):
 def mock_publisher():
     """Mock publisher instance with async methods."""
     publisher = AsyncMock()
+    publisher.first_comment_config = FirstCommentConfig(enabled=False)
     publisher.authenticate = AsyncMock(return_value=True)
     publisher.get_accounts = AsyncMock(
         return_value=[

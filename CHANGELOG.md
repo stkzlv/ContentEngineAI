@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-08-06
+
 ### Changed
 - Documented which CTA destinations are actually reachable per platform surface in the promotional video best-practices guide. YouTube renders URLs in Shorts descriptions and Shorts comments as plain text, and any 9:16 clip under the duration ceiling is classified as a Short, so a promo render cannot carry a clickable link on any per-video YouTube surface. CTAs should point at the profile instead.
+- The YouTube first comment carries the script's engagement-bait closing line instead of the affiliate link. YouTube renders URLs in Shorts comments as plain text and every render is classified as a Short, so the link was never clickable there; the closing beat earns replies and profile visits, and the profile is the only clickable route off a Short. First-comment templates gain a `{closing_line}` placeholder, and a template is only required to supply the product data it actually references.
 
 ## [0.59.2] - 2026-08-05
 
