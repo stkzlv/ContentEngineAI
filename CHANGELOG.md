@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking**: the affiliate program literal phrase is opt-in and no longer renders by default. The phrase asserts membership of a named affiliate program, so an install that has not configured one published a claim it could not support, and the config loader falls back to the same defaults when the `affiliate_disclosure` section is missing or empty. Set `affiliate_disclosure.enabled: true` to restore it; the phrase and program still default to the Amazon Associates values, so joining that program needs one line. The `#ad` disclosure is unaffected and still leads every caption.
+
 ## [0.60.0] - 2026-08-06
 
 ### Changed

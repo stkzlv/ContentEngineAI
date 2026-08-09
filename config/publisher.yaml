@@ -323,9 +323,18 @@ link_in_bio:
 # identification phrase wherever Program Content is displayed. This
 # setting renders the phrase in the caption body after the #ad line.
 #
-# Enable for the Amazon Associates literal phrase, override for other
-# programs (ShareASale, Impact, eBay Partner Network, etc.).
+# Off by default, and opt-in for a reason: the phrase asserts membership of
+# the named program. Enable it only while that membership is active, and
+# disable it again if the account closes or you leave the program, because
+# claiming it otherwise misstates a material connection.
+#
+# The phrase and program below default to Amazon Associates, so joining that
+# program needs only `enabled: true`. Override both for other programs
+# (ShareASale, Impact, eBay Partner Network, etc.).
+#
+# This is separate from the `#ad` disclosure, which leads every caption and
+# is required for any affiliate relationship regardless of program.
 affiliate_disclosure:
-  enabled: true
+  enabled: false
   phrase: "As an Amazon Associate I earn from qualifying purchases"
   program: "amazon"
