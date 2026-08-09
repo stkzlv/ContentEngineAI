@@ -384,8 +384,9 @@ async def main():
         "--pycaps-renderer",
         choices=["css", "pictex"],
         help=(
-            "Pycaps renderer backend. 'css' = Playwright+Chromium (default). "
-            "'pictex' = browserless Skia path (lighter, no Chromium dep)."
+            "Pycaps renderer backend. 'css' = Playwright+Chromium (default, "
+            "the only production-safe option). 'pictex' = browserless Skia "
+            "path; PREVIEW ONLY, it renders words with no gaps between them."
         ),
     )
     parser.add_argument(

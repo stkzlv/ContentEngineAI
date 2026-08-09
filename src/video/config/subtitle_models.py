@@ -305,7 +305,11 @@ class PycapsSettings(BaseModel):
             "css = Playwright + Chromium (full CSS fidelity, ~400 MB RAM "
             "per render, ~0.7x realtime). "
             "pictex = browser-free Skia path (fewer CSS features, no Chromium "
-            "dep). Default css matches benchmark winner."
+            "dep). PREVIEW ONLY: pictex measures word width with padding "
+            "cropped off while the templates use that padding as the "
+            "inter-word gap, so captions render with no spaces between "
+            "words. Default css matches benchmark winner and is the only "
+            "production-safe option."
         ),
     )
     max_width_ratio: float = Field(
