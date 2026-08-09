@@ -1476,7 +1476,7 @@ first_comment:
 
 1. After metadata is loaded, `build_first_comment()` renders the platform template with product data from `outputs/<product_id>/data.json`
 2. Each platform gets its own rendered comment based on its template in `first_comment.platforms`
-3. The rendered comments are passed via `platform_contents` to `publisher.publish()`
+3. The rendered comments are passed via `platform_contents` to `publisher.publish()`, alongside that platform's caption and title. The dict is the authoritative per-platform payload, not a comment-only side channel: the client reads `content` and `title` from the same entry, so an entry carrying only a comment blanks the caption and sends no title.
 4. The Zernio API receives each as `firstComment` inside that platform's `platformSpecificData`
 5. If data.json is missing or has no affiliate link, the comment is silently skipped (warning logged)
 6. TikTok entries are always skipped regardless of config

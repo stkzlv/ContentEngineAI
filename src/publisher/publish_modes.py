@@ -26,6 +26,12 @@ def _build_platform_contents_with_comments(
 ) -> dict[str, dict[str, str]] | None:
     """Build platform_contents dict with first comments injected.
 
+    Each entry carries the full per-platform payload the publisher reads, not
+    only the comment: ``content`` and ``title`` come from that platform's
+    metadata. A partial entry is not safe, because the consumer treats the
+    dict as authoritative and reads ``content`` and ``title`` from it, so a
+    missing key silently blanks the field rather than falling back.
+
     Returns None if no first comments were generated (caller can skip
     platform_contents entirely).
     """
@@ -41,8 +47,14 @@ def _build_platform_contents_with_comments(
         comment = build_first_comment(
             fc_config, platform_name, product_id, outputs_dir, metadata=meta
         )
-        if comment:
-            platform_contents[platform_name] = {"first_comment": comment}
+        if not comment:
+            continue
+        entry: dict[str, str] = {"first_comment": comment}
+        if meta is not None:
+            entry["content"] = meta.format_content()
+            if getattr(meta, "title", None):
+                entry["title"] = meta.title
+        platform_contents[platform_name] = entry
 
     return platform_contents if platform_contents else None
 

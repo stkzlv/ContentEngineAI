@@ -1102,9 +1102,13 @@ class LatePublisher(BasePublisher):
 
             if platform_contents and platform_name in platform_contents:
                 pc = platform_contents[platform_name]
+                # Fall back to the shared content rather than overriding with
+                # an empty string: a partial entry (e.g. one carrying only a
+                # first comment) would otherwise blank the caption silently.
+                custom_content = pc.get("content") or content or ""
                 if main_content is None:
-                    main_content = pc.get("content", "")
-                platform_entry["customContent"] = pc.get("content", "")
+                    main_content = custom_content
+                platform_entry["customContent"] = custom_content
 
                 if platform_name == "youtube":
                     yt_psd: dict[str, object] = {"containsSyntheticMedia": True}
