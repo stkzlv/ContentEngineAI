@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The `pictex` pycaps renderer is documented as preview-only and is no longer recommended as the way to avoid Chromium or a virtual display. It renders multi-word captions with no gaps between words, silently and without error, because it measures word width with the padding cropped off while the bundled templates use that padding as the inter-word gap. The `css` renderer remains the default and the only production-safe option; nothing selects `pictex` automatically.
+
 ## [0.61.2] - 2026-08-09
 
 ### Fixed

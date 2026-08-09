@@ -23,7 +23,7 @@
 # pycaps:
 #   template_name: "word-focus"
 #   template_pool: ["word-focus", "hype", "minimalist", "vibrant"]
-#   renderer: "css"            # css (Chromium) or pictex (browserless)
+#   renderer: "css"            # css (Chromium); pictex is preview-only, see below
 #   max_width_ratio: 0.85
 #   max_number_of_lines: 2
 #   vertical_align: "bottom"
@@ -72,8 +72,14 @@ subtitle_settings:
     template_pool: ["explosive", "word-focus"]
 
     # css = Playwright + Chromium. Full CSS fidelity, ~400 MB peak RSS,
-    #       ~0.7x realtime on a 30s clip. Benchmark winner.
-    # pictex = browserless Skia. Lighter install, limited CSS features.
+    #       ~0.7x realtime on a 30s clip. Benchmark winner, and the only
+    #       production-safe option.
+    # pictex = browserless Skia. Lighter install, no X display needed, but
+    #       PREVIEW ONLY: it renders words with no gaps between them
+    #       ("Likemyphonewentfrom"), because it measures word width with the
+    #       padding cropped off while the templates use that padding as the
+    #       inter-word gap. Renders without error, so nothing warns you.
+    #       Upstream defect, tracked in issue #174.
     renderer: "css"
 
     # Max caption width as a fraction of frame width. This is the

@@ -104,7 +104,7 @@ comments in that file for the active values shipped to users.
 |---|---|---|---|
 | `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty or single-entry, which is also what `--pycaps-template NAME` triggers (the flag clears the pool). |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
-| `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium. `pictex` = browserless Skia path. |
+| `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
 | `max_width_ratio` | float | 0.85 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
@@ -193,9 +193,16 @@ per-word keyframe animations, `@font-face` loading.
 - Template coverage: all 10+ built-in templates work.
 - Needs a real X display for the per-word screenshots. On Wayland desktops
   the screenshots hang (`Page.screenshot` timeout); wrap the run in
-  `xvfb-run -a`. `pictex` avoids this.
+  `xvfb-run -a`. `pictex` avoids this, but see the warning under `pictex`
+  before reaching for it: it is not a usable substitute for published work.
 
-### `pictex`
+### `pictex` (preview only, not production-safe)
+
+> **Do not use for published output.** pictex renders multi-word captions
+> with no gaps between words, so `like my phone went from` comes out as
+> `Likemyphonewentfrom`. Reproduced on the bundled `word-focus` and
+> `explosive` templates. The output is unreadable but renders without any
+> error, so nothing warns you. Use `css` for anything you intend to publish.
 
 Browserless Skia path via the `pictex` package (same renderer engine as
 Chrome, just without the browser shell).
@@ -203,11 +210,25 @@ Chrome, just without the browser shell).
 - Install: `html2pic` + `skia-python` wheels (already in the pycaps group).
 - Peak RSS: similar to css, with a slower startup curve on small clips.
 - Speed: roughly on par with css in steady state.
-- Template coverage: supports most templates but some CSS features fall
-  back. Use this path if you need to avoid Chromium (e.g. CI, restricted
-  sandboxes, headless servers without display libs).
+- Needs no X display, which is its one genuine advantage over `css`.
 
-Switch with `--pycaps-renderer pictex`.
+**Why the spacing breaks.** Both bundled templates space words with CSS
+padding on the word element (`word-focus` uses `padding: 4px 4px`,
+`explosive` uses `padding: 5px 8px`); neither sets a word-spacing property.
+The two renderers then disagree on what a word's measured width includes.
+The css renderer measures each letter plus a `NON_CONTENT_WIDTH` sentinel
+specifically so the padding is counted. The pictex renderer instead renders
+the word and crops with `CropMode.CONTENT_BOX`, which by definition excludes
+padding, so it reports a glyph-only width and the layout butts each word
+against the next. At 1080x1920 the render scale is 3.0, so `word-focus`
+loses roughly 24px of gap between adjacent words: a total collapse rather
+than tight kerning.
+
+This is an upstream defect in pycaps, not in this project's wiring, which
+only instantiates the renderer class. Tracked in issue #174.
+
+Switch with `--pycaps-renderer pictex` if you want to preview the path, and
+check a frame before trusting the output.
 
 ## Limitations (v1)
 
@@ -324,7 +345,9 @@ Common failure modes:
 - **`PycapsUnavailableError`** — the optional group is not installed.
   Install with `poetry install --with pycaps`.
 - **Missing Chromium** — you're using `renderer: css` but never ran
-  `playwright install chromium`. Switch to `pictex` or install Chromium.
+  `playwright install chromium`. Install Chromium. Do not switch to
+  `pictex` as a workaround for published output: it renders words with no
+  spacing between them (issue #174).
 - **Template not found** — a value in `template_pool` doesn't match any
   built-in or project-local template name.
 

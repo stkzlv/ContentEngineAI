@@ -204,7 +204,7 @@ xvfb-run -a make produce-lowpri ARGS="outputs/<ASIN>/data.json slideshow_images1
 xvfb-run -a poetry run python -m src.video.producer outputs/<ASIN>/data.json slideshow_images1 --pycaps-renderer css --debug
 ```
 
-`xvfb-run` ships in the `xvfb` apt package. The `pictex` renderer is browserless and needs none of this; prefer it if you don't want the Xvfb dependency.
+`xvfb-run` ships in the `xvfb` apt package. The `pictex` renderer is browserless and needs none of this, but it is preview-only and not a substitute here: it renders words with no gaps between them (issue #174). Install `xvfb` and keep the `css` renderer for anything you publish.
 
 ## API and Authentication Issues
 
