@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- On-frame disclosure and hook overlays are no longer silently skipped when the FFmpeg subtitle engine renders with content-aware positioning. That path ends its filter chain with the subtitle filter itself rather than the no-op the overlays rewrite, so both logged a warning and dropped out, leaving those renders without the burned-in disclosure. The chain is normalized before either overlay applies, so they land on every subtitle path.
+
 ## [0.61.0] - 2026-08-09
 
 ### Changed

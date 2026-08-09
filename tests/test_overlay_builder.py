@@ -152,12 +152,37 @@ class TestApplyDisclosureOverlay:
         assert out is filters or out == filters
         assert out[-1] == "[v_sub_1]copy[v_out]"
 
-    def test_unexpected_terminal_filter_is_logged_and_skipped(self, tmp_path):
-        # If the terminal filter doesn't match the expected shape, we leave the
-        # chain alone rather than corrupting the graph.
-        filters = ["[v0]something_else[v_out]"]
+    def test_terminal_not_producing_v_out_is_logged_and_skipped(self, tmp_path):
+        # Only a terminal that doesn't produce [v_out] at all is unrecoverable.
+        # Anything else can be re-pointed, so leaving the chain alone is
+        # reserved for shapes we genuinely can't reason about.
+        filters = ["[v0]something_else[v_other]"]
         out = apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
         assert out == filters
+
+    def test_content_aware_ass_terminal_gets_the_overlay(self, tmp_path):
+        # The ffmpeg content-aware subtitle path ends with an ass= filter that
+        # produces [v_out] directly, leaving no copy no-op to rewrite. The
+        # disclosure is a required on-frame surface, so it must still land.
+        filters = [
+            "[0:v]scale=1080:1920[v0]",
+            "[v0]ass='/tmp/subtitles_content_aware.ass'[v_out]",
+        ]
+        out = apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
+
+        assert "drawtext=" in out[-1]
+        assert out[-1].endswith("[v_out]")
+        # The ass filter is preserved, re-pointed at the intermediate label.
+        assert "ass='/tmp/subtitles_content_aware.ass'" in out[1]
+        assert out[1].endswith("[v_pre_overlay]")
+        # And the drawtext consumes that label, so the graph stays connected.
+        assert out[-1].startswith("[v_pre_overlay]drawtext=")
+
+    def test_normalization_is_idempotent_on_copy_terminal(self, tmp_path):
+        # A chain that already ends in the no-op must not grow an extra entry.
+        filters = ["[v0]scale=2:2[v1]", "[v1]copy[v_out]"]
+        out = apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
+        assert len(out) == len(filters)
 
     def test_empty_filter_list_returns_unchanged(self, tmp_path):
         out = apply_disclosure_overlay([], DisclosureSettings(), 80, tmp_path)
