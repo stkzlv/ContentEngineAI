@@ -400,3 +400,88 @@ class TestPublishClampsMetadata:
             )
 
         assert len(oversized.description) <= 2200
+
+
+class TestPlatformContentsCarryFullPayload:
+    """Entries must carry content and title, not only the comment (#195).
+
+    The consumer treats this dict as authoritative and reads ``content`` and
+    ``title`` from it, so an entry holding only ``first_comment`` blanked the
+    caption and sent no YouTube title.
+    """
+
+    def _publisher_with_comments(self, template: str = "{closing_line}"):
+        publisher = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(
+            enabled=True, platforms={"youtube": template}
+        )
+        return publisher
+
+    def _youtube_metadata(self):
+        from src.publisher.models import PublishMetadata
+
+        return PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="A real product title",
+            description="Body copy here.",
+            hashtags=["tech"],
+        )
+
+    def test_entry_carries_content_and_title(self, tmp_path):
+        from src.publisher.publish_modes import _build_platform_contents_with_comments
+
+        meta = self._youtube_metadata()
+        with patch(
+            "src.publisher.publish_modes.build_first_comment", return_value="a comment"
+        ):
+            out = _build_platform_contents_with_comments(
+                self._publisher_with_comments(),
+                [{"platform": "youtube", "account_id": "acc"}],
+                "B0TEST",
+                tmp_path,
+                metadata_by_platform={"youtube": meta},
+            )
+
+        assert out is not None
+        entry = out["youtube"]
+        assert entry["first_comment"] == "a comment"
+        assert entry["title"] == "A real product title"
+        # Content is the fully formatted caption, disclosure included.
+        assert entry["content"] == meta.format_content()
+        assert entry["content"].startswith("#ad")
+
+    def test_no_entry_without_a_comment(self, tmp_path):
+        from src.publisher.publish_modes import _build_platform_contents_with_comments
+
+        with patch("src.publisher.publish_modes.build_first_comment", return_value=""):
+            out = _build_platform_contents_with_comments(
+                self._publisher_with_comments(),
+                [{"platform": "youtube", "account_id": "acc"}],
+                "B0TEST",
+                tmp_path,
+                metadata_by_platform={"youtube": self._youtube_metadata()},
+            )
+
+        assert out is None
+
+    def test_disabled_first_comment_returns_none(self, tmp_path):
+        """With the feature off the builder is skipped entirely.
+
+        This is the path that masked the bug: no platform_contents means the
+        consumer's per-platform branch never runs, so the title was only
+        missing on publishes that generated a comment.
+        """
+        from src.publisher.publish_modes import _build_platform_contents_with_comments
+
+        publisher = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(enabled=False)
+
+        out = _build_platform_contents_with_comments(
+            publisher,
+            [{"platform": "youtube", "account_id": "acc"}],
+            "B0TEST",
+            tmp_path,
+            metadata_by_platform={"youtube": self._youtube_metadata()},
+        )
+
+        assert out is None

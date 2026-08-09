@@ -754,3 +754,73 @@ class TestLatePublisherDeletePost:
 
         with pytest.raises(PublishError):
             await publisher.delete_post("post_123")
+
+
+class TestBuildSdkPlatformsYouTubeTitle:
+    """The YouTube payload must carry a real title (#195).
+
+    ``_build_platform_contents_with_comments`` used to return entries holding
+    only ``first_comment``. This consumer reads ``content`` and ``title`` from
+    the same dict, so a partial entry blanked the caption and sent no title at
+    all, leaving the platform to derive one from the caption's first line.
+    """
+
+    def _publisher(self):
+        from src.publisher.late.client import LatePublisher
+
+        return LatePublisher(api_key="sk_test_abc123")
+
+    def test_title_is_sent_when_supplied(self):
+        pub = self._publisher()
+        platforms = [{"platform": "youtube", "account_id": "acc_yt"}]
+        pcs = {
+            "youtube": {
+                "content": "#ad\n\nA real caption",
+                "title": "Real product title",
+                "first_comment": "a comment",
+            }
+        }
+
+        built, _ = pub._build_sdk_platforms(platforms, "#ad\n\nA real caption", pcs)
+
+        psd = built[0]["platformSpecificData"]
+        assert psd["title"] == "Real product title"
+        assert psd["containsSyntheticMedia"] is True
+
+    def test_partial_entry_does_not_blank_the_caption(self):
+        # An entry carrying only a first comment must not override the caption
+        # with an empty string; it falls back to the shared content.
+        pub = self._publisher()
+        platforms = [{"platform": "youtube", "account_id": "acc_yt"}]
+        pcs = {"youtube": {"first_comment": "a comment"}}
+
+        built, main = pub._build_sdk_platforms(platforms, "#ad\n\nShared caption", pcs)
+
+        assert built[0]["customContent"] == "#ad\n\nShared caption"
+        assert main == "#ad\n\nShared caption"
+
+    def test_title_is_never_the_disclosure_line(self):
+        # The regression shipped 70 videos titled "#ad" because no title was
+        # sent and the platform fell back to the caption's first line.
+        pub = self._publisher()
+        platforms = [{"platform": "youtube", "account_id": "acc_yt"}]
+        pcs = {
+            "youtube": {
+                "content": "#ad\n\nA real caption",
+                "title": "Real product title",
+                "first_comment": "c",
+            }
+        }
+
+        built, _ = pub._build_sdk_platforms(platforms, "#ad\n\nA real caption", pcs)
+
+        assert built[0]["platformSpecificData"]["title"] != "#ad"
+
+    def test_first_comment_still_attached(self):
+        pub = self._publisher()
+        platforms = [{"platform": "youtube", "account_id": "acc_yt"}]
+        pcs = {"youtube": {"content": "c", "title": "t", "first_comment": "hello"}}
+
+        built, _ = pub._build_sdk_platforms(platforms, "c", pcs)
+
+        assert built[0]["platformSpecificData"]["firstComment"] == "hello"

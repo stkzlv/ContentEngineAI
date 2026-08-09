@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- YouTube publishes now send the video title. The per-platform payload builder returned entries holding only the first comment, while its consumer read the caption and title from that same dict, so no title was ever sent and the caption was overridden with an empty string. With no title supplied the platform derived one from the caption's first line, which the disclosure leads, producing videos titled `#ad`. The builder now carries the caption and title, and the consumer falls back to the shared caption instead of blanking it. Only publishes that generated a first comment were affected, which is why it looked intermittent.
+
 ## [0.61.1] - 2026-08-09
 
 ### Fixed
