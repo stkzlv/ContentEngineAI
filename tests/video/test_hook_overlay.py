@@ -271,6 +271,20 @@ class TestApplyHookOverlay:
         assert out is filters
         assert any("unexpected shape" in r.message for r in caplog.records)
 
+    def test_content_aware_ass_terminal_gets_the_hook(self, tmp_path) -> None:
+        """The ffmpeg content-aware path has no copy no-op to rewrite."""
+        settings = HookOverlaySettings(enabled=True)
+        filters = ["[0:v]scale=1080:1920[v0]", "[v0]ass='/tmp/ca.ass'[v_out]"]
+        out = apply_hook_overlay(filters, settings, "Hook line", 60, 1080, tmp_path)
+
+        # ass filter survives, re-pointed; hook drawtext then the copy tail.
+        assert "ass='/tmp/ca.ass'" in out[1]
+        assert out[1].endswith("[v_pre_overlay]")
+        assert out[-2].startswith("[v_pre_overlay]drawtext=")
+        assert out[-2].endswith("[v_hook]")
+        # Terminal copy is preserved so the disclosure layer still applies.
+        assert out[-1] == "[v_hook]copy[v_out]"
+
     def test_rewrite_preserves_terminal_copy(self, tmp_path) -> None:
         """Hook layer must keep copy[v_out] alive for the disclosure layer."""
         settings = HookOverlaySettings(enabled=True)
@@ -318,6 +332,34 @@ class TestHookPlusDisclosureStack:
         # Disclosure lives in slot 2, consuming [v_hook] and emitting [v_out].
         assert final[2].startswith("[v_hook]drawtext=")
         assert final[2].endswith("[v_out]")
+
+    def test_stack_applies_on_content_aware_ass_terminal(self, tmp_path) -> None:
+        """Both overlays must land on the ffmpeg content-aware path.
+
+        The on-frame disclosure is a required surface, so a subtitle path that
+        ends in an ass= filter rather than the copy no-op must not silently
+        lose it.
+        """
+        from src.video.assembler.overlay_builder import (
+            apply_disclosure_overlay,
+            apply_hook_overlay,
+        )
+        from src.video.config.visual_models import DisclosureSettings
+
+        filters = ["scaled[v_sub];", "[v_sub]ass='/tmp/ca.ass'[v_out]"]
+
+        hooked = apply_hook_overlay(
+            filters, HookOverlaySettings(enabled=True), "first line", 60, 1080, tmp_path
+        )
+        final = apply_disclosure_overlay(
+            hooked, DisclosureSettings(enabled=True), 60, tmp_path
+        )
+
+        joined = ";".join(final)
+        assert joined.count("drawtext=") == 2
+        assert "ass='/tmp/ca.ass'" in joined
+        assert final[-1].endswith("[v_out]")
+        assert "copy[v_out]" not in final[-1]
 
     def test_disclosure_only_when_hook_disabled(self, tmp_path) -> None:
         from src.video.assembler.overlay_builder import (

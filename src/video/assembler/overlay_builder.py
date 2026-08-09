@@ -161,6 +161,33 @@ def build_disclosure_drawtext(
     return "".join(parts)
 
 
+_OVERLAY_TAIL_LABEL = "[v_pre_overlay]"
+
+
+def _ensure_copy_terminal(video_filters: list[str]) -> list[str] | None:
+    """Normalize the chain so its last entry is a rewritable ``copy[v_out]``.
+
+    Overlays work by rewriting a terminal no-op ``<input>copy[v_out]`` into a
+    drawtext that produces ``[v_out]`` itself. The subtitle builder emits that
+    no-op on most paths, but the content-aware ASS path ends with
+    ``ass='...'[v_out]`` directly, leaving no slot to rewrite. Re-point such a
+    filter at an intermediate label and append the missing no-op, which makes
+    the rest of the overlay logic shape-independent.
+
+    Returns the list unchanged when it already ends in ``copy[v_out]``, the
+    normalized list when the terminal produces ``[v_out]`` some other way, and
+    ``None`` when the terminal does not produce ``[v_out]`` at all. Callers
+    treat ``None`` as the unexpected shape they warn about.
+    """
+    last = video_filters[-1]
+    if "copy[v_out]" in last:
+        return video_filters
+    if not last.endswith("[v_out]"):
+        return None
+    rerouted = last[: -len("[v_out]")] + _OVERLAY_TAIL_LABEL
+    return [*video_filters[:-1], rerouted, f"{_OVERLAY_TAIL_LABEL}copy[v_out]"]
+
+
 def apply_disclosure_overlay(
     video_filters: list[str],
     settings: DisclosureSettings,
@@ -169,15 +196,16 @@ def apply_disclosure_overlay(
 ) -> list[str]:
     """Inject the disclosure overlay as the final filter before ``[v_out]``.
 
-    The subtitle builder ends its chain with a no-op ``copy[v_out]`` filter to
-    rename the last intermediate stream. This function rewrites that line into
-    a drawtext filter that renders the disclosure on top of the subtitle output
-    and produces ``[v_out]`` directly. The caller's filter chain stays the same
-    length and end-label.
+    Rewrites the chain's terminal no-op ``copy[v_out]`` into a drawtext filter
+    that renders the disclosure on top of the subtitle output and produces
+    ``[v_out]`` directly. Chains that end with a different filter producing
+    ``[v_out]`` (the content-aware ASS path) are normalized first, so the
+    overlay applies on every subtitle path rather than only the ones that
+    happen to end in the no-op.
 
     When ``settings.enabled`` is False, the input list is returned unchanged.
-    When the input does not end with ``copy[v_out]`` (unexpected shape), the
-    chain is also returned unchanged and a warning is logged.
+    When the terminal filter does not produce ``[v_out]`` at all, the chain is
+    also returned unchanged and a warning is logged.
     """
     if not settings.enabled:
         return video_filters
@@ -186,17 +214,16 @@ def apply_disclosure_overlay(
         logger.warning("Disclosure overlay skipped: empty video_filters list")
         return video_filters
 
-    last = video_filters[-1]
-    # The subtitle builder always emits "...copy[v_out]" as the final entry.
-    # Find the input stream label and rewrite the line to drawtext+v_out.
-    if "copy[v_out]" not in last:
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
         logger.warning(
             "Disclosure overlay skipped: last filter has unexpected shape: %r",
-            last,
+            video_filters[-1],
         )
         return video_filters
 
-    input_stream = last.replace("copy[v_out]", "")
+    video_filters = normalized
+    input_stream = video_filters[-1].replace("copy[v_out]", "")
     rewritten = build_disclosure_drawtext(
         settings,
         subtitle_font_size_pixels,
@@ -433,13 +460,17 @@ def apply_hook_overlay(
     terminal shape it expects. Order in core.py is: hook → disclosure →
     [v_out], giving the disclosure top z-order.
 
+    Chains ending with a different filter that produces ``[v_out]`` (the
+    content-aware ASS path) are normalized first, so the hook applies on
+    every subtitle path.
+
     No-ops (returns input unchanged) when:
 
     - ``settings.enabled`` is False.
     - ``hook_text`` is empty after extraction (script was empty or all
       whitespace).
-    - The terminal filter does not match ``copy[v_out]`` (logged at WARN;
-      keeps the disclosure pipeline from breaking on unexpected shapes).
+    - The terminal filter does not produce ``[v_out]`` at all (logged at
+      WARN; keeps the disclosure pipeline from breaking on unknown shapes).
     """
     if not settings.enabled:
         return video_filters
@@ -450,14 +481,16 @@ def apply_hook_overlay(
         logger.warning("Hook overlay skipped: empty video_filters list.")
         return video_filters
 
-    last = video_filters[-1]
-    if "copy[v_out]" not in last:
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
         logger.warning(
-            "Hook overlay skipped: last filter has unexpected shape: %r", last
+            "Hook overlay skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
         )
         return video_filters
 
-    input_stream = last.replace("copy[v_out]", "")
+    video_filters = normalized
+    input_stream = video_filters[-1].replace("copy[v_out]", "")
     hook_filter = build_hook_drawtext(
         settings,
         hook_text,
