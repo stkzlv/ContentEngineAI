@@ -498,7 +498,7 @@ privacy_settings:
 
 # === Affiliate Disclosure ===
 affiliate_disclosure:
-  enabled: true                                       # Render the literal phrase
+  enabled: false                                      # Opt-in; off by default
   phrase: "As an Amazon Associate I earn from qualifying purchases"
   program: "amazon"                                   # Override for non-Amazon programs
 ```
@@ -1413,16 +1413,19 @@ Renders the affiliate program's required literal identification phrase in every 
 
 ```yaml
 affiliate_disclosure:
-  enabled: true                                       # Render the literal phrase
+  enabled: false                                      # Opt-in; off by default
   phrase: "As an Amazon Associate I earn from qualifying purchases"
   program: "amazon"                                   # Override for non-Amazon programs
 ```
 
 **Behavior**:
+- **Off by default, and opt-in on purpose.** The phrase asserts membership of the named program, so it must only be emitted while that membership is active. Enable it when you join, and disable it again if the account closes or you leave, because claiming it otherwise misstates a material connection. The loader also falls back to the disabled default when the section is missing or empty, so an unconfigured install publishes no claim.
 - Works in both unified and platform-specific publishing modes.
 - When `enabled: true`, the phrase is injected after `#ad` and before the description.
-- When `enabled: false`, captions stay as before (only `#ad` and description).
+- When `enabled: false`, captions carry only `#ad` and the description.
+- `phrase` and `program` default to the Amazon Associates values, so joining that program needs only `enabled: true`.
 - The `program` key is metadata only; it does not change how the phrase is rendered.
+- This is separate from the `#ad` disclosure, which leads every caption and is required for any affiliate relationship regardless of program.
 
 </details>
 

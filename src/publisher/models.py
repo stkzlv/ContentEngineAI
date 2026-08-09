@@ -136,9 +136,19 @@ class AffiliateDisclosureConfig:
     standard ``disclosure`` (``#ad``) line. Driven from
     ``config/publisher.yaml::affiliate_disclosure`` so non-Amazon programs
     (ShareASale, Impact, eBay Partner Network) can plug in their own phrases.
+
+    Disabled by default. The phrase asserts membership of a named affiliate
+    program, so it must only be emitted while that membership is actually
+    active: claiming it otherwise misstates a material connection. Defaulting
+    to on meant an unconfigured install published an Amazon Associates claim
+    on every caption, and the config loader falls back to these defaults when
+    the YAML section is missing or empty.
+
+    ``phrase`` and ``program`` keep the Amazon values so enabling the feature
+    needs one line rather than three.
     """
 
-    enabled: bool = True
+    enabled: bool = False
     phrase: str = "As an Amazon Associate I earn from qualifying purchases"
     program: str = "amazon"
 

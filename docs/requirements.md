@@ -429,6 +429,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Affiliate Program Literal Phrase
 - Render the configured affiliate program identification phrase in the caption body of every published post when enabled
+- Disabled by default, including when the configuration section is absent or empty. The phrase asserts membership of the named program, so an unconfigured install must not publish one
 - Phrase is placed between the leading disclosure line and the description
 - Configurable phrase and program name; defaults to the Amazon Associates identification phrase
 - Works in both unified and platform-specific publishing modes

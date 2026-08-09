@@ -461,8 +461,12 @@ class TestAffiliateDisclosureConfig:
     """Tests for affiliate program literal-phrase configuration."""
 
     @patch.dict("os.environ", {}, clear=True)
-    def test_defaults_when_section_missing(self, tmp_path):
-        """Missing affiliate_disclosure section uses Amazon defaults."""
+    def test_disabled_when_section_missing(self, tmp_path):
+        """Missing affiliate_disclosure section leaves the phrase off.
+
+        The phrase asserts membership of a named affiliate program, so an
+        unconfigured install must not publish one.
+        """
         config_file = tmp_path / "publisher.yaml"
         config_file.write_text(
             """
@@ -474,9 +478,40 @@ api_key: sk_live_key_12345
         config = load_publisher_config(config_path=config_file)
 
         assert isinstance(config.affiliate_disclosure_config, AffiliateDisclosureConfig)
-        assert config.affiliate_disclosure_config.enabled is True
-        assert "Amazon Associate" in config.affiliate_disclosure_config.phrase
-        assert config.affiliate_disclosure_config.program == "amazon"
+        assert config.affiliate_disclosure_config.enabled is False
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_disabled_when_section_empty(self, tmp_path):
+        """An empty affiliate_disclosure block leaves the phrase off.
+
+        The loader treats an empty section as absent and falls back to the
+        dataclass defaults, so this shares a path with the missing-section
+        case and must not re-enable the phrase either.
+        """
+        config_file = tmp_path / "publisher.yaml"
+        config_file.write_text(
+            """
+provider: late
+api_key: sk_live_key_12345
+affiliate_disclosure:
+"""
+        )
+
+        config = load_publisher_config(config_path=config_file)
+
+        assert config.affiliate_disclosure_config.enabled is False
+
+    def test_phrase_default_stays_amazon(self):
+        """Enabling the feature needs one line, not three.
+
+        The phrase and program defaults stay pointed at Amazon Associates so
+        `enabled: true` is sufficient for that program; only the enabled flag
+        defaults off.
+        """
+        cfg = AffiliateDisclosureConfig(enabled=True)
+
+        assert "Amazon Associate" in cfg.phrase
+        assert cfg.program == "amazon"
 
     @patch.dict("os.environ", {}, clear=True)
     def test_custom_program_parsed(self, tmp_path):
