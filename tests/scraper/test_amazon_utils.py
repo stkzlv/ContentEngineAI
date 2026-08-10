@@ -71,3 +71,71 @@ class TestBuildAffiliateUrl:
         assert (
             not warnings
         ), f"expected no warnings, got {[r.getMessage() for r in warnings]}"
+
+
+class TestAffiliateLinksDisabled:
+    """`affiliate_links.enabled: false` says "no program", not "misconfigured".
+
+    Treating those two as the same thing meant an install with no affiliate
+    account logged a revenue-loss warning on every single product.
+    """
+
+    def test_disabled_returns_clean_url_without_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("AMAZON_ASSOCIATE_TAG", raising=False)
+        monkeypatch.setattr(
+            "src.scraper.amazon.utils._affiliate_links_enabled", lambda: False
+        )
+        result = build_affiliate_url(
+            "https://www.amazon.com/gp/product/dp/B0ABCDEFGH?ref=sr_1&dib=xyz",
+            associate_tag="",
+        )
+        assert result == "https://www.amazon.com/dp/B0ABCDEFGH"
+        assert "tag=" not in result
+
+    def test_disabled_does_not_warn(
+        self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The warning exists to catch a mistake. This is not a mistake."""
+        monkeypatch.delenv("AMAZON_ASSOCIATE_TAG", raising=False)
+        monkeypatch.setattr(
+            "src.scraper.amazon.utils._affiliate_links_enabled", lambda: False
+        )
+        with caplog.at_level(logging.DEBUG, logger="src.scraper.amazon.utils"):
+            build_affiliate_url(
+                "https://www.amazon.com/dp/B0ABCDEFGH", associate_tag=""
+            )
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    def test_disabled_still_honours_an_explicit_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The flag governs the missing-tag path only.
+
+        A caller passing a tag explicitly, or an env var being set, means a
+        program does exist; the flag must not silently discard it.
+        """
+        monkeypatch.setattr(
+            "src.scraper.amazon.utils._affiliate_links_enabled", lambda: False
+        )
+        result = build_affiliate_url(
+            "https://www.amazon.com/dp/B0ABCDEFGH", associate_tag="mytag-20"
+        )
+        assert result == "https://www.amazon.com/dp/B0ABCDEFGH?tag=mytag-20"
+
+    def test_disabled_passes_through_url_without_asin(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("AMAZON_ASSOCIATE_TAG", raising=False)
+        monkeypatch.setattr(
+            "src.scraper.amazon.utils._affiliate_links_enabled", lambda: False
+        )
+        url = "https://www.amazon.com/some/other/path"
+        assert build_affiliate_url(url, associate_tag="") == url
+
+    def test_enabled_by_default_when_config_absent(self):
+        """Missing config must not silently disable the warning."""
+        from src.scraper.amazon.utils import _affiliate_links_enabled
+
+        assert _affiliate_links_enabled() is True

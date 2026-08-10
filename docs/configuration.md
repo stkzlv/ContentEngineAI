@@ -2164,6 +2164,8 @@ scrapers:
     keywords: ["wireless earbuds"]
     max_products: 3
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
+    affiliate_links:
+      enabled: true    # false = no program in use; strip tracking params, don't warn
 ```
 
 ### Advanced Search Parameters
