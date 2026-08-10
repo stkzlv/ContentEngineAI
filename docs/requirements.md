@@ -146,7 +146,7 @@ High-level requirements for ContentEngineAI.
 - The associate tag is read from the `AMAZON_ASSOCIATE_TAG` environment variable, with the YAML `scrapers.amazon.associate_tag` field as a fallback
 - The standalone scraper CLI loads `.env` at startup; a tag set only in `.env` (not exported in the shell) is visible to the canonicaliser
 - When no associate tag resolves, the canonicaliser returns the input URL unchanged and emits a WARNING-level log line indicating affiliate attribution will be lost
-- Setting `scrapers.amazon.affiliate_links.enabled: false` declares that no affiliate program is in use: the canonicaliser then strips tracking parameters down to `https://www.amazon.com/dp/<ASIN>` and logs at DEBUG instead of WARNING. An explicitly supplied tag still wins over the flag
+- Setting `scrapers.amazon.affiliate_links.enabled: false` declares that no affiliate program is in use: the canonicaliser then strips tracking parameters down to `https://www.amazon.com/dp/<ASIN>` and logs at DEBUG instead of WARNING. An explicitly supplied tag still wins over the flag, and `AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML field
 
 ### URL shortener
 - The shortener layer is provider-pluggable through a typed registry

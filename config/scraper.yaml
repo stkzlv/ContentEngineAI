@@ -539,6 +539,9 @@ scrapers:
     # Set this to false when the account is closed or was never opened, rather
     # than leaving the tag of a dead account in place: a stale tag earns
     # nothing and makes published links look monetized when they are not.
+    #
+    # AMAZON_AFFILIATE_LINKS_ENABLED overrides this, so an install can declare
+    # "no program" from .env without editing a tracked config file.
     affiliate_links:
       enabled: true
 

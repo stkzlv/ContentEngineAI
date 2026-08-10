@@ -174,6 +174,8 @@ scrapers:
 
 `build_affiliate_url` then strips tracking parameters instead of preserving them, canonicalising to a bare `https://www.amazon.com/dp/<ASIN>`, and drops the log line to DEBUG. Use this when the account is closed or was never opened, rather than leaving a dead account's tag in the config: a tag belonging to a terminated account is still sent to Amazon on every link.
 
+`AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML, so an install can declare "no program" from `.env` without editing a tracked config file. This mirrors how the tag itself prefers the environment.
+
 The flag only governs the missing-tag path. A tag from `AMAZON_ASSOCIATE_TAG` or `associate_tag` is still applied while the flag is off, so it cannot silently discard a working program.
 
 ## URL shortener

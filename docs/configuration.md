@@ -1834,6 +1834,7 @@ These enhance functionality but are not required for basic operation.
 | `LATE_API_KEY` | string | None | Zernio API key for social media publishing, still named for the legacy Late SDK (alt: `PUBLISHER_API_KEY`) |
 | `PICSEE_API_KEY` | string | None | Picsee API key for URL shortening |
 | `AMAZON_ASSOCIATE_TAG` | string | None | Amazon Associates affiliate tag for monetization |
+| `AMAZON_AFFILIATE_LINKS_ENABLED` | bool | `true` | Set false when no affiliate program is in use. Overrides `scrapers.amazon.affiliate_links.enabled` |
 | `LNKBIO_CLIENT_ID` | string | None | Lnk.Bio OAuth2 client ID for link-in-bio |
 | `LNKBIO_CLIENT_SECRET` | string | None | Lnk.Bio OAuth2 client secret |
 
@@ -2166,6 +2167,7 @@ scrapers:
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
     affiliate_links:
       enabled: true    # false = no program in use; strip tracking params, don't warn
+                       # Overridable via AMAZON_AFFILIATE_LINKS_ENABLED
 ```
 
 ### Advanced Search Parameters

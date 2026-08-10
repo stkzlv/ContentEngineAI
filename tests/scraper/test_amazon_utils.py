@@ -139,3 +139,41 @@ class TestAffiliateLinksDisabled:
         from src.scraper.amazon.utils import _affiliate_links_enabled
 
         assert _affiliate_links_enabled() is True
+
+
+class TestAffiliateLinksEnvOverride:
+    """`AMAZON_AFFILIATE_LINKS_ENABLED` mirrors how the tag prefers env."""
+
+    @pytest.mark.parametrize("value", ["false", "FALSE", "0", "no", "off"])
+    def test_falsey_values_disable(self, value: str, monkeypatch):
+        from src.scraper.amazon.utils import _affiliate_links_enabled
+
+        monkeypatch.setenv("AMAZON_AFFILIATE_LINKS_ENABLED", value)
+        assert _affiliate_links_enabled() is False
+
+    @pytest.mark.parametrize("value", ["true", "1", "yes"])
+    def test_truthy_values_enable(self, value: str, monkeypatch):
+        from src.scraper.amazon.utils import _affiliate_links_enabled
+
+        monkeypatch.setenv("AMAZON_AFFILIATE_LINKS_ENABLED", value)
+        assert _affiliate_links_enabled() is True
+
+    def test_blank_env_falls_through_to_config(self, monkeypatch):
+        """An empty var must not read as false, or `FOO=` would disable it."""
+        from src.scraper.amazon.utils import _affiliate_links_enabled
+
+        monkeypatch.setenv("AMAZON_AFFILIATE_LINKS_ENABLED", "  ")
+        assert _affiliate_links_enabled() is True
+
+    def test_env_disables_the_tag_warning_end_to_end(
+        self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("AMAZON_ASSOCIATE_TAG", raising=False)
+        monkeypatch.setenv("AMAZON_AFFILIATE_LINKS_ENABLED", "false")
+        with caplog.at_level(logging.DEBUG, logger="src.scraper.amazon.utils"):
+            result = build_affiliate_url(
+                "https://www.amazon.com/gp/product/dp/B0ABCDEFGH?ref=sr_1",
+                associate_tag="",
+            )
+        assert result == "https://www.amazon.com/dp/B0ABCDEFGH"
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]

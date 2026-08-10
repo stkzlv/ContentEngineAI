@@ -5,6 +5,7 @@ utilities used throughout the scraper.
 """
 
 import logging
+import os
 import re
 import subprocess
 from typing import Any
@@ -302,7 +303,15 @@ def _affiliate_links_enabled() -> bool:
     loud warning. Set ``scrapers.amazon.affiliate_links.enabled`` to false to
     declare that there is no program, which swaps the warning for a debug line
     and produces clean untagged product URLs.
+
+    ``AMAZON_AFFILIATE_LINKS_ENABLED`` overrides the YAML, mirroring how the
+    tag itself prefers ``AMAZON_ASSOCIATE_TAG``. Without it, declaring "no
+    program" would mean editing a tracked config file, while declaring one
+    needs only ``.env``.
     """
+    env_value = os.environ.get("AMAZON_AFFILIATE_LINKS_ENABLED", "").strip()
+    if env_value:
+        return env_value.lower() not in ("0", "false", "no", "off")
     try:
         from .config import CONFIG
 
@@ -320,7 +329,6 @@ def _clean_product_url(url: str) -> str:
     search and session parameters. Returns the input unchanged when no ASIN
     is present.
     """
-    import re
     from urllib.parse import urlparse
 
     asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
