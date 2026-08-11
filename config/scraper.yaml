@@ -528,6 +528,23 @@ scrapers:
     # Amazon Associates affiliate tag for monetization
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
 
+    # Does this install participate in an Amazon affiliate program?
+    #
+    # true (default): a missing tag is treated as a misconfiguration and logs a
+    #   loud warning, because publishing untagged links loses revenue and FTC
+    #   attribution silently.
+    # false: there is no program, on purpose. Product URLs are still cleaned to
+    #   `<domain>/dp/<ASIN>` but carry no tag, and the warning drops to debug.
+    #
+    # Set this to false when the account is closed or was never opened, rather
+    # than leaving the tag of a dead account in place: a stale tag earns
+    # nothing and makes published links look monetized when they are not.
+    #
+    # AMAZON_AFFILIATE_LINKS_ENABLED overrides this, so an install can declare
+    # "no program" from .env without editing a tracked config file.
+    affiliate_links:
+      enabled: true
+
     # ---- Default Search Parameters ----
     default_search_parameters:
       # Price filtering (in USD, set to null to disable)

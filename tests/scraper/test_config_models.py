@@ -220,6 +220,29 @@ class TestAmazonScraperConfig:
         with pytest.raises(ValidationError):
             AmazonScraperConfig(max_products=0)
 
+    def test_affiliate_links_defaults_to_enabled(self):
+        """A config that says nothing about affiliate links still warns.
+
+        Defaulting to disabled would turn a forgotten tag into silent revenue
+        loss instead of the WARN that exists to catch it.
+        """
+        assert AmazonScraperConfig().affiliate_links.enabled is True
+
+    def test_affiliate_links_parses_from_config(self):
+        """The typed path must carry the flag, not drop it.
+
+        `extra="ignore"` is Pydantic's default, so before this field existed
+        the block was silently discarded here while the runtime read it from
+        the raw dict.
+        """
+        config = AmazonScraperConfig(affiliate_links={"enabled": False})
+        assert config.affiliate_links.enabled is False
+
+    def test_affiliate_links_rejects_unknown_key(self):
+        """A typo inside the block must fail loudly, not do nothing."""
+        with pytest.raises(ValidationError):
+            AmazonScraperConfig(affiliate_links={"enabld": False})
+
 
 class TestScraperConfig:
     """Test top-level scraper configuration model."""

@@ -161,6 +161,25 @@ The scraper writes the affiliate URL for each scraped product into `data.json::a
 
 The standalone scraper CLI loads `.env` at startup, so a tag present in `.env` is visible to the URL builder without any shell-side `export`. If the tag resolves empty (no env var, no config value), `build_affiliate_url` logs a WARNING and returns the input URL unchanged: this signals lost affiliate attribution on every scrape in the session and is grep-able in `outputs/logs/scraper.log`.
 
+### Running without an affiliate program
+
+The warning above assumes a missing tag is a mistake. When there is no program to attribute to, say so explicitly:
+
+```yaml
+scrapers:
+  amazon:
+    affiliate_links:
+      enabled: false
+```
+
+`build_affiliate_url` then strips tracking parameters instead of preserving them, canonicalising to a bare `https://www.amazon.com/dp/<ASIN>`, and drops the log line to DEBUG. Use this when the account is closed or was never opened, rather than leaving a dead account's tag in the config: a tag belonging to a terminated account is still sent to Amazon on every link.
+
+`AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML, so an install can declare "no program" from `.env` without editing a tracked config file. This mirrors how the tag itself prefers the environment.
+
+A typo inside the block (`enabld: false`) is rejected at config load rather than silently ignored. A typo in the block name itself still falls back to the default, since the surrounding model ignores unknown keys.
+
+The flag only governs the missing-tag path. A tag from `AMAZON_ASSOCIATE_TAG` or `associate_tag` is still applied while the flag is off, so it cannot silently discard a working program.
+
 ## URL shortener
 
 Configured in `config/url_shortener.yaml`. Two providers ship:

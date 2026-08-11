@@ -5,6 +5,7 @@ utilities used throughout the scraper.
 """
 
 import logging
+import os
 import re
 import subprocess
 from typing import Any
@@ -295,6 +296,48 @@ def get_optimal_browser_position(
     return (window_x, window_y, window_width, window_height)
 
 
+def _affiliate_links_enabled() -> bool:
+    """Whether this install participates in an Amazon affiliate program.
+
+    Defaults to True so an install that simply forgot its tag still gets the
+    loud warning. Set ``scrapers.amazon.affiliate_links.enabled`` to false to
+    declare that there is no program, which swaps the warning for a debug line
+    and produces clean untagged product URLs.
+
+    ``AMAZON_AFFILIATE_LINKS_ENABLED`` overrides the YAML, mirroring how the
+    tag itself prefers ``AMAZON_ASSOCIATE_TAG``. Without it, declaring "no
+    program" would mean editing a tracked config file, while declaring one
+    needs only ``.env``.
+    """
+    env_value = os.environ.get("AMAZON_AFFILIATE_LINKS_ENABLED", "").strip()
+    if env_value:
+        return env_value.lower() not in ("0", "false", "no", "off")
+    try:
+        from .config import CONFIG
+
+        section = CONFIG.get("scrapers", {}).get("amazon", {})
+        return bool(section.get("affiliate_links", {}).get("enabled", True))
+    except Exception:
+        return True
+
+
+def _clean_product_url(url: str) -> str:
+    """Strip tracking parameters down to ``<domain>/dp/<ASIN>``.
+
+    Used when affiliate links are disabled: the tag goes away but the tidy
+    canonical URL is still worth having, since the raw scraped URL carries
+    search and session parameters. Returns the input unchanged when no ASIN
+    is present.
+    """
+    from urllib.parse import urlparse
+
+    asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
+    if not asin_match:
+        return url
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}/dp/{asin_match.group(1)}"
+
+
 def build_affiliate_url(url: str, associate_tag: str = None) -> str:
     """Build Amazon affiliate URL with associate tag parameter.
 
@@ -339,17 +382,30 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
         except Exception:
             associate_tag = None
 
-    # If no associate tag configured, return original URL.
-    # WARN loudly because the same silent fallback historically produced
-    # affiliate links without our tag for whole scrape sessions, which is a
-    # direct revenue and FTC-attribution miss. The calling CLI is responsible
-    # for loading .env early enough that AMAZON_ASSOCIATE_TAG is visible.
+    # A missing tag means one of two very different things, and conflating
+    # them produced a warning on every product for installs that simply have
+    # no affiliate program. `affiliate_links.enabled: false` says "no program,
+    # on purpose"; the default says "there should be a tag here".
     if not associate_tag:
+        if not _affiliate_links_enabled():
+            logger.debug(
+                "build_affiliate_url: affiliate links disabled "
+                "(scrapers.amazon.affiliate_links.enabled is false). "
+                "Returning a clean product URL with no tag."
+            )
+            return _clean_product_url(url)
+
+        # WARN loudly because the same silent fallback historically produced
+        # affiliate links without our tag for whole scrape sessions, which is a
+        # direct revenue and FTC-attribution miss. The calling CLI is
+        # responsible for loading .env early enough that the env var is visible.
         logger.warning(
             "build_affiliate_url: no associate tag configured "
             "(env AMAZON_ASSOCIATE_TAG and config scrapers.amazon.associate_tag "
             "both empty). Returning input URL unchanged: affiliate revenue and "
-            "FTC attribution will be lost on this product."
+            "FTC attribution will be lost on this product. Set "
+            "scrapers.amazon.affiliate_links.enabled to false if this install "
+            "has no affiliate program."
         )
         return url
 

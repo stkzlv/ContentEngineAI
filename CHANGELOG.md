@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-08-11
+
+### Added
+- `scrapers.amazon.affiliate_links.enabled` in `config/scraper.yaml` declares whether an affiliate program is in use. Set it to `false` when there is no program: product URLs are then canonicalised to a bare `https://www.amazon.com/dp/<ASIN>` with tracking parameters stripped, and the missing-tag log line drops from WARNING to DEBUG. That warning is meant to catch a misconfigured install, so without the flag an install with no affiliate account gets one per scraped product, and the URLs keep whatever tracking parameters the search page attached. The flag governs the missing-tag path only, so an explicitly configured tag still applies and cannot be silently discarded. `AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML field, mirroring how the tag itself prefers the environment, so declaring "no program" does not require editing a tracked config file. Defaults to `true`, which keeps the existing behaviour. The block is declared on the scraper's typed config model and rejects unknown keys, so a typo inside it fails at load instead of silently never applying.
+
+### Changed
+- The Lnk.Bio API notes now record that `/lnk/edit` rewrites a link's destination URL, not just its title, by passing `link` alongside `link_id` and `title`. The previous advice to delete and re-add for anything beyond a title change moves the link to the top of the bio and resets its creation date, so following it to correct a set of URLs silently reorders the whole page. The notes also cover enumerating a bio: the list endpoint returns the newest 50 and fetching the public page returns roughly the newest 48, so both truncate the same way and agreeing with each other is not evidence of completeness.
+
 ## [0.61.3] - 2026-08-09
 
 ### Changed
