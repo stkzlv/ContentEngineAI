@@ -176,6 +176,8 @@ scrapers:
 
 `AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML, so an install can declare "no program" from `.env` without editing a tracked config file. This mirrors how the tag itself prefers the environment.
 
+A typo inside the block (`enabld: false`) is rejected at config load rather than silently ignored. A typo in the block name itself still falls back to the default, since the surrounding model ignores unknown keys.
+
 The flag only governs the missing-tag path. A tag from `AMAZON_ASSOCIATE_TAG` or `associate_tag` is still applied while the flag is off, so it cannot silently discard a working program.
 
 ## URL shortener

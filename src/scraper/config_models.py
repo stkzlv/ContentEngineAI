@@ -4,7 +4,7 @@ Modern, typed configuration models for the scraper system following the same
 pattern as the video pipeline configuration.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RetryConfig(BaseModel):
@@ -276,6 +276,21 @@ class HTTPHeaders(BaseModel):
     )
 
 
+class AffiliateLinksConfig(BaseModel):
+    """Whether this install participates in an affiliate program.
+
+    Declared here so the typed config path carries the flag instead of
+    dropping it: the model's default is ``extra="ignore"``, so an undeclared
+    key vanishes without an error. ``extra="forbid"`` on this block turns a
+    typo *inside* it (``enabld: false``) into a startup failure rather than a
+    setting that silently never applies.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=True)
+
+
 class AmazonScraperConfig(BaseModel):
     """Amazon-specific scraper configuration."""
 
@@ -284,6 +299,9 @@ class AmazonScraperConfig(BaseModel):
     keywords: list[str] = Field(default=["keyboard"])
     max_products: int = Field(default=2, gt=0)
     associate_tag: str = Field(default="")
+    affiliate_links: AffiliateLinksConfig = Field(
+        default_factory=lambda: AffiliateLinksConfig()
+    )
     default_search_parameters: SearchParameters = Field(
         default_factory=lambda: SearchParameters()
     )
