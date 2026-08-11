@@ -23,10 +23,14 @@ Base: `https://lnk.bio/oauth/v1`.
 |---|---|---|---|
 | POST | `/lnk/add` | `title`, `link`, optional `image` (URL) or multipart `image` (file) | Returns `{data: {id, url}}`. New link appears at the **top** of the bio. |
 | GET | `/lnk/list` | — | Returns at most **50** links per call, see below. |
-| POST | `/lnk/edit` | `link_id`, `title` | **Undocumented but real.** In-place edit; same `id`, same position in the bio. Verified working. |
+| POST | `/lnk/edit` | `link_id`, `title`, optional `link` | **Undocumented but real.** In-place edit; same `id`, same position in the bio. Verified working. |
 | POST | `/lnk/delete` | `link_id` | Returns `{status: true}` on success. |
 
-`/lnk/edit` is the right tool when you only need to change the title; reach for delete + re-add only if you also need to change the image or move the link to the top.
+`/lnk/edit` changes the **destination URL** as well as the title: pass `link` alongside `link_id` and `title` and the link keeps its id, position, image, and `created_at`. Reach for delete + re-add only when you need to change the image or deliberately move the link to the top.
+
+`title` is not optional and is not merged. Whatever you send replaces the stored title, so read the current one and send it back unchanged when you only mean to rewrite the URL.
+
+Verified by rewriting 300 links in one sweep (tag stripping): 299 edits, no failures, and a re-saved copy of the bio page confirmed all 300 ids, titles, and positions intact. Sequential requests spaced ~0.35s hit no rate limiting; the ~150-request ceiling documented below applies to the separate dashboard API, not this endpoint.
 
 ## The 50-link cap is an API page size, not a bio cap
 
@@ -34,8 +38,22 @@ Base: `https://lnk.bio/oauth/v1`.
 
 The bio itself has no link quota on the free plan. The 50 ceiling is purely a list-API constraint. Implications:
 
-- To enumerate a bio with more than 50 links via OAuth, you can't. Use the public bio page HTML (`https://lnk.bio/<slug>`) or a saved dashboard export instead.
+- To enumerate a bio with more than 50 links via OAuth, you can't.
 - Paid Lnk.Bio tiers buy customization (themes, custom domain, analytics), not extra links.
+
+### Fetching the public page is not a workaround
+
+`curl https://lnk.bio/<slug>` returns only the newest ~48 links. The rest are rendered client-side by external JS, and the saved markup carries no endpoint to page through. So the two obvious sources cap out at 50 and 48 on a bio that actually held 300 links.
+
+**Treat that agreement as a shared blind spot, not corroboration.** Both truncate newest-first, so tests that try to distinguish "truncated" from "complete" using only these two sources give confident wrong answers. Reasoning that the returned set spans the bio's full date range, or that the apparent gaps are interleaved rather than forming a contiguous oldest block, proves nothing here.
+
+To enumerate every link, open the bio in a browser, let it finish loading, and save the page. Each anchor carries what an edit sweep needs:
+
+```
+<a href="<destination>" data-id="<link_id>" title="<full title>" data-type="TYPE_BIOLINK" ...>
+```
+
+Parse `(data-id, href, title)` per anchor, and validate the title parsing against the ids that overlap `/lnk/list` before any mass edit, since `/lnk/edit` overwrites the title with whatever you send. `link_id` values from the saved page work directly against `/lnk/edit` and `/lnk/delete`, so the 50-link list cap does not limit what you can modify, only what you can discover.
 
 ## `created_at` is link-add time, not video publish time
 
