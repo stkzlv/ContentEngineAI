@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.1] - 2026-08-15
+
 ### Added
 - `docs/tutorial-video-best-practices.md`, a companion to the promotional-video guide covering how-to and explainer content: answer-first structure (state the fix before explaining it), the longer 25-40s length band, visual sourcing when there is no product to photograph, search-first discovery, and why durability needs a 30-day-plus measurement window rather than the 7-day one that suits promotional video. Sources are graded, and the section on where the evidence is thin says so.
 - `docs/requirements.md` gains requirements for visual stock media (previously only the audio equivalent was documented), for per-platform payload completeness and sending a video title where the platform accepts one, and for the on-frame disclosure failing loudly rather than shipping a render without it.
