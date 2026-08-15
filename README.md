@@ -73,6 +73,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Requirements](docs/requirements.md) | Project requirements and specs |
 | [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
 | [Promotional Video Best Practices](docs/promotional-video-best-practices.md) | Hook, cut cadence, CTA, FTC disclosure, trust signals (engine-agnostic) |
+| [Tutorial Video Best Practices](docs/tutorial-video-best-practices.md) | How-to format: answer-first structure, length, stock visuals, search discovery, durability metrics |
 | [Audio Best Practices](docs/audio-best-practices.md) | Trending vs original audio, voiceover/music levels, ducking |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |

@@ -13,6 +13,9 @@ Reels, and YouTube Shorts.
 - [promotional-video-best-practices.md](promotional-video-best-practices.md)
   -- promo strategy; treats captions as the primary channel for the sound-off
   majority.
+- [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
+  the how-to counterpart: answer-first structure, search discovery,
+  and why durability needs a longer measurement window.
 - [subtitle-best-practices.md](subtitle-best-practices.md) -- caption design,
   including the timing smoother that leads the audio.
 - [tts-voice-profiles.md](tts-voice-profiles.md) -- TTS voice selection and the

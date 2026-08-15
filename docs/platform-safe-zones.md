@@ -13,6 +13,9 @@ copies, and the runtime `PlatformSafeZone` defaults
 - [promotional-video-best-practices.md](promotional-video-best-practices.md)
   -- promo strategy; defers to this file for the disclosure-corner and CTA
   placement zones.
+- [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
+  the how-to counterpart: answer-first structure, search discovery,
+  and why durability needs a longer measurement window.
 
 ## What changed in 2026
 

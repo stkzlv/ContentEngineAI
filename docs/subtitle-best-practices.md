@@ -16,6 +16,9 @@ large fraction of viewers they *are* the content.
   — promotional / e-commerce video strategy (hook patterns, sound-off
   audience, CTA staging, FTC compliance, trust signals). Apply both docs
   together for promo content.
+- [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
+  the how-to counterpart: answer-first structure, search discovery,
+  and why durability needs a longer measurement window.
 - [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
   including AI word tagging via Gemini.
 - [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /

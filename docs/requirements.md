@@ -242,6 +242,12 @@ group degrade to FFmpeg without manual intervention.
 - Deterministic random profile selection per product
 - **Short profile (15-30 s)** sized for hook-iteration renders. Script word budget around 50-60 words at natural TTS pacing. 60-90 s long-form for platform-revenue-program eligibility lives in a separate planned profile, not in the short profile.
 
+### Stock Visual Media
+- Stock footage is fetched from a configured provider and merged into the same visual pool as scraped product media, rather than being a fallback used only when scraped media is missing
+- Search terms come from `media_settings.stock_media_keywords`
+- A profile controls whether scraped product imagery is used at all (`use_scraped_images`), so a profile can render entirely from stock without code changes
+- Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
+
 ### Media Validation
 - Scraper validates media against producer profile requirements
 - If profile ignores videos, scraper counts images only
@@ -458,9 +464,12 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - **Optimized mode**: Platform-tailored titles, descriptions, hashtags
 - Character limit validation per platform
 - Title and description that exceed the platform's hard cap are trimmed on a word boundary with an ellipsis before reaching the publisher. Hashtag-count violations are logged as warnings; the publisher does not invent or drop tags.
+- A per-platform payload carries every field its consumer reads. Where a platform derives a value when none is supplied (a title from the caption's first line, for example), a partially-populated payload is worse than none: the platform silently substitutes its own value and the result looks like working output. Any field added to one side of that contract is added to the other.
+- Platforms that accept a distinct video title are sent one. Not sending a title is not neutral, because the platform then derives one from the caption, and the caption leads with the disclosure line.
+- Length clamping happens before the per-platform payload is built, so a clamped value cannot be copied in its unclamped form.
 
 ### Compliance
-- Persistent on-frame disclosure overlay burned into every render. Fixed corner placement, full-clip duration, sized smaller than narration captions. Configurable text, position, size, color, outline, and background per render. Disabling the overlay is opt-in for non-affiliate renders (educational pillar mode).
+- Persistent on-frame disclosure overlay burned into every render, on every subtitle engine and every subtitle positioning mode. A render path that cannot apply the overlay fails loudly rather than shipping a video without it; silently omitting a required disclosure is the failure this guards against. Fixed corner placement, full-clip duration, sized smaller than narration captions. Configurable text, position, size, color, outline, and background per render. Disabling the overlay is opt-in for non-affiliate renders (educational pillar mode).
 - First-line caption disclosure on every platform. Disclosure leads the caption text on its own line, ahead of the description and hashtag block, satisfying the regulatory requirement for clear and conspicuous placement.
 - Disclosure dedup: when a platform metadata generator emits the disclosure as a hashtag, the published caption renders it once (leading line) rather than twice.
 - Platform-policy disclosure tags propagated automatically: TikTok branded-content disclosure, YouTube AI-content disclosure. Set on every publish payload that targets the relevant platform.

@@ -64,6 +64,24 @@ Add a `non_affiliate: true` flag at the pillar level. When set, the publisher sk
 
 **Done when:** a video produced under a `non_affiliate: true` pillar publishes with platform-appropriate captions, no affiliate URL, and no bio-link registration, while still naming products in the spoken script.
 
+### 2.3 Per-profile stock media keywords
+
+`media_settings.stock_media_keywords` is global. It is declared on the settings model but not on `VideoProfile` and not in the `_collect_overrides` map, so a profile-level override is silently dropped (the same silent-drop class documented for other profile fields). That makes it impossible to run two profiles with different stock footage at the same time: a how-to profile searching "router, desk setup" and a product profile searching something else need one global value between them.
+
+Blocks any concurrent comparison of two visual treatments, because the only way to change the keywords today is to edit global config between runs.
+
+**Done when:** a profile can set `stock_media_keywords`, a run under that profile searches those terms, and two profiles with different keyword sets can run back to back without editing global config.
+
+### 2.4 Topic-driven render input
+
+The producer requires a scraped product directory with a `data.json`. How-to content has no product to scrape, so there is no way to render a video about a problem rather than a thing.
+
+Smaller than it sounds: the producer already falls back to the title when no product id is present, and a stock-only visual profile already works via `use_scraped_images: false`. What is missing is a supported way to create the input record without the scraper. Add a topic input (a title, a description, and optional keywords) that produces the same record shape the producer already consumes.
+
+Deliberately not a content-source abstraction. There is one live source today; add the second directly and let a third reveal the seam worth abstracting.
+
+**Done when:** `--topic "how to fix X"` (or an equivalent input file) produces a rendered, publishable video with no scraper run and no product directory.
+
 ## Phase 3 — Conversion infrastructure (Now/Next)
 
 Targeted for weeks 5-6. Once retention is up and pillars exist, attribution and CTAs become measurable.
@@ -187,6 +205,20 @@ Add a diagnostic step to the analytics tool that pulls the current state of ever
 Add report types to the analytics tool for: per-pillar conversion, per-template engagement, per-voice watch-through (historical baseline; mostly constant after voice pinning), per-A/B-variant CTA click rate, per-hook style retention. 4-week rolling windows so seasonality doesn't pollute the comparison.
 
 **Done when:** the user can answer "which pillar converts best on platform X over the last 4 weeks" with a single command.
+
+### 5.4 Content-format arm labelling
+
+Extend the per-variant registry pattern from 1.7 (which records the hook variant) to record the content format each video was produced under, so two formats published concurrently can be compared later. Without it, a format experiment can only be reconstructed by hand from publish dates, which stops working the moment the two arms are interleaved rather than run in blocks.
+
+**Done when:** the registry carries the format arm per video and a report segments reach by arm.
+
+### 5.5 Day-N and durability metrics
+
+The scheduling API returns a cumulative per-post timeline, so any day-N figure is a lookup rather than a scheduled job. Capture day-2 and day-7 views per post for launch performance, and a durability ratio (views after the first 30 days over views within them) for whether a video keeps earning.
+
+The two answer different questions. A 7-day window captures the launch curve for every video and cannot distinguish content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio, not the 7-day number. See [tutorial-video-best-practices.md](tutorial-video-best-practices.md).
+
+**Done when:** the analytics store holds day-2, day-7, and a 30-day-plus durability ratio per post, and a report ranks videos by durability.
 
 ## Phase 6 — Threshold-gated unlocks (Later)
 
