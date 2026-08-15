@@ -138,10 +138,16 @@ changed recently enough to invalidate older guidance, not that it improved.
 
 This is where tutorial content is most often misjudged.
 
-Short-form views arrive fast and stop. Measured on one real channel, roughly
-79% of a post's final views landed within 6 hours and 92% within 24. Judged
-on that curve, every video looks like a spike, and a tutorial looks identical
-to a trend post.
+Short-form views arrive fast and stop. The bulk of a post's lifetime views
+land within the first day or two, and the curve is steep enough that on a
+short window every video looks like a spike and a tutorial looks identical to
+a trend post.
+
+Do not take a figure for this from any document, including this one. Pull
+your own curve: it is the baseline every comparison below is measured
+against, and it varies by channel, niche, and posting cadence. Scheduling and
+analytics APIs commonly expose a per-post timeline or a content-decay
+endpoint, which makes this a query rather than a project.
 
 The metric that separates them is **whether the video earns views after the
 initial spike**. The industry shorthand is an *evergreen score*: views after
@@ -216,11 +222,14 @@ this doc's sourcing is weaker than it looks.
   view-through by length on your own content.
 - **The evergreen-score threshold of 1.0 is a convention**, not a validated
   cutoff. The ratio is useful; the specific line is arbitrary.
-- **The decay figures above come from one channel's own analytics**, and that
-  channel's content was predominantly product rather than tutorial. They
-  describe the population that was measured, and cannot settle whether
-  tutorial content decays differently. That comparison needs both arms
-  measured concurrently on the same account.
+- **This doc deliberately cites no decay percentages.** The figures in
+  circulation are either platform-wide aggregates that hide content-type
+  differences, or single-channel measurements whose content mix goes
+  unstated, which matters because a channel publishing mostly one format
+  cannot tell you how the other decays. Your own curve is the only one that
+  describes your channel, and even that cannot settle whether tutorial
+  content behaves differently unless both formats are measured concurrently
+  on the same account.
 - **Large-scale academic work on short-form dynamics exists but does not
   answer this.** The Kuaishou study covering 248 million videos characterises
   creator and attention distribution, not per-video decay by content type.
