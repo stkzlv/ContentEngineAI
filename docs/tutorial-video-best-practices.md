@@ -125,10 +125,14 @@ distinction changes what to optimise.
 - **Topical clustering.** Consecutive videos answering adjacent questions in
   one theme build topical authority; scattered one-off topics do not.
 
-YouTube added a dedicated Shorts type to its search filters in January 2026,
-which makes Shorts a first-class search result rather than only a feed
-surface. That is recent enough that any strategy written before it
-underweights search as a Shorts discovery path.
+YouTube restructured its search filters on 2026-01-08, adding a Type filter
+that selects Shorts only, long-form only, or a mix. Read it carefully before
+treating it as good news: most coverage framed it as users finally being able
+to **exclude** Shorts from search results. It cuts both ways. Shorts became an
+explicitly selectable result type, and also an explicitly excludable one, and
+which effect dominates depends on what searchers choose. Nobody has published
+data on that split yet. The safe reading is that Shorts search behaviour
+changed recently enough to invalidate older guidance, not that it improved.
 
 ## 5. Measure it on the right clock
 
@@ -156,7 +160,37 @@ Two consequences:
 Do not assume durability because the format is educational. Measure the ratio
 per video and let it decide.
 
-## 6. Trust rules carry over, and matter more
+## 6. What the strongest channels do differently
+
+Published analysis of high-performing short-form channels converges on a few
+points, and the striking part is how unglamorous they are.
+
+**Retention across the whole clip, not just the hook.** The opening 3 seconds
+get most of the attention in creator guidance, but platforms weight sustained
+retention through the body. A video with a strong hook and a slack middle
+loses to one that holds evenly. For tutorial content that means the method
+section is not filler between the hook and the CTA; it is where the video is
+won or lost.
+
+**Cut the dead air.** Top-creator editing advice is consistent about removing
+every pause longer than roughly 0.3 s. For a pipeline using synthetic speech
+there are no filler words to cut, but the same principle applies to silence:
+gaps between sentences accumulate into dead frames that cost retention with
+no content benefit. This project already trims trailing silence during audio
+processing; the parameter that controls it is worth checking against this
+guidance rather than left at whatever value happened to work.
+
+**Discipline over tricks.** The recurring conclusion across 2026 analyses is
+that the edge comes from better hooks, clearer structure, and clean captions
+rather than from algorithm exploits. That is convenient for an automated
+pipeline, which is good at consistency and bad at chasing trends.
+
+Treat the specific retention percentages in this genre of article
+(“45-55% up to 70-85%”) as marketing. They appear without methodology,
+sample, or platform, and they are published by companies selling editing
+tools.
+
+## 7. Trust rules carry over, and matter more
 
 Everything in the promo doc about trade-off honesty applies here with a
 sharper edge: a promo video that oversells a product costs credibility, while
@@ -171,7 +205,7 @@ a tutorial that gets a fact wrong costs the reason the viewer came.
   needs the same on-frame plus first-line caption disclosure as a product
   video.
 
-## 7. Honest gaps in the evidence
+## 8. Honest gaps in the evidence
 
 Most published short-form guidance is vendor marketing for editing tools, and
 this doc's sourcing is weaker than it looks.
@@ -197,6 +231,9 @@ this doc's sourcing is weaker than it looks.
 ## Sources
 
 - [Shorter Is Different: Characterizing the Dynamics of Short-Form Video Platforms](https://arxiv.org/abs/2410.16058) — 248M-video Kuaishou analysis; creator and attention distribution.
+- [YouTube's new search filters make clearer distinctions between long-form videos and Shorts](https://www.tubefilter.com/2026/01/09/youtube-search-filters-shorts-vs-long-form/) — the 2026-01-08 filter change, and the framing that it lets users exclude Shorts.
+- [Short-form video pacing: the editing rhythm guide](https://shortzly.com/blog/short-form-video-pacing-editing-guide) — cut cadence, trimming pauses over 0.3s.
+- [Short-form video retention](https://shortzly.com/blog/short-form-video-retention-strategies) — sustained retention over hook-only optimisation. Retention percentages in it are unsourced.
 - [YouTube Shorts SEO in 2026](https://miraflow.ai/blog/youtube-shorts-seo-2026-how-to-rank-in-search) — titles as ranking signal, spoken-keyword indexing, hashtag counts.
 - [Building a search-first YouTube content strategy](https://marketingagent.blog/2026/02/16/building-a-search-first-youtube-content-strategy-seo-tips-for-2026/) — search-first vs feed-first framing, topical authority.
 - [What happens to your YouTube Shorts after 30 days](https://miraflow.ai/blog/what-happens-youtube-shorts-after-30-days-old-content-views) — evergreen score definition.
