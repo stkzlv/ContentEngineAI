@@ -460,6 +460,16 @@ class VideoProfile(BaseModel):
     stock_image_count: int = Field(0, ge=0)
     stock_video_count: int = Field(0, ge=0)
     use_dynamic_image_count: bool = Field(False)
+    stock_media_keywords: list[str] | None = Field(
+        None,
+        description=(
+            "Stock footage search terms for this profile. None inherits the "
+            "global media_settings.stock_media_keywords; a list replaces it, "
+            "including an empty list, which searches on the product title "
+            "alone. Lets two profiles search different footage in the same "
+            "run instead of sharing one global value."
+        ),
+    )
 
     # Profile-specific subtitle positioning (optional)
     subtitle_positioning: dict[str, Any] | None = Field(

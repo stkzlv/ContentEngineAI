@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Video profiles can set `stock_media_keywords`, so stock footage searches can differ per profile instead of sharing one global list. Omitting it inherits the global value; an empty list searches on the product title alone. Previously the setting existed only at `media_settings` level and a profile-level value was discarded silently, because unknown keys are ignored by default, which made two profiles searching different footage in the same run impossible.
+
 ## [0.62.2] - 2026-08-16
 
 ### Fixed

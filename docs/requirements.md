@@ -244,7 +244,7 @@ group degrade to FFmpeg without manual intervention.
 
 ### Stock Visual Media
 - Stock footage is fetched from a configured provider and merged into the same visual pool as scraped product media, rather than being a fallback used only when scraped media is missing
-- Search terms come from `media_settings.stock_media_keywords`
+- Search terms come from `media_settings.stock_media_keywords`, overridable per profile. A profile that declares no terms inherits the global list; a profile that declares an empty list searches on the product title alone. Two profiles can therefore search different footage within one run, which is what a concurrent visual comparison needs
 - A profile controls whether scraped product imagery is used at all (`use_scraped_images`), so a profile can render entirely from stock without code changes
 - Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
 
