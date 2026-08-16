@@ -324,7 +324,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Names are user-defined. Users can rename, add, or remove pillars without code changes.
 
 ### Tagging
-- Keywords declare their pillar via a dict keyed by pillar name in `config/scraper.yaml` (`batch.keywords: {value: [...], novelty: [...], utility: [...]}`). Each scraped product carries the source keyword's pillar through to the producer and registry. A flat list is accepted for backward compatibility (no pillar attached). A keyword fitting more than one pillar can appear under each.
+- Keywords declare their pillar via a dict keyed by pillar name in `config/scraper.yaml` (`batch.keywords: {value: [...], novelty: [...], utility: [...]}`). Each scraped product carries the source keyword's pillar through to the producer and registry. A flat list is accepted for backward compatibility (no pillar attached). A keyword fitting more than one pillar can appear under each. The keyword-to-pillar mapping describes the configuration, not a particular run, so it is built from the config file whichever source supplies the run's keyword list: a keyword passed on the command line still carries its configured pillar, and an unconfigured one simply has none.
 - Script templates are mapped to pillars via a central `pillars` dict under `script_templates` in `config/ai_services.yaml`. A template can appear under multiple pillars when its style works in more than one (e.g., `classic_promo` could land under both value and novelty).
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 

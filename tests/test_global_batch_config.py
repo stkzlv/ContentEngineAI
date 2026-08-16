@@ -195,3 +195,79 @@ def test_random_profile_pool_excludes_base():
 
     assert "base" not in config.profile_pool
     assert "slideshow_images1" in config.profile_pool
+
+
+class TestKeywordPillarMap:
+    """The pillar map describes config, not the run's input source.
+
+    It was previously built only when the keyword list came from YAML, so any
+    CLI input left it empty and every CLI-driven run wrote a blank pillar into
+    the registry: silently, since a missing pillar is indistinguishable from an
+    unconfigured keyword.
+    """
+
+    @staticmethod
+    def _yaml_with_pillars(tmp_path) -> str:
+        return _write_yaml(
+            tmp_path,
+            {
+                "global_batch": {
+                    "keywords": {
+                        "value": ["wireless charging pad", "bluetooth speaker"],
+                        "novelty": ["retro game console"],
+                    }
+                }
+            },
+        )
+
+    def test_cli_keyword_keeps_its_configured_pillar(self, tmp_path):
+        """The bug: a CLI keyword that IS configured used to lose its pillar."""
+        path = self._yaml_with_pillars(tmp_path)
+        config = load_global_batch_config(
+            _make_cli(keywords=["retro game console"]), path
+        )
+        assert config.keywords == ["retro game console"]
+        assert config.keyword_pillar_map.get("retro game console") == "novelty"
+
+    def test_cli_keyword_absent_from_config_has_no_pillar(self, tmp_path):
+        """An unconfigured keyword finds no entry rather than erroring."""
+        path = self._yaml_with_pillars(tmp_path)
+        config = load_global_batch_config(
+            _make_cli(keywords=["something exotic"]), path
+        )
+        assert config.keyword_pillar_map.get("something exotic") is None
+
+    def test_cli_product_ids_still_expose_the_map(self, tmp_path):
+        """Any CLI input took the branch that skipped map construction."""
+        path = self._yaml_with_pillars(tmp_path)
+        config = load_global_batch_config(_make_cli(product_ids=["B0ABCDEFGH"]), path)
+        assert config.product_ids == ["B0ABCDEFGH"]
+        assert config.keyword_pillar_map.get("bluetooth speaker") == "value"
+
+    def test_cli_input_does_not_pick_up_yaml_keywords(self, tmp_path):
+        """CLI stays the complete input set; only the map is shared."""
+        path = self._yaml_with_pillars(tmp_path)
+        config = load_global_batch_config(_make_cli(product_ids=["B0ABCDEFGH"]), path)
+        assert config.keywords == []
+
+    def test_yaml_only_run_is_unchanged(self, tmp_path):
+        path = self._yaml_with_pillars(tmp_path)
+        config = load_global_batch_config(_make_cli(), path)
+        assert sorted(config.keywords) == [
+            "bluetooth speaker",
+            "retro game console",
+            "wireless charging pad",
+        ]
+        assert config.keyword_pillar_map["wireless charging pad"] == "value"
+
+    def test_flat_keyword_list_still_supported(self, tmp_path):
+        """Backward compatibility: a flat list attaches no pillars."""
+        path = _write_yaml(tmp_path, {"global_batch": {"keywords": ["one", "two"]}})
+        config = load_global_batch_config(_make_cli(), path)
+        assert config.keywords == ["one", "two"]
+        assert config.keyword_pillar_map == {}
+
+    def test_missing_keywords_key_is_safe(self, tmp_path):
+        path = _write_yaml(tmp_path, {"global_batch": {"product_ids": ["B0ABCDEFGH"]}})
+        config = load_global_batch_config(_make_cli(), path)
+        assert config.keyword_pillar_map == {}
