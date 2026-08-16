@@ -123,8 +123,15 @@ def resolve_stock_keywords(profile: Any, media_settings: Any) -> list[str]:
     """
     profile_keywords = getattr(profile, "stock_media_keywords", None)
     if profile_keywords is not None:
+        logger.debug(
+            "Stock keywords from profile (%d): %s",
+            len(profile_keywords),
+            profile_keywords,
+        )
         return list(profile_keywords)
-    return list(media_settings.stock_media_keywords)
+    globals_ = list(media_settings.stock_media_keywords)
+    logger.debug("Stock keywords from global config (%d): %s", len(globals_), globals_)
+    return globals_
 
 
 async def step_gather_visuals(ctx: PipelineContext):
