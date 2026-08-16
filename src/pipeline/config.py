@@ -746,22 +746,29 @@ def load_global_batch_config(
     cli_keywords = getattr(cli_args, "keywords", None)
     cli_has_inputs = cli_product_ids or cli_keywords
 
+    # Build the pillar map from YAML whichever source supplies the keyword
+    # list. It describes which pillar a configured keyword belongs to, which is
+    # true regardless of how the keyword reached this run, so a CLI keyword that
+    # matches a configured one still carries its pillar. Mirrors the standalone
+    # scraper (src/scraper/amazon/config.py), which already works this way.
     keyword_pillar_map: dict[str, str] = {}
+    yaml_keywords_raw = yaml_config.get("keywords", []) or []
+    yaml_keywords: list[str] = []
+    if isinstance(yaml_keywords_raw, dict):
+        for pillar_name, kw_list in yaml_keywords_raw.items():
+            if isinstance(kw_list, list):
+                for kw in kw_list:
+                    yaml_keywords.append(kw)
+                    keyword_pillar_map[kw] = str(pillar_name)
+    elif isinstance(yaml_keywords_raw, list):
+        yaml_keywords = yaml_keywords_raw
+
     if cli_has_inputs:
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
     else:
         product_ids = yaml_config.get("product_ids", []) or []
-        yaml_keywords_raw = yaml_config.get("keywords", []) or []
-        if isinstance(yaml_keywords_raw, dict):
-            keywords = []
-            for pillar_name, kw_list in yaml_keywords_raw.items():
-                if isinstance(kw_list, list):
-                    for kw in kw_list:
-                        keywords.append(kw)
-                        keyword_pillar_map[kw] = str(pillar_name)
-        else:
-            keywords = yaml_keywords_raw if isinstance(yaml_keywords_raw, list) else []
+        keywords = yaml_keywords
 
     # Max products (global cap across all keywords)
     max_products = (

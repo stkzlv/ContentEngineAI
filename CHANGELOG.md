@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `--keywords` on the global batch no longer discards the keyword's configured pillar. The keyword-to-pillar map was built only in the branch that reads the keyword list from YAML, so any CLI input left it empty and every CLI-driven run recorded a blank pillar, including runs whose keyword is verbatim one of the configured ones. Nothing surfaced it: a missing pillar looks the same as an unconfigured keyword, so per-pillar reporting silently lost every video produced this way. The map is now built from the config file whichever source supplies the keyword list, matching the standalone scraper, which already worked this way. `--pillar` still overrides.
+
 ## [0.62.1] - 2026-08-15
 
 ### Added
