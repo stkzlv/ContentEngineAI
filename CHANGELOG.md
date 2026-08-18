@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.2] - 2026-08-18
+
+### Dependencies
+- Bump `torch` 2.11.0+cpu -> 2.13.0+cpu. `torchaudio` stays on 2.11.0+cpu because the `pytorch-cpu` index ships no 2.13 build of it, so the pair is deliberately unmatched. `torchaudio` declares no dependency on `torch`, which is why nothing flags the combination; it was verified by hand instead, importing `torchaudio`, building a `transforms` object and running `functional.resample`, plus the full test suite.
+
 ## [0.63.1] - 2026-08-18
 
 ### Dependencies
