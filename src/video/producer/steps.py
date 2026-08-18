@@ -113,6 +113,27 @@ def _load_artifacts_download_music(ctx: PipelineContext) -> None:
     pass
 
 
+def resolve_stock_keywords(profile: Any, media_settings: Any) -> list[str]:
+    """Stock search terms for this run: the profile's if it declares any.
+
+    `None` means the profile is silent and inherits the global list. An empty
+    list is an explicit override meaning "search on the product title alone",
+    so the test is against None rather than falsiness; treating `[]` as absent
+    would make an intentional override indistinguishable from not setting one.
+    """
+    profile_keywords = getattr(profile, "stock_media_keywords", None)
+    if profile_keywords is not None:
+        logger.debug(
+            "Stock keywords from profile (%d): %s",
+            len(profile_keywords),
+            profile_keywords,
+        )
+        return list(profile_keywords)
+    globals_ = list(media_settings.stock_media_keywords)
+    logger.debug("Stock keywords from global config (%d): %s", len(globals_), globals_)
+    return globals_
+
+
 async def step_gather_visuals(ctx: PipelineContext):
     async with performance_monitor.measure_step(
         "gather_visuals",
@@ -208,9 +229,12 @@ async def step_gather_visuals(ctx: PipelineContext):
                 ctx.config.media_settings,
                 ctx.config.api_settings,
             )
+            base_keywords = resolve_stock_keywords(
+                ctx.profile, ctx.config.media_settings
+            )
             keywords = list(
                 set(
-                    ctx.config.media_settings.stock_media_keywords
+                    base_keywords
                     + (
                         [
                             w

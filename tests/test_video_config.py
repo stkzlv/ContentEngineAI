@@ -807,3 +807,125 @@ class TestLoadVideoConfig:
 
         with pytest.raises(ValueError):  # Function wraps YAML errors in ValueError
             load_video_config(config_file)
+
+
+class TestProfileStockMediaKeywords:
+    """Stock search terms are per-profile so two profiles can differ in one run.
+
+    The field previously lived only on global `media_settings`, so every
+    profile searched the same footage. A profile-level value was discarded
+    without a warning, because Pydantic ignores unknown keys by default.
+    """
+
+    def _profile(self, **kw) -> VideoProfile:
+        base = {
+            "description": "Test profile",
+            "use_scraped_images": False,
+            "use_scraped_videos": False,
+            "use_stock_images": True,
+            "use_stock_videos": False,
+            "stock_image_count": 5,
+            "stock_video_count": 0,
+            "use_dynamic_image_count": False,
+        }
+        base.update(kw)
+        return VideoProfile(**base)
+
+    def test_field_exists_and_defaults_to_none(self):
+        """None is the inherit-the-global signal, distinct from an empty list."""
+        assert self._profile().stock_media_keywords is None
+
+    def test_profile_value_is_retained(self):
+        """The silent-drop case: a profile-level list must survive validation."""
+        profile = self._profile(stock_media_keywords=["router", "desk setup"])
+        assert profile.stock_media_keywords == ["router", "desk setup"]
+
+    def test_empty_list_is_preserved_not_coerced_to_none(self):
+        """An empty list is an explicit override meaning title words only."""
+        profile = self._profile(stock_media_keywords=[])
+        assert profile.stock_media_keywords == []
+        assert profile.stock_media_keywords is not None
+
+    def test_two_profiles_can_carry_different_terms(self):
+        """The reason the field exists: concurrent profiles, different footage."""
+        a = self._profile(stock_media_keywords=["router", "wifi"])
+        b = self._profile(stock_media_keywords=["desk", "gadget"])
+        assert a.stock_media_keywords != b.stock_media_keywords
+
+    def test_loaded_from_yaml_profile_block(self, tmp_path: Path):
+        """End of the config path: a YAML profile keeps the value."""
+        profile = VideoProfile.model_validate(
+            yaml.safe_load(
+                """
+                description: Stock-only profile
+                use_scraped_images: false
+                use_scraped_videos: false
+                use_stock_images: true
+                use_stock_videos: false
+                stock_image_count: 6
+                stock_video_count: 0
+                use_dynamic_image_count: false
+                stock_media_keywords:
+                  - router
+                  - desk setup
+                """
+            )
+        )
+        assert profile.stock_media_keywords == ["router", "desk setup"]
+
+
+class TestResolveStockKeywords:
+    """The selection the renderer actually performs.
+
+    Kept separate from the model tests: those prove the field survives
+    validation, this proves the value reaches the search. A field that
+    validates but is never read looks identical to a working one.
+    """
+
+    class _Settings:
+        def __init__(self, keywords):
+            self.stock_media_keywords = keywords
+
+    class _Profile:
+        def __init__(self, keywords):
+            self.stock_media_keywords = keywords
+
+    def test_profile_terms_win(self):
+        from src.video.producer.steps import resolve_stock_keywords
+
+        assert resolve_stock_keywords(
+            self._Profile(["router", "desk"]), self._Settings(["global", "terms"])
+        ) == ["router", "desk"]
+
+    def test_none_inherits_the_global_list(self):
+        from src.video.producer.steps import resolve_stock_keywords
+
+        assert resolve_stock_keywords(
+            self._Profile(None), self._Settings(["global", "terms"])
+        ) == ["global", "terms"]
+
+    def test_empty_profile_list_suppresses_the_global_list(self):
+        """`[]` is an override, not an absence: title words only."""
+        from src.video.producer.steps import resolve_stock_keywords
+
+        assert (
+            resolve_stock_keywords(self._Profile([]), self._Settings(["global"])) == []
+        )
+
+    def test_profile_without_the_attribute_falls_back(self):
+        """Older profile objects lacking the field must not raise."""
+        from src.video.producer.steps import resolve_stock_keywords
+
+        class Bare:
+            pass
+
+        assert resolve_stock_keywords(Bare(), self._Settings(["global"])) == ["global"]
+
+    def test_returns_a_copy_not_the_config_list(self):
+        """The caller mutates the result; the config must not change with it."""
+        from src.video.producer.steps import resolve_stock_keywords
+
+        settings = self._Settings(["global"])
+        out = resolve_stock_keywords(self._Profile(None), settings)
+        out.append("mutated")
+        assert settings.stock_media_keywords == ["global"]
