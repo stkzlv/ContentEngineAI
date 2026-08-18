@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.1] - 2026-08-18
+
+### Dependencies
+- Bump `authlib` 1.6.11 -> 1.7.2, `cryptography` 46.0.7 -> 50.0.0, `idna` 3.11 -> 3.19, `lxml` 6.0.4 -> 6.1.1, `msgpack` 1.1.2 -> 1.2.1, `nltk` 3.9.4 -> 3.10.3, `pillow` 12.2.0 -> 12.3.0, `pyasn1` 0.6.3 -> 0.6.4, `soupsieve` 2.8.3 -> 2.9.2, `urllib3` 2.6.3 -> 2.7.0, and `aioresponses` 0.7.8 -> 0.7.9. `authlib` 1.7 pulls in `defusedxml` and `joserfc` as new transitive dependencies.
+- `aiohttp` stays on 3.13.5. 3.14 made `stream_writer` a required keyword argument of `ClientResponse.__init__`, which the `aioresponses` test double does not pass, so every mocked HTTP test raises `TypeError`. 0.7.9 is the newest `aioresponses` and does not fix it. Bump `aiohttp` once upstream supports it.
+- `skia-python` stays on 138.0. `pictex` 2.3.0 pins `skia-python = "==138.*"`, so resolving skia-python to 144 walks `pictex` back to 2.1.0. The subtitle renderer is worth more than the transitive bump.
+
 ## [0.63.0] - 2026-08-18
 
 ### Added
