@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.3] - 2026-08-19
+
+### Dependencies
+- Bump `coqui-tts` 0.26.2 -> 0.27.5, which lifts its `transformers < 4.52` cap and lets `transformers` move 4.51.3 -> 4.57.6, clearing six of the nine advisories open against it. The bump also drops fifteen transitive packages `coqui-tts` no longer needs, `gruut` and its language data among them.
+- Pin `transformers` to `>=4.57,<5`. It is not imported directly; the pin exists because `coqui-tts` 0.27.5 allows `transformers` 5 but imports `isin_mps_friendly`, which 5 removed. Unpinned, the Coqui provider fails at import, and the loader catches that and moves on, so the degradation is silent.
+
+### Known issues
+- The Coqui TTS fallback provider no longer loads. `coqui-tts` 0.27.5 requires `torchcodec` for audio IO on torch 2.9 and above, and the newest `torchcodec`, 0.16.0, is built against torch 2.11: under the torch 2.13 shipped in 0.63.2 it cannot load its own C++ libraries, `AudioDecoder` included. Taking the `codec` extra therefore does not help, so it is not taken. Coqui was already disabled in the bundled config and is not the working fallback (Gemini is primary, Google Cloud is the fallback), so nothing that runs today changes. It comes back when `torchcodec` ships a torch 2.13 build, and deleting `coqui-tts` outright would remove the problem along with the `transformers` pin.
+
+### Security
+- Three `transformers` advisories stay open: two high severity fixed in 5.3.0 and 5.5.0, one moderate fixed in a 5.0.0 release candidate. Reaching them means `transformers` 5, which `coqui-tts` cannot load. Coqui is the unused fallback provider (Gemini is primary, Google Cloud is the working fallback), so removing it would clear these and delete the constraint, and is the better fix once someone confirms the provider is genuinely unused.
+
 ## [0.63.2] - 2026-08-18
 
 ### Dependencies
