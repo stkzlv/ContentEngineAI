@@ -17,7 +17,7 @@ The project follows an **async-first, modular architecture** with parallel execu
 
 ### Key Components
 *   **Scraper Module** (`src/scraper/`): Multi-platform architecture (base + Amazon implementation) using **Botasaurus** (Playwright) for stealth scraping.
-*   **AI Integration** (`src/ai/`): Uses **OpenRouter** for scripts and descriptions; **Gemini TTS** with **Google Cloud TTS** as fallback for voiceovers; **OpenAI Whisper** for subtitles.
+*   **AI Integration** (`src/ai/`): Uses **Gemini** for scripts and descriptions with **OpenRouter** as automatic fallback; **Gemini TTS** with **Google Cloud TTS** as fallback for voiceovers; **OpenAI Whisper** for subtitles.
 *   **Video Assembly** (`src/video/assembler/`): **FFmpeg**-based assembly with support for dynamic filter graphs, content-aware cropping, and multi-track audio mixing.
 *   **Configuration**: Centralized YAML-based config (`config/`) backed by **Pydantic** models (`src/video/config/`, `src/scraper/config_models.py`) for validation.
 

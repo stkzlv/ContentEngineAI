@@ -373,14 +373,15 @@ for voice in voices.voices[:5]:
        voice_name_pattern: "Standard" # Use Standard instead of Wavenet
    ```
 
-2. **Fall back to Coqui TTS.** It is not a project dependency, so install it first
-   (`pip install coqui-tts`), then put it ahead of the cloud provider:
-   ```yaml
-   tts_config:
-     provider_order: ["coqui", "google_cloud"]
-   ```
-   The provider self-disables with a warning when the package is missing, so a
-   config listing `coqui` without the install is skipped rather than fatal.
+2. **Coqui TTS is not a usable fallback here.** It is not a project dependency,
+   and installing it does not help under the pinned torch: `coqui-tts` 0.27.5
+   raises `ImportError` on import when torch is 2.9 or newer and `torchcodec` is
+   absent, and the newest `torchcodec` is built against torch 2.11 while this
+   project pins 2.13. `find_spec` does not execute the module, so `COQUI_AVAILABLE`
+   is still `True` and `coqui` survives config validation; the failure surfaces as
+   one WARN at first synthesis and every render silently falls through to the next
+   provider. Using it needs an environment on torch below 2.9, or a `torchcodec`
+   build matching the pinned torch.
 
 3. **Text Sanitization Issues:**
    - Check script has proper text formatting

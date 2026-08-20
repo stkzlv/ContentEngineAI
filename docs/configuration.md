@@ -734,7 +734,7 @@ cta_detection:
 ```yaml
 tts_config:
   # Provider priority order (first = primary)
-  provider_order: ["google_cloud"]   # add "coqui" only if you installed coqui-tts
+  provider_order: ["google_cloud"]   # "coqui" needs more than an install; see below
 
   # Google Cloud TTS settings
   google_cloud:
@@ -753,8 +753,10 @@ tts_config:
     volume_gain_db: 0.0              # Volume adjustment
     api_timeout_sec: 60
 
-  # Coqui TTS settings (local). Kept so the provider can be re-enabled, but
-  # coqui-tts is not installed by default and "coqui" is not in provider_order.
+  # Coqui TTS settings (local). Kept so the config side of re-enabling stays a
+  # one-line change, but coqui-tts is not installed by default and "coqui" is
+  # not in provider_order. Installing the package is not sufficient either: it
+  # fails to import under the pinned torch. See docs/troubleshooting.md.
   coqui:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null               # For multi-speaker models

@@ -76,9 +76,11 @@ sudo apt install -y x11vnc
 ### espeak-ng (only if you opt into Coqui TTS)
 
 Gemini is the primary TTS provider and needs no system binary. `coqui-tts` is not a project
-dependency, so nothing below applies to a default install. If you install it yourself and add
-`coqui` back to `tts_config.provider_order`, it also needs the `espeak-ng` backend; without it the
-producer logs a non-fatal `No espeak backend found` error and skips the provider. Install it with:
+dependency, so nothing below applies to a default install, and it cannot be re-enabled by
+installing it alone: it fails to import under the pinned torch (see the TTS section of
+[Troubleshooting](troubleshooting.md)). In an environment where Coqui does import, it also needs
+the `espeak-ng` backend; without it the producer logs a non-fatal `No espeak backend found` error
+and skips the provider. Install it with:
 
 ```bash
 sudo apt install -y espeak-ng
