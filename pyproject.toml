@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.63.3"
+version = "0.64.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -19,11 +19,9 @@ python-dotenv = "^1.0.1"
 setuptools = "^78.1.0"
 aiohttp = "^3.13.3"
 httpx = "^0.27.0"
-coqui-tts = "^0.27.5"
-# Not imported directly. Pinned because coqui-tts declares transformers>=4.57
-# with no upper bound, but imports isin_mps_friendly, which transformers 5
-# removed, so an unconstrained resolve disables the Coqui provider at load.
-transformers = ">=4.57,<5"
+# Imported directly as PIL by the scraper media validator, image utils and
+# the subtitle sizing path. It used to arrive transitively via coqui-tts.
+pillow = "^12.3.0"
 pexels-api-py = "^0.0.5"
 ffmpeg-python = "^0.2.0"
 freesound-api = "^1.1"
@@ -33,7 +31,6 @@ google-auth = "^2.29.0" # Added explicitly for Google Cloud auth dependency
 google-api-core = "^2.18.0" # Added explicitly for Google Cloud core dependency
 openai-whisper = "^20240930"
 torch = { version = "^2.0", source = "pytorch-cpu" }
-torchaudio = { version = "^2.0", source = "pytorch-cpu" }
 google-cloud-speech = "^2.32.0"
 pysrt = "^1.1.2"
 botasaurus = "^4.0.88"

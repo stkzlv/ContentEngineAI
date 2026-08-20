@@ -734,7 +734,7 @@ cta_detection:
 ```yaml
 tts_config:
   # Provider priority order (first = primary)
-  provider_order: ["google_cloud", "coqui"]
+  provider_order: ["google_cloud"]   # "coqui" needs extra installs; see below
 
   # Google Cloud TTS settings
   google_cloud:
@@ -753,7 +753,10 @@ tts_config:
     volume_gain_db: 0.0              # Volume adjustment
     api_timeout_sec: 60
 
-  # Coqui TTS settings (local/fallback)
+  # Coqui TTS settings (local). Kept so the config side of re-enabling stays a
+  # one-line change, but coqui-tts is not installed by default and "coqui" is
+  # not in provider_order. Re-enabling also needs transformers <5 and torchcodec
+  # from the PyTorch CPU index. See docs/troubleshooting.md.
   coqui:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null               # For multi-speaker models
@@ -1895,7 +1898,7 @@ These enhance functionality but are not required for basic operation.
 | `OPENROUTER_BASE_URL` | string | https://openrouter.ai/api/v1 | Custom OpenRouter API URL |
 | `PEXELS_BASE_URL` | string | https://api.pexels.com/v1 | Custom Pexels API URL |
 | `SCRAPFLY_PROXY` | string | None | Proxy for scraping (format: http://USER:PASS@host:port) |
-| `COQUI_TTS_GPU` | bool | false | Enable GPU acceleration for Coqui TTS |
+| `COQUI_TTS_GPU` | bool | false | Enable GPU acceleration for Coqui TTS (only applies if you installed coqui-tts yourself) |
 
 ### Environment Variable Validation
 

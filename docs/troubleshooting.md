@@ -373,13 +373,30 @@ for voice in voices.voices[:5]:
        voice_name_pattern: "Standard" # Use Standard instead of Wavenet
    ```
 
-2. **Fallback to Coqui TTS:**
+2. **Fall back to Coqui TTS.** It is not a project dependency, so it has to be
+   installed, and installing the package alone is not enough. `coqui-tts` needs three things beyond the package itself:
+   `transformers >=4.57,<5` (0.27.5 imports `isin_mps_friendly`, which
+   `transformers` 5 removed), `torchcodec` (required on torch 2.9 and above),
+   and that `torchcodec` must come from the PyTorch CPU index, because the
+   default PyPI wheel is CUDA-flavoured and fails to load against this
+   project's CPU-only torch:
+
+   ```bash
+   pip install coqui-tts 'transformers>=4.57,<5'
+   pip install --index-url https://download.pytorch.org/whl/cpu torchcodec
+   ```
+
+   Then add it to the provider order:
+
    ```yaml
    tts_config:
-     providers:
-       - coqui_tts          # Try local TTS first
-       - google_cloud_tts   # Then cloud TTS
+     provider_order: ["coqui", "google_cloud"]
    ```
+
+   Get any of that wrong and the failure is quiet: `find_spec` does not execute
+   the module, so `COQUI_AVAILABLE` stays `True` and `coqui` survives config
+   validation. The break surfaces as one WARN at first synthesis while every
+   render falls through to the next provider.
 
 3. **Text Sanitization Issues:**
    - Check script has proper text formatting
