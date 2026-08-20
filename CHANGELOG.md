@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-08-20
+
 ### Dependencies
 - Remove `coqui-tts`, and with it 42 packages including `transformers`, `tokenizers`, `tensorboard`, `scikit-learn`, `matplotlib` and `librosa`, plus the `transformers` pin added in 0.63.3.
 - Remove `torchaudio`. Nothing imports it and no locked package depends on it; it was declared only to redirect a `coqui-tts` transitive to the PyTorch CPU index. Dropping it also ends the deliberately unmatched `torch` / `torchaudio` pair described in 0.63.2.
