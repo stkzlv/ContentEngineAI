@@ -69,8 +69,8 @@ Uses the same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=...)
 
 Local open-source provider. No style or markup support. Not installed by default: the code and its
 config block are kept, but `coqui-tts` is not a dependency and `coqui` is not in `provider_order`.
-Installing the package is not sufficient to re-enable it, because it fails to import under the
-pinned torch; see the TTS section of [Troubleshooting](troubleshooting.md).
+Re-enabling it takes the package plus `transformers <5` plus `torchcodec` from the PyTorch CPU
+index; see the TTS section of [Troubleshooting](troubleshooting.md).
 
 ## Inline markup
 

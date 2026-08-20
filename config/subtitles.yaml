@@ -339,9 +339,9 @@ subtitle_settings:
 tts_config:
   # Order of TTS providers to try (attempts in sequence until one succeeds)
   # "coqui" is left out because coqui-tts is no longer a project dependency.
-  # Installing it is not enough to re-enable: coqui-tts 0.27.5 fails to import
-  # under torch 2.9+ without torchcodec, and no torchcodec build matches the
-  # pinned torch 2.13. That needs solving before adding "coqui" back here. The
+  # Re-enabling needs the package plus transformers <5 plus torchcodec from the
+  # PyTorch CPU index (the default PyPI torchcodec wheel is CUDA-flavoured and
+  # will not load here). See the TTS section of docs/troubleshooting.md. The
   # settings block below is kept so the config side stays a one-line change.
   provider_order: ["google_cloud"]
 

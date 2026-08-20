@@ -734,7 +734,7 @@ cta_detection:
 ```yaml
 tts_config:
   # Provider priority order (first = primary)
-  provider_order: ["google_cloud"]   # "coqui" needs more than an install; see below
+  provider_order: ["google_cloud"]   # "coqui" needs extra installs; see below
 
   # Google Cloud TTS settings
   google_cloud:
@@ -755,8 +755,8 @@ tts_config:
 
   # Coqui TTS settings (local). Kept so the config side of re-enabling stays a
   # one-line change, but coqui-tts is not installed by default and "coqui" is
-  # not in provider_order. Installing the package is not sufficient either: it
-  # fails to import under the pinned torch. See docs/troubleshooting.md.
+  # not in provider_order. Re-enabling also needs transformers <5 and torchcodec
+  # from the PyTorch CPU index. See docs/troubleshooting.md.
   coqui:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null               # For multi-speaker models

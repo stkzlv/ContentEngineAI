@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Dependencies
-- Remove `coqui-tts`, and with it 41 packages including `transformers`, `tokenizers`, `tensorboard`, `scikit-learn`, `matplotlib` and `librosa`, plus the `transformers` pin added in 0.63.3.
+- Remove `coqui-tts`, and with it 42 packages including `transformers`, `tokenizers`, `tensorboard`, `scikit-learn`, `matplotlib` and `librosa`, plus the `transformers` pin added in 0.63.3.
+- Remove `torchaudio`. Nothing imports it and no locked package depends on it; it was declared only to redirect a `coqui-tts` transitive to the PyTorch CPU index. Dropping it also ends the deliberately unmatched `torch` / `torchaudio` pair described in 0.63.2.
 - Declare `pillow` as a direct dependency. It is imported as `PIL` by the scraper's media validator, the image utils and the subtitle sizing path, but reached the environment only as a transitive dependency of `coqui-tts`, so removing that package took `PIL` with it.
 - Drop `coqui` from `tts_config.provider_order` in the bundled config. Gemini remains the primary provider and Google Cloud TTS the fallback, which is what the bundled config already used.
 
@@ -16,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Closes the three `transformers` advisories left open in 0.63.3, two high and one moderate, reported as five Dependabot alerts because the two high ones are raised against both `pyproject.toml` and `poetry.lock`. Their fixes are in `transformers` 5.x, which `coqui-tts` cannot load, so removing the package was the only way to reach them.
 
 ### Changed
-- The Coqui TTS provider is disabled rather than deleted. `src/video/tts.py` and the `tts_config.coqui` settings block are unchanged, and the existing availability check self-disables the provider when the package is absent, logging one warning per run. Note that reinstating it needs more than reinstalling the package: `coqui-tts` 0.27.5 fails to import under torch 2.9 and above without `torchcodec`, and no `torchcodec` build matches the pinned torch 2.13.
+- The Coqui TTS provider is disabled rather than deleted. `src/video/tts.py` and the `tts_config.coqui` settings block are unchanged, and the existing availability check self-disables the provider when the package is absent, logging one warning per run. Reinstating it takes the package plus `transformers >=4.57,<5` plus `torchcodec` installed from the PyTorch CPU index, and the docs say so wherever they mention re-enabling.
+- Corrects the 0.63.2 and 0.63.3 notes, which said no `torchcodec` build worked with the pinned torch. `torchcodec` 0.16.0+cpu imports fine under `torch` 2.13.0+cpu; the wheel that failed was the CUDA-flavoured one from PyPI, because an explicit Poetry source pin does not cascade to a transitive dependency. Those entries are left as written, since they record what was believed at the time.
 
 ## [0.63.3] - 2026-08-20
 
