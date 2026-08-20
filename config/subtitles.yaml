@@ -338,8 +338,10 @@ subtitle_settings:
 # - coqui: Open source, local processing, no API costs but lower quality
 tts_config:
   # Order of TTS providers to try (attempts in sequence until one succeeds)
-  # Recommendation: google_cloud first for quality, coqui as fallback
-  provider_order: ["google_cloud", "coqui"]
+  # "coqui" is left out because coqui-tts is no longer a project dependency.
+  # To use it: `pip install coqui-tts` and add "coqui" back to this list. Its
+  # settings block below is kept so re-enabling is a one-line change here.
+  provider_order: ["google_cloud"]
 
   # Google Cloud Text-to-Speech Settings
   # Setup: Requires GOOGLE_APPLICATION_CREDENTIALS environment variable
@@ -384,6 +386,8 @@ tts_config:
     last_word_buffer_sec: 0.5
 
   # Coqui TTS Settings (Local/Offline Processing)
+  # Not installed by default and not in provider_order above, so these values
+  # are inert until coqui-tts is installed and "coqui" is added back.
   # Pros: Free, no API costs, works offline, privacy-friendly
   # Cons: Lower voice quality, slower generation, requires local compute
   # Setup: Automatically downloads models on first use (~200MB)

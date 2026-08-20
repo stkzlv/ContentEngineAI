@@ -383,7 +383,7 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 - **Freesound**: `FreesoundProvider` wraps the existing `FreesoundClient`; OAuth2 for full quality, API key for previews
 
 #### TTS Engine (`src/video/tts.py`)
-- **Primary Provider**: Gemini TTS via the `google.cloud.texttospeech` SDK; falls back to Google Cloud TTS on failure (Coqui TTS is an optional extra fallback)
+- **Primary Provider**: Gemini TTS via the `google.cloud.texttospeech` SDK; falls back to Google Cloud TTS on failure. Coqui TTS is supported but not installed: the code and config stay in place, and the provider self-disables when the package is absent
 - **Voice Selection**: Configurable voice profiles (provider, voice criteria, style)
 - **Async Generation**: Non-blocking TTS with timeout handling
 - **Caching**: Client and model caching for performance

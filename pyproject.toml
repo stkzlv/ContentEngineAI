@@ -19,11 +19,9 @@ python-dotenv = "^1.0.1"
 setuptools = "^78.1.0"
 aiohttp = "^3.13.3"
 httpx = "^0.27.0"
-coqui-tts = "^0.27.5"
-# Not imported directly. Pinned because coqui-tts declares transformers>=4.57
-# with no upper bound, but imports isin_mps_friendly, which transformers 5
-# removed, so an unconstrained resolve disables the Coqui provider at load.
-transformers = ">=4.57,<5"
+# Imported directly as PIL by the scraper media validator, image utils and
+# the subtitle sizing path. It used to arrive transitively via coqui-tts.
+pillow = "^12.3.0"
 pexels-api-py = "^0.0.5"
 ffmpeg-python = "^0.2.0"
 freesound-api = "^1.1"

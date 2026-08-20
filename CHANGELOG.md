@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- `coqui-tts` is no longer a dependency, taking 41 packages with it, `transformers`, `tokenizers`, `tensorboard`, `scikit-learn`, `matplotlib` and `librosa` among them. It also removes the `transformers` pin added in 0.63.3 and the five open advisories against `transformers`, four of them high severity, whose fixes were unreachable because `coqui-tts` cannot load `transformers` 5.
+- `coqui` is dropped from `tts_config.provider_order` in the bundled config. Gemini remains the primary provider and Google Cloud TTS the fallback, which is what the bundled config already used.
+
+### Changed
+- The Coqui provider is disabled rather than deleted. `src/video/tts.py` and the `tts_config.coqui` settings block are unchanged, and the availability check already self-disables when the package is absent, logging one warning per run. Re-enabling is `pip install coqui-tts` plus adding `coqui` back to `provider_order`.
+
+### Fixed
+- Declare `pillow` as a direct dependency. It is imported as `PIL` by the scraper's media validator, the image utils and the subtitle sizing path, but reached the environment only as a transitive dependency of `coqui-tts`, so removing that package broke the scraper at import.
+
 ## [0.63.3] - 2026-08-20
 
 ### Dependencies

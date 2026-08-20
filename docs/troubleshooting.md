@@ -373,13 +373,14 @@ for voice in voices.voices[:5]:
        voice_name_pattern: "Standard" # Use Standard instead of Wavenet
    ```
 
-2. **Fallback to Coqui TTS:**
+2. **Fall back to Coqui TTS.** It is not a project dependency, so install it first
+   (`pip install coqui-tts`), then put it ahead of the cloud provider:
    ```yaml
    tts_config:
-     providers:
-       - coqui_tts          # Try local TTS first
-       - google_cloud_tts   # Then cloud TTS
+     provider_order: ["coqui", "google_cloud"]
    ```
+   The provider self-disables with a warning when the package is missing, so a
+   config listing `coqui` without the install is skipped rather than fatal.
 
 3. **Text Sanitization Issues:**
    - Check script has proper text formatting

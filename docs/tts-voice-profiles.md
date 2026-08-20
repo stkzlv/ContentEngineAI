@@ -6,7 +6,7 @@ Voice profiles give each product video a distinct vocal identity through determi
 
 1. A voice profile is selected per product using deterministic hashing (md5 of product ID, hex slice `[16:24]`)
 2. If the profile uses Gemini TTS, the text is synthesized with the profile's named voice (e.g. Charon) plus optional inline markup like `[short pause]`
-3. If Gemini fails, markup is stripped and the standard provider chain handles it (Google Cloud TTS preferring Chirp3-HD voices, then Coqui as final fallback)
+3. If Gemini fails, markup is stripped and the standard provider chain handles it (Google Cloud TTS preferring Chirp3-HD voices)
 4. The selected profile name and voice name are saved to `pipeline_state.json` under `tts_metadata`
 
 ## Configuration
@@ -67,7 +67,9 @@ Uses the same `google.cloud.texttospeech` SDK but with `SynthesisInput(text=...)
 
 ### Coqui TTS
 
-Local open-source fallback. No style or markup support. Used when cloud providers are unavailable.
+Local open-source provider. No style or markup support. Not installed by default: the code and its
+config block are kept, but `coqui-tts` is not a dependency and `coqui` is not in `provider_order`.
+Install the package and add it back to use it.
 
 ## Inline markup
 

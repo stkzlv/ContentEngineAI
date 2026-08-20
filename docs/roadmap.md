@@ -277,7 +277,7 @@ Concrete gates for the 1.0.0 release:
 - Every external integration has a configured circuit breaker and retry policy; defaults documented, overrides exposed in YAML.
 
 **Distribution**
-- PyPI package buildable, installable in a clean venv, and runnable with documented system deps (FFmpeg, Playwright Chromium). Decide whether to pin or extras-gate the heavy optional pieces (pycaps, coqui-tts).
+- PyPI package buildable, installable in a clean venv, and runnable with documented system deps (FFmpeg, Playwright Chromium). Decide whether to pin or extras-gate the heavy optional pieces (pycaps).
 - Docker image published with all system deps baked in, ideally one for CPU-only and one for CUDA.
 - Versioning policy in `docs/versioning.md` updated to reflect the 1.0.0 promise.
 
