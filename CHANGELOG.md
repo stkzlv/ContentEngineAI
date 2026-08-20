@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.63.3] - 2026-08-19
+## [0.63.3] - 2026-08-20
 
 ### Dependencies
 - Bump `coqui-tts` 0.26.2 -> 0.27.5, which lifts its `transformers < 4.52` cap and lets `transformers` move 4.51.3 -> 4.57.6, clearing six of the nine advisories open against it. The bump also drops fifteen transitive packages `coqui-tts` no longer needs, `gruut` and its language data among them.
