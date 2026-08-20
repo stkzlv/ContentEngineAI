@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.63.2"
+version = "0.63.3"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -19,7 +19,11 @@ python-dotenv = "^1.0.1"
 setuptools = "^78.1.0"
 aiohttp = "^3.13.3"
 httpx = "^0.27.0"
-coqui-tts = "^0.26.0"
+coqui-tts = "^0.27.5"
+# Not imported directly. Pinned because coqui-tts declares transformers>=4.57
+# with no upper bound, but imports isin_mps_friendly, which transformers 5
+# removed, so an unconstrained resolve disables the Coqui provider at load.
+transformers = ">=4.57,<5"
 pexels-api-py = "^0.0.5"
 ffmpeg-python = "^0.2.0"
 freesound-api = "^1.1"
