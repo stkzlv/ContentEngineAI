@@ -74,6 +74,18 @@ def _topic_templates() -> list[Path]:
     return [p for p in _all_templates() if p.stem in TOPIC_TEMPLATES]
 
 
+def test_topic_family_matches_the_config() -> None:
+    """The runtime family is the config list, not this constant.
+
+    A template added here but not to `script_templates.topic_templates` is drawn
+    by product renders, and every test still passes: the topic-pool test asserts
+    against the same config list that is missing the entry.
+    """
+    from src.video.config import config
+
+    assert set(config.llm_settings.script_templates.topic_templates) == TOPIC_TEMPLATES
+
+
 def test_every_template_is_categorised() -> None:
     """A new template must join a family, not sit between them.
 

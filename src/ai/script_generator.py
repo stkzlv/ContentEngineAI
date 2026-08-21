@@ -147,6 +147,11 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
     ------
         ValueError: If the template contains placeholders that can't be filled
 
+    Placeholders available to a template: FULL_PRODUCT_NAME, SHORT_PRODUCT_NAME,
+    PRODUCT_DESCRIPTION, AUDIENCE, and the neutral TOPIC_TITLE / TOPIC_DETAIL
+    that topic templates use. All are passed on every call, so a template uses
+    whichever it names and ignoring the rest is safe.
+
     """
     full_name = _normalize_for_llm(product.title or "Product")
     description = _normalize_for_llm(product.description or "No description available")
@@ -784,18 +789,9 @@ async def generate_script(
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
 
-    narrator = settings.script_templates.narrator_profile
-    if (
-        getattr(product, "topic", None)
-        and settings.script_templates.narrator_profile_topic
-    ):
-        # The default profile is written for someone describing a purchase, and
-        # its CTA list is where "Link in bio if you want one" comes from. A
-        # topic script inherits that call to action with nothing behind it.
-        narrator = settings.script_templates.narrator_profile_topic
     prompt = apply_prompt_preambles(
         prompt,
-        narrator,
+        settings.script_templates.narrator_for(bool(getattr(product, "topic", None))),
         pillar,
         settings.script_templates.pillar_preambles,
     )

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - A scraped product can no longer draw a topic template. Templates share one directory and the default pool is a glob over it, so the exclusion has to run in both directions.
+- A topic render's hook overlay and per-platform caption prompts use the topic narrator too. The choice was made inside the script generator, so only the spoken script changed while the burned-in headline kept the purchase voice; it now resolves in one place that all three consumers call.
+- `--pillar` is refused with `--topic`. Every pillar preamble and audience hint is written about a product, so the combination produced a prompt whose halves contradicted each other.
 - A topic title is no longer trimmed by the product-alias heuristic, which cuts at listing separators and keeps three words: "Why your laptop fan is always loud" became "Why your laptop", which the template then instructed the model to speak as the thing's name.
 
 ## [0.65.0] - 2026-08-21

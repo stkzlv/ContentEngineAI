@@ -41,6 +41,23 @@ class ScriptTemplateConfig(BaseModel):
     # topic script inherits an affiliate call to action it has no basis for.
     # Empty string falls back to narrator_profile.
     narrator_profile_topic: str = ""
+
+    def narrator_for(self, is_topic: bool) -> str:
+        """The narrator profile a render should use.
+
+        Every consumer of the profile has to make this choice, not just the
+        script generator: the hook overlay and the per-platform caption prompts
+        take it too, and the hook overlay is on by default. Resolving it at each
+        call site meant a topic render's burned-in headline kept the purchase
+        voice while only the spoken script changed.
+
+        Falls back to the product profile when no topic one is configured, which
+        is the pre-existing behaviour for anyone who has not set one.
+        """
+        if is_topic and self.narrator_profile_topic:
+            return self.narrator_profile_topic
+        return self.narrator_profile
+
     # Pillar -> target-audience override. When a pillar is set at runtime and
     # the map has an entry for it, the {AUDIENCE} placeholder uses this value
     # instead of LLMSettings.target_audience. Lets each pillar speak to the

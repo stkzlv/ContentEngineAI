@@ -144,3 +144,70 @@ class TestTopicNarratorProfile:
         from src.video.config import config
 
         assert "Link in bio" in config.llm_settings.script_templates.narrator_profile
+
+
+@pytest.mark.unit
+class TestNarratorResolver:
+    """One resolver, because three call sites need the same answer.
+
+    The hook overlay and the per-platform caption prompts take a narrator
+    profile too, and the hook overlay is on by default. Choosing at each call
+    site left a topic render's burned-in headline carrying the purchase voice
+    while only the spoken script changed.
+    """
+
+    def test_a_topic_gets_the_topic_profile(self):
+        from src.video.config import config
+
+        st = config.llm_settings.script_templates
+        assert st.narrator_for(True) == st.narrator_profile_topic
+
+    def test_a_product_gets_the_product_profile(self):
+        from src.video.config import config
+
+        st = config.llm_settings.script_templates
+        assert st.narrator_for(False) == st.narrator_profile
+
+    def test_every_consumer_resolves_rather_than_reading_the_field(self):
+        """A new consumer that reads the field directly reintroduces the bug.
+
+        This is the shape of the defect the resolver exists to prevent, so it is
+        cheaper to assert than to rediscover.
+        """
+        from pathlib import Path
+
+        consumers = [
+            Path("src/video/producer/steps.py"),
+            Path("src/ai/script_generator.py"),
+        ]
+        for path in consumers:
+            text = path.read_text(encoding="utf-8")
+            assert "narrator_profile=script_cfg.narrator_profile," not in text, path
+            assert "script_templates.narrator_profile," not in text, path
+
+
+@pytest.mark.unit
+class TestPillarPreamblesAreProductShaped:
+    """Why `--pillar` is refused with `--topic`.
+
+    The preambles and audience hints are written about a product, so combining
+    them with a topic template produces a prompt that argues with itself: one
+    half says never invent a product, the other assumes there is one.
+    """
+
+    def test_preambles_still_talk_about_a_product(self):
+        from src.video.config import config
+
+        preambles = config.llm_settings.script_templates.pillar_preambles
+        assert preambles, "no pillar preambles configured"
+        assert any("product" in text.lower() for text in preambles.values())
+
+    def test_audiences_still_describe_buyers(self):
+        from src.video.config import config
+
+        audiences = config.llm_settings.script_templates.pillar_audiences
+        assert audiences, "no pillar audiences configured"
+        assert any(
+            "buyer" in text.lower() or "shopper" in text.lower()
+            for text in audiences.values()
+        )

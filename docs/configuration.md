@@ -1218,19 +1218,30 @@ llm_settings:
 | `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
+| `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
+| `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, whose call-to-action list points at something to buy. |
 
 **Runtime prompt structure:**
 
 ```
-[narrator_profile]      <- always, when non-empty
+[narrator_profile]      <- always, when non-empty; narrator_profile_topic
+                           instead for a topic render, when set
 [pillar_preambles[X]]   <- when --pillar X is set and the entry exists
-[template content]      <- selected template, with {FULL_PRODUCT_NAME}, {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION}, {AUDIENCE} substituted
+[template content]      <- selected template, with {FULL_PRODUCT_NAME},
+                           {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION},
+                           {AUDIENCE} substituted. Topic templates use
+                           {TOPIC_TITLE} and {TOPIC_DETAIL}; all six are
+                           always passed, and a template uses what it names.
 ```
 
 **Selection rules:**
 
 1. If `fixed_template` is set, that template wins.
 2. Otherwise, the active pool is `template_pool` (or all templates when empty).
+   For a scraped product, anything in `topic_templates` is then removed: the two
+   families share one directory and the default pool is a glob over it.
+   For a topic render, the pool is replaced by `topic_templates` outright, since
+   a product template left reachable renders the topic as an advertisement.
 3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged.
 4. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).
 
