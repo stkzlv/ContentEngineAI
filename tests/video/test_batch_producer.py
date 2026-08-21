@@ -168,6 +168,12 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
     mock_args.subtitle_randomize_fonts = None
     mock_args.subtitle_randomize_colors = None
     mock_args.subtitle_randomize_effects = None
+    # A MagicMock attribute is truthy, so these must be set explicitly or the
+    # run is read as a topic render rather than a batch.
+    mock_args.topic = None
+    mock_args.topic_description = None
+    mock_args.topic_keywords = None
+    mock_args.topics_file = None
 
     mock_config.video_profiles = {"test_profile": {}}
     mock_config.pipeline_timeout_sec = 10

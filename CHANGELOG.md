@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--topic`, `--topic-description`, `--topic-keywords` and `--topics-file` on the video producer, so a video can be rendered from a subject rather than a scraped product. The topic builds the record the pipeline already consumes and lands in `outputs/topic-<slug>/`, deterministic from the title so a re-run resumes the same directory rather than starting a second one. `--topics-file` takes a YAML list of `{title, description, keywords}` and renders each in turn; a malformed entry raises rather than being skipped, since dropping one silently renders fewer videos than asked for.
+- `topic` on the product record, set when it was built from a topic rather than scraped. Its presence is the discriminator; the record still carries a platform, so nothing else distinguishes the two.
+- `slideshow_stock` video profile, which sources every visual from the stock provider. It is the first bundled profile to do so, so `use_stock_images` and the per-profile `stock_media_keywords` added in 0.63.0 are now exercised by shipped config rather than only by tests. Excluded from random selection: rendering a scraped product through it would ignore that product's own imagery.
+
+### Changed
+- A topic's own keywords are the stock search terms, replacing rather than joining the profile and global lists. The provider concatenates every term into one query string, so mixing a topic's words with the product-oriented defaults (`product showcase`, `happy customer`) searches for neither. Scraped products are unaffected.
+- Batch discovery skips `topic-` directories. They carry no scraped imagery, so a product profile drawing one fails the run instead of skipping it.
+
+### Known issues
+- Script templates are all written to pitch a product, so a topic render currently produces product-shaped copy about a subject, including an affiliate call to action. The topic path is what makes the templates addressable; problem-first templates are separate work.
+
 ## [0.64.0] - 2026-08-20
 
 ### Dependencies

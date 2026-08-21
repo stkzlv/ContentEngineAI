@@ -20,6 +20,10 @@ def _make_producer_args(**kwargs) -> argparse.Namespace:
     to None / False to satisfy the `getattr(..., None)` checks.
     """
     defaults: dict = {
+        "topic": None,
+        "topic_description": None,
+        "topic_keywords": None,
+        "topics_file": None,
         "voice_profile": None,
         "script_template": None,
         "pillar": None,

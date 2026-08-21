@@ -47,6 +47,7 @@ High-level requirements for ContentEngineAI.
 ### Outputs Directory
 - Centralized `outputs/` directory for all pipeline artifacts
 - Per-product directories: `outputs/<product_id>/` with `data.json`, `images/`, `videos/`
+- Topic renders use `outputs/topic-<slug>/`, holding `data.json` and `temp/` only, since a topic has no scraped media. The slug is derived from the title and is stable, so a re-run resumes rather than duplicating
 - Global directories: `cache/`, `logs/`, `reports/` for shared resources
 - Customizable via `--outputs-dir` CLI flag
 - Automatic cleanup of published products (configurable)
@@ -245,8 +246,15 @@ group degrade to FFmpeg without manual intervention.
 ### Stock Visual Media
 - Stock footage is fetched from a configured provider and merged into the same visual pool as scraped product media, rather than being a fallback used only when scraped media is missing
 - Search terms come from `media_settings.stock_media_keywords`, overridable per profile. A profile that declares no terms inherits the global list; a profile that declares an empty list searches on the product title alone. Two profiles can therefore search different footage within one run, which is what a concurrent visual comparison needs
-- A profile controls whether scraped product imagery is used at all (`use_scraped_images`), so a profile can render entirely from stock without code changes
+- A profile controls whether scraped product imagery is used at all (`use_scraped_images`), so a profile can render entirely from stock without code changes. `slideshow_stock` is the bundled profile that does
+- A topic supplies its own search terms, and they replace the profile and global lists rather than joining them. The provider concatenates every term into a single query, so combining a topic's words with product-oriented defaults searches for neither
 - Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
+
+### Topic Input
+- A video can be produced from a topic (a title, a description, optional search terms) with no scraper run and no product directory
+- The topic builds the same record the producer consumes for a scraped product, so no pipeline step is topic-aware. Listing-only fields carry nothing rather than a plausible-looking value
+- A topics file renders several in turn. A malformed entry fails the run rather than being skipped, since skipping renders fewer videos than requested without saying so
+- Topic directories are excluded from batch discovery and from random profile selection, both of which assume scraped imagery
 
 ### Media Validation
 - Scraper validates media against producer profile requirements

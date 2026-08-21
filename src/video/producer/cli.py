@@ -30,6 +30,13 @@ from src.video.producer.orchestration import (
     failed_step_from_result,
 )
 from src.video.producer.state import VALID_STEPS
+from src.video.producer.topic_input import (
+    TOPIC_ID_PREFIX,
+    TopicSpec,
+    build_topic_product,
+    load_topics_file,
+    topic_product_id,
+)
 from src.video.producer.utils import (
     ProfileUsageTracker,
     load_profile_pool,
@@ -112,6 +119,13 @@ def discover_products_for_batch(outputs_dir: Path) -> list[tuple[Path, ProductDa
         data_file = product_dir / "data.json"
         if not data_file.exists():
             logger.debug(f"Skipping {product_dir.name}: no data.json found")
+            continue
+
+        if product_dir.name.startswith(TOPIC_ID_PREFIX):
+            # Topic renders need a stock-sourced profile. Batch discovery hands
+            # products to product profiles, which would find no imagery here and
+            # fail the run rather than skip it.
+            logger.debug(f"Skipping {product_dir.name}: topic directory")
             continue
 
         try:
@@ -281,6 +295,40 @@ async def main():
         "--batch",
         action="store_true",
         help="Process all products found in outputs directory.",
+    )
+    parser.add_argument(
+        "--topic",
+        type=str,
+        help=(
+            "Render a video about a topic instead of a scraped product. "
+            "Replaces products_file; profile is still required."
+        ),
+    )
+    parser.add_argument(
+        "--topic-description",
+        type=str,
+        default="",
+        help=(
+            "Source material the script is written from. The script generator "
+            "reads only the title and this description."
+        ),
+    )
+    parser.add_argument(
+        "--topic-keywords",
+        type=str,
+        help=(
+            "Comma-separated stock media search terms for this topic, e.g. "
+            "'wifi router, home network'. Comma-separated rather than repeated "
+            "because a multi-value flag before a positional swallows it."
+        ),
+    )
+    parser.add_argument(
+        "--topics-file",
+        type=Path,
+        help=(
+            "YAML list of topics to render, each with title, optional "
+            "description and optional keywords."
+        ),
     )
     parser.add_argument(
         "--batch-profile",
@@ -577,6 +625,13 @@ async def main():
 
     args = parser.parse_args()
 
+    if (args.topic or args.topics_file) and args.products_file and not args.profile:
+        # Both positionals are optional, so argparse binds a lone profile name
+        # to products_file. In topic mode there is no products_file, so the bare
+        # word can only be the profile.
+        args.profile = str(args.products_file)
+        args.products_file = None
+
     # Validate argument combinations
     if args.batch:
         # Mutual exclusivity: --batch-profile and --random-profile
@@ -596,11 +651,27 @@ async def main():
             parser.error(
                 "products_file and profile arguments cannot be used with --batch"
             )
+    elif args.topic or args.topics_file:
+        # Topic mode: the record is built from the topic, so there is no
+        # products_file to read. A profile is still required, and must be one
+        # that sources its visuals from stock.
+        if args.topic and args.topics_file:
+            parser.error("--topic and --topics-file cannot be used together")
+        if args.products_file:
+            parser.error("products_file cannot be used with --topic/--topics-file")
+        if not args.profile:
+            parser.error("profile is required with --topic/--topics-file")
+        if args.batch_profile or args.fail_fast or args.random_profile:
+            parser.error(
+                "--batch-profile, --fail-fast and --random-profile "
+                "can only be used with --batch"
+            )
     else:
         # Non-batch mode validation
         if not args.products_file or not args.profile:
             parser.error(
-                "products_file and profile are required when not using --batch"
+                "products_file and profile are required when not using --batch, "
+                "--topic or --topics-file"
             )
         if args.batch_profile or args.fail_fast:
             parser.error(
@@ -724,6 +795,44 @@ async def main():
             # Create products list with directory info for batch processing
             products_list = list(discovered_products)
             profile_name = args.batch_profile
+        elif args.topic or args.topics_file:
+            # Topic mode: build the record instead of reading one the scraper
+            # wrote. Everything downstream is unchanged; the run directory comes
+            # from the record's identifier the same way a scraped product's does.
+            if args.topics_file:
+                specs = load_topics_file(args.topics_file)
+            else:
+                specs = [
+                    TopicSpec(
+                        title=args.topic,
+                        description=args.topic_description or "",
+                        keywords=[
+                            k.strip()
+                            for k in (args.topic_keywords or "").split(",")
+                            if k.strip()
+                        ],
+                    )
+                ]
+            products_list = []
+            for spec in specs:
+                product = build_topic_product(spec)
+                # Materialise data.json so the run is inspectable and resumable
+                # in the same shape as a scraped product's directory.
+                # `scraped_data` is the data.json path the producer reads, so
+                # take the directory from it rather than naming a key that only
+                # happens to exist today.
+                data_path = config.get_product_paths(
+                    topic_product_id(spec.title), args.profile
+                )["scraped_data"]
+                topic_dir = data_path.parent
+                topic_dir.mkdir(parents=True, exist_ok=True)
+                data_path.write_text(
+                    json.dumps(product.to_dict(), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                logger.info("Prepared topic %r in %s", spec.title, topic_dir)
+                products_list.append((topic_dir, product))
+            profile_name = args.profile
         else:
             # Single product mode: load from file
             # Fix path resolution: resolve relative to project root, not current
@@ -749,7 +858,7 @@ async def main():
             profile_name = args.profile
     except Exception as e:
         error_msg = f"Failed to load products: {e}"
-        if not args.batch:
+        if not args.batch and not (args.topic or args.topics_file):
             error_msg = (
                 f"Failed to load or validate products from {products_file_path}: {e}"
             )

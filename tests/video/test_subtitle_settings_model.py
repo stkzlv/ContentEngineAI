@@ -109,7 +109,7 @@ class TestFromLegacyDict:
 
 
 @pytest.mark.unit
-class TestAllNineProfilesLoad:
+class TestAllBundledProfilesLoad:
     """Every shipped VideoProfile merges cleanly into SubtitleSettings."""
 
     def test_all_profiles_load_via_from_legacy_dict(self):
