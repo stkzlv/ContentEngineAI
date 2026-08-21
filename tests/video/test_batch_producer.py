@@ -54,6 +54,24 @@ def mock_outputs_dir(temp_dir):
     # Invalid product (missing data.json)
     (outputs / "B0INVALID").mkdir()
 
+    # Topic render: a complete directory, but with no scraped imagery. A product
+    # profile drawing it fails the run rather than skipping it, so discovery has
+    # to leave it alone.
+    topic = outputs / "topic-why-wifi-drops-df04e256"
+    topic.mkdir()
+    (topic / "data.json").write_text(
+        json.dumps(
+            {
+                "asin": "topic-why-wifi-drops-df04e256",
+                "title": "Why wifi drops",
+                "price": "",
+                "url": "",
+                "platform": "amazon",
+                "topic": "Why wifi drops",
+            }
+        )
+    )
+
     return outputs
 
 
@@ -62,6 +80,17 @@ def test_discover_products_for_batch(mock_outputs_dir):
     assert len(products) == 2
     ids = {p[1].asin for p in products}
     assert ids == {"B0VALID1", "B0VALID2"}
+
+
+def test_discover_products_for_batch_skips_topic_directories(mock_outputs_dir):
+    """A topic directory has a valid data.json and no imagery.
+
+    Discovery hands what it finds to a product profile, which would then fail
+    the run instead of skipping it. The fixture holds one, so this fails if the
+    guard is removed.
+    """
+    products = discover_products_for_batch(mock_outputs_dir)
+    assert not [p for p in products if (p[1].asin or "").startswith("topic-")]
 
 
 def test_profile_usage_tracker():
@@ -168,6 +197,12 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
     mock_args.subtitle_randomize_fonts = None
     mock_args.subtitle_randomize_colors = None
     mock_args.subtitle_randomize_effects = None
+    # A MagicMock attribute is truthy, so these must be set explicitly or the
+    # run is read as a topic render rather than a batch.
+    mock_args.topic = None
+    mock_args.topic_description = None
+    mock_args.topic_keywords = None
+    mock_args.topics_file = None
 
     mock_config.video_profiles = {"test_profile": {}}
     mock_config.pipeline_timeout_sec = 10

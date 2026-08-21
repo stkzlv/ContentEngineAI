@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Profiles excluded from random selection. `base` is the inheritance template
 # other profiles extend, not a render target, so random batches shouldn't pick
-# it. It stays usable via an explicit --profile / --batch-profile.
-EXCLUDED_RANDOM_PROFILES = frozenset({"base"})
+# it. `slideshow_stock` renders entirely from stock media, which is right for a
+# topic and wrong for a scraped product, whose own imagery it would ignore.
+# Both stay usable via an explicit --profile / --batch-profile.
+EXCLUDED_RANDOM_PROFILES = frozenset({"base", "slideshow_stock"})
 
 
 def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:

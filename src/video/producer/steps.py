@@ -113,6 +113,23 @@ def _load_artifacts_download_music(ctx: PipelineContext) -> None:
     pass
 
 
+TOPIC_KEYWORD_SEPARATOR = ","
+
+
+def resolve_topic_keywords(product: Any) -> list[str]:
+    """Stock search terms a topic record carries, if it is one.
+
+    Returns an empty list for a scraped product. Topic keywords are stored
+    joined on a comma because the field is a single string and the terms are
+    phrases: splitting on whitespace would turn "wifi router" into two
+    unrelated words.
+    """
+    if not getattr(product, "topic", None):
+        return []
+    raw = getattr(product, "keyword", "") or ""
+    return [k.strip() for k in raw.split(TOPIC_KEYWORD_SEPARATOR) if k.strip()]
+
+
 def resolve_stock_keywords(profile: Any, media_settings: Any) -> list[str]:
     """Stock search terms for this run: the profile's if it declares any.
 
@@ -229,22 +246,35 @@ async def step_gather_visuals(ctx: PipelineContext):
                 ctx.config.media_settings,
                 ctx.config.api_settings,
             )
-            base_keywords = resolve_stock_keywords(
-                ctx.profile, ctx.config.media_settings
-            )
-            keywords = list(
-                set(
-                    base_keywords
-                    + (
-                        [
-                            w
-                            for w in (ctx.product.title or "").split()
-                            if len(w)
-                            >= ctx.config.media_settings.product_title_keyword_min_length  # noqa: E501
-                        ]
+            # The provider joins these into one query string, so every term
+            # added narrows the search. A topic states its own terms; use them
+            # alone rather than diluting them with title words and the global
+            # product-oriented defaults.
+            topic_keywords = resolve_topic_keywords(ctx.product)
+            if topic_keywords:
+                keywords = topic_keywords
+                logger.debug(
+                    "Stock keywords from topic (%d): %s",
+                    len(topic_keywords),
+                    topic_keywords,
+                )
+            else:
+                base_keywords = resolve_stock_keywords(
+                    ctx.profile, ctx.config.media_settings
+                )
+                keywords = sorted(
+                    set(
+                        base_keywords
+                        + (
+                            [
+                                w
+                                for w in (ctx.product.title or "").split()
+                                if len(w)
+                                >= ctx.config.media_settings.product_title_keyword_min_length  # noqa: E501
+                            ]
+                        )
                     )
                 )
-            )
             # Check for pre-loaded stock media first
             preloaded_media = None
             if ctx.resource_preloader:

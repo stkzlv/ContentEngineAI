@@ -76,6 +76,11 @@ class BaseProductData:
     # Content pillar (attached from source keyword config)
     pillar: str | None = None
 
+    # Set when the record was built from a topic rather than scraped from a
+    # listing. Its presence is what distinguishes the two, since a topic record
+    # still uses this class and still gets a platform stamped on it.
+    topic: str | None = None
+
     def __post_init__(self):
         """Post-initialization validation and setup."""
         # All list fields are now initialized with default_factory
@@ -104,6 +109,7 @@ class BaseProductData:
             "affiliate_link": self.affiliate_link,
             "shortened_affiliate_link": self.shortened_affiliate_link,
             "pillar": self.pillar,
+            "topic": self.topic,
         }
 
 

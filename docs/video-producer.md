@@ -15,6 +15,35 @@ poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_im
   --subtitle-format ass --preset animated --debug
 ```
 
+### Topic Video (no scraped product)
+
+Renders from a subject rather than a listing, using a profile that sources every
+visual from stock. Output lands in `outputs/topic-<slug>/`.
+
+```bash
+# One topic
+poetry run python -m src.video.producer slideshow_stock \
+  --topic "Why your wifi keeps dropping" \
+  --topic-description "Router placement, channel congestion, 2.4 vs 5GHz." \
+  --topic-keywords "wifi router, home network"
+
+# Several, from a YAML file
+poetry run python -m src.video.producer slideshow_stock --topics-file topics.yaml
+```
+
+```yaml
+# topics.yaml
+- title: "Why your wifi keeps dropping"
+  description: "Router placement, channel congestion, 2.4 vs 5GHz."
+  keywords: ["wifi router", "home network"]
+- title: "Laptop fan always loud"
+  description: "Dust, thermal paste, background CPU load."
+```
+
+Scripts are currently written to pitch a product, so a topic render produces
+product-shaped copy until problem-first templates land. Length follows the
+script, and a short description yields a short video.
+
 ### Batch Processing
 
 ```bash
@@ -43,6 +72,10 @@ poetry run python -m src.video.producer --batch --random-profile \
 | `--profile-pool` | Profiles for random selection | `--profile-pool prof1 prof2` |
 | `--outputs-dir` | Custom outputs directory | `--outputs-dir custom_outputs` |
 | `--fail-fast` | Stop batch on first failure | `--fail-fast` |
+| `--topic` | Render a subject instead of a product; replaces `products_file` | `--topic "Why wifi drops"` |
+| `--topic-description` | Source material the script is written from | `--topic-description "Router placement."` |
+| `--topic-keywords` | Comma-separated stock search terms for the topic | `--topic-keywords "wifi router, home network"` |
+| `--topics-file` | YAML list of topics to render in turn | `--topics-file topics.yaml` |
 
 ### Production Control
 

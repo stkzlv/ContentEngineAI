@@ -107,10 +107,14 @@ captions carrying the specific information. For an automated pipeline the
 practical reading is: stock as the bed, on-screen text as the teaching layer.
 The text is doing the work the footage cannot.
 
-**In this project**, a stock-only visual profile is a config change, not new
-code: set `use_scraped_images: false` on the profile and populate
-`media_settings.stock_media_keywords`. Stock media is already merged into the
-same visual pool as scraped media.
+**In this project**, the `slideshow_stock` profile renders entirely from stock,
+paired with `--topic` for content that has no product to scrape. Search terms
+come from the topic itself; the profile declares an empty keyword list rather
+than inheriting the product-oriented global defaults, because the provider
+concatenates every term into one query and the mixture matches nothing.
+
+The footage is chosen before the script is written, so it tracks the topic
+rather than the narration. Aligning the two is separate work.
 
 ## 4. Discovery: search-first, not feed-first
 
