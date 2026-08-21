@@ -30,6 +30,17 @@ class ScriptTemplateConfig(BaseModel):
     # would otherwise duplicate (banned words, word target, narrator persona,
     # anti-AI-tells). Empty string disables narrator profile injection.
     narrator_profile: str = ""
+    # Templates used when the record came from a topic rather than a scraped
+    # product. Selected instead of the pillar pool, because a pillar narrows
+    # which product angle to take while this decides whether the script is
+    # about a product at all. Empty list falls back to the normal pool, which
+    # produces a product pitch about a subject.
+    topic_templates: list[str] = Field(default_factory=list)
+    # Narrator direction for topic scripts. The default profile is written for
+    # someone describing a thing they bought, down to the CTA options, so a
+    # topic script inherits an affiliate call to action it has no basis for.
+    # Empty string falls back to narrator_profile.
+    narrator_profile_topic: str = ""
     # Pillar -> target-audience override. When a pillar is set at runtime and
     # the map has an entry for it, the {AUDIENCE} placeholder uses this value
     # instead of LLMSettings.target_audience. Lets each pillar speak to the

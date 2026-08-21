@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-08-21
+
+### Added
+- Three problem-first script templates for topic renders (`topic_answer_first`, `topic_symptom_cause`, `topic_mistake_fix`), stating the fix in the first three seconds and forbidding the model from inventing a product to sell. `script_templates.topic_templates` selects them, replacing the product pool rather than narrowing it, since any product template left reachable renders a topic as an advertisement for a subject.
+- `script_templates.narrator_profile_topic`, a narrator profile for topic scripts. The default profile is written for someone describing a purchase and its call-to-action list is where "Link in bio if you want one" comes from, so swapping templates alone left every topic script ending on an affiliate CTA with nothing behind it.
+
+### Fixed
+- A scraped product can no longer draw a topic template. Templates share one directory and the default pool is a glob over it, so the exclusion has to run in both directions.
+- A topic title is no longer trimmed by the product-alias heuristic, which cuts at listing separators and keeps three words: "Why your laptop fan is always loud" became "Why your laptop", which the template then instructed the model to speak as the thing's name.
+
 ## [0.65.0] - 2026-08-21
 
 ### Added
