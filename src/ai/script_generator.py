@@ -147,16 +147,32 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
     ------
         ValueError: If the template contains placeholders that can't be filled
 
+    Placeholders available to a template: FULL_PRODUCT_NAME, SHORT_PRODUCT_NAME,
+    PRODUCT_DESCRIPTION, AUDIENCE, and the neutral TOPIC_TITLE / TOPIC_DETAIL
+    that topic templates use. All are passed on every call, so a template uses
+    whichever it names and ignoring the rest is safe.
+
     """
     full_name = _normalize_for_llm(product.title or "Product")
-    short_name = _short_product_name(full_name)
     description = _normalize_for_llm(product.description or "No description available")
+    # `_short_product_name` cuts at SEO separators and keeps three words, which
+    # is right for a listing title and wrong for a question: "Why your laptop
+    # fan is always loud" becomes "Why your laptop", and the template then tells
+    # the model to speak it as the thing's name.
+    if getattr(product, "topic", None):
+        short_name = full_name
+    else:
+        short_name = _short_product_name(full_name)
     try:
         return template.format(
             FULL_PRODUCT_NAME=full_name,
             SHORT_PRODUCT_NAME=short_name,
             PRODUCT_DESCRIPTION=description,
             AUDIENCE=audience,
+            # Neutral aliases for the topic templates. Passing them always is
+            # harmless: `str.format` ignores keys a template does not use.
+            TOPIC_TITLE=full_name,
+            TOPIC_DETAIL=description,
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
@@ -184,6 +200,7 @@ def select_script_template(
     settings: LLMSettings,
     product_id: str | None = None,
     pillar: str | None = None,
+    is_topic: bool = False,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
@@ -224,6 +241,29 @@ def select_script_template(
     pool = [t for t in pool if t in all_templates]
     if not pool:
         pool = all_templates
+
+    # The exclusion has to run both ways. Topic templates live in the same
+    # directory and the default pool is a glob over it, so without this a
+    # scraped product can draw a template that asks the model not to mention a
+    # product.
+    if not is_topic and templates_cfg.topic_templates:
+        without_topic = [t for t in pool if t not in templates_cfg.topic_templates]
+        if without_topic:
+            pool = without_topic
+
+    # A topic replaces the pool rather than narrowing it. Every other template
+    # is written to pitch a product, so leaving one in the pool means a topic
+    # sometimes renders as an advertisement for a subject.
+    if is_topic and templates_cfg.topic_templates:
+        topic_pool = [t for t in templates_cfg.topic_templates if t in all_templates]
+        if topic_pool:
+            pool = topic_pool
+        else:
+            logger.warning(
+                "No configured topic templates exist in '%s'; falling back to "
+                "the product pool, which will produce product-shaped copy",
+                templates_dir,
+            )
 
     # Apply pillar filter (when pillar is provided and known)
     if pillar and pillar in templates_cfg.pillars:
@@ -738,7 +778,9 @@ async def generate_script(
     if pillar:
         _warn_unknown_pillar(pillar, settings)
 
-    template_path = select_script_template(settings, product_id, pillar)
+    template_path = select_script_template(
+        settings, product_id, pillar, is_topic=bool(getattr(product, "topic", None))
+    )
     template_name = template_path.stem
     audience = _resolve_audience(pillar, settings)
     try:
@@ -749,7 +791,7 @@ async def generate_script(
 
     prompt = apply_prompt_preambles(
         prompt,
-        settings.script_templates.narrator_profile,
+        settings.script_templates.narrator_for(bool(getattr(product, "topic", None))),
         pillar,
         settings.script_templates.pillar_preambles,
     )

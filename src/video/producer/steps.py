@@ -451,7 +451,9 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
         ctx.config.api_settings,
         ctx.debug_mode,
         video_script=ctx.script,
-        narrator_profile=script_cfg.narrator_profile,
+        narrator_profile=script_cfg.narrator_for(
+            bool(getattr(ctx.product, "topic", None))
+        ),
         pillar=pillar,
         pillar_preambles=script_cfg.pillar_preambles,
         max_words=ctx.config.video_settings.hook_overlay.max_words,
@@ -615,7 +617,9 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
             intermediate_paths=intermediate_paths,
             debug_mode=ctx.debug_mode,
             api_settings=ctx.config.api_settings,
-            narrator_profile=script_cfg.narrator_profile,
+            narrator_profile=script_cfg.narrator_for(
+                bool(getattr(ctx.product, "topic", None))
+            ),
             pillar=active_pillar,
             pillar_preambles=script_cfg.pillar_preambles,
         )

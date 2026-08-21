@@ -40,9 +40,10 @@ poetry run python -m src.video.producer slideshow_stock --topics-file topics.yam
   description: "Dust, thermal paste, background CPU load."
 ```
 
-Scripts are currently written to pitch a product, so a topic render produces
-product-shaped copy until problem-first templates land. Length follows the
-script, and a short description yields a short video.
+A topic render draws from its own template pool, written to answer a question
+rather than pitch a product, and uses a narrator profile whose calls to action
+offer nothing to buy. Length follows the script, so a short description yields a
+short video.
 
 ### Batch Processing
 

@@ -28,7 +28,15 @@ def _ctx(*, state=None, hook_enabled=True, max_words=7):
         config=SimpleNamespace(
             llm_settings=SimpleNamespace(
                 script_templates=SimpleNamespace(
-                    narrator_profile="narrator", pillar_preambles={}
+                    narrator_profile="narrator",
+                    narrator_profile_topic="topic narrator",
+                    pillar_preambles={},
+                    # The real config resolves which profile a render gets, so
+                    # the stub has to answer the same question rather than
+                    # exposing the field the caller no longer reads.
+                    narrator_for=lambda is_topic: (
+                        "topic narrator" if is_topic else "narrator"
+                    ),
                 )
             ),
             api_settings=None,

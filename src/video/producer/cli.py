@@ -672,6 +672,15 @@ async def main():
                 "--batch-profile, --fail-fast and --random-profile "
                 "can only be used with --batch"
             )
+        if args.pillar:
+            # Every pillar preamble and audience hint is written about a
+            # product ("the product fixes...", "practical buyers"), which
+            # contradicts the topic templates' own instruction not to invent
+            # one. Refusing beats emitting a prompt that argues with itself.
+            parser.error(
+                "--pillar cannot be used with --topic/--topics-file: the "
+                "pillar preambles and audiences are written about a product"
+            )
     else:
         # Non-batch mode validation
         if not args.products_file or not args.profile:

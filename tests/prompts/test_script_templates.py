@@ -1,9 +1,16 @@
-"""Sanity tests for the 15 script templates in src/ai/prompts/scripts/.
+"""Sanity tests for the script templates in src/ai/prompts/scripts/.
 
-Asserts that the cross-template rules introduced by Phase 1.1 / 1.2 / 1.5
-have not drifted out of any template. These rules are repeated across all
-15 files; a single template losing one is a silent regression that won't
-surface until a render lands wrong.
+Asserts that the cross-template rules have not drifted out of any template.
+These rules are repeated across every file; a single template losing one is a
+silent regression that won't surface until a render lands wrong.
+
+The directory holds two families with different contracts. Product templates
+pitch a scraped listing and carry the hook, anti-setup and closing-line rules.
+Topic templates answer a question and must not mention a product at all, so the
+product rules are not merely absent from them, they would be wrong. Each family
+is collected separately, and a new template has to be added to one of the two
+sets deliberately rather than inheriting the other's contract by being dropped
+in the same folder.
 """
 
 from pathlib import Path
@@ -46,16 +53,50 @@ ANALYTICAL_TEMPLATES = {
 }
 
 
+# Templates for topic renders, which have no product. They carry the answer-first
+# rules instead of the product ones.
+TOPIC_TEMPLATES = {
+    "topic_answer_first",
+    "topic_mistake_fix",
+    "topic_symptom_cause",
+}
+
+
 def _all_templates() -> list[Path]:
     return sorted(SCRIPTS_DIR.glob("*.md"))
 
 
-def test_expected_15_templates_present() -> None:
+def _product_templates() -> list[Path]:
+    return [p for p in _all_templates() if p.stem not in TOPIC_TEMPLATES]
+
+
+def _topic_templates() -> list[Path]:
+    return [p for p in _all_templates() if p.stem in TOPIC_TEMPLATES]
+
+
+def test_topic_family_matches_the_config() -> None:
+    """The runtime family is the config list, not this constant.
+
+    A template added here but not to `script_templates.topic_templates` is drawn
+    by product renders, and every test still passes: the topic-pool test asserts
+    against the same config list that is missing the entry.
+    """
+    from src.video.config import config
+
+    assert set(config.llm_settings.script_templates.topic_templates) == TOPIC_TEMPLATES
+
+
+def test_every_template_is_categorised() -> None:
+    """A new template must join a family, not sit between them.
+
+    Dropping a file in the directory makes it selectable, so one that belongs to
+    neither set would ship with none of either family's rules checked.
+    """
     names = {p.stem for p in _all_templates()}
-    assert names == EXPECTED_TEMPLATES
+    assert names == EXPECTED_TEMPLATES | TOPIC_TEMPLATES
 
 
-@pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)
 def test_phase_1_1_audio_keyword_rule_present(template: Path) -> None:
     """Phase 1.1: every template carries the audio-keyword hook rule."""
     text = template.read_text()
@@ -64,7 +105,7 @@ def test_phase_1_1_audio_keyword_rule_present(template: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)
 def test_phase_1_2_anti_setup_clause_present(template: Path) -> None:
     """Phase 1.2: every template carries the anti-setup clause on line 1."""
     text = template.read_text()
@@ -72,7 +113,7 @@ def test_phase_1_2_anti_setup_clause_present(template: Path) -> None:
     assert 'Avoid "Today I\'ll"' in text
 
 
-@pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)
 def test_phase_1_5_closing_line_rule_present(template: Path) -> None:
     """Phase 1.5: every template carries a comment-fork OR debatable-claim close."""
     text = template.read_text()
@@ -83,7 +124,7 @@ def test_phase_1_5_closing_line_rule_present(template: Path) -> None:
 
 @pytest.mark.parametrize(
     "template",
-    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    [p for p in _product_templates() if p.stem in ANALYTICAL_TEMPLATES],
     ids=lambda p: p.stem,
 )
 def test_analytical_close_has_passive_product_branch(template: Path) -> None:
@@ -109,7 +150,7 @@ def test_analytical_close_has_passive_product_branch(template: Path) -> None:
 
 @pytest.mark.parametrize(
     "template",
-    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    [p for p in _product_templates() if p.stem in ANALYTICAL_TEMPLATES],
     ids=lambda p: p.stem,
 )
 def test_analytical_close_has_no_worked_spec_example(template: Path) -> None:
@@ -132,7 +173,7 @@ def test_analytical_close_has_no_worked_spec_example(template: Path) -> None:
 
 @pytest.mark.parametrize(
     "template",
-    [p for p in _all_templates() if p.stem in ANALYTICAL_TEMPLATES],
+    [p for p in _product_templates() if p.stem in ANALYTICAL_TEMPLATES],
     ids=lambda p: p.stem,
 )
 def test_analytical_close_warns_against_substring_units(template: Path) -> None:
@@ -147,14 +188,14 @@ def test_analytical_close_warns_against_substring_units(template: Path) -> None:
     assert '"supports" and "Portable" are not ports' in text
 
 
-@pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)
 def test_tradeoff_rule_present(template: Path) -> None:
     """Trade-off honesty rule (Phase 0.43.1) on every template."""
     text = template.read_text()
     assert "one short trade-off or limitation" in text
 
 
-@pytest.mark.parametrize("template", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)
 def test_product_data_block_present(template: Path) -> None:
     """Every template ends with the {AUDIENCE} placeholder block."""
     text = template.read_text()
@@ -162,3 +203,49 @@ def test_product_data_block_present(template: Path) -> None:
     assert "{SHORT_PRODUCT_NAME}" in text
     assert "{PRODUCT_DESCRIPTION}" in text
     assert "{AUDIENCE}" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_uses_neutral_placeholders(template: Path) -> None:
+    """A topic template must not ask for product fields.
+
+    `{SHORT_PRODUCT_NAME}` is documented to the model as the thing's name, so a
+    topic template carrying it tells the model to speak the question as a
+    product.
+    """
+    text = template.read_text()
+    assert "{TOPIC_TITLE}" in text
+    assert "{TOPIC_DETAIL}" in text
+    assert "{PRODUCT_DESCRIPTION}" not in text
+    assert "{SHORT_PRODUCT_NAME}" not in text
+    assert "{FULL_PRODUCT_NAME}" not in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_forbids_inventing_a_product(template: Path) -> None:
+    """The observed failure was the model inventing something to sell.
+
+    Two real renders produced "I just got this thing" and closed on "Link in bio
+    if you want one" for topics with no product anywhere in the input.
+    """
+    text = template.read_text()
+    assert "Do not invent a product" in text
+    assert "this thing" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_states_the_answer_first(template: Path) -> None:
+    """Withholding the fix loses the viewer who came for it.
+
+    The answer-first shape is the main thing separating tutorial content from
+    the promo structure the product templates use.
+    """
+    text = template.read_text().lower()
+    assert "first three seconds" in text or "same breath" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_requires_the_spoken_search_phrase(template: Path) -> None:
+    """Platforms index the transcript, so the phrase has to be said aloud."""
+    text = template.read_text()
+    assert "first five seconds" in text
