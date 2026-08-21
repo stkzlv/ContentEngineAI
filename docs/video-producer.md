@@ -41,7 +41,8 @@ poetry run python -m src.video.producer slideshow_stock --topics-file topics.yam
 ```
 
 Scripts are currently written to pitch a product, so a topic render produces
-product-shaped copy until problem-first templates land.
+product-shaped copy until problem-first templates land. Length follows the
+script, and a short description yields a short video.
 
 ### Batch Processing
 

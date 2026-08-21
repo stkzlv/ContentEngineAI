@@ -542,7 +542,7 @@ video_profiles:
   # all of it from the stock provider, which is what content about a problem
   # rather than a product needs.
   #
-  # stock_image_count must stay at or above media_settings.min_images_if_no_video
+  # stock_image_count must stay at or above video_settings.min_images_if_no_video
   # (5). A profile that excludes videos and gathers fewer images than that is
   # reported as SKIPPED rather than failed, so a shortfall looks like a missing
   # product instead of a misconfigured profile. 8 leaves room for the provider
@@ -550,13 +550,16 @@ video_profiles:
   #
   # Duration is not set here because it is not a profile-level setting: length
   # follows the script, and the script budget lives in
-  # config/ai_services.yaml (30-40 seconds, roughly 75-100 words).
+  # config/ai_services.yaml (30-40 seconds, roughly 75-100 words). Measured
+  # topic renders came in at 20.6s and 27.4s, both under that budget, because a
+  # short topic description yields a short script. The budget is a prompt
+  # instruction, not a constraint anything enforces.
   #
   # Deliberately absent from profile_pool below and listed in
   # EXCLUDED_RANDOM_PROFILES, so a random product batch cannot draw a profile
   # that would render a scraped product with no product imagery.
   slideshow_stock:
-    description: "Stock-only slideshow for topic renders with no product imagery. Targets the 25-40s tutorial band at the global script budget."
+    description: "Stock-only slideshow for topic renders with no product imagery. Duration follows the script, not this profile: measured renders land between 20 and 28 seconds against a global budget of 30-40."
     use_scraped_images: false
     use_scraped_videos: false
     use_stock_images: true

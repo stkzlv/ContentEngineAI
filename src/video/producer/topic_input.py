@@ -17,6 +17,7 @@ tracked separately.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -63,6 +64,17 @@ class TopicSpec:
     description: str = ""
     keywords: list[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        """Validate here so `--topic` and a topics file behave identically.
+
+        Constructing the spec inline for `--topic` would otherwise skip the
+        checks the file loader applies, and a blank title renders into a
+        directory named for nothing.
+        """
+        if not isinstance(self.title, str) or not self.title.strip():
+            raise TopicInputError("Topic title is required and must not be blank")
+        self.title = self.title.strip()
+
 
 def topic_slug(title: str) -> str:
     """Derive a filesystem-safe, deterministic slug from a topic title.
@@ -84,8 +96,20 @@ def topic_slug(title: str) -> str:
 
 
 def topic_product_id(title: str) -> str:
-    """Identifier for a topic's run, which also names its outputs directory."""
-    return f"{TOPIC_ID_PREFIX}{topic_slug(title)}"
+    """Identifier for a topic's run, which also names its outputs directory.
+
+    The readable slug is suffixed with a digest of the full title because the
+    slug alone is not unique: it truncates, and it drops every character outside
+    the Latin alphabet, so two long titles sharing a prefix collide and any two
+    non-Latin titles both reduce to "untitled". A collision is silent and
+    expensive. The second run inherits the first's completed
+    `pipeline_state.json`, skips every step, and reports success while handing
+    back the first topic's video.
+
+    Keyed on the exact title, so the same title resumes its own run.
+    """
+    digest = hashlib.md5(title.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
+    return f"{TOPIC_ID_PREFIX}{topic_slug(title)}-{digest}"
 
 
 def build_topic_product(spec: TopicSpec) -> ProductData:
@@ -140,7 +164,9 @@ def _spec_from_mapping(entry: Any, index: int, source: Path) -> TopicSpec:
     if unknown:
         # Strict, because a typo in a hand-written file would otherwise cost a
         # render before anyone noticed the field never applied.
-        raise TopicInputError(f"{where}: unknown key(s): {', '.join(sorted(unknown))}")
+        raise TopicInputError(
+            f"{where}: unknown key(s): {', '.join(sorted(map(str, unknown)))}"
+        )
 
     return TopicSpec(
         title=title.strip(), description=description, keywords=list(keywords)
@@ -174,8 +200,9 @@ def load_topics_file(path: Path) -> list[TopicSpec]:
     for spec in specs:
         pid = topic_product_id(spec.title)
         if pid in seen:
-            # Two titles collapsing to one slug would render into one directory,
-            # the second overwriting the first.
+            # The identifier carries a digest of the title, so only an exact
+            # duplicate reaches here. Two entries for one title would render
+            # into a single directory, the second overwriting the first.
             raise TopicInputError(
                 f"{path}: '{spec.title}' and '{seen[pid]}' both produce the "
                 f"identifier '{pid}'; give them more distinct titles"

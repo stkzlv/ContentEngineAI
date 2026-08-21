@@ -62,8 +62,30 @@ class TestTopicSlug:
     def test_is_deterministic(self):
         assert topic_slug("Why your wifi drops") == topic_slug("Why your wifi drops")
 
-    def test_ignores_case_and_punctuation(self):
+    def test_readable_part_ignores_case_and_punctuation(self):
         assert topic_slug("Why your WiFi drops!") == topic_slug("why your wifi drops")
+
+    def test_identifiers_never_collide_across_distinct_titles(self):
+        """The readable slug alone is not unique, and a collision is silent.
+
+        It truncates, and it drops everything outside the Latin alphabet, so two
+        long titles sharing a prefix land on one identifier and any two non-Latin
+        titles both reduce to "untitled". The second run then inherits the
+        first's completed pipeline state, skips every step, and reports success
+        while returning the first topic's video.
+        """
+        titles = [
+            "Why your home wifi keeps dropping out during video calls and how to fix it",
+            "Why your home wifi keeps dropping out during video calls and what to try first",
+            "Почему падает интернет",
+            "为什么你的无线网络会掉线",
+        ]
+        ids = [topic_product_id(t) for t in titles]
+        assert len(set(ids)) == len(titles), ids
+
+    def test_identifier_is_stable_for_the_same_title(self):
+        """Resume depends on it: a re-run must find its own directory."""
+        assert topic_product_id("Why wifi drops") == topic_product_id("Why wifi drops")
 
     @pytest.mark.parametrize(
         "title",
@@ -98,7 +120,8 @@ class TestTopicSlug:
 class TestBuildTopicProduct:
     def test_identifier_names_the_run(self):
         product = build_topic_product(TopicSpec(title="Why wifi drops"))
-        assert product.asin == "topic-why-wifi-drops"
+        assert product.asin is not None
+        assert product.asin.startswith("topic-why-wifi-drops-")
 
     def test_listing_fields_are_left_empty(self):
         """A topic has no listing, so these carry nothing rather than a guess."""
@@ -114,6 +137,23 @@ class TestBuildTopicProduct:
             TopicSpec(title="Why wifi drops", description="Router placement.")
         )
         assert product.description == "Router placement."
+
+
+@pytest.mark.unit
+class TestTopicSpecValidation:
+    """`--topic` builds a spec inline, so validation has to live on the spec.
+
+    Otherwise the flag accepts what the file loader rejects, and the two entry
+    points disagree about what a valid topic is.
+    """
+
+    @pytest.mark.parametrize("title", ["", "   ", "\t\n"])
+    def test_blank_titles_are_rejected(self, title):
+        with pytest.raises(TopicInputError):
+            TopicSpec(title=title)
+
+    def test_title_is_trimmed(self):
+        assert TopicSpec(title="  Why wifi drops  ").title == "Why wifi drops"
 
 
 @pytest.mark.unit
@@ -195,13 +235,20 @@ class TestLoadTopicsFile:
         with pytest.raises(TopicInputError):
             load_topics_file(path)
 
-    def test_colliding_identifiers_raise(self, tmp_path):
-        """Two titles that slug identically would share one run directory."""
+    def test_duplicate_titles_raise(self, tmp_path):
+        """The same title twice would render into one directory, twice."""
         path = self._write(
-            tmp_path, [{"title": "Why WiFi drops"}, {"title": "why wifi drops!"}]
+            tmp_path, [{"title": "Why WiFi drops"}, {"title": "Why WiFi drops"}]
         )
         with pytest.raises(TopicInputError, match="identifier"):
             load_topics_file(path)
+
+    def test_titles_differing_only_in_case_do_not_collide(self, tmp_path):
+        """They share a readable slug but not an identifier, by design."""
+        path = self._write(
+            tmp_path, [{"title": "Why WiFi drops"}, {"title": "why wifi drops!"}]
+        )
+        assert len(load_topics_file(path)) == 2
 
 
 @pytest.mark.unit

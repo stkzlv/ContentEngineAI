@@ -36,7 +36,7 @@ poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_i
 # Or render a topic, with no scraper run and no product directory
 poetry run python -m src.video.producer slideshow_stock \
   --topic "Why your wifi keeps dropping" \
-  --topic-description "Router placement, channel congestion, 2.4 vs 5GHz." 
+  --topic-description "Router placement, channel congestion, 2.4 vs 5GHz."
 
 # 3. Batch pipeline (scrape + produce + publish)
 poetry run python -m src.pipeline.global_batch \

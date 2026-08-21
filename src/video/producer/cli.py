@@ -625,7 +625,8 @@ async def main():
 
     args = parser.parse_args()
 
-    if (args.topic or args.topics_file) and args.products_file and not args.profile:
+    topic_mode = args.topic is not None or args.topics_file is not None
+    if topic_mode and args.products_file and not args.profile:
         # Both positionals are optional, so argparse binds a lone profile name
         # to products_file. In topic mode there is no products_file, so the bare
         # word can only be the profile.
@@ -651,7 +652,12 @@ async def main():
             parser.error(
                 "products_file and profile arguments cannot be used with --batch"
             )
-    elif args.topic or args.topics_file:
+        if topic_mode:
+            # Without this the batch branch wins silently and renders every
+            # product directory instead, with nothing saying the topic was
+            # dropped.
+            parser.error("--topic/--topics-file cannot be used with --batch")
+    elif topic_mode:
         # Topic mode: the record is built from the topic, so there is no
         # products_file to read. A profile is still required, and must be one
         # that sources its visuals from stock.
@@ -795,7 +801,7 @@ async def main():
             # Create products list with directory info for batch processing
             products_list = list(discovered_products)
             profile_name = args.batch_profile
-        elif args.topic or args.topics_file:
+        elif topic_mode:
             # Topic mode: build the record instead of reading one the scraper
             # wrote. Everything downstream is unchanged; the run directory comes
             # from the record's identifier the same way a scraped product's does.
@@ -858,7 +864,7 @@ async def main():
             profile_name = args.profile
     except Exception as e:
         error_msg = f"Failed to load products: {e}"
-        if not args.batch and not (args.topic or args.topics_file):
+        if not args.batch and not topic_mode:
             error_msg = (
                 f"Failed to load or validate products from {products_file_path}: {e}"
             )

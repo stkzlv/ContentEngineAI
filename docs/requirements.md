@@ -47,7 +47,7 @@ High-level requirements for ContentEngineAI.
 ### Outputs Directory
 - Centralized `outputs/` directory for all pipeline artifacts
 - Per-product directories: `outputs/<product_id>/` with `data.json`, `images/`, `videos/`
-- Topic renders use `outputs/topic-<slug>/`, holding `data.json` and `temp/` only, since a topic has no scraped media. The slug is derived from the title and is stable, so a re-run resumes rather than duplicating
+- Topic renders use `outputs/topic-<slug>-<digest>/`, carrying no `images/` or `videos/` subdirectory since a topic has no scraped media. The identifier is derived from the title and is stable, so a re-run resumes its own directory; the digest is what keeps two titles from sharing one, which would otherwise let the second run inherit the first's completed state and return the first video
 - Global directories: `cache/`, `logs/`, `reports/` for shared resources
 - Customizable via `--outputs-dir` CLI flag
 - Automatic cleanup of published products (configurable)
