@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-08-22
+
 ### Added
 - A profile that draws every visual from stock now gathers them after the script is written, and searches on phrases taken from the narration rather than on the topic title. `slideshow_stock` is the only bundled profile this applies to; a profile showing product photography keeps gathering visuals first, which also rejects a product with too few images before an LLM call is paid for.
 - `llm_settings.visual_search_terms` in `config/ai_services.yaml` controls the phrases: whether to derive them, how many, and how long each may be. Each phrase is searched separately, so the count is how many different shots a render draws on.
