@@ -5,7 +5,7 @@ import logging
 import warnings
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
@@ -42,6 +42,10 @@ _LEGACY_FLAT_TO_NESTED: dict[str, str] = {
     "subtitle_selected_font": "selected_font",
     "subtitle_selected_color_pair": "selected_color_pair",
     "subtitle_engine": "subtitle_engine",
+    # Not prefixed with `subtitle_`, which is how it came to be missing
+    # here while every sibling was migrated. A profile setting it was
+    # silently dropped and fell back to the global value.
+    "subtitle_format": "subtitle_format",
 }
 
 _LEGACY_SAFE_ZONE_FIELDS = (
@@ -452,6 +456,20 @@ class StockMediaSettings(BaseModel):
 
 
 class VideoProfile(BaseModel):
+    """A render profile: which media to use, how to lay it out, how to caption it.
+
+    Strict about unknown keys. Pydantic's default is to drop them, and a
+    dropped key in a profile block is invisible: the render succeeds using the
+    global value, so the profile appears to work and its override does
+    nothing. That is how `subtitle_format` sat unmigrated in seven bundled
+    profiles, and how `slideshow_stock` asked for a format it never got.
+
+    Legacy flat subtitle keys are migrated and removed by the validator below
+    before this check applies, so they are still accepted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     description: str
     use_scraped_images: bool = Field(False)
     use_scraped_videos: bool = Field(False)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A profile block setting `subtitle_format` now takes effect. Every other flat subtitle key was migrated into the nested block by the compatibility shim; this one was missed, because its target field is the only one whose name carries no `subtitle_` prefix. Seven bundled profiles set it and were falling back to the global value, and `slideshow_stock` asked for a format it never got.
+- `VideoProfile` rejects unknown keys instead of dropping them. `docs/requirements.md` has claimed strict validation for profile overrides since before the model had it: `SubtitleSettings` forbids extras, `VideoProfile` took Pydantic's default and ignored them, so a typo in a profile block was invisible. The render succeeds using the global value, which is what makes this class of bug hard to see: the profile appears to work and its override does nothing.
+
+### Changed
+- `slideshow_stock` declares `subtitle_format: "ass"` rather than `"srt"`. This is what it was already rendering, since the key was being dropped; content-aware positioning needs styling that SRT cannot express, and the sibling slideshow profiles all use ASS.
+
 ## [0.69.1] - 2026-08-22
 
 ### Fixed

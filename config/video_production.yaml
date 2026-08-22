@@ -585,8 +585,9 @@ video_profiles:
     image_width_percent: 1
     image_top_position_percent: 0.15              # Position image lower (15% from top)
 
-    # Subtitle format - SRT (simple format, no ASS effects like karaoke)
-    subtitle_format: "srt"
+    # ASS, matching the other slideshow profiles: content-aware positioning
+    # needs the styling SRT has no way to express.
+    subtitle_format: "ass"
 
     # Subtitle positioning overrides
     subtitle_anchor: "below_content"               # Position below visual content
@@ -595,9 +596,7 @@ video_profiles:
     subtitle_horizontal_alignment: "center"        # Center horizontally
 
     # Subtitle style overrides
-    # NOTE: SRT format doesn't support effects - use "minimal" or "bold" preset
-    # For karaoke/animated effects, use subtitle_format: "ass" instead
-    subtitle_style_preset: "bold"                  # Bold style (no effects, SRT-compatible)
+    subtitle_style_preset: "bold"
     subtitle_font_size_scale: 1.0                  # Normal font size
     subtitle_randomize_fonts: false                # SRT doesn't support font changes
     subtitle_randomize_colors: false               # SRT doesn't support color changes
