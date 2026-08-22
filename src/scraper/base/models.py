@@ -100,11 +100,17 @@ class BaseProductData:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
 
-        This is the single serialiser for a product record: the scraper, the
-        topic path and anything else that writes ``data.json`` all come through
-        here, so a field added to the dataclass reaches the file whichever path
-        wrote it. A second hand-written dict is how ``pillar`` came to persist
-        for topics and vanish for scraped products.
+        The serialiser for everything that goes through ``_save_products``:
+        the topic path calls this directly and the scraper's
+        ``_product_to_dict`` delegates to it, so a field added to the dataclass
+        reaches the file on both. A second hand-written dict is how ``pillar``
+        came to persist for topics and vanish for scraped products.
+
+        It is not the only writer. The Botasaurus output callback
+        (``botasaurus_output.write_scraped_data_output``) writes the raw
+        extractor dict, and in the standalone CLI's batch mode nothing calls
+        ``_save_products``, so there the raw dict is the final ``data.json``
+        and a field added here does not appear in it.
         """
         return {
             "title": self.title,
