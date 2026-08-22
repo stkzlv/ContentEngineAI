@@ -464,3 +464,121 @@ class TestStaleArtifactRemoval:
         from src.video.producer.state import _discard_stale_artifacts
 
         _discard_stale_artifacts({"pillar": "utility"}, valid_steps=[])
+
+
+@pytest.mark.unit
+class TestTruncationRemovesBlockingArtifacts:
+    """The call site, not just the helper.
+
+    Deleting the single call from `_load_pipeline_state` left the whole suite
+    byte-identical, so a refactor that dropped or reordered it would silently
+    restore the defect. These drive the real loader.
+    """
+
+    def _run(self, tmp_path, state):
+        import asyncio
+        import json
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import _load_pipeline_state
+
+        state_file = tmp_path / "pipeline_state.json"
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+        ctx = MagicMock()
+        ctx.run_paths = {"state_file": state_file}
+        ctx.state = {}
+        ctx._state_lock = asyncio.Lock()
+        ctx.profile = STOCK_ONLY
+        asyncio.run(_load_pipeline_state(ctx))
+        return ctx
+
+    def test_the_loader_removes_the_visuals_of_a_dropped_step(self, tmp_path):
+        """A lost script must not leave the footage searched from it in place."""
+        visuals = tmp_path / "gathered_visuals.json"
+        visuals.write_text("{}", encoding="utf-8")
+        ctx = self._run(
+            tmp_path,
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(tmp_path / "gone.txt")},
+                },
+                "gather_visuals": {
+                    "status": "done",
+                    "artifacts": {"gathered_visuals_file": str(visuals)},
+                },
+            },
+        )
+        assert not visuals.exists()
+        assert "gather_visuals" not in ctx.state
+
+    def test_the_finished_video_survives(self, tmp_path):
+        """It is the deliverable, and `assemble_video` re-renders regardless.
+
+        `pipeline_state.json` is shared by every profile of a product while the
+        video is per-profile, so deleting it can destroy another profile's
+        render entirely.
+        """
+        video = tmp_path / "video_B0TEST_slideshow_images1.mp4"
+        video.write_text("mp4", encoding="utf-8")
+        self._run(
+            tmp_path,
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(tmp_path / "gone.txt")},
+                },
+                "assemble_video": {
+                    "status": "done",
+                    "artifacts": {"final_video_output": str(video)},
+                },
+            },
+        )
+        assert video.exists()
+
+    def test_stale_platform_metadata_is_removed(self, tmp_path):
+        """`generate_description` short-circuits on these, not on its own
+        `description_file`, so captions would keep describing a lost script.
+        """
+        meta = tmp_path / "metadata.json"
+        meta.write_text('{"description": "from the old script"}', encoding="utf-8")
+        self._run(
+            tmp_path,
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(tmp_path / "gone.txt")},
+                },
+                "generate_description": {
+                    "status": "done",
+                    "artifacts": {"unified_metadata_file": str(meta)},
+                },
+            },
+        )
+        assert not meta.exists()
+
+    def test_a_path_a_surviving_step_still_claims_is_kept(self, tmp_path):
+        """Two steps can record the same file, and only one may be dropped.
+
+        Driven through the helper directly: no bundled pair shares a
+        rerun-blocking path today, so the guard is defensive and there is no
+        loader-level arrangement that would exercise it.
+        """
+        from src.video.producer.state import _discard_stale_artifacts
+
+        shared = tmp_path / "shared.json"
+        shared.write_text("{}", encoding="utf-8")
+        _discard_stale_artifacts(
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(shared)},
+                },
+                "gather_visuals": {
+                    "status": "done",
+                    "artifacts": {"gathered_visuals_file": str(shared)},
+                },
+            },
+            valid_steps=["generate_script"],
+        )
+        assert shared.exists()

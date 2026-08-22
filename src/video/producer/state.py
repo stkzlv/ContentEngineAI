@@ -221,10 +221,30 @@ async def _save_pipeline_state(ctx: PipelineContext):
         logger.error(f"Failed to save pipeline state: {e}")
 
 
+# Artifacts whose presence makes a step short-circuit and skip its work. Only
+# these are removed when a step is dropped: deleting anything else destroys
+# output for no benefit, and `final_video_output` in particular is the
+# deliverable, rebuilt unconditionally by a step that never short-circuits.
+_RERUN_BLOCKING_ARTIFACTS = frozenset(
+    {
+        "gathered_visuals_file",
+        "script_file",
+        "description_file",
+        "voiceover_file",
+        "voiceover_duration_file",
+    }
+)
+
+# `generate_description` short-circuits on the platform metadata rather than on
+# `description_file`, and those keys are generated per platform, so they are
+# matched by prefix instead of listed.
+_RERUN_BLOCKING_PREFIXES = ("unified_metadata_file", "platform_metadata_")
+
+
 def _discard_stale_artifacts(
     state_data: dict[str, Any], valid_steps: list[str]
 ) -> None:
-    """Delete the outputs of steps the truncated state no longer claims.
+    """Delete the outputs that would stop a dropped step from re-running.
 
     Dropping a step from the state is not enough on its own, because a step
     can short-circuit on its own artifact file rather than on the state:
@@ -234,14 +254,30 @@ def _discard_stale_artifacts(
     the old one, which is exactly the mismatch the reordering exists to
     prevent.
 
-    Only outputs of steps that must re-run are removed, so anything still
-    claimed by the truncated state survives. A file that is already gone, which
-    includes the missing artifact that triggered the truncation, is skipped.
+    Two things are deliberately not deleted. Anything outside
+    ``_RERUN_BLOCKING_ARTIFACTS``, because a step that re-runs regardless loses
+    nothing by keeping its previous output and everything by having it removed:
+    ``pipeline_state.json`` is shared by every profile of a product while the
+    rendered video is per-profile, so a blanket delete takes another profile's
+    finished render with it. And any path a surviving step still claims, since
+    ``assemble_video`` and ``burn_pycaps_subtitles`` record the same video and
+    only one of them may be dropped.
     """
+    kept_paths = {
+        path_str
+        for name, data in state_data.items()
+        if name in valid_steps and isinstance(data, dict)
+        for path_str in (data.get("artifacts") or {}).values()
+    }
     for name, data in state_data.items():
         if name in valid_steps or not isinstance(data, dict):
             continue
         for key, path_str in (data.get("artifacts") or {}).items():
+            blocks_rerun = key in _RERUN_BLOCKING_ARTIFACTS or key.startswith(
+                _RERUN_BLOCKING_PREFIXES
+            )
+            if not blocks_rerun or path_str in kept_paths:
+                continue
             path = Path(path_str)
             try:
                 if path.exists():
@@ -319,6 +355,15 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         artifacts["script_file"] = ctx.run_paths["script_file"]
     elif step_name == STEP_GENERATE_DESCRIPTION:
         artifacts["description_file"] = ctx.run_paths["description_file"]
+        # `_check_existing_metadata` short-circuits on these, not on
+        # `description_file`, so they have to be recorded or a dropped step
+        # keeps returning captions written for a script that no longer exists.
+        unified = ctx.run_paths["run_root"] / "metadata.json"
+        if unified.exists():
+            artifacts["unified_metadata_file"] = unified
+        text_dir = ctx.run_paths["description_file"].parent
+        for platform_meta in sorted(text_dir.glob("metadata_*.json")):
+            artifacts[f"platform_metadata_{platform_meta.stem}"] = platform_meta
     elif step_name == STEP_CREATE_VOICEOVER:
         artifacts["voiceover_file"] = ctx.run_paths["voiceover_file"]
         artifacts["voiceover_duration_file"] = ctx.run_paths["voiceover_duration_file"]

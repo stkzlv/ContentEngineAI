@@ -84,11 +84,12 @@ class VisualSearchTermsConfig(BaseModel):
     enabled: bool = True
     # One Pexels search per phrase, so this is how many different shots the
     # render can draw on. The provider joins a multi-term list into a single
-    # query string, which the library answers by matching whichever phrase
-    # dominates it, so phrases are searched separately rather than
-    # concatenated.
+    # query string, which the library answers with results skewed toward
+    # whichever phrase dominates, leaving the others unrepresented, so phrases
+    # are searched separately rather than concatenated.
     max_phrases: int = Field(3, ge=1, le=6)
-    # Words per phrase. A long phrase is as unmatchable as a concatenated list.
+    # Words per phrase. A long phrase is matched only in part, so the extra
+    # words narrow nothing and the result drifts from what was asked for.
     max_words_per_phrase: int = Field(5, ge=2, le=8)
 
 

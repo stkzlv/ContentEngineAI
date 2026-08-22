@@ -1132,11 +1132,13 @@ _VISUAL_PHRASE_REJECT_PREFIXES = (
 # at the start rather than stripped from both ends: a phrase can legitimately
 # end in a digit ("wifi channel 11"), and stripping characters would eat it.
 #
-# The numeric form requires whitespace after the separator so a leading decimal
-# survives: without it, "2.4 ghz router antenna" is silently rewritten to
-# "4 ghz router antenna" and searched as though that were the model's answer.
-# A rewritten phrase is worse than a dropped one, because nothing reports it.
-_VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+\s*|\d+[.)]\s+)")
+# The numeric form refuses to match when a digit follows the separator, so a
+# leading decimal survives: otherwise "2.4 ghz router antenna" is silently
+# rewritten to "4 ghz router antenna" and searched as though that were the
+# model's answer, and a rewritten phrase is worse than a dropped one because
+# nothing reports it. The lookahead rather than a required space, so "1)phrase"
+# and "1.phrase" still lose their numbering.
+_VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+\s*|\d+[.)](?!\d)\s*)")
 # A decimal point inside a number, so the prose test does not read it as a
 # sentence ending.
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")

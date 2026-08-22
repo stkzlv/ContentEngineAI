@@ -115,8 +115,8 @@ searches for footage using phrases taken from the narration.
 Each phrase is a separate search, so the phrase count is how many different
 shots the render draws on. Passing them together would not work: the provider
 concatenates a keyword list into one query, and the library answers a long
-query by matching whichever phrase dominates it. What comes back is a full page
-of one shot rather than one shot per beat. The same reason is why the profile
+query with results skewed toward whichever phrase dominates. Some beats go
+unrepresented entirely. The same reason is why the profile
 declares an empty keyword list rather than inheriting the product-oriented
 global defaults.
 
