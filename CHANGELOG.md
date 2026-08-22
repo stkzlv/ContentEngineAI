@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-08-22
+
 ### Added
-- A run that selects a profile sourcing visuals from the stock provider fails at startup when the provider key is absent, naming the variable and the profiles that need it. Previously the fetcher warned, returned nothing, and the run died three steps later with "No visual inputs were found or gathered for this profile", which named neither the provider nor the variable. The check runs on both the producer and the global batch; the batch did not validate video config at all.
+- A run that selects a profile drawing *every* visual from the stock provider fails at startup when the provider key is absent, naming the variable and the profiles that need it. Previously the fetcher warned, returned nothing, and the run died three steps later with "No visual inputs were found or gathered for this profile", which named neither the provider nor the variable. The check runs on both the producer and the global batch; the batch did not validate video config at all.
 
 ### Notes
+- Only profiles for which stock is the whole visual layer are fatal. A profile that also draws scraped media renders fine without the key, since the fetcher degrades and the scraped images carry the video, so refusing it would block a configuration that works.
+- Skipped for `--step`, which runs one named step and may never reach `gather_visuals`, and for `--dry-run`, whose plan output is the one thing that would tell you which profiles are in the pool.
 - Every profile the run might select is checked, not only the one it names. With `--random-profile` any pool member can be drawn, so checking the drawn profile alone would make a missing key an intermittent failure.
 - The "needs stock media" condition is shared with `step_gather_visuals` rather than restated, so the check and the step it protects cannot disagree about which profiles require a key.
 

@@ -132,3 +132,123 @@ class TestKeyCheck:
         error = check_stock_media_key(config, ["s"])
         assert error is not None
         assert "OTHER_KEY" in error
+
+
+@pytest.mark.unit
+class TestOnlyStockOnlyProfilesBlock:
+    """A profile that also draws scraped media renders fine without the key.
+
+    The fetcher warns and returns nothing; the scraped images carry the video.
+    `docs/configuration.md` documents exactly such a profile, so refusing it
+    would block a configuration that works — worse than the silent gap this
+    check closes.
+    """
+
+    def _mixed(self):
+        return SimpleNamespace(
+            use_scraped_images=True,
+            use_scraped_videos=False,
+            use_stock_images=True,
+            stock_image_count=5,
+            use_stock_videos=False,
+            stock_video_count=2,
+        )
+
+    def test_supplementary_stock_is_allowed(self, monkeypatch):
+        monkeypatch.delenv("PEXELS_API_KEY", raising=False)
+        assert check_stock_media_key(_config(mixed=self._mixed()), ["mixed"]) is None
+
+    def test_stock_only_still_blocks(self, monkeypatch):
+        monkeypatch.delenv("PEXELS_API_KEY", raising=False)
+        stock_only = SimpleNamespace(
+            use_scraped_images=False,
+            use_scraped_videos=False,
+            use_stock_images=True,
+            stock_image_count=5,
+            use_stock_videos=False,
+            stock_video_count=0,
+        )
+        assert check_stock_media_key(_config(s=stock_only), ["s"]) is not None
+
+    def test_a_pool_mixing_both_blocks_on_the_stock_only_one(self, monkeypatch):
+        monkeypatch.delenv("PEXELS_API_KEY", raising=False)
+        stock_only = SimpleNamespace(
+            use_scraped_images=False,
+            use_scraped_videos=False,
+            use_stock_images=True,
+            stock_image_count=5,
+            use_stock_videos=False,
+            stock_video_count=0,
+        )
+        error = check_stock_media_key(
+            _config(mixed=self._mixed(), pure=stock_only), ["mixed", "pure"]
+        )
+        assert error is not None
+        assert "pure" in error
+        assert "mixed" not in error
+
+
+@pytest.mark.unit
+class TestCandidateProfiles:
+    """Which profiles the producer decides a run might select.
+
+    This is where the candidate set is derived, and where a raise would escape
+    into a traceback rather than the CLI's own error handling.
+    """
+
+    def _args(self, **kw):
+        base = {
+            "random_profile": False,
+            "profile_pool": None,
+            "batch_profile": None,
+            "profile": None,
+        }
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def _config_with(self, *names):
+        return SimpleNamespace(
+            video_profiles=dict.fromkeys(names, SCRAPED), profile_pool=None
+        )
+
+    def test_a_named_profile(self):
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        args = self._args(profile="slideshow_images1")
+        assert _profiles_this_run_may_use(args, self._config_with("a")) == [
+            "slideshow_images1"
+        ]
+
+    def test_a_batch_profile_wins_over_the_positional(self):
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        args = self._args(batch_profile="b", profile="a")
+        assert _profiles_this_run_may_use(args, self._config_with("a", "b")) == ["b"]
+
+    def test_no_profile_named_is_no_candidates(self):
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        assert _profiles_this_run_may_use(self._args(), self._config_with("a")) == []
+
+    def test_a_random_run_returns_the_pool(self):
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        args = self._args(random_profile=True, profile_pool=["a", "b"])
+        assert sorted(
+            _profiles_this_run_may_use(args, self._config_with("a", "b"))
+        ) == [
+            "a",
+            "b",
+        ]
+
+    def test_an_unusable_pool_does_not_raise(self):
+        """`load_profile_pool` raises on an unknown name.
+
+        Letting that escape replaces the CLI's own "Invalid profile pool
+        configuration" message with a traceback, and the log-file line is
+        never written.
+        """
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        args = self._args(random_profile=True, profile_pool=["nope"])
+        assert _profiles_this_run_may_use(args, self._config_with("a")) == []

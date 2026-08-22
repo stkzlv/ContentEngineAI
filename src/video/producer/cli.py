@@ -286,11 +286,16 @@ def _profiles_this_run_may_use(args, config) -> list[str]:
     intermittent failure rather than a deterministic one.
     """
     if getattr(args, "random_profile", False):
-        return load_profile_pool(
-            getattr(args, "profile_pool", None),
-            getattr(config, "profile_pool", None),
-            config,
-        )
+        try:
+            return load_profile_pool(
+                getattr(args, "profile_pool", None),
+                getattr(config, "profile_pool", None),
+                config,
+            )
+        except ValueError:
+            # An unusable pool is reported later, with a message naming the
+            # bad profile. Raising here would replace that with a traceback.
+            return []
     named = getattr(args, "batch_profile", None) or getattr(args, "profile", None)
     return [named] if named else []
 
@@ -755,8 +760,14 @@ async def main():
     # Fail now, not three steps into the render, when a profile this run may
     # select needs the stock provider and the key is absent. The message that
     # would otherwise appear names neither the provider nor the variable.
-    stock_key_error = check_stock_media_key(
-        config, _profiles_this_run_may_use(args, config)
+    #
+    # Skipped for `--step`, which runs one named step and may never reach
+    # `gather_visuals` at all; refusing those would block debugging a run for
+    # a resource it is not going to ask for.
+    stock_key_error = (
+        None
+        if getattr(args, "step", None)
+        else check_stock_media_key(config, _profiles_this_run_may_use(args, config))
     )
     if stock_key_error:
         logger.critical(stock_key_error)
