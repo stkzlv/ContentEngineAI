@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - The provider joins a keyword list into one query string, so several phrases passed together ask the library for one photograph matching all of them and return nothing. Separate searches are what make more than one phrase useful.
-- Two searches can return the same item, which downloads to one path; results are deduplicated so the same photograph cannot appear twice in a render.
+- Each search asks for a share of what is still missing rather than a fixed slice, so a phrase the library has nothing for costs variety rather than count. Without that, splitting one search into three turns a single empty result into a media shortfall, and a shortfall skips the render rather than shortening it.
+- Two searches can return the same item, which downloads to one path; results are deduplicated, and the shortfall is counted after that.
 - Footage still tracks the script as a whole rather than the sentence playing over it. Matching a shot to the instruction it illustrates needs per-segment search and is tracked separately.
 
 ## [0.68.0] - 2026-08-22
