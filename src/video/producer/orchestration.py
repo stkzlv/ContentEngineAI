@@ -39,13 +39,13 @@ from src.video.producer.state import (
     STEP_GENERATE_DESCRIPTION,
     STEP_GENERATE_SCRIPT,
     STEP_GENERATE_SUBTITLES,
-    VALID_STEPS,
     _clean_producer_files,
     _load_artifacts_from_state,
     _load_pipeline_state,
     _save_pipeline_state,
     _update_state_after_step,
     get_video_run_paths,
+    resolved_step_order,
 )
 from src.video.producer.steps import (
     step_assemble_video,
@@ -57,7 +57,11 @@ from src.video.producer.steps import (
     step_generate_script,
     step_generate_subtitles,
 )
-from src.video.producer.utils import setup_logging, validate_media_requirements
+from src.video.producer.utils import (
+    draws_visuals_from_script,
+    setup_logging,
+    validate_media_requirements,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,21 +107,50 @@ async def execute_pipeline_parallel(
     # Create pipeline graph with dependencies
     pipeline = PipelineGraph()
 
-    # Add steps with proper dependencies
-    pipeline.add_step("gather_visuals", lambda ctx: step_gather_visuals(ctx), set())
+    # Add steps with proper dependencies.
+    #
+    # Which of these two runs first depends on where the visuals come from.
+    # A scraped product has its photography before anything is written, and
+    # gathering first also rejects a product with too few images before an LLM
+    # call is paid for. A profile rendering entirely from stock has no such
+    # imagery: its search terms are the whole visual layer, so the script has
+    # to exist first for the footage to match the narration.
+    #
+    # `generate_script` reads nothing `gather_visuals` writes, which is what
+    # makes the edge safe to reverse.
+    script_first = draws_visuals_from_script(ctx.profile)
+    if script_first:
+        pipeline.add_step(
+            "generate_script", lambda ctx: step_generate_script(ctx), set()
+        )
+        pipeline.add_step(
+            "gather_visuals", lambda ctx: step_gather_visuals(ctx), {"generate_script"}
+        )
+    else:
+        pipeline.add_step("gather_visuals", lambda ctx: step_gather_visuals(ctx), set())
+        pipeline.add_step(
+            "generate_script", lambda ctx: step_generate_script(ctx), {"gather_visuals"}
+        )
 
-    pipeline.add_step(
-        "generate_script", lambda ctx: step_generate_script(ctx), {"gather_visuals"}
-    )
+    # Both of these spend money: captions call the LLM once per platform and the
+    # voiceover synthesises audio. On the product path `gather_visuals` has
+    # already run and rejected a product with too few images before either
+    # starts. Under the script-first order it would otherwise run *alongside*
+    # them, and `fail_fast` only stops between levels, so a render destined to
+    # be skipped would pay for both first. Naming it here restores the ordering
+    # property at the cost of one serialised level.
+    paid_step_deps = {"generate_script"}
+    if script_first:
+        paid_step_deps = {"generate_script", "gather_visuals"}
 
     pipeline.add_step(
         "generate_description",
         lambda ctx: step_generate_description(ctx),
-        {"generate_script"},
+        paid_step_deps,
     )
 
     pipeline.add_step(
-        "create_voiceover", lambda ctx: step_create_voiceover(ctx), {"generate_script"}
+        "create_voiceover", lambda ctx: step_create_voiceover(ctx), paid_step_deps
     )
 
     # These two steps can run in parallel - they only depend on voiceover
@@ -131,10 +164,13 @@ async def execute_pipeline_parallel(
         "download_music", lambda ctx: step_download_music(ctx), {"create_voiceover"}
     )
 
+    # `gather_visuals` is named explicitly because it is no longer always an
+    # ancestor: on the script-first order it is a leaf, and without this edge
+    # the assembler could start before the footage has been downloaded.
     pipeline.add_step(
         "assemble_video",
         lambda ctx: step_assemble_video(ctx),
-        {"generate_subtitles", "download_music"},
+        {"generate_subtitles", "download_music", "gather_visuals"},
     )
 
     # Pycaps engine: post-assembly burn-in. Short-circuits at runtime when
@@ -305,9 +341,14 @@ async def create_video_for_product(
                 ctx.state["pillar"] = cli_overrides["pillar"]
 
         if debug_step_target:
-            target_index = VALID_STEPS.index(debug_step_target)
+            # This profile's real order, not the storage order: on a
+            # script-first render `gather_visuals` runs after the script, so
+            # demanding it as a prerequisite of `generate_script` would refuse
+            # a run that is in a perfectly good state.
+            step_order = resolved_step_order(ctx.profile)
+            target_index = step_order.index(debug_step_target)
             for i in range(target_index):
-                step_to_load = VALID_STEPS[i]
+                step_to_load = step_order[i]
                 if ctx.state.get(step_to_load, {}).get("status") == "done":
                     logger.info(
                         f"Loading prerequisites for '{debug_step_target}': "
@@ -326,7 +367,7 @@ async def create_video_for_product(
                     )
             steps_to_run = [debug_step_target]
         else:
-            steps_to_run = VALID_STEPS
+            steps_to_run = resolved_step_order(ctx.profile)
 
         # Use parallel pipeline execution unless debugging specific step
         if debug_step_target:

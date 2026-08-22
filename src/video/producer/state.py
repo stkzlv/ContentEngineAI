@@ -37,6 +37,27 @@ VALID_STEPS = [
 ]
 
 
+def resolved_step_order(profile: Any) -> list[str]:
+    """The order this profile's steps actually run in.
+
+    ``VALID_STEPS`` is the default order and the one a scraped product uses.
+    A profile whose visuals all come from stock gathers them after the script,
+    so the search terms can be taken from the narration; everything downstream
+    keeps its place. Callers that reason about "the steps before this one",
+    including resume truncation and the ``--step`` prerequisite check, have to
+    use this rather than ``VALID_STEPS`` or they will treat a step that has not
+    run yet as a completed prerequisite.
+    """
+    from src.video.producer.utils import draws_visuals_from_script
+
+    if not draws_visuals_from_script(profile):
+        return list(VALID_STEPS)
+    order = list(VALID_STEPS)
+    order.remove(STEP_GATHER_VISUALS)
+    order.insert(order.index(STEP_GENERATE_SCRIPT) + 1, STEP_GATHER_VISUALS)
+    return order
+
+
 def _clean_producer_files(
     run_paths: dict[str, Path], config: VideoConfig, product_id: str, profile_name: str
 ) -> None:
@@ -200,6 +221,79 @@ async def _save_pipeline_state(ctx: PipelineContext):
         logger.error(f"Failed to save pipeline state: {e}")
 
 
+# Artifacts whose presence makes a step short-circuit and skip its work. Only
+# these are removed when a step is dropped: deleting anything else destroys
+# output for no benefit, and `final_video_output` in particular is the
+# deliverable, rebuilt unconditionally by a step that never short-circuits.
+_RERUN_BLOCKING_ARTIFACTS = frozenset(
+    {
+        "gathered_visuals_file",
+        "script_file",
+        "description_file",
+        "voiceover_file",
+        "voiceover_duration_file",
+    }
+)
+
+# `generate_description` short-circuits on the platform metadata rather than on
+# `description_file`, and those keys are generated per platform, so they are
+# matched by prefix instead of listed.
+_RERUN_BLOCKING_PREFIXES = ("unified_metadata_file", "platform_metadata_")
+
+
+def _discard_stale_artifacts(
+    state_data: dict[str, Any], valid_steps: list[str]
+) -> None:
+    """Delete the outputs that would stop a dropped step from re-running.
+
+    Dropping a step from the state is not enough on its own, because a step
+    can short-circuit on its own artifact file rather than on the state:
+    ``step_gather_visuals`` returns the previous run's media whenever
+    ``gathered_visuals.json`` is on disk. Left in place, a lost script would be
+    replaced by fresh narration and then paired with the footage searched from
+    the old one, which is exactly the mismatch the reordering exists to
+    prevent.
+
+    Two things are deliberately not deleted. Anything outside
+    ``_RERUN_BLOCKING_ARTIFACTS``, because a step that re-runs regardless loses
+    nothing by keeping its previous output and everything by having it removed:
+    ``pipeline_state.json`` is shared by every profile of a product while the
+    rendered video is per-profile, so a blanket delete takes another profile's
+    finished render with it. And any path a surviving step still claims, since
+    ``assemble_video`` and ``burn_pycaps_subtitles`` record the same video and
+    only one of them may be dropped.
+    """
+    kept_paths = {
+        path_str
+        for name, data in state_data.items()
+        if name in valid_steps and isinstance(data, dict)
+        for path_str in (data.get("artifacts") or {}).values()
+    }
+    for name, data in state_data.items():
+        if name in valid_steps or not isinstance(data, dict):
+            continue
+        for key, path_str in (data.get("artifacts") or {}).items():
+            blocks_rerun = key in _RERUN_BLOCKING_ARTIFACTS or key.startswith(
+                _RERUN_BLOCKING_PREFIXES
+            )
+            if not blocks_rerun or path_str in kept_paths:
+                continue
+            path = Path(path_str)
+            try:
+                if path.exists():
+                    path.unlink()
+                    logger.info(
+                        "Discarded stale artifact '%s' from dropped step '%s': %s",
+                        key,
+                        name,
+                        path.name,
+                    )
+            except OSError as e:
+                # A leftover file is recoverable (the step overwrites it);
+                # failing the whole run over one unlink is not.
+                logger.warning("Could not remove stale artifact %s: %s", path, e)
+
+
 async def _load_pipeline_state(ctx: PipelineContext) -> bool:
     """Loads and verifies an existing pipeline state file."""
     state_file = ctx.run_paths["state_file"]
@@ -226,8 +320,14 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                             f"not found at '{path_str}'. "
                             f"Restarting from step '{step}'."
                         )
-                        # Truncate state up to the failed step
-                        valid_steps = VALID_STEPS[: VALID_STEPS.index(step)]
+                        # Truncate state up to the failed step. Ordered by
+                        # this profile's real order: on a script-first render
+                        # the visuals are searched on terms taken from the
+                        # script, so a lost script has to drop them too rather
+                        # than pair new narration with the old footage.
+                        step_order = resolved_step_order(ctx.profile)
+                        valid_steps = step_order[: step_order.index(step)]
+                        _discard_stale_artifacts(state_data, valid_steps)
                         ctx.state = {
                             k: v for k, v in state_data.items() if k in valid_steps
                         }
@@ -255,6 +355,15 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         artifacts["script_file"] = ctx.run_paths["script_file"]
     elif step_name == STEP_GENERATE_DESCRIPTION:
         artifacts["description_file"] = ctx.run_paths["description_file"]
+        # `_check_existing_metadata` short-circuits on these, not on
+        # `description_file`, so they have to be recorded or a dropped step
+        # keeps returning captions written for a script that no longer exists.
+        unified = ctx.run_paths["run_root"] / "metadata.json"
+        if unified.exists():
+            artifacts["unified_metadata_file"] = unified
+        text_dir = ctx.run_paths["description_file"].parent
+        for platform_meta in sorted(text_dir.glob("metadata_*.json")):
+            artifacts[f"platform_metadata_{platform_meta.stem}"] = platform_meta
     elif step_name == STEP_CREATE_VOICEOVER:
         artifacts["voiceover_file"] = ctx.run_paths["voiceover_file"]
         artifacts["voiceover_duration_file"] = ctx.run_paths["voiceover_duration_file"]
