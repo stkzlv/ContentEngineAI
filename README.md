@@ -14,7 +14,7 @@
 - **End-to-End Automation**: Complete video production from scraping to publishing
 - **Social Media Publishing**: Auto-scheduling with slot detection + cleanup after publish
 - **Link-in-Bio Integration**: Auto-add affiliate links to bio page after publishing (Lnk.Bio)
-- **Affiliate Disclosure**: Opt-in rendering of an affiliate program's literal identification phrase in the caption body, configurable for non-Amazon programs (off by default; the `#ad` disclosure is separate and always applied)
+- **Affiliate Disclosure**: Opt-in rendering of an affiliate program's literal identification phrase in the caption body, configurable for non-Amazon programs (off by default; the `#ad` disclosure is separate and applied to any render carrying a material connection)
 - **Published Products Registry**: Track all published products in JSON/CSV format
 - **Batch Processing**: Process hundreds of products with unified scrape + produce + publish pipeline
 - **Platform-Specific Metadata**: AI-generated titles, captions, hashtags for YouTube, TikTok, Instagram
