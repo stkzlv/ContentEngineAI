@@ -397,6 +397,14 @@ async def step_gather_visuals(ctx: PipelineContext):
             # provider joins a keyword list into one query string, so several
             # phrases in one list would match nothing.
             script_phrases = await _resolve_script_visual_phrases(ctx)
+            if script_phrases:
+                # Logged at info: these phrases are the whole visual layer for
+                # this render, and nothing else records what was searched for.
+                logger.info(
+                    "Stock searches from script (%d): %s",
+                    len(script_phrases),
+                    "; ".join(script_phrases),
+                )
 
             # Check for pre-loaded stock media first. Skipped when the script
             # supplied the phrases, because the preloader was primed from the
