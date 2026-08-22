@@ -278,6 +278,17 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     return overrides
 
 
+def _step_exempts_stock_check(step: str | None) -> bool:
+    """Whether `--step <step>` can skip the stock-provider key check.
+
+    A single named step runs alone, so a run that will not reach the fetcher
+    should not be refused for a key it never asks for. `gather_visuals` is the
+    exception: it is the step that asks, and exempting it would restore the
+    generic "No visual inputs were found" error this check exists to replace.
+    """
+    return step is not None and step != STEP_GATHER_VISUALS
+
+
 def _profiles_this_run_may_use(args, config) -> list[str]:
     """Every profile the run could select, not just the one it names.
 
@@ -766,10 +777,9 @@ async def main():
     # `--step gather_visuals` is the exception: it is the step that asks, and
     # skipping the check there restores the generic media error this exists to
     # replace.
-    debug_step = getattr(args, "step", None)
     stock_key_error = (
         None
-        if debug_step is not None and debug_step != STEP_GATHER_VISUALS
+        if _step_exempts_stock_check(getattr(args, "step", None))
         else check_stock_media_key(config, _profiles_this_run_may_use(args, config))
     )
     if stock_key_error:

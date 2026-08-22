@@ -264,9 +264,9 @@ class TestWhichRunsAreExempt:
     """
 
     def _exempt(self, step: str | None) -> bool:
-        from src.video.producer.state import STEP_GATHER_VISUALS
+        from src.video.producer.cli import _step_exempts_stock_check
 
-        return step is not None and step != STEP_GATHER_VISUALS
+        return _step_exempts_stock_check(step)
 
     def test_a_full_run_is_checked(self):
         assert not self._exempt(None)
