@@ -233,8 +233,9 @@ async def cmd_analytics(
     """
     outputs_dir = args.outputs_dir
     if args.rank_only:
-        # No client and no authentication: the flag promises no network, and
-        # requiring an API key to re-read a local file would make that false.
+        # No client and no authentication: the flag promises no network call.
+        # Config still loads before dispatch, so a key must be configured even
+        # though this path never uses one.
         metrics = load_metrics(outputs_dir)
         if not metrics:
             logger.warning(
@@ -255,9 +256,17 @@ async def cmd_analytics(
                 continue
             try:
                 raw = resource.get_post_timeline(post_id=post_id)
-                rows = (
-                    getattr(raw, "timeline", None) or getattr(raw, "data", None) or []
-                )
+                # The SDK returns the parsed JSON body, a plain dict, not a
+                # model. Reading it with getattr yields None for every key and
+                # stores an empty record while reporting success.
+                if isinstance(raw, dict):
+                    rows = raw.get("timeline") or raw.get("data") or []
+                else:
+                    rows = (
+                        getattr(raw, "timeline", None)
+                        or getattr(raw, "data", None)
+                        or []
+                    )
                 rows = [r if isinstance(r, dict) else r.model_dump() for r in rows]
             except Exception as exc:
                 # One post's analytics failing must not lose the rest of the

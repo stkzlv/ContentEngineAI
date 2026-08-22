@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +52,10 @@ class PostMetrics:
     # not yet old enough to say, which is not the same as 0.0 and must not be
     # ranked alongside it.
     durability_ratio: float | None = None
+    # How far the timeline reached. A ratio measured one day past the window is
+    # not comparable with one measured six months past it, and without this the
+    # stored number cannot be told apart later.
+    timeline_end: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -115,12 +119,15 @@ def views_at_day(
     """
     if not timeline:
         return None
-    cutoff = published_at.timestamp() + day * 86400
-    if timeline[-1][0].timestamp() < cutoff:
+    # Compared as datetimes, not timestamps: `.timestamp()` on a naive value
+    # converts through local-time rules, so across a DST transition the two
+    # conversions disagree by an hour and the cutoff moves past a row.
+    cutoff = published_at + timedelta(days=day)
+    if timeline[-1][0] < cutoff:
         return None
     latest: int | None = None
     for when, views in timeline:
-        if when.timestamp() <= cutoff:
+        if when <= cutoff:
             latest = views
         else:
             break
@@ -139,10 +146,16 @@ def durability_ratio(
     returning 0.0 would rank an unmeasurable post alongside a genuinely dead
     one.
     """
-    within = views_at_day(timeline, published_at, window_days)
-    if within is None or not timeline:
+    if not timeline:
         return None
-    if within <= 0:
+    cutoff = published_at + timedelta(days=window_days)
+    if timeline[-1][0] <= cutoff:
+        # Every row is inside the window, so "after" is empty. Returning 0.0
+        # here would report a post measured too early as one that stopped
+        # earning, which is the opposite conclusion.
+        return None
+    within = views_at_day(timeline, published_at, window_days)
+    if within is None or within <= 0:
         return None
     total = timeline[-1][1]
     return (total - within) / within
@@ -161,6 +174,7 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         views_day_7=views_at_day(timeline, when, LAUNCH_DAYS[1]),
         views_total=timeline[-1][1],
         durability_ratio=durability_ratio(timeline, when),
+        timeline_end=timeline[-1][0].isoformat(),
     )
 
 
@@ -205,10 +219,40 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
     behind it.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
+    path = metrics_path(outputs_dir)
+    if path.exists() and not _readable(path):
+        # Merging onto an empty read would drop every post outside this sweep,
+        # unrecoverably. The sibling tracking files guard their writes the same
+        # way; this one refuses rather than repairing.
+        raise OSError(f"Refusing to overwrite unreadable metrics file: {path}")
+
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
     for m in metrics:
+        if m.post_id in merged and not _has_figures(m):
+            # A reading with nothing in it is an absent answer, not a new one.
+            # Replacing wholesale would erase figures already measured.
+            logger.debug("Keeping stored figures for %s: empty reading", m.post_id)
+            continue
         merged[m.post_id] = m
-    metrics_path(outputs_dir).write_text(
+
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(
         json.dumps([m.to_dict() for m in merged.values()], indent=2),
         encoding="utf-8",
     )
+    tmp.replace(path)
+
+
+def _has_figures(m: PostMetrics) -> bool:
+    """Whether a reading carries any measurement at all."""
+    return any(v is not None for v in (m.views_day_2, m.views_day_7, m.views_total))
+
+
+def _readable(path: Path) -> bool:
+    """Whether an existing metrics file parses into records."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        [PostMetrics(**row) for row in raw]
+    except (json.JSONDecodeError, OSError, TypeError, ValueError):
+        return False
+    return True

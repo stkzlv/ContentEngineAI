@@ -200,3 +200,106 @@ class TestMetricsStorage:
 
         metrics_path(tmp_path).write_text("{not json", encoding="utf-8")
         assert load_metrics(tmp_path) == []
+
+
+@pytest.mark.unit
+class TestBoundaryAndTimezone:
+    """Cases where a plausible implementation is quietly wrong."""
+
+    def test_the_last_row_on_the_cutoff_is_unknown_not_zero(self):
+        """There is no "after" window at all, so nothing was measured.
+
+        Returning 0.0 reports a post measured too early as one that stopped
+        earning, which is the opposite conclusion.
+        """
+        timeline = normalize_timeline(_rows((2, 200), (7, 260), (30, 300)))
+        assert durability_ratio(timeline, PUBLISHED) is None
+
+    def test_a_row_past_the_cutoff_makes_it_measurable(self):
+        timeline = normalize_timeline(_rows((30, 300), (31, 300)))
+        assert durability_ratio(timeline, PUBLISHED) == 0.0
+
+    @pytest.mark.parametrize("tz", ["UTC", "Europe/Berlin", "America/New_York"])
+    def test_day_boundaries_do_not_move_with_the_host_timezone(self, tz, monkeypatch):
+        """`.timestamp()` on a naive datetime converts via local-time rules.
+
+        Across a DST transition the two conversions disagree by an hour, moving
+        the cutoff past a row and shifting a whole day of views into the wrong
+        bucket.
+        """
+        import time
+
+        monkeypatch.setenv("TZ", tz)
+        time.tzset()
+        published = datetime(2026, 3, 27, 23, 30)
+        rows = [
+            {"date": datetime(2026, 3, d).isoformat(), "views": v}
+            for d, v in [(28, 100), (29, 200), (30, 300), (31, 400)]
+        ]
+        timeline = normalize_timeline(rows)
+        assert views_at_day(timeline, published, 2) == 200
+        assert views_at_day(timeline, published, 3) == 300
+
+
+@pytest.mark.unit
+class TestMergeSafety:
+    def test_an_empty_reading_does_not_erase_stored_figures(self, tmp_path):
+        """A sweep that gets no rows for a post is an absent answer.
+
+        Replacing wholesale would destroy figures already measured, which is a
+        loss no later run can recover.
+        """
+        from src.publisher.analytics import load_metrics, save_metrics
+
+        save_metrics(
+            [summarize_post("p1", PUBLISHED.isoformat(), _rows((2, 200)))], tmp_path
+        )
+        save_metrics([summarize_post("p1", PUBLISHED.isoformat(), [])], tmp_path)
+        assert load_metrics(tmp_path)[0].views_day_2 == 200
+
+    def test_an_unreadable_file_is_not_overwritten(self, tmp_path):
+        """Merging onto a failed read drops every post outside this sweep."""
+        from src.publisher.analytics import metrics_path, save_metrics
+
+        metrics_path(tmp_path).write_text("{truncated", encoding="utf-8")
+        with pytest.raises(OSError, match="unreadable"):
+            save_metrics([PostMetrics("new")], tmp_path)
+        assert metrics_path(tmp_path).read_text(encoding="utf-8") == "{truncated"
+
+    def test_the_measurement_span_is_recorded(self):
+        """A ratio one day past the window is not comparable with one six
+        months past it, and the stored number cannot say which it is."""
+        m = summarize_post("p1", PUBLISHED.isoformat(), _rows((30, 100), (90, 250)))
+        assert m.timeline_end.startswith("2026-04-01")
+
+
+@pytest.mark.unit
+class TestTimelineUnwrapping:
+    """The SDK returns the parsed JSON body, a dict, not a model.
+
+    Reading it with `getattr` yields None for every key, so the capture stores
+    an empty record for every post while reporting success. Nothing exercised
+    this boundary, which is why it shipped that way.
+    """
+
+    def _rows_from(self, raw):
+        if isinstance(raw, dict):
+            return raw.get("timeline") or raw.get("data") or []
+        return getattr(raw, "timeline", None) or getattr(raw, "data", None) or []
+
+    def test_a_dict_body_yields_its_rows(self):
+        body = {"success": True, "timeline": _rows((2, 200))}
+        assert self._rows_from(body) == _rows((2, 200))
+
+    def test_a_dict_body_under_data_yields_its_rows(self):
+        body = {"data": _rows((2, 200))}
+        assert self._rows_from(body) == _rows((2, 200))
+
+    def test_a_model_body_still_works(self):
+        """Kept tolerant in case a future SDK returns a model."""
+        from types import SimpleNamespace
+
+        assert self._rows_from(SimpleNamespace(timeline=_rows((2, 5)))) == _rows((2, 5))
+
+    def test_an_empty_body_yields_nothing(self):
+        assert self._rows_from({}) == []

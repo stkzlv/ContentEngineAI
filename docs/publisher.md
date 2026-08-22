@@ -193,6 +193,7 @@ Quick reference for all publisher commands and options.
 | `delete` | Delete a post from Zernio | `python -m src.publisher.late delete POST_ID` |
 | `verify-comments` | Check first comments landed on recent posts | `python -m src.publisher.late verify-comments --limit 25` |
 | `verify-delivery` | Sweep recent posts for silently-failed platform legs | `python -m src.publisher.late verify-delivery --limit 25` |
+| `analytics` | Capture day-N views and rank posts by durability | `python -m src.publisher.late analytics --limit 50` |
 
 ### Global Options
 
@@ -301,6 +302,7 @@ python -m src.publisher.late delete <post_id>
 
 ### Command: `analytics`
 
+
 ```bash
 # Measure recent published posts and store the figures
 python -m src.publisher.late analytics --limit 50
@@ -312,7 +314,7 @@ python -m src.publisher.late analytics --rank-only
 | Option | Required | Description |
 |---|---|---|
 | `--limit N` | No | How many recent published posts to measure (default: 50) |
-| `--rank-only` | No | Rank stored metrics without fetching; needs no API key |
+| `--rank-only` | No | Rank stored metrics without fetching. Makes no network call, but publisher config still loads first, so an API key must be configured |
 | `--outputs-dir PATH` | No | Where `post_metrics.json` lives (default: `outputs`) |
 
 Ranking by durability answers a different question from ranking by total views.

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Day-2 and day-7 views and a 30-day durability ratio per published post, stored in `outputs/post_metrics.json`, plus an `analytics` command that captures them and ranks by durability. Durability is views after the first 30 days over views within them, which is the only one of the three figures that separates a post still earning from one that spiked and stopped: at day 7 they look the same, and on totals the spike usually wins.
-- `analytics --rank-only` re-ranks stored figures without a network call or an API key.
+- `analytics --rank-only` re-ranks stored figures without a network call. Publisher config still loads first, so an API key must be configured even though none is used.
 
 ### Notes
 - A window the post has not reached reports as unknown rather than as the running total, and a post with no views inside the durability window reports unknown rather than 0.0. Ranking sorts unknown last rather than treating it as a zero, so a post too young to score is not confused with one measured and found dead.
