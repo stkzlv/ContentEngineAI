@@ -5,6 +5,7 @@ import difflib
 import logging
 import random
 from pathlib import Path
+from typing import Any
 
 from src.utils import ensure_dirs_exist
 from src.utils.logging_setup import setup_debug_logging
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 EXCLUDED_RANDOM_PROFILES = frozenset({"base", "slideshow_stock"})
 
 
-def draws_visuals_from_script(profile) -> bool:
+def draws_visuals_from_script(profile: Any) -> bool:
     """Whether this profile's visuals are chosen from the script, not the product.
 
     True when no visual comes from the scraped product, so a stock search is
