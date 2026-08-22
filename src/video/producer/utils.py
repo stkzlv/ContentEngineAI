@@ -20,6 +20,21 @@ logger = logging.getLogger(__name__)
 EXCLUDED_RANDOM_PROFILES = frozenset({"base", "slideshow_stock"})
 
 
+def draws_visuals_from_script(profile) -> bool:
+    """Whether this profile's visuals are chosen from the script, not the product.
+
+    True when no visual comes from the scraped product, so a stock search is
+    the entire visual layer and the narration is the only description of what
+    the video is about. That ordering costs an LLM round-trip and delays the
+    media-shortfall check until after the script exists, so a profile that does
+    show product imagery keeps gathering visuals first.
+    """
+    return not (
+        getattr(profile, "use_scraped_images", False)
+        or getattr(profile, "use_scraped_videos", False)
+    )
+
+
 def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     """Set up logging to both console and file.
 

@@ -51,6 +51,15 @@ llm_settings:
     min_chars: 200
     min_words: 50
 
+  # Stock search phrases taken from the finished script. Only consulted by a
+  # profile that draws every visual from stock (slideshow_stock), where the
+  # search terms are the whole visual layer. Each phrase is searched
+  # separately, so max_phrases is how many different shots a render draws on.
+  visual_search_terms:
+    enabled: true
+    max_phrases: 3
+    max_words_per_phrase: 5
+
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:
     provider: "openrouter"

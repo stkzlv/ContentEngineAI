@@ -73,6 +73,24 @@ class ScriptValidationConfig(BaseModel):
     min_words: int = Field(50)
 
 
+class VisualSearchTermsConfig(BaseModel):
+    """Deriving stock search phrases from the script that will be narrated.
+
+    Only consulted when the profile draws every visual from stock, because
+    that is the case where the search terms are the whole visual layer. A
+    profile showing product photography ignores this.
+    """
+
+    enabled: bool = True
+    # One Pexels search per phrase, so this is how many different shots the
+    # render can draw on. The provider joins a multi-term list into a single
+    # query string, which matches nothing, so phrases are searched separately
+    # rather than concatenated.
+    max_phrases: int = Field(3, ge=1, le=6)
+    # Words per phrase. A long phrase is as unmatchable as a concatenated list.
+    max_words_per_phrase: int = Field(5, ge=2, le=8)
+
+
 class LLMSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -105,6 +123,9 @@ class LLMSettings(BaseModel):
         default_factory=ScriptValidationConfig  # type: ignore[arg-type]
     )
     script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)
+    visual_search_terms: VisualSearchTermsConfig = Field(
+        default_factory=VisualSearchTermsConfig  # type: ignore[arg-type]
+    )
     fallback_provider: LLMSettings | None = Field(None)
 
 

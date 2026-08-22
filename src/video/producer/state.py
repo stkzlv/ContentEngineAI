@@ -37,6 +37,27 @@ VALID_STEPS = [
 ]
 
 
+def resolved_step_order(profile: Any) -> list[str]:
+    """The order this profile's steps actually run in.
+
+    ``VALID_STEPS`` is the default order and the one a scraped product uses.
+    A profile whose visuals all come from stock gathers them after the script,
+    so the search terms can be taken from the narration; everything downstream
+    keeps its place. Callers that reason about "the steps before this one",
+    including resume truncation and the ``--step`` prerequisite check, have to
+    use this rather than ``VALID_STEPS`` or they will treat a step that has not
+    run yet as a completed prerequisite.
+    """
+    from src.video.producer.utils import draws_visuals_from_script
+
+    if not draws_visuals_from_script(profile):
+        return list(VALID_STEPS)
+    order = list(VALID_STEPS)
+    order.remove(STEP_GATHER_VISUALS)
+    order.insert(order.index(STEP_GENERATE_SCRIPT) + 1, STEP_GATHER_VISUALS)
+    return order
+
+
 def _clean_producer_files(
     run_paths: dict[str, Path], config: VideoConfig, product_id: str, profile_name: str
 ) -> None:
@@ -226,8 +247,13 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                             f"not found at '{path_str}'. "
                             f"Restarting from step '{step}'."
                         )
-                        # Truncate state up to the failed step
-                        valid_steps = VALID_STEPS[: VALID_STEPS.index(step)]
+                        # Truncate state up to the failed step. Ordered by
+                        # this profile's real order: on a script-first render
+                        # the visuals are searched on terms taken from the
+                        # script, so a lost script has to drop them too rather
+                        # than pair new narration with the old footage.
+                        step_order = resolved_step_order(ctx.profile)
+                        valid_steps = step_order[: step_order.index(step)]
                         ctx.state = {
                             k: v for k, v in state_data.items() if k in valid_steps
                         }

@@ -208,6 +208,28 @@ Three visual-layer knobs live on `video_settings` and the per-profile partial ov
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.
 
+### Stock-only profiles run script-first
+
+`slideshow_stock` sets `use_scraped_images: false` and `use_scraped_videos:
+false`, so nothing on screen comes from a scraped product. That profile
+generates the script before gathering visuals, and searches the stock library
+on phrases taken from the narration.
+
+Every other bundled profile shows product photography and keeps the default
+order, gathering visuals first. That also rejects a product with too few images
+before an LLM call is paid for, which is why the order is not simply reversed
+for everything.
+
+The phrases are configured under `llm_settings.visual_search_terms` in
+`config/ai_services.yaml`, and each one is a separate library search. Set
+`enabled: false` there to search the topic title and profile keywords instead.
+A failure to derive phrases leaves the existing search terms in place rather
+than failing the render.
+
+One consequence worth knowing when reading `--step` output: the step order
+depends on the profile, so on `slideshow_stock`, `generate_script` runs first
+and `gather_visuals` second.
+
 ### Configuration Precedence
 
 Settings are merged in this order (highest to lowest priority):

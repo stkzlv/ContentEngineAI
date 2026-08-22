@@ -1112,3 +1112,117 @@ async def generate_hook_headline(
         logger.warning("Hook headline generation failed: %s", e)
         return ""
     return _sanitize_hook_headline(raw, max_words=max_words)
+
+
+_VISUAL_PHRASE_REJECT_PREFIXES = (
+    "here are",
+    "here is",
+    "sure",
+    "i cannot",
+    "i can't",
+    "as an ai",
+    "search phrases",
+    "phrases:",
+)
+
+# A leading bullet or "1." that an LLM adds to a "one per line" answer. Anchored
+# at the start rather than stripped from both ends: a phrase can legitimately
+# end in a digit ("wifi channel 11"), and stripping characters would eat it.
+_VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+|\d+[.)])\s*")
+_VISUAL_PHRASE_QUOTES = "\"'`\u201c\u201d "
+
+
+def sanitize_visual_search_phrases(
+    text: str | None, max_phrases: int = 3, max_words: int = 5
+) -> list[str]:
+    """Clean an LLM answer into stock search phrases, one per line.
+
+    Each surviving phrase becomes its own library search, so a phrase that
+    matches nothing costs a share of the render's visuals. Anything that reads
+    as prose, a refusal or a restated instruction is dropped rather than
+    searched, and a phrase longer than ``max_words`` is dropped rather than
+    truncated: cutting "person resetting router cables" to two words can invert
+    what it depicts, and a bad shot is worse than one fewer shot.
+
+    Returns an empty list for unusable output so the caller keeps its existing
+    search terms.
+    """
+    if not text:
+        return []
+    phrases: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.strip().splitlines():
+        line = _VISUAL_PHRASE_BULLET.sub("", raw_line.strip())
+        line = line.strip(_VISUAL_PHRASE_QUOTES).strip()
+        if not line:
+            continue
+        lowered = line.lower()
+        if lowered.startswith(_VISUAL_PHRASE_REJECT_PREFIXES):
+            continue
+        # A stock query is nouns, so any punctuation that ends a sentence means
+        # the model answered in prose rather than in phrases.
+        if any(ch in line for ch in ",.;:!?#"):
+            continue
+        words = line.split()
+        if not 2 <= len(words) <= max_words:
+            continue
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        phrases.append(line)
+        if len(phrases) >= max_phrases:
+            break
+    return phrases
+
+
+async def generate_visual_search_phrases(
+    product: ProductData,
+    settings: LLMSettings,
+    secrets: dict[str, str],
+    session: aiohttp.ClientSession,
+    api_settings=None,
+    debug_mode: bool = False,
+    video_script: str | None = None,
+    narrator_profile: str = "",
+    max_phrases: int = 3,
+    max_words: int = 5,
+) -> list[str]:
+    """Ask what to show on screen for a script that has no product to show.
+
+    Returns an empty list on any failure (no key, LLM error, unusable answer)
+    so the caller falls back to the search terms it already had. Never raises:
+    a render with topic-derived footage is worth more than no render.
+    """
+    if not video_script or not video_script.strip():
+        return []
+    api_key = secrets.get(settings.api_key_env_var) if secrets else None
+    if not api_key:
+        logger.debug(
+            "Visual search phrases skipped: no API key (%s)", settings.api_key_env_var
+        )
+        return []
+    from src.ai.platform_metadata.utilities import generate_with_llm
+
+    try:
+        raw = await generate_with_llm(
+            Path("src/ai/prompts/visual_search_terms.md"),
+            product,
+            settings,
+            api_key,
+            session,
+            api_settings,
+            debug_mode,
+            secrets=secrets,
+            video_script=video_script,
+            narrator_profile=narrator_profile,
+            extra_placeholders={
+                "MAX_PHRASES": str(max_phrases),
+                "MAX_WORDS": str(max_words),
+            },
+        )
+    except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
+        logger.warning("Visual search phrase generation failed: %s", e)
+        return []
+    return sanitize_visual_search_phrases(
+        raw, max_phrases=max_phrases, max_words=max_words
+    )

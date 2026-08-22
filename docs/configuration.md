@@ -1276,6 +1276,30 @@ stock_media_settings:
     min_height: 1920                 # Minimum image height
 ```
 
+#### Search phrases from the script
+
+A profile that draws no visual from the scraped product (`slideshow_stock`)
+writes the script first and then asks what to put on screen for it. Configure
+this under `llm_settings` in `config/ai_services.yaml`:
+
+```yaml
+llm_settings:
+  visual_search_terms:
+    enabled: true
+    max_phrases: 3            # one library search per phrase
+    max_words_per_phrase: 5
+```
+
+Each phrase is searched on its own and the results pooled, so `max_phrases` is
+how many different shots a render draws on. Passing the phrases together would
+not work: the provider concatenates a keyword list into a single query, and a
+library asked for one photograph matching every phrase returns nothing.
+
+Set `enabled: false` to search the topic title and the profile's own keywords
+instead. Deriving the phrases never blocks a render either way: no API key, a
+provider failure, or an unusable answer leaves the existing search terms in
+place. A profile that shows product photography ignores this section.
+
 </details>
 
 <details>

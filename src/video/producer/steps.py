@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from src.ai.description_generator import generate_description as generate_ai_description
-from src.ai.script_generator import generate_hook_headline
+from src.ai.script_generator import (
+    generate_hook_headline,
+    generate_visual_search_phrases,
+)
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.manager import AudioManager
 from src.audio.registry import create_audio_provider
@@ -43,7 +46,10 @@ from src.video.producer.state import (
     load_visuals_info,
     save_visuals_info,
 )
-from src.video.producer.utils import validate_media_requirements
+from src.video.producer.utils import (
+    draws_visuals_from_script,
+    validate_media_requirements,
+)
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager
@@ -151,6 +157,112 @@ def resolve_stock_keywords(profile: Any, media_settings: Any) -> list[str]:
     return globals_
 
 
+def next_share(remaining: int, searches_left: int) -> int:
+    """How many items to ask this search for, given what is still missing.
+
+    A fair share of the shortfall rather than a fixed slice decided up front:
+    a search the library has nothing for then has its share picked up by the
+    ones after it, instead of leaving the render short by that slice. Rounds
+    up, so the last search is asked for everything still missing.
+    """
+    if remaining <= 0 or searches_left <= 0:
+        return 0
+    return -(-remaining // searches_left)
+
+
+def _uses_script_visual_phrases(ctx: PipelineContext) -> bool:
+    """Whether this render will search on phrases taken from the script.
+
+    Decided from the profile and config alone, before the phrases exist, so
+    the preloader can be skipped rather than prefetching footage for a query
+    the render is not going to make.
+    """
+    return (
+        draws_visuals_from_script(ctx.profile)
+        and ctx.config.llm_settings.visual_search_terms.enabled
+    )
+
+
+async def _resolve_script_visual_phrases(ctx: PipelineContext) -> list[str]:
+    """Stock search phrases taken from the script, when that ordering applies.
+
+    Empty for a profile that shows product imagery (the script has not been
+    written yet at this point in that order), when the feature is switched
+    off, and on any generation failure. An empty result means the caller keeps
+    the search terms it already had, so this can only add matching, never
+    remove a render.
+    """
+    if not _uses_script_visual_phrases(ctx):
+        return []
+    cfg = ctx.config.llm_settings.visual_search_terms
+    if not ctx.script:
+        logger.debug("Script visual phrases skipped: no script available")
+        return []
+    script_cfg = ctx.config.llm_settings.script_templates
+    return await generate_visual_search_phrases(
+        ctx.product,
+        ctx.config.llm_settings,
+        ctx.secrets,
+        ctx.session,
+        ctx.config.api_settings,
+        ctx.debug_mode,
+        video_script=ctx.script,
+        narrator_profile=script_cfg.narrator_for(
+            bool(getattr(ctx.product, "topic", None))
+        ),
+        max_phrases=cfg.max_phrases,
+        max_words=cfg.max_words_per_phrase,
+    )
+
+
+async def _fetch_stock_across_queries(
+    fetcher: Any,
+    queries: list[list[str]],
+    image_count: int,
+    video_count: int,
+    assets_dir: Path,
+    session: Any,
+) -> list[Any]:
+    """Fetch stock media for several searches and pool the results.
+
+    One search per query, because the provider joins a keyword list into a
+    single query string: passing every phrase at once asks the library for a
+    photograph matching all of them, which is how a long query returns
+    nothing.
+
+    Each search asks for a share of what is still missing rather than a fixed
+    slice decided up front. Without that, splitting one search into three
+    turns a single empty result into a media shortfall, and a shortfall skips
+    the render rather than shortening it.
+
+    Two searches can return the same item, which downloads to the same path
+    and would then appear twice in one render, so results are deduplicated by
+    path and the shortfall is counted after that.
+    """
+    pooled: list[Any] = []
+    seen: set[Path] = set()
+    for i, query in enumerate(queries):
+        searches_left = len(queries) - i
+        images_have = sum(1 for item in pooled if item.type == "image")
+        videos_have = sum(1 for item in pooled if item.type == "video")
+        images_wanted = next_share(image_count - images_have, searches_left)
+        videos_wanted = next_share(video_count - videos_have, searches_left)
+        if not images_wanted and not videos_wanted:
+            continue
+        found = await fetcher.fetch_and_download_stock(
+            query, images_wanted, videos_wanted, assets_dir, session
+        )
+        if not found:
+            logger.warning("Stock search returned nothing for: %s", " ".join(query))
+            continue
+        for item in found:
+            if item.path in seen:
+                continue
+            seen.add(item.path)
+            pooled.append(item)
+    return pooled
+
+
 async def step_gather_visuals(ctx: PipelineContext):
     async with performance_monitor.measure_step(
         "gather_visuals",
@@ -179,8 +291,12 @@ async def step_gather_visuals(ctx: PipelineContext):
             )
             return
 
-        # Start resource pre-loading tasks (but not TTS warming yet)
-        if ctx.resource_preloader:
+        # Start resource pre-loading tasks (but not TTS warming yet).
+        # Skipped when the script supplies the search phrases: the preloader
+        # prefetches stock media from title words, and this render is about to
+        # search for something else, so the download would be paid for and
+        # thrown away.
+        if ctx.resource_preloader and not _uses_script_visual_phrases(ctx):
             # Start resource pre-loading based on product data
             preload_task_ids = await ctx.resource_preloader.preload_for_product(
                 ctx.product, ctx.config, ctx.profile
@@ -275,9 +391,19 @@ async def step_gather_visuals(ctx: PipelineContext):
                         )
                     )
                 )
-            # Check for pre-loaded stock media first
+            # A profile with no product imagery renders whatever these terms
+            # return, so ask what the finished narration is about rather than
+            # searching the title. Each phrase becomes its own search: the
+            # provider joins a keyword list into one query string, so several
+            # phrases in one list would match nothing.
+            script_phrases = await _resolve_script_visual_phrases(ctx)
+
+            # Check for pre-loaded stock media first. Skipped when the script
+            # supplied the phrases, because the preloader was primed from the
+            # product before the script existed and holds results for a query
+            # this render is no longer making.
             preloaded_media = None
-            if ctx.resource_preloader:
+            if ctx.resource_preloader and not script_phrases:
                 preloaded_media = ctx.resource_preloader.get_preloaded_stock_media(
                     keywords
                 )
@@ -306,8 +432,14 @@ async def step_gather_visuals(ctx: PipelineContext):
                 )
             else:
                 # Fallback to regular fetch if no pre-loaded media
-                stock_media_fetched = await fetcher.fetch_and_download_stock(
-                    keywords,
+                queries = (
+                    [phrase.split() for phrase in script_phrases]
+                    if script_phrases
+                    else [keywords]
+                )
+                stock_media_fetched = await _fetch_stock_across_queries(
+                    fetcher,
+                    queries,
                     ctx.profile.stock_image_count,
                     ctx.profile.stock_video_count,
                     ctx.run_paths["assets_dir"],

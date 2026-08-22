@@ -108,13 +108,20 @@ practical reading is: stock as the bed, on-screen text as the teaching layer.
 The text is doing the work the footage cannot.
 
 **In this project**, the `slideshow_stock` profile renders entirely from stock,
-paired with `--topic` for content that has no product to scrape. Search terms
-come from the topic itself; the profile declares an empty keyword list rather
-than inheriting the product-oriented global defaults, because the provider
-concatenates every term into one query and the mixture matches nothing.
+paired with `--topic` for content that has no product to scrape. Because no
+visual comes from a product, this profile writes the script first and then
+searches for footage using phrases taken from the narration.
 
-The footage is chosen before the script is written, so it tracks the topic
-rather than the narration. Aligning the two is separate work.
+Each phrase is a separate search, so the phrase count is how many different
+shots the render draws on. Passing them together would not work: the provider
+concatenates a keyword list into one query, and a library asked for one
+photograph matching every phrase returns nothing. The same reason is why the
+profile declares an empty keyword list rather than inheriting the
+product-oriented global defaults.
+
+The footage tracks the script as a whole, not the sentence playing over it, so
+"one instruction per visual change" is only partly met. Matching each shot to
+the instruction it illustrates needs a search per segment.
 
 ## 4. Discovery: search-first, not feed-first
 
