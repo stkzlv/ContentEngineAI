@@ -307,9 +307,12 @@ python -m src.publisher.late registry --rebuild --outputs-dir outputs
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--rebuild` | Yes | Rebuild registry from all `data.json` files |
+| `--rebuild` | Yes* | Rebuild registry from all `data.json` files |
+| `--summary` | Yes* | Count published products per content-format arm |
 | `--outputs-dir` | No | Directory to save registry files (default: `outputs`) |
 | `--scan-dir` | No | Directory to scan for product data (default: same as `--outputs-dir`) |
+
+*One of `--rebuild` or `--summary` is required. `--rebuild` wins if both are given.
 
 ---
 
