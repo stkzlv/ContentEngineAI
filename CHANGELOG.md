@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.2] - 2026-08-22
+
 ### Fixed
 - `VideoProfile` rejects unknown keys instead of dropping them. `docs/requirements.md` has claimed strict validation for profile overrides since before the model had it: `SubtitleSettings` forbids extras, `VideoProfile` took Pydantic's default and ignored them, so a typo in a profile block was invisible. The render succeeds using the global value, which is what makes this class of bug hard to see: the profile appears to work and its override does nothing.
 

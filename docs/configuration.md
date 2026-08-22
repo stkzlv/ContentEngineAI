@@ -1796,7 +1796,7 @@ subtitle_settings:
 ```
 
 **Key Features:**
-- **Individual Customization**: Each profile can override any global setting
+- **Individual Customization**: Each profile can override any global setting except `subtitle_format`, which is global-only
 - **Selective Overrides**: Only specify settings you want to change
 - **Fallback System**: Unspecified settings use global defaults
 - **Type Safety**: All overrides validated by Pydantic models

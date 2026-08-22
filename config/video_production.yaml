@@ -574,7 +574,7 @@ video_profiles:
 
   # Slideshow with images profile
   slideshow_images1:
-    description: "Dynamically uses scraped product images to match voiceover duration. Pins one font and colour pair rather than randomizing."
+    description: "Dynamically uses scraped product images to match voiceover duration."
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
@@ -594,9 +594,9 @@ video_profiles:
     # Subtitle style overrides
     subtitle_style_preset: "bold"
     subtitle_font_size_scale: 1.0                  # Normal font size
-    subtitle_randomize_fonts: false                # One font, for a consistent look
-    subtitle_randomize_colors: false               # One colour pair
-    subtitle_randomize_effects: false              # Plain captions
+    subtitle_randomize_fonts: false
+    subtitle_randomize_colors: false
+    subtitle_randomize_effects: false              # Differs from the global, which randomizes
 
     # Text formatting overrides — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 38                   # Max characters per line

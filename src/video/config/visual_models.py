@@ -650,7 +650,7 @@ class VideoProfile(BaseModel):
         if nested:
             data["subtitle_settings"] = nested
 
-        if "subtitle_format" in nested:
+        if nested.get("subtitle_format") is not None:
             # Rejected here rather than by `extra="forbid"`, which only sees
             # the flat key. `PartialSubtitleSettings` declares the field, so a
             # nested override loads and reaches the merged settings while the
@@ -661,12 +661,16 @@ class VideoProfile(BaseModel):
             # FFmpeg's `ass` filter aborts the render, and the mirror case
             # ships a caption-less video with no error at all. Lifting this
             # means making the path profile-aware first (#243).
+            #
+            # Tested by value rather than by key presence: a
+            # `PartialSubtitleSettings` instance yields every field when it is
+            # turned into a dict, so `"subtitle_format" in nested` is true of
+            # any model passed in and would reject a plain round-trip.
             raise ValueError(
                 "subtitle_format cannot be set per profile: the subtitle "
                 "file's extension comes from the global config, so a "
                 "profile-level format would be written into a file named for "
-                "a different one. Set it in config/subtitles.yaml, or per run "
-                "with --subtitle-format."
+                "a different one. Set it in config/subtitles.yaml."
             )
 
         return data
