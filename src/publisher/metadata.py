@@ -145,6 +145,11 @@ def _load_from_json(
             logger.error("Missing description in %s", json_path)
             return None
 
+        # The producer records whether the render has a material connection to
+        # disclose. Absent or unreadable means disclose: a missing disclosure
+        # misstates a material connection, while a needless one costs reach.
+        disclose = data.get("carries_affiliate_content", True)
+
         # Create PublishMetadata
         metadata = PublishMetadata(
             platform=platform,
@@ -154,6 +159,12 @@ def _load_from_json(
             keywords=keywords,
             product_id=product_id,
         )
+        if not disclose:
+            metadata.disclosure = ""
+            logger.info(
+                "Caption disclosure omitted for %s: no affiliate content",
+                product_id or json_path,
+            )
 
         # Validate character limits
         is_valid, error_msg = metadata.validate_limits()

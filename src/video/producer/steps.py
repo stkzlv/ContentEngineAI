@@ -17,6 +17,7 @@ from src.ai.script_generator import (
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.manager import AudioManager
 from src.audio.registry import create_audio_provider
+from src.scraper.base.models import carries_affiliate_content
 from src.utils import ensure_dirs_exist
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
@@ -605,12 +606,15 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
         logger.info("No authored hook headline; hook falls back to script sentence")
 
 
-def _extract_hashtags_from_title(title: str) -> list[str]:
+def _extract_hashtags_from_title(title: str, disclose: bool = True) -> list[str]:
     """Extract hashtags from product title keywords.
 
     Args:
     ----
         title: Product title to extract hashtags from.
+        disclose: Whether to append the `ad` disclosure hashtag. Defaults to
+            True; only a record that positively shows there is nothing to
+            disclose should pass False.
 
     Returns:
     -------
@@ -632,8 +636,11 @@ def _extract_hashtags_from_title(title: str) -> list[str]:
         hashtags.append(clean.capitalize())
         if len(hashtags) >= 3:
             break
-    # Always include #ad for advertising disclosure
-    hashtags.append("ad")
+    # `#ad` unless the record positively shows there is nothing to disclose.
+    # Defaults to including it: a missing disclosure misstates a material
+    # connection, while a needless one only costs reach.
+    if disclose:
+        hashtags.append("ad")
     return hashtags
 
 
@@ -859,7 +866,8 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
     ctx.description = description_clean
 
     # Generate hashtags from product title
-    hashtags = _extract_hashtags_from_title(ctx.product.title or "")
+    disclose = carries_affiliate_content(ctx.product)
+    hashtags = _extract_hashtags_from_title(ctx.product.title or "", disclose=disclose)
 
     # Generate unified metadata file
     product_root = ctx.run_paths["run_root"]
@@ -871,6 +879,11 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         "product_id": ctx.product.asin or "unknown",
         "generated_at": datetime.now(UTC).isoformat(),
         "mode": "unified",
+        # Recorded rather than re-derived by the publisher. Both would have to
+        # agree about what counts as affiliate content, and a caption that
+        # discloses while the frame does not, or the reverse, is worse than
+        # either choice made consistently.
+        "carries_affiliate_content": disclose,
     }
 
     metadata_file = product_root / "metadata.json"
@@ -1344,6 +1357,7 @@ async def step_assemble_video(ctx: PipelineContext):
 
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
         assembler.set_product_id(product_id)
+        assembler.carries_affiliate_content = carries_affiliate_content(ctx.product)
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.
         # When the script file doesn't exist (rare), the assembler treats the

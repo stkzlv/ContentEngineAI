@@ -31,6 +31,27 @@ class ProductStatus(Enum):
     UNKNOWN = "unknown"
 
 
+def carries_affiliate_content(product: Any) -> bool:
+    """Whether this render has a material connection to disclose.
+
+    Defaults to True. A disclosure that appears where none is needed costs
+    reach, because platforms down-rank content marked promotional; a
+    disclosure that is *missing* where one is needed is a false statement
+    about a material connection. The second is the worse failure, so only a
+    record that positively shows there is nothing to disclose suppresses it:
+    a topic with no affiliate link.
+
+    Anything else discloses, including a product whose affiliate link failed
+    to build, which is the case where guessing would be most expensive.
+    """
+    if getattr(product, "affiliate_link", None):
+        return True
+    # Only a topic with no affiliate link has nothing to disclose. Everything
+    # else falls through to True, including a bare record and a product whose
+    # link failed to build.
+    return not getattr(product, "topic", None)
+
+
 def _enum_value(value: Any) -> Any:
     """The ``.value`` of an enum, or the value itself if it is already plain.
 
