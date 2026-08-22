@@ -1227,29 +1227,15 @@ class BotasaurusAmazonScraper(BaseScraper):
         )
 
     def _product_to_dict(self, product: ProductData) -> dict[str, Any]:
-        """Convert ProductData to dictionary for JSON serialization"""
-        return {
-            "title": product.title,
-            "price": product.price,
-            "description": product.description,
-            "images": product.images,
-            "videos": product.videos,
-            "affiliate_link": product.affiliate_link,
-            "shortened_affiliate_link": product.shortened_affiliate_link,
-            "url": product.url,
-            "asin": product.asin,
-            "keyword": product.keyword,
-            "platform": (
-                product.platform.value
-                if hasattr(product.platform, "value")
-                else product.platform
-            ),
-            "rating": product.rating,
-            "serp_rating": product.serp_rating,
-            "serp_reviews_count": product.serp_reviews_count,
-            "downloaded_images": product.downloaded_images,
-            "downloaded_videos": product.downloaded_videos,
-        }
+        """Serialise a product for ``data.json``.
+
+        Delegates to the record's own ``to_dict`` rather than restating the
+        key set. The two used to be separate hand-written dicts and had
+        drifted: ``pillar`` reached the file on the topic path, which writes
+        through ``to_dict``, and never on this one, so the field looked wired
+        while a resumed run saw no pillar at all.
+        """
+        return product.to_dict()
 
     def cleanup(self) -> None:
         """Cleanup resources after scraping to prevent memory leaks"""
