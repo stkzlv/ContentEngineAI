@@ -31,6 +31,17 @@ class ProductStatus(Enum):
     UNKNOWN = "unknown"
 
 
+def _enum_value(value: Any) -> Any:
+    """The ``.value`` of an enum, or the value itself if it is already plain.
+
+    ``ProductData(**loaded_json)`` does no enum coercion, so a record read back
+    from disk carries plain strings where a freshly built one carries enums.
+    Without this, re-serialising a loaded product raises ``AttributeError`` on
+    ``.value``.
+    """
+    return value.value if hasattr(value, "value") else value
+
+
 @dataclass
 class BaseProductData:
     """Base product data structure shared across all platforms.
@@ -87,12 +98,25 @@ class BaseProductData:
         pass
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
+        """Convert to dictionary for JSON serialization.
+
+        The serialiser for everything that goes through ``_save_products``:
+        the topic path calls this directly and the scraper's
+        ``_product_to_dict`` delegates to it, so a field added to the dataclass
+        reaches the file on both. A second hand-written dict is how ``pillar``
+        came to persist for topics and vanish for scraped products.
+
+        It is not the only writer. The Botasaurus output callback
+        (``botasaurus_output.write_scraped_data_output``) writes the raw
+        extractor dict, and in the standalone CLI's batch mode nothing calls
+        ``_save_products``, so there the raw dict is the final ``data.json``
+        and a field added here does not appear in it.
+        """
         return {
             "title": self.title,
             "price": self.price,
             "url": self.url,
-            "platform": self.platform.value,
+            "platform": _enum_value(self.platform),
             "description": self.description,
             "images": self.images,
             "videos": self.videos,
@@ -102,7 +126,7 @@ class BaseProductData:
             "reviews_count": self.reviews_count,
             "brand": self.brand,
             "category": self.category,
-            "status": self.status.value,
+            "status": _enum_value(self.status),
             "downloaded_images": self.downloaded_images,
             "downloaded_videos": self.downloaded_videos,
             "platform_id": self.platform_id,
