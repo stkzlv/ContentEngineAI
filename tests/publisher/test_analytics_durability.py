@@ -268,7 +268,8 @@ class TestMergeSafety:
 
     def test_the_measurement_span_is_recorded(self):
         """A ratio one day past the window is not comparable with one six
-        months past it, and the stored number cannot say which it is."""
+        months past it, and the stored number cannot say which it is.
+        """
         m = summarize_post("p1", PUBLISHED.isoformat(), _rows((30, 100), (90, 250)))
         assert m.timeline_end.startswith("2026-04-01")
 
