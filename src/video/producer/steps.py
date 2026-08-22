@@ -48,6 +48,7 @@ from src.video.producer.state import (
 )
 from src.video.producer.utils import (
     draws_visuals_from_script,
+    profile_needs_stock_media,
     validate_media_requirements,
 )
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
@@ -353,9 +354,7 @@ async def step_gather_visuals(ctx: PipelineContext):
                         if vid_path.is_file()
                     ]
         stock_media_fetched: list[Any] = []
-        if (ctx.profile.use_stock_images and ctx.profile.stock_image_count > 0) or (
-            ctx.profile.use_stock_videos and ctx.profile.stock_video_count > 0
-        ):
+        if profile_needs_stock_media(ctx.profile):
             fetcher = StockMediaFetcher(
                 ctx.config.stock_media_settings,
                 ctx.secrets,
