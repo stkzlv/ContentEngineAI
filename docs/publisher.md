@@ -299,6 +299,28 @@ python -m src.publisher.late delete <post_id>
 |--------|----------|-------------|
 | `post_id` | Yes | Zernio post ID to delete |
 
+### Command: `analytics`
+
+```bash
+# Measure recent published posts and store the figures
+python -m src.publisher.late analytics --limit 50
+
+# Re-rank what is already stored, without touching the network
+python -m src.publisher.late analytics --rank-only
+```
+
+| Option | Required | Description |
+|---|---|---|
+| `--limit N` | No | How many recent published posts to measure (default: 50) |
+| `--rank-only` | No | Rank stored metrics without fetching; needs no API key |
+| `--outputs-dir PATH` | No | Where `post_metrics.json` lives (default: `outputs`) |
+
+Ranking by durability answers a different question from ranking by total views.
+A post that spiked and stopped can outrank one still earning months later on
+totals, and at day 7 the two are indistinguishable.
+
+---
+
 ### Command: `registry`
 
 ```

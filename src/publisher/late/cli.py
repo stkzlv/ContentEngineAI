@@ -26,6 +26,13 @@ import aiohttp
 from dotenv import load_dotenv
 
 from src.publisher import PublisherProvider, create_publisher
+from src.publisher.analytics import (
+    load_metrics,
+    rank_by_durability,
+    save_metrics,
+    summarize_post,
+    timeline_resource,
+)
 from src.publisher.batch import BatchPublisher
 from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
@@ -211,6 +218,71 @@ def _load_product_map(outputs_dir: Path) -> dict[str, str]:
         if post_id:
             out[post_id] = value.get("product_id", post_id)
     return out
+
+
+async def cmd_analytics(
+    args: argparse.Namespace, config, session: aiohttp.ClientSession
+):
+    """Capture day-N views and a durability ratio for published posts.
+
+    Ranking by total views answers a different question from ranking by
+    durability, and for a format comparison it answers the wrong one: a post
+    that spiked and stopped outranks one still earning months later. The day-7
+    figure has the same problem, since at day 7 both look like their launch
+    curve.
+    """
+    outputs_dir = args.outputs_dir
+    if args.rank_only:
+        # No client and no authentication: the flag promises no network, and
+        # requiring an API key to re-read a local file would make that false.
+        metrics = load_metrics(outputs_dir)
+        if not metrics:
+            logger.warning(
+                "No stored metrics in %s; run without --rank-only", outputs_dir
+            )
+            return
+    else:
+        publisher = _create_publisher_from_config(config, session)
+        if not await publisher.authenticate():
+            logger.error("Authentication failed - check your API key")
+            sys.exit(1)
+        posts = await publisher.list_posts(status="published")
+        resource = timeline_resource(publisher.client)
+        metrics = []
+        for post in posts[: args.limit]:
+            post_id = post.get("id") or post.get("_id")
+            if not post_id:
+                continue
+            try:
+                raw = resource.get_post_timeline(post_id=post_id)
+                rows = (
+                    getattr(raw, "timeline", None) or getattr(raw, "data", None) or []
+                )
+                rows = [r if isinstance(r, dict) else r.model_dump() for r in rows]
+            except Exception as exc:
+                # One post's analytics failing must not lose the rest of the
+                # sweep; a partial reading is still usable.
+                logger.warning("No timeline for %s: %s", post_id, exc)
+                continue
+            metrics.append(
+                summarize_post(
+                    post_id, post.get("publishedAt") or post.get("scheduledFor"), rows
+                )
+            )
+        save_metrics(metrics, outputs_dir)
+        logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
+
+    logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")
+    for m in rank_by_durability(metrics):
+        ratio = "-" if m.durability_ratio is None else f"{m.durability_ratio:.2f}"
+        logger.info(
+            "%-26s %8s %8s %8s %10s",
+            m.post_id[:26],
+            m.views_day_2 if m.views_day_2 is not None else "-",
+            m.views_day_7 if m.views_day_7 is not None else "-",
+            m.views_total if m.views_total is not None else "-",
+            ratio,
+        )
 
 
 async def cmd_verify_comments(
@@ -1376,6 +1448,33 @@ Examples:
         help="Enable debug logging",
     )
 
+    analytics_parser = subparsers.add_parser(
+        "analytics",
+        help="Capture day-N views and a durability ratio per published post",
+    )
+    analytics_parser.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="How many recent published posts to measure (default: 50)",
+    )
+    analytics_parser.add_argument(
+        "--rank-only",
+        action="store_true",
+        help="Rank stored metrics without fetching (no network)",
+    )
+    analytics_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=Path("outputs"),
+        help="Where post_metrics.json lives (default: outputs)",
+    )
+    analytics_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
     verify_parser = subparsers.add_parser(
         "verify-comments",
         help="Check that first comments landed on recent published posts",
@@ -1518,6 +1617,8 @@ Examples:
             await cmd_delete(args, config, session)
         elif args.command == "registry":
             cmd_registry(args)
+        elif args.command == "analytics":
+            await cmd_analytics(args, config, session)
         elif args.command == "verify-comments":
             await cmd_verify_comments(args, config, session)
         elif args.command == "verify-delivery":
