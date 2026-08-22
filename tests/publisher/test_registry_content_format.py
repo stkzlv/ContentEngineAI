@@ -97,6 +97,26 @@ class TestRegistryPersistence:
             header = next(csv.reader(f))
         assert header == [fld.name for fld in fields(RegistryEntry)]
 
+    def test_the_csv_columns_are_pinned(self, tmp_path):
+        """The derivation test above cannot fail, by construction.
+
+        Comparing the file to the dataclass proves they agree, not that either
+        is right: renaming a field changes both sides together and every
+        spreadsheet downstream silently gains a new column name. This states the
+        contract, so a rename has to be a deliberate edit here too.
+        """
+        save_registry([RegistryEntry("id", "t", "u", "a")], tmp_path)
+        with get_registry_path(tmp_path, "csv").open(encoding="utf-8") as f:
+            header = next(csv.reader(f))
+        assert header == [
+            "product_id",
+            "title",
+            "url",
+            "affiliate_url",
+            "pillar",
+            "content_format",
+        ]
+
     def test_a_registry_written_before_the_arm_still_loads(self, tmp_path):
         """Existing files have no such key; they must not fail to parse."""
         get_registry_path(tmp_path, "json").write_text(

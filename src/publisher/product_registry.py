@@ -23,7 +23,7 @@ class RegistryEntry:
     url: str
     affiliate_url: str
     pillar: str = ""
-    # Which content format the video was produced under, so two formats
+    # Which content format the product was produced under, so two formats
     # published side by side can be told apart afterwards. Comparing formats
     # requires interleaving them day by day, which is exactly the case where
     # publish date cannot reconstruct the arm.
@@ -232,7 +232,14 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
 
 
 def summarize_by_content_format(entries: list[RegistryEntry]) -> dict[str, int]:
-    """Count published videos per content-format arm.
+    """Count published products per content-format arm.
+
+    Products, not videos: the registry holds one row per product id, and a
+    republish replaces that row rather than appending. A product published
+    twice is one row and two live videos, so an arm that republishes more is
+    under-counted here. Counting videos needs the scheduler's own record, not
+    local state, since the publish history is keyed the same way and is
+    overwritten on republish too.
 
     The point of recording the arm is being able to segment by it without
     keeping a list outside the system, so the grouping lives here rather than

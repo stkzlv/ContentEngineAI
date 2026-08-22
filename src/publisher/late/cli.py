@@ -1356,7 +1356,7 @@ Examples:
     registry_parser.add_argument(
         "--summary",
         action="store_true",
-        help="Count published videos per content-format arm",
+        help="Count published products per content-format arm (one row per product)",
     )
     registry_parser.add_argument(
         "--outputs-dir",
