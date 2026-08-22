@@ -72,6 +72,18 @@ class TestOneSerialiser:
     def test_no_key_a_consumer_reads_was_dropped(self):
         assert LEGACY_SCRAPED_KEYS - set(_product().to_dict()) == set()
 
+    def test_every_serialised_key_can_be_read_back(self):
+        """Batch discovery does `ProductData(**loaded)` with no filter.
+
+        A key in the file that is not a dataclass field raises
+        `unexpected keyword argument` there, and the caller logs it and skips
+        the product. The other direction is asserted above; this is the one the
+        round trip actually depends on, and the tests' own `_reload` filters
+        the payload so it would not notice.
+        """
+        declared = {f.name for f in dataclasses.fields(ProductData)}
+        assert set(_product().to_dict()) - declared == set()
+
 
 @pytest.mark.unit
 class TestFieldsThatUsedToVanish:

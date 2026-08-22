@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.1] - 2026-08-22
+
 ### Fixed
-- A scraped `data.json` now carries every field the record declares. Two hand-written serialisers wrote that file and had drifted, so `pillar` reached it on the topic path and never on the scraper path: the field was set in memory during a run and lost on every resume or batch discovery pass. The scraper's copy now delegates to the record's own `to_dict`, which is a strict superset of what it wrote before, so `brand`, `category`, `platform_id`, `reviews_count`, `search_position`, `status`, `pillar` and `topic` all reach the file and no key a consumer reads was dropped.
-- Re-serialising a record read back from disk no longer raises. `ProductData(**loaded_json)` does no enum coercion, so `platform` and `status` come back as plain strings and `to_dict` raised `AttributeError` on `.value`. That guard was the only thing the scraper's separate serialiser was doing that the shared one was not.
+- `_save_products` writes every field a product record declares. Two hand-written serialisers produced `data.json` and had drifted, so a field added to the dataclass reached the file on the topic path and never on the scraper path. The scraper's copy now delegates to the record's own `to_dict`, which is a strict superset of what it wrote before, so `brand`, `category`, `platform_id`, `reviews_count`, `search_position`, `status`, `pillar` and `topic` now appear and no key a consumer reads was dropped.
 
 ### Notes
+- The `pillar` **key** now reaches a scraped `data.json`; its **value** still does not. Both places that assign it run after the file has been written, so every scraper path writes `pillar: null`. Tracked separately in #239, which this change makes visible: an absent key could not be told apart from a serialiser that never carried the field, and a present null can.
+- `to_dict` reads `platform` and `status` through a helper that tolerates a plain string. `ProductData(**loaded_json)` does no enum coercion, so a record read back from disk would have raised `AttributeError` on `.value`. No current path re-serialises a loaded record; the guard is what the scraper's separate serialiser was doing for itself, and merging the two required keeping it.
 - The new test compares the serialiser against the dataclass fields rather than against a second serialiser: two of them can agree with each other and both be missing a field, which is how this drift stayed invisible.
 
 ## [0.69.0] - 2026-08-22
