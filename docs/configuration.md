@@ -1766,7 +1766,9 @@ image_vertical_align: "top"          # Override global vertical alignment ("top"
 preserve_aspect_ratio: true          # Override aspect ratio setting
 
 # Subtitle Settings — single nested block. Any field on the global
-# subtitle_settings can be overridden here; unset fields inherit from global.
+# subtitle_settings can be overridden here except subtitle_format, which is
+# global-only because the subtitle file's extension is derived from it; unset
+# fields inherit from global.
 subtitle_settings:
   anchor: "below_content"            # top, center, bottom, above_content, below_content
   margin: 0.08                       # Margin as fraction of frame height (0.0-0.5)

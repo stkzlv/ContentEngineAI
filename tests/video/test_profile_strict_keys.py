@@ -66,9 +66,20 @@ class TestLegacyKeysStillAccepted:
             VideoProfile(**_profile(subtitle_format="srt"))
 
     def test_a_nested_block_is_accepted(self):
-        profile = VideoProfile(**_profile(subtitle_settings={"subtitle_format": "ass"}))
+        profile = VideoProfile(**_profile(subtitle_settings={"style_preset": "bold"}))
         assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.subtitle_format == "ass"
+        assert profile.subtitle_settings.style_preset == "bold"
+
+    def test_the_nested_route_cannot_set_the_format_either(self):
+        """`extra="forbid"` only sees the flat key.
+
+        `PartialSubtitleSettings` declares `subtitle_format`, so a nested
+        override loads and reaches the merged settings while the file path
+        stays derived from the global value. Rejecting only the flat spelling
+        would leave the same render failure one line of YAML away.
+        """
+        with pytest.raises(ValidationError, match="cannot be set per profile"):
+            VideoProfile(**_profile(subtitle_settings={"subtitle_format": "srt"}))
 
 
 @pytest.mark.unit
@@ -88,11 +99,11 @@ class TestBundledProfilesLoad:
         assert len(config.video_profiles) >= 11
 
     def test_no_bundled_profile_sets_a_key_the_model_ignores(self):
-        """Stronger than "the config loads", which `extra="forbid"` guarantees.
+        """States the accepted-key set, so a reader can see what it is.
 
-        A profile could still declare a key that migrates into the nested
-        block and is then never read. This asserts the accepted-key set is
-        exactly what the model plus the migration maps cover.
+        It cannot fail on a config the loader accepts: the set is built from
+        the same three maps the validator pops from. It is here as a readable
+        inventory, not as a second gate.
         """
         import yaml
 

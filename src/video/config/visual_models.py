@@ -650,6 +650,25 @@ class VideoProfile(BaseModel):
         if nested:
             data["subtitle_settings"] = nested
 
+        if "subtitle_format" in nested:
+            # Rejected here rather than by `extra="forbid"`, which only sees
+            # the flat key. `PartialSubtitleSettings` declares the field, so a
+            # nested override loads and reaches the merged settings while the
+            # subtitle file's extension stays derived from the global value
+            # (`core_models.py::_get_subtitle_filename`). The generator then
+            # writes one format into a path named for the other, and the
+            # assembler picks its filter from the suffix: SRT text handed to
+            # FFmpeg's `ass` filter aborts the render, and the mirror case
+            # ships a caption-less video with no error at all. Lifting this
+            # means making the path profile-aware first (#243).
+            raise ValueError(
+                "subtitle_format cannot be set per profile: the subtitle "
+                "file's extension comes from the global config, so a "
+                "profile-level format would be written into a file named for "
+                "a different one. Set it in config/subtitles.yaml, or per run "
+                "with --subtitle-format."
+            )
+
         return data
 
 

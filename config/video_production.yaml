@@ -574,7 +574,7 @@ video_profiles:
 
   # Slideshow with images profile
   slideshow_images1:
-    description: "Dynamically uses scraped product images to match voiceover duration. Plain captions, no randomization or effects."
+    description: "Dynamically uses scraped product images to match voiceover duration. Pins one font and colour pair rather than randomizing."
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
@@ -584,9 +584,6 @@ video_profiles:
     # Image positioning overrides
     image_width_percent: 1
     image_top_position_percent: 0.15              # Position image lower (15% from top)
-
-    # ASS, matching the other slideshow profiles: content-aware positioning
-    # needs the styling SRT has no way to express.
 
     # Subtitle positioning overrides
     subtitle_anchor: "below_content"               # Position below visual content
@@ -677,7 +674,7 @@ video_profiles:
         anchor: "bottom"
         margin: 0.04
 
-    # Subtitle format and styling (applies to both lines)
+    # Subtitle styling (applies to both lines; format is global)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
 
@@ -727,7 +724,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle format and styling (applies to both lines)
+    # Subtitle styling (applies to both lines; format is global)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_margin: 0.04                    # Small gap below images (4% of frame = ~77px spacing)
@@ -798,7 +795,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -856,7 +853,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -915,7 +912,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -974,7 +971,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.05
 
-    # Subtitle configuration - ASS format
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
     subtitle_content_aware: true
