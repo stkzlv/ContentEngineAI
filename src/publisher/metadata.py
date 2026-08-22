@@ -159,6 +159,7 @@ def _load_from_json(
             keywords=keywords,
             product_id=product_id,
         )
+        metadata.carries_affiliate_content = bool(disclose)
         if not disclose:
             metadata.disclosure = ""
             logger.info(

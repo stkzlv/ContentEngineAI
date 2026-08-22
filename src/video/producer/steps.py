@@ -618,7 +618,8 @@ def _extract_hashtags_from_title(title: str, disclose: bool = True) -> list[str]
 
     Returns:
     -------
-        List of hashtag strings (without # prefix), always includes 'ad'.
+        List of hashtag strings (without # prefix); includes 'ad' unless
+        `disclose` is False.
 
     """
     title_words = (title or "").split()
@@ -669,6 +670,19 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
         logger.info("Loading existing unified metadata from previous run")
         meta = json.loads(unified_metadata_path.read_text(encoding="utf-8"))
         ctx.description = meta.get("description", "")
+        # A file written before this key existed makes the publisher disclose
+        # while the overlay, which reads the record, does not. Backfill rather
+        # than return as-is: a re-render without `--clean` would otherwise ship
+        # a caption and a frame that disagree.
+        if "carries_affiliate_content" not in meta:
+            meta["carries_affiliate_content"] = carries_affiliate_content(ctx.product)
+            unified_metadata_path.write_text(
+                json.dumps(meta, indent=2), encoding="utf-8"
+            )
+            logger.info(
+                "Backfilled disclosure decision into existing metadata.json: %s",
+                meta["carries_affiliate_content"],
+            )
         logger.info(
             "Loaded existing description from metadata.json (%d characters)",
             len(ctx.description or ""),
@@ -776,7 +790,11 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         for platform, metadata in metadata_results.items():
             if metadata:
                 metadata_file = product_root / f"metadata_{platform}.json"
-                save_metadata_to_file(metadata, metadata_file)
+                save_metadata_to_file(
+                    metadata,
+                    metadata_file,
+                    disclose=carries_affiliate_content(ctx.product),
+                )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
                 saved_count += 1
 

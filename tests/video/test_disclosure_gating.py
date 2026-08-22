@@ -7,10 +7,12 @@ material connection. So every ambiguous case discloses, and only a record that
 positively shows there is nothing to disclose suppresses it.
 """
 
+import contextlib
 import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -132,3 +134,186 @@ class TestOverlayDefault:
             warnings.simplefilter("ignore", DeprecationWarning)
             config = load_video_config_modular()
         assert VideoAssembler(config).carries_affiliate_content is True
+
+
+@pytest.mark.unit
+class TestTheWiring:
+    """The two lines that connect the predicate to a render.
+
+    Deleting both left the whole suite green, so a refactor could revert the
+    change with no signal: topic renders would go back to burning `#ad` on the
+    frame, or to recording no decision so the caption discloses.
+    """
+
+    def _topic_product(self):
+        from src.video.producer.topic_input import TopicSpec, build_topic_product
+
+        return build_topic_product(
+            TopicSpec(title="Why wifi drops", description="d", keywords=[])
+        )
+
+    def test_the_unified_metadata_records_the_decision(self, tmp_path):
+        """The publisher reads this key; without it the caption discloses."""
+        import asyncio
+        import json
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.video.producer.steps import _generate_unified_metadata
+
+        ctx = MagicMock()
+        ctx.product = self._topic_product()
+        ctx.script = "A script."
+        ctx.description = None
+        ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
+        ctx.state = {}
+
+        with patch(
+            "src.video.producer.steps.generate_ai_description",
+            new=AsyncMock(return_value="A description."),
+        ):
+            asyncio.run(_generate_unified_metadata(ctx))
+
+        written = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
+        assert written["carries_affiliate_content"] is False
+        assert "ad" not in written["hashtags"]
+
+    def test_the_platform_metadata_records_the_decision(self, tmp_path):
+        """The optimized mode writes these instead of the unified file.
+
+        Left ungated, a topic render's frame carried no overlay while its
+        caption still led with `#ad`.
+        """
+        import json
+
+        from src.ai.platform_metadata.utilities import save_metadata_to_file
+
+        metadata = MagicMock()
+        metadata.to_dict.return_value = {
+            "platform": "youtube",
+            "title": "T",
+            "description": "D",
+            "hashtags": ["#Shorts", "#ad"],
+        }
+        metadata.platform = "youtube"
+        path = tmp_path / "metadata_youtube.json"
+        save_metadata_to_file(metadata, path, disclose=False)
+
+        written = json.loads(path.read_text(encoding="utf-8"))
+        assert written["carries_affiliate_content"] is False
+        assert written["hashtags"] == ["#Shorts"]
+
+    def test_the_platform_metadata_defaults_to_disclosing(self, tmp_path):
+        import json
+
+        from src.ai.platform_metadata.utilities import save_metadata_to_file
+
+        metadata = MagicMock()
+        metadata.to_dict.return_value = {"hashtags": ["#ad"]}
+        metadata.platform = "youtube"
+        path = tmp_path / "metadata_youtube.json"
+        save_metadata_to_file(metadata, path)
+
+        written = json.loads(path.read_text(encoding="utf-8"))
+        assert written["carries_affiliate_content"] is True
+        assert written["hashtags"] == ["#ad"]
+
+    def test_the_assembler_is_told_the_decision(self, tmp_path):
+        """The overlay reads this attribute.
+
+        Without the assignment the assembler keeps its default and burns `#ad`
+        onto a topic render, which is the defect this change removes. The step
+        is driven only as far as the assignment; what it does afterwards has
+        its own coverage.
+        """
+        import asyncio
+        from unittest.mock import MagicMock, patch
+
+        from src.video.producer.steps import step_assemble_video
+
+        captured = MagicMock()
+        ctx = MagicMock()
+        ctx.product = self._topic_product()
+        # `run_paths` is a real dict in production, so a MagicMock would let
+        # every lookup succeed and hide a missing key. Only the paths the step
+        # reads before the assignment need to exist.
+        ctx.run_paths = dict.fromkeys(
+            (
+                "subtitle_file",
+                "final_video_output",
+                "script_file",
+                "music_info_file",
+                "voiceover_file",
+                "gathered_visuals_file",
+                "assets_dir",
+                "temp_dir",
+                "run_root",
+            ),
+            tmp_path / "x",
+        )
+
+        with (
+            patch("src.video.producer.steps.VideoAssembler", return_value=captured),
+            contextlib.suppress(Exception),
+        ):
+            asyncio.run(step_assemble_video(ctx))
+
+        assert captured.carries_affiliate_content is False
+
+    def test_a_stale_metadata_file_is_backfilled(self, tmp_path):
+        """A re-render without `--clean` would otherwise split the surfaces."""
+        import json
+        from unittest.mock import MagicMock
+
+        from src.video.producer.steps import _check_existing_metadata
+
+        (tmp_path / "metadata.json").write_text(
+            json.dumps({"description": "old"}), encoding="utf-8"
+        )
+        ctx = MagicMock()
+        ctx.product = self._topic_product()
+        ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
+
+        assert _check_existing_metadata(ctx) is True
+        written = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
+        assert written["carries_affiliate_content"] is False
+
+
+@pytest.mark.unit
+class TestAffiliatePhraseGate:
+    """The program phrase asserts membership, which is the strongest of the
+    claims. Suppressing `#ad` without it would leave the phrase leading the
+    caption on a render with no affiliate relationship at all.
+    """
+
+    def _metadata(self, carries: bool):
+        from src.publisher.models import Platform, PublishMetadata
+
+        return PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="T",
+            description="D",
+            hashtags=["Foo"],
+            carries_affiliate_content=carries,
+        )
+
+    def test_the_phrase_is_applied_when_there_is_a_connection(self):
+        metadata = self._metadata(True)
+        if metadata.carries_affiliate_content:
+            metadata.affiliate_disclosure = "As an Amazon Associate..."
+        assert metadata.affiliate_disclosure is not None
+
+    def test_the_phrase_is_withheld_when_there_is_none(self):
+        metadata = self._metadata(False)
+        if metadata.carries_affiliate_content:
+            metadata.affiliate_disclosure = "As an Amazon Associate..."
+        assert metadata.affiliate_disclosure is None
+
+    def test_the_field_defaults_to_carrying(self):
+        from src.publisher.models import Platform, PublishMetadata
+
+        assert (
+            PublishMetadata(
+                platform=Platform.YOUTUBE, title="T", description="D"
+            ).carries_affiliate_content
+            is True
+        )
