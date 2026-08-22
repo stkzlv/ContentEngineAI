@@ -13,8 +13,8 @@ Spoken script:
 
 - Output {MAX_PHRASES} search phrases, one per line. Nothing else: no numbering,
   no bullets, no quotes, no explanation.
-- Each phrase is 2 to {MAX_WORDS} words. A longer phrase matches nothing in a
-  stock library.
+- Each phrase is 2 to {MAX_WORDS} words. A stock library answers a long phrase
+  by matching only part of it, so the extra words buy nothing.
 - Write what a camera can see. A stock library has photographs, not ideas, so
   "wifi router on a shelf" returns something and "network congestion" does not.
 - Cover different moments of the script. If it names a problem and then a fix,

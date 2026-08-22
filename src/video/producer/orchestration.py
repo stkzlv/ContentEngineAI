@@ -132,14 +132,25 @@ async def execute_pipeline_parallel(
             "generate_script", lambda ctx: step_generate_script(ctx), {"gather_visuals"}
         )
 
+    # Both of these spend money: captions call the LLM once per platform and the
+    # voiceover synthesises audio. On the product path `gather_visuals` has
+    # already run and rejected a product with too few images before either
+    # starts. Under the script-first order it would otherwise run *alongside*
+    # them, and `fail_fast` only stops between levels, so a render destined to
+    # be skipped would pay for both first. Naming it here restores the ordering
+    # property at the cost of one serialised level.
+    paid_step_deps = {"generate_script"}
+    if script_first:
+        paid_step_deps = {"generate_script", "gather_visuals"}
+
     pipeline.add_step(
         "generate_description",
         lambda ctx: step_generate_description(ctx),
-        {"generate_script"},
+        paid_step_deps,
     )
 
     pipeline.add_step(
-        "create_voiceover", lambda ctx: step_create_voiceover(ctx), {"generate_script"}
+        "create_voiceover", lambda ctx: step_create_voiceover(ctx), paid_step_deps
     )
 
     # These two steps can run in parallel - they only depend on voiceover

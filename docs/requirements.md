@@ -249,7 +249,7 @@ group degrade to FFmpeg without manual intervention.
 - A profile controls whether scraped product imagery is used at all (`use_scraped_images`), so a profile can render entirely from stock without code changes. `slideshow_stock` is the bundled profile that does
 - A topic supplies its own search terms, and they replace the profile and global lists rather than joining them. The provider concatenates every term into a single query, so combining a topic's words with product-oriented defaults searches for neither
 - A profile that draws no visual from the scraped product gathers its footage after the script exists, and searches on phrases derived from the narration. The narration is the only description of what such a video is about; the title states the subject, not what should be on screen while it is explained
-- Those phrases are searched one at a time and the results pooled, because the provider concatenates a keyword list into a single query and a library asked for one image matching every phrase returns nothing. Duplicate results across searches are dropped so one photograph cannot appear twice in a render
+- Those phrases are searched one at a time and the results pooled, because the provider concatenates a keyword list into a single query and the library answers a long query by matching whichever phrase dominates it, returning several variations of one shot rather than one shot per phrase. Duplicate results across searches are dropped so one photograph cannot appear twice in a render
 - Deriving the phrases never blocks a render: no key, a provider failure, or an unusable answer leaves the existing search terms in place
 - Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
 

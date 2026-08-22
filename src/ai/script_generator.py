@@ -1118,6 +1118,9 @@ _VISUAL_PHRASE_REJECT_PREFIXES = (
     "here are",
     "here is",
     "sure",
+    "sorry",
+    "i'm sorry",
+    "i am sorry",
     "i cannot",
     "i can't",
     "as an ai",
@@ -1128,8 +1131,17 @@ _VISUAL_PHRASE_REJECT_PREFIXES = (
 # A leading bullet or "1." that an LLM adds to a "one per line" answer. Anchored
 # at the start rather than stripped from both ends: a phrase can legitimately
 # end in a digit ("wifi channel 11"), and stripping characters would eat it.
-_VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+|\d+[.)])\s*")
-_VISUAL_PHRASE_QUOTES = "\"'`\u201c\u201d "
+#
+# The numeric form requires whitespace after the separator so a leading decimal
+# survives: without it, "2.4 ghz router antenna" is silently rewritten to
+# "4 ghz router antenna" and searched as though that were the model's answer.
+# A rewritten phrase is worse than a dropped one, because nothing reports it.
+_VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+\s*|\d+[.)]\s+)")
+# A decimal point inside a number, so the prose test does not read it as a
+# sentence ending.
+_DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
+# Trailing `*` covers bold markup the bullet rule strips only the front of.
+_VISUAL_PHRASE_QUOTES = "\"'`*\u201c\u201d "
 
 
 def sanitize_visual_search_phrases(
@@ -1160,8 +1172,10 @@ def sanitize_visual_search_phrases(
         if lowered.startswith(_VISUAL_PHRASE_REJECT_PREFIXES):
             continue
         # A stock query is nouns, so any punctuation that ends a sentence means
-        # the model answered in prose rather than in phrases.
-        if any(ch in line for ch in ",.;:!?#"):
+        # the model answered in prose rather than in phrases. A decimal point
+        # between digits is not that: "2.4 ghz router antenna" is a phrase, and
+        # the project's own example topic is about 2.4 vs 5GHz.
+        if any(ch in _DECIMAL_POINT.sub("", line) for ch in ",.;:!?#"):
             continue
         words = line.split()
         if not 2 <= len(words) <= max_words:

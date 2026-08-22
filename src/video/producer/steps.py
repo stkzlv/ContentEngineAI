@@ -226,9 +226,9 @@ async def _fetch_stock_across_queries(
     """Fetch stock media for several searches and pool the results.
 
     One search per query, because the provider joins a keyword list into a
-    single query string: passing every phrase at once asks the library for a
-    photograph matching all of them, which is how a long query returns
-    nothing.
+    single query string, and the library answers a long query by matching
+    whichever phrase dominates it. Passing every phrase at once returns a full
+    page of one shot rather than one shot per phrase.
 
     Each search asks for a share of what is still missing rather than a fixed
     slice decided up front. Without that, splitting one search into three
@@ -394,8 +394,9 @@ async def step_gather_visuals(ctx: PipelineContext):
             # A profile with no product imagery renders whatever these terms
             # return, so ask what the finished narration is about rather than
             # searching the title. Each phrase becomes its own search: the
-            # provider joins a keyword list into one query string, so several
-            # phrases in one list would match nothing.
+            # provider joins a keyword list into one query string, and the
+            # library answers a long query by matching whichever phrase
+            # dominates it, returning variations of one shot.
             script_phrases = await _resolve_script_visual_phrases(ctx)
             if script_phrases:
                 # Logged at info: these phrases are the whole visual layer for

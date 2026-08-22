@@ -17,7 +17,12 @@ from src.video.producer.state import (
     VALID_STEPS,
     resolved_step_order,
 )
-from src.video.producer.steps import _fetch_stock_across_queries, next_share
+from src.video.producer.steps import (
+    _fetch_stock_across_queries,
+    _resolve_script_visual_phrases,
+    _uses_script_visual_phrases,
+    next_share,
+)
 from src.video.producer.utils import draws_visuals_from_script
 
 STOCK_ONLY = SimpleNamespace(use_scraped_images=False, use_scraped_videos=False)
@@ -184,7 +189,7 @@ class _FakeFetcher:
 @pytest.mark.unit
 class TestFetchAcrossQueries:
     async def test_searches_each_phrase_separately(self):
-        """Joined into one query string, several phrases match nothing."""
+        """Joined into one query string, the phrases collapse onto one shot."""
         fetcher = _FakeFetcher()
         await _fetch_stock_across_queries(
             fetcher,
@@ -280,3 +285,182 @@ class TestFetchAcrossQueries:
             fetcher, [["wireless", "earbuds"]], 5, 2, Path("assets"), None
         )
         assert fetcher.calls == [(["wireless", "earbuds"], 5, 2)]
+
+
+def _phrase_ctx(*, script="A script.", stock_only=True, enabled=True, topic="A topic"):
+    """A context carrying only what `_resolve_script_visual_phrases` reads."""
+    profile = SimpleNamespace(
+        use_scraped_images=not stock_only, use_scraped_videos=False
+    )
+    return SimpleNamespace(
+        profile=profile,
+        script=script,
+        product=SimpleNamespace(topic=topic, title="t", description="d"),
+        secrets={},
+        session=None,
+        debug_mode=False,
+        config=SimpleNamespace(
+            llm_settings=SimpleNamespace(
+                visual_search_terms=SimpleNamespace(
+                    enabled=enabled, max_phrases=3, max_words_per_phrase=5
+                ),
+                script_templates=SimpleNamespace(narrator_for=lambda _is_topic: ""),
+            ),
+            api_settings=None,
+        ),
+    )
+
+
+@pytest.mark.unit
+class TestPhraseResolutionGates:
+    """When the render must NOT ask, and must NOT pay for the asking.
+
+    Each of these leaves the previously shipped search terms in place, which is
+    the whole non-regression guarantee: the feature can only add matching, never
+    remove a render.
+    """
+
+    async def test_a_product_profile_never_asks(self, monkeypatch):
+        """The script does not exist yet at this point in the product order."""
+        called = []
+        monkeypatch.setattr(
+            "src.video.producer.steps.generate_visual_search_phrases",
+            lambda *a, **k: called.append(1),
+        )
+        result = await _resolve_script_visual_phrases(_phrase_ctx(stock_only=False))
+        assert result == []
+        assert not called
+
+    async def test_disabled_config_never_asks(self, monkeypatch):
+        called = []
+        monkeypatch.setattr(
+            "src.video.producer.steps.generate_visual_search_phrases",
+            lambda *a, **k: called.append(1),
+        )
+        result = await _resolve_script_visual_phrases(_phrase_ctx(enabled=False))
+        assert result == []
+        assert not called
+
+    async def test_no_script_never_asks(self, monkeypatch):
+        """Nothing to derive terms from, so asking would spend a call on air."""
+        called = []
+        monkeypatch.setattr(
+            "src.video.producer.steps.generate_visual_search_phrases",
+            lambda *a, **k: called.append(1),
+        )
+        result = await _resolve_script_visual_phrases(_phrase_ctx(script=""))
+        assert result == []
+        assert not called
+
+    async def test_a_failed_generation_yields_no_phrases(self, monkeypatch):
+        """`generate_visual_search_phrases` swallows its own errors.
+
+        An empty list is how the caller is told to keep the terms it had, so a
+        no-key or provider failure must not surface as an exception here.
+        """
+
+        async def _empty(*a, **k):
+            return []
+
+        monkeypatch.setattr(
+            "src.video.producer.steps.generate_visual_search_phrases", _empty
+        )
+        assert await _resolve_script_visual_phrases(_phrase_ctx()) == []
+
+    async def test_a_stock_profile_with_a_script_asks(self, monkeypatch):
+        async def _phrases(*a, **k):
+            return ["bread on counter"]
+
+        monkeypatch.setattr(
+            "src.video.producer.steps.generate_visual_search_phrases", _phrases
+        )
+        assert await _resolve_script_visual_phrases(_phrase_ctx()) == [
+            "bread on counter"
+        ]
+
+
+@pytest.mark.unit
+class TestPreloaderGate:
+    """The preloader prefetches from title words before the script exists.
+
+    On the script-first path the render searches for something else, so
+    consulting it would spend a download on a query no longer being made.
+    """
+
+    def test_skipped_when_the_script_supplies_the_phrases(self):
+        assert _uses_script_visual_phrases(_phrase_ctx()) is True
+
+    def test_kept_for_a_product_profile(self):
+        assert _uses_script_visual_phrases(_phrase_ctx(stock_only=False)) is False
+
+    def test_kept_when_the_feature_is_off(self):
+        """Disabled means the old search terms are used, so the old prefetch
+        is the right one to consult.
+        """
+        assert _uses_script_visual_phrases(_phrase_ctx(enabled=False)) is False
+
+
+@pytest.mark.unit
+class TestStaleArtifactRemoval:
+    """Dropping a step from the state is not enough to make it re-run.
+
+    `step_gather_visuals` short-circuits on `gathered_visuals.json` existing,
+    not on the state, so a truncation that leaves the file behind pairs fresh
+    narration with the footage searched from the script that was lost. That is
+    the exact mismatch the script-first order exists to prevent.
+    """
+
+    def _state(self, tmp_path):
+        visuals = tmp_path / "gathered_visuals.json"
+        script = tmp_path / "script.txt"
+        visuals.write_text("{}", encoding="utf-8")
+        script.write_text("old narration", encoding="utf-8")
+        return (
+            visuals,
+            script,
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(script)},
+                },
+                "gather_visuals": {
+                    "status": "done",
+                    "artifacts": {"gathered_visuals_file": str(visuals)},
+                },
+            },
+        )
+
+    def test_a_dropped_steps_output_is_deleted(self, tmp_path):
+        from src.video.producer.state import _discard_stale_artifacts
+
+        visuals, script, state = self._state(tmp_path)
+        _discard_stale_artifacts(state, valid_steps=[])
+        assert not visuals.exists()
+        assert not script.exists()
+
+    def test_a_surviving_steps_output_is_kept(self, tmp_path):
+        """Truncation drops the tail, and the head must still be usable."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        visuals, script, state = self._state(tmp_path)
+        _discard_stale_artifacts(state, valid_steps=["generate_script"])
+        assert script.exists()
+        assert not visuals.exists()
+
+    def test_an_already_missing_artifact_is_not_an_error(self, tmp_path):
+        """The artifact whose absence triggered the truncation is one of these."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        state = {
+            "generate_script": {
+                "status": "done",
+                "artifacts": {"script_file": str(tmp_path / "gone.txt")},
+            }
+        }
+        _discard_stale_artifacts(state, valid_steps=[])
+
+    def test_non_dict_state_entries_are_skipped(self, tmp_path):
+        """Top-level scalars such as `pillar` sit beside the step dicts."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        _discard_stale_artifacts({"pillar": "utility"}, valid_steps=[])

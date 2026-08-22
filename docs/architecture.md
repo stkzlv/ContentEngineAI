@@ -244,15 +244,20 @@ src/
 
 **Technical Implementation:**
 ```python
-# Dependency Graph Definition
+# Dependency Graph Definition, as built by
+# src/video/producer/orchestration.py::execute_pipeline_parallel.
+# The first two edges depend on the profile: a profile that draws no visual
+# from the scraped product writes the script first, so its stock search can
+# use terms taken from the narration.
 dependencies = {
-    'gather_visuals': [],
-    'generate_script': ['gather_visuals'],
-    'generate_description': ['generate_script'],
-    'create_voiceover': ['generate_script'],
+    'gather_visuals': [],                        # ['generate_script'] when script-first
+    'generate_script': ['gather_visuals'],       # [] when script-first
+    'generate_description': ['generate_script'], # + 'gather_visuals' when script-first
+    'create_voiceover': ['generate_script'],     # + 'gather_visuals' when script-first
     'generate_subtitles': ['create_voiceover'],  # Can run in parallel
-    'download_music': ['create_voiceover'],     # Can run in parallel
-    'assemble_video': ['generate_subtitles', 'download_music']
+    'download_music': ['create_voiceover'],      # Can run in parallel
+    'assemble_video': ['generate_subtitles', 'download_music', 'gather_visuals'],
+    'burn_pycaps_subtitles': ['assemble_video'], # No-op unless engine is pycaps
 }
 ```
 

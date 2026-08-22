@@ -1292,8 +1292,9 @@ llm_settings:
 
 Each phrase is searched on its own and the results pooled, so `max_phrases` is
 how many different shots a render draws on. Passing the phrases together would
-not work: the provider concatenates a keyword list into a single query, and a
-library asked for one photograph matching every phrase returns nothing.
+not work: the provider concatenates a keyword list into a single query, and the
+library answers a long query by matching whichever phrase dominates it. The
+result is a full page of near-identical images rather than one shot per beat.
 
 Set `enabled: false` to search the topic title and the profile's own keywords
 instead. Deriving the phrases never blocks a render either way: no API key, a

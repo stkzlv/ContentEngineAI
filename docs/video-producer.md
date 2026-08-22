@@ -351,6 +351,12 @@ The producer runs through these steps in order:
 6. **download_music** - Fetch background music (Freesound)
 7. **assemble_video** - Combine all elements into final video
 
+Steps 1 and 2 are swapped on a profile that draws no scraped media, so on
+`slideshow_stock` the script is written before the footage is chosen. See
+"Stock-only profiles run script-first" earlier. `--step` follows the profile's
+real order, so on that profile `--step gather_visuals` requires a completed
+`generate_script` rather than the other way round.
+
 ### Running Single Steps
 
 ```bash

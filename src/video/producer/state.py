@@ -221,6 +221,43 @@ async def _save_pipeline_state(ctx: PipelineContext):
         logger.error(f"Failed to save pipeline state: {e}")
 
 
+def _discard_stale_artifacts(
+    state_data: dict[str, Any], valid_steps: list[str]
+) -> None:
+    """Delete the outputs of steps the truncated state no longer claims.
+
+    Dropping a step from the state is not enough on its own, because a step
+    can short-circuit on its own artifact file rather than on the state:
+    ``step_gather_visuals`` returns the previous run's media whenever
+    ``gathered_visuals.json`` is on disk. Left in place, a lost script would be
+    replaced by fresh narration and then paired with the footage searched from
+    the old one, which is exactly the mismatch the reordering exists to
+    prevent.
+
+    Only outputs of steps that must re-run are removed, so anything still
+    claimed by the truncated state survives. A file that is already gone, which
+    includes the missing artifact that triggered the truncation, is skipped.
+    """
+    for name, data in state_data.items():
+        if name in valid_steps or not isinstance(data, dict):
+            continue
+        for key, path_str in (data.get("artifacts") or {}).items():
+            path = Path(path_str)
+            try:
+                if path.exists():
+                    path.unlink()
+                    logger.info(
+                        "Discarded stale artifact '%s' from dropped step '%s': %s",
+                        key,
+                        name,
+                        path.name,
+                    )
+            except OSError as e:
+                # A leftover file is recoverable (the step overwrites it);
+                # failing the whole run over one unlink is not.
+                logger.warning("Could not remove stale artifact %s: %s", path, e)
+
+
 async def _load_pipeline_state(ctx: PipelineContext) -> bool:
     """Loads and verifies an existing pipeline state file."""
     state_file = ctx.run_paths["state_file"]
@@ -254,6 +291,7 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                         # than pair new narration with the old footage.
                         step_order = resolved_step_order(ctx.profile)
                         valid_steps = step_order[: step_order.index(step)]
+                        _discard_stale_artifacts(state_data, valid_steps)
                         ctx.state = {
                             k: v for k, v in state_data.items() if k in valid_steps
                         }
