@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-08-22
+
+### Added
+- The published-products registry records a `content_format` arm per video, so two formats published side by side can be told apart afterwards. It is read from the record rather than inferred from the profile or the publish date: a profile is a visual treatment two arms can share, and a date cannot reconstruct an arm that was interleaved, which is the only way to compare formats fairly.
+- `registry --summary` counts published videos per arm. Rows written before the arm existed report as unlabelled rather than being folded into either side, since a comparison that absorbs unknown videos silently is worse than one that shows how many it cannot place.
+
+### Fixed
+- The registry CSV header is derived from the record definition instead of being restated as a literal list. `DictWriter` raises on a key its header does not name, so adding a field failed the entire registry write rather than dropping one column.
+
 ## [0.66.0] - 2026-08-21
 
 ### Added

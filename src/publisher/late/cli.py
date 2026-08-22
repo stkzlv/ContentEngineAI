@@ -34,7 +34,12 @@ from src.publisher.config import load_publisher_config
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import DEFAULT_PLATFORMS, Platform
 from src.publisher.partial_post_sweep import sweep_partial_posts
-from src.publisher.product_registry import add_to_registry, rebuild_registry
+from src.publisher.product_registry import (
+    add_to_registry,
+    load_registry,
+    rebuild_registry,
+    summarize_by_content_format,
+)
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
 from src.utils.logging_setup import setup_debug_logging
@@ -1042,8 +1047,16 @@ def cmd_registry(args: argparse.Namespace) -> None:
         scan_dir = getattr(args, "scan_dir", None)
         count = rebuild_registry(outputs_dir, scan_dir=scan_dir)
         logger.info("Registry rebuilt: %d products in %s", count, outputs_dir)
+    elif getattr(args, "summary", False):
+        entries = load_registry(outputs_dir)
+        counts = summarize_by_content_format(entries)
+        logger.info("Registry: %d entries in %s", len(entries), outputs_dir)
+        for arm, count in sorted(counts.items()):
+            logger.info("  %-12s %d", arm, count)
     else:
-        logger.error("No action specified. Use --rebuild to rebuild the registry.")
+        logger.error(
+            "No action specified. Use --rebuild or --summary.",
+        )
         sys.exit(1)
 
 
@@ -1339,6 +1352,11 @@ Examples:
         "--rebuild",
         action="store_true",
         help="Rebuild registry from all data.json files in outputs directory",
+    )
+    registry_parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Count published videos per content-format arm",
     )
     registry_parser.add_argument(
         "--outputs-dir",

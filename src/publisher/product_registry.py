@@ -4,7 +4,7 @@ import csv
 import json
 import logging
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,11 @@ class RegistryEntry:
     url: str
     affiliate_url: str
     pillar: str = ""
+    # Which content format the video was produced under, so two formats
+    # published side by side can be told apart afterwards. Comparing formats
+    # requires interleaving them day by day, which is exactly the case where
+    # publish date cannot reconstruct the arm.
+    content_format: str = ""
 
 
 def get_registry_path(outputs_dir: Path, fmt: str = "json") -> Path:
@@ -67,8 +72,12 @@ def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:
     )
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        # Derived from the dataclass rather than restated: a hand-written list
+        # goes stale the moment a field is added, and `DictWriter` raises on the
+        # extra key instead of writing a column, so the whole registry write
+        # fails rather than one column going missing.
         writer = csv.DictWriter(
-            f, fieldnames=["product_id", "title", "url", "affiliate_url", "pillar"]
+            f, fieldnames=[fld.name for fld in fields(RegistryEntry)]
         )
         writer.writeheader()
         for entry in entries:
@@ -77,6 +86,24 @@ def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:
     logger.info(
         "Registry saved: %d entries (%s, %s)", len(entries), json_path, csv_path
     )
+
+
+CONTENT_FORMAT_TOPIC = "topic"
+CONTENT_FORMAT_PRODUCT = "product"
+
+
+def _content_format(product: dict) -> str:
+    """Which arm a record belongs to.
+
+    Read from the record rather than from the profile or the publish date. The
+    profile is a visual treatment and two arms can share one; the date cannot
+    reconstruct an arm that was interleaved, which is the only way to run the
+    comparison fairly.
+    """
+    topic = product.get("topic")
+    if isinstance(topic, str) and topic.strip():
+        return CONTENT_FORMAT_TOPIC
+    return CONTENT_FORMAT_PRODUCT
 
 
 def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
@@ -118,6 +145,7 @@ def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | No
             url=url,
             affiliate_url=affiliate_url,
             pillar=_read_pillar_from_state(product_id, outputs_dir),
+            content_format=_content_format(product),
         )
     except (json.JSONDecodeError, OSError, KeyError, ValueError) as exc:
         logger.warning("Failed to read data.json for %s: %s", product_id, exc)
@@ -201,3 +229,22 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
         scanned_count,
     )
     return len(entries)
+
+
+def summarize_by_content_format(entries: list[RegistryEntry]) -> dict[str, int]:
+    """Count published videos per content-format arm.
+
+    The point of recording the arm is being able to segment by it without
+    keeping a list outside the system, so the grouping lives here rather than
+    being rebuilt by every caller.
+
+    Entries written before the arm was recorded carry an empty string. They are
+    reported under "unlabelled" rather than folded into either arm, because a
+    comparison that silently counts unknown videos as one side is worse than one
+    that shows how many it cannot place.
+    """
+    counts: dict[str, int] = {}
+    for entry in entries:
+        key = entry.content_format or "unlabelled"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
