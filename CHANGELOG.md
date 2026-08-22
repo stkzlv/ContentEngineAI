@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - Only profiles for which stock is the whole visual layer are fatal. A profile that also draws scraped media renders fine without the key, since the fetcher degrades and the scraped images carry the video, so refusing it would block a configuration that works.
-- Skipped for `--step`, which runs one named step and may never reach `gather_visuals`, and for `--dry-run`, whose plan output is the one thing that would tell you which profiles are in the pool.
+- Skipped for `--step`, which runs exactly one named step, except `--step gather_visuals`: that is the step that asks for stock, so exempting it would restore the generic error this replaces. Also skipped for `--dry-run`, whose plan output is the one thing that would tell you which profiles are in the pool. The batch skips it by testing the flag rather than by sitting after the branch, so a keyless `--clean` run still aborts before deleting anything.
 - Every profile the run might select is checked, not only the one it names. With `--random-profile` any pool member can be drawn, so checking the drawn profile alone would make a missing key an intermittent failure.
 - The "needs stock media" condition is shared with `step_gather_visuals` rather than restated, so the check and the step it protects cannot disagree about which profiles require a key.
 

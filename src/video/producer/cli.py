@@ -32,7 +32,7 @@ from src.video.producer.orchestration import (
     create_video_for_product,
     failed_step_from_result,
 )
-from src.video.producer.state import VALID_STEPS
+from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
     TopicSpec,
@@ -761,12 +761,15 @@ async def main():
     # select needs the stock provider and the key is absent. The message that
     # would otherwise appear names neither the provider nor the variable.
     #
-    # Skipped for `--step`, which runs one named step and may never reach
-    # `gather_visuals` at all; refusing those would block debugging a run for
-    # a resource it is not going to ask for.
+    # Skipped for `--step`, which runs exactly one named step, so refusing it
+    # would block debugging a run for a resource it is not going to ask for.
+    # `--step gather_visuals` is the exception: it is the step that asks, and
+    # skipping the check there restores the generic media error this exists to
+    # replace.
+    debug_step = getattr(args, "step", None)
     stock_key_error = (
         None
-        if getattr(args, "step", None)
+        if debug_step is not None and debug_step != STEP_GATHER_VISUALS
         else check_stock_media_key(config, _profiles_this_run_may_use(args, config))
     )
     if stock_key_error:

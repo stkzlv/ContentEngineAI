@@ -252,3 +252,70 @@ class TestCandidateProfiles:
 
         args = self._args(random_profile=True, profile_pool=["nope"])
         assert _profiles_this_run_may_use(args, self._config_with("a")) == []
+
+
+@pytest.mark.unit
+class TestWhichRunsAreExempt:
+    """`--step` skips the check, except for the step that needs the key.
+
+    Exempting `--step gather_visuals` would restore the generic "No visual
+    inputs were found" error this check exists to replace, on the one
+    invocation guaranteed to hit it.
+    """
+
+    def _exempt(self, step: str | None) -> bool:
+        from src.video.producer.state import STEP_GATHER_VISUALS
+
+        return step is not None and step != STEP_GATHER_VISUALS
+
+    def test_a_full_run_is_checked(self):
+        assert not self._exempt(None)
+
+    def test_gathering_visuals_is_checked(self):
+        assert not self._exempt("gather_visuals")
+
+    @pytest.mark.parametrize(
+        "step", ["generate_script", "create_voiceover", "assemble_video"]
+    )
+    def test_other_single_steps_are_exempt(self, step):
+        assert self._exempt(step)
+
+
+@pytest.mark.unit
+class TestBatchCheckOrdering:
+    """The batch check must run before anything destructive.
+
+    Placed after the `--clean` block, a keyless run deletes the product
+    directories and then aborts, costing the scraped data as well as the
+    render. Ordering is asserted on the source because the alternative is
+    driving the whole batch entry point.
+    """
+
+    def _positions(self):
+        from pathlib import Path
+
+        source = Path("src/pipeline/global_batch.py").read_text(encoding="utf-8")
+        return (
+            source.index("# Same pre-flight the producer runs:"),
+            source.index("if config.clean:"),
+            source.index("if config.dry_run:"),
+        )
+
+    def test_the_check_precedes_the_clean_block(self):
+        check, clean, _ = self._positions()
+        assert check < clean
+
+    def test_the_check_precedes_the_dry_run_branch(self):
+        """It is skipped for a dry run by its own condition, not by sitting
+        after the branch, so the plan still prints while `--clean` stays
+        protected.
+        """
+        check, _, dry_run = self._positions()
+        assert check < dry_run
+
+    def test_the_check_is_guarded_by_the_dry_run_flag(self):
+        from pathlib import Path
+
+        source = Path("src/pipeline/global_batch.py").read_text(encoding="utf-8")
+        check = source.index("# Same pre-flight the producer runs:")
+        assert "if not config.dry_run:" in source[check : check + 800]
