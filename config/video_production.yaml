@@ -574,7 +574,7 @@ video_profiles:
 
   # Slideshow with images profile
   slideshow_images1:
-    description: "Dynamically uses scraped product images to match voiceover duration. Uses SRT format (no advanced effects)."
+    description: "Dynamically uses scraped product images to match voiceover duration."
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
@@ -585,9 +585,6 @@ video_profiles:
     image_width_percent: 1
     image_top_position_percent: 0.15              # Position image lower (15% from top)
 
-    # Subtitle format - SRT (simple format, no ASS effects like karaoke)
-    subtitle_format: "srt"
-
     # Subtitle positioning overrides
     subtitle_anchor: "below_content"               # Position below visual content
     subtitle_margin: 0.05                          # Small margin (5%)
@@ -595,13 +592,11 @@ video_profiles:
     subtitle_horizontal_alignment: "center"        # Center horizontally
 
     # Subtitle style overrides
-    # NOTE: SRT format doesn't support effects - use "minimal" or "bold" preset
-    # For karaoke/animated effects, use subtitle_format: "ass" instead
-    subtitle_style_preset: "bold"                  # Bold style (no effects, SRT-compatible)
+    subtitle_style_preset: "bold"
     subtitle_font_size_scale: 1.0                  # Normal font size
-    subtitle_randomize_fonts: false                # SRT doesn't support font changes
-    subtitle_randomize_colors: false               # SRT doesn't support color changes
-    subtitle_randomize_effects: false              # No effects in SRT format
+    subtitle_randomize_fonts: false
+    subtitle_randomize_colors: false
+    subtitle_randomize_effects: false              # Differs from the global, which randomizes
 
     # Text formatting overrides — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 38                   # Max characters per line
@@ -679,8 +674,7 @@ video_profiles:
         anchor: "bottom"
         margin: 0.04
 
-    # Subtitle format and styling (applies to both lines)
-    subtitle_format: "ass"
+    # Subtitle styling (applies to both lines; format is global)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
 
@@ -730,8 +724,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle format and styling (applies to both lines)
-    subtitle_format: "ass"
+    # Subtitle styling (applies to both lines; format is global)
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_margin: 0.04                    # Small gap below images (4% of frame = ~77px spacing)
@@ -802,8 +795,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
-    subtitle_format: "ass"
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -861,8 +853,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
-    subtitle_format: "ass"
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -921,8 +912,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.04
 
-    # Subtitle configuration - ASS format
-    subtitle_format: "ass"
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -981,8 +971,7 @@ video_profiles:
         anchor: "below_content"
         margin: 0.05
 
-    # Subtitle configuration - ASS format
-    subtitle_format: "ass"
+    # Subtitle configuration (format is global)
     subtitle_anchor: "below_content"
     subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
     subtitle_content_aware: true

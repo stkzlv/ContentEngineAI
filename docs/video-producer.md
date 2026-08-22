@@ -179,9 +179,9 @@ video_profiles:
     description: "Image slideshow with animated subtitles"
     use_scraped_videos: false
     video_assembly_mode: null  # Images only
-    subtitle_format: "ass"
-    subtitle_preset: "animated"
-    font_size_scale: 1.0
+    subtitle_settings:
+      style_preset: "animated"
+      font_size_scale: 1.0
 
   slideshow_short_20s:
     description: "Short 15-30s slideshow tuned for hook iteration"
@@ -195,8 +195,19 @@ video_profiles:
     use_scraped_videos: true
     video_assembly_mode: "sequential"
     video_audio_handling: "remove"
-    subtitle_format: "srt"
 ```
+
+Unknown keys are rejected at config load, so a typo here fails immediately
+rather than being dropped and leaving the profile to render with the global
+value. Subtitle settings go in the nested `subtitle_settings` block; the flat
+`subtitle_*` keys still load but warn.
+
+`subtitle_format` is not settable per profile, in either the flat or the
+nested spelling, and a profile that sets it fails at config load. The subtitle
+file's extension is derived from the global `config/subtitles.yaml` value, so a
+profile-level format would be honoured by the merged settings and ignored by
+the path, which mismatches the file against the filter that reads it. Set it
+globally, or per run with `--subtitle-format`.
 
 ### Hook Overlay and Pre-Motion
 

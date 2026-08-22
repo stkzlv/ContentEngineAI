@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.2] - 2026-08-22
+
+### Fixed
+- `VideoProfile` rejects unknown keys instead of dropping them. `docs/requirements.md` has claimed strict validation for profile overrides since before the model had it: `SubtitleSettings` forbids extras, `VideoProfile` took Pydantic's default and ignored them, so a typo in a profile block was invisible. The render succeeds using the global value, which is what makes this class of bug hard to see: the profile appears to work and its override does nothing.
+
+### Removed
+- `subtitle_format` from the seven bundled profiles that set it. It never had any effect there and now fails at load in either spelling, flat or nested, which is the honest answer: the subtitle file's extension is derived from the global value, so a profile-level format would be honoured by the merged settings and ignored by the path, writing SRT text into a file the assembler hands to FFmpeg's `ass` filter. `slideshow_images1` was asking for `srt` and rendering `ass`. No output changes, since the key was already being dropped.
+
+### Notes
+- The documented profile example in `docs/video-producer.md` used flat `subtitle_preset` and `font_size_scale` keys, which the model does not declare; copying it into a config would now fail the load. It uses the nested `subtitle_settings` block instead.
+- `slideshow_images1`'s description and three of its comments claimed SRT, which it has never rendered. Its description is data, not a comment: it labels the profile in the performance metrics.
+
 ## [0.69.1] - 2026-08-22
 
 ### Fixed
