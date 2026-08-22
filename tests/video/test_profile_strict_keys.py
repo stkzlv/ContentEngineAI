@@ -53,20 +53,17 @@ class TestLegacyKeysStillAccepted:
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.anchor == "below_content"
 
-    def test_subtitle_format_is_migrated_rather_than_dropped(self):
-        """It has no `subtitle_` prefix in its target name, which is how it
-        came to be the one flat key missing from the migration map. A profile
-        setting it fell back to the global value with no warning.
-        """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            profile = VideoProfile(**_profile(subtitle_format="srt"))
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.subtitle_format == "srt"
+    def test_subtitle_format_is_rejected_rather_than_migrated(self):
+        """It is the one flat key deliberately left out of the migration map.
 
-    def test_a_migrated_key_still_warns(self):
-        with pytest.warns(DeprecationWarning, match="legacy flat subtitle keys"):
-            VideoProfile(**_profile(subtitle_format="ass"))
+        Honouring it in the merged settings alone would break the render: the
+        subtitle file's extension comes from the global value, so a profile
+        asking for srt under a global of ass writes SRT text into
+        `subtitles.ass` and the assembler hands that to FFmpeg's `ass` filter.
+        A load error is the honest answer until the path follows the profile.
+        """
+        with pytest.raises(ValidationError, match="subtitle_format"):
+            VideoProfile(**_profile(subtitle_format="srt"))
 
     def test_a_nested_block_is_accepted(self):
         profile = VideoProfile(**_profile(subtitle_settings={"subtitle_format": "ass"}))
@@ -90,12 +87,43 @@ class TestBundledProfilesLoad:
             config = load_video_config_modular()
         assert len(config.video_profiles) >= 11
 
-    def test_a_profiles_subtitle_format_reaches_the_merged_settings(self):
-        """The end of the chain the dropped key never reached."""
-        from src.video.config import load_video_config_modular
+    def test_no_bundled_profile_sets_a_key_the_model_ignores(self):
+        """Stronger than "the config loads", which `extra="forbid"` guarantees.
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            config = load_video_config_modular()
-        merged = config.get_profile_merged_settings("slideshow_stock")
-        assert merged.subtitle_settings.subtitle_format == "ass"
+        A profile could still declare a key that migrates into the nested
+        block and is then never read. This asserts the accepted-key set is
+        exactly what the model plus the migration maps cover.
+        """
+        import yaml
+
+        from src.video.config.visual_models import (
+            _LEGACY_FLAT_TO_NESTED,
+            _LEGACY_PYCAPS_FIELDS,
+            _LEGACY_SAFE_ZONE_FIELDS,
+        )
+
+        accepted = (
+            set(VideoProfile.model_fields)
+            | set(_LEGACY_FLAT_TO_NESTED)
+            | set(_LEGACY_SAFE_ZONE_FIELDS)
+            | set(_LEGACY_PYCAPS_FIELDS)
+            | {"two_part_subtitles"}
+        )
+        with open("config/video_production.yaml", encoding="utf-8") as f:
+            profiles = yaml.safe_load(f)["video_profiles"]
+        unknown = {
+            name: sorted(set(block) - accepted) for name, block in profiles.items()
+        }
+        assert {n: k for n, k in unknown.items() if k} == {}
+
+    def test_no_bundled_profile_still_sets_subtitle_format(self):
+        """Seven of them did, and every one was dead.
+
+        Left in place they would now fail the load outright, so their removal
+        is what makes `extra="forbid"` safe to turn on.
+        """
+        import yaml
+
+        with open("config/video_production.yaml", encoding="utf-8") as f:
+            profiles = yaml.safe_load(f)["video_profiles"]
+        assert [n for n, b in profiles.items() if "subtitle_format" in b] == []

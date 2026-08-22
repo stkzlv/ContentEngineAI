@@ -42,10 +42,14 @@ _LEGACY_FLAT_TO_NESTED: dict[str, str] = {
     "subtitle_selected_font": "selected_font",
     "subtitle_selected_color_pair": "selected_color_pair",
     "subtitle_engine": "subtitle_engine",
-    # Not prefixed with `subtitle_`, which is how it came to be missing
-    # here while every sibling was migrated. A profile setting it was
-    # silently dropped and fell back to the global value.
-    "subtitle_format": "subtitle_format",
+    # `subtitle_format` is deliberately NOT here. Migrating it would make
+    # a profile-level value take effect in the merged settings while the
+    # subtitle file path is still derived from the global one
+    # (`core_models.py::_get_subtitle_filename`), so a profile asking for
+    # srt under a global of ass writes SRT text into `subtitles.ass` and
+    # the assembler feeds it to FFmpeg's `ass` filter, which aborts.
+    # `extra="forbid"` rejects the key instead, which is honest: it does
+    # not work at profile level until the path follows the profile.
 }
 
 _LEGACY_SAFE_ZONE_FIELDS = (
@@ -461,8 +465,8 @@ class VideoProfile(BaseModel):
     Strict about unknown keys. Pydantic's default is to drop them, and a
     dropped key in a profile block is invisible: the render succeeds using the
     global value, so the profile appears to work and its override does
-    nothing. That is how `subtitle_format` sat unmigrated in seven bundled
-    profiles, and how `slideshow_stock` asked for a format it never got.
+    nothing. That is how `subtitle_format` sat dead in seven bundled profiles,
+    including `slideshow_images1` asking for a format it never got.
 
     Legacy flat subtitle keys are migrated and removed by the validator below
     before this check applies, so they are still accepted.

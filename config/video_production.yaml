@@ -574,7 +574,7 @@ video_profiles:
 
   # Slideshow with images profile
   slideshow_images1:
-    description: "Dynamically uses scraped product images to match voiceover duration. Uses SRT format (no advanced effects)."
+    description: "Dynamically uses scraped product images to match voiceover duration. Plain captions, no randomization or effects."
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
@@ -587,7 +587,6 @@ video_profiles:
 
     # ASS, matching the other slideshow profiles: content-aware positioning
     # needs the styling SRT has no way to express.
-    subtitle_format: "ass"
 
     # Subtitle positioning overrides
     subtitle_anchor: "below_content"               # Position below visual content
@@ -598,9 +597,9 @@ video_profiles:
     # Subtitle style overrides
     subtitle_style_preset: "bold"
     subtitle_font_size_scale: 1.0                  # Normal font size
-    subtitle_randomize_fonts: false                # SRT doesn't support font changes
-    subtitle_randomize_colors: false               # SRT doesn't support color changes
-    subtitle_randomize_effects: false              # No effects in SRT format
+    subtitle_randomize_fonts: false                # One font, for a consistent look
+    subtitle_randomize_colors: false               # One colour pair
+    subtitle_randomize_effects: false              # Plain captions
 
     # Text formatting overrides — aligned with docs/subtitle-best-practices.md
     subtitle_max_line_length: 38                   # Max characters per line
@@ -679,7 +678,6 @@ video_profiles:
         margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
-    subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
 
@@ -730,7 +728,6 @@ video_profiles:
         margin: 0.04
 
     # Subtitle format and styling (applies to both lines)
-    subtitle_format: "ass"
     subtitle_content_aware: true
     subtitle_horizontal_alignment: "center"
     subtitle_margin: 0.04                    # Small gap below images (4% of frame = ~77px spacing)
@@ -802,7 +799,6 @@ video_profiles:
         margin: 0.04
 
     # Subtitle configuration - ASS format
-    subtitle_format: "ass"
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -861,7 +857,6 @@ video_profiles:
         margin: 0.04
 
     # Subtitle configuration - ASS format
-    subtitle_format: "ass"
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -921,7 +916,6 @@ video_profiles:
         margin: 0.04
 
     # Subtitle configuration - ASS format
-    subtitle_format: "ass"
     subtitle_anchor: "below_content"
     subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
     subtitle_content_aware: true
@@ -981,7 +975,6 @@ video_profiles:
         margin: 0.05
 
     # Subtitle configuration - ASS format
-    subtitle_format: "ass"
     subtitle_anchor: "below_content"
     subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
     subtitle_content_aware: true
