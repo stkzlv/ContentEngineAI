@@ -454,6 +454,14 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Works in both unified and platform-specific publishing modes
 - Applies consistently across the standalone publisher CLI and the global batch pipeline
 
+### Post Analytics
+- Day-2 and day-7 cumulative views, plus a durability ratio, stored per published post
+- Durability is views after the first 30 days over views within them. At or above 1.0 the post earned more attention after launch than during it
+- The scheduler's timeline is cumulative, so a day-N figure is a lookup against one call rather than a scheduled job that must run on the day
+- A window the post has not reached yet reports as unknown rather than as the running total, and a post with no views in the durability window reports unknown rather than 0.0. Ranking treats unknown as unmeasurable and sorts it last, never as a zero
+- Reports can rank by durability, which answers a different question from ranking by total views or by day-7 views: at day 7 a post that keeps earning and one that spiked and stopped are indistinguishable
+- Measuring a post again replaces its stored row rather than appending, so one post is one row carrying the reading with the most history behind it
+
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory
 - Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content pillar, content-format arm
