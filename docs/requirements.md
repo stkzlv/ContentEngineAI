@@ -252,6 +252,7 @@ group degrade to FFmpeg without manual intervention.
 - Those phrases are searched one at a time and the results pooled, because the provider concatenates a keyword list into a single query and the library answers a long query with results skewed toward whichever phrase dominates, leaving some phrases unrepresented. Duplicate results across searches are dropped so one photograph cannot appear twice in a render
 - Deriving the phrases never blocks a render: no key, a provider failure, or an unusable answer leaves the existing search terms in place
 - Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
+- A missing provider key is caught at startup rather than mid-render, naming the variable and the profiles that need it, but only for profiles where stock is the whole visual layer. A profile that also draws scraped media degrades as above and still renders, so refusing it would block a working configuration
 
 ### Topic Input
 - A video can be produced from a topic (a title, a description, optional search terms) with no scraper run and no product directory

@@ -478,3 +478,56 @@ def validate_config_and_exit_on_error(config: VideoConfig) -> None:
         raise SystemExit(1)
 
     logger.info("✅ Configuration validation passed")
+
+
+def check_stock_media_key(
+    config: VideoConfig, profile_names: list[str], secrets: dict[str, str] | None = None
+) -> str | None:
+    """Whether a run over these profiles can reach the stock provider.
+
+    Without the key, `StockMediaFetcher` warns, sets its client to `None` and
+    returns nothing, and the run dies three steps later with "No visual inputs
+    were found or gathered for this profile" — which names neither the
+    provider nor the variable to set. For a profile that draws every visual
+    from stock, that is the whole render failing for one missing environment
+    variable, reported as a media problem.
+
+    Only profiles for which stock is the *whole* visual layer are treated as
+    fatal. A profile that also draws scraped media renders fine without the
+    key: the fetcher warns, returns nothing, and the scraped images carry the
+    video. Failing that case would refuse a configuration that works, which is
+    worse than the silent gap this check exists to close.
+
+    Every profile the run might select is checked, not just the first: with a
+    random profile or a pool, any member can be drawn, and failing only when
+    the draw happens to pick a stock profile makes the error intermittent.
+
+    Returns an error message, or None when the key is present or no profile
+    needs it. Reading the environment directly when `secrets` is not given, so
+    a caller that has not built its secrets dict yet can still ask.
+    """
+    from src.video.producer.utils import (
+        draws_visuals_from_script,
+        profile_needs_stock_media,
+    )
+
+    env_var = config.stock_media_settings.pexels_api_key_env_var
+    key = (secrets or {}).get(env_var) or os.environ.get(env_var)
+    if key:
+        return None
+
+    needing = sorted(
+        name
+        for name in profile_names
+        if (profile := config.video_profiles.get(name)) is not None
+        and profile_needs_stock_media(profile)
+        and draws_visuals_from_script(profile)
+    )
+    if not needing:
+        return None
+
+    return (
+        f"{env_var} is not set, and these profiles draw every visual from the "
+        f"stock provider, so a run selecting one has nothing to render: "
+        f"{', '.join(needing)}. Set {env_var} in .env or the environment."
+    )

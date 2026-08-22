@@ -24,12 +24,15 @@ from src.utils.logging_setup import setup_debug_logging
 from src.utils.performance import PerformanceHistoryManager
 from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
-from src.video.config_validator import validate_config_and_exit_on_error
+from src.video.config_validator import (
+    check_stock_media_key,
+    validate_config_and_exit_on_error,
+)
 from src.video.producer.orchestration import (
     create_video_for_product,
     failed_step_from_result,
 )
-from src.video.producer.state import VALID_STEPS
+from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
     TopicSpec,
@@ -273,6 +276,39 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
         overrides["pillar"] = args.pillar
 
     return overrides
+
+
+def _step_exempts_stock_check(step: str | None) -> bool:
+    """Whether `--step <step>` can skip the stock-provider key check.
+
+    A single named step runs alone, so a run that will not reach the fetcher
+    should not be refused for a key it never asks for. `gather_visuals` is the
+    exception: it is the step that asks, and exempting it would restore the
+    generic "No visual inputs were found" error this check exists to replace.
+    """
+    return step is not None and step != STEP_GATHER_VISUALS
+
+
+def _profiles_this_run_may_use(args, config) -> list[str]:
+    """Every profile the run could select, not just the one it names.
+
+    With `--random-profile` any pool member can be drawn, so checking only the
+    profile that happens to be picked would make a missing provider key an
+    intermittent failure rather than a deterministic one.
+    """
+    if getattr(args, "random_profile", False):
+        try:
+            return load_profile_pool(
+                getattr(args, "profile_pool", None),
+                getattr(config, "profile_pool", None),
+                config,
+            )
+        except ValueError:
+            # An unusable pool is reported later, with a message naming the
+            # bad profile. Raising here would replace that with a traceback.
+            return []
+    named = getattr(args, "batch_profile", None) or getattr(args, "profile", None)
+    return [named] if named else []
 
 
 async def main():
@@ -731,6 +767,25 @@ async def main():
     except SystemExit:
         logger.critical(f"Complete log saved to: {log_file}")
         raise
+
+    # Fail now, not three steps into the render, when a profile this run may
+    # select needs the stock provider and the key is absent. The message that
+    # would otherwise appear names neither the provider nor the variable.
+    #
+    # Skipped for `--step`, which runs exactly one named step, so refusing it
+    # would block debugging a run for a resource it is not going to ask for.
+    # `--step gather_visuals` is the exception: it is the step that asks, and
+    # skipping the check there restores the generic media error this exists to
+    # replace.
+    stock_key_error = (
+        None
+        if _step_exempts_stock_check(getattr(args, "step", None))
+        else check_stock_media_key(config, _profiles_this_run_may_use(args, config))
+    )
+    if stock_key_error:
+        logger.critical(stock_key_error)
+        logger.critical(f"Complete log saved to: {log_file}")
+        sys.exit(1)
 
     # Apply script template override to LLM settings
     if cli_overrides.get("script_template"):

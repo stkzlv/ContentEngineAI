@@ -21,6 +21,25 @@ logger = logging.getLogger(__name__)
 EXCLUDED_RANDOM_PROFILES = frozenset({"base", "slideshow_stock"})
 
 
+def profile_needs_stock_media(profile: Any) -> bool:
+    """Whether this profile will ask the stock provider for anything.
+
+    The same condition `step_gather_visuals` uses to decide whether to build a
+    fetcher, so a pre-flight check and the step it protects cannot disagree
+    about which profiles need a provider key.
+    """
+    return bool(
+        (
+            getattr(profile, "use_stock_images", False)
+            and getattr(profile, "stock_image_count", 0) > 0
+        )
+        or (
+            getattr(profile, "use_stock_videos", False)
+            and getattr(profile, "stock_video_count", 0) > 0
+        )
+    )
+
+
 def draws_visuals_from_script(profile: Any) -> bool:
     """Whether this profile's visuals are chosen from the script, not the product.
 

@@ -1995,6 +1995,28 @@ async def main():
         logger.info("Validating configuration...")
         validate_global_batch_config(config, video_config)
 
+        # Same pre-flight the producer runs: a profile this batch may select
+        # drawing every visual from the stock provider, with no key set, is a
+        # whole run failing per product on a message that names neither.
+        #
+        # Guarded by the dry-run flag rather than by position. Sitting below
+        # the `--clean` block would let a keyless run delete the product
+        # directories and then abort, costing the scraped data as well as the
+        # render.
+        if not config.dry_run:
+            from src.video.config_validator import check_stock_media_key
+
+            if config.random_profile:
+                # `validate_global_batch_config` fills an empty pool with the
+                # selectable profiles, so this is the real draw set by now.
+                candidate_profiles = list(config.profile_pool or [])
+            else:
+                candidate_profiles = [config.profile] if config.profile else []
+            stock_key_error = check_stock_media_key(video_config, candidate_profiles)
+            if stock_key_error:
+                logger.critical(stock_key_error)
+                sys.exit(1)
+
         logger.info("Configuration validated successfully")
         logger.info(
             f"Inputs: {len(config.product_ids or [])} product IDs, "
