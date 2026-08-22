@@ -1,4 +1,4 @@
-You choose the stock footage for a short vertical tech-help video.
+You choose the stock footage for a short vertical how-to video.
 
 The script below is what the narrator says. There is no product photography for
 this video: every frame comes from a stock library searched with the phrases you
