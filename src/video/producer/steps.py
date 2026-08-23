@@ -681,14 +681,25 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
         # while the overlay, which reads the record, does not. Backfill rather
         # than return as-is: a re-render without `--clean` would otherwise ship
         # a caption and a frame that disagree.
+        rewrite = False
         if "carries_affiliate_content" not in meta:
             meta["carries_affiliate_content"] = carries_affiliate_content(ctx.product)
-            unified_metadata_path.write_text(
-                json.dumps(meta, indent=2), encoding="utf-8"
-            )
+            rewrite = True
             logger.info(
                 "Backfilled disclosure decision into existing metadata.json: %s",
                 meta["carries_affiliate_content"],
+            )
+        # Same reason, for the same class of staleness: a re-render under a
+        # different `--pillar` reuses this file, and the registry reads it, so
+        # leaving the previous run's arm here files the row under one the
+        # shipped script was not written for.
+        if meta.get("pillar") != ctx.state.get("pillar"):
+            meta["pillar"] = ctx.state.get("pillar")
+            rewrite = True
+            logger.info("Updated pillar in existing metadata.json: %s", meta["pillar"])
+        if rewrite:
+            unified_metadata_path.write_text(
+                json.dumps(meta, indent=2), encoding="utf-8"
             )
         logger.info(
             "Loaded existing description from metadata.json (%d characters)",
@@ -801,6 +812,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                     metadata,
                     metadata_file,
                     disclose=carries_affiliate_content(ctx.product),
+                    pillar=active_pillar,
                 )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
                 saved_count += 1

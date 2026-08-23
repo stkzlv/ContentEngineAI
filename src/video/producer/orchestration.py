@@ -347,8 +347,15 @@ async def create_video_for_product(
             # exactly the runs that reload it. The registry reads the state
             # file, so losing it files the row unlabelled for a video whose
             # script was written under the pillar.
-            resolved_pillar = (cli_overrides or {}).get("pillar") or getattr(
-                product, "pillar", None
+            # CLI, then what a previous run recorded, then the product's own
+            # value. The middle term matters on a resume: without it the
+            # product record overwrites a `--pillar` the earlier run resolved
+            # and already wrote the script under, and the flag is not repeated
+            # on the rerun.
+            resolved_pillar = (
+                (cli_overrides or {}).get("pillar")
+                or ctx.state.get("pillar")
+                or getattr(product, "pillar", None)
             )
             if resolved_pillar:
                 ctx.state["pillar"] = resolved_pillar

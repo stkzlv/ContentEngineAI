@@ -115,7 +115,9 @@ def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
     `pipeline_state.json` first, since it is the run's own record. But it does
     not survive a normal run -- a successful non-debug render deletes the
     `temp/` directory holding it, and the registry is written afterwards -- so
-    fall back to `metadata.json`, which sits at the product root and survives.
+    fall back to the metadata files, which sit at the product root and survive:
+    `metadata.json` in unified mode, `metadata_<platform>.json` in optimized
+    mode, which writes no unified file.
 
     `data.json` is deliberately not consulted. It carries the pillar the
     product was *scraped* under, so on a run with an override it would file
@@ -132,15 +134,26 @@ def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
         except (json.JSONDecodeError, OSError):
             pass
 
-    meta_path = outputs_dir / product_id / "metadata.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    product_dir = outputs_dir / product_id
+    # `metadata.json` in unified mode; the per-platform files in optimized
+    # mode, which writes no unified file at all.
+    candidates = [
+        product_dir / "metadata.json",
+        *sorted(product_dir.glob("metadata_*.json")),
+    ]
+    for meta_path in candidates:
+        if not meta_path.exists():
+            continue
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(meta, dict):
+            continue
         pillar = meta.get("pillar")
-        return pillar if isinstance(pillar, str) else ""
-    except (json.JSONDecodeError, OSError, AttributeError):
-        return ""
+        if isinstance(pillar, str) and pillar:
+            return pillar
+    return ""
 
 
 def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | None:

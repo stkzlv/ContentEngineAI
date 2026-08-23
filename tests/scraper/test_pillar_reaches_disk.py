@@ -255,7 +255,9 @@ class TestPillarSurvivesATruncatedResume:
     resolution moved below the pipeline run, which disables it entirely.
     """
 
-    async def _resolved_pillar(self, tmp_path, product_pillar, cli_overrides=None):
+    async def _resolved_pillar(
+        self, tmp_path, product_pillar, cli_overrides=None, loaded_state=None
+    ):
         import warnings
 
         from src.video.producer import orchestration
@@ -263,8 +265,13 @@ class TestPillarSurvivesATruncatedResume:
         seen: dict = {}
 
         async def _fake_load(ctx):
-            # What a truncated resume leaves behind: step keys only.
-            ctx.state = {"gather_visuals": {"status": "done"}}
+            # A truncated resume leaves step keys only; an ordinary one keeps
+            # whatever the previous run recorded.
+            ctx.state = (
+                {"gather_visuals": {"status": "done"}}
+                if loaded_state is None
+                else dict(loaded_state)
+            )
 
         async def _fake_execute(ctx):
             seen["pillar"] = ctx.state.get("pillar")
@@ -317,6 +324,20 @@ class TestPillarSurvivesATruncatedResume:
 
     async def test_no_pillar_anywhere_records_nothing(self, tmp_path):
         assert await self._resolved_pillar(tmp_path, None) is None
+
+    async def test_a_recorded_pillar_survives_a_resume_without_the_flag(self, tmp_path):
+        """An untruncated resume keeps the previous run's state.
+
+        The flag is not repeated on a rerun, and the script on disk was
+        already written under it, so letting the product record win here files
+        the row under an arm the shipped script was not written for.
+        """
+        assert (
+            await self._resolved_pillar(
+                tmp_path, "value", loaded_state={"pillar": "utility"}
+            )
+            == "utility"
+        )
 
 
 @pytest.mark.unit
@@ -437,3 +458,100 @@ class TestTheRenderedPillarIsRecordedWhereItSurvives:
         """
         written = await self._write_metadata(monkeypatch, tmp_path, {})
         assert written["pillar"] is None
+
+
+@pytest.mark.unit
+class TestTheRegistryReadsOptimizedMetadataToo:
+    """Optimized metadata mode writes no `metadata.json` at all.
+
+    It writes one `metadata_<platform>.json` per platform instead, so a
+    registry that looked only for the unified file filed every render in that
+    mode unlabelled -- on the same non-debug path where the state file is
+    already gone.
+    """
+
+    def test_a_platform_metadata_file_answers(self, tmp_path):
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        root = tmp_path / "B0TEST0001"
+        root.mkdir(parents=True)
+        (root / "metadata_youtube.json").write_text(json.dumps({"pillar": "utility"}))
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "utility"
+
+    def test_the_unified_file_still_wins(self, tmp_path):
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        root = tmp_path / "B0TEST0001"
+        root.mkdir(parents=True)
+        (root / "metadata.json").write_text(json.dumps({"pillar": "value"}))
+        (root / "metadata_youtube.json").write_text(json.dumps({"pillar": "utility"}))
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "value"
+
+
+@pytest.mark.unit
+class TestAReRenderRefreshesTheRecordedPillar:
+    """`metadata.json` is reused when it exists, and the registry reads it.
+
+    So a re-render under a different `--pillar` would otherwise leave the
+    previous run's arm on a video whose script was written for another one --
+    the confidently-wrong label this design refuses.
+    """
+
+    async def _reuse(self, tmp_path, existing: dict, state: dict):
+        from src.video.producer import steps as steps_mod
+
+        (tmp_path / "metadata.json").write_text(json.dumps(existing))
+        ctx = MagicMock()
+        ctx.state = state
+        ctx.product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0001",
+            platform=None,
+            asin="B0TEST0001",
+            pillar="value",
+        )
+        ctx.run_paths = {
+            "run_root": tmp_path,
+            "description_file": tmp_path / "description.txt",
+        }
+        ctx.debug_mode = False
+        steps_mod._check_existing_metadata(ctx)
+        return json.loads((tmp_path / "metadata.json").read_text())
+
+    async def test_a_stale_pillar_is_replaced(self, tmp_path):
+        written = await self._reuse(
+            tmp_path,
+            {"description": "old", "pillar": "value"},
+            {"pillar": "utility"},
+        )
+        assert written["pillar"] == "utility"
+
+    async def test_a_file_predating_the_key_is_backfilled(self, tmp_path):
+        written = await self._reuse(
+            tmp_path, {"description": "old"}, {"pillar": "utility"}
+        )
+        assert written["pillar"] == "utility"
+
+    def test_the_optimized_writer_records_the_pillar(self, tmp_path):
+        """The registry reading these files is only half of it.
+
+        In optimized mode these are the only files written outside `temp/`,
+        so if the writer omits the key there is nothing for the registry to
+        find.
+        """
+        from src.ai.platform_metadata.utilities import save_metadata_to_file
+        from src.publisher.models import Platform
+
+        class _Meta:
+            platform = Platform.YOUTUBE.value
+
+            def to_dict(self):
+                return {"title": "T", "description": "D", "hashtags": ["tech"]}
+
+        out = tmp_path / "B0TEST0001" / "metadata_youtube.json"
+        save_metadata_to_file(_Meta(), out, pillar="utility")
+
+        assert json.loads(out.read_text())["pillar"] == "utility"

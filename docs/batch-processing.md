@@ -332,7 +332,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-`--pillar <name>` filters the script template pool to templates configured under that pillar in `config/ai_services.yaml::script_templates.pillars`, prepends the per-pillar preamble to the LLM prompt, and substitutes `{AUDIENCE}` with the pillar's audience hint. Defaults: `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Without the flag, all templates are eligible and the global `target_audience` applies. See [Requirements](requirements.md) "Content Pillars" for the full system.
+`--pillar <name>` filters the script template pool to templates configured under that pillar in `config/ai_services.yaml::script_templates.pillars`, prepends the per-pillar preamble to the LLM prompt, and substitutes `{AUDIENCE}` with the pillar's audience hint. Defaults: `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Without the flag, the product record's own pillar applies when it has one — the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies. See [Requirements](requirements.md) "Content Pillars" for the full system.
 
 #### Process All Existing Products
 

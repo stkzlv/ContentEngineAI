@@ -96,7 +96,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 | `--voice-profile` | Force a specific TTS voice profile | `--voice-profile calm_confident` |
 | `--pillar` | Content pillar for the run (filters templates, prepends pillar preamble, picks pillar audience) | `--pillar value` |
 
-**Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, all templates are eligible and the global `target_audience` applies. See [Requirements](requirements.md) "Content Pillars" for the full system.
+**Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, the product record's own pillar applies when it has one — the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies. See [Requirements](requirements.md) "Content Pillars" for the full system.
 
 ### Subtitle Configuration
 
