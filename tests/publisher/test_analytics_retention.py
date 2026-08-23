@@ -65,10 +65,9 @@ class TestATruncatedRereadKeepsWhatWasMeasured:
 
     def test_a_downward_revision_lands(self, tmp_path):
         """Truncation cannot lower the lifetime total, because rows are
-        cumulative and the last one is "as of today" either way. So a smaller
-        fresh figure is a real revision -- platforms do make them, observed
-        here as a day-7 count exceeding a post's lifetime total -- and keeping
-        the larger would freeze a number the platform has corrected.
+        cumulative and the last one is "as of today" either way. So the fresh
+        figure is simply the more recent measurement, and keeping the larger
+        would freeze one the platform had since corrected.
         """
         _stored(tmp_path, post_id="p1", views_total=9000)
         save_metrics([PostMetrics(post_id="p1", views_total=8990)], tmp_path)
@@ -392,3 +391,46 @@ class TestATimelineHasOneRowPerPlatformPerDate:
         m = summarize_post("p", published.isoformat(), rows)
 
         assert m.views_total == 815, "one platform stood in for the post"
+
+
+@pytest.mark.unit
+class TestAnImpossibleRatioReportsUnmeasurable:
+    """A negative durability ratio cannot arise from a correct reading.
+
+    Under a cumulative series the lifetime total is never below the figure at
+    day 30, so `total < within` means the reading itself is wrong -- a date
+    missing a platform's row, or a revision straddling the window. Storing the
+    negative number would rank it below every real post and record it as
+    though it were a measurement.
+
+    Not observed on the live API across twelve multi-platform posts, none of
+    which had a shrinking platform set on its newest date. Guarded anyway,
+    because absence is the project's answer to an unanswerable figure.
+    """
+
+    def test_a_total_below_the_window_figure_is_unmeasurable(self):
+        from datetime import datetime, timedelta
+
+        from src.publisher.analytics import durability_ratio
+
+        published = datetime(2026, 6, 1)
+        timeline = [
+            (published + timedelta(days=d), v)
+            for d, v in ((0, 100), (30, 1000), (40, 400))
+        ]
+
+        assert durability_ratio(timeline, published) is None
+
+    def test_a_sound_reading_still_scores(self):
+        """The guard must not swallow real ratios."""
+        from datetime import datetime, timedelta
+
+        from src.publisher.analytics import durability_ratio
+
+        published = datetime(2026, 6, 1)
+        timeline = [
+            (published + timedelta(days=d), v)
+            for d, v in ((0, 100), (30, 1000), (40, 1300))
+        ]
+
+        assert durability_ratio(timeline, published) == pytest.approx(0.3)

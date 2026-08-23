@@ -644,8 +644,13 @@ class TestRebuildRefusesToEmptyAFullRegistry:
         """
         from src.publisher.product_registry import rebuild_registry
 
-        (tmp_path / "published_products.json").write_bytes(
-            b'[{"product_id": "B0X", "title": "Caf\xe9"}]'
-        )
+        raw = b'[{"product_id": "B0X", "title": "Caf\xe9"}]'
+        (tmp_path / "published_products.json").write_bytes(raw)
 
-        rebuild_registry(tmp_path)
+        result = rebuild_registry(tmp_path)
+
+        # And, more importantly, does not empty it. A file that holds
+        # everything and parses as nothing must not read as "no rows" --
+        # that is the shape a truncated write leaves behind.
+        assert result < 0
+        assert (tmp_path / "published_products.json").read_bytes() == raw

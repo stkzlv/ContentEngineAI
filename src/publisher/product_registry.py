@@ -205,6 +205,11 @@ def _rows_on_disk(outputs_dir: Path) -> int:
     Deliberately not `len(load_registry(...))`: the case worth guarding is one
     where the rows are present but unreadable, and counting the load would
     report zero for exactly that case.
+
+    Returns -1 when the file exists but cannot be parsed, which must not read
+    as "no rows": a truncated write leaves a file that holds everything and
+    parses as nothing, and treating that as empty lets the rebuild overwrite
+    it. Only a genuinely absent or genuinely empty file returns 0.
     """
     path = get_registry_path(outputs_dir, "json")
     if not path.exists():
@@ -215,8 +220,10 @@ def _rows_on_disk(outputs_dir: Path) -> int:
         # `ValueError` covers `UnicodeDecodeError` from a file truncated
         # mid-codepoint, which the sibling loaders already catch. Raising here
         # would turn a corrupt registry from a warning into a traceback.
-        return 0
-    return len(data) if isinstance(data, list) else 0
+        return -1
+    if not isinstance(data, list):
+        return -1
+    return len(data)
 
 
 def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
@@ -251,7 +258,7 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
     # truthy while every historical row failed to load -- which is exactly the
     # case worth refusing, and the one an earlier version of this guard let
     # through: three scanned products would have been written over 323 rows.
-    if _rows_on_disk(outputs_dir) and not existing_count:
+    if _rows_on_disk(outputs_dir) != 0 and not existing_count:
         # The registry had rows, the rebuild produced none, and saving would
         # replace a full file with an empty one. That is never a legitimate
         # outcome: a scan that finds nothing should leave the file alone.

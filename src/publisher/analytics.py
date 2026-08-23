@@ -190,6 +190,13 @@ def durability_ratio(
     if within is None or within <= 0:
         return None
     total = timeline[-1][1]
+    if total < within:
+        # Impossible under a correct cumulative read, so something is wrong
+        # with this one -- a date missing a platform's row, or a revision
+        # straddling the window. Report it as unmeasurable rather than as a
+        # negative ratio, which would rank below every real post and be stored
+        # as though it were a measurement.
+        return None
     return (total - within) / within
 
 
@@ -332,12 +339,11 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         published_at=fresh.published_at or stored.published_at,
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
-        # Window-independent, so the fresh figure is simply the better one:
-        # cumulative rows mean the last row is the lifetime total whether or
-        # not the window reaches back to publication. Truncation cannot lower
-        # it, so a smaller fresh figure is a real downward revision -- which
-        # platforms do make, observed here as a day-7 count exceeding the
-        # lifetime total -- and keeping the larger would freeze a stale number.
+        # Window-independent, so the fresh figure is simply the more recent
+        # measurement of the same quantity: summed across platforms, the last
+        # row is the lifetime total whether or not the window reaches back to
+        # publication, and truncation cannot lower it. Keeping the larger of
+        # the two would freeze a figure the platform had since corrected.
         views_total=kept(stored.views_total, fresh.views_total),
         durability_ratio=(
             fresh.durability_ratio if ratio_from_fresh else stored.durability_ratio
