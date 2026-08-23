@@ -199,6 +199,33 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
     return True
 
 
+def _rows_on_disk(outputs_dir: Path) -> int:
+    """How many rows the registry file holds, whether or not they load.
+
+    Deliberately not `len(load_registry(...))`: the case worth guarding is one
+    where the rows are present but unreadable, and counting the load would
+    report zero for exactly that case.
+
+    Returns -1 when the file exists but cannot be parsed, which must not read
+    as "no rows": a truncated write leaves a file that holds everything and
+    parses as nothing, and treating that as empty lets the rebuild overwrite
+    it. Only a genuinely absent or genuinely empty file returns 0.
+    """
+    path = get_registry_path(outputs_dir, "json")
+    if not path.exists():
+        return 0
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, ValueError):
+        # `ValueError` covers `UnicodeDecodeError` from a file truncated
+        # mid-codepoint, which the sibling loaders already catch. Raising here
+        # would turn a corrupt registry from a warning into a traceback.
+        return -1
+    if not isinstance(data, list):
+        return -1
+    return len(data)
+
+
 def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
     """Rebuild registry by merging scanned entries into the existing one.
 
@@ -226,6 +253,33 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
             scanned_count += 1
 
     entries = list(existing.values())
+    # Guard on the load, not on emptiness. `entries` includes whatever the
+    # scan found, so a handful of surviving product directories makes it
+    # truthy while every historical row failed to load -- which is exactly the
+    # case worth refusing, and the one an earlier version of this guard let
+    # through: three scanned products would have been written over 323 rows.
+    rows_present = _rows_on_disk(outputs_dir)
+    if rows_present != 0 and not existing_count:
+        # The registry had rows, the rebuild produced none, and saving would
+        # replace a full file with an empty one. That is never a legitimate
+        # outcome: a scan that finds nothing should leave the file alone.
+        # Reachable when the load returns nothing while the file is not empty
+        # -- a schema change every historical row fails, say -- and by then
+        # the product directories are long cleaned up, so the scan cannot
+        # re-add them. The `.bak` only covers one generation.
+        logger.error(
+            "Refusing to rebuild: the registry file %s. Saving would replace "
+            "it with whatever the scan of %s found. Registry left unchanged. "
+            "To rebuild from the product directories anyway, move the file "
+            "aside first.",
+            (
+                "could not be parsed"
+                if rows_present < 0
+                else f"holds {rows_present} row(s), none of which could be read"
+            ),
+            source,
+        )
+        return -1
     save_registry(entries, outputs_dir)
     logger.info(
         "Registry rebuilt: %d entries (existing=%d, scanned=%d)",

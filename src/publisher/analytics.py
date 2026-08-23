@@ -110,11 +110,24 @@ def _instant(value: Any) -> datetime | None:
 def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
     """Reduce an API timeline to sorted (date, cumulative views) pairs.
 
-    Rows missing a usable date or view count are dropped rather than defaulted:
-    a zero would be indistinguishable from a real zero and would drag a
-    durability ratio toward nothing.
+    **One row per date, summed across platforms.** The API returns a row per
+    platform per date, so a post published to three platforms has three rows
+    for each day. Taking them as-is made every figure the last-listed
+    platform's number wearing the post's name: one post reads 357 views this
+    way against 1187 actually earned, because the rows for that date are
+    Instagram 15, TikTok 815, YouTube 357 and YouTube sorts last.
+
+    Summing is the right reduction for a reach question, which asks how many
+    people a post reached, not how many it reached on the platform whose row
+    happened to come last. It also removes an ambiguity in the merge: a sweep
+    where one platform's row for the newest date has not landed would
+    otherwise change which platform the figure describes.
+
+    Rows missing a usable date or view count are dropped rather than
+    defaulted: a zero would be indistinguishable from a real zero and would
+    drag a durability ratio toward nothing.
     """
-    out: list[tuple[datetime, int]] = []
+    per_date: dict[datetime, int] = {}
     for row in rows or []:
         if not isinstance(row, dict):
             continue
@@ -122,8 +135,8 @@ def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
         views = row.get("views")
         if when is None or not isinstance(views, int | float):
             continue
-        out.append((when, int(views)))
-    return sorted(out, key=lambda pair: pair[0])
+        per_date[when] = per_date.get(when, 0) + int(views)
+    return sorted(per_date.items(), key=lambda pair: pair[0])
 
 
 def views_at_day(
@@ -177,6 +190,16 @@ def durability_ratio(
     if within is None or within <= 0:
         return None
     total = timeline[-1][1]
+    if total < within:
+        # The series is normally monotonic but not always: platforms revise
+        # counts down, and a summed series dips by a fraction of a percent
+        # when they do (observed live: 929, 934, 922 on consecutive days).
+        # Across the 30-day boundary that makes the total read below the
+        # window figure. "Views earned after the window" is not a quantity
+        # worth reporting negative, and the next sweep recomputes it, so
+        # report unmeasurable rather than rank a noise figure below every
+        # real post.
+        return None
     return (total - within) / within
 
 
@@ -314,18 +337,17 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         """The fresh figure when it has one, else what was already measured."""
         return b if b is not None else a
 
-    totals = [v for v in (stored.views_total, fresh.views_total) if v is not None]
     return PostMetrics(
         post_id=fresh.post_id,
         published_at=fresh.published_at or stored.published_at,
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
-        # Window-independent: cumulative rows mean the last row is the lifetime
-        # total whether or not the window reaches back to publication, so the
-        # fresh figure is normally the right one and `max` is a no-op. It only
-        # bites if a platform revises a count downward, where the earlier,
-        # higher reading is kept deliberately rather than silently.
-        views_total=max(totals) if totals else None,
+        # Window-independent, so the fresh figure is simply the more recent
+        # measurement of the same quantity: summed across platforms, the last
+        # row is the lifetime total whether or not the window reaches back to
+        # publication, and truncation cannot lower it. Keeping the larger of
+        # the two would freeze a figure the platform had since corrected.
+        views_total=kept(stored.views_total, fresh.views_total),
         durability_ratio=(
             fresh.durability_ratio if ratio_from_fresh else stored.durability_ratio
         ),

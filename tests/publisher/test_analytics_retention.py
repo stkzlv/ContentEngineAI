@@ -63,14 +63,21 @@ class TestATruncatedRereadKeepsWhatWasMeasured:
         assert m.views_day_7 == 3400
         assert m.durability_ratio == 1.4
 
-    def test_a_smaller_total_does_not_replace_a_larger_one(self, tmp_path):
-        """Not a truncation case -- cumulative rows make a truncated total
-        correct. This guards the other direction: a platform revising a count
-        downward keeps the earlier, higher reading rather than silently
-        adopting the lower one.
+    def test_a_downward_revision_lands(self, tmp_path):
+        """Truncation cannot lower the lifetime total, because rows are
+        cumulative and the last one is "as of today" either way. So the fresh
+        figure is simply the more recent measurement, and keeping the larger
+        would freeze one the platform had since corrected.
         """
         _stored(tmp_path, post_id="p1", views_total=9000)
-        save_metrics([PostMetrics(post_id="p1", views_total=500)], tmp_path)
+        save_metrics([PostMetrics(post_id="p1", views_total=8990)], tmp_path)
+
+        assert load_metrics(tmp_path)[0].views_total == 8990
+
+    def test_an_absent_total_still_keeps_the_stored_one(self, tmp_path):
+        """A reading that measured nothing is not a revision to zero."""
+        _stored(tmp_path, post_id="p1", views_total=9000)
+        save_metrics([PostMetrics(post_id="p1", views_day_2=5)], tmp_path)
 
         assert load_metrics(tmp_path)[0].views_total == 9000
 
@@ -321,3 +328,108 @@ class TestTheClientCarriesTheLegPublishTime:
             legs and legs[0]["publishedAt"] is not None
         ), "the normalizer dropped the leg publish time"
         assert publish_time(posts[0]).startswith("2026-08-04")
+
+
+@pytest.mark.unit
+class TestATimelineHasOneRowPerPlatformPerDate:
+    """The API returns a row per platform per date, not per date.
+
+    Taking them as-is made every stored figure the last-listed platform's
+    number wearing the post's name. Measured against the live API: one post's
+    rows for 2026-08-23 are Instagram 15, TikTok 815, YouTube 357, and the
+    stored total read 357 -- under a third of the 1187 the post actually
+    earned, because YouTube sorts last.
+
+    Every existing test built one row per date, which is why none of them
+    noticed.
+    """
+
+    def _rows(self, published, days, per_platform):
+        from datetime import timedelta
+
+        out = []
+        for d in range(days + 1):
+            date = (published + timedelta(days=d)).strftime("%Y-%m-%d")
+            for platform, per_day in per_platform.items():
+                out.append(
+                    {"date": date, "platform": platform, "views": per_day * (d + 1)}
+                )
+        return out
+
+    def test_views_are_summed_across_platforms(self):
+        from datetime import datetime
+
+        from src.publisher.analytics import summarize_post
+
+        published = datetime(2026, 6, 1)
+        rows = self._rows(published, 9, {"youtube": 10, "tiktok": 100, "instagram": 1})
+
+        m = summarize_post("p", published.isoformat(), rows)
+
+        # day 2 is the third row-set (d=2), so 30 + 300 + 3.
+        assert m.views_day_2 == 333
+        assert m.views_day_7 == 888
+        assert m.views_total == 1110
+
+    def test_the_last_listed_platform_does_not_stand_in_for_the_post(self):
+        """The specific shape of the defect: a small last platform.
+
+        Ordered so the platform that sorts last is the smallest, which is what
+        made the stored figure a fraction of the real one rather than merely a
+        different number.
+        """
+        from datetime import datetime
+
+        from src.publisher.analytics import summarize_post
+
+        published = datetime(2026, 6, 1)
+        rows = [
+            {"date": "2026-06-01", "platform": "alpha", "views": 800},
+            {"date": "2026-06-01", "platform": "zulu", "views": 15},
+        ]
+
+        m = summarize_post("p", published.isoformat(), rows)
+
+        assert m.views_total == 815, "one platform stood in for the post"
+
+
+@pytest.mark.unit
+class TestAnImpossibleRatioReportsUnmeasurable:
+    """A negative durability ratio is noise, not a measurement.
+
+    The summed series is normally monotonic but not always: platforms revise
+    counts down, and a dip of a fraction of a percent across the 30-day
+    boundary makes the total read below the window figure. Observed live as
+    929, 934, 922 on consecutive days.
+
+    "Views earned after the window" is not a quantity worth reporting
+    negative, and it would rank below every real post. The next sweep
+    recomputes it, so absence is the honest answer for one reading.
+    """
+
+    def test_a_total_below_the_window_figure_is_unmeasurable(self):
+        from datetime import datetime, timedelta
+
+        from src.publisher.analytics import durability_ratio
+
+        published = datetime(2026, 6, 1)
+        timeline = [
+            (published + timedelta(days=d), v)
+            for d, v in ((0, 100), (30, 1000), (40, 400))
+        ]
+
+        assert durability_ratio(timeline, published) is None
+
+    def test_a_sound_reading_still_scores(self):
+        """The guard must not swallow real ratios."""
+        from datetime import datetime, timedelta
+
+        from src.publisher.analytics import durability_ratio
+
+        published = datetime(2026, 6, 1)
+        timeline = [
+            (published + timedelta(days=d), v)
+            for d, v in ((0, 100), (30, 1000), (40, 1300))
+        ]
+
+        assert durability_ratio(timeline, published) == pytest.approx(0.3)

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.3] - 2026-08-23
+
+### Added
+- `make analytics` and a documented daily schedule for it. The per-post timeline expires after about five weeks, so day-2 and day-7 figures are perishable rather than queryable on demand, and nothing was capturing them: the metrics file held only what a manual run had taken. `outputs/` is local and the key comes from `.env`, so the capture belongs on the machine that owns the data rather than in CI; the docs give a systemd user timer with `Persistent=true`, which runs a missed sweep instead of skipping it.
+
+### Fixed
+- Every stored figure was one platform's number wearing the post's name. The timeline returns a row per platform per date, and the reduction took the last row on the last date — whichever platform sorts last. Measured against the live API: a post whose rows for one date read Instagram 15, TikTok 815, YouTube 357 stored 357, under a third of the 1187 it earned. Views are now summed per date across platforms, so day-2, day-7, the total and the durability ratio all describe the post rather than one of its legs.
+- A downward revision to a post's view count now lands instead of being discarded. The stored figure kept the larger of the two readings; a later reading is the better one, and the platform-summing above removes the composition ambiguity that made keeping the larger look safe.
+- `rebuild_registry` refuses to write an empty registry over a non-empty one. It merged the scan onto what it loaded and saved unconditionally, so a load that returned nothing while the file held rows — a schema change every historical row fails, with the product directories long cleaned up — replaced the whole publish history with an empty list.
+
+### Notes
+- A durability ratio is reported as unmeasurable rather than negative when the lifetime total reads below the day-30 figure. The summed series is normally monotonic but not always — platforms revise counts down, and a dip of a fraction of a percent across the 30-day boundary is enough. "Views earned after the window" is not a quantity worth reporting negative, and the next sweep recomputes it.
+- The rebuild guard fires when the file holds rows and none of them loaded, not when the result is empty. Three earlier versions were wrong in different ways: one counted rows that loaded, which is zero in exactly the case worth guarding; the next required an empty result, which a handful of surviving product directories defeats; the third read an unparseable file as holding no rows, so a truncated write — a file that holds everything and parses as nothing — took the unguarded path.
+- Refusing now exits non-zero. It previously returned 0 and the caller logged success directly under the error.
+
 ## [0.71.2] - 2026-08-23
 
 ### Documentation

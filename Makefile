@@ -18,7 +18,7 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri
+	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri analytics
 
 # Default target
 help:
@@ -95,6 +95,7 @@ help:
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
 	@echo "  publish-lowpri     - Same but with reduced priority"
+	@echo "  analytics          - Capture day-N views and durability (ARGS=\"--limit 50\")"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
 	@echo "  lint-verbose  - Show detailed linting output"
@@ -518,6 +519,9 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 
 publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single B0ASIN1 --debug")
 	poetry run python -m src.publisher.late $(ARGS)
+
+analytics: ## Capture per-post day-N and durability figures (ARGS="--limit 50")
+	poetry run python -m src.publisher.late analytics $(ARGS)
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
