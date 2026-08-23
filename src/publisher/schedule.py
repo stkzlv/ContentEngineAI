@@ -886,6 +886,14 @@ class ScheduleManager:
                                 "Using unified metadata: %s", unified_meta_path
                             )
 
+                        # The producer records whether the render has a
+                        # material connection to disclose. Read it rather than
+                        # deriving one here, and default to disclosing: a
+                        # metadata file written before the key existed carries
+                        # no opinion, and a missing disclosure is the costly
+                        # direction to be wrong in.
+                        carries_affiliate: dict[str, bool] = {}
+
                         for p in platforms:
                             meta = None
 
@@ -900,6 +908,9 @@ class ScheduleManager:
                                     meta = json.loads(platform_meta.read_text())
 
                             if meta:
+                                carries_affiliate[p.value] = bool(
+                                    meta.get("carries_affiliate_content", True)
+                                )
                                 desc = meta.get("description", "")
                                 hashtags = list(meta.get("hashtags", []))
                                 if product_id and product_id not in hashtags:
@@ -967,6 +978,9 @@ class ScheduleManager:
                                     content=p_content,
                                     platform_contents={p_name: p_content_data},
                                     scheduled_time=next_time,
+                                    carries_affiliate_content=(
+                                        carries_affiliate.get(p_name, True)
+                                    ),
                                 )
 
                                 # Create separate entry for this platform
@@ -1031,6 +1045,14 @@ class ScheduleManager:
                                 content=unified_content,
                                 platform_contents=unified_platform_contents,
                                 scheduled_time=next_time,
+                                # One post covers every platform, so it
+                                # discloses if any leg has something to
+                                # disclose.
+                                carries_affiliate_content=(
+                                    any(carries_affiliate.values())
+                                    if carries_affiliate
+                                    else True
+                                ),
                             )
 
                             # Create single entry with all platforms

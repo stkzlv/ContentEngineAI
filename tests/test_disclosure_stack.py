@@ -193,7 +193,60 @@ class TestPlatformFlags:
         assert settings["is_brand_organic_post"] is True
 
     @pytest.mark.asyncio
-    async def test_youtube_payload_carries_synthetic_media_flag(self, mock_publisher):
+    async def test_tiktok_declares_none_without_a_material_connection(
+        self, mock_publisher
+    ):
+        """A topic post promotes nothing and earns nothing.
+
+        `brand_organic` tells viewers the creator is promoting their own
+        business, which for a topic render is simply untrue. TikTok has a
+        value for "not commercial content", and it is sent explicitly rather
+        than by omitting the settings, since absence reads as a payload that
+        forgot them.
+        """
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="Body.",
+            carries_affiliate_content=False,
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call.kwargs.get("platforms", [])
+        tiktok = next(p for p in sdk_platforms if p["platform"] == "tiktok")
+        settings = tiktok["platformSpecificData"]["tiktokSettings"]
+        assert settings["commercial_content_type"] == "none"
+        assert settings["is_brand_organic_post"] is False
+
+    @pytest.mark.asyncio
+    async def test_the_top_level_tiktok_block_agrees_with_the_platform_one(
+        self, mock_publisher
+    ):
+        """The settings are sent twice, and both copies must say the same thing.
+
+        A payload that declares "not commercial" per-platform and
+        "brand_organic" at the top level is worse than either alone.
+        """
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="Body.",
+            carries_affiliate_content=False,
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        top = call.kwargs["tiktok_settings"]
+        assert top["commercialContentType"] == "none"
+
+    @pytest.mark.asyncio
+    async def test_youtube_does_not_self_declare_synthetic_media_by_default(
+        self, mock_publisher
+    ):
+        """YouTube's policy targets realistic content that could mislead about
+        real people or events, and explicitly excludes AI narration, AI
+        scripts and stock footage. Declaring it anyway applies a viewer-facing
+        label the policy does not ask for.
+        """
         await mock_publisher.publish(
             media_id="https://storage.late.dev/media.mp4",
             platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
@@ -204,7 +257,27 @@ class TestPlatformFlags:
         sdk_platforms = call.kwargs.get("platforms", [])
         youtube = next(p for p in sdk_platforms if p["platform"] == "youtube")
         psd = youtube["platformSpecificData"]
-        assert psd["containsSyntheticMedia"] is True
+        assert psd["containsSyntheticMedia"] is False
+
+    @pytest.mark.asyncio
+    async def test_youtube_declares_synthetic_media_when_configured(
+        self, mock_publisher
+    ):
+        """The flag is gated, not removed. Output that does meet the bar --
+        AI-generated music, or AI footage of a real place -- must still be
+        able to declare it.
+        """
+        mock_publisher.synthetic_media_disclosure = True
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
+            content="#ad\n\nBody.",
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call.kwargs.get("platforms", [])
+        youtube = next(p for p in sdk_platforms if p["platform"] == "youtube")
+        assert youtube["platformSpecificData"]["containsSyntheticMedia"] is True
 
 
 # ---------------------------------------------------------------------------

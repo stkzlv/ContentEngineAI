@@ -117,6 +117,7 @@ def _create_publisher_from_config(config, session: aiohttp.ClientSession):
         max_retries=config.max_retries,
         tiktok_settings=config.tiktok_settings,
         first_comment_config=config.first_comment_config,
+        synthetic_media_disclosure=config.synthetic_media_disclosure,
     )
 
 

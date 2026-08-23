@@ -103,6 +103,7 @@ class LatePublisher(BasePublisher):
         max_retries: int = 3,  # Configurable via publisher.yaml
         tiktok_settings: TikTokContentSettings | None = None,
         first_comment_config: FirstCommentConfig | None = None,
+        synthetic_media_disclosure: bool = False,
     ):
         """Initialize Late.dev publisher client.
 
@@ -115,6 +116,9 @@ class LatePublisher(BasePublisher):
             max_retries: Maximum retry attempts for transient failures (default: 3)
             tiktok_settings: TikTok content disclosure settings (optional)
             first_comment_config: First-comment config for affiliate links (optional)
+            synthetic_media_disclosure: Declare YouTube's altered-or-synthetic
+                content flag. Off by default; the policy excludes AI narration,
+                AI scripts and stock footage (optional)
 
         Raises:
         ------
@@ -147,6 +151,7 @@ class LatePublisher(BasePublisher):
         self.max_retries = max_retries
         self.tiktok_settings = tiktok_settings or TikTokContentSettings()
         self.first_comment_config = first_comment_config or FirstCommentConfig()
+        self.synthetic_media_disclosure = synthetic_media_disclosure
 
         # Initialize Late SDK client
         try:
@@ -1082,6 +1087,7 @@ class LatePublisher(BasePublisher):
         platforms: list[dict[str, str]],
         content: str | None,
         platform_contents: dict[str, dict[str, str]] | None,
+        carries_affiliate_content: bool = True,
     ) -> tuple[list[dict[str, object]], str | None]:
         """Build SDK platform entries with per-platform content and TikTok settings.
 
@@ -1092,6 +1098,10 @@ class LatePublisher(BasePublisher):
         """
         sdk_platforms: list[dict[str, object]] = []
         main_content = content
+        # What this render declares to TikTok, not what config declares in
+        # general: a topic post with no affiliate relationship is not
+        # commercial content.
+        tiktok_settings = self.tiktok_settings.for_render(carries_affiliate_content)
 
         for p in platforms:
             platform_name = p["platform"]
@@ -1111,13 +1121,15 @@ class LatePublisher(BasePublisher):
                 platform_entry["customContent"] = custom_content
 
                 if platform_name == "youtube":
-                    yt_psd: dict[str, object] = {"containsSyntheticMedia": True}
+                    yt_psd: dict[str, object] = {
+                        "containsSyntheticMedia": self.synthetic_media_disclosure
+                    }
                     if pc.get("title"):
                         yt_psd["title"] = pc["title"]
                     platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {
-                        "tiktokSettings": self.tiktok_settings.to_sdk_dict()
+                        "tiktokSettings": tiktok_settings.to_sdk_dict()
                     }
 
                 # Attach first comment via platformSpecificData
@@ -1131,14 +1143,15 @@ class LatePublisher(BasePublisher):
                             "firstComment": first_comment,
                         }
 
-            # Always disclose AI-generated content on YouTube, even without
-            # platform-specific content (YouTube policy requires the flag).
+            # The synthetic-content flag rides on every YouTube payload,
+            # with or without platform-specific content, so both sites read
+            # the same configured value.
             if (
                 platform_name == "youtube"
                 and "platformSpecificData" not in platform_entry
             ):
                 platform_entry["platformSpecificData"] = {
-                    "containsSyntheticMedia": True,
+                    "containsSyntheticMedia": self.synthetic_media_disclosure,
                 }
 
             # Add TikTok settings even without platform-specific content
@@ -1147,7 +1160,7 @@ class LatePublisher(BasePublisher):
                 and "platformSpecificData" not in platform_entry
             ):
                 platform_entry["platformSpecificData"] = {
-                    "tiktokSettings": self.tiktok_settings.to_sdk_dict()
+                    "tiktokSettings": tiktok_settings.to_sdk_dict()
                 }
 
             sdk_platforms.append(platform_entry)
@@ -1272,6 +1285,7 @@ class LatePublisher(BasePublisher):
         content: str | None = None,
         scheduled_time: datetime | None = None,
         platform_contents: dict[str, dict[str, str]] | None = None,
+        carries_affiliate_content: bool = True,
     ) -> dict[str, str | list[str] | datetime | None]:
         """Create and publish/schedule a post via Late.dev.
 
@@ -1287,6 +1301,10 @@ class LatePublisher(BasePublisher):
             scheduled_time: Optional UTC datetime for scheduled publishing
             platform_contents: Optional dict mapping platform name to content dict
                 e.g. {"youtube": {"content": "...", "title": "..."}}
+            carries_affiliate_content: Whether this render has a material
+                connection to disclose. Defaults True, matching the rest of
+                the disclosure stack: a missing disclosure is a compliance
+                failure, a needless one is not.
 
         Returns:
         -------
@@ -1341,7 +1359,7 @@ class LatePublisher(BasePublisher):
         try:
             publish_now = scheduled_time is None
             sdk_platforms, main_content = self._build_sdk_platforms(
-                platforms, content, platform_contents
+                platforms, content, platform_contents, carries_affiliate_content
             )
 
             async def _create_post():
@@ -1357,9 +1375,9 @@ class LatePublisher(BasePublisher):
                     p.get("platform", "").lower() == "tiktok" for p in platforms
                 )
                 if has_tiktok:
-                    post_data["tiktok_settings"] = (
-                        self.tiktok_settings.to_top_level_dict()
-                    )
+                    post_data["tiktok_settings"] = self.tiktok_settings.for_render(
+                        carries_affiliate_content
+                    ).to_top_level_dict()
 
                 if scheduled_time:
                     # Convert to UTC ISO format for API

@@ -5,7 +5,7 @@ implementations, providing type-safe representations of publish results,
 metadata, configuration, and batch summaries.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -481,6 +481,14 @@ class PublisherConfig:
     affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
         default_factory=lambda: AffiliateDisclosureConfig()
     )
+    # YouTube's altered-or-synthetic-content disclosure. Off by default
+    # because the policy targets realistic material that could mislead about
+    # real people or events, and explicitly excludes AI narration, AI scripts
+    # and stock footage -- which is what this pipeline renders. Turn it on for
+    # output that does meet the bar: AI-generated music, or AI-generated
+    # footage of a real place. Both are properties of what a provider returns,
+    # so this can become true without any change here.
+    synthetic_media_disclosure: bool = False
     use_platform_specific_content: bool = False
     # Per-platform video profile routing (Phase 1.3).
     # Maps platform name (lowercased: "tiktok"/"youtube"/"instagram") to a
@@ -1120,6 +1128,26 @@ class TikTokContentSettings:
     is_brand_organic_post: bool = True
     content_preview_confirmed: bool = True
     express_consent_given: bool = True
+
+    def for_render(self, carries_affiliate_content: bool) -> "TikTokContentSettings":
+        """Return the settings this particular render should declare.
+
+        The configured values describe a promotional post. A render with no
+        material connection -- a topic video with no affiliate link -- is not
+        commercial content, and TikTok has a value for that. Declaring it as
+        brand-organic instead tells viewers the creator is promoting their own
+        business, which is simply untrue.
+
+        `none` is used rather than omitting the settings: absence is
+        indistinguishable from a payload that forgot them.
+        """
+        if carries_affiliate_content:
+            return self
+        return replace(
+            self,
+            commercial_content_type="none",
+            is_brand_organic_post=False,
+        )
 
     def to_sdk_dict(self) -> dict[str, object]:
         """Convert to dict format expected by Late SDK."""

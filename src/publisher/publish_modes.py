@@ -173,6 +173,7 @@ async def _publish_unified(
         content=content,
         scheduled_time=schedule_time,
         platform_contents=platform_contents,
+        carries_affiliate_content=metadata.carries_affiliate_content,
     )
 
     return [{"result": result, "platform": "all"}]
@@ -242,6 +243,7 @@ async def _publish_platform_specific(
             content=content,
             scheduled_time=schedule_time,
             platform_contents=platform_contents,
+            carries_affiliate_content=metadata.carries_affiliate_content,
         )
 
         results.append({"result": result, "platform": platform_name})

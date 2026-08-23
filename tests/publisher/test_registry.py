@@ -46,6 +46,7 @@ class TestPublisherRegistry:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -87,6 +88,7 @@ class TestPublisherRegistry:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -133,6 +135,7 @@ class TestPublisherRegistry:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -176,6 +179,7 @@ class TestPublisherRegistry:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -209,6 +213,7 @@ class TestPublisherRegistry:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_456", "status": "published"}
 
@@ -262,6 +267,7 @@ class TestRegisterPublisherDecorator:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -305,6 +311,7 @@ class TestRegisterPublisherDecorator:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -347,6 +354,7 @@ class TestRegisterPublisherDecorator:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "late_123", "status": "published"}
 
@@ -381,6 +389,7 @@ class TestRegisterPublisherDecorator:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "buffer_123", "status": "published"}
 
@@ -441,6 +450,7 @@ class TestCreatePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -486,6 +496,7 @@ class TestCreatePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -533,6 +544,7 @@ class TestCreatePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -595,6 +607,7 @@ class TestCreatePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 
@@ -645,6 +658,7 @@ class TestCreatePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {"post_id": "post_123", "status": "published"}
 

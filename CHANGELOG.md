@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.3] - 2026-08-23
+
+### Fixed
+- A post now declares commercial content to TikTok only when the render carries a material connection. The flags were per-config and unconditional, so a topic video with no affiliate link still told TikTok it was promotional. They are the fourth disclosure surface and the one the previous gating change did not reach.
+- YouTube posts no longer self-declare altered-or-synthetic content on every upload. The policy targets realistic material that could mislead about real people or events, and its published examples exclude AI narration, AI-written scripts, faceless content and stock footage — which is what this pipeline renders.
+
+### Added
+- `synthetic_media_disclosure` in `config/publisher.yaml`, defaulting to off, so output that does meet YouTube's bar can still declare it.
+
+### Notes
+- TikTok's "not commercial content" value is sent explicitly rather than by omitting the settings block, because an absent block is indistinguishable from a payload that forgot it.
+- The settings ride on the payload twice, per-platform and top-level. Both are built from the same per-render value, so they cannot disagree.
+- The decision comes from the record the producer already writes, on all six publish call sites — the single and schedule paths, unified and platform-specific, plus the batch pipeline. The schedule path reads raw metadata JSON rather than the typed object, so it reads the key directly; an absent key discloses.
+- Whether an affiliate review should declare `brand_organic` or `brand_content` is left alone here. TikTok's definitions put affiliate commission in the second, but it changes the viewer-facing label from "Promotional content" to "Paid partnership", which is a positioning decision rather than a correctness one.
+
 ## [0.70.2] - 2026-08-23
 
 ### Fixed
