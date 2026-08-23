@@ -636,3 +636,61 @@ async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
         publishing_calls
     ), "the batch built a publisher without passing synthetic_media_disclosure"
     assert publishing_calls[-1].kwargs["synthetic_media_disclosure"] is True
+
+
+@pytest.mark.asyncio
+async def test_the_batch_does_not_promote_the_product_pillar_to_an_override(
+    temp_outputs_dir, mock_video_config
+):
+    """The product's own pillar must not enter `cli_overrides`.
+
+    That slot outranks the pillar a previous run recorded, so promoting it
+    there means a resumed batch files the row under the scraped arm while
+    reusing a script written for an overridden one. The producer already
+    reads `product.pillar` as the last term of its own resolution, so the
+    promotion only inverted the order.
+
+    Pinned at the call site rather than on `_build_cli_overrides`, because
+    that is where the promotion lived.
+    """
+    from src.scraper.amazon.models import ProductData
+
+    config = GlobalBatchConfig(
+        product_ids=["B0TEST1"],
+        keywords=[],
+        max_products=1,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        outputs_dir=temp_outputs_dir,
+        skip_publish=True,
+        platforms=["youtube"],
+    )
+    orchestrator = GlobalPipelineOrchestrator(config)
+
+    product = ProductData(
+        title="A product",
+        price="$10",
+        url="https://www.amazon.com/dp/B0TEST1",
+        platform=None,
+        asin="B0TEST1",
+        pillar="value",
+    )
+
+    seen: dict = {}
+
+    async def _fake_create(*args, **kwargs):
+        seen["cli_overrides"] = kwargs.get("cli_overrides")
+        return None
+
+    with (
+        patch(
+            "src.video.producer.orchestration.create_video_for_product", _fake_create
+        ),
+        patch("src.video.config.load_video_config", return_value=mock_video_config),
+    ):
+        await orchestrator._execute_production_phase(
+            [(temp_outputs_dir / "B0TEST1", product)]
+        )
+
+    assert "cli_overrides" in seen, "the producer was never called"
+    assert "pillar" not in (seen["cli_overrides"] or {})
