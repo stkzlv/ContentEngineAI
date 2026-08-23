@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.70.2] - 2026-08-23
 
 ### Fixed
-- A default install renders again. `config/subtitles.yaml` asks for the pycaps engine and the optional group is not part of `poetry install`, so every render on a fresh clone took the documented `fallback_ffmpeg` path — which set a local variable that routed one branch and nothing else. The subtitle generator re-reads the engine from the settings dict it is handed, so it took the pycaps path anyway and wrote a transcript instead of a subtitle file; the burn step recomputed the engine from config and imported the missing library. The run ended with no captions from either engine.
+- A default install renders again. `config/subtitles.yaml` asks for the pycaps engine and the optional group is not part of `poetry install`, so every render on a fresh clone took the documented `fallback_ffmpeg` path — which set a local variable that routed one branch and nothing else. Every settings dict reaching the subtitle generator was still built from config and still said pycaps, so it wrote a Whisper transcript instead of a subtitle file; the burn step recomputed the engine from config and imported the missing library. The run ended with no captions from either engine.
 
 ### Notes
-- The run's decision is recorded once, in the pipeline state, and both later consumers read it instead of deriving their own. Three places deciding the same thing independently is what let two of them disagree with the first.
+- The engine is now an explicit argument to the subtitle generator rather than a value each caller digs out of a settings dict. There are three such call sites; the two-part handler builds its own dict, and its branch runs only when the engine is *not* pycaps, which is exactly what a fallback run is. Six of the eleven bundled profiles enable two-part.
+- The run's decision is recorded in the pipeline state, and the burn step re-derives it through the same resolver when that record is missing. Resuming a run truncates the state and drops it, and trusting config at that point would fail a render whose captions were already burned.
 - The fallback logs a warning, so the three docs calling it silent now say so.
 
 ## [0.70.1] - 2026-08-23

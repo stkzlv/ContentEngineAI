@@ -1050,6 +1050,55 @@ async def step_create_voiceover(ctx: PipelineContext):
         )
 
 
+def resolve_subtitle_engine(subtitle_settings: Any) -> str | None:
+    """Decide which subtitle engine this run gets.
+
+    Config names an engine; whether the run can have it is a separate
+    question. Pycaps is an optional dependency, so a bundled config asking
+    for it on a default install has to fall back, and `fallback_policy`
+    says how. Returns the engine, or None when the policy is to ship
+    without subtitles.
+
+    Shared so the burn step can re-derive the same answer when the run's
+    recorded decision has been lost, rather than trusting config and
+    importing a library that is not there.
+    """
+    engine: str = subtitle_settings.subtitle_engine
+    if engine != "pycaps":
+        return engine
+
+    from src.video.pycaps_engine import is_pycaps_available
+
+    if is_pycaps_available():
+        return "pycaps"
+
+    pycaps_cfg = subtitle_settings.pycaps
+    if pycaps_cfg is None:
+        from src.video.config.subtitle_models import PycapsSettings
+
+        pycaps_cfg = PycapsSettings()  # type: ignore[call-arg]
+
+    policy = pycaps_cfg.fallback_policy
+    if policy == "fallback_ffmpeg":
+        logger.warning(
+            "pycaps is not installed, falling back to ffmpeg "
+            "subtitle engine (fallback_policy='fallback_ffmpeg'). "
+            "Install with `poetry install --with pycaps`."
+        )
+        return "ffmpeg"
+    if policy == "warn_and_skip":
+        logger.warning(
+            "pycaps is not installed and fallback_policy='warn_and_skip'. "
+            "No subtitles will be generated for this run."
+        )
+        return None
+    raise PipelineError(
+        "subtitle_engine is 'pycaps' but pycaps is not installed. "
+        "Install with `poetry install --with pycaps` or set "
+        "pycaps.fallback_policy to 'fallback_ffmpeg'."
+    )
+
+
 async def step_generate_subtitles(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
@@ -1100,47 +1149,17 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # Subtitle engine dispatch: "pycaps" path skips SRT/ASS emission, saves
         # a raw Whisper transcript for the downstream burn step, and disables
         # two-part (upper+lower) which is FFmpeg-only in this iteration.
-        subtitle_engine = subtitle_settings.subtitle_engine
         two_part_enabled = subtitle_settings.two_part_subtitles.enabled
 
-        # Early availability check: if pycaps is requested but not installed,
-        # apply fallback_policy before committing to the pycaps-only path.
-        if subtitle_engine == "pycaps":
-            from src.video.pycaps_engine import is_pycaps_available
-
-            if not is_pycaps_available():
-                pycaps_cfg = subtitle_settings.pycaps
-                if pycaps_cfg is None:
-                    from src.video.config.subtitle_models import PycapsSettings
-
-                    pycaps_cfg = PycapsSettings()  # type: ignore[call-arg]
-                policy = pycaps_cfg.fallback_policy
-                if policy == "fallback_ffmpeg":
-                    logger.warning(
-                        "pycaps is not installed, falling back to ffmpeg "
-                        "subtitle engine (fallback_policy='fallback_ffmpeg'). "
-                        "Install with `poetry install --with pycaps`."
-                    )
-                    subtitle_engine = "ffmpeg"
-                elif policy == "warn_and_skip":
-                    logger.warning(
-                        "pycaps is not installed and fallback_policy='warn_and_skip'. "
-                        "No subtitles will be generated for this run."
-                    )
-                    return
-                else:
-                    raise PipelineError(
-                        "subtitle_engine is 'pycaps' but pycaps is not installed. "
-                        "Install with `poetry install --with pycaps` or set "
-                        "pycaps.fallback_policy to 'fallback_ffmpeg'."
-                    )
-
-        # One resolved decision, recorded where every later consumer reads it.
-        # The branch below is not enough on its own: `create_unified_subtitles`
-        # re-reads the engine from the settings dict it is handed, so a dict
-        # still saying "pycaps" makes it write a transcript and no subtitle
-        # file, whatever branch the caller took. The burn step recomputes from
-        # config for the same reason and has to be told too.
+        # One resolved decision, recorded where every later consumer reads it,
+        # and passed explicitly to everything that acts on it. Config is not
+        # the answer: on an install without pycaps a config-built dict still
+        # says "pycaps", which is how a fallback run used to write a transcript
+        # and no subtitle file whatever branch the caller took.
+        resolved = resolve_subtitle_engine(subtitle_settings)
+        if resolved is None:
+            return
+        subtitle_engine = resolved
         ctx.state["subtitle_engine_resolved"] = subtitle_engine
 
         if subtitle_engine == "pycaps":
@@ -1170,6 +1189,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 / ctx.config.output_structure.product_subdirs.temp,
                 product_id,
                 transcript_out_path=transcript_path,
+                engine=subtitle_engine,
             )
             if not result_path or not result_path.exists():
                 raise PipelineError(
@@ -1192,6 +1212,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
             handler = TwoPartSubtitleHandler(
                 ctx=ctx,
                 merged_profile_settings=merged_profile_settings,
+                engine=subtitle_engine,
             )
 
             lower_path, upper_path = await handler.generate(voiceover_path, product_id)
@@ -1221,6 +1242,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 Path(ctx.run_paths["run_root"])
                 / ctx.config.output_structure.product_subdirs.temp,
                 product_id,
+                engine=subtitle_engine,
             )
             if not srt_path or not srt_path.exists():
                 raise PipelineError("Subtitle generation process failed.")
@@ -1526,14 +1548,15 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
     )
     subtitle_settings = merged_profile_settings.subtitle_settings
 
-    # The engine this run actually used, not the one config asks for. When
-    # pycaps is unavailable, `step_generate_subtitles` applies
-    # `fallback_policy` and records the result; recomputing from config here
-    # would import a module the run has already established is missing, and
-    # kill a render whose captions FFmpeg has already burned.
-    engine = ctx.state.get(
-        "subtitle_engine_resolved", subtitle_settings.subtitle_engine
-    )
+    # The engine this run actually used, not the one config asks for.
+    # `step_generate_subtitles` records its decision; when that record is
+    # absent -- a resumed run whose state was truncated, or a state file
+    # written before this key existed -- re-derive it the same way rather
+    # than trusting config, which would import a library that is not there
+    # and kill a render whose captions FFmpeg has already burned.
+    engine = ctx.state.get("subtitle_engine_resolved")
+    if engine is None:
+        engine = resolve_subtitle_engine(subtitle_settings)
     if engine != "pycaps":
         logger.debug("Skipping burn_pycaps_subtitles (subtitle_engine=%s)", engine)
         return

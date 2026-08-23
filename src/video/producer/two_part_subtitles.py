@@ -36,6 +36,7 @@ class TwoPartSubtitleHandler:
         self,
         ctx: "PipelineContext",
         merged_profile_settings: "MergedProfileSettings",
+        engine: str | None = None,
     ):
         """Initialize the handler.
 
@@ -43,8 +44,13 @@ class TwoPartSubtitleHandler:
         ----
             ctx: Pipeline context with product data and configuration.
             merged_profile_settings: Full merged profile settings (typed).
+            engine: The subtitle engine this run resolved to. Config is not
+                the answer -- on an install without pycaps a config-built
+                dict still names it, and the generator would then write a
+                transcript instead of the subtitle file this handler needs.
 
         """
+        self.engine = engine
         self.ctx = ctx
         self.merged_profile_settings = merged_profile_settings
         self.config: TwoPartSubtitleSettings = (
@@ -368,6 +374,7 @@ class TwoPartSubtitleHandler:
             / self.ctx.config.output_structure.product_subdirs.temp,
             product_id,
             visual_bounds,
+            engine=self.engine,
         )
 
         if lower_path and lower_path.exists():
