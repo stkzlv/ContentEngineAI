@@ -72,6 +72,19 @@ def _extract_account_id(acc: Any) -> str | None:
     return getattr(acc, "field_id", None) or getattr(acc, "_id", None)
 
 
+def _as_utc(value: Any) -> Any:
+    """Normalize a timestamp to UTC, leaving anything else untouched.
+
+    `list_posts` promises UTC timestamps and its siblings already convert;
+    every leg time the API returns today is already UTC, so this only matters
+    if a platform ever reports a local offset. Comparing wall-clock times
+    across offsets moves a day-N cutoff by up to a day.
+    """
+    if isinstance(value, datetime):
+        return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+    return value
+
+
 @register_publisher(PublisherProvider.LATE)
 class LatePublisher(BasePublisher):
     """Late.dev implementation of video publishing service.
@@ -737,8 +750,14 @@ class LatePublisher(BasePublisher):
                                     # When the leg actually went live, which is
                                     # not `scheduledFor` for a leg that failed
                                     # and was retried. Analytics measures day-N
-                                    # from this.
-                                    "publishedAt": getattr(p, "publishedAt", None),
+                                    # from this. Normalized to UTC per this
+                                    # method's contract; every value observed
+                                    # from the API is already UTC, so this is
+                                    # for the day the platform reports a local
+                                    # offset instead.
+                                    "publishedAt": _as_utc(
+                                        getattr(p, "publishedAt", None)
+                                    ),
                                 }
                                 for p in post.platforms
                             ]

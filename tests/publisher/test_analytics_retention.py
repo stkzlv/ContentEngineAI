@@ -63,9 +63,11 @@ class TestATruncatedRereadKeepsWhatWasMeasured:
         assert m.views_day_7 == 3400
         assert m.durability_ratio == 1.4
 
-    def test_a_truncated_total_does_not_replace_a_full_one(self, tmp_path):
-        """Views only accumulate, so a smaller figure is evidence of a
-        shorter window, not of a post losing views.
+    def test_a_smaller_total_does_not_replace_a_larger_one(self, tmp_path):
+        """Not a truncation case -- cumulative rows make a truncated total
+        correct. This guards the other direction: a platform revising a count
+        downward keeps the earlier, higher reading rather than silently
+        adopting the lower one.
         """
         _stored(tmp_path, post_id="p1", views_total=9000)
         save_metrics([PostMetrics(post_id="p1", views_total=500)], tmp_path)
@@ -176,7 +178,11 @@ class TestDayNIsClockedFromTheRealPublishTime:
 
 @pytest.mark.unit
 class TestTheRowsAreLifetimeCumulative:
-    """The premise the merge rests on, pinned.
+    """That absence, not a wrong number, is what truncation costs.
+
+    This pins the code's behaviour given cumulative rows. It cannot pin that
+    the API returns cumulative rows -- that came from measuring it live, and
+    is recorded below so the reasoning survives.
 
     Measured live on 2026-08-23: a post 121 days old read 308 views at both
     its first retained row and its last, and one 188 days old read 354 at

@@ -320,16 +320,23 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         published_at=fresh.published_at or stored.published_at,
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
-        # Independent of the window: cumulative rows mean the last row is the
-        # lifetime total whether or not the window reaches back to publication.
+        # Window-independent: cumulative rows mean the last row is the lifetime
+        # total whether or not the window reaches back to publication, so the
+        # fresh figure is normally the right one and `max` is a no-op. It only
+        # bites if a platform revises a count downward, where the earlier,
+        # higher reading is kept deliberately rather than silently.
         views_total=max(totals) if totals else None,
         durability_ratio=(
             fresh.durability_ratio if ratio_from_fresh else stored.durability_ratio
         ),
+        # Pinned only while it is dating a preserved ratio. With no ratio on
+        # either side it still means "how far the timeline reached", and
+        # freezing it there would make it stale for every post through its
+        # whole first month.
         timeline_end=(
-            fresh.timeline_end
-            if ratio_from_fresh
-            else (stored.timeline_end or fresh.timeline_end)
+            stored.timeline_end
+            if (stored.durability_ratio is not None and not ratio_from_fresh)
+            else (fresh.timeline_end or stored.timeline_end)
         ),
     )
 

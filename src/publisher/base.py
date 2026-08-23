@@ -341,7 +341,11 @@ class BasePublisher(ABC):
                 - id: Post ID (string)
                 - status: Post status (string)
                 - scheduledFor: Scheduled time if applicable (datetime or None)
-                - platforms: List of platform dicts with platform name
+                - platforms: List of platform dicts, each with the platform
+                  name, its account id, and publishedAt: when that leg
+                  actually went live (datetime in UTC, or None while it
+                  has not). Not the same as scheduledFor for a leg that
+                  failed and was retried.
 
         Raises:
         ------
