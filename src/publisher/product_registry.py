@@ -211,7 +211,10 @@ def _rows_on_disk(outputs_dir: Path) -> int:
         return 0
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, ValueError):
+        # `ValueError` covers `UnicodeDecodeError` from a file truncated
+        # mid-codepoint, which the sibling loaders already catch. Raising here
+        # would turn a corrupt registry from a warning into a traceback.
         return 0
     return len(data) if isinstance(data, list) else 0
 
@@ -243,7 +246,12 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
             scanned_count += 1
 
     entries = list(existing.values())
-    if _rows_on_disk(outputs_dir) and not entries:
+    # Guard on the load, not on emptiness. `entries` includes whatever the
+    # scan found, so a handful of surviving product directories makes it
+    # truthy while every historical row failed to load -- which is exactly the
+    # case worth refusing, and the one an earlier version of this guard let
+    # through: three scanned products would have been written over 323 rows.
+    if _rows_on_disk(outputs_dir) and not existing_count:
         # The registry had rows, the rebuild produced none, and saving would
         # replace a full file with an empty one. That is never a legitimate
         # outcome: a scan that finds nothing should leave the file alone.
@@ -252,13 +260,13 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
         # the product directories are long cleaned up, so the scan cannot
         # re-add them. The `.bak` only covers one generation.
         logger.error(
-            "Refusing to rebuild: the registry file holds %d row(s) that could "
-            "not be read, and the scan of %s found none to replace them. "
-            "Registry left unchanged.",
+            "Refusing to rebuild: the registry file holds %d row(s), none of "
+            "which could be read. Saving would replace them with whatever the "
+            "scan of %s found. Registry left unchanged.",
             _rows_on_disk(outputs_dir),
             source,
         )
-        return 0
+        return -1
     save_registry(entries, outputs_dir)
     logger.info(
         "Registry rebuilt: %d entries (existing=%d, scanned=%d)",

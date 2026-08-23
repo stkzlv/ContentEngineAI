@@ -329,3 +329,66 @@ class TestTheClientCarriesTheLegPublishTime:
             legs and legs[0]["publishedAt"] is not None
         ), "the normalizer dropped the leg publish time"
         assert publish_time(posts[0]).startswith("2026-08-04")
+
+
+@pytest.mark.unit
+class TestATimelineHasOneRowPerPlatformPerDate:
+    """The API returns a row per platform per date, not per date.
+
+    Taking them as-is made every stored figure the last-listed platform's
+    number wearing the post's name. Measured against the live API: one post's
+    rows for 2026-08-23 are Instagram 15, TikTok 815, YouTube 357, and the
+    stored total read 357 -- under a third of the 1187 the post actually
+    earned, because YouTube sorts last.
+
+    Every existing test built one row per date, which is why none of them
+    noticed.
+    """
+
+    def _rows(self, published, days, per_platform):
+        from datetime import timedelta
+
+        out = []
+        for d in range(days + 1):
+            date = (published + timedelta(days=d)).strftime("%Y-%m-%d")
+            for platform, per_day in per_platform.items():
+                out.append(
+                    {"date": date, "platform": platform, "views": per_day * (d + 1)}
+                )
+        return out
+
+    def test_views_are_summed_across_platforms(self):
+        from datetime import datetime
+
+        from src.publisher.analytics import summarize_post
+
+        published = datetime(2026, 6, 1)
+        rows = self._rows(published, 9, {"youtube": 10, "tiktok": 100, "instagram": 1})
+
+        m = summarize_post("p", published.isoformat(), rows)
+
+        # day 2 is the third row-set (d=2), so 30 + 300 + 3.
+        assert m.views_day_2 == 333
+        assert m.views_day_7 == 888
+        assert m.views_total == 1110
+
+    def test_the_last_listed_platform_does_not_stand_in_for_the_post(self):
+        """The specific shape of the defect: a small last platform.
+
+        Ordered so the platform that sorts last is the smallest, which is what
+        made the stored figure a fraction of the real one rather than merely a
+        different number.
+        """
+        from datetime import datetime
+
+        from src.publisher.analytics import summarize_post
+
+        published = datetime(2026, 6, 1)
+        rows = [
+            {"date": "2026-06-01", "platform": "alpha", "views": 800},
+            {"date": "2026-06-01", "platform": "zulu", "views": 15},
+        ]
+
+        m = summarize_post("p", published.isoformat(), rows)
+
+        assert m.views_total == 815, "one platform stood in for the post"

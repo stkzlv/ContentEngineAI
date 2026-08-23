@@ -1125,6 +1125,11 @@ def cmd_registry(args: argparse.Namespace) -> None:
     if args.rebuild:
         scan_dir = getattr(args, "scan_dir", None)
         count = rebuild_registry(outputs_dir, scan_dir=scan_dir)
+        if count < 0:
+            # The rebuild refused rather than emptying a registry it could not
+            # read. Reporting success here would put an INFO line saying it
+            # happened directly under the ERROR saying it did not.
+            sys.exit(1)
         logger.info("Registry rebuilt: %d products in %s", count, outputs_dir)
     elif getattr(args, "summary", False):
         entries = load_registry(outputs_dir)

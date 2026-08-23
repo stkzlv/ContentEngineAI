@@ -321,7 +321,7 @@ Figures already captured are safe. Each post's row is merged field by field, so
 a later, shorter reading never replaces a measured value with an absent one;
 what it cannot do is recover a figure that was never taken in time.
 
-### Running it on a schedule
+**Running it on a schedule.**
 
 `outputs/` is local and gitignored, and the API key comes from `.env`, so the
 capture belongs on the machine that owns the data rather than in CI.
@@ -330,9 +330,11 @@ capture belongs on the machine that owns the data rather than in CI.
 make analytics ARGS="--limit 50"
 ```
 
-The command is safe to run as often as you like: readings merge per field, and
-a later, better figure replaces an earlier partial one, so a repeat run costs
-one API call per post and nothing else.
+Repeat runs are safe: readings merge per field, and a later, better figure
+replaces an earlier partial one. They are not free, though — a sweep costs one
+timeline call per post plus the paging to list them, so `--limit 50` is roughly
+sixty requests against the documented hourly cap. Daily is comfortably inside
+it; several times an hour is not.
 
 **Daily is a sensible default.** Most of a short-form post's views arrive in
 the first day or two, and one platform's analytics rows take 48-72 hours to
@@ -347,7 +349,7 @@ A systemd user timer, which needs no root and starts with your session:
 [Service]
 Type=oneshot
 WorkingDirectory=%h/path/to/ContentEngineAI
-ExecStart=/usr/bin/make analytics ARGS="--limit 50"
+ExecStart=%h/.pyenv/versions/ContentEngineAI/bin/python -m src.publisher.late analytics --limit 50
 
 # ~/.config/systemd/user/contentengine-analytics.timer
 [Timer]
@@ -361,13 +363,32 @@ WantedBy=timers.target
 ```bash
 systemctl --user enable --now contentengine-analytics.timer
 systemctl --user list-timers contentengine-analytics.timer
+systemctl --user status contentengine-analytics.service   # check the first run
 ```
 
-`Persistent=true` matters: it runs a missed sweep on the next boot rather than
-skipping it, which is the difference between a laptop that was closed for a
-weekend and a gap in the record. The equivalent cron line is
-`@daily cd /path/to/ContentEngineAI && make analytics` — cron has no
-persistence, so a machine asleep at the scheduled time simply misses that day.
+**Name the interpreter; do not go through `poetry run` or `make`.** A user
+service does not inherit your login shell's environment, so its `PATH` has no
+pyenv shims — and because `poetry.toml` sets `virtualenvs.create = false`,
+`poetry run python` then resolves the *base* interpreter rather than the
+project environment. The service fails at the first import, daily, while the
+figures it was meant to capture age out. This is the same trap the `*-lowpri`
+targets work around for `systemd-run`. Substitute your own environment path if
+you are not using pyenv; `poetry env info -p` prints it.
+
+Cron needs the same treatment and has no persistence:
+
+```cron
+@daily cd /path/to/ContentEngineAI && ~/.pyenv/versions/ContentEngineAI/bin/python -m src.publisher.late analytics --limit 50
+```
+
+`Persistent=true` is why the timer is the better of the two: it runs a missed
+sweep on the next boot rather than skipping it, which is the difference between
+a laptop closed for a weekend and a gap in the record. Cron simply misses a
+machine that was asleep at the scheduled time.
+
+Verify the unit actually runs before trusting it — `systemctl --user start
+contentengine-analytics.service` once by hand, then check that
+`outputs/post_metrics.json` has a fresh mtime.
 
 | Option | Required | Description |
 |---|---|---|

@@ -585,11 +585,22 @@ class TestRebuildRefusesToEmptyAFullRegistry:
         )
         (tmp_path / "published_products.json").write_text(before, encoding="utf-8")
 
-        # Simulate the schema-change case: every stored row fails to load.
+        # The realistic shape: a few product directories survive while every
+        # historical row fails to load. The scan finds those, so a guard that
+        # only fires on an empty result lets three rows overwrite hundreds.
+        _write_data_json(
+            tmp_path,
+            "B0SURVIVE1",
+            {
+                "title": "A surviving directory",
+                "url": "https://www.amazon.com/dp/B0SURVIVE1",
+                "affiliate_link": "",
+            },
+        )
         with patch("src.publisher.product_registry.load_registry", return_value=[]):
-            rebuild_registry(tmp_path)
+            result = rebuild_registry(tmp_path)
 
-        # Nothing to scan, so nothing legitimately replaces the history.
+        assert result < 0, "the refusal was not signalled to the caller"
         after = (tmp_path / "published_products.json").read_text(encoding="utf-8")
         assert json.loads(after) == json.loads(before)
 
@@ -624,3 +635,17 @@ class TestRebuildRefusesToEmptyAFullRegistry:
 
         ids = {e.product_id for e in load_registry(tmp_path)}
         assert ids == {"B0OLD00001", "B0NEW00001"}
+
+    def test_an_undecodable_registry_does_not_raise(self, tmp_path):
+        """A file truncated mid-codepoint is a warning, not a traceback.
+
+        The sibling loaders already tolerate it; counting rows must too, or a
+        corrupt registry takes the process down instead of being reported.
+        """
+        from src.publisher.product_registry import rebuild_registry
+
+        (tmp_path / "published_products.json").write_bytes(
+            b'[{"product_id": "B0X", "title": "Caf\xe9"}]'
+        )
+
+        rebuild_registry(tmp_path)

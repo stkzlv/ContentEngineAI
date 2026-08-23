@@ -94,6 +94,7 @@ help:
 	@echo "  produce-video      - Generate video from scraped data"
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
+	@echo "  analytics          - Capture day-N views and durability (ARGS=\"--limit 50\")"
 	@echo "  publish-lowpri     - Same but with reduced priority"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
