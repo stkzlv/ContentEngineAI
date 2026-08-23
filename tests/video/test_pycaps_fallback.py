@@ -216,7 +216,13 @@ class TestBurnStepHonoursTheFallback:
     """
 
     async def _run_burn(
-        self, monkeypatch, tmp_path, state: dict, *, available: bool = True
+        self,
+        monkeypatch,
+        tmp_path,
+        state: dict,
+        *,
+        available: bool = True,
+        policy: str | None = None,
     ):
         from src.video.config import load_video_config_modular
         from src.video.producer import steps as steps_mod
@@ -240,7 +246,9 @@ class TestBurnStepHonoursTheFallback:
         ctx = MagicMock()
         ctx.config = config
         ctx.profile_name = "slideshow_stock"
-        ctx.cli_overrides = None
+        ctx.cli_overrides = (
+            {"subtitle_settings.pycaps.fallback_policy": policy} if policy else None
+        )
         ctx.state = state
         ctx.debug_mode = False
         ctx.run_paths = {
@@ -255,6 +263,31 @@ class TestBurnStepHonoursTheFallback:
         """Config says pycaps; the run resolved ffmpeg. The run wins."""
         await self._run_burn(
             monkeypatch, tmp_path, {"subtitle_engine_resolved": "ffmpeg"}
+        )
+
+    async def test_a_lost_decision_under_warn_and_skip_still_skips(
+        self, monkeypatch, tmp_path
+    ):
+        """The resolver's third answer is None, meaning ship without subtitles.
+
+        It reaches the burn step only through the re-derive path, so nothing
+        else in the suite covers it. A guard tightened to `if engine and
+        engine != "pycaps"` -- which reads like a sensible None-check -- would
+        drop into the burn body instead of skipping.
+        """
+        from src.video.producer import steps as steps_mod
+
+        # Entering the burn body under warn_and_skip is invisible from the
+        # outside: the missing transcript routes to _handle_pycaps_burn_failure,
+        # which swallows it and returns the caption-less video. So assert the
+        # step never got there, not merely that it did not raise.
+        def _reached(*a, **kw):
+            raise AssertionError("burn step entered its body instead of skipping")
+
+        monkeypatch.setattr(steps_mod, "_handle_pycaps_burn_failure", _reached)
+
+        await self._run_burn(
+            monkeypatch, tmp_path, {}, available=False, policy="warn_and_skip"
         )
 
     async def test_a_lost_decision_is_re_derived_not_taken_from_config(

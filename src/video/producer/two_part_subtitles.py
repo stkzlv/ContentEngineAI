@@ -358,6 +358,11 @@ class TwoPartSubtitleHandler:
         )
         lower_subtitle_settings["anchor"] = lower.anchor
         lower_subtitle_settings["margin"] = lower.margin
+        # Keep the dict consistent with the argument. The argument is what the
+        # generator acts on; this stops the dict disagreeing with it for
+        # anything that reads the dict instead.
+        if self.engine:
+            lower_subtitle_settings["subtitle_engine"] = self.engine
 
         lower_path = await create_unified_subtitles(
             voiceover_path,

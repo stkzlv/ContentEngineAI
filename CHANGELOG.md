@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - The engine is now an explicit argument to the subtitle generator rather than a value each caller digs out of a settings dict. There are three such call sites; the two-part handler builds its own dict, and its branch runs only when the engine is *not* pycaps, which is exactly what a fallback run is. Six of the eleven bundled profiles enable two-part.
-- The run's decision is recorded in the pipeline state, and the burn step re-derives it through the same resolver when that record is missing. Resuming a run truncates the state and drops it, and trusting config at that point would fail a render whose captions were already burned.
+- The run's decision is recorded in the pipeline state, and the burn step re-derives it through the same resolver when that record is missing — a resume that truncates the state because a completed step's artifact has gone, or a state file written before the key existed. Trusting config at that point would fail a render whose captions were already burned.
 - The fallback logs a warning, so the three docs calling it silent now say so.
 
 ## [0.70.1] - 2026-08-23
