@@ -42,19 +42,30 @@ def load_registry(outputs_dir: Path) -> list[RegistryEntry]:
         return []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        # Drop keys the schema no longer declares rather than splatting the
-        # row wholesale. A removed column otherwise raises `TypeError` on
-        # every historical row, and the caller treats an unreadable registry
-        # as an empty one -- which rewrites the file down to whatever it is
-        # adding, losing everything published before the change.
-        known = {f.name for f in fields(RegistryEntry)}
-        return [
-            RegistryEntry(**{k: v for k, v in entry.items() if k in known})
-            for entry in data
-        ]
-    except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
+    except (json.JSONDecodeError, OSError, ValueError) as exc:
         logger.warning("Failed to load registry: %s", exc)
         return []
+
+    # Per row, not per file. A row the schema cannot build must cost that row
+    # and nothing else: the caller treats an unreadable registry as an empty
+    # one and rewrites the file, so failing the whole load replaces the entire
+    # publish history with whatever row was being added.
+    #
+    # Unknown keys are dropped rather than passed on, so removing a column
+    # does not break every row written before the removal.
+    known = {f.name for f in fields(RegistryEntry)}
+    entries: list[RegistryEntry] = []
+    for row in data:
+        if not isinstance(row, dict):
+            logger.warning("Skipping registry row that is not an object: %r", row)
+            continue
+        try:
+            entries.append(
+                RegistryEntry(**{k: v for k, v in row.items() if k in known})
+            )
+        except TypeError as exc:
+            logger.warning("Skipping unreadable registry row: %s", exc)
+    return entries
 
 
 def save_registry(entries: list[RegistryEntry], outputs_dir: Path) -> None:

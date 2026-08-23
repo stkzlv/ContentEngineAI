@@ -176,8 +176,8 @@ class TestPillarSurvivesATruncatedResume:
     A resume that finds a completed step's artifact missing truncates the
     state to step keys only, dropping every top-level scalar, and then skips
     the steps it kept. So the step that would re-record the pillar never runs,
-    and the registry reads a state file without one -- for a video whose
-    script was written under it.
+    and a repeat render then draws from a different template pool, preamble and
+    audience than the script already on disk was written for.
 
     These drive the real `create_video_for_product` with the state load and
     the pipeline execution stubbed, so they assert what the steps are handed

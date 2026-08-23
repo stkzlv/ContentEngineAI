@@ -465,6 +465,70 @@ class TestARemovedColumnDoesNotDestroyHistory:
         assert entries[0].content_format == "product"
         assert not hasattr(entries[0], "pillar")
 
+    def test_one_unreadable_row_does_not_cost_the_others(self, tmp_path):
+        """A row the schema cannot build must cost that row and nothing else.
+
+        Failing the whole load is worse than raising: the caller reads an
+        unloadable registry as an empty one and rewrites the file, so a single
+        malformed row would replace the entire publish history with whatever
+        was being added.
+        """
+        from src.publisher.product_registry import load_registry
+
+        (tmp_path / "published_products.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "product_id": "B0GOOD0001",
+                        "title": "A good row",
+                        "url": "https://example.com/1",
+                        "affiliate_url": "https://example.com/1?tag=x",
+                    },
+                    {"title": "missing every required field"},
+                    "not an object at all",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        entries = load_registry(tmp_path)
+
+        assert [e.product_id for e in entries] == ["B0GOOD0001"]
+
+    def test_an_add_keeps_history_when_a_row_is_unreadable(self, tmp_path):
+        """The property that matters, asserted where the damage would happen."""
+        from src.publisher.product_registry import add_to_registry, load_registry
+
+        (tmp_path / "published_products.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "product_id": "B0GOOD0001",
+                        "title": "A good row",
+                        "url": "https://example.com/1",
+                        "affiliate_url": "https://example.com/1?tag=x",
+                    },
+                    {"title": "missing every required field"},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        _write_data_json(
+            tmp_path,
+            "B0NEW00001",
+            {
+                "title": "New",
+                "url": "https://www.amazon.com/dp/B0NEW00001",
+                "affiliate_link": "",
+            },
+        )
+
+        add_to_registry("B0NEW00001", tmp_path)
+
+        ids = {e.product_id for e in load_registry(tmp_path)}
+        assert "B0GOOD0001" in ids, "an unreadable row destroyed the history"
+        assert "B0NEW00001" in ids
+
     def test_a_dropped_column_does_not_survive_a_round_trip(self, tmp_path):
         """Loading tolerates the key; saving must not write it back."""
         from src.publisher.product_registry import load_registry, save_registry

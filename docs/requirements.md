@@ -470,11 +470,11 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory
-- Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content pillar, content-format arm
+- Fields: product ID (ASIN), product title, canonical URL, affiliate URL, content-format arm
 - Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
 - Append new entries after each successful publish (no duplicates)
 - Republish refreshes the existing row so registry fields reflect the latest publish, not the original. Identical-data calls don't trigger a save.
-- Backward-compatible loader: legacy rows without a pillar field load with the field empty.
+- Backward-compatible loader, in both directions: a row missing a field the record declares takes that field's default, and keys the record no longer declares are dropped rather than passed on, so removing a column does not make every row written before it unreadable. A row the record cannot build at all costs that row and nothing else — failing the whole load would be worse than raising, since the caller treats an unreadable registry as an empty one and rewrites the file.
 - The content-format arm records whether the video came from a topic or a scraped product, so two formats published side by side can be compared later. It is read from the record rather than inferred from the profile or the publish date: a profile is a visual treatment two arms can share, and a date cannot reconstruct an arm that was interleaved, which is the only way to run the comparison fairly.
 - Rows written before the arm existed report as unlabelled rather than being counted as either arm, because a comparison that silently absorbs unknown videos into one side is worse than one that shows how many it cannot place.
 - The CSV header is derived from the record definition rather than restated, so adding a field cannot fail the registry write.

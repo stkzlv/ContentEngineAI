@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `pillar` column from the published-products registry, in both the JSON and the CSV. Nothing read it: `registry --summary` segments by `content_format`, and no report, analytics call or tool referenced it. Of 323 rows, 309 were empty. The producer-side plumbing that existed to populate it goes too — the pillar is no longer written into `metadata.json` or the per-platform metadata files.
 
 ### Changed
-- `load_registry` drops keys the schema no longer declares instead of splatting each row wholesale. Every row written before a column is removed still carries its key, and a strict load raises on all of them; the caller treats an unreadable registry as an empty one and rewrites the file, so removing a column without this would have replaced the entire publish history with the row being added.
+- `load_registry` drops keys the record no longer declares instead of splatting each row wholesale. Every row written before a column is removed still carries its key, and a strict load raises on all of them; the caller treats an unreadable registry as an empty one and rewrites the file, so removing a column without this would have replaced the entire publish history with the row being added.
+- A registry row the record cannot build now costs that row and nothing else, rather than emptying the load. Failing the whole file is worse than raising, for the same reason: the caller rewrites what it could not read.
 
 ### Notes
 - The pillar itself is unchanged and still shapes output: it filters the script template pool, prepends the per-pillar preamble and substitutes the audience. It is still recorded in `pipeline_state.json`, which a resumed run reads so a `--pillar` from an earlier run is not lost when the flag is not repeated.
