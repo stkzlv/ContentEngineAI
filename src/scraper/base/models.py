@@ -128,9 +128,10 @@ class BaseProductData:
 
         It is not the only writer. The Botasaurus output callback
         (``botasaurus_output.write_scraped_data_output``) writes the raw
-        extractor dict, and in the standalone CLI's batch mode nothing calls
-        ``_save_products``, so there the raw dict is the final ``data.json``
-        and a field added here does not appear in it.
+        extractor dict, and on the standalone CLI's ``--product-ids`` arm
+        nothing calls ``_save_products``, so there the raw dict is the final
+        ``data.json`` and a field added here does not appear in it. A
+        multi-keyword run saves through this serialiser.
         """
         return {
             "title": self.title,

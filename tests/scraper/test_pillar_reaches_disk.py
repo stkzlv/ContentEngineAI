@@ -12,6 +12,7 @@ would have passed against the broken version on all three paths.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -36,7 +37,7 @@ def _scraper(tmp_path: Path, keywords_block):
     scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
     scraper.config = {"batch": {"keywords": keywords_block}}
     scraper._keyword_pillars = None
-    scraper.output_dir = tmp_path
+    scraper.output_dir = str(tmp_path)
     scraper.debug_mode = False
     scraper.logger = MagicMock()
     return scraper
@@ -45,10 +46,10 @@ def _scraper(tmp_path: Path, keywords_block):
 def _written(tmp_path: Path, asin: str) -> dict:
     path = tmp_path / asin / "data.json"
     assert path.exists(), f"no data.json written at {path}"
-    data = json.loads(path.read_text())
+    data: Any = json.loads(path.read_text())
     if isinstance(data, list):
         data = data[0]
-    return data
+    return dict(data)
 
 
 @pytest.mark.unit
@@ -158,3 +159,74 @@ class TestPillarOnDisk:
             controller._process_keywords()
 
         assert _written(tmp_path, "B0TEST0001")["pillar"] == "value"
+
+
+@pytest.mark.unit
+class TestPillarReachesTheRegistry:
+    """`data.json` carrying the pillar is only half the journey.
+
+    The registry reads `pipeline_state.json`, and that key was written from
+    `cli_overrides` alone. So a product-level pillar shaped the script and
+    then vanished, filing the row as unlabelled for a video that was
+    genuinely rendered under a pillar. Making the file carry the value is what
+    exposed this: before, no scraped render used one.
+    """
+
+    async def _run_script_step(self, tmp_path, product_pillar, state=None):
+        """Drive the real `step_generate_script` past its resume shortcut.
+
+        With the script already on disk the step loads it and returns, which
+        is enough: the pillar is resolved and recorded before that branch, so
+        this exercises the production line rather than restating it.
+        """
+        from src.video.producer import steps as steps_mod
+
+        script = tmp_path / "script.txt"
+        script.write_text("A script.", encoding="utf-8")
+
+        ctx = MagicMock()
+        ctx.state = {} if state is None else state
+        ctx.product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0001",
+            platform=None,
+            asin="B0TEST0001",
+            pillar=product_pillar,
+        )
+        ctx.run_paths = {"script_file": script, "script_prompt": tmp_path / "p.txt"}
+        ctx.debug_mode = False
+        await steps_mod.step_generate_script(ctx)
+        return ctx.state
+
+    async def test_a_product_level_pillar_is_recorded_in_state(self, tmp_path):
+        state = await self._run_script_step(tmp_path, "value")
+        assert state["pillar"] == "value"
+
+    async def test_a_cli_override_still_wins(self, tmp_path):
+        """The override is the reason the key existed; it must keep winning."""
+        state = await self._run_script_step(
+            tmp_path, "value", state={"pillar": "novelty"}
+        )
+        assert state["pillar"] == "novelty"
+
+    async def test_no_pillar_records_nothing(self, tmp_path):
+        """An unconfigured keyword must not write an empty label."""
+        state = await self._run_script_step(tmp_path, None)
+        assert "pillar" not in state
+
+    def test_the_registry_reads_the_key_the_producer_writes(self, tmp_path):
+        """Pins the two halves against each other by name.
+
+        The producer writes `pillar` at the top level of the state file and
+        the registry reads exactly that; a rename on either side is silent.
+        """
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        state_dir = tmp_path / "B0TEST0001" / "temp"
+        state_dir.mkdir(parents=True)
+        (state_dir / "pipeline_state.json").write_text(
+            json.dumps({"pillar": "value", "script_template": "x"})
+        )
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "value"

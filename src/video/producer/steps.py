@@ -515,6 +515,14 @@ async def step_generate_script(ctx: PipelineContext):
         logger.info("Executing step: GENERATE_SCRIPT")
 
         pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
+        # Record what the render actually used, not only what was overridden.
+        # `ctx.state["pillar"]` is otherwise set from `cli_overrides` alone, so
+        # a product-level pillar read from `data.json` shapes the script and
+        # then never reaches `pipeline_state.json` -- which is where the
+        # registry reads it from, so the row files as unlabelled for a video
+        # that was rendered under a pillar.
+        if pillar:
+            ctx.state["pillar"] = pillar
 
         # Check if script already exists from previous run
         script_file = ctx.run_paths["script_file"]
