@@ -188,11 +188,21 @@ Add a per-pillar counter to the registry and thread it into title/caption templa
 
 Targeted for the following quarter. Closes the loop between pipeline output and platform signals.
 
-### 5.1 Companion analytics module
+### 5.1 Analytics module
 
-Optional analytics tooling that pulls platform metrics (TikTok, Instagram, YouTube, Amazon Associates, link-in-bio) into a local SQLite store and produces weekly reports segmented by pillar, template, voice profile, and A/B variant. Either a sister module in this repo or a separately released companion tool, to be decided when the work starts. Avoid building against Amazon's PA-API — it deprecates May 15, 2026; use the new Creators API or scraping instead.
+A module that owns per-post performance history: captures metrics on a schedule, stores them locally, and reports segmented by the dimensions the pipeline already varies (content format, pillar, template, voice profile, hook variant).
 
-Smaller than it looks. The scheduling API the publisher already authenticates against exposes per-video and per-account metrics of its own (daily views and demographics for YouTube, account insights and demographics for Instagram, plus content decay, post timeline, posting frequency, and best-time-to-post across platforms). The first useful version of this item reads those through the existing client and stores them, rather than standing up a separate OAuth integration per platform. Only the Amazon and link-in-bio halves need their own sources.
+**Own the history.** Every upstream expires, so the local store is the system of record and the providers are sources feeding it. The scheduling API's per-post timeline stops reaching back after roughly five weeks: past that, a post's rows begin at a recent date instead of at its publication, and `from_date` does not widen it. That is a property of the scheduler, not of the platforms, but the same shape appears elsewhere — one platform's post data freezes a year after publication and its watch-time fields empty out after a week of no engagement. A figure not captured while it was reachable is not recoverable later.
+
+**Capture cadence follows expiry, not convenience.** Most of a short-form post's views arrive within the first day or two, so the early curve needs frequent sampling and the tail needs very little. Two constraints shape the schedule rather than taste: one platform's analytics rows take 48-72 hours to finalise, so a same-day pull records figures that are still settling; and one platform exposes only lifetime counters with no daily series at all, which means its day-N figures exist only as differences between snapshots this module took. Store readings append-only and derive deltas rather than overwriting.
+
+**Start with the scheduler, because it is already authenticated.** It exposes more than the pipeline currently reads: per-video daily views for one platform, account insights and demographics for another, plus content decay, posting frequency, and best-time-to-post. The first useful version reads those through the existing client. Only the affiliate-program and link-in-bio halves need their own sources.
+
+**Retention is the metric worth adding next, and it is platform-asymmetric.** The pipeline's weakest measured link is whether a viewer stays past the opening seconds, and nothing currently measures it. One platform's analytics API exposes a full retention curve per video, another reports average watch time and the share of viewers who leave within the first three seconds, and a third offers no watch-time signal on its generally available API at all. Any hook comparison is therefore two-platform evidence, and the module should say so rather than averaging across a gap.
+
+**Going direct is a later step, not a first one.** Platform APIs hold far longer history than the scheduler and are the only route to retention data, but each needs its own OAuth app, and one of them requires a business account plus an access application. Paid aggregators exist and a couple are genuinely developer-usable, but they do not remove the need for a local snapshot table, which is the part that actually solves history. Build the store first; decide per platform afterwards whether the extra metrics justify their own integration.
+
+**Done when:** a scheduled capture writes per-post readings to a local store without losing figures already taken, and a single command reports performance segmented by content format.
 
 ### 5.2 Listing-side drift diagnostic
 
@@ -206,19 +216,21 @@ Add report types to the analytics tool for: per-pillar conversion, per-template 
 
 **Done when:** the user can answer "which pillar converts best on platform X over the last 4 weeks" with a single command.
 
-### 5.4 Content-format arm labelling
+### 5.4 Reach segmented by content-format arm
 
-Extend the per-variant registry pattern from 1.7 (which records the hook variant) to record the content format each video was produced under, so two formats published concurrently can be compared later. Without it, a format experiment can only be reconstructed by hand from publish dates, which stops working the moment the two arms are interleaved rather than run in blocks.
+The registry records the content format each video was produced under, and a summary command counts published products per arm. What does not exist is the join: performance figures are keyed by post, the arm is keyed by product, and nothing brings them together. So the question a format experiment exists to answer -- does one arm hold reach better than the other -- cannot currently be answered by any command.
 
-**Done when:** the registry carries the format arm per video and a report segments reach by arm.
+The join runs through the publish history, which maps a product and platform to the post that carried it. Rows written before the arm existed report as unlabelled rather than being folded into either side.
 
-### 5.5 Day-N and durability metrics
+**Done when:** one command reports day-N and durability figures grouped by content-format arm, and states how many measured posts it could not place.
 
-The scheduling API returns a cumulative per-post timeline, so any day-N figure is a lookup rather than a scheduled job. Capture day-2 and day-7 views per post for launch performance, and a durability ratio (views after the first 30 days over views within them) for whether a video keeps earning.
+### 5.5 Day-N and durability metrics -- shipped
 
-The two answer different questions. A 7-day window captures the launch curve for every video and cannot distinguish content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio, not the 7-day number. See [tutorial-video-best-practices.md](tutorial-video-best-practices.md).
+Day-2 and day-7 views and a 30-day durability ratio per post, stored locally, with a command that captures them and ranks by durability. Shipped across 0.68.0 and 0.71.1.
 
-**Done when:** the analytics store holds day-2, day-7, and a 30-day-plus durability ratio per post, and a report ranks videos by durability.
+Recorded here because the item was written on an assumption that turned out to be false, and the correction is the reusable part. It originally read that the scheduler returns a cumulative per-post timeline, "so any day-N figure is a lookup rather than a scheduled job". Measured against the live API, the opposite holds: the timeline stops reaching back after roughly five weeks, so day-2 and day-7 are available only while the post is young enough. They are a scheduled job or they are nothing, which is why 5.1 is built around capture cadence rather than around querying on demand.
+
+The two figures answer different questions. A 7-day window captures the launch curve for every video and cannot distinguish content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio. See [tutorial-video-best-practices.md](tutorial-video-best-practices.md).
 
 ## Phase 6 — Threshold-gated unlocks (Later)
 
