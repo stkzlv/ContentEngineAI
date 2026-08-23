@@ -535,6 +535,51 @@ class TestAReRenderRefreshesTheRecordedPillar:
         )
         assert written["pillar"] == "utility"
 
+    async def test_a_recorded_pillar_is_never_erased(self, tmp_path):
+        """A run whose state carries none is not evidence that none was used.
+
+        `pipeline_state.json` can be missing while the script it is reusing
+        survives, so treating an absent state pillar as "this render used
+        none" trades a right answer for an empty one.
+        """
+        written = await self._reuse(
+            tmp_path, {"description": "old", "pillar": "utility"}, {}
+        )
+        assert written["pillar"] == "utility"
+
+    async def test_the_optimized_arm_refreshes_its_own_files(self, tmp_path):
+        """Optimized mode writes no unified file, so the reuse branch that
+        matters for it is the other one -- and the registry reads those files.
+        """
+        from src.video.producer import steps as steps_mod
+
+        for platform in ("youtube", "tiktok"):
+            (tmp_path / f"metadata_{platform}.json").write_text(
+                json.dumps({"description": "old", "pillar": "value"})
+            )
+        (tmp_path / "description.txt").write_text("old")
+
+        ctx = MagicMock()
+        ctx.state = {"pillar": "utility"}
+        ctx.product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0001",
+            platform=None,
+            asin="B0TEST0001",
+            pillar="value",
+        )
+        ctx.run_paths = {
+            "run_root": tmp_path,
+            "description_file": tmp_path / "description.txt",
+        }
+        ctx.debug_mode = False
+        steps_mod._check_existing_metadata(ctx)
+
+        for platform in ("youtube", "tiktok"):
+            written = json.loads((tmp_path / f"metadata_{platform}.json").read_text())
+            assert written["pillar"] == "utility"
+
     def test_the_optimized_writer_records_the_pillar(self, tmp_path):
         """The registry reading these files is only half of it.
 

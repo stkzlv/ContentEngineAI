@@ -1216,12 +1216,14 @@ class GlobalPipelineOrchestrator:
                     )
 
                 try:
+                    # The product's own pillar is NOT promoted into
+                    # `cli_overrides` here. The producer reads it as the last
+                    # term of its own resolution, and putting it in the CLI
+                    # slot would rank it above a pillar a previous run
+                    # recorded -- so a resumed batch would file the row under
+                    # the scraped arm while reusing a script written for the
+                    # overridden one.
                     cli_overrides = self._build_cli_overrides()
-                    product_pillar = getattr(product, "pillar", None)
-                    if product_pillar and not self.config.pillar:
-                        if cli_overrides is None:
-                            cli_overrides = {}
-                        cli_overrides.setdefault("pillar", product_pillar)
 
                     # Call video producer with timeout
                     result_path = await asyncio.wait_for(

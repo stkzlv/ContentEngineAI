@@ -480,7 +480,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Rows written before the arm existed report as unlabelled rather than being counted as either arm, because a comparison that silently absorbs unknown videos into one side is worse than one that shows how many it cannot place.
 - The CSV header is derived from the record definition rather than restated, so adding a field cannot fail the registry write.
 - Support bulk import from existing scraped data directories
-- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose pipeline state or unified metadata carries one
+- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose pipeline state or product-root metadata carries one
 - Rebuild merges scanned entries into the existing registry; rows whose product directories were cleaned up after publishing stay in the registry
 - Each write of the registry renames the existing JSON/CSV file to `<name>.bak` first so a write that drops or corrupts entries can be recovered
 
