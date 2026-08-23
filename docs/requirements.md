@@ -466,7 +466,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - The scheduler's timeline is cumulative, so a day-N figure is a lookup against one call rather than a scheduled job that must run on the day
 - A window the post has not reached yet reports as unknown rather than as the running total, and a post with no views in the durability window reports unknown rather than 0.0. Ranking treats unknown as unmeasurable and sorts it last, never as a zero
 - Reports can rank by durability, which answers a different question from ranking by total views or by day-7 views: at day 7 a post that keeps earning and one that spiked and stopped are indistinguishable
-- Measuring a post again replaces its stored row rather than appending, so one post is one row carrying the reading with the most history behind it
+- Measuring a post again merges into its stored row field by field rather than replacing it. Past the provider's retention horizon a later reading has *less* history behind it, so a measured figure is never replaced by an absent one, and the field recording how far the timeline reached moves with the ratio it dates
 
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory

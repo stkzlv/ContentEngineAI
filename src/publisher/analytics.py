@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +86,25 @@ def _parse_date(value: Any) -> datetime | None:
     except ValueError:
         return None
     return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+
+
+def _instant(value: Any) -> datetime | None:
+    """Parse a timestamp as a point in time, keeping its offset.
+
+    `_parse_date` deliberately drops the offset so timeline rows compare
+    against a naive publication date. That is the wrong reading for ordering
+    two legs against each other: 09:12+02:00 is earlier than 08:30Z, and
+    dropping the offset reverses them.
+    """
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
@@ -161,6 +180,37 @@ def durability_ratio(
     return (total - within) / within
 
 
+def publish_time(post: dict[str, Any]) -> str:
+    """When the post first went live, falling back to its scheduled slot.
+
+    The day-N clock has to start when the content existed. `scheduledFor` is
+    only that for a post whose legs all published on time; a leg that failed
+    and was retried can go live days later, and measuring from the slot then
+    starts the clock before the video existed and understates every figure.
+
+    Retry rate is not random with respect to content format, so this biases a
+    format comparison rather than adding noise.
+
+    The earliest leg is used when legs published on different days, since that
+    is when the content first reached anyone.
+    """
+    times = [
+        leg.get("publishedAt")
+        for leg in (post.get("platforms") or [])
+        if isinstance(leg, dict) and leg.get("publishedAt")
+    ]
+    # Ordered by instant, not by the printed string. Two legs with different
+    # UTC offsets sort the wrong way lexically, and the API returns whatever
+    # offset the platform reported.
+    dated = [(_instant(t), t) for t in times]
+    usable = [(d, t) for d, t in dated if d is not None]
+    if usable:
+        return str(min(usable, key=lambda pair: pair[0])[1])
+    if times:
+        return str(times[0])
+    return str(post.get("publishedAt") or post.get("scheduledFor") or "")
+
+
 def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     """Reduce one post's raw timeline to the figures worth storing."""
     when = _parse_date(published_at)
@@ -212,11 +262,11 @@ def load_metrics(outputs_dir: Path) -> list[PostMetrics]:
 
 
 def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
-    """Write per-post figures, replacing rows for posts measured again.
+    """Write per-post figures, merging each post's row field by field.
 
-    Merged rather than appended so a post measured on two different days keeps
-    one row carrying the later reading, which is the one with more history
-    behind it.
+    Not "the later reading wins": past the provider's retention horizon a
+    later reading has *less* history behind it, and its absent day-N figures
+    would erase ones captured while they were still reachable.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     path = metrics_path(outputs_dir)
@@ -228,12 +278,8 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
     for m in metrics:
-        if m.post_id in merged and not _has_figures(m):
-            # A reading with nothing in it is an absent answer, not a new one.
-            # Replacing wholesale would erase figures already measured.
-            logger.debug("Keeping stored figures for %s: empty reading", m.post_id)
-            continue
-        merged[m.post_id] = m
+        stored = merged.get(m.post_id)
+        merged[m.post_id] = _combine(stored, m) if stored else m
 
     tmp = path.with_suffix(".tmp")
     tmp.write_text(
@@ -243,9 +289,56 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
     tmp.replace(path)
 
 
-def _has_figures(m: PostMetrics) -> bool:
-    """Whether a reading carries any measurement at all."""
-    return any(v is not None for v in (m.views_day_2, m.views_day_7, m.views_total))
+def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
+    """Keep the best answer per field rather than the newest row.
+
+    The provider's timeline does not reach back indefinitely: measured against
+    the live API, every post older than about five weeks returns rows starting
+    at the same recent date, whatever `from_date` is passed.
+
+    Rows are lifetime-cumulative -- each carries total views as of its date,
+    not views within the window -- so a truncated reading is never *wrong*,
+    only incomplete. `views_total` stays correct, while any day-N earlier than
+    the window start, and a ratio that would divide by one, come back absent.
+    Taking the newer row wholesale was therefore the defect: it let absence
+    overwrite figures captured while they were still reachable.
+
+    A measured value is never replaced by an absent one. `timeline_end` moves
+    with the ratio rather than independently, because it exists to say how
+    mature that ratio is -- advancing it under an older ratio would misreport
+    exactly the thing it was added to record.
+    """
+    ratio_from_fresh = fresh.durability_ratio is not None
+
+    def kept(a: int | None, b: int | None) -> int | None:
+        """The fresh figure when it has one, else what was already measured."""
+        return b if b is not None else a
+
+    totals = [v for v in (stored.views_total, fresh.views_total) if v is not None]
+    return PostMetrics(
+        post_id=fresh.post_id,
+        published_at=fresh.published_at or stored.published_at,
+        views_day_2=kept(stored.views_day_2, fresh.views_day_2),
+        views_day_7=kept(stored.views_day_7, fresh.views_day_7),
+        # Window-independent: cumulative rows mean the last row is the lifetime
+        # total whether or not the window reaches back to publication, so the
+        # fresh figure is normally the right one and `max` is a no-op. It only
+        # bites if a platform revises a count downward, where the earlier,
+        # higher reading is kept deliberately rather than silently.
+        views_total=max(totals) if totals else None,
+        durability_ratio=(
+            fresh.durability_ratio if ratio_from_fresh else stored.durability_ratio
+        ),
+        # Pinned only while it is dating a preserved ratio. With no ratio on
+        # either side it still means "how far the timeline reached", and
+        # freezing it there would make it stale for every post through its
+        # whole first month.
+        timeline_end=(
+            stored.timeline_end
+            if (stored.durability_ratio is not None and not ratio_from_fresh)
+            else (fresh.timeline_end or stored.timeline_end)
+        ),
+    )
 
 
 def _readable(path: Path) -> bool:

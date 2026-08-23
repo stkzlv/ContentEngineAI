@@ -311,6 +311,16 @@ python -m src.publisher.late analytics --limit 50
 python -m src.publisher.late analytics --rank-only
 ```
 
+**Run this on a schedule, not once at the end of a comparison.** The provider's
+timeline has a retention horizon of roughly five weeks: past it a post's rows
+start at a recent date rather than at its publication, so day-2 and day-7 are
+no longer reachable and the durability ratio cannot be computed. Nothing can be
+passed to widen the window — `from_date` makes no difference at any post age.
+
+Figures already captured are safe. Each post's row is merged field by field, so
+a later, shorter reading never replaces a measured value with an absent one;
+what it cannot do is recover a figure that was never taken in time.
+
 | Option | Required | Description |
 |---|---|---|
 | `--limit N` | No | How many recent published posts to measure (default: 50) |

@@ -169,11 +169,13 @@ class TestMetricsStorage:
         assert [m.post_id for m in loaded] == ["p1"]
         assert loaded[0].durability_ratio == pytest.approx(1.2)
 
-    def test_a_second_reading_replaces_the_first(self, tmp_path):
-        """A post measured again keeps one row, carrying the later reading.
+    def test_a_second_reading_merges_into_the_first(self, tmp_path):
+        """A post measured again keeps one row, merged field by field.
 
-        Appending would double-count it in any ranking, and the newer reading is
-        the one with more history behind it.
+        Appending would double-count it in any ranking. The later reading is
+        not simply authoritative: past the provider's retention horizon it has
+        *less* history behind it, so it contributes what it can measure and
+        nothing else.
         """
         from src.publisher.analytics import load_metrics, save_metrics
 

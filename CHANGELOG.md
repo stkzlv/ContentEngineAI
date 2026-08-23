@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.1] - 2026-08-23
+
+### Fixed
+- A durability sweep no longer erases the launch figures it captured earlier. The provider's timeline does not reach back indefinitely: measured against the live API, posts aged 121, 157 and 188 days all returned rows starting on the same recent date, and passing `from_date` changed nothing. Rows are lifetime-cumulative, so a truncated read is never *wrong*, only incomplete: `views_total` stays correct while day-2, day-7 and the ratio come back absent. The stored row took the newer reading whenever it carried any figure at all, and a truncated read carries `views_total` — so absence overwrote figures captured while they were still reachable. Merged per field now, and the field recording how far the timeline reached moves with the ratio it dates rather than independently.
+- Day-N views are measured from when a post actually went live rather than from its scheduled slot. A leg that fails and is retried publishes later than the slot, so the clock could start before the video existed. `list_posts` dropped the per-leg publish time entirely, so the fallback was previously the only value available.
+
+### Notes
+- The timeline window was the reported suspicion (#233) and is refuted: `from_date` makes no difference at any post age. What the same measurement found instead is a retention horizon of roughly five weeks, which is a harder constraint — day-2 and day-7 cannot be recovered once a post passes it, so they have to be captured while they are still reachable.
+- Rows were confirmed lifetime-cumulative by the same measurement: a post 121 days old reads 308 views at both its first retained row and its last, and one 188 days old reads 354 at both. That is what makes a truncated reading incomplete rather than wrong, and it is the premise the merge rests on.
+- Figures stored before this release may have their day-N clocked from the scheduled slot. A re-read cannot correct them, because the window no longer reaches their launch.
+- Measured impact of the publish-time fix today is one post in 273, whose legs published a day apart. The mechanism was wrong for every retried post; the current sample is simply mostly on-time.
+
 ## [0.71.0] - 2026-08-23
 
 ### Removed
