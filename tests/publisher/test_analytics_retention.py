@@ -395,17 +395,16 @@ class TestATimelineHasOneRowPerPlatformPerDate:
 
 @pytest.mark.unit
 class TestAnImpossibleRatioReportsUnmeasurable:
-    """A negative durability ratio cannot arise from a correct reading.
+    """A negative durability ratio is noise, not a measurement.
 
-    Under a cumulative series the lifetime total is never below the figure at
-    day 30, so `total < within` means the reading itself is wrong -- a date
-    missing a platform's row, or a revision straddling the window. Storing the
-    negative number would rank it below every real post and record it as
-    though it were a measurement.
+    The summed series is normally monotonic but not always: platforms revise
+    counts down, and a dip of a fraction of a percent across the 30-day
+    boundary makes the total read below the window figure. Observed live as
+    929, 934, 922 on consecutive days.
 
-    Not observed on the live API across twelve multi-platform posts, none of
-    which had a shrinking platform set on its newest date. Guarded anyway,
-    because absence is the project's answer to an unanswerable figure.
+    "Views earned after the window" is not a quantity worth reporting
+    negative, and it would rank below every real post. The next sweep
+    recomputes it, so absence is the honest answer for one reading.
     """
 
     def test_a_total_below_the_window_figure_is_unmeasurable(self):

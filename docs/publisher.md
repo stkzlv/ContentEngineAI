@@ -339,8 +339,12 @@ it; several times an hour is not.
 **Daily is a sensible default.** Most of a short-form post's views arrive in
 the first day or two, and one platform's analytics rows take 48-72 hours to
 finalise, so a same-day reading of a fresh post is still settling — the merge
-corrects it on the next run. Running less often than weekly risks posts ageing
-past the retention horizon between sweeps.
+corrects it on the next run. Running less often than weekly risks stepping over
+a post's figures entirely. The durability ratio is the tightest: it needs a post
+past day 30 and still inside the roughly five-week horizon, so its window is
+only a few days wide — every published post older than about four months
+currently returns no ratio at all, because its retained rows begin long after
+its day 30.
 
 A systemd user timer, which needs no root and starts with your session:
 

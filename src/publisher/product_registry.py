@@ -258,7 +258,8 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
     # truthy while every historical row failed to load -- which is exactly the
     # case worth refusing, and the one an earlier version of this guard let
     # through: three scanned products would have been written over 323 rows.
-    if _rows_on_disk(outputs_dir) != 0 and not existing_count:
+    rows_present = _rows_on_disk(outputs_dir)
+    if rows_present != 0 and not existing_count:
         # The registry had rows, the rebuild produced none, and saving would
         # replace a full file with an empty one. That is never a legitimate
         # outcome: a scan that finds nothing should leave the file alone.
@@ -267,10 +268,15 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
         # the product directories are long cleaned up, so the scan cannot
         # re-add them. The `.bak` only covers one generation.
         logger.error(
-            "Refusing to rebuild: the registry file holds %d row(s), none of "
-            "which could be read. Saving would replace them with whatever the "
-            "scan of %s found. Registry left unchanged.",
-            _rows_on_disk(outputs_dir),
+            "Refusing to rebuild: the registry file %s. Saving would replace "
+            "it with whatever the scan of %s found. Registry left unchanged. "
+            "To rebuild from the product directories anyway, move the file "
+            "aside first.",
+            (
+                "could not be parsed"
+                if rows_present < 0
+                else f"holds {rows_present} row(s), none of which could be read"
+            ),
             source,
         )
         return -1

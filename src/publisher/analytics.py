@@ -191,11 +191,14 @@ def durability_ratio(
         return None
     total = timeline[-1][1]
     if total < within:
-        # Impossible under a correct cumulative read, so something is wrong
-        # with this one -- a date missing a platform's row, or a revision
-        # straddling the window. Report it as unmeasurable rather than as a
-        # negative ratio, which would rank below every real post and be stored
-        # as though it were a measurement.
+        # The series is normally monotonic but not always: platforms revise
+        # counts down, and a summed series dips by a fraction of a percent
+        # when they do (observed live: 929, 934, 922 on consecutive days).
+        # Across the 30-day boundary that makes the total read below the
+        # window figure. "Views earned after the window" is not a quantity
+        # worth reporting negative, and the next sweep recomputes it, so
+        # report unmeasurable rather than rank a noise figure below every
+        # real post.
         return None
     return (total - within) / within
 
