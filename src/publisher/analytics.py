@@ -206,14 +206,14 @@ def durability_ratio(
         return None
     total = timeline[-1][1]
     if total < within:
-        # The series is normally monotonic but not always: platforms revise
-        # counts down, and a summed series dips by a fraction of a percent
-        # when they do (observed live: 929, 934, 922 on consecutive days).
-        # Across the 30-day boundary that makes the total read below the
-        # window figure. "Views earned after the window" is not a quantity
-        # worth reporting negative, and the next sweep recomputes it, so
-        # report unmeasurable rather than rank a noise figure below every
-        # real post.
+        # Reachable, though not observed: a per-platform downward revision
+        # straddling the window puts the total below the day-30 figure. The
+        # dips that first prompted this guard turned out to be the partial-date
+        # artifact fixed in 0.71.4 rather than revisions, and a scan of 287
+        # live rows found no per-platform decrease at all -- so treat this as
+        # defence against a case the API allows rather than one it exhibits.
+        # Either way "views earned after the window" is not worth reporting
+        # negative, and the next sweep recomputes it.
         return None
     return (total - within) / within
 

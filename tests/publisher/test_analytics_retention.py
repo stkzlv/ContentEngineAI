@@ -397,10 +397,11 @@ class TestATimelineHasOneRowPerPlatformPerDate:
 class TestAnImpossibleRatioReportsUnmeasurable:
     """A negative durability ratio is noise, not a measurement.
 
-    The summed series is normally monotonic but not always: platforms revise
-    counts down, and a dip of a fraction of a percent across the 30-day
-    boundary makes the total read below the window figure. Observed live as
-    929, 934, 922 on consecutive days.
+    A per-platform downward revision straddling the window would put the total
+    below the day-30 figure. The dips that first prompted this guard turned
+    out to be the partial-date artifact fixed in 0.71.4, and a scan of 287
+    live rows found no per-platform decrease, so this guards a case the API
+    allows rather than one it has been seen to produce.
 
     "Views earned after the window" is not a quantity worth reporting
     negative, and it would rank below every real post. The next sweep
@@ -490,3 +491,21 @@ class TestAPlatformMissingFromADateCarriesForward:
         totals = [v for _, v in normalize_timeline(rows)]
         assert totals == sorted(totals), f"series fell: {totals}"
         assert totals == [300, 310, 315]
+
+    def test_a_platforms_later_figure_replaces_its_earlier_one(self):
+        """Carry forward the last figure, not the highest.
+
+        Taking the maximum per platform would freeze a downward revision out
+        of the total permanently, which contradicts the merge rule that lets
+        one land -- and would make the `total < within` guard unreachable,
+        since its premise is exactly that a later, lower figure arrives.
+        """
+        from src.publisher.analytics import normalize_timeline
+
+        rows = [
+            {"date": "2026-08-01", "platform": "a", "views": 100},
+            {"date": "2026-08-02", "platform": "a", "views": 90},
+            {"date": "2026-08-02", "platform": "b", "views": 50},
+        ]
+
+        assert [v for _, v in normalize_timeline(rows)] == [100, 140]
