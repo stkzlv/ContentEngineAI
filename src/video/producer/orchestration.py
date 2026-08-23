@@ -336,9 +336,22 @@ async def create_video_for_product(
 
             await _load_pipeline_state(ctx)
 
-            # CLI --pillar wins over any pillar in saved state.
-            if cli_overrides and cli_overrides.get("pillar"):
-                ctx.state["pillar"] = cli_overrides["pillar"]
+            # Resolve the pillar once, on every run, and record it here.
+            # CLI --pillar wins; otherwise the product's own value, which the
+            # scraper writes into `data.json`.
+            #
+            # This has to sit after the state load rather than inside
+            # `step_generate_script`: a resume that truncates the state drops
+            # every non-step key and then skips the steps it kept, so a
+            # product-level pillar recorded inside the step would be lost on
+            # exactly the runs that reload it. The registry reads the state
+            # file, so losing it files the row unlabelled for a video whose
+            # script was written under the pillar.
+            resolved_pillar = (cli_overrides or {}).get("pillar") or getattr(
+                product, "pillar", None
+            )
+            if resolved_pillar:
+                ctx.state["pillar"] = resolved_pillar
 
         if debug_step_target:
             # This profile's real order, not the storage order: on a

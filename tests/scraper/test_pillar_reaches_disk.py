@@ -1,7 +1,9 @@
 """Tests that a keyword's pillar reaches `data.json`.
 
 The pillar was assigned to the in-memory record *after* the file had been
-written, on all three scraper paths, so every scrape wrote `pillar: null`.
+written, so the arms that write through the record's serialiser wrote
+`pillar: null`, and the arm that did not write through it at all had no
+`pillar` key.
 Nothing failed: the record the caller held was correct, and the caller is what
 every existing test looked at. Only the file was wrong, and the producer reads
 the file.
@@ -176,8 +178,7 @@ class TestPillarReachesTheRegistry:
         """Drive the real `step_generate_script` past its resume shortcut.
 
         With the script already on disk the step loads it and returns, which
-        is enough: the pillar is resolved and recorded before that branch, so
-        this exercises the production line rather than restating it.
+        is enough: the pillar is read before that branch.
         """
         from src.video.producer import steps as steps_mod
 
@@ -185,6 +186,10 @@ class TestPillarReachesTheRegistry:
         script.write_text("A script.", encoding="utf-8")
 
         ctx = MagicMock()
+        # Keep the hook-headline path out of this test. It is unrelated, and
+        # with a MagicMock config it only stays harmless because the prompt
+        # join happens to reject a MagicMock before any HTTP call.
+        ctx.config.video_settings.hook_overlay.enabled = False
         ctx.state = {} if state is None else state
         ctx.product = ProductData(
             title="A product",
@@ -230,3 +235,34 @@ class TestPillarReachesTheRegistry:
         )
 
         assert _read_pillar_from_state("B0TEST0001", tmp_path) == "value"
+
+
+@pytest.mark.unit
+class TestPillarSurvivesATruncatedResume:
+    """Recording the pillar inside the script step is not enough.
+
+    A resume that finds a completed step's artifact missing truncates the
+    state to step keys only, dropping every top-level scalar, and then skips
+    the steps it kept. So the step that would re-record the pillar never runs,
+    and the registry reads a state file without one -- for a video whose
+    script was written under it.
+
+    Resolving it after the state load, where the CLI override is applied,
+    happens on every run including that one.
+    """
+
+    def test_the_resolution_runs_after_the_state_load(self):
+        """Pins the ordering by reading the source, because the alternative is
+        to stand up the whole parallel orchestrator.
+
+        The assertion is about position: a resolution placed before the load
+        is overwritten by it, and one placed inside a step is skipped by it.
+        """
+        import inspect
+
+        from src.video.producer import orchestration
+
+        src = inspect.getsource(orchestration.create_video_for_product)
+        load_at = src.index("_load_pipeline_state(ctx)")
+        resolve_at = src.index('ctx.state["pillar"] = resolved_pillar')
+        assert load_at < resolve_at

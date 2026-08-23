@@ -10,13 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.70.4] - 2026-08-23
 
 ### Fixed
-- A keyword's pillar reaches `data.json`. It was assigned to the in-memory record after the file had already been written, on all three scraper paths, so every scrape wrote `pillar: null` while the record the caller held looked correct. The producer reads the file, so the script template family, the audience the prompt is written for, and the arm a published row is filed under all fell back to unset on every keyword scrape.
+- A keyword's pillar reaches `data.json`. It was assigned to the in-memory record after the file had already been written, so the two arms that write through the record's serialiser wrote `pillar: null`, and the standalone multi-keyword arm, which did not write through it at all, had no `pillar` key. The record the caller held was correct in every case. The producer reads the file, so the script template family, the audience the prompt is written for, and the arm a published row is filed under all fell back to unset on every keyword scrape.
 - A standalone multi-keyword scrape — two or more `--keywords` — writes `data.json` through the same serialiser as every other path. It previously left the raw dict the browser callback wrote mid-scrape, so `rating` and `shortened_affiliate_link` were absent and `downloaded_images` was empty. The `--product-ids` arm still writes that raw dict; it has no keyword, so it has no pillar to attach and was out of scope here.
 
 ### Notes
 - The pillar is resolved from the scraper's own config rather than passed in, so the standalone paths do not depend on a caller holding a map they have no reason to have. The batch pipeline builds the same mapping from the same `batch.keywords` block.
 - Tests assert the written file rather than the returned records. Asserting the record is what hid this: it was correct all along.
-- The producer now records the pillar it resolved in `pipeline_state.json`, not only one passed as a CLI override. The registry reads that file, so a standalone render of a scraped product would otherwise have been filed unlabelled while its script was written under the pillar.
+- The producer records the pillar it resolved in `pipeline_state.json`, not only one passed as a CLI override. The registry reads that file, so a standalone render of a scraped product would otherwise have been filed unlabelled while its script was written under the pillar. It is resolved after the state load rather than inside the script step, because a resume that truncates the state drops the key and then skips the step that would rewrite it.
 
 ## [0.70.3] - 2026-08-23
 
