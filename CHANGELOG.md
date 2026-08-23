@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.71.4] - 2026-08-24
+## [0.71.4] - 2026-08-23
 
 ### Fixed
 - A platform absent from a date in the timeline now carries its last known figure forward instead of contributing nothing. Platforms report on their own lag, so the newest date frequently holds only some of them: one post reads instagram 54 / tiktok 286 / youtube 19 on one day and only youtube 19 on the next, which collapsed its total from 359 to 19 — at exactly the end of the series every "latest" figure is read from. Each platform's own series is cumulative, so an absent row means unchanged, not zero.
