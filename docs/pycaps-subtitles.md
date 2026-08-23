@@ -8,8 +8,9 @@ the TikTok/Reels style — word-by-word highlights, pop/slide/zoom animations,
 emoji overlays, gradient fills.
 
 The bundled `config/subtitles.yaml` selects `pycaps` by default. Forks
-without the optional pycaps group degrade silently to FFmpeg because the
-bundled `pycaps.fallback_policy` is `fallback_ffmpeg`. Set
+without the optional pycaps group fall back to FFmpeg, with a warning naming
+the install command, because the bundled `pycaps.fallback_policy` is
+`fallback_ffmpeg`. Set
 `subtitle_engine: "ffmpeg"` in YAML or pass `--subtitle-engine ffmpeg` to
 opt out per-run.
 

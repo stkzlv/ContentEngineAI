@@ -617,6 +617,7 @@ async def create_unified_subtitles(
     product_id: str | None = None,
     visual_bounds: Any | None = None,
     transcript_out_path: Path | None = None,
+    engine: str | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -641,8 +642,11 @@ async def create_unified_subtitles(
         product_id: Product ID for randomization (if applicable)
         visual_bounds: Optional visual content boundaries for subtitle positioning
         transcript_out_path: Target path for the raw Whisper transcript when
-            ``subtitle_settings["subtitle_engine"] == "pycaps"``. Ignored in
-            the default ffmpeg engine.
+            the resolved engine is ``pycaps``. Ignored in the default ffmpeg
+            engine.
+        engine: The engine this run resolved to, which wins over the settings
+            dict. Pass it: the dict is built from config, so on an install
+            without pycaps it names an engine the run cannot have.
 
     Returns:
     -------
@@ -650,7 +654,12 @@ async def create_unified_subtitles(
 
     """
     # Determine output format and path
-    subtitle_engine = subtitle_settings.get("subtitle_engine", "ffmpeg")
+    # The engine is a run decision, so callers pass it explicitly. Reading it
+    # from the settings dict is the fallback for callers that have no run to
+    # speak for: a dict built from config still says "pycaps" on an install
+    # that hasn't got it, which is how a fallback run used to end up writing a
+    # transcript and no subtitle file.
+    subtitle_engine = engine or subtitle_settings.get("subtitle_engine", "ffmpeg")
     subtitle_format = subtitle_settings.get("subtitle_format", "srt")
     if subtitle_engine == "pycaps":
         # In pycaps mode we only need the raw Whisper transcript artifact.
