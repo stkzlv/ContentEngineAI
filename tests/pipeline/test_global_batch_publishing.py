@@ -543,3 +543,96 @@ async def test_vercel_token_loaded_from_environment(
         calls = mock_create_publisher.call_args_list
         for call in calls:
             assert call[1]["vercel_token"] == "test_vercel_token"  # noqa: S105
+
+
+@pytest.mark.asyncio
+async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
+    temp_outputs_dir, mock_publisher_config, mock_video_config
+):
+    """The batch builds its own publisher instead of reusing the CLI's.
+
+    So every setting has to be passed here too. Miss one and the same
+    `publisher.yaml` produces different payloads depending on whether the run
+    went through `python -m src.publisher.late` or `make batch-lowpri`, with
+    no log line either way.
+
+    Driven from a config that turns the flag on, so a hardcoded default fails
+    as loudly as a dropped kwarg.
+    """
+    config = GlobalBatchConfig(
+        product_ids=["B0TEST1"],
+        keywords=[],
+        max_products=1,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        outputs_dir=temp_outputs_dir,
+        skip_publish=False,
+        platforms=["youtube"],
+    )
+
+    product_dir = temp_outputs_dir / "B0TEST1"
+    product_dir.mkdir(parents=True)
+    video_path = product_dir / "video.mp4"
+    video_path.write_text("fake video")
+    (product_dir / "metadata.json").write_text(
+        '{"title": "Test", "description": "Test"}'
+    )
+
+    publisher_config = dict(mock_publisher_config)
+    publisher_config["synthetic_media_disclosure"] = True
+    publisher_config["immediate_publish"] = True
+
+    orchestrator = GlobalPipelineOrchestrator(config)
+
+    with (
+        patch(
+            "builtins.open",
+            side_effect=[
+                tempfile._TemporaryFileWrapper(
+                    tempfile.NamedTemporaryFile(mode="w", delete=False),
+                    name="publisher.yaml",
+                )
+            ],
+        ),
+        patch("yaml.safe_load", return_value=publisher_config),
+        patch.dict(
+            "os.environ",
+            {"LATE_API_KEY": "test_key", "LATE_VERCEL_TOKEN": "test_vercel_token"},
+        ),
+        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch(
+            "src.publisher.publish_modes.load_platform_metadata"
+        ) as mock_load_metadata,
+    ):
+        main_publisher = AsyncMock()
+        main_publisher.authenticate = AsyncMock()
+        main_publisher.first_comment_config = FirstCommentConfig(enabled=False)
+        main_publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "youtube", "account_id": "acc1"}]
+        )
+        main_publisher.upload_media = AsyncMock(return_value="media_123")
+        # A real return value, not a bare AsyncMock: this run publishes
+        # immediately, so the result is read, and a mock result hands the
+        # caller an un-awaited coroutine.
+        main_publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "published"}
+        )
+        mock_create_publisher.return_value = main_publisher
+
+        mock_metadata = Mock()
+        mock_metadata.format_content = Mock(return_value="Test content")
+        mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.carries_affiliate_content = True
+        mock_load_metadata.return_value = mock_metadata
+
+        await orchestrator._execute_publishing_phase([(video_path, "B0TEST1")])
+
+    publishing_calls = [
+        c
+        for c in mock_create_publisher.call_args_list
+        if "synthetic_media_disclosure" in c.kwargs
+    ]
+    assert (
+        publishing_calls
+    ), "the batch built a publisher without passing synthetic_media_disclosure"
+    assert publishing_calls[-1].kwargs["synthetic_media_disclosure"] is True

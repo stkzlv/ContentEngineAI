@@ -490,6 +490,7 @@ class BatchPublisher:
                         ],
                         content=content,
                         scheduled_time=None,  # Immediate publish
+                        carries_affiliate_content=(metadata.carries_affiliate_content),
                     )
 
                     post_id = str(result["post_id"])
@@ -577,6 +578,9 @@ class BatchPublisher:
                             ],
                             content=content,
                             scheduled_time=None,
+                            carries_affiliate_content=(
+                                metadata.carries_affiliate_content
+                            ),
                         )
                         logger.info(
                             "[%d/%d] Retry successful for %s",

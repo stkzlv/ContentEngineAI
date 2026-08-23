@@ -49,7 +49,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **✅ Progress Tracking**: Real-time upload progress with callbacks
 - **🔗 Link-in-Bio**: Auto-add affiliate links to bio page after publishing (Lnk.Bio, etc.)
 - **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
-- **🛡️ Affiliate Disclosure**: Renders the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs
+- **🛡️ Affiliate Disclosure**: Can render the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs; off by default, since the phrase asserts active program membership
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
 For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).
@@ -565,8 +565,9 @@ export LATE_STAGGER_MAX=30
 - Supports scheduled publishing
 - Caption hard cap: 2200 characters (includes hashtags). 150 is only a soft prompt target for punchier captions, not the platform limit.
 - **Content Disclosure** (required for commercial accounts):
-  - `commercial_content_type`: `"brand_organic"` (Your Brand) or `"branded_content"` (Branded Content)
+  - `commercial_content_type`: `"brand_organic"` (Your Brand), `"brand_content"` (Branded Content -- note the spelling, not `branded_content`), or `"none"` (not commercial content)
   - `is_brand_organic_post`: `true` for Your Brand posts
+  - Both are per render, not per config: `TikTokContentSettings.for_render()` returns `"none"` / `false` for a render with no material connection, such as a topic video with no affiliate link
   - `content_preview_confirmed`: `true` (user confirmed preview)
   - `express_consent_given`: `true` (user gave consent)
   - These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)
@@ -1431,7 +1432,7 @@ Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager(
 
 ## 🛡️ Affiliate Disclosure
 
-Renders the affiliate program's required literal identification phrase in every post's caption body, between the `#ad` disclosure line and the description. This satisfies the Amazon Associates Operating Agreement by default, and non-Amazon programs can override the phrase and program name.
+Can render the affiliate program's required literal identification phrase in every post's caption body, between the `#ad` disclosure line and the description. Enabled, this satisfies the Amazon Associates Operating Agreement; it is off by default, so a stock install renders no phrase, and non-Amazon programs can override the phrase and program name.
 
 <details>
 <summary><strong>Configuration</strong></summary>

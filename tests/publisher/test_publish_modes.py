@@ -485,3 +485,91 @@ class TestPlatformContentsCarryFullPayload:
         )
 
         assert out is None
+
+
+class TestMaterialConnectionReachesThePublisher:
+    """The render's disclosure decision must survive the call.
+
+    Both modes read it off the metadata and pass it to `publish()`, which
+    defaults it to True. A dropped kwarg is therefore silent: every topic
+    render goes back to declaring commercial content to TikTok, with nothing
+    failing. These pin the argument at each call site rather than the payload
+    it eventually produces.
+    """
+
+    @pytest.fixture
+    def topic_metadata(self):
+        """A render with nothing to disclose: no affiliate relationship."""
+        from src.publisher.models import PublishMetadata
+
+        meta = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="Why your phone charges slowly",
+            description="Body.",
+            hashtags=["tech"],
+            product_id="topic-why-your-phone-charges-slowly",
+        )
+        meta.carries_affiliate_content = False
+        return meta
+
+    @pytest.mark.asyncio
+    async def test_unified_mode_passes_the_decision(
+        self, mock_publisher, platforms, topic_metadata
+    ):
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=topic_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="topic-x",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=False,
+            )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is False
+
+    @pytest.mark.asyncio
+    async def test_platform_specific_mode_passes_the_decision(
+        self, mock_publisher, platforms, topic_metadata
+    ):
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=topic_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="topic-x",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=True,
+            )
+
+        assert mock_publisher.publish.call_count == len(platforms)
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False
+
+    @pytest.mark.asyncio
+    async def test_an_affiliate_render_still_discloses(
+        self, mock_publisher, platforms, mock_metadata
+    ):
+        """The gate must not become a blanket suppression."""
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=mock_metadata,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=False,
+            )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is True

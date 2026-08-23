@@ -219,6 +219,7 @@ class BasePublisher(ABC):
         content: str,
         scheduled_time: datetime | None = None,
         platform_contents: dict[str, dict[str, str]] | None = None,
+        carries_affiliate_content: bool = True,
     ) -> dict[str, str | list[str] | datetime | None]:
         """Create and publish/schedule a post to social media platforms.
 
@@ -232,6 +233,10 @@ class BasePublisher(ABC):
                            If None, publishes immediately
             platform_contents: Optional per-platform content dict mapping platform name
                              to content dict with "content" and optional "title" keys
+            carries_affiliate_content: Whether the render has a material
+                             connection to disclose. Defaults True: a missing
+                             disclosure is a compliance failure, a needless
+                             one is not
 
         Returns:
         -------

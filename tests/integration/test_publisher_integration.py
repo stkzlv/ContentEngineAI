@@ -520,7 +520,13 @@ class TestPlatformPublishing:
 
     @pytest.mark.asyncio
     async def test_publish_youtube_sets_synthetic_media_flag(self, mock_publisher):
-        """YouTube payload always carries containsSyntheticMedia=True (AI disclosure)."""
+        """The YouTube payload carries the configured synthetic-content value.
+
+        Off by default: the policy excludes AI narration, AI scripts and stock
+        footage, so nothing this pipeline renders today meets the bar. Both
+        settings are exercised, because the flag is gated rather than removed.
+        """
+        mock_publisher.synthetic_media_disclosure = True
         platforms = [
             {"platform": "youtube", "account_id": "acc_yt_001"},
         ]
@@ -543,9 +549,12 @@ class TestPlatformPublishing:
     async def test_publish_youtube_synthetic_media_with_platform_content(
         self, mock_publisher
     ):
-        """YouTube containsSyntheticMedia stays True even when platform-specific
-        content is provided (covers the platform_contents branch).
+        """The configured value applies on the platform_contents branch too.
+
+        The flag is set at two sites in the builder, with and without
+        platform-specific content, and they must not drift apart.
         """
+        mock_publisher.synthetic_media_disclosure = True
         platforms = [
             {"platform": "youtube", "account_id": "acc_yt_001"},
         ]

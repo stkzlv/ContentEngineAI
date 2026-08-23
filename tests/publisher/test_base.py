@@ -104,6 +104,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 pass
 
@@ -136,6 +137,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 pass
 
@@ -168,6 +170,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 pass
 
@@ -228,6 +231,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 pass
 
@@ -260,6 +264,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {
                     "post_id": "post_123",
@@ -315,6 +320,7 @@ class TestBasePublisher:
                 content,
                 scheduled_time=None,
                 platform_contents=None,
+                carries_affiliate_content=True,
             ):
                 return {
                     "post_id": "post_123",

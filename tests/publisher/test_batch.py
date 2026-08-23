@@ -624,3 +624,107 @@ class TestStaggerDelay:
 
         # No sleep for single video
         mock_sleep.assert_not_called()
+
+
+class TestBatchCarriesTheDisclosureDecision:
+    """The batch builds its own publish call rather than reusing the single
+    path, so the render's disclosure decision has to be passed here too.
+
+    A dropped kwarg is silent: `publish()` defaults it to True and a topic
+    render declares commercial content to TikTok again with nothing failing.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_topic_render_does_not_declare_commercial_content(
+        self, mock_publisher, outputs_dir
+    ):
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = False
+            mock_metadata.return_value = mock_meta
+
+            await batch.publish_batch()
+
+        assert mock_publisher.publish.call_args_list
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False
+
+    @pytest.mark.asyncio
+    async def test_an_affiliate_render_still_discloses(
+        self, mock_publisher, outputs_dir
+    ):
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = True
+            mock_metadata.return_value = mock_meta
+
+            await batch.publish_batch()
+
+        assert mock_publisher.publish.call_args_list
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is True
+
+    @pytest.mark.asyncio
+    async def test_the_rate_limit_retry_carries_it_too(
+        self, mock_publisher, outputs_dir
+    ):
+        """The retry after a 429 is a second call site, and it was uncovered.
+
+        A topic render that happens to hit a rate limit would otherwise
+        declare commercial content on the way back in, which is the harder
+        version of the bug to notice: it depends on timing.
+        """
+        from src.publisher.base import PublishError
+
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        published = {"post_id": "post_1", "status": "published", "published_urls": []}
+        # The fixture has three products, so exactly one fail-then-succeed
+        # pair each. A shorter list would raise StopIteration if the retry ran
+        # more often than expected, and a longer one would hide it.
+        mock_publisher.publish = AsyncMock(
+            side_effect=[PublishError("429 rate limit"), published] * 3
+        )
+
+        with (
+            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
+            patch("src.publisher.batch.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = False
+            mock_metadata.return_value = mock_meta
+
+            summary = await batch.publish_batch()
+
+        # Two calls per product, not merely "more than one": three products
+        # publishing once each would also clear a >= 2 guard, so that version
+        # of this assertion passes when the retry stops running at all.
+        assert mock_publisher.publish.call_count == 6, "the retry path never ran"
+        assert summary.successful == 3, "the retries did not recover"
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False

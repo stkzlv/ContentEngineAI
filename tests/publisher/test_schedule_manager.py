@@ -913,3 +913,171 @@ class TestRemoveEntriesAndDuplicates:
         # Reload and verify
         manager2 = ScheduleManager(schedule_path=tmp_schedule_path)
         assert len(manager2.entries) == 1
+
+
+@pytest.mark.asyncio
+class TestScheduleCarriesTheDisclosureDecision:
+    """The schedule path reads raw metadata JSON, not `PublishMetadata`.
+
+    So it reads `carries_affiliate_content` off the dict itself, and a dropped
+    read is silent: `publish()` defaults the argument to True and every topic
+    render declares commercial content to TikTok again with nothing failing.
+    """
+
+    def _config(self, sample_config, platform_specific: bool = False):
+        return ScheduleConfig(
+            enabled=True,
+            slots=sample_config.slots,
+            min_post_spacing_hours=0,
+            prevent_duplicates=False,
+            allow_past_schedules=True,
+            max_posts_per_day=0,
+            use_platform_specific_content=platform_specific,
+        )
+
+    def _video(self, tmp_path, meta: dict | None):
+        video = tmp_path / "topic-x" / "video_topic.mp4"
+        video.parent.mkdir(parents=True, exist_ok=True)
+        video.touch()
+        if meta is not None:
+            (video.parent / "metadata.json").write_text(json.dumps(meta))
+        else:
+            (video.parent / "data.json").write_text(
+                json.dumps({"title": "T", "description": "D"})
+            )
+        return video
+
+    async def test_a_topic_render_does_not_declare_commercial_content(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path, config=self._config(sample_config)
+        )
+        video = self._video(
+            tmp_path,
+            {
+                "title": "Why your phone charges slowly",
+                "description": "Body.",
+                "hashtags": ["tech"],
+                "carries_affiliate_content": False,
+            },
+        )
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is False
+
+    async def test_an_affiliate_render_still_discloses(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path, config=self._config(sample_config)
+        )
+        video = self._video(
+            tmp_path,
+            {
+                "title": "A product",
+                "description": "Body.",
+                "hashtags": ["gadgets"],
+                "carries_affiliate_content": True,
+            },
+        )
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is True
+
+    async def test_metadata_without_the_key_discloses(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        """A file written before the key existed carries no opinion.
+
+        Disclosing is the safe direction to guess in: a missing disclosure is
+        a compliance failure, a needless one is not.
+        """
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path, config=self._config(sample_config)
+        )
+        video = self._video(tmp_path, {"title": "A product", "description": "Body."})
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is True
+
+    async def test_the_data_json_fallback_discloses(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        """With no metadata file at all, nothing records a decision."""
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path, config=self._config(sample_config)
+        )
+        video = self._video(tmp_path, None)
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        call = mock_publisher.publish.call_args
+        assert call.kwargs["carries_affiliate_content"] is True
+
+    async def test_the_platform_specific_branch_carries_it_too(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        """One post per platform is a separate call site from the unified one.
+
+        It reads the per-platform entry rather than the union, so it needs its
+        own coverage; the unified tests above never enter this branch.
+        """
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path,
+            config=self._config(sample_config, platform_specific=True),
+        )
+        video = self._video(
+            tmp_path,
+            {
+                "title": "Why your phone charges slowly",
+                "description": "Body.",
+                "hashtags": ["tech"],
+                "carries_affiliate_content": False,
+            },
+        )
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        # One post per platform is the branch under test. Without this the
+        # unified branch satisfies the value assertion too, so the test would
+        # pass with its own subject bypassed.
+        assert mock_publisher.publish.call_count == 2
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False

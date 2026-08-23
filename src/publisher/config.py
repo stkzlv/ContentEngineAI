@@ -354,7 +354,8 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     result.pop("link_in_bio", None)
     result.pop("first_comment", None)
     result.pop("affiliate_disclosure", None)
-    # Keep use_platform_specific_content for PublisherConfig (don't pop)
+    # Keep use_platform_specific_content and synthetic_media_disclosure for
+    # PublisherConfig (don't pop)
 
     return result
 

@@ -785,7 +785,8 @@ class TestBuildSdkPlatformsYouTubeTitle:
 
         psd = built[0]["platformSpecificData"]
         assert psd["title"] == "Real product title"
-        assert psd["containsSyntheticMedia"] is True
+        # Off by default; the title must survive alongside it either way.
+        assert psd["containsSyntheticMedia"] is False
 
     def test_partial_entry_does_not_blank_the_caption(self):
         # An entry carrying only a first comment must not override the caption

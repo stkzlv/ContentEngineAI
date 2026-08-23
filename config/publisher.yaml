@@ -339,3 +339,21 @@ affiliate_disclosure:
   enabled: false
   phrase: "As an Amazon Associate I earn from qualifying purchases"
   program: "amazon"
+
+# ============================================================================
+# YOUTUBE SYNTHETIC-CONTENT DISCLOSURE
+# ============================================================================
+# YouTube's altered-or-synthetic-content disclosure, sent on every YouTube
+# payload as `containsSyntheticMedia`.
+#
+# Off by default. The policy targets realistic material that could mislead
+# about real people or events, and explicitly excludes AI narration, AI
+# scripts, faceless content and stock footage -- which is what this pipeline
+# renders. Self-applying a label the policy does not ask for costs viewer
+# trust and makes the flag meaningless internally.
+#
+# Turn it on for output that does meet the bar. Two cases from YouTube's own
+# examples apply here: AI-generated music, and AI-generated footage of a real
+# place. Both are properties of what a music or stock provider returns, so
+# either can become true without any change to this project.
+synthetic_media_disclosure: false

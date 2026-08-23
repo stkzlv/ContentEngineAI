@@ -347,9 +347,12 @@ the FTC `#ad` overlay above.
   voices, and cadence across renders (see the originality note below).
   Separately, YouTube's "altered or synthetic content" disclosure applies only
   to *realistic* synthetic media; a product slideshow with AI voiceover over
-  obvious product imagery generally doesn't require it, so the publisher's
-  `containsSyntheticMedia: true` on every YouTube publish is a conservative
-  default rather than a strict mandate.
+  obvious product imagery doesn't require it, and YouTube's own examples list
+  AI-written scripts and synthetic voiceover among the cases that don't. So
+  `containsSyntheticMedia` is opt-in and off by default
+  (`config/publisher.yaml::synthetic_media_disclosure`). Turn it on for output
+  that does meet the bar — AI-generated music, or AI-generated footage of a
+  real place.
 - **TikTok**: as of 2026, TikTok auto-flags AI content via C2PA detection.
   Auto-flagging suppresses distribution BEFORE removal; explicit
   disclosure via TikTok's AI-content label keeps reach intact. The
