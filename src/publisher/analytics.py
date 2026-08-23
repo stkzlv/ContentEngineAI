@@ -119,15 +119,17 @@ def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
 
     Summing is the right reduction for a reach question, which asks how many
     people a post reached, not how many it reached on the platform whose row
-    happened to come last. It also removes an ambiguity in the merge: a sweep
-    where one platform's row for the newest date has not landed would
-    otherwise change which platform the figure describes.
+    happened to come last.
+
+    A platform absent from a date carries its last known figure forward rather
+    than contributing zero, because platforms report on their own lag and the
+    newest date frequently holds only some of them.
 
     Rows missing a usable date or view count are dropped rather than
     defaulted: a zero would be indistinguishable from a real zero and would
     drag a durability ratio toward nothing.
     """
-    per_date: dict[datetime, int] = {}
+    by_date: dict[datetime, dict[str, int]] = {}
     for row in rows or []:
         if not isinstance(row, dict):
             continue
@@ -135,8 +137,21 @@ def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
         views = row.get("views")
         if when is None or not isinstance(views, int | float):
             continue
-        per_date[when] = per_date.get(when, 0) + int(views)
-    return sorted(per_date.items(), key=lambda pair: pair[0])
+        platform = str(row.get("platform") or "")
+        by_date.setdefault(when, {})[platform] = int(views)
+
+    # Carry each platform's last known figure forward. Platforms report on
+    # their own lag, so a date -- the newest one especially -- often carries
+    # only some of them, and summing just what is present collapses the total:
+    # one post reads 359 on the day it has all three and 19 on the next, where
+    # only YouTube has reported. Each platform's own series is cumulative, so
+    # a missing row means "unchanged since it last reported", not zero.
+    out: list[tuple[datetime, int]] = []
+    latest: dict[str, int] = {}
+    for when in sorted(by_date):
+        latest.update(by_date[when])
+        out.append((when, sum(latest.values())))
+    return out
 
 
 def views_at_day(

@@ -433,3 +433,60 @@ class TestAnImpossibleRatioReportsUnmeasurable:
         ]
 
         assert durability_ratio(timeline, published) == pytest.approx(0.3)
+
+
+@pytest.mark.unit
+class TestAPlatformMissingFromADateCarriesForward:
+    """Platforms report on their own lag, so a date holds only some of them.
+
+    Observed live: a post reads instagram 54 / tiktok 286 / youtube 19 on one
+    day and only youtube 19 on the next, because the other two have not
+    reported yet. Summing what is present collapses the total from 359 to 19
+    and makes the series fall off a cliff at its newest end -- which is also
+    where every "latest" figure is read from.
+
+    Each platform's own series is cumulative, so an absent row means
+    "unchanged since it last reported", not zero.
+    """
+
+    def test_the_newest_date_keeps_the_platforms_that_have_not_reported(self):
+        from src.publisher.analytics import normalize_timeline
+
+        rows = [
+            {"date": "2026-08-22", "platform": "instagram", "views": 54},
+            {"date": "2026-08-22", "platform": "tiktok", "views": 286},
+            {"date": "2026-08-22", "platform": "youtube", "views": 19},
+            {"date": "2026-08-23", "platform": "youtube", "views": 19},
+        ]
+
+        assert [v for _, v in normalize_timeline(rows)] == [359, 359]
+
+    def test_a_platform_that_starts_late_contributes_nothing_before_it(self):
+        """The other direction: TikTok commonly begins reporting days after
+        publication, and it must not be back-filled into days it had no
+        figures for.
+        """
+        from src.publisher.analytics import normalize_timeline
+
+        rows = [
+            {"date": "2026-08-01", "platform": "youtube", "views": 10},
+            {"date": "2026-08-02", "platform": "youtube", "views": 20},
+            {"date": "2026-08-02", "platform": "tiktok", "views": 500},
+        ]
+
+        assert [v for _, v in normalize_timeline(rows)] == [10, 520]
+
+    def test_the_result_stays_monotonic_across_a_partial_date(self):
+        """The property the collapse broke, stated directly."""
+        from src.publisher.analytics import normalize_timeline
+
+        rows = [
+            {"date": "2026-08-20", "platform": "a", "views": 100},
+            {"date": "2026-08-20", "platform": "b", "views": 200},
+            {"date": "2026-08-21", "platform": "a", "views": 110},
+            {"date": "2026-08-22", "platform": "b", "views": 205},
+        ]
+
+        totals = [v for _, v in normalize_timeline(rows)]
+        assert totals == sorted(totals), f"series fell: {totals}"
+        assert totals == [300, 310, 315]
