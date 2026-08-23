@@ -135,7 +135,7 @@ def _setup_scraper_mock_with_error(mock_scraper_class, products_per_input, error
     ]
     mock_scraper.scrape_batch_browser.return_value = batch_results
 
-    def side_effect(raw_products, target_download_count=None):
+    def side_effect(raw_products, target_download_count=None, pillar=None):
         # Find which input this call corresponds to by order
         call_idx = mock_scraper.process_raw_products.call_count - 1
         inp = list(products_per_input.keys())[call_idx]

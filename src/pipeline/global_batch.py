@@ -946,10 +946,13 @@ class GlobalPipelineOrchestrator:
                     break
                 continue
 
+            input_pillar = self.config.keyword_pillar_map.get(input_item)
+
             try:
                 products = scraper.process_raw_products(
                     raw_products,
                     target_download_count=per_input_limit,
+                    pillar=input_pillar,
                 )
 
                 # Retry with additional search pages if not enough
@@ -993,16 +996,17 @@ class GlobalPipelineOrchestrator:
                         extra_products = scraper.process_raw_products(
                             extra_raw,
                             target_download_count=remaining,
+                            pillar=input_pillar,
                         )
                         products.extend(extra_products)
                         page += 1
 
                 if products:
                     inputs_processed += 1
-                    kw_pillar = self.config.keyword_pillar_map.get(input_item)
+                    # The pillar was applied before the write, above. Setting
+                    # it here as well would be the bug this replaced: these
+                    # objects are discarded and the directory re-read.
                     for product in products:
-                        if kw_pillar:
-                            product.pillar = kw_pillar
                         if hasattr(product, "asin") and product.asin:
                             successful_products.append(product.asin)
                         if hasattr(product, "images") and product.images:
@@ -1212,12 +1216,14 @@ class GlobalPipelineOrchestrator:
                     )
 
                 try:
+                    # The product's own pillar is NOT promoted into
+                    # `cli_overrides` here. The producer reads it as the last
+                    # term of its own resolution, and putting it in the CLI
+                    # slot would rank it above a pillar a previous run
+                    # recorded -- so a resumed batch would file the row under
+                    # the scraped arm while reusing a script written for the
+                    # overridden one.
                     cli_overrides = self._build_cli_overrides()
-                    product_pillar = getattr(product, "pillar", None)
-                    if product_pillar and not self.config.pillar:
-                        if cli_overrides is None:
-                            cli_overrides = {}
-                        cli_overrides.setdefault("pillar", product_pillar)
 
                     # Call video producer with timeout
                     result_path = await asyncio.wait_for(

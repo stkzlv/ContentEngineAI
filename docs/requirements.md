@@ -474,13 +474,13 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
 - Append new entries after each successful publish (no duplicates)
 - Republish refreshes the existing row so registry fields reflect the latest publish, not the original. Identical-data calls don't trigger a save.
-- Pillar is read from the producer's pipeline state at registration time so it captures what was actually rendered, not what was scraped. Empty when no pillar was set for the run.
+- Pillar is read at registration time from what the *render* recorded, not from what was scraped, so a `--pillar` override is what the row reflects. Two sources in order: the producer's pipeline state, then the metadata files at the product root — the unified one, or the per-platform ones in optimized metadata mode, which writes no unified file. The state file is preferred as the run's own record, but it does not survive a successful non-debug render, which deletes the temp directory holding it before the registry is written; the metadata file sits at the product root and survives. The scraped product record is deliberately not consulted, since on an overridden run it names an arm the render never used. Empty when no pillar was set for the run.
 - Backward-compatible loader: legacy rows without a pillar field load with the field empty.
 - The content-format arm records whether the video came from a topic or a scraped product, so two formats published side by side can be compared later. It is read from the record rather than inferred from the profile or the publish date: a profile is a visual treatment two arms can share, and a date cannot reconstruct an arm that was interleaved, which is the only way to run the comparison fairly.
 - Rows written before the arm existed report as unlabelled rather than being counted as either arm, because a comparison that silently absorbs unknown videos into one side is worse than one that shows how many it cannot place.
 - The CSV header is derived from the record definition rather than restated, so adding a field cannot fail the registry write.
 - Support bulk import from existing scraped data directories
-- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose state file carries one
+- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose pipeline state or product-root metadata carries one
 - Rebuild merges scanned entries into the existing registry; rows whose product directories were cleaned up after publishing stay in the registry
 - Each write of the registry renames the existing JSON/CSV file to `<name>.bak` first so a write that drops or corrupts entries can be recovered
 

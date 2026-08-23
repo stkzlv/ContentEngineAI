@@ -271,6 +271,9 @@ class TestTheWiring:
         )
         ctx = MagicMock()
         ctx.product = self._topic_product()
+        # A real dict: the step reads the run's resolved pillar out of it and
+        # writes the value into the file, which a MagicMock cannot serialise.
+        ctx.state = {}
         ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
 
         assert _check_existing_metadata(ctx) is True
