@@ -107,15 +107,37 @@ def _content_format(product: dict) -> str:
 
 
 def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
-    """Read pillar tag from the product's pipeline_state.json. Empty if absent."""
+    """Read the pillar the video was rendered under. Empty if unknown.
+
+    `pipeline_state.json` first, because it records the run's own decision and
+    so honours a `--pillar` override. But it does not survive a normal run: a
+    successful non-debug render deletes the `temp/` directory it lives in, and
+    the registry is written afterwards. So fall back to the product record,
+    which is what the run resolved from in the absence of an override.
+
+    Reading only the state file meant every non-debug render filed unlabelled,
+    including ones whose script was written under a pillar.
+    """
     state_path = outputs_dir / product_id / "temp" / "pipeline_state.json"
-    if not state_path.exists():
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            pillar = state.get("pillar")
+            if isinstance(pillar, str) and pillar:
+                return pillar
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    data_path = outputs_dir / product_id / "data.json"
+    if not data_path.exists():
         return ""
     try:
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        pillar = state.get("pillar")
+        data = json.loads(data_path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        pillar = data.get("pillar")
         return pillar if isinstance(pillar, str) else ""
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, IndexError):
         return ""
 
 

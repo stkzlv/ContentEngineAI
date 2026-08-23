@@ -1,15 +1,17 @@
 """Tests that a keyword's pillar reaches `data.json`.
 
-The pillar was assigned to the in-memory record *after* the file had been
-written, so the arms that write through the record's serialiser wrote
-`pillar: null`, and the arm that did not write through it at all had no
-`pillar` key.
+The three scraper arms failed differently. The global batch assigned the
+pillar to the in-memory record *after* the file had been written, so its file
+said `pillar: null`. The standalone multi-keyword arm assigned it but never
+wrote through the record's serialiser at all, so its file had no `pillar` key.
+The standalone single-keyword arm never assigned one.
 Nothing failed: the record the caller held was correct, and the caller is what
 every existing test looked at. Only the file was wrong, and the producer reads
 the file.
 
-So these assert on the written bytes. A test that checked the returned records
-would have passed against the broken version on all three paths.
+So these assert on the written bytes. On the two arms that assigned at all,
+a test checking the returned record would have passed against the broken
+version -- and the record is what every existing test looked at.
 """
 
 import json
@@ -247,22 +249,135 @@ class TestPillarSurvivesATruncatedResume:
     and the registry reads a state file without one -- for a video whose
     script was written under it.
 
-    Resolving it after the state load, where the CLI override is applied,
-    happens on every run including that one.
+    These drive the real `create_video_for_product` with the state load and
+    the pipeline execution stubbed, so they assert what the steps are handed
+    rather than where the code sits. A source-position check passes on a
+    resolution moved below the pipeline run, which disables it entirely.
     """
 
-    def test_the_resolution_runs_after_the_state_load(self):
-        """Pins the ordering by reading the source, because the alternative is
-        to stand up the whole parallel orchestrator.
-
-        The assertion is about position: a resolution placed before the load
-        is overwritten by it, and one placed inside a step is skipped by it.
-        """
-        import inspect
+    async def _resolved_pillar(self, tmp_path, product_pillar, cli_overrides=None):
+        import warnings
 
         from src.video.producer import orchestration
 
-        src = inspect.getsource(orchestration.create_video_for_product)
-        load_at = src.index("_load_pipeline_state(ctx)")
-        resolve_at = src.index('ctx.state["pillar"] = resolved_pillar')
-        assert load_at < resolve_at
+        seen: dict = {}
+
+        async def _fake_load(ctx):
+            # What a truncated resume leaves behind: step keys only.
+            ctx.state = {"gather_visuals": {"status": "done"}}
+
+        async def _fake_execute(ctx):
+            seen["pillar"] = ctx.state.get("pillar")
+            return True, None
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from src.video.config import load_video_config_modular
+
+            config = load_video_config_modular()
+        config.global_output_root_path = tmp_path
+
+        product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0001",
+            platform=None,
+            asin="B0TEST0001",
+            pillar=product_pillar,
+        )
+
+        with (
+            patch.object(orchestration, "_load_pipeline_state", _fake_load),
+            patch.object(orchestration, "execute_pipeline_parallel", _fake_execute),
+        ):
+            await orchestration.create_video_for_product(
+                config,
+                product,
+                "slideshow_images1",
+                {},
+                None,
+                False,
+                False,
+                None,
+                cli_overrides=cli_overrides,
+            )
+        return seen.get("pillar")
+
+    async def test_a_product_pillar_survives_a_truncated_state(self, tmp_path):
+        """The state load wiped it; the resolution after it puts it back."""
+        assert await self._resolved_pillar(tmp_path, "value") == "value"
+
+    async def test_a_cli_override_wins_over_the_product(self, tmp_path):
+        assert (
+            await self._resolved_pillar(
+                tmp_path, "value", cli_overrides={"pillar": "utility"}
+            )
+            == "utility"
+        )
+
+    async def test_no_pillar_anywhere_records_nothing(self, tmp_path):
+        assert await self._resolved_pillar(tmp_path, None) is None
+
+
+@pytest.mark.unit
+class TestRegistryFindsThePillarAfterCleanup:
+    """`pipeline_state.json` does not survive a normal run.
+
+    A successful non-debug render deletes the `temp/` directory it lives in,
+    and the registry is written after that. So reading only the state file
+    filed every non-debug render unlabelled, including ones whose script was
+    written under a pillar -- which is the whole point of recording it.
+    """
+
+    def test_the_state_file_wins_when_it_is_there(self, tmp_path):
+        """It records the run's own decision, so a --pillar override wins."""
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        state_dir = tmp_path / "B0TEST0001" / "temp"
+        state_dir.mkdir(parents=True)
+        (state_dir / "pipeline_state.json").write_text(
+            json.dumps({"pillar": "utility"})
+        )
+        (tmp_path / "B0TEST0001" / "data.json").write_text(
+            json.dumps({"pillar": "value"})
+        )
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "utility"
+
+    def test_data_json_answers_once_temp_is_gone(self, tmp_path):
+        """The normal case: cleanup ran, and the product record is all that
+        is left.
+        """
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        (tmp_path / "B0TEST0001").mkdir(parents=True)
+        (tmp_path / "B0TEST0001" / "data.json").write_text(
+            json.dumps({"pillar": "value"})
+        )
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "value"
+
+    def test_a_list_shaped_data_json_is_read(self, tmp_path):
+        """Some paths write a single-element list."""
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        (tmp_path / "B0TEST0001").mkdir(parents=True)
+        (tmp_path / "B0TEST0001" / "data.json").write_text(
+            json.dumps([{"pillar": "novelty"}])
+        )
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "novelty"
+
+    def test_neither_file_gives_nothing(self, tmp_path):
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == ""
+
+    def test_a_null_pillar_is_not_a_value(self, tmp_path):
+        """An unconfigured keyword writes null; that is not a label."""
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        (tmp_path / "B0TEST0001").mkdir(parents=True)
+        (tmp_path / "B0TEST0001" / "data.json").write_text(json.dumps({"pillar": None}))
+
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == ""
