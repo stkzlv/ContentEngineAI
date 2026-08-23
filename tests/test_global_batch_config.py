@@ -201,8 +201,8 @@ class TestKeywordPillarMap:
     """The pillar map describes config, not the run's input source.
 
     It was previously built only when the keyword list came from YAML, so any
-    CLI input left it empty and every CLI-driven run wrote a blank pillar into
-    the registry: silently, since a missing pillar is indistinguishable from an
+    CLI input left it empty and every CLI-driven run rendered with no pillar at
+    all -- silently, since a missing pillar is indistinguishable from an
     unconfigured keyword.
     """
 

@@ -645,8 +645,8 @@ async def test_the_batch_does_not_promote_the_product_pillar_to_an_override(
     """The product's own pillar must not enter `cli_overrides`.
 
     That slot outranks the pillar a previous run recorded, so promoting it
-    there means a resumed batch files the row under the scraped arm while
-    reusing a script written for an overridden one. The producer already
+    there means a resumed batch re-renders under the scraped arm while
+    reusing a script that was written for an overridden one. The producer already
     reads `product.pillar` as the last term of its own resolution, so the
     promotion only inverted the order.
 

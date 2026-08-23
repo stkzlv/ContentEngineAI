@@ -652,31 +652,6 @@ def _extract_hashtags_from_title(title: str, disclose: bool = True) -> list[str]
     return hashtags
 
 
-def _refresh_recorded_pillar(path: Path, pillar: str | None) -> None:
-    """Bring a reused metadata file's pillar up to date with this run.
-
-    A re-render without `--clean` reuses these files, and the registry reads
-    the pillar back out of them, so leaving the previous run's arm files the
-    row under one the shipped script was not written for.
-
-    Only ever replaces a pillar with another; never erases one. A run whose
-    state carries none may simply have lost `pipeline_state.json` while the
-    script it is reusing survives, and discarding a correctly recorded value
-    on that basis trades a right answer for an empty one.
-    """
-    if not pillar:
-        return
-    try:
-        meta = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return
-    if not isinstance(meta, dict) or meta.get("pillar") == pillar:
-        return
-    meta["pillar"] = pillar
-    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    logger.info("Updated pillar in existing %s: %s", path.name, pillar)
-
-
 def _check_existing_metadata(ctx: PipelineContext) -> bool:
     """Check for and load existing metadata from previous run.
 
@@ -718,7 +693,6 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
             unified_metadata_path.write_text(
                 json.dumps(meta, indent=2), encoding="utf-8"
             )
-        _refresh_recorded_pillar(unified_metadata_path, ctx.state.get("pillar"))
         logger.info(
             "Loaded existing description from metadata.json (%d characters)",
             len(ctx.description or ""),
@@ -728,13 +702,6 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
     # Fallback to platform-specific metadata or description.txt
     if platform_metadata_exists or description_file.exists():
         logger.info("Loading existing description/metadata from previous run")
-        # Optimized metadata mode writes no unified file, so these are the
-        # only records of the pillar outside `temp/` -- and `temp/` is gone by
-        # the time the registry reads it.
-        for platform in SUPPORTED_PLATFORMS:
-            _refresh_recorded_pillar(
-                product_root / f"metadata_{platform}.json", ctx.state.get("pillar")
-            )
         if description_file.exists():
             ctx.description = description_file.read_text(encoding="utf-8")
             logger.info(
@@ -837,7 +804,6 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                     metadata,
                     metadata_file,
                     disclose=carries_affiliate_content(ctx.product),
-                    pillar=active_pillar,
                 )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
                 saved_count += 1
@@ -946,12 +912,6 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         # discloses while the frame does not, or the reverse, is worse than
         # either choice made consistently.
         "carries_affiliate_content": disclose,
-        # The pillar this render actually used, which is not always the one
-        # the product was scraped under: `--pillar` overrides it. Recorded
-        # here because this file sits at the product root and survives the
-        # `temp/` cleanup that removes `pipeline_state.json` on a successful
-        # non-debug run, and the registry is written after that cleanup.
-        "pillar": ctx.state.get("pillar"),
     }
 
     metadata_file = product_root / "metadata.json"

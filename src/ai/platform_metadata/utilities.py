@@ -271,7 +271,6 @@ def save_metadata_to_file(
     output_path: Path,
     debug_mode: bool = False,
     disclose: bool = True,
-    pillar: str | None = None,
 ) -> bool:
     """Save platform metadata to JSON file.
 
@@ -283,7 +282,6 @@ def save_metadata_to_file(
         metadata: PlatformMetadata object to save
         output_path: Path where JSON file will be written
         debug_mode: Enable verbose logging if True
-        pillar: The pillar this render used, or None.
         disclose: Whether this render has a material connection to disclose.
             Recorded in the file so the publisher does not re-derive it, and
             used to drop the `#ad` tag the platform generators append
@@ -313,11 +311,6 @@ def save_metadata_to_file(
         # material connection, so this path cannot disagree with the on-frame
         # overlay about whether the video is promotional.
         metadata_dict["carries_affiliate_content"] = disclose
-        # The pillar this render used. Recorded here because in optimized
-        # metadata mode these are the only files written outside `temp/`, and
-        # `temp/` does not survive a successful non-debug run -- which is when
-        # the registry reads the pillar back.
-        metadata_dict["pillar"] = pillar
         if not disclose:
             metadata_dict["hashtags"] = [
                 tag
