@@ -639,7 +639,8 @@ def _extract_hashtags_from_title(title: str, disclose: bool = True) -> list[str]
             break
     # `#ad` unless the record positively shows there is nothing to disclose.
     # Defaults to including it: a missing disclosure misstates a material
-    # connection, while a needless one only costs reach.
+    # connection, which is the compliance failure; a needless one merely
+    # asserts a connection that does not exist.
     if disclose:
         hashtags.append("ad")
     return hashtags

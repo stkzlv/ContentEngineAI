@@ -34,12 +34,11 @@ class ProductStatus(Enum):
 def carries_affiliate_content(product: Any) -> bool:
     """Whether this render has a material connection to disclose.
 
-    Defaults to True. A disclosure that appears where none is needed costs
-    reach, because platforms down-rank content marked promotional; a
-    disclosure that is *missing* where one is needed is a false statement
-    about a material connection. The second is the worse failure, so only a
-    record that positively shows there is nothing to disclose suppresses it:
-    a topic with no affiliate link.
+    Defaults to True. A disclosure that appears where none is needed asserts
+    a connection that does not exist; one that is missing where it is needed
+    hides a connection that does. Both are inaccurate, but only the second is
+    a compliance failure, so only a record that positively shows there is
+    nothing to disclose suppresses it: a topic with no affiliate link.
 
     Anything else discloses, including a product whose affiliate link failed
     to build, which is the case where guessing would be most expensive.

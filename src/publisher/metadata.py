@@ -147,7 +147,8 @@ def _load_from_json(
 
         # The producer records whether the render has a material connection to
         # disclose. Absent or unreadable means disclose: a missing disclosure
-        # misstates a material connection, while a needless one costs reach.
+        # misstates a material connection, which is the compliance failure;
+        # a needless one merely asserts a connection that does not exist.
         disclose = data.get("carries_affiliate_content", True)
 
         # Create PublishMetadata
