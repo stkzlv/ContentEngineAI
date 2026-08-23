@@ -611,7 +611,12 @@ async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
             return_value=[{"platform": "youtube", "account_id": "acc1"}]
         )
         main_publisher.upload_media = AsyncMock(return_value="media_123")
-        main_publisher.publish = AsyncMock()
+        # A real return value, not a bare AsyncMock: this run publishes
+        # immediately, so the result is read, and a mock result hands the
+        # caller an un-awaited coroutine.
+        main_publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "published"}
+        )
         mock_create_publisher.return_value = main_publisher
 
         mock_metadata = Mock()

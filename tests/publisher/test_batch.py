@@ -703,8 +703,11 @@ class TestBatchCarriesTheDisclosureDecision:
         )
 
         published = {"post_id": "post_1", "status": "published", "published_urls": []}
+        # The fixture has three products, so exactly one fail-then-succeed
+        # pair each. A shorter list would raise StopIteration if the retry ran
+        # more often than expected, and a longer one would hide it.
         mock_publisher.publish = AsyncMock(
-            side_effect=[PublishError("429 rate limit"), published] * 10
+            side_effect=[PublishError("429 rate limit"), published] * 3
         )
 
         with (
@@ -716,8 +719,12 @@ class TestBatchCarriesTheDisclosureDecision:
             mock_meta.carries_affiliate_content = False
             mock_metadata.return_value = mock_meta
 
-            await batch.publish_batch()
+            summary = await batch.publish_batch()
 
-        assert mock_publisher.publish.call_count >= 2, "the retry path never ran"
+        # Two calls per product, not merely "more than one": three products
+        # publishing once each would also clear a >= 2 guard, so that version
+        # of this assertion passes when the retry stops running at all.
+        assert mock_publisher.publish.call_count == 6, "the retry path never ran"
+        assert summary.successful == 3, "the retries did not recover"
         for call in mock_publisher.publish.call_args_list:
             assert call.kwargs["carries_affiliate_content"] is False

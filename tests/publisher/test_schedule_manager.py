@@ -1075,6 +1075,9 @@ class TestScheduleCarriesTheDisclosureDecision:
             dry_run=False,
         )
 
-        assert mock_publisher.publish.call_args_list
+        # One post per platform is the branch under test. Without this the
+        # unified branch satisfies the value assertion too, so the test would
+        # pass with its own subject bypassed.
+        assert mock_publisher.publish.call_count == 2
         for call in mock_publisher.publish.call_args_list:
             assert call.kwargs["carries_affiliate_content"] is False

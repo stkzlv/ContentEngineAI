@@ -1432,7 +1432,7 @@ Register the new provider in `link_in_bio/manager.py:create_link_in_bio_manager(
 
 ## 🛡️ Affiliate Disclosure
 
-Renders the affiliate program's required literal identification phrase in every post's caption body, between the `#ad` disclosure line and the description. This satisfies the Amazon Associates Operating Agreement by default, and non-Amazon programs can override the phrase and program name.
+Can render the affiliate program's required literal identification phrase in every post's caption body, between the `#ad` disclosure line and the description. Enabled, this satisfies the Amazon Associates Operating Agreement; it is off by default, so a stock install renders no phrase, and non-Amazon programs can override the phrase and program name.
 
 <details>
 <summary><strong>Configuration</strong></summary>
