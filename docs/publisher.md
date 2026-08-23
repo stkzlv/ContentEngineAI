@@ -1452,7 +1452,7 @@ affiliate_disclosure:
 - When `enabled: false`, captions carry only `#ad` and the description.
 - `phrase` and `program` default to the Amazon Associates values, so joining that program needs only `enabled: true`.
 - The `program` key is metadata only; it does not change how the phrase is rendered.
-- This is separate from the `#ad` disclosure, which leads every caption and is required for any affiliate relationship regardless of program.
+- This is separate from the `#ad` disclosure, which leads the caption on any render carrying a material connection and is required for any affiliate relationship regardless of program. Both are gated on the same recorded decision, so a caption and a frame cannot disagree about whether a render is promotional.
 
 </details>
 

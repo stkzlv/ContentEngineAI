@@ -332,8 +332,9 @@ link_in_bio:
 # program needs only `enabled: true`. Override both for other programs
 # (ShareASale, Impact, eBay Partner Network, etc.).
 #
-# This is separate from the `#ad` disclosure, which leads every caption and
-# is required for any affiliate relationship regardless of program.
+# This is separate from the `#ad` disclosure, which leads the caption on any
+# render carrying a material connection and is required for any affiliate
+# relationship regardless of program.
 affiliate_disclosure:
   enabled: false
   phrase: "As an Amazon Associate I earn from qualifying purchases"

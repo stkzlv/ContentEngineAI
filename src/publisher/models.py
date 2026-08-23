@@ -189,6 +189,12 @@ class PublishMetadata:
     product_id: str | None = None
     disclosure: str = "#ad"
     affiliate_disclosure: str | None = None
+    # Whether the render has a material connection to disclose, as recorded by
+    # the producer. Carried explicitly rather than inferred from an empty
+    # `disclosure`, which a caller may clear for its own reasons: the affiliate
+    # program phrase asserts membership and must key off the same decision the
+    # `#ad` gate uses, not off a side effect of it.
+    carries_affiliate_content: bool = True
 
     def __post_init__(self):
         """Post-initialization validation and normalization."""

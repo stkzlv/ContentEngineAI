@@ -267,7 +267,10 @@ async def generate_with_llm(
 
 
 def save_metadata_to_file(
-    metadata: PlatformMetadata, output_path: Path, debug_mode: bool = False
+    metadata: PlatformMetadata,
+    output_path: Path,
+    debug_mode: bool = False,
+    disclose: bool = True,
 ) -> bool:
     """Save platform metadata to JSON file.
 
@@ -279,6 +282,10 @@ def save_metadata_to_file(
         metadata: PlatformMetadata object to save
         output_path: Path where JSON file will be written
         debug_mode: Enable verbose logging if True
+        disclose: Whether this render has a material connection to disclose.
+            Recorded in the file so the publisher does not re-derive it, and
+            used to drop the `#ad` tag the platform generators append
+            unconditionally. Defaults to True.
 
     Returns:
     -------
@@ -299,6 +306,17 @@ def save_metadata_to_file(
 
         # Convert to dict and save as JSON
         metadata_dict = metadata.to_dict()
+        # The platform generators append `#ad` unconditionally. Record the
+        # render's decision alongside it and drop the tag when there is no
+        # material connection, so this path cannot disagree with the on-frame
+        # overlay about whether the video is promotional.
+        metadata_dict["carries_affiliate_content"] = disclose
+        if not disclose:
+            metadata_dict["hashtags"] = [
+                tag
+                for tag in (metadata_dict.get("hashtags") or [])
+                if tag.lstrip("#").lower() != "ad"
+            ]
         with output_path.open("w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 

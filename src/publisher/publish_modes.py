@@ -140,7 +140,11 @@ async def _publish_unified(
     if not metadata:
         raise ValueError(f"No metadata found for {product_id}")
 
-    if disclosure_phrase:
+    # Gated on the same recorded decision as `#ad`. The phrase asserts
+    # membership of an affiliate program, so on a render with no material
+    # connection it is the same false statement the `#ad` gate removes, and it
+    # would land in the slot the cleared `#ad` line just vacated.
+    if disclosure_phrase and metadata.carries_affiliate_content:
         metadata.affiliate_disclosure = disclosure_phrase
 
     trimmed = metadata.clamp_to_limits()
@@ -207,7 +211,8 @@ async def _publish_platform_specific(
         if not metadata:
             raise ValueError(f"No metadata found for {product_id}/{platform_name}")
 
-        if disclosure_phrase:
+        # Gated on the same recorded decision as `#ad`; see the unified path.
+        if disclosure_phrase and metadata.carries_affiliate_content:
             metadata.affiliate_disclosure = disclosure_phrase
 
         trimmed = metadata.clamp_to_limits()

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.1] - 2026-08-23
+
+### Fixed
+- A topic render no longer carries an `#ad` disclosure. The on-frame overlay, the `ad` hashtag, the caption-leading `#ad` and the affiliate program phrase were unconditional, so content with no affiliate relationship asserted a material connection it does not have. The TikTok branded-content flags are a fourth surface and still declare commercial content on every post; until that is gated too (#247), the reach half of this is only partly delivered on TikTok.
+
+### Notes
+- The gate defaults to disclosing. Both directions are inaccurate, but only a missing disclosure is a compliance failure. (A needless one is not the reach penalty it is often assumed to be: TikTok's own guidance says properly disclosed branded content performs as well as or better than undisclosed.) So only a record that positively shows there is nothing to disclose (a topic with no affiliate link) suppresses it. A product whose affiliate link failed to build still discloses, which is the case where guessing would be most expensive.
+- The producer records the decision in `metadata.json` and the publisher reads it rather than deriving its own. A caption that discloses while the frame does not is worse than either choice made consistently, and metadata written before this field existed reads as disclosing.
+
 ## [0.70.0] - 2026-08-22
 
 ### Added

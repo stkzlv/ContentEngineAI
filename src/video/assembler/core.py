@@ -80,6 +80,11 @@ class VideoAssembler:
 
         # Product identifier for randomization seeding
         self.product_id: str | None = None
+        # Whether this render has a material connection to disclose. Defaults
+        # to True so a caller that forgets to set it still discloses: a
+        # missing disclosure misstates a material connection, while a needless
+        # one only costs reach.
+        self.carries_affiliate_content: bool = True
 
         # Initialize standalone utilities (no profile dependency)
         self.media_inspector = MediaInspector()
@@ -669,9 +674,15 @@ class VideoAssembler:
                     )
 
             disclosure = self.config.video_settings.disclosure_overlay
-            video_filters = apply_disclosure_overlay(
-                video_filters, disclosure, subtitle_font_size_pixels, temp_dir
-            )
+            if self.carries_affiliate_content:
+                video_filters = apply_disclosure_overlay(
+                    video_filters, disclosure, subtitle_font_size_pixels, temp_dir
+                )
+            else:
+                logger.info(
+                    "Disclosure overlay skipped: this render carries no "
+                    "affiliate content to disclose"
+                )
 
             # Add audio inputs to command
             num_visual_inputs = input_cmd_parts.count("-i")
