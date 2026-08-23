@@ -113,7 +113,6 @@ class TestRegistryPersistence:
             "title",
             "url",
             "affiliate_url",
-            "pillar",
             "content_format",
         ]
 

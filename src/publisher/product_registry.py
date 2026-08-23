@@ -22,7 +22,6 @@ class RegistryEntry:
     title: str
     url: str
     affiliate_url: str
-    pillar: str = ""
     # Which content format the product was produced under, so two formats
     # published side by side can be told apart afterwards. Comparing formats
     # requires interleaving them day by day, which is exactly the case where
@@ -43,8 +42,17 @@ def load_registry(outputs_dir: Path) -> list[RegistryEntry]:
         return []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return [RegistryEntry(**entry) for entry in data]
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        # Drop keys the schema no longer declares rather than splatting the
+        # row wholesale. A removed column otherwise raises `TypeError` on
+        # every historical row, and the caller treats an unreadable registry
+        # as an empty one -- which rewrites the file down to whatever it is
+        # adding, losing everything published before the change.
+        known = {f.name for f in fields(RegistryEntry)}
+        return [
+            RegistryEntry(**{k: v for k, v in entry.items() if k in known})
+            for entry in data
+        ]
+    except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
         logger.warning("Failed to load registry: %s", exc)
         return []
 
@@ -106,56 +114,6 @@ def _content_format(product: dict) -> str:
     return CONTENT_FORMAT_PRODUCT
 
 
-def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
-    """Read the pillar the video was rendered under. Empty if unknown.
-
-    Two sources, both recording the *rendered* pillar, which is not always the
-    scraped one: `--pillar` overrides the product's own value.
-
-    `pipeline_state.json` first, since it is the run's own record. But it does
-    not survive a normal run -- a successful non-debug render deletes the
-    `temp/` directory holding it, and the registry is written afterwards -- so
-    fall back to the metadata files, which sit at the product root and survive:
-    `metadata.json` in unified mode, `metadata_<platform>.json` in optimized
-    mode, which writes no unified file.
-
-    `data.json` is deliberately not consulted. It carries the pillar the
-    product was *scraped* under, so on a run with an override it would file
-    the row under an arm the render never used. For a registry whose purpose
-    is comparing arms, a confidently wrong label is worse than an empty one.
-    """
-    state_path = outputs_dir / product_id / "temp" / "pipeline_state.json"
-    if state_path.exists():
-        try:
-            state = json.loads(state_path.read_text(encoding="utf-8"))
-            pillar = state.get("pillar")
-            if isinstance(pillar, str) and pillar:
-                return pillar
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    product_dir = outputs_dir / product_id
-    # `metadata.json` in unified mode; the per-platform files in optimized
-    # mode, which writes no unified file at all.
-    candidates = [
-        product_dir / "metadata.json",
-        *sorted(product_dir.glob("metadata_*.json")),
-    ]
-    for meta_path in candidates:
-        if not meta_path.exists():
-            continue
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        if not isinstance(meta, dict):
-            continue
-        pillar = meta.get("pillar")
-        if isinstance(pillar, str) and pillar:
-            return pillar
-    return ""
-
-
 def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | None:
     """Read product data.json and extract registry fields."""
     data_path = outputs_dir / product_id / "data.json"
@@ -181,7 +139,6 @@ def _read_product_data(product_id: str, outputs_dir: Path) -> RegistryEntry | No
             title=title,
             url=url,
             affiliate_url=affiliate_url,
-            pillar=_read_pillar_from_state(product_id, outputs_dir),
             content_format=_content_format(product),
         )
     except (json.JSONDecodeError, OSError, KeyError, ValueError) as exc:
@@ -194,7 +151,7 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
 
     When the product is new, append it. When the product already exists (e.g.
     after a `--force` republish), replace the existing entry with the latest
-    data so fields like ``pillar`` and ``affiliate_url`` reflect what was
+    data so fields like ``title`` and ``affiliate_url`` reflect what was
     actually published this time, not the original publish.
 
     Returns

@@ -342,7 +342,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Names are user-defined. Users can rename, add, or remove pillars without code changes.
 
 ### Tagging
-- Keywords declare their pillar via a dict keyed by pillar name in `config/scraper.yaml` (`batch.keywords: {value: [...], novelty: [...], utility: [...]}`). Each scraped product carries the source keyword's pillar through to the producer and registry. A flat list is accepted for backward compatibility (no pillar attached). A keyword fitting more than one pillar can appear under each. The keyword-to-pillar mapping describes the configuration, not a particular run, so it is built from the config file whichever source supplies the run's keyword list: a keyword passed on the command line still carries its configured pillar, and an unconfigured one simply has none.
+- Keywords declare their pillar via a dict keyed by pillar name in `config/scraper.yaml` (`batch.keywords: {value: [...], novelty: [...], utility: [...]}`). Each scraped product carries the source keyword's pillar through to the producer. A flat list is accepted for backward compatibility (no pillar attached). A keyword fitting more than one pillar can appear under each. The keyword-to-pillar mapping describes the configuration, not a particular run, so it is built from the config file whichever source supplies the run's keyword list: a keyword passed on the command line still carries its configured pillar, and an unconfigured one simply has none.
 - Script templates are mapped to pillars via a central `pillars` dict under `script_templates` in `config/ai_services.yaml`. A template can appear under multiple pillars when its style works in more than one (e.g., `classic_promo` could land under both value and novelty).
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 
@@ -354,7 +354,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - When a pillar is set, the `{AUDIENCE}` placeholder substitutes the per-pillar audience hint (`script_templates.pillar_audiences[pillar]`) instead of the global `target_audience`. Falls back to the global value when the entry is missing or empty.
 - If `--pillar` is given a name that isn't configured in any of `pillars`, `pillar_preambles`, or `pillar_audiences`, the run logs an info-level hint listing the configured pillars. The run continues; the template filter, preamble injection, and audience override each gracefully no-op.
 - The fully-rendered script prompt (narrator profile + pillar preamble + template + product data) is written to `outputs/<asin>/temp/script_prompt.txt` on every run, useful for inspecting what the LLM actually saw.
-- The chosen pillar is recorded in `pipeline_state.json` and the published-products registry so downstream analytics can segment by it.
+- The chosen pillar is recorded in `pipeline_state.json`, so a resumed run keeps the pillar an earlier run resolved. It is not carried into the published-products registry; nothing read that column, and a value no consumer reads is a claim the project has to keep true for nothing.
 
 ### Prompt Hygiene
 - Product titles and descriptions are Unicode-normalized before injection, folding mathematical-alphabet bold codepoints (e.g. Amazon's pseudo-bold section headers) to plain ASCII.
@@ -474,13 +474,12 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Dual format: JSON (machine-readable) and CSV (spreadsheet-friendly)
 - Append new entries after each successful publish (no duplicates)
 - Republish refreshes the existing row so registry fields reflect the latest publish, not the original. Identical-data calls don't trigger a save.
-- Pillar is read at registration time from what the *render* recorded, not from what was scraped, so a `--pillar` override is what the row reflects. Two sources in order: the producer's pipeline state, then the metadata files at the product root — the unified one, or the per-platform ones in optimized metadata mode, which writes no unified file. The state file is preferred as the run's own record, but it does not survive a successful non-debug render, which deletes the temp directory holding it before the registry is written; the metadata file sits at the product root and survives. The scraped product record is deliberately not consulted, since on an overridden run it names an arm the render never used. Empty when no pillar was set for the run.
 - Backward-compatible loader: legacy rows without a pillar field load with the field empty.
 - The content-format arm records whether the video came from a topic or a scraped product, so two formats published side by side can be compared later. It is read from the record rather than inferred from the profile or the publish date: a profile is a visual treatment two arms can share, and a date cannot reconstruct an arm that was interleaved, which is the only way to run the comparison fairly.
 - Rows written before the arm existed report as unlabelled rather than being counted as either arm, because a comparison that silently absorbs unknown videos into one side is worse than one that shows how many it cannot place.
 - The CSV header is derived from the record definition rather than restated, so adding a field cannot fail the registry write.
 - Support bulk import from existing scraped data directories
-- CLI command to rebuild registry from existing data, retroactively populating the pillar field for any product whose pipeline state or product-root metadata carries one
+- CLI command to rebuild registry from existing data, merging rediscovered rows into the existing registry rather than replacing it
 - Rebuild merges scanned entries into the existing registry; rows whose product directories were cleaned up after publishing stay in the registry
 - Each write of the registry renames the existing JSON/CSV file to `<name>.bak` first so a write that drops or corrupts entries can be recovered
 
