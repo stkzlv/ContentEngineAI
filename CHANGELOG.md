@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.2] - 2026-08-23
+
+### Documentation
+- Phase 5.1 rewritten as an analytics module organised around owning the history rather than querying a provider on demand. Every upstream expires — the scheduler's per-post timeline stops reaching back after about five weeks, one platform freezes post data a year after publication and empties its watch-time fields after a week of no engagement — so the local store is the system of record and capture cadence follows expiry. Records what the scheduler already exposes and is not read, which platform APIs offer a retention signal and which do not, and why buying an aggregator does not remove the need for a local snapshot table.
+- Phase 5.4 narrowed to what is actually missing. The content-format arm and a per-arm product count both shipped; the join between performance figures and the arm does not exist, so the question a format experiment exists to answer cannot be answered by any command.
+- Phase 5.5 recorded as shipped, with the assumption it was written on marked as false. It read that a cumulative timeline makes day-N "a lookup rather than a scheduled job"; measured against the live API the opposite holds, and the figures exist only if captured while a post is young enough. That correction is why 5.1 is now built around cadence.
+
+### Notes
+- Retention is platform-asymmetric and the reports should say so rather than averaging across the gap: one platform exposes a per-video retention curve, another an average watch time and a three-second skip rate, and a third no watch-time signal at all on its generally available API.
+
 ## [0.71.1] - 2026-08-23
 
 ### Fixed
