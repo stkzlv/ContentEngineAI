@@ -249,10 +249,22 @@ class BatchController:
                         keyword,
                     )
 
+                    # Assign before saving. This path does not go through
+                    # `process_raw_products`, so nothing else writes the
+                    # record after this point: the file on disk is whatever
+                    # the browser callback wrote mid-scrape, which predates
+                    # both the pillar and the media downloads.
+                    keyword_pillar = self.config.pillar_for(keyword)
+                    for product in products:
+                        product.pillar = keyword_pillar
+
+                    self.scraper._save_products(
+                        [p for p in products if isinstance(p, ProductData)]
+                    )
+
                     # Add each product as a result
                     for product in products:
                         product_id = product.asin or product.title or "unknown"
-                        product.pillar = self.config.pillar_for(keyword)
                         results.append(
                             ProductResult(
                                 product_id=product_id,

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.4] - 2026-08-23
+
+### Fixed
+- A keyword's pillar reaches `data.json`. It was assigned to the in-memory record after the file had already been written, on all three scraper paths, so every scrape wrote `pillar: null` while the record the caller held looked correct. The producer reads the file, so the script template family, the audience the prompt is written for, and the arm a published row is filed under all fell back to unset on every keyword scrape.
+- The standalone CLI's batch mode — `--product-ids`, or two or more `--keywords` — writes `data.json` through the same serialiser as every other path. It previously left the raw dict the browser callback wrote mid-scrape, which predates the media downloads, so `rating` and `shortened_affiliate_link` were absent and `downloaded_images` was empty.
+
+### Notes
+- The pillar is resolved from the scraper's own config rather than passed in, so the standalone paths do not depend on a caller holding a map they have no reason to have. The batch pipeline builds the same mapping from the same `batch.keywords` block.
+- Tests assert the written file rather than the returned records. Asserting the record is what hid this: it was correct all along.
+- A `--product-ids` run has no keyword, so it has no pillar to attach.
+
 ## [0.70.3] - 2026-08-23
 
 ### Fixed

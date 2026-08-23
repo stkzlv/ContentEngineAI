@@ -165,6 +165,8 @@ class BotasaurusAmazonScraper(BaseScraper):
         self.amazon_config = self.config["scrapers"]["amazon"]
         self.global_settings = self.config["global_settings"]
         self.debug_options = debug_options or {}
+        # Built on first use by pillar_for_keyword.
+        self._keyword_pillars: dict[str, str] | None = None
 
         # Override debug mode if specified (CLI takes precedence over config)
         if debug_override is not None:
@@ -942,16 +944,46 @@ class BotasaurusAmazonScraper(BaseScraper):
         raw_results = batch_func({"items": items})
         return raw_results if raw_results else []
 
+    def pillar_for_keyword(self, keyword: str) -> str | None:
+        """Return the pillar the config files this keyword under, if any.
+
+        Read from the scraper's own config so the standalone paths do not
+        depend on a caller passing a map they have no reason to hold. The
+        batch pipeline builds the same mapping for its own config; both come
+        from the same `batch.keywords` block.
+
+        A flat keyword list, the pre-pillar shape, maps nothing.
+        """
+        if self._keyword_pillars is None:
+            pillars: dict[str, str] = {}
+            raw = (self.config.get("batch") or {}).get("keywords")
+            if isinstance(raw, dict):
+                for pillar, kw_list in raw.items():
+                    if isinstance(kw_list, list):
+                        for kw in kw_list:
+                            pillars[str(kw)] = str(pillar)
+            self._keyword_pillars = pillars
+        return self._keyword_pillars.get(keyword)
+
     def process_raw_products(
         self,
         raw_products: list[dict],
         target_download_count: int | None = None,
         filter_validated: bool = True,
+        pillar: str | None = None,
     ) -> list[ProductData]:
-        """Download media, validate, and save products from browser scraping."""
+        """Download media, validate, and save products from browser scraping.
+
+        `pillar` is applied before the file is written. Assigning it to the
+        returned records instead loses it: the caller's objects are discarded
+        and the directory is re-read from disk.
+        """
         if raw_products:
             self._orchestrate_media_downloads(raw_products, target_download_count)
         products = self._validate_and_convert_products(raw_products, filter_validated)
+        if pillar:
+            for product in products:
+                product.pillar = pillar
         if products:
             self._save_products(products)
         return products
@@ -975,6 +1007,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         for keyword in keywords:
             self.logger.info("Starting scrape for keyword: %s", keyword)
+            keyword_pillar = self.pillar_for_keyword(keyword)
 
             # Use the unified scraping method
             # Cast search_params to SearchParameters if it's compatible
@@ -989,6 +1022,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                     amazon_params = None
 
             products = self.scrape_products_unified(keyword, amazon_params)
+            if keyword_pillar:
+                for product in products:
+                    product.pillar = keyword_pillar
             all_products.extend(products)
 
         # Save results

@@ -946,10 +946,13 @@ class GlobalPipelineOrchestrator:
                     break
                 continue
 
+            input_pillar = self.config.keyword_pillar_map.get(input_item)
+
             try:
                 products = scraper.process_raw_products(
                     raw_products,
                     target_download_count=per_input_limit,
+                    pillar=input_pillar,
                 )
 
                 # Retry with additional search pages if not enough
@@ -993,16 +996,17 @@ class GlobalPipelineOrchestrator:
                         extra_products = scraper.process_raw_products(
                             extra_raw,
                             target_download_count=remaining,
+                            pillar=input_pillar,
                         )
                         products.extend(extra_products)
                         page += 1
 
                 if products:
                     inputs_processed += 1
-                    kw_pillar = self.config.keyword_pillar_map.get(input_item)
+                    # The pillar was applied before the write, above. Setting
+                    # it here as well would be the bug this replaced: these
+                    # objects are discarded and the directory re-read.
                     for product in products:
-                        if kw_pillar:
-                            product.pillar = kw_pillar
                         if hasattr(product, "asin") and product.asin:
                             successful_products.append(product.asin)
                         if hasattr(product, "images") and product.images:
