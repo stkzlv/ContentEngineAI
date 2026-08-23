@@ -639,6 +639,7 @@ class LatePublisher(BasePublisher):
         Returns:
         -------
             List of post dictionaries with id, status, scheduledFor, platforms
+            (each leg carrying platform, account_id and publishedAt)
 
         Raises:
         ------
@@ -733,6 +734,11 @@ class LatePublisher(BasePublisher):
                                             else None
                                         )
                                     ),
+                                    # When the leg actually went live, which is
+                                    # not `scheduledFor` for a leg that failed
+                                    # and was retried. Analytics measures day-N
+                                    # from this.
+                                    "publishedAt": getattr(p, "publishedAt", None),
                                 }
                                 for p in post.platforms
                             ]

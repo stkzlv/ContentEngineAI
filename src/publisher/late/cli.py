@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 from src.publisher import PublisherProvider, create_publisher
 from src.publisher.analytics import (
     load_metrics,
+    publish_time,
     rank_by_durability,
     save_metrics,
     summarize_post,
@@ -274,11 +275,7 @@ async def cmd_analytics(
                 # sweep; a partial reading is still usable.
                 logger.warning("No timeline for %s: %s", post_id, exc)
                 continue
-            metrics.append(
-                summarize_post(
-                    post_id, post.get("publishedAt") or post.get("scheduledFor"), rows
-                )
-            )
+            metrics.append(summarize_post(post_id, publish_time(post), rows))
         save_metrics(metrics, outputs_dir)
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.1] - 2026-08-23
+
+### Fixed
+- A durability sweep no longer erases the launch figures it captured earlier. The provider's timeline does not reach back indefinitely: measured against the live API, posts aged 121, 157 and 188 days all returned rows starting on the same recent date, and passing `from_date` changed nothing. Re-reading an old post therefore yields no day-2, no day-7, no ratio, and a `views_total` counted from the middle of its life — and the stored row took the newer reading whenever it carried any figure at all, which a truncated read does. Figures are now merged per field, keeping the larger view count and never replacing a measured value with an absent one.
+- Day-N views are measured from when a post actually went live rather than from its scheduled slot. A leg that fails and is retried publishes later than the slot, so the clock could start before the video existed. `list_posts` dropped the per-leg publish time entirely, so the fallback was previously the only value available.
+
+### Notes
+- The timeline window was the reported suspicion (#233) and is refuted: `from_date` makes no difference at any post age. What the same measurement found instead is a retention horizon of roughly five weeks, which is a harder constraint — day-2 and day-7 cannot be recovered once a post passes it, so they have to be captured while they are still reachable.
+- Measured impact of the publish-time fix today is one post in 273, whose legs published a day apart. The mechanism was wrong for every retried post; the current sample is simply mostly on-time.
+
 ## [0.71.0] - 2026-08-23
 
 ### Removed

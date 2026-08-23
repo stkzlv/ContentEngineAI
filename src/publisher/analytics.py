@@ -161,6 +161,30 @@ def durability_ratio(
     return (total - within) / within
 
 
+def publish_time(post: dict[str, Any]) -> str:
+    """When the post first went live, falling back to its scheduled slot.
+
+    The day-N clock has to start when the content existed. `scheduledFor` is
+    only that for a post whose legs all published on time; a leg that failed
+    and was retried can go live days later, and measuring from the slot then
+    starts the clock before the video existed and understates every figure.
+
+    Retry rate is not random with respect to content format, so this biases a
+    format comparison rather than adding noise.
+
+    The earliest leg is used when legs published on different days, since that
+    is when the content first reached anyone.
+    """
+    times = [
+        str(leg.get("publishedAt"))
+        for leg in (post.get("platforms") or [])
+        if isinstance(leg, dict) and leg.get("publishedAt")
+    ]
+    if times:
+        return min(times)
+    return str(post.get("publishedAt") or post.get("scheduledFor") or "")
+
+
 def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     """Reduce one post's raw timeline to the figures worth storing."""
     when = _parse_date(published_at)
@@ -228,12 +252,8 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
     for m in metrics:
-        if m.post_id in merged and not _has_figures(m):
-            # A reading with nothing in it is an absent answer, not a new one.
-            # Replacing wholesale would erase figures already measured.
-            logger.debug("Keeping stored figures for %s: empty reading", m.post_id)
-            continue
-        merged[m.post_id] = m
+        stored = merged.get(m.post_id)
+        merged[m.post_id] = _combine(stored, m) if stored else m
 
     tmp = path.with_suffix(".tmp")
     tmp.write_text(
@@ -246,6 +266,41 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
 def _has_figures(m: PostMetrics) -> bool:
     """Whether a reading carries any measurement at all."""
     return any(v is not None for v in (m.views_day_2, m.views_day_7, m.views_total))
+
+
+def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
+    """Keep the best answer per field rather than the newest row.
+
+    The provider's timeline does not reach back indefinitely: measured against
+    the live API, every post older than about five weeks returns rows starting
+    at the same recent date, whatever `from_date` is passed. So re-reading an
+    old post yields a truncated window -- no day-2, no day-7, no ratio, and a
+    `views_total` counted from the middle of its life rather than the start.
+
+    Taking the newer row wholesale would let that reading erase figures
+    captured while they were still reachable, which for the durability
+    comparison is the one number that cannot be re-derived later. A field the
+    fresh reading cannot supply keeps its stored value, and the view counters
+    keep the larger figure, since they only ever accumulate.
+    """
+
+    def better_count(a: int | None, b: int | None) -> int | None:
+        present = [v for v in (a, b) if v is not None]
+        return max(present) if present else None
+
+    return PostMetrics(
+        post_id=fresh.post_id,
+        published_at=fresh.published_at or stored.published_at,
+        views_day_2=better_count(stored.views_day_2, fresh.views_day_2),
+        views_day_7=better_count(stored.views_day_7, fresh.views_day_7),
+        views_total=better_count(stored.views_total, fresh.views_total),
+        durability_ratio=(
+            fresh.durability_ratio
+            if fresh.durability_ratio is not None
+            else stored.durability_ratio
+        ),
+        timeline_end=max(fresh.timeline_end, stored.timeline_end),
+    )
 
 
 def _readable(path: Path) -> bool:
