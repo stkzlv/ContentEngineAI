@@ -49,7 +49,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **✅ Progress Tracking**: Real-time upload progress with callbacks
 - **🔗 Link-in-Bio**: Auto-add affiliate links to bio page after publishing (Lnk.Bio, etc.)
 - **💬 First Comment**: Post affiliate links as first comment on YouTube/Instagram to avoid algorithm penalties
-- **🛡️ Affiliate Disclosure**: Renders the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs
+- **🛡️ Affiliate Disclosure**: Can render the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs; off by default, since the phrase asserts active program membership
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
 For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).

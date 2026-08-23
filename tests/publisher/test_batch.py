@@ -681,3 +681,43 @@ class TestBatchCarriesTheDisclosureDecision:
         assert mock_publisher.publish.call_args_list
         for call in mock_publisher.publish.call_args_list:
             assert call.kwargs["carries_affiliate_content"] is True
+
+    @pytest.mark.asyncio
+    async def test_the_rate_limit_retry_carries_it_too(
+        self, mock_publisher, outputs_dir
+    ):
+        """The retry after a 429 is a second call site, and it was uncovered.
+
+        A topic render that happens to hit a rate limit would otherwise
+        declare commercial content on the way back in, which is the harder
+        version of the bug to notice: it depends on timing.
+        """
+        from src.publisher.base import PublishError
+
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        published = {"post_id": "post_1", "status": "published", "published_urls": []}
+        mock_publisher.publish = AsyncMock(
+            side_effect=[PublishError("429 rate limit"), published] * 10
+        )
+
+        with (
+            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
+            patch("src.publisher.batch.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = False
+            mock_metadata.return_value = mock_meta
+
+            await batch.publish_batch()
+
+        assert mock_publisher.publish.call_count >= 2, "the retry path never ran"
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False

@@ -924,7 +924,7 @@ class TestScheduleCarriesTheDisclosureDecision:
     render declares commercial content to TikTok again with nothing failing.
     """
 
-    def _config(self, sample_config):
+    def _config(self, sample_config, platform_specific: bool = False):
         return ScheduleConfig(
             enabled=True,
             slots=sample_config.slots,
@@ -932,6 +932,7 @@ class TestScheduleCarriesTheDisclosureDecision:
             prevent_duplicates=False,
             allow_past_schedules=True,
             max_posts_per_day=0,
+            use_platform_specific_content=platform_specific,
         )
 
     def _video(self, tmp_path, meta: dict | None):
@@ -1043,3 +1044,37 @@ class TestScheduleCarriesTheDisclosureDecision:
 
         call = mock_publisher.publish.call_args
         assert call.kwargs["carries_affiliate_content"] is True
+
+    async def test_the_platform_specific_branch_carries_it_too(
+        self, tmp_schedule_path, sample_config, mock_publisher, tmp_path
+    ):
+        """One post per platform is a separate call site from the unified one.
+
+        It reads the per-platform entry rather than the union, so it needs its
+        own coverage; the unified tests above never enter this branch.
+        """
+        manager = ScheduleManager(
+            schedule_path=tmp_schedule_path,
+            config=self._config(sample_config, platform_specific=True),
+        )
+        video = self._video(
+            tmp_path,
+            {
+                "title": "Why your phone charges slowly",
+                "description": "Body.",
+                "hashtags": ["tech"],
+                "carries_affiliate_content": False,
+            },
+        )
+
+        await manager.auto_schedule(
+            videos=[video],
+            platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+            publisher=mock_publisher,
+            start_slot=0,
+            dry_run=False,
+        )
+
+        assert mock_publisher.publish.call_args_list
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False

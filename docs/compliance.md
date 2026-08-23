@@ -60,7 +60,7 @@ Same regulatory framing as YouTube above: this is a platform-policy layer, not t
 
 ### Profile bio: Amazon Associates identification (optional)
 
-The pipeline renders the required literal phrase in the caption body of every post by default, so the per-account bio step is optional. If you want extra coverage, add it to the profile bio of every social account that links to Amazon affiliate URLs:
+The pipeline can render the required literal phrase in the caption body of every post, but the setting is off by default (`config/publisher.yaml::affiliate_disclosure`), because the phrase asserts membership of the named program. With it enabled the per-account bio step below is optional; with it off, the bio is the only place the phrase appears. If you want extra coverage, add it to the profile bio of every social account that links to Amazon affiliate URLs:
 
 - TikTok bio: tight character cap (80 chars). Use the shortened form: "Amazon Associate. I earn from qualifying purchases."
 - Instagram bio: 150-char cap. Same shortened form fits.
