@@ -344,9 +344,9 @@ async def create_video_for_product(
             # `step_generate_script`: a resume that truncates the state drops
             # every non-step key and then skips the steps it kept, so a
             # product-level pillar recorded inside the step would be lost on
-            # exactly the runs that reload it. The registry reads the state
-            # file, so losing it files the row unlabelled for a video whose
-            # script was written under the pillar.
+            # exactly the runs that reload it. A repeat render then draws
+            # from a different template pool, preamble and audience than the
+            # script already on disk was written for.
             # CLI, then what a previous run recorded, then the product's own
             # value. The middle term matters on a resume: without it the
             # product record overwrites a `--pillar` the earlier run resolved

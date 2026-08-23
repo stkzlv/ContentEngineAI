@@ -419,7 +419,8 @@ batch:
   # Keywords to search in batch mode, grouped by content pillar.
   # Dict shape: each key is a pillar name, each value is a list of keywords.
   # The pillar is attached to each scraped product so downstream steps
-  # (script generation, metadata, registry) can use it without --pillar.
+  # (the script template pool, its preamble, and the caption voice) can use
+  # it without --pillar. It is not recorded in the published-products registry.
   # A flat list is still accepted for backward compatibility (no pillar attached).
   keywords:
     value:
