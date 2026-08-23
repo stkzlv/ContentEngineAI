@@ -909,6 +909,12 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         # discloses while the frame does not, or the reverse, is worse than
         # either choice made consistently.
         "carries_affiliate_content": disclose,
+        # The pillar this render actually used, which is not always the one
+        # the product was scraped under: `--pillar` overrides it. Recorded
+        # here because this file sits at the product root and survives the
+        # `temp/` cleanup that removes `pipeline_state.json` on a successful
+        # non-debug run, and the registry is written after that cleanup.
+        "pillar": ctx.state.get("pillar"),
     }
 
     metadata_file = product_root / "metadata.json"

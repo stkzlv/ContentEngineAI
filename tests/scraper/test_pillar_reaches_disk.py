@@ -325,59 +325,115 @@ class TestRegistryFindsThePillarAfterCleanup:
 
     A successful non-debug render deletes the `temp/` directory it lives in,
     and the registry is written after that. So reading only the state file
-    filed every non-debug render unlabelled, including ones whose script was
-    written under a pillar -- which is the whole point of recording it.
+    filed every non-debug render unlabelled.
+
+    The fallback is `metadata.json`, not `data.json`. Both survive, but
+    `data.json` records what the product was *scraped* under, so on a run with
+    `--pillar` it would file the row under an arm the render never used --
+    turning an empty cell into a confidently wrong one, which for an
+    arm-comparison registry is the worse failure.
     """
+
+    def _write(self, tmp_path, *, state=None, metadata=None, data=None):
+        root = tmp_path / "B0TEST0001"
+        root.mkdir(parents=True, exist_ok=True)
+        if state is not None:
+            (root / "temp").mkdir(exist_ok=True)
+            (root / "temp" / "pipeline_state.json").write_text(json.dumps(state))
+        if metadata is not None:
+            (root / "metadata.json").write_text(json.dumps(metadata))
+        if data is not None:
+            (root / "data.json").write_text(json.dumps(data))
 
     def test_the_state_file_wins_when_it_is_there(self, tmp_path):
         """It records the run's own decision, so a --pillar override wins."""
         from src.publisher.product_registry import _read_pillar_from_state
 
-        state_dir = tmp_path / "B0TEST0001" / "temp"
-        state_dir.mkdir(parents=True)
-        (state_dir / "pipeline_state.json").write_text(
-            json.dumps({"pillar": "utility"})
+        self._write(
+            tmp_path,
+            state={"pillar": "utility"},
+            metadata={"pillar": "utility"},
+            data={"pillar": "value"},
         )
-        (tmp_path / "B0TEST0001" / "data.json").write_text(
-            json.dumps({"pillar": "value"})
-        )
-
         assert _read_pillar_from_state("B0TEST0001", tmp_path) == "utility"
 
-    def test_data_json_answers_once_temp_is_gone(self, tmp_path):
-        """The normal case: cleanup ran, and the product record is all that
-        is left.
+    def test_metadata_answers_once_temp_is_gone(self, tmp_path):
+        """The normal case: cleanup ran, and metadata.json is what is left."""
+        from src.publisher.product_registry import _read_pillar_from_state
+
+        self._write(tmp_path, metadata={"pillar": "utility"}, data={"pillar": "value"})
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "utility"
+
+    def test_the_scraped_pillar_is_never_reported_as_the_rendered_one(self, tmp_path):
+        """A run under `--pillar utility` on a product scraped as `value`.
+
+        With temp gone and no metadata, the honest answer is that we do not
+        know -- not `value`, which the render did not use.
         """
         from src.publisher.product_registry import _read_pillar_from_state
 
-        (tmp_path / "B0TEST0001").mkdir(parents=True)
-        (tmp_path / "B0TEST0001" / "data.json").write_text(
-            json.dumps({"pillar": "value"})
-        )
+        self._write(tmp_path, data={"pillar": "value"})
+        assert _read_pillar_from_state("B0TEST0001", tmp_path) == ""
 
-        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "value"
-
-    def test_a_list_shaped_data_json_is_read(self, tmp_path):
-        """Some paths write a single-element list."""
-        from src.publisher.product_registry import _read_pillar_from_state
-
-        (tmp_path / "B0TEST0001").mkdir(parents=True)
-        (tmp_path / "B0TEST0001" / "data.json").write_text(
-            json.dumps([{"pillar": "novelty"}])
-        )
-
-        assert _read_pillar_from_state("B0TEST0001", tmp_path) == "novelty"
-
-    def test_neither_file_gives_nothing(self, tmp_path):
+    def test_nothing_at_all_gives_nothing(self, tmp_path):
         from src.publisher.product_registry import _read_pillar_from_state
 
         assert _read_pillar_from_state("B0TEST0001", tmp_path) == ""
 
     def test_a_null_pillar_is_not_a_value(self, tmp_path):
-        """An unconfigured keyword writes null; that is not a label."""
+        """A render with no pillar writes null; that is not a label."""
         from src.publisher.product_registry import _read_pillar_from_state
 
-        (tmp_path / "B0TEST0001").mkdir(parents=True)
-        (tmp_path / "B0TEST0001" / "data.json").write_text(json.dumps({"pillar": None}))
-
+        self._write(tmp_path, metadata={"pillar": None})
         assert _read_pillar_from_state("B0TEST0001", tmp_path) == ""
+
+
+@pytest.mark.unit
+class TestTheRenderedPillarIsRecordedWhereItSurvives:
+    """The producer has to write it somewhere outside `temp/`."""
+
+    async def _write_metadata(self, monkeypatch, tmp_path, state):
+        from src.video.producer import steps as steps_mod
+
+        async def _fake_description(*a, **kw):
+            return "A description."
+
+        monkeypatch.setattr(steps_mod, "generate_ai_description", _fake_description)
+
+        ctx = MagicMock()
+        ctx.state = state
+        ctx.product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0001",
+            platform=None,
+            asin="B0TEST0001",
+            pillar="value",
+        )
+        ctx.run_paths = {
+            "run_root": tmp_path,
+            "description_file": tmp_path / "description.txt",
+        }
+        ctx.debug_mode = False
+        await steps_mod._generate_unified_metadata(ctx)
+        return json.loads((tmp_path / "metadata.json").read_text())
+
+    async def test_metadata_json_carries_the_rendered_pillar(
+        self, monkeypatch, tmp_path
+    ):
+        """The run's resolved value, which an override may have set."""
+        written = await self._write_metadata(
+            monkeypatch, tmp_path, {"pillar": "utility"}
+        )
+        assert written["pillar"] == "utility"
+
+    async def test_no_pillar_writes_null_not_the_scraped_one(
+        self, monkeypatch, tmp_path
+    ):
+        """The product record says `value`; the run resolved nothing.
+
+        Writing the product's own value here would reintroduce the confusion
+        this file exists to remove.
+        """
+        written = await self._write_metadata(monkeypatch, tmp_path, {})
+        assert written["pillar"] is None

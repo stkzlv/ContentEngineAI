@@ -109,14 +109,18 @@ def _content_format(product: dict) -> str:
 def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
     """Read the pillar the video was rendered under. Empty if unknown.
 
-    `pipeline_state.json` first, because it records the run's own decision and
-    so honours a `--pillar` override. But it does not survive a normal run: a
-    successful non-debug render deletes the `temp/` directory it lives in, and
-    the registry is written afterwards. So fall back to the product record,
-    which is what the run resolved from in the absence of an override.
+    Two sources, both recording the *rendered* pillar, which is not always the
+    scraped one: `--pillar` overrides the product's own value.
 
-    Reading only the state file meant every non-debug render filed unlabelled,
-    including ones whose script was written under a pillar.
+    `pipeline_state.json` first, since it is the run's own record. But it does
+    not survive a normal run -- a successful non-debug render deletes the
+    `temp/` directory holding it, and the registry is written afterwards -- so
+    fall back to `metadata.json`, which sits at the product root and survives.
+
+    `data.json` is deliberately not consulted. It carries the pillar the
+    product was *scraped* under, so on a run with an override it would file
+    the row under an arm the render never used. For a registry whose purpose
+    is comparing arms, a confidently wrong label is worse than an empty one.
     """
     state_path = outputs_dir / product_id / "temp" / "pipeline_state.json"
     if state_path.exists():
@@ -128,16 +132,14 @@ def _read_pillar_from_state(product_id: str, outputs_dir: Path) -> str:
         except (json.JSONDecodeError, OSError):
             pass
 
-    data_path = outputs_dir / product_id / "data.json"
-    if not data_path.exists():
+    meta_path = outputs_dir / product_id / "metadata.json"
+    if not meta_path.exists():
         return ""
     try:
-        data = json.loads(data_path.read_text(encoding="utf-8"))
-        if isinstance(data, list):
-            data = data[0] if data else {}
-        pillar = data.get("pillar")
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        pillar = meta.get("pillar")
         return pillar if isinstance(pillar, str) else ""
-    except (json.JSONDecodeError, OSError, IndexError):
+    except (json.JSONDecodeError, OSError, AttributeError):
         return ""
 
 
