@@ -185,7 +185,9 @@ High-level requirements for ContentEngineAI.
 **Two rendering engines** selectable per-profile or per-run. Bundled
 `config/subtitles.yaml` selects the pycaps engine by default with
 `fallback_policy: fallback_ffmpeg`, so forks without the optional pycaps
-group degrade to FFmpeg without manual intervention.
+group fall back to FFmpeg without manual intervention. The engine the run
+resolves is recorded in the pipeline state; the subtitle generator and the
+burn step read it rather than re-deriving it from config.
 - **Pycaps engine** (bundled default): CSS-styled animated captions burned post-assembly via the pycaps library. Word-by-word karaoke, per-word CSS animations, template-driven styling. Optional AI word tagging via Gemini. Single-line only (two-part not supported). Requires optional Poetry group install.
 - **FFmpeg engine**: SRT (drawtext) or ASS (libass) burned during assembly. Supports two-part mode, karaoke, and all positioning anchors. The fallback path when pycaps is unavailable; also selectable explicitly via `--subtitle-engine ffmpeg`.
 

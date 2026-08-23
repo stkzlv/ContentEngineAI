@@ -1135,6 +1135,14 @@ async def step_generate_subtitles(ctx: PipelineContext):
                         "pycaps.fallback_policy to 'fallback_ffmpeg'."
                     )
 
+        # One resolved decision, recorded where every later consumer reads it.
+        # The branch below is not enough on its own: `create_unified_subtitles`
+        # re-reads the engine from the settings dict it is handed, so a dict
+        # still saying "pycaps" makes it write a transcript and no subtitle
+        # file, whatever branch the caller took. The burn step recomputes from
+        # config for the same reason and has to be told too.
+        ctx.state["subtitle_engine_resolved"] = subtitle_engine
+
         if subtitle_engine == "pycaps":
             if two_part_enabled:
                 logger.debug(
@@ -1145,6 +1153,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 two_part_enabled = False
 
             subtitle_dict = subtitle_settings.model_dump()
+            subtitle_dict["subtitle_engine"] = subtitle_engine
             transcript_path = ctx.run_paths["whisper_transcript_file"]
             result_path = await create_unified_subtitles(
                 voiceover_path,
@@ -1197,6 +1206,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         else:
             # Standard single-line subtitle generation
             subtitle_dict = subtitle_settings.model_dump()
+            subtitle_dict["subtitle_engine"] = subtitle_engine
             srt_path = await create_unified_subtitles(
                 voiceover_path,
                 ctx.run_paths["subtitle_file"],
@@ -1516,11 +1526,16 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
     )
     subtitle_settings = merged_profile_settings.subtitle_settings
 
-    if subtitle_settings.subtitle_engine != "pycaps":
-        logger.debug(
-            "Skipping burn_pycaps_subtitles (subtitle_engine=%s)",
-            subtitle_settings.subtitle_engine,
-        )
+    # The engine this run actually used, not the one config asks for. When
+    # pycaps is unavailable, `step_generate_subtitles` applies
+    # `fallback_policy` and records the result; recomputing from config here
+    # would import a module the run has already established is missing, and
+    # kill a render whose captions FFmpeg has already burned.
+    engine = ctx.state.get(
+        "subtitle_engine_resolved", subtitle_settings.subtitle_engine
+    )
+    if engine != "pycaps":
+        logger.debug("Skipping burn_pycaps_subtitles (subtitle_engine=%s)", engine)
         return
 
     pycaps_settings = subtitle_settings.pycaps

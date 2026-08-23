@@ -16,8 +16,9 @@ poetry install --with dev && make install-dev
 The `pycaps` subtitle engine is selected by default in `config/subtitles.yaml`
 but its dependencies are an optional Poetry group (`pycaps`). The default
 `poetry install` skips the group to keep the footprint small; the bundled
-`pycaps.fallback_policy: fallback_ffmpeg` then degrades to the FFmpeg path
-silently. Install the group locally to actually use the pycaps engine:
+`pycaps.fallback_policy: fallback_ffmpeg` then falls back to the FFmpeg path
+and logs a warning. Install the group locally to actually use the pycaps
+engine:
 
 ```bash
 poetry install --with pycaps
