@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.3] - 2026-08-23
+
+### Added
+- `make analytics` and a documented daily schedule for it. The per-post timeline expires after about five weeks, so day-2 and day-7 figures are perishable rather than queryable on demand, and nothing was capturing them: the metrics file held only what a manual run had taken. `outputs/` is local and the key comes from `.env`, so the capture belongs on the machine that owns the data rather than in CI; the docs give a systemd user timer with `Persistent=true`, which runs a missed sweep instead of skipping it.
+
+### Fixed
+- A downward revision to a post's view count now lands instead of being discarded. The stored figure kept the larger of the two readings, on the reasoning that a smaller one meant a truncated window. Rows are cumulative, so truncation cannot lower a lifetime total: a smaller reading is a real revision, and platforms do make them — two posts currently report a day-7 count above their lifetime total.
+- `rebuild_registry` refuses to write an empty registry over a non-empty one. It merged the scan onto what it loaded and saved unconditionally, so a load that returned nothing while the file held rows — a schema change every historical row fails, with the product directories long cleaned up — replaced the whole publish history with an empty list.
+
+### Notes
+- The rebuild guard counts rows in the file rather than rows that loaded. Counting the load reports zero for exactly the case worth guarding, which the first version of this fix got wrong and its own test caught.
+
 ## [0.71.2] - 2026-08-23
 
 ### Documentation

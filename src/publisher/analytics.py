@@ -314,18 +314,18 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         """The fresh figure when it has one, else what was already measured."""
         return b if b is not None else a
 
-    totals = [v for v in (stored.views_total, fresh.views_total) if v is not None]
     return PostMetrics(
         post_id=fresh.post_id,
         published_at=fresh.published_at or stored.published_at,
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
-        # Window-independent: cumulative rows mean the last row is the lifetime
-        # total whether or not the window reaches back to publication, so the
-        # fresh figure is normally the right one and `max` is a no-op. It only
-        # bites if a platform revises a count downward, where the earlier,
-        # higher reading is kept deliberately rather than silently.
-        views_total=max(totals) if totals else None,
+        # Window-independent, so the fresh figure is simply the better one:
+        # cumulative rows mean the last row is the lifetime total whether or
+        # not the window reaches back to publication. Truncation cannot lower
+        # it, so a smaller fresh figure is a real downward revision -- which
+        # platforms do make, observed here as a day-7 count exceeding the
+        # lifetime total -- and keeping the larger would freeze a stale number.
+        views_total=kept(stored.views_total, fresh.views_total),
         durability_ratio=(
             fresh.durability_ratio if ratio_from_fresh else stored.durability_ratio
         ),

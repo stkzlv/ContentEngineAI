@@ -63,14 +63,22 @@ class TestATruncatedRereadKeepsWhatWasMeasured:
         assert m.views_day_7 == 3400
         assert m.durability_ratio == 1.4
 
-    def test_a_smaller_total_does_not_replace_a_larger_one(self, tmp_path):
-        """Not a truncation case -- cumulative rows make a truncated total
-        correct. This guards the other direction: a platform revising a count
-        downward keeps the earlier, higher reading rather than silently
-        adopting the lower one.
+    def test_a_downward_revision_lands(self, tmp_path):
+        """Truncation cannot lower the lifetime total, because rows are
+        cumulative and the last one is "as of today" either way. So a smaller
+        fresh figure is a real revision -- platforms do make them, observed
+        here as a day-7 count exceeding a post's lifetime total -- and keeping
+        the larger would freeze a number the platform has corrected.
         """
         _stored(tmp_path, post_id="p1", views_total=9000)
-        save_metrics([PostMetrics(post_id="p1", views_total=500)], tmp_path)
+        save_metrics([PostMetrics(post_id="p1", views_total=8990)], tmp_path)
+
+        assert load_metrics(tmp_path)[0].views_total == 8990
+
+    def test_an_absent_total_still_keeps_the_stored_one(self, tmp_path):
+        """A reading that measured nothing is not a revision to zero."""
+        _stored(tmp_path, post_id="p1", views_total=9000)
+        save_metrics([PostMetrics(post_id="p1", views_day_2=5)], tmp_path)
 
         assert load_metrics(tmp_path)[0].views_total == 9000
 

@@ -321,6 +321,54 @@ Figures already captured are safe. Each post's row is merged field by field, so
 a later, shorter reading never replaces a measured value with an absent one;
 what it cannot do is recover a figure that was never taken in time.
 
+### Running it on a schedule
+
+`outputs/` is local and gitignored, and the API key comes from `.env`, so the
+capture belongs on the machine that owns the data rather than in CI.
+
+```bash
+make analytics ARGS="--limit 50"
+```
+
+The command is safe to run as often as you like: readings merge per field, and
+a later, better figure replaces an earlier partial one, so a repeat run costs
+one API call per post and nothing else.
+
+**Daily is a sensible default.** Most of a short-form post's views arrive in
+the first day or two, and one platform's analytics rows take 48-72 hours to
+finalise, so a same-day reading of a fresh post is still settling — the merge
+corrects it on the next run. Running less often than weekly risks posts ageing
+past the retention horizon between sweeps.
+
+A systemd user timer, which needs no root and starts with your session:
+
+```ini
+# ~/.config/systemd/user/contentengine-analytics.service
+[Service]
+Type=oneshot
+WorkingDirectory=%h/path/to/ContentEngineAI
+ExecStart=/usr/bin/make analytics ARGS="--limit 50"
+
+# ~/.config/systemd/user/contentengine-analytics.timer
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl --user enable --now contentengine-analytics.timer
+systemctl --user list-timers contentengine-analytics.timer
+```
+
+`Persistent=true` matters: it runs a missed sweep on the next boot rather than
+skipping it, which is the difference between a laptop that was closed for a
+weekend and a gap in the record. The equivalent cron line is
+`@daily cd /path/to/ContentEngineAI && make analytics` — cron has no
+persistence, so a machine asleep at the scheduled time simply misses that day.
+
 | Option | Required | Description |
 |---|---|---|
 | `--limit N` | No | How many recent published posts to measure (default: 50) |

@@ -199,6 +199,23 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
     return True
 
 
+def _rows_on_disk(outputs_dir: Path) -> int:
+    """How many rows the registry file holds, whether or not they load.
+
+    Deliberately not `len(load_registry(...))`: the case worth guarding is one
+    where the rows are present but unreadable, and counting the load would
+    report zero for exactly that case.
+    """
+    path = get_registry_path(outputs_dir, "json")
+    if not path.exists():
+        return 0
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return 0
+    return len(data) if isinstance(data, list) else 0
+
+
 def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
     """Rebuild registry by merging scanned entries into the existing one.
 
@@ -226,6 +243,22 @@ def rebuild_registry(outputs_dir: Path, *, scan_dir: Path | None = None) -> int:
             scanned_count += 1
 
     entries = list(existing.values())
+    if _rows_on_disk(outputs_dir) and not entries:
+        # The registry had rows, the rebuild produced none, and saving would
+        # replace a full file with an empty one. That is never a legitimate
+        # outcome: a scan that finds nothing should leave the file alone.
+        # Reachable when the load returns nothing while the file is not empty
+        # -- a schema change every historical row fails, say -- and by then
+        # the product directories are long cleaned up, so the scan cannot
+        # re-add them. The `.bak` only covers one generation.
+        logger.error(
+            "Refusing to rebuild: the registry file holds %d row(s) that could "
+            "not be read, and the scan of %s found none to replace them. "
+            "Registry left unchanged.",
+            _rows_on_disk(outputs_dir),
+            source,
+        )
+        return 0
     save_registry(entries, outputs_dir)
     logger.info(
         "Registry rebuilt: %d entries (existing=%d, scanned=%d)",
