@@ -408,7 +408,7 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 **Phase 0 disclosure compliance baseline (0.46.x)**
 - Phase 0.1 persistent on-frame disclosure overlay (`#ad` by default, configurable text). Burned in a fixed corner of every produced video, full-clip duration, sized smaller than narration captions. Configurable per render so language-aware variants can ship without code changes.
 - Phase 0.2 first-line caption disclosure on every platform. Disclosure leads each caption on its own line ahead of the description and hashtag block. `#ad` deduped from hashtags so it never appears twice.
-- Phase 0.5 platform-tag audit completed: YouTube `containsSyntheticMedia: true` set on every publish payload alongside the TikTok branded-content flags already wired.
+- Phase 0.5 platform-tag audit completed: YouTube `containsSyntheticMedia: true` set on every publish payload alongside the TikTok branded-content flags already wired. Both were narrowed in 0.70.3 — the TikTok flags to renders carrying a material connection, and the YouTube flag to an opt-in config field defaulting off, since YouTube's policy does not cover AI narration or AI-written scripts.
 - Phase 0.6 cross-cutting disclosure regression suite at `tests/test_disclosure_stack.py` covers all four disclosure surfaces with consistency invariants.
 - Phase 0.7 `docs/compliance.md` describes the disclosure stack, regulator coverage, and the per-video manual workarounds for SDK gaps.
 - Phase 2.1 registry side: `pillar` column on the published-products registry; `--rebuild` retroactively tags rows from the producer state file. Backward-compatible loader.

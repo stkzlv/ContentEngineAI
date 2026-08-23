@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TikTok's "not commercial content" value is sent explicitly rather than by omitting the settings block, because an absent block is indistinguishable from a payload that forgot it.
 - The settings ride on the payload twice, per-platform and top-level. Both are built from the same per-render value, so they cannot disagree.
 - The decision comes from the record the producer already writes, on all six publish call sites — the single and schedule paths, unified and platform-specific, plus the batch pipeline. The schedule path reads raw metadata JSON rather than the typed object, so it reads the key directly; an absent key discloses.
+- The batch pipeline builds its own publisher rather than reusing the CLI's, so the new config field is passed there too. The two would otherwise produce different payloads from the same config.
+- The `none` value leaves `content_preview_confirmed` and `express_consent_given` untouched. Whether TikTok accepts those alongside a non-commercial declaration is unconfirmed (#256).
 - Whether an affiliate review should declare `brand_organic` or `brand_content` is left alone here. TikTok's definitions put affiliate commission in the second, but it changes the viewer-facing label from "Promotional content" to "Paid partnership", which is a positioning decision rather than a correctness one.
 
 ## [0.70.2] - 2026-08-23

@@ -565,8 +565,9 @@ export LATE_STAGGER_MAX=30
 - Supports scheduled publishing
 - Caption hard cap: 2200 characters (includes hashtags). 150 is only a soft prompt target for punchier captions, not the platform limit.
 - **Content Disclosure** (required for commercial accounts):
-  - `commercial_content_type`: `"brand_organic"` (Your Brand) or `"branded_content"` (Branded Content)
+  - `commercial_content_type`: `"brand_organic"` (Your Brand), `"brand_content"` (Branded Content -- note the spelling, not `branded_content`), or `"none"` (not commercial content)
   - `is_brand_organic_post`: `true` for Your Brand posts
+  - Both are per render, not per config: `TikTokContentSettings.for_render()` returns `"none"` / `false` for a render with no material connection, such as a topic video with no affiliate link
   - `content_preview_confirmed`: `true` (user confirmed preview)
   - `express_consent_given`: `true` (user gave consent)
   - These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)

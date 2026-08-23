@@ -219,6 +219,31 @@ class TestPlatformFlags:
         assert settings["is_brand_organic_post"] is False
 
     @pytest.mark.asyncio
+    async def test_tiktok_gate_applies_on_the_platform_contents_branch(
+        self, mock_publisher
+    ):
+        """The builder attaches TikTok settings at two sites.
+
+        The `schedule` path always supplies platform_contents, so that branch
+        is the live one for scheduled posts, while the other branch is what
+        the simplest tests exercise. They must not drift apart.
+        """
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="Body.",
+            platform_contents={"tiktok": {"content": "Body."}},
+            carries_affiliate_content=False,
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        sdk_platforms = call.kwargs.get("platforms", [])
+        tiktok = next(p for p in sdk_platforms if p["platform"] == "tiktok")
+        settings = tiktok["platformSpecificData"]["tiktokSettings"]
+        assert settings["commercial_content_type"] == "none"
+        assert settings["is_brand_organic_post"] is False
+
+    @pytest.mark.asyncio
     async def test_the_top_level_tiktok_block_agrees_with_the_platform_one(
         self, mock_publisher
     ):
@@ -236,6 +261,10 @@ class TestPlatformFlags:
 
         call = mock_publisher.client.posts.create.call_args
         top = call.kwargs["tiktok_settings"]
+        sdk_platforms = call.kwargs.get("platforms", [])
+        tiktok = next(p for p in sdk_platforms if p["platform"] == "tiktok")
+        per_platform = tiktok["platformSpecificData"]["tiktokSettings"]
+        assert top["commercialContentType"] == per_platform["commercial_content_type"]
         assert top["commercialContentType"] == "none"
 
     @pytest.mark.asyncio

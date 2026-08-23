@@ -1552,6 +1552,12 @@ class GlobalPipelineOrchestrator:
                 api_key=api_key,
                 vercel_token=vercel_token,
                 first_comment_config=first_comment_config,
+                # The batch builds its own publisher rather than reusing the
+                # CLI's, so every setting has to be passed here too or the
+                # same config produces different payloads on the two paths.
+                synthetic_media_disclosure=bool(
+                    publisher_config.get("synthetic_media_disclosure", False)
+                ),
             )
 
             # Authenticate

@@ -624,3 +624,60 @@ class TestStaggerDelay:
 
         # No sleep for single video
         mock_sleep.assert_not_called()
+
+
+class TestBatchCarriesTheDisclosureDecision:
+    """The batch builds its own publish call rather than reusing the single
+    path, so the render's disclosure decision has to be passed here too.
+
+    A dropped kwarg is silent: `publish()` defaults it to True and a topic
+    render declares commercial content to TikTok again with nothing failing.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_topic_render_does_not_declare_commercial_content(
+        self, mock_publisher, outputs_dir
+    ):
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = False
+            mock_metadata.return_value = mock_meta
+
+            await batch.publish_batch()
+
+        assert mock_publisher.publish.call_args_list
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is False
+
+    @pytest.mark.asyncio
+    async def test_an_affiliate_render_still_discloses(
+        self, mock_publisher, outputs_dir
+    ):
+        batch = BatchPublisher(
+            publisher=mock_publisher,
+            outputs_dir=outputs_dir,
+            platforms=[Platform.YOUTUBE],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        )
+
+        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+            mock_meta = MagicMock()
+            mock_meta.format_content.return_value = "Body."
+            mock_meta.carries_affiliate_content = True
+            mock_metadata.return_value = mock_meta
+
+            await batch.publish_batch()
+
+        assert mock_publisher.publish.call_args_list
+        for call in mock_publisher.publish.call_args_list:
+            assert call.kwargs["carries_affiliate_content"] is True

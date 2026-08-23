@@ -335,6 +335,14 @@ link_in_bio:
 # This is separate from the `#ad` disclosure, which leads the caption on any
 # render carrying a material connection and is required for any affiliate
 # relationship regardless of program.
+affiliate_disclosure:
+  enabled: false
+  phrase: "As an Amazon Associate I earn from qualifying purchases"
+  program: "amazon"
+
+# ============================================================================
+# YOUTUBE SYNTHETIC-CONTENT DISCLOSURE
+# ============================================================================
 # YouTube's altered-or-synthetic-content disclosure, sent on every YouTube
 # payload as `containsSyntheticMedia`.
 #
@@ -349,8 +357,3 @@ link_in_bio:
 # place. Both are properties of what a music or stock provider returns, so
 # either can become true without any change to this project.
 synthetic_media_disclosure: false
-
-affiliate_disclosure:
-  enabled: false
-  phrase: "As an Amazon Associate I earn from qualifying purchases"
-  program: "amazon"
