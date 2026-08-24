@@ -21,6 +21,7 @@ Usage:
 """
 
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -336,6 +337,28 @@ Examples:
     return parser
 
 
+_ASIN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
+
+
+def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
+    """The product directories `--clean` would remove.
+
+    Shared with the dry-run plan so the preview cannot describe something
+    other than what the run does.
+    """
+    if not outputs_dir.exists():
+        return []
+    if product_ids:
+        return [
+            outputs_dir / pid for pid in product_ids if (outputs_dir / pid).is_dir()
+        ]
+    return sorted(
+        item
+        for item in outputs_dir.iterdir()
+        if item.is_dir() and _ASIN_DIR_PATTERN.match(item.name)
+    )
+
+
 class GlobalPipelineOrchestrator:
     """Orchestrates scraping, video production, and publishing phases sequentially.
 
@@ -621,6 +644,27 @@ class GlobalPipelineOrchestrator:
                     print("  Scheduling: Immediate publish")
 
         print()
+
+        # What --clean would remove. The plan exists to answer that before
+        # the directories are gone, and it is the one companion flag whose
+        # effect cannot be undone.
+        if self.config.clean:
+            print(f"{section}")
+            print("CLEAN")
+            print(f"{section}")
+            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
+            if targets:
+                print(
+                    f"  Would remove {len(targets)} product director"
+                    f"{'y' if len(targets) == 1 else 'ies'}:"
+                )
+                for target in targets[:10]:
+                    print(f"    - {target.name}")
+                if len(targets) > 10:
+                    print(f"    ... and {len(targets) - 10} more")
+            else:
+                print("  Nothing to remove")
+            print()
 
         # Common Options
         print(f"{section}")
@@ -2076,24 +2120,11 @@ async def main():
 
         # Handle clean mode
         if config.clean:
-            import re
             import shutil
 
-            asin_pattern = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
-            outputs = config.outputs_dir
-
-            if outputs.exists():
-                if config.product_ids:
-                    for pid in config.product_ids:
-                        prod_dir = outputs / pid
-                        if prod_dir.is_dir():
-                            shutil.rmtree(prod_dir)
-                            logger.info("Cleaned product directory: %s", prod_dir)
-                else:
-                    for item in outputs.iterdir():
-                        if item.is_dir() and asin_pattern.match(item.name):
-                            shutil.rmtree(item)
-                            logger.info("Cleaned product directory: %s", item)
+            for target in _clean_targets(config.outputs_dir, config.product_ids):
+                shutil.rmtree(target)
+                logger.info("Cleaned product directory: %s", target)
 
         # Handle resume mode
         state = None

@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.71.9] - 2026-08-24
 
 ### Fixed
-- `--dry-run` reports without deleting. The `--clean` block ran before the dry-run exit, so `--dry-run --clean` removed the product directories and then printed a plan for producing them; without `--product-ids` it swept the whole outputs directory.
+- `--dry-run` reports without deleting. The `--clean` block ran before the dry-run exit, so `--dry-run --clean` removed the product directories and then printed a plan for producing them; without `--product-ids` it removed every product directory under the outputs root rather than only the named ones.
+- `--dry-run` says what `--clean` would remove, naming the directories. It is the one companion flag whose effect cannot be undone, and the plan did not mention it at all.
 - `--dry-run` works for a fixed profile. The plan printer read `strategy` and `resolution`, neither of which `VideoProfile` declares, so the branch raised `AttributeError` and only the random-profile branch ever ran. It now prints the profile's description and the visual sources it draws from.
 
 ## [0.71.8] - 2026-08-24

@@ -99,24 +99,79 @@ class TestDryRunDeletesNothing:
             ],
         )
 
-        # `main` installs a root log handler over the captured streams and
-        # never removes it; left behind, it breaks any later test that logs.
-        import logging
+        # `main` opens outputs/logs/global_pipeline.log relative to the cwd,
+        # in write mode, and reads the developer's real `.env`. Neither is
+        # under test here, and the first destroys the log the project's own
+        # runbooks tell you to grep after a batch run.
+        monkeypatch.setattr(
+            "src.utils.logging_setup.setup_debug_logging", lambda **kwargs: None
+        )
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
-        saved = logging.root.handlers[:]
-        saved_level = logging.root.level
-        try:
-            with pytest.raises(SystemExit) as exit_info:
-                asyncio.run(global_batch.main())
-        finally:
-            for handler in logging.root.handlers[:]:
-                if handler not in saved:
-                    logging.root.removeHandler(handler)
-                    handler.close()
-            logging.root.handlers[:] = saved
-            logging.root.setLevel(saved_level)
+        with pytest.raises(SystemExit) as exit_info:
+            asyncio.run(global_batch.main())
 
         assert exit_info.value.code == 0
         assert product.exists(), "--dry-run --clean removed the product directory"
         assert (product / "data.json").exists()
         assert "PHASE 3: VIDEO PRODUCTION" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+class TestTheCleanPreviewMatchesTheClean:
+    """The preview and the deletion read one list, so they cannot diverge."""
+
+    @staticmethod
+    def _outputs(tmp_path):
+        outputs = tmp_path / "outputs"
+        for name in ("B0PRODUCT1", "B0PRODUCT2", "TESTASIN9", "cache", "logs"):
+            (outputs / name).mkdir(parents=True)
+        (outputs / "published_products.json").write_text("[]")
+        return outputs
+
+    def test_only_product_directories_are_named(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets
+
+        outputs = self._outputs(tmp_path)
+        names = {t.name for t in _clean_targets(outputs, [])}
+        assert names == {"B0PRODUCT1", "B0PRODUCT2", "TESTASIN9"}
+
+    def test_named_products_narrow_the_set(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets
+
+        outputs = self._outputs(tmp_path)
+        names = {t.name for t in _clean_targets(outputs, ["B0PRODUCT1"])}
+        assert names == {"B0PRODUCT1"}
+
+    def test_a_missing_outputs_root_removes_nothing(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets
+
+        assert _clean_targets(tmp_path / "absent", ["B0PRODUCT1"]) == []
+
+    def test_the_plan_lists_what_would_go(self, tmp_path, capsys):
+        from unittest.mock import MagicMock
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        outputs = self._outputs(tmp_path)
+        config = MagicMock()
+        config.profile = None
+        config.random_profile = False
+        config.profile_pool = None
+        config.clean = True
+        config.outputs_dir = outputs
+        config.product_ids = []
+        config.keywords = ["a keyword"]
+        config.skip_publish = True
+
+        orchestrator = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        orchestrator.config = config
+        orchestrator.display_execution_plan(MagicMock(video_profiles={}))
+
+        printed = capsys.readouterr().out
+        assert "Would remove 3 product directories" in printed
+        assert "B0PRODUCT1" in printed
+        # The directories that survive a clean must not be advertised as
+        # going away.
+        assert "cache" not in printed
+        assert "published_products.json" not in printed
