@@ -11,7 +11,6 @@ from src.video.pipeline_graph import (
     PipelineStep,
     StepResult,
     StepStatus,
-    create_video_pipeline_graph,
 )
 
 
@@ -323,66 +322,87 @@ class TestPipelineGraph:
 
 
 class TestVideoProductionGraph:
-    """Test cases for video production pipeline graph."""
+    """The graph the producer actually builds, on a scraped-product profile.
 
-    def test_create_video_pipeline_graph(self):
-        """Test creation of video production pipeline graph."""
-        graph = create_video_pipeline_graph()
+    Built from `step_dependencies`, which is the one place the edges are
+    declared. A second declaration here would pass while the real pipeline
+    ran something else.
+    """
 
-        # Verify all steps are present
-        expected_steps = {
+    @staticmethod
+    def _graph():
+        from types import SimpleNamespace
+
+        from src.video.producer.orchestration import step_dependencies, step_runners
+        from src.video.producer.state import resolved_step_order
+
+        profile = SimpleNamespace(
+            use_scraped_images=True,
+            use_scraped_videos=True,
+            use_stock_images=False,
+            use_stock_videos=False,
+        )
+        graph = PipelineGraph()
+        dependencies = step_dependencies(profile)
+        runners = step_runners()
+        for name in resolved_step_order(profile):
+            graph.add_step(name, runners[name], dependencies[name])
+        return graph
+
+    def test_graph_holds_every_step(self):
+        graph = self._graph()
+        assert set(graph.steps.keys()) == {
             "gather_visuals",
             "generate_script",
+            "generate_description",
             "create_voiceover",
             "generate_subtitles",
             "download_music",
             "assemble_video",
-        }
-        assert set(graph.steps.keys()) == expected_steps
-
-        # Verify dependencies are correct
-        assert graph.steps["gather_visuals"].dependencies == set()
-        assert graph.steps["generate_script"].dependencies == {"gather_visuals"}
-        assert graph.steps["create_voiceover"].dependencies == {"generate_script"}
-        assert graph.steps["generate_subtitles"].dependencies == {"create_voiceover"}
-        assert graph.steps["download_music"].dependencies == {"create_voiceover"}
-        assert graph.steps["assemble_video"].dependencies == {
-            "gather_visuals",
-            "generate_script",
-            "create_voiceover",
-            "generate_subtitles",
-            "download_music",
+            "burn_pycaps_subtitles",
         }
 
-    def test_video_pipeline_execution_order(self):
-        """Test execution order for video production pipeline."""
-        graph = create_video_pipeline_graph()
-        order = graph.compute_execution_order()
+    def test_execution_order(self):
+        order = self._graph().compute_execution_order()
 
-        # Should have 4 levels:
-        # 1. gather_visuals
-        # 2. generate_script
-        # 3. create_voiceover
-        # 4. (generate_subtitles, download_music) - parallel
-        # 5. assemble_video
-        assert len(order) == 5
+        # The description and the voiceover both read only the script, so
+        # they share a level; so do the subtitles and the music.
         assert order[0] == ["gather_visuals"]
         assert order[1] == ["generate_script"]
-        assert order[2] == ["create_voiceover"]
+        assert set(order[2]) == {"generate_description", "create_voiceover"}
         assert set(order[3]) == {"generate_subtitles", "download_music"}
         assert order[4] == ["assemble_video"]
+        assert order[5] == ["burn_pycaps_subtitles"]
+        assert len(order) == 6
 
-    def test_video_pipeline_parallelization_potential(self):
-        """Test parallelization potential for video production pipeline."""
-        graph = create_video_pipeline_graph()
-        summary = graph.get_parallelization_summary()
+    def test_parallelization_potential(self):
+        summary = self._graph().get_parallelization_summary()
 
-        # Should show potential for 2 steps to run in parallel
-        assert summary["total_steps"] == 6
-        assert summary["sequential_levels"] == 5
+        assert summary["total_steps"] == 8
+        assert summary["sequential_levels"] == 6
         assert summary["max_parallel_steps"] == 2
-        # Theoretical speedup: 6 total steps / 5 sequential levels = 1.2x
-        assert abs(summary["theoretical_speedup"] - 1.2) < 0.01
+
+    def test_stock_profile_reverses_the_first_two_levels(self):
+        from types import SimpleNamespace
+
+        from src.video.producer.orchestration import step_dependencies, step_runners
+        from src.video.producer.state import resolved_step_order
+
+        profile = SimpleNamespace(
+            use_scraped_images=False,
+            use_scraped_videos=False,
+            use_stock_images=True,
+            use_stock_videos=False,
+        )
+        graph = PipelineGraph()
+        dependencies = step_dependencies(profile)
+        runners = step_runners()
+        for name in resolved_step_order(profile):
+            graph.add_step(name, runners[name], dependencies[name])
+
+        order = graph.compute_execution_order()
+        assert order[0] == ["generate_script"]
+        assert order[1] == ["gather_visuals"]
 
 
 @pytest.mark.asyncio

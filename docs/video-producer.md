@@ -370,11 +370,18 @@ Steps 1 and 2 are swapped on a profile that draws no scraped media, so on
 real order, so on that profile `--step gather_visuals` requires a completed
 `generate_script` rather than the other way round.
 
-`--step` requires only the steps the chosen one actually reads, not everything
+`--step` requires the chosen step's declared dependencies, not everything
 listed above it. `--step create_voiceover` needs the script, and runs whether
 or not `generate_description` has: the description feeds it nothing. Use this
-to iterate on one part of a render — a voice profile, the music, the caption
-styling — without re-running what comes before it.
+to iterate on one part of a render — a voice profile, the music — without
+re-running what comes before it.
+
+Two caveats. On a stock-only profile the paid steps also depend on
+`gather_visuals`, deliberately: the footage is what decides whether the render
+is viable at all, so a doomed one is rejected before an LLM call and a
+voiceover are paid for. And `burn_pycaps_subtitles` replaces the assembled
+video with the burned one, so it will not burn a second time over its own
+output — re-run `--step assemble_video` first to iterate on caption styling.
 
 ### Running Single Steps
 

@@ -131,3 +131,95 @@ class TestTransitivePrereqs:
     def test_a_root_step_requires_nothing(self):
         deps = step_dependencies(_profile(stock_only=True))
         assert transitive_prereqs(deps, STEP_GENERATE_SCRIPT) == set()
+
+
+class TestBurnMarker:
+    """The burn replaces the assembled video, so it must not run twice."""
+
+    def test_no_marker_means_not_burned(self, tmp_path):
+        from src.video.producer.steps import _already_burned
+
+        video = tmp_path / "video.mp4"
+        video.write_bytes(b"assembled")
+        assert not _already_burned(tmp_path / "absent.json", video)
+
+    def test_a_missing_marker_path_is_tolerated(self, tmp_path):
+        from src.video.producer.steps import _already_burned
+
+        video = tmp_path / "video.mp4"
+        video.write_bytes(b"assembled")
+        assert not _already_burned(None, video)
+
+    def test_recorded_burn_is_recognised(self, tmp_path):
+        from src.video.producer.steps import _already_burned, _record_burn
+
+        video = tmp_path / "video.mp4"
+        video.write_bytes(b"burned")
+        marker = tmp_path / "temp" / "pycaps_burned.json"
+        _record_burn(marker, video)
+        # A second burn would draw new captions over the old ones.
+        assert _already_burned(marker, video)
+
+    def test_a_reassembled_video_burns_again(self, tmp_path):
+        from src.video.producer.steps import _already_burned, _record_burn
+
+        video = tmp_path / "video.mp4"
+        video.write_bytes(b"burned")
+        marker = tmp_path / "temp" / "pycaps_burned.json"
+        _record_burn(marker, video)
+        # assemble_video re-rendered: the captions are gone and must return.
+        video.write_bytes(b"reassembled, a different size")
+        assert not _already_burned(marker, video)
+
+    def test_a_corrupt_marker_burns_rather_than_skips(self, tmp_path):
+        from src.video.producer.steps import _already_burned
+
+        video = tmp_path / "video.mp4"
+        video.write_bytes(b"assembled")
+        marker = tmp_path / "pycaps_burned.json"
+        marker.write_text("{not json")
+        # Shipping an uncaptioned video is worse than burning twice.
+        assert not _already_burned(marker, video)
+
+
+class TestDescriptionArtifactRecording:
+    """A recorded artifact that was never written invalidates the state."""
+
+    @staticmethod
+    async def _artifacts(tmp_path, *, write_description: bool):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import (
+            STEP_GENERATE_DESCRIPTION,
+            _update_state_after_step,
+        )
+
+        text_dir = tmp_path / "temp"
+        text_dir.mkdir()
+        description_file = text_dir / "description.txt"
+        if write_description:
+            description_file.write_text("a description")
+        (tmp_path / "metadata.json").write_text("{}")
+
+        ctx = MagicMock()
+        ctx.state = {}
+        ctx.run_paths = {
+            "description_file": description_file,
+            "run_root": tmp_path,
+        }
+        await _update_state_after_step(ctx, STEP_GENERATE_DESCRIPTION)
+        return ctx.state[STEP_GENERATE_DESCRIPTION]["artifacts"]
+
+    @pytest.mark.asyncio
+    async def test_absent_description_is_not_recorded(self, tmp_path):
+        # The configured path writes platform metadata instead. Recording
+        # description.txt anyway failed verification on the next run, which
+        # dropped this step and every step after it.
+        artifacts = await self._artifacts(tmp_path, write_description=False)
+        assert "description_file" not in artifacts
+        assert "unified_metadata_file" in artifacts
+
+    @pytest.mark.asyncio
+    async def test_written_description_is_recorded(self, tmp_path):
+        artifacts = await self._artifacts(tmp_path, write_description=True)
+        assert "description_file" in artifacts

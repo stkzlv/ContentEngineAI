@@ -186,6 +186,7 @@ def get_video_run_paths(
             # Pycaps engine artifacts
             "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
             "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",
+            "pycaps_burn_marker_file": paths["working_dir"] / "pycaps_burned.json",
         }
     )
 
@@ -354,7 +355,15 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     elif step_name == STEP_GENERATE_SCRIPT:
         artifacts["script_file"] = ctx.run_paths["script_file"]
     elif step_name == STEP_GENERATE_DESCRIPTION:
-        artifacts["description_file"] = ctx.run_paths["description_file"]
+        # Only when it exists. The step writes `description.txt` on the plain
+        # path but platform metadata on the configured one, and recording an
+        # absent file fails state verification on the next run: the step is
+        # dropped, and with it everything after it, so a resume re-ran the
+        # description, the voiceover, the subtitles, the music, the assembly
+        # and the burn on a render that had already finished all six.
+        description_file = ctx.run_paths["description_file"]
+        if description_file.exists():
+            artifacts["description_file"] = description_file
         # `_check_existing_metadata` short-circuits on these, not on
         # `description_file`, so they have to be recorded or a dropped step
         # keeps returning captions written for a script that no longer exists.

@@ -185,14 +185,20 @@ async def my_new_step(context: PipelineContext) -> PipelineContext:
     return context
 ```
 
-2. **Update Pipeline Graph:**
+2. **Wire it into the pipeline:**
 ```python
-# In src/video/pipeline_graph.py
-PIPELINE_DEPENDENCIES = {
-    'my_new_step': ['previous_step'],  # Define dependencies
-    'next_step': ['my_new_step'],      # Steps that depend on this
-}
+# In src/video/producer/orchestration.py -- both maps, and nothing else.
+def step_runners() -> dict[str, Any]:
+    return {..., "my_new_step": step_my_new_step}
+
+def step_dependencies(profile: VideoProfile) -> dict[str, set[str]]:
+    return {..., "my_new_step": {"previous_step"}}
 ```
+Add the name to `VALID_STEPS` in `src/video/producer/state.py` as well; the
+tests fail if the runner table and that list disagree. A step that
+short-circuits on an existing file must also record that file as an artifact
+and add its key to the rerun-blocking set, or a resume will skip it after its
+inputs have changed.
 
 3. **Add Configuration:**
 ```python
