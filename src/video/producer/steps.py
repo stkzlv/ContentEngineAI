@@ -1539,6 +1539,46 @@ def _handle_pycaps_burn_failure(
     raise PipelineError(msg)
 
 
+def _video_fingerprint(path: Path) -> str:
+    """Identity of a rendered file, cheap enough to check on every entry."""
+    stat = path.stat()
+    return f"{stat.st_size}:{stat.st_mtime_ns}"
+
+
+def _already_burned(marker_path: Path | None, final_video_path: Path) -> bool:
+    """Whether the final video is one this step already produced.
+
+    Burning is destructive: the burned file replaces the assembler's output,
+    so burning a second time draws new captions over the old ones. Both
+    ``--step burn_pycaps_subtitles`` and a resume re-enter the step with the
+    burned video already in place, and neither can tell it apart from a fresh
+    assembly. The marker records what the burn produced; a later assembly
+    changes the fingerprint, so a genuine re-render still burns.
+    """
+    if marker_path is None or not marker_path.exists():
+        return False
+    try:
+        recorded = json.loads(marker_path.read_text()).get("fingerprint")
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(recorded) and recorded == _video_fingerprint(final_video_path)
+
+
+def _record_burn(marker_path: Path | None, final_video_path: Path) -> None:
+    """Note that ``final_video_path`` now holds burned captions."""
+    if marker_path is None:
+        return
+    try:
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text(
+            json.dumps({"fingerprint": _video_fingerprint(final_video_path)})
+        )
+    except OSError as e:
+        # Losing the marker costs a redundant burn on the next entry, not
+        # the render: never fail a finished video over it.
+        logger.warning("Could not record the pycaps burn marker: %s", e)
+
+
 async def step_burn_pycaps_subtitles(ctx: PipelineContext):
     """Burn pycaps animated captions onto the assembled video.
 
@@ -1602,6 +1642,15 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"burn pycaps captions."
             )
             return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
+
+        burn_marker = ctx.run_paths.get("pycaps_burn_marker_file")
+        if _already_burned(burn_marker, final_video_path):
+            logger.info(
+                "Skipping burn_pycaps_subtitles: %s already carries pycaps "
+                "captions. Re-run assemble_video first to burn again.",
+                final_video_path.name,
+            )
+            return
 
         # Reuse the two-part helper's visual bounds calculation even though
         # two-part is disabled in pycaps mode. The helper is standalone.
@@ -1683,6 +1732,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
         # Path.replace is atomic on POSIX when source and dest are on the
         # same filesystem.
         burned_output.replace(final_video_path)
+        _record_burn(burn_marker, final_video_path)
         ai_call_count = gemini_adapter.call_count if gemini_adapter is not None else 0
         logger.info(
             "Replaced %s with pycaps-burned video "

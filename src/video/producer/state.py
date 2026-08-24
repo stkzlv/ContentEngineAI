@@ -186,6 +186,7 @@ def get_video_run_paths(
             # Pycaps engine artifacts
             "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
             "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",
+            "pycaps_burn_marker_file": paths["working_dir"] / "pycaps_burned.json",
         }
     )
 
@@ -294,6 +295,26 @@ def _discard_stale_artifacts(
                 logger.warning("Could not remove stale artifact %s: %s", path, e)
 
 
+def _artifact_invalid_reason(
+    ctx: PipelineContext, key: str, path_str: str
+) -> str | None:
+    """Why a recorded artifact cannot be reused, or None when it can.
+
+    Two ways it fails. The file may be gone. Or it may belong to a different
+    run: ``pipeline_state.json`` is product-level while several artifacts are
+    profile-level, so rendering the same product under a second profile finds
+    the first profile's video recorded, present, and completely wrong. Left
+    unchecked the whole pipeline is skipped and the run reports success with
+    a video path nothing wrote.
+    """
+    if not Path(path_str).exists():
+        return f"not found at '{path_str}'"
+    expected = ctx.run_paths.get(key)
+    if isinstance(expected, Path) and Path(path_str) != expected:
+        return f"belongs to another run ('{path_str}', this run uses '{expected}')"
+    return None
+
+
 async def _load_pipeline_state(ctx: PipelineContext) -> bool:
     """Loads and verifies an existing pipeline state file."""
     state_file = ctx.run_paths["state_file"]
@@ -314,11 +335,11 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                 continue
             if data.get("status") == "done":
                 for key, path_str in data.get("artifacts", {}).items():
-                    if not Path(path_str).exists():
+                    reason = _artifact_invalid_reason(ctx, key, path_str)
+                    if reason is not None:
                         logger.warning(
-                            f"State is invalid. Artifact '{key}' for step '{step}' "
-                            f"not found at '{path_str}'. "
-                            f"Restarting from step '{step}'."
+                            f"State is invalid. Artifact '{key}' for step "
+                            f"'{step}' {reason}. Restarting from step '{step}'."
                         )
                         # Truncate state up to the failed step. Ordered by
                         # this profile's real order: on a script-first render
@@ -346,15 +367,72 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
         return False
 
 
+def _is_done(entry: Any) -> bool:
+    """Whether a state entry records a completed step."""
+    return isinstance(entry, dict) and entry.get("status") == "done"
+
+
+def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
+    """Forget the recorded steps that read what ``step_name`` just rewrote.
+
+    Running a step on its own does not invalidate what comes after it, so
+    ``--step assemble_video`` left ``burn_pycaps_subtitles`` marked done over
+    a video whose captions had just been re-rendered away; the next full run
+    skipped the burn and shipped the uncaptioned video as a success.
+
+    Imported here rather than at module scope: ``orchestration`` imports this
+    module, so the dependency map can only be reached lazily.
+    """
+    from src.video.producer.orchestration import data_dependencies, transitive_prereqs
+
+    dependencies = data_dependencies(ctx.profile)
+    # Only steps recorded as done. A step may pre-create its own entry while
+    # it runs (`generate_subtitles` records the engine it resolved), and one
+    # that has not finished has nothing stale to drop -- deleting it would
+    # discard what the current run just wrote.
+    stale = [
+        name
+        for name in dependencies
+        if name != step_name
+        and _is_done(ctx.state.get(name))
+        and step_name in transitive_prereqs(dependencies, name)
+    ]
+    if not stale:
+        return
+    # Dropping the state is not enough: `generate_description` and
+    # `create_voiceover` short-circuit on their own output files, so a state-
+    # only drop lets them return the superseded script's caption and audio
+    # while the run reports every step complete.
+    kept = [name for name in ctx.state if name not in stale]
+    _discard_stale_artifacts(ctx.state, kept)
+    for name in stale:
+        del ctx.state[name]
+    logger.info(
+        "Step '%s' ran again; dropping the steps that read its output: %s",
+        step_name,
+        ", ".join(sorted(stale)),
+    )
+
+
 async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     """Updates the state dictionary with the artifacts of a completed step."""
+    _drop_dependents(ctx, step_name)
     artifacts = {}
     if step_name == STEP_GATHER_VISUALS:
         artifacts["gathered_visuals_file"] = ctx.run_paths["gathered_visuals_file"]
     elif step_name == STEP_GENERATE_SCRIPT:
         artifacts["script_file"] = ctx.run_paths["script_file"]
     elif step_name == STEP_GENERATE_DESCRIPTION:
-        artifacts["description_file"] = ctx.run_paths["description_file"]
+        # Only when it exists, which today is never: the step writes
+        # `metadata.json` unified or `metadata_<platform>.json` per platform,
+        # and nothing writes `description.txt`. Recording an absent file fails
+        # state verification on the next run: the step is dropped, and with it
+        # everything after it, so a resume re-ran the description, the
+        # voiceover, the subtitles, the music, the assembly and the burn on a
+        # render that had already finished all six.
+        description_file = ctx.run_paths["description_file"]
+        if description_file.exists():
+            artifacts["description_file"] = description_file
         # `_check_existing_metadata` short-circuits on these, not on
         # `description_file`, so they have to be recorded or a dropped step
         # keeps returning captions written for a script that no longer exists.
@@ -377,7 +455,12 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         if transcript_file is not None and transcript_file.exists():
             artifacts["whisper_transcript_file"] = transcript_file
     elif step_name == STEP_DOWNLOAD_MUSIC:
-        artifacts["music_info_file"] = ctx.run_paths["music_info_file"]
+        # Only when it exists: the step completes without writing it when no
+        # provider returns a track, and recording an absent file invalidates
+        # the state on every later run.
+        music_info_file = ctx.run_paths["music_info_file"]
+        if music_info_file.exists():
+            artifacts["music_info_file"] = music_info_file
     elif step_name == STEP_ASSEMBLE_VIDEO:
         artifacts["final_video_output"] = ctx.run_paths["final_video_output"]
     elif step_name == STEP_BURN_PYCAPS_SUBTITLES:

@@ -244,8 +244,8 @@ src/
 
 **Technical Implementation:**
 ```python
-# Dependency Graph Definition, as built by
-# src/video/producer/orchestration.py::execute_pipeline_parallel.
+# Dependency Graph Definition, as declared by
+# src/video/producer/orchestration.py::step_dependencies.
 # The first two edges depend on the profile: a profile that draws no visual
 # from the scraped product writes the script first, so its stock search can
 # use terms taken from the narration.

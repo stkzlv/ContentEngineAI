@@ -361,12 +361,32 @@ The producer runs through these steps in order:
 5. **generate_subtitles** - Create synchronized subtitles
 6. **download_music** - Fetch background music (Freesound)
 7. **assemble_video** - Combine all elements into final video
+8. **burn_pycaps_subtitles** - Burn animated captions onto the assembled
+   video, when the resolved subtitle engine is pycaps
 
 Steps 1 and 2 are swapped on a profile that draws no scraped media, so on
 `slideshow_stock` the script is written before the footage is chosen. See
 "Stock-only profiles run script-first" earlier. `--step` follows the profile's
 real order, so on that profile `--step gather_visuals` requires a completed
 `generate_script` rather than the other way round.
+
+`--step` requires the chosen step's declared dependencies, not everything
+listed above it. `--step create_voiceover` needs the script, and runs whether
+or not `generate_description` has: the description feeds it nothing. Use this
+to iterate on one part of a render — a voice profile, the music — without
+re-running what comes before it.
+
+Re-running one step also forgets every recorded step that reads its output,
+and deletes the files those steps would otherwise short-circuit on — the
+voiceover, the platform metadata. That is what makes the next
+full run redo them against the new input rather than pair fresh narration
+with stale captions, but it does mean `--step generate_script` discards the
+voiceover you already have.
+
+One caveat: `burn_pycaps_subtitles` replaces the assembled video with the
+burned one, so it will not burn a second time over its own output. Re-run
+`--step assemble_video` first to iterate on caption styling, which also drops
+the recorded burn so the next run redoes it.
 
 ### Running Single Steps
 
