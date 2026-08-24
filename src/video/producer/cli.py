@@ -78,6 +78,20 @@ class BatchSummary:
     profile_distribution: dict[str, int] = field(default_factory=dict)
     results: list[ProductResult] = field(default_factory=list)
 
+    def exit_code(self, strict: bool = False) -> int:
+        """Process exit code for the run.
+
+        Mirrors ``PipelineSummary.exit_code``: nothing produced is a
+        failure, a partial loss is not unless the caller asked. ``strict``
+        counts a skipped product too — reported apart from a failure
+        because the cause differs, but the same thing for an exit code.
+        """
+        if self.succeeded_count == 0:
+            return 1
+        if strict and (self.failed_count or self.skipped_count):
+            return 1
+        return 0
+
     def to_json(self) -> str:
         """Convert summary to JSON string."""
         return json.dumps(asdict(self), indent=2)
@@ -421,8 +435,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--strict",
         action="store_true",
         help=(
-            "Exit non-zero when any product failed, not only when none "
-            "succeeded (default: a partial failure exits 0)."
+            "Exit non-zero when any product was lost, to a failure or a "
+            "skip, not only when none succeeded (default: a partial loss "
+            "exits 0)."
         ),
     )
     parser.add_argument(
@@ -1225,12 +1240,8 @@ async def main():
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
     # Non-zero exit when nothing was produced, so CI, cron, and wrappers
-    # checking $? see the failure. Same contract as the batch and the
-    # scraper: nothing produced is a failure, a partial failure is not
-    # unless the caller asked for it.
-    exit_code = 0 if batch_summary.succeeded_count > 0 else 1
-    if not exit_code and args.strict and batch_summary.failed_count:
-        exit_code = 1
+    # checking $? see the failure.
+    exit_code = batch_summary.exit_code(strict=args.strict)
 
     # Keyed on what happened, not on the exit code: under --strict a partial
     # failure also exits non-zero, and calling that "no videos produced"

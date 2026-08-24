@@ -243,8 +243,9 @@ Examples:
         "--strict",
         action="store_true",
         help=(
-            "Exit non-zero when any product failed, not only when none "
-            "succeeded (default: a partial failure exits 0)"
+            "Exit non-zero when any product was lost, to a failure or a "
+            "skip, not only when none succeeded (default: a partial loss "
+            "exits 0)"
         ),
     )
     common_group.add_argument(
