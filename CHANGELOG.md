@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.7] - 2026-08-24
+
+### Fixed
+- A product scraped by `--product-ids` gets the same record as one scraped by keyword. That arm never wrote through the record's serialiser, so its `data.json` was the raw extractor dict the browser callback wrote mid-scrape: ten of the canonical keys absent, `rating` and `shortened_affiliate_link` among them, and `downloaded_images` empty because the callback fires before the media downloads run.
+
 ## [0.71.6] - 2026-08-24
 
 ### Fixed

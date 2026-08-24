@@ -147,6 +147,15 @@ class BatchController:
 
                 if products and len(products) > 0:
                     product_data = products[0]
+                    # Write through the record's own serialiser, as the
+                    # keyword arm does. Without this the file is whatever the
+                    # browser callback wrote mid-scrape: a raw extractor dict
+                    # that predates the media downloads and omits ten of the
+                    # canonical keys, so the same product scraped by ASIN and
+                    # by keyword produced different records.
+                    self.scraper._save_products(
+                        [p for p in products if isinstance(p, ProductData)]
+                    )
                     self.logger.info(
                         "[%d/%d] Successfully scraped: %s",
                         i,

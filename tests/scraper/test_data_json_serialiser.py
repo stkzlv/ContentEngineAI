@@ -170,3 +170,77 @@ class TestPillarValueReachesTheFile:
         written = _product().to_dict()
         assert "pillar" in written
         assert written["pillar"] is None
+
+
+@pytest.mark.unit
+class TestBothStandaloneArmsWriteTheSameKeys:
+    """A product scraped by ASIN and by keyword must produce one shape.
+
+    The `--product-ids` arm never called `_save_products`, so its file was
+    whatever the Botasaurus output callback wrote mid-scrape: the raw
+    extractor dict, missing ten of the canonical keys and carrying an empty
+    `downloaded_images` because the callback fires before the media
+    downloads run. Nothing downstream knows to expect two shapes.
+    """
+
+    @staticmethod
+    def _run(tmp_path, *, by_keyword: bool):
+        from unittest.mock import MagicMock, patch
+
+        from src.scraper.amazon.batch_controller import BatchController
+        from src.scraper.amazon.models import (
+            BatchConfig,
+            ProductData,
+            SearchParameters,
+        )
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.config = {"batch": {"keywords": {"value": ["smart plug"]}}}
+        scraper._keyword_pillars = None
+        scraper.output_dir = str(tmp_path)
+        scraper.debug_mode = False
+        scraper.logger = MagicMock()
+
+        product = ProductData(
+            title="A product",
+            price="$10",
+            url="https://www.amazon.com/dp/B0TEST0002",
+            platform=None,
+            asin="B0TEST0002",
+        )
+        config = BatchConfig(
+            product_ids=[] if by_keyword else ["B0TEST0002"],
+            keywords=["smart plug"] if by_keyword else [],
+            fail_fast=False,
+            search_params=SearchParameters(),
+            max_products=1,
+            products_per_keyword=1,
+        )
+        controller = BatchController(scraper, config)
+
+        with (
+            patch.object(scraper, "scrape_products_unified", return_value=[product]),
+            patch.object(scraper, "_shorten_affiliate_links"),
+        ):
+            if by_keyword:
+                controller._process_keywords()
+            else:
+                controller._process_product_ids()
+
+        written = tmp_path / "B0TEST0002" / "data.json"
+        assert written.exists(), "the arm wrote no data.json"
+        return set(json.loads(written.read_text())[0])
+
+    def test_the_two_arms_agree(self, tmp_path):
+        by_id = self._run(tmp_path / "ids", by_keyword=False)
+        by_keyword = self._run(tmp_path / "kw", by_keyword=True)
+        assert by_id == by_keyword
+
+    def test_the_product_ids_arm_writes_every_declared_field(self, tmp_path):
+        from dataclasses import fields
+
+        from src.scraper.amazon.models import ProductData
+
+        written = self._run(tmp_path, by_keyword=False)
+        assert {f.name for f in fields(ProductData)} <= written
