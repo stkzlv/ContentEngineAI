@@ -548,8 +548,18 @@ class GlobalPipelineOrchestrator:
             # Show profile details if available
             if self.config.profile in video_config.video_profiles:
                 profile = video_config.video_profiles[self.config.profile]
-                print(f"    - Strategy: {profile.strategy}")
-                print(f"    - Resolution: {profile.resolution}")
+                if profile.description:
+                    print(f"    - {profile.description}")
+                sources = []
+                if profile.use_scraped_images:
+                    sources.append("scraped images")
+                if profile.use_scraped_videos:
+                    sources.append("scraped videos")
+                if profile.use_stock_images:
+                    sources.append(f"{profile.stock_image_count} stock images")
+                if profile.use_stock_videos:
+                    sources.append(f"{profile.stock_video_count} stock videos")
+                print(f"    - Visuals: {', '.join(sources) or 'none configured'}")
         elif self.config.random_profile:
             from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
 
@@ -2053,6 +2063,17 @@ async def main():
         logger.info(f"Resume mode: {config.resume}")
         logger.info(f"Dry-run mode: {config.dry_run}")
 
+        # Dry-run first: it reports what a run would do, so nothing
+        # destructive may precede it. `--clean` used to, which meant
+        # `--dry-run --clean` removed the product directories and then
+        # printed a plan for producing them.
+        # Handle dry-run mode
+        if config.dry_run:
+            orchestrator = GlobalPipelineOrchestrator(config, video_config=video_config)
+            orchestrator.display_execution_plan(video_config)
+            logger.info("Dry-run completed - exiting without execution")
+            sys.exit(0)
+
         # Handle clean mode
         if config.clean:
             import re
@@ -2073,13 +2094,6 @@ async def main():
                         if item.is_dir() and asin_pattern.match(item.name):
                             shutil.rmtree(item)
                             logger.info("Cleaned product directory: %s", item)
-
-        # Handle dry-run mode
-        if config.dry_run:
-            orchestrator = GlobalPipelineOrchestrator(config, video_config=video_config)
-            orchestrator.display_execution_plan(video_config)
-            logger.info("Dry-run completed - exiting without execution")
-            sys.exit(0)
 
         # Handle resume mode
         state = None
