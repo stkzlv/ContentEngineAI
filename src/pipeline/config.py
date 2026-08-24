@@ -494,21 +494,52 @@ class PipelineSummary:
     total_failures: int
     total_duration_sec: float
 
+    def total_skipped(self) -> int:
+        """Products that did not get through without a step having broken.
+
+        Counted apart from failures everywhere else, because a skip names a
+        different cause. For the exit code they are the same thing: a video
+        that was asked for and does not exist.
+        """
+        skipped = self.production.skipped
+        if self.publishing is not None:
+            skipped += self.publishing.skipped
+        return skipped
+
+    def outcome(self) -> str:
+        """What the run did: ``"failed"``, ``"lost"`` or ``"succeeded"``.
+
+        Derived here so the end-of-run verdict and the exit code cannot
+        disagree. They were computed separately once, and a run that lost
+        products only to skips exited non-zero while logging that it had
+        completed successfully.
+        """
+        if self.end_to_end_success == 0:
+            return "failed"
+        if self.total_failures > 0 or self.total_skipped() > 0:
+            return "lost"
+        return "succeeded"
+
     def exit_code(self, strict: bool = False) -> int:
         """Process exit code for the run.
 
         By default 0 if any product completed end-to-end, else 1, so CI,
         cron, and wrappers checking ``$?`` see a run that produced nothing
-        as a failure. A partial failure still exits 0: a batch that loses
-        one product of twenty has done most of what was asked, and failing
-        the whole run for it would stop a schedule over a single bad ASIN.
+        as a failure. A partial loss still exits 0: a batch that loses one
+        product of twenty has done most of what was asked, and failing the
+        whole run for it would stop a schedule over a single bad ASIN.
 
-        ``strict`` makes any failure non-zero, for a caller that would
-        rather investigate than lose a product silently.
+        ``strict`` makes any lost product non-zero, whether it was lost to
+        a failure or to a skip. A profile misconfigured so that every
+        product is rejected for insufficient media loses the whole run
+        while reporting no failures at all, which is precisely the silence
+        the flag exists to break.
         """
         if self.end_to_end_success == 0:
             return 1
-        return 1 if strict and self.total_failures > 0 else 0
+        if strict and self.outcome() == "lost":
+            return 1
+        return 0
 
     def format(self) -> str:
         """Format pipeline summary as human-readable string.

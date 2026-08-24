@@ -195,3 +195,86 @@ class TestTheCleanPreviewMatchesTheClean:
         # going away.
         assert "cache" not in printed
         assert "published_products.json" not in printed
+
+
+@pytest.mark.unit
+class TestTheBatchVerdictMatchesItsExitCode:
+    """Driven through `main`, because the verdict is emitted there.
+
+    Asserting `PipelineSummary.outcome()` alone leaves the branch that reads
+    it unguarded: the contradiction this exists to prevent — exiting
+    non-zero while logging success — lived in `main`, not in the summary.
+    """
+
+    @staticmethod
+    def _run(tmp_path, monkeypatch, caplog, *, strict: bool, skipped: int):
+        import asyncio
+        import logging
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.pipeline import global_batch
+        from src.pipeline.config import PipelineSummary
+
+        summary = PipelineSummary(
+            scraping=MagicMock(),
+            production=MagicMock(skipped=skipped),
+            publishing=None,
+            end_to_end_success=19,
+            partial_success=0,
+            total_failures=0,
+            total_duration_sec=1.0,
+        )
+
+        argv = [
+            "global_batch",
+            "--keywords",
+            "a keyword",
+            "--profile",
+            "slideshow_images1",
+            "--outputs-dir",
+            str(tmp_path / "outputs"),
+            "--skip-publish",
+        ]
+        if strict:
+            argv.append("--strict")
+        monkeypatch.setattr(sys, "argv", argv)
+        monkeypatch.setattr(
+            "src.utils.logging_setup.setup_debug_logging", lambda **kwargs: None
+        )
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
+
+        orchestrator = MagicMock()
+        orchestrator.run_pipeline = AsyncMock(return_value=summary)
+
+        with (
+            patch.object(
+                global_batch, "GlobalPipelineOrchestrator", return_value=orchestrator
+            ),
+            patch.object(global_batch, "load_pipeline_state", return_value=None),
+            caplog.at_level(logging.INFO),
+            pytest.raises(SystemExit) as exit_info,
+        ):
+            asyncio.run(global_batch.main())
+        return exit_info.value.code, caplog.text
+
+    def test_a_skip_only_loss_is_not_reported_as_success(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        code, text = self._run(tmp_path, monkeypatch, caplog, strict=True, skipped=1)
+        assert code == 1
+        assert "PIPELINE COMPLETED WITH LOSSES" in text
+        assert "PIPELINE COMPLETED SUCCESSFULLY" not in text
+
+    def test_the_same_run_exits_zero_without_the_flag(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        code, text = self._run(tmp_path, monkeypatch, caplog, strict=False, skipped=1)
+        assert code == 0
+        # The verdict does not depend on the flag; only the code does.
+        assert "PIPELINE COMPLETED WITH LOSSES" in text
+
+    def test_a_clean_run_reports_success(self, tmp_path, monkeypatch, caplog):
+        code, text = self._run(tmp_path, monkeypatch, caplog, strict=True, skipped=0)
+        assert code == 0
+        assert "PIPELINE COMPLETED SUCCESSFULLY" in text

@@ -11,13 +11,15 @@ import pytest
 from src.pipeline.config import PipelineSummary
 
 
-def _summary(*, succeeded: int, failed: int) -> PipelineSummary:
+def _summary(
+    *, succeeded: int, failed: int, skipped: int = 0, publish_skipped: int = 0
+) -> PipelineSummary:
     from unittest.mock import MagicMock
 
     return PipelineSummary(
         scraping=MagicMock(),
-        production=MagicMock(skipped=0),
-        publishing=None,
+        production=MagicMock(skipped=skipped),
+        publishing=MagicMock(skipped=publish_skipped) if publish_skipped else None,
         end_to_end_success=succeeded,
         partial_success=0,
         total_failures=failed,
@@ -41,8 +43,59 @@ class TestExitCode:
         # One bad ASIN must not stop a schedule.
         assert _summary(succeeded=19, failed=1).exit_code() == 0
 
+    def test_strict_counts_a_skipped_product(self):
+        # A profile misconfigured so products are rejected for insufficient
+        # media loses them while reporting no failures at all.
+        assert _summary(succeeded=19, failed=0, skipped=1).exit_code(strict=True) == 1
+
+    def test_a_skip_is_tolerated_without_the_flag(self):
+        assert _summary(succeeded=19, failed=0, skipped=1).exit_code() == 0
+
+    def test_strict_counts_a_publish_skip(self):
+        assert (
+            _summary(succeeded=19, failed=0, publish_skipped=1).exit_code(strict=True)
+            == 1
+        )
+
+    def test_a_clean_run_with_no_publishing_phase_succeeds(self):
+        # `--skip-publish` leaves `publishing` None; that is not a loss.
+        assert _summary(succeeded=3, failed=0).exit_code(strict=True) == 0
+
     def test_strict_makes_a_partial_failure_visible(self):
         assert _summary(succeeded=19, failed=1).exit_code(strict=True) == 1
+
+
+@pytest.mark.unit
+class TestTheVerdictMatchesTheExitCode:
+    """The log line and the exit code are derived from one place.
+
+    Computed separately, they disagreed: a run losing products only to
+    skips exited 1 under --strict while logging that it had succeeded.
+    """
+
+    def test_a_skip_only_loss_is_reported_as_a_loss(self):
+        summary = _summary(succeeded=19, failed=0, skipped=1)
+        assert summary.outcome() == "lost"
+        assert summary.exit_code(strict=True) == 1
+
+    def test_a_clean_run_is_reported_as_success(self):
+        summary = _summary(succeeded=19, failed=0)
+        assert summary.outcome() == "succeeded"
+        assert summary.exit_code(strict=True) == 0
+
+    def test_nothing_produced_is_reported_as_failed(self):
+        assert _summary(succeeded=0, failed=1).outcome() == "failed"
+
+    def test_every_outcome_that_exits_non_zero_under_strict_is_not_success(self):
+        for succeeded, failed, skipped in (
+            (19, 1, 0),
+            (19, 0, 1),
+            (19, 1, 1),
+            (0, 1, 0),
+        ):
+            summary = _summary(succeeded=succeeded, failed=failed, skipped=skipped)
+            if summary.exit_code(strict=True):
+                assert summary.outcome() != "succeeded"
 
 
 @pytest.mark.unit
@@ -231,3 +284,39 @@ class TestChunkedRunsKeepTheirLosses:
 
         assert exit_info.value.code == 1
         assert controller.run_batch.call_count == 2
+
+
+@pytest.mark.unit
+class TestTheProducerCountsSkips:
+    """The producer's summary carries the same contract as the batch's."""
+
+    @staticmethod
+    def _summary(*, succeeded, failed=0, skipped=0):
+        from src.video.producer.cli import BatchSummary
+
+        return BatchSummary(
+            total_attempted=succeeded + failed + skipped,
+            succeeded_count=succeeded,
+            failed_count=failed,
+            skipped_count=skipped,
+        )
+
+    def test_a_skip_trips_strict(self):
+        assert self._summary(succeeded=3, skipped=1).exit_code(strict=True) == 1
+
+    def test_a_skip_is_tolerated_without_the_flag(self):
+        assert self._summary(succeeded=3, skipped=1).exit_code() == 0
+
+    def test_a_failure_still_trips_strict(self):
+        assert self._summary(succeeded=3, failed=1).exit_code(strict=True) == 1
+
+    def test_a_clean_run_succeeds_under_strict(self):
+        assert self._summary(succeeded=3).exit_code(strict=True) == 0
+
+    def test_nothing_produced_is_a_failure_regardless(self):
+        assert self._summary(succeeded=0, skipped=2).exit_code() == 1
+
+    # That the CLI routes through this method is covered behaviourally by
+    # `tests/video/test_batch_producer.py`, which drives `main()` to an
+    # exit code. A source check here would fail on a rename that changes
+    # nothing.

@@ -624,20 +624,26 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 | Outcome | Exit code | Log line |
 |---|---|---|
 | Every product completed end-to-end | 0 | `PIPELINE COMPLETED SUCCESSFULLY` |
-| Some products completed, some failed | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH FAILURES` |
+| Some products completed, some were lost | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH LOSSES` |
 | No product completed end-to-end | 1 | `PIPELINE FAILED` |
 
-A partial failure exits 0 by default: a run that loses one product of twenty
+"Lost" covers both a product whose step failed and one reported skipped for
+insufficient media.
+
+A partial loss exits 0 by default: a run that loses one product of twenty
 has done most of what was asked, and failing the whole run would stop a
 schedule over a single bad listing. Pass `--strict` when a lost product
 matters more than the interruption — an unattended run whose output is
 posted on a cadence, for instance.
 
-`--strict` counts failures, not skips. A product rejected for insufficient
-media is reported skipped, which is a different outcome from a step that
-broke, and it does not change the exit code either way.
+`--strict` counts skips as well as failures. The two are reported separately
+because they have different causes, but for the exit code they are the same
+thing: a video that was asked for and does not exist. A profile misconfigured
+so that every product is rejected for insufficient media loses the whole run
+while reporting no failures at all, and that is the silence the flag exists
+to break.
 
-The standalone scraper follows the same rule and takes the same flag.
+The standalone scraper takes the same flag, for what it can see: a product id that yielded nothing, and a keyword whose search returned nothing or raised. It has no skip outcome — a product dropped during media validation is not counted there at all.
 
 ### Error Recovery
 
