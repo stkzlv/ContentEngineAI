@@ -376,13 +376,17 @@ or not `generate_description` has: the description feeds it nothing. Use this
 to iterate on one part of a render — a voice profile, the music — without
 re-running what comes before it.
 
-Two caveats. On a stock-only profile the paid steps also depend on
-`gather_visuals`, deliberately: the footage is what decides whether the render
-is viable at all, so a doomed one is rejected before an LLM call and a
-voiceover are paid for. And `burn_pycaps_subtitles` replaces the assembled
-video with the burned one, so it will not burn a second time over its own
-output: re-run `--step assemble_video` first to iterate on caption styling,
-which also drops the recorded burn so the next run redoes it.
+Re-running one step also forgets every recorded step that reads its output,
+and deletes the files those steps would otherwise short-circuit on — the
+script, the voiceover, the platform metadata. That is what makes the next
+full run redo them against the new input rather than pair fresh narration
+with stale captions, but it does mean `--step generate_script` discards the
+voiceover you already have.
+
+One caveat: `burn_pycaps_subtitles` replaces the assembled video with the
+burned one, so it will not burn a second time over its own output. Re-run
+`--step assemble_video` first to iterate on caption styling, which also drops
+the recorded burn so the next run redoes it.
 
 ### Running Single Steps
 

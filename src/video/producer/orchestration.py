@@ -157,6 +157,32 @@ def step_dependencies(profile: VideoProfile) -> dict[str, set[str]]:
     }
 
 
+def data_dependencies(profile: VideoProfile) -> dict[str, set[str]]:
+    """The subset of the graph that carries data, not just ordering.
+
+    Two of the graph's edges exist to order execution rather than to move
+    anything. On the scraped-product order `generate_script` is placed after
+    `gather_visuals` so a product with too few images is rejected before an
+    LLM call is paid for, and on the script-first order the same reasoning
+    names `gather_visuals` as a prerequisite of the two paid steps. Neither
+    means the later step has to be redone when the earlier one runs again.
+
+    Anything reasoning about correctness -- which steps a `--step` run really
+    needs, and which recorded steps a re-run invalidates -- reads this.
+    Scheduling reads `step_dependencies`. Treating an ordering edge as data
+    deletes a script and a voiceover because the footage was re-fetched.
+    """
+    dependencies = step_dependencies(profile)
+    if draws_visuals_from_script(profile):
+        for paid in (STEP_GENERATE_DESCRIPTION, STEP_CREATE_VOICEOVER):
+            dependencies[paid] = dependencies[paid] - {STEP_GATHER_VISUALS}
+    else:
+        dependencies[STEP_GENERATE_SCRIPT] = dependencies[STEP_GENERATE_SCRIPT] - {
+            STEP_GATHER_VISUALS
+        }
+    return dependencies
+
+
 def transitive_prereqs(dependencies: dict[str, set[str]], target: str) -> set[str]:
     """Every step ``target`` transitively depends on, itself excluded.
 
@@ -406,7 +432,7 @@ async def create_video_for_product(
             # feeds it nothing. Iterated in run order so artifacts load in
             # the order they were produced.
             required = transitive_prereqs(
-                step_dependencies(ctx.profile), debug_step_target
+                data_dependencies(ctx.profile), debug_step_target
             )
             for step_to_load in step_order[: step_order.index(debug_step_target)]:
                 if step_to_load not in required:

@@ -383,9 +383,9 @@ def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
     Imported here rather than at module scope: ``orchestration`` imports this
     module, so the dependency map can only be reached lazily.
     """
-    from src.video.producer.orchestration import step_dependencies, transitive_prereqs
+    from src.video.producer.orchestration import data_dependencies, transitive_prereqs
 
-    dependencies = step_dependencies(ctx.profile)
+    dependencies = data_dependencies(ctx.profile)
     # Only steps recorded as done. A step may pre-create its own entry while
     # it runs (`generate_subtitles` records the engine it resolved), and one
     # that has not finished has nothing stale to drop -- deleting it would
@@ -455,7 +455,12 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         if transcript_file is not None and transcript_file.exists():
             artifacts["whisper_transcript_file"] = transcript_file
     elif step_name == STEP_DOWNLOAD_MUSIC:
-        artifacts["music_info_file"] = ctx.run_paths["music_info_file"]
+        # Only when it exists: the step completes without writing it when no
+        # provider returns a track, and recording an absent file invalidates
+        # the state on every later run.
+        music_info_file = ctx.run_paths["music_info_file"]
+        if music_info_file.exists():
+            artifacts["music_info_file"] = music_info_file
     elif step_name == STEP_ASSEMBLE_VIDEO:
         artifacts["final_video_output"] = ctx.run_paths["final_video_output"]
     elif step_name == STEP_BURN_PYCAPS_SUBTITLES:

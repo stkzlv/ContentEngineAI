@@ -10,6 +10,7 @@ import pytest
 
 from src.video.producer.orchestration import (
     completed_steps_from_state,
+    data_dependencies,
     step_dependencies,
     step_runners,
     transitive_prereqs,
@@ -104,6 +105,46 @@ class TestStepDependencies:
             deps = step_dependencies(profile)
             for index, step in enumerate(order):
                 assert deps[step] <= set(order[:index]), step
+
+
+class TestDataDependencies:
+    """Ordering edges must not be mistaken for data edges."""
+
+    def test_the_script_does_not_read_the_visuals(self):
+        # The graph orders gathering first so a product with too few images
+        # is rejected before an LLM call is paid for. Treating that as data
+        # deletes the script when the footage is re-fetched.
+        profile = _profile(stock_only=False)
+        assert step_dependencies(profile)[STEP_GENERATE_SCRIPT] == {STEP_GATHER_VISUALS}
+        assert data_dependencies(profile)[STEP_GENERATE_SCRIPT] == set()
+
+    def test_stock_paid_steps_read_only_the_script(self):
+        profile = _profile(stock_only=True)
+        assert STEP_GATHER_VISUALS in step_dependencies(profile)[STEP_CREATE_VOICEOVER]
+        assert data_dependencies(profile)[STEP_CREATE_VOICEOVER] == {
+            STEP_GENERATE_SCRIPT
+        }
+
+    def test_the_assembler_really_does_read_the_visuals(self):
+        for profile in (_profile(stock_only=False), _profile(stock_only=True)):
+            assert (
+                STEP_GATHER_VISUALS in data_dependencies(profile)[STEP_ASSEMBLE_VIDEO]
+            )
+
+    def test_a_stock_profile_still_writes_the_script_first(self):
+        # The reversal is a real data edge: the stock search terms come from
+        # the narration.
+        profile = _profile(stock_only=True)
+        assert data_dependencies(profile)[STEP_GATHER_VISUALS] == {STEP_GENERATE_SCRIPT}
+
+    def test_scheduling_edges_are_left_intact(self):
+        # `step_dependencies` is what the executor walks; narrowing it would
+        # let a paid step run beside the check meant to precede it.
+        profile = _profile(stock_only=True)
+        assert step_dependencies(profile)[STEP_GENERATE_DESCRIPTION] == {
+            STEP_GENERATE_SCRIPT,
+            STEP_GATHER_VISUALS,
+        }
 
 
 class TestTransitivePrereqs:
@@ -225,6 +266,39 @@ class TestDescriptionArtifactRecording:
         assert "description_file" in artifacts
 
 
+class TestMusicArtifactRecording:
+    """`download_music` completes without a track when nothing is found."""
+
+    @staticmethod
+    async def _artifacts(tmp_path, *, found_a_track: bool):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import (
+            STEP_DOWNLOAD_MUSIC,
+            _update_state_after_step,
+        )
+
+        music_info = tmp_path / "music_choice.json"
+        if found_a_track:
+            music_info.write_text("{}")
+        ctx = MagicMock()
+        ctx.state = {}
+        ctx.run_paths = {"music_info_file": music_info}
+        await _update_state_after_step(ctx, STEP_DOWNLOAD_MUSIC)
+        return ctx.state[STEP_DOWNLOAD_MUSIC]["artifacts"]
+
+    @pytest.mark.asyncio
+    async def test_no_track_records_no_artifact(self, tmp_path):
+        # Recording a file the step never wrote invalidates the state on
+        # every later run, so a finished render re-assembles and re-burns.
+        assert await self._artifacts(tmp_path, found_a_track=False) == {}
+
+    @pytest.mark.asyncio
+    async def test_a_found_track_is_recorded(self, tmp_path):
+        artifacts = await self._artifacts(tmp_path, found_a_track=True)
+        assert "music_info_file" in artifacts
+
+
 class TestStateBelongsToThisRun:
     """`pipeline_state.json` is product-level; some artifacts are not."""
 
@@ -337,6 +411,35 @@ class TestDropDependents:
         _drop_dependents(self._ctx(state), STEP_GENERATE_SCRIPT)
         assert STEP_CREATE_VOICEOVER not in state
         assert script.exists()
+
+    def test_refetching_visuals_keeps_the_script_and_the_voiceover(self, tmp_path):
+        from src.video.producer.state import _drop_dependents
+
+        # `--step gather_visuals` re-fetches footage. The script reads none
+        # of it, so deleting the script, the narration and the captions --
+        # all of them paid for -- would be pure loss.
+        script = tmp_path / "script.txt"
+        script.write_text("the script")
+        voiceover = tmp_path / "voiceover.wav"
+        voiceover.write_bytes(b"narration")
+        state = {
+            STEP_GATHER_VISUALS: {"status": "done", "artifacts": {}},
+            STEP_GENERATE_SCRIPT: {
+                "status": "done",
+                "artifacts": {"script_file": str(script)},
+            },
+            STEP_CREATE_VOICEOVER: {
+                "status": "done",
+                "artifacts": {"voiceover_file": str(voiceover)},
+            },
+            STEP_ASSEMBLE_VIDEO: {"status": "done", "artifacts": {}},
+        }
+        _drop_dependents(self._ctx(state), STEP_GATHER_VISUALS)
+        assert STEP_GENERATE_SCRIPT in state
+        assert STEP_CREATE_VOICEOVER in state
+        assert script.exists() and voiceover.exists()
+        # The assembler does read the visuals, so it has to go.
+        assert STEP_ASSEMBLE_VIDEO not in state
 
     def test_an_unfinished_entry_is_left_alone(self):
         from src.video.producer.state import _drop_dependents
