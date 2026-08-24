@@ -1244,19 +1244,21 @@ async def main():
     exit_code = batch_summary.exit_code(strict=args.strict)
 
     # Keyed on what happened, not on the exit code: under --strict a partial
-    # failure also exits non-zero, and calling that "no videos produced"
-    # would contradict the files on disk.
+    # loss also exits non-zero, and reporting success for a run that exits 1
+    # would contradict it.
     if batch_summary.succeeded_count == 0:
         logger.error(
             "Video producer failed: no videos produced (%d failed, %d skipped)",
             batch_summary.failed_count,
             batch_summary.skipped_count,
         )
-    elif batch_summary.failed_count:
+    elif batch_summary.failed_count or batch_summary.skipped_count:
         logger.warning(
-            "Video producer completed with failures: %d succeeded, %d failed",
+            "Video producer completed with losses: "
+            "%d succeeded, %d failed, %d skipped",
             batch_summary.succeeded_count,
             batch_summary.failed_count,
+            batch_summary.skipped_count,
         )
     else:
         logger.info("Video producer completed successfully")

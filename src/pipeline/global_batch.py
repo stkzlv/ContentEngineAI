@@ -2203,20 +2203,28 @@ async def main():
             # Text output (already logged by _generate_final_summary)
             logger.info("=" * 80)
             # Keyed on what happened, not on the exit code: under --strict
-            # a partial failure also exits non-zero, and calling that "no
-            # products completed end-to-end" would be false.
-            if summary.end_to_end_success == 0:
+            # a partial loss also exits non-zero, and calling that "no
+            # products completed end-to-end" would be false. A loss counts
+            # here for the same reason it counts there -- a product lost to
+            # a skip is still a video that was asked for and does not
+            # exist, and reporting success for it would contradict the
+            # exit code of the very same run.
+            skipped = summary.total_skipped()
+            outcome = summary.outcome()
+            if outcome == "failed":
                 logger.error(
                     "PIPELINE FAILED: no products completed end-to-end "
                     "(%d failed, %d skipped)",
                     summary.total_failures,
-                    summary.production.skipped,
+                    skipped,
                 )
-            elif summary.total_failures > 0:
+            elif outcome == "lost":
                 logger.warning(
-                    "PIPELINE COMPLETED WITH FAILURES: %d succeeded, %d failed",
+                    "PIPELINE COMPLETED WITH LOSSES: "
+                    "%d succeeded, %d failed, %d skipped",
                     summary.end_to_end_success,
                     summary.total_failures,
+                    skipped,
                 )
             else:
                 logger.info("PIPELINE COMPLETED SUCCESSFULLY")

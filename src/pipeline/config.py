@@ -506,6 +506,20 @@ class PipelineSummary:
             skipped += self.publishing.skipped
         return skipped
 
+    def outcome(self) -> str:
+        """What the run did: ``"failed"``, ``"lost"`` or ``"succeeded"``.
+
+        Derived here so the end-of-run verdict and the exit code cannot
+        disagree. They were computed separately once, and a run that lost
+        products only to skips exited non-zero while logging that it had
+        completed successfully.
+        """
+        if self.end_to_end_success == 0:
+            return "failed"
+        if self.total_failures > 0 or self.total_skipped() > 0:
+            return "lost"
+        return "succeeded"
+
     def exit_code(self, strict: bool = False) -> int:
         """Process exit code for the run.
 
@@ -523,7 +537,7 @@ class PipelineSummary:
         """
         if self.end_to_end_success == 0:
             return 1
-        if strict and (self.total_failures > 0 or self.total_skipped() > 0):
+        if strict and self.outcome() == "lost":
             return 1
         return 0
 

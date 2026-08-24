@@ -66,6 +66,39 @@ class TestExitCode:
 
 
 @pytest.mark.unit
+class TestTheVerdictMatchesTheExitCode:
+    """The log line and the exit code are derived from one place.
+
+    Computed separately, they disagreed: a run losing products only to
+    skips exited 1 under --strict while logging that it had succeeded.
+    """
+
+    def test_a_skip_only_loss_is_reported_as_a_loss(self):
+        summary = _summary(succeeded=19, failed=0, skipped=1)
+        assert summary.outcome() == "lost"
+        assert summary.exit_code(strict=True) == 1
+
+    def test_a_clean_run_is_reported_as_success(self):
+        summary = _summary(succeeded=19, failed=0)
+        assert summary.outcome() == "succeeded"
+        assert summary.exit_code(strict=True) == 0
+
+    def test_nothing_produced_is_reported_as_failed(self):
+        assert _summary(succeeded=0, failed=1).outcome() == "failed"
+
+    def test_every_outcome_that_exits_non_zero_under_strict_is_not_success(self):
+        for succeeded, failed, skipped in (
+            (19, 1, 0),
+            (19, 0, 1),
+            (19, 1, 1),
+            (0, 1, 0),
+        ):
+            summary = _summary(succeeded=succeeded, failed=failed, skipped=skipped)
+            if summary.exit_code(strict=True):
+                assert summary.outcome() != "succeeded"
+
+
+@pytest.mark.unit
 class TestBothEntryPointsOfferIt:
     """Module/Batch Alignment: the scraper re-implements this reporting."""
 
@@ -283,13 +316,7 @@ class TestTheProducerCountsSkips:
     def test_nothing_produced_is_a_failure_regardless(self):
         assert self._summary(succeeded=0, skipped=2).exit_code() == 1
 
-    def test_the_cli_routes_through_it(self):
-        # A method nothing calls would pass every test above while the CLI
-        # kept its own copy of the rule.
-        import inspect
-
-        from src.video.producer import cli
-
-        assert "batch_summary.exit_code(strict=args.strict)" in inspect.getsource(
-            cli.main
-        )
+    # That the CLI routes through this method is covered behaviourally by
+    # `tests/video/test_batch_producer.py`, which drives `main()` to an
+    # exit code. A source check here would fail on a rename that changes
+    # nothing.

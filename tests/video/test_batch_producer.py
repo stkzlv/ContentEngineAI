@@ -282,3 +282,87 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
         assert exc_info.value.code == 1
         # No fail-fast: both products are attempted despite the failures
         assert mock_create.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_strict_exits_non_zero_when_a_product_is_skipped(
+    mock_outputs_dir, mock_config, caplog
+):
+    """`--strict` has to reach an exit code, not just parse.
+
+    Built from the real parser rather than a mock namespace, so every
+    default is the one a run would get.
+    """
+    from src.video.producer.cli import create_argument_parser
+
+    args = create_argument_parser().parse_args(
+        ["--batch", "--batch-profile", "test_profile", "--strict"]
+    )
+    args.outputs_dir = mock_outputs_dir
+
+    mock_config.video_profiles = {"test_profile": {}}
+    mock_config.pipeline_timeout_sec = 10
+    mock_config.ffmpeg_settings = MagicMock()
+    mock_config.ffmpeg_settings.executable_path = "ffmpeg"
+
+    with (
+        patch("argparse.ArgumentParser.parse_args", return_value=args),
+        patch(
+            "src.video.producer.cli.load_video_config_modular", return_value=mock_config
+        ),
+        patch("src.video.producer.cli.setup_logging", return_value=Path("test.log")),
+        patch("src.video.producer.cli.validate_config_and_exit_on_error"),
+        patch("src.video.producer.cli.load_dotenv"),
+        patch("os.getenv", return_value="dummy_key"),
+        patch("shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch(
+            "src.video.producer.cli.create_video_for_product", new_callable=AsyncMock
+        ) as mock_create,
+        patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
+        pytest.raises(SystemExit) as exit_info,
+    ):
+        # One render, one product rejected for insufficient media.
+        mock_create.side_effect = [Path("video.mp4"), "SKIPPED"]
+        await main()
+
+    assert exit_info.value.code == 1
+    # The verdict must not contradict the code the same run exits with.
+    assert "completed with losses" in caplog.text.lower()
+    assert "completed successfully" not in caplog.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_a_skipped_product_is_tolerated_without_strict(
+    mock_outputs_dir, mock_config
+):
+    from src.video.producer.cli import create_argument_parser
+
+    args = create_argument_parser().parse_args(
+        ["--batch", "--batch-profile", "test_profile"]
+    )
+    args.outputs_dir = mock_outputs_dir
+
+    mock_config.video_profiles = {"test_profile": {}}
+    mock_config.pipeline_timeout_sec = 10
+    mock_config.ffmpeg_settings = MagicMock()
+    mock_config.ffmpeg_settings.executable_path = "ffmpeg"
+
+    with (
+        patch("argparse.ArgumentParser.parse_args", return_value=args),
+        patch(
+            "src.video.producer.cli.load_video_config_modular", return_value=mock_config
+        ),
+        patch("src.video.producer.cli.setup_logging", return_value=Path("test.log")),
+        patch("src.video.producer.cli.validate_config_and_exit_on_error"),
+        patch("src.video.producer.cli.load_dotenv"),
+        patch("os.getenv", return_value="dummy_key"),
+        patch("shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch(
+            "src.video.producer.cli.create_video_for_product", new_callable=AsyncMock
+        ) as mock_create,
+        patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
+    ):
+        mock_create.side_effect = [Path("video.mp4"), "SKIPPED"]
+        await main()
