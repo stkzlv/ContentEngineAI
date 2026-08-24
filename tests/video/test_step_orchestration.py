@@ -292,6 +292,52 @@ class TestDropDependents:
         ctx.profile = _profile(stock_only=False)
         return ctx
 
+    def test_dropped_steps_lose_the_files_they_short_circuit_on(self, tmp_path):
+        from src.video.producer.state import _drop_dependents
+
+        # `create_voiceover` returns early whenever voiceover.wav is on disk,
+        # so a state-only drop would narrate the superseded script.
+        voiceover = tmp_path / "voiceover.wav"
+        voiceover.write_bytes(b"audio for the old script")
+        duration = tmp_path / "voiceover_duration.txt"
+        duration.write_text("41.2")
+        state = {
+            STEP_GENERATE_SCRIPT: {"status": "done", "artifacts": {}},
+            STEP_CREATE_VOICEOVER: {
+                "status": "done",
+                "artifacts": {
+                    "voiceover_file": str(voiceover),
+                    "voiceover_duration_file": str(duration),
+                },
+            },
+        }
+        _drop_dependents(self._ctx(state), STEP_GENERATE_SCRIPT)
+        assert STEP_CREATE_VOICEOVER not in state
+        assert not voiceover.exists()
+
+    def test_a_file_a_surviving_step_claims_is_kept(self, tmp_path):
+        from src.video.producer.state import _drop_dependents
+
+        # `script.txt` blocks a rerun, and both the script step and the
+        # voiceover record it. Dropping only the voiceover must not delete
+        # the script the surviving step still claims -- the next run would
+        # then regenerate narration nobody asked for.
+        script = tmp_path / "script.txt"
+        script.write_text("the current script")
+        state = {
+            STEP_GENERATE_SCRIPT: {
+                "status": "done",
+                "artifacts": {"script_file": str(script)},
+            },
+            STEP_CREATE_VOICEOVER: {
+                "status": "done",
+                "artifacts": {"script_file": str(script)},
+            },
+        }
+        _drop_dependents(self._ctx(state), STEP_GENERATE_SCRIPT)
+        assert STEP_CREATE_VOICEOVER not in state
+        assert script.exists()
+
     def test_reassembling_drops_the_recorded_burn(self):
         from src.video.producer.state import _drop_dependents
 

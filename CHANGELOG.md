@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Both execution paths read one step table and one dependency map, so a step cannot be wired into the parallel graph and left out of the single-step path.
 - A second render of the same product under a different profile re-renders it. `pipeline_state.json` is product-level while the assembled video is profile-level, so verification accepted the first profile's video as the second's; every step was skipped and the run returned a path nothing had written, which the batch counts as a success and hands to publishing. Verification now rejects a recorded artifact that is not the one this run would write.
-- Re-running one step drops the recorded steps that read its output. `--step assemble_video` left `burn_pycaps_subtitles` marked done over a video whose captions had just been re-rendered away, and the next full run skipped the burn and reported the uncaptioned video as complete.
+- Re-running one step drops the recorded steps that read its output, along with the files those steps short-circuit on. `--step assemble_video` left `burn_pycaps_subtitles` marked done over a video whose captions had just been re-rendered away, and the next full run skipped the burn and reported the uncaptioned video as complete. `--step generate_script` left the previous script's voiceover and captions in place for the same reason.
 - `burn_pycaps_subtitles` refuses to burn over its own output. It replaces the assembled video with the burned one, so a second entry -- from `--step` or a resume -- would draw new captions over the old. It now records what it produced and skips until the video is reassembled.
 
 ### Removed

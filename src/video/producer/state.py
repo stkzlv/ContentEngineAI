@@ -388,14 +388,21 @@ def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
         and name in ctx.state
         and step_name in transitive_prereqs(dependencies, name)
     ]
+    if not stale:
+        return
+    # Dropping the state is not enough: `generate_description` and
+    # `create_voiceover` short-circuit on their own output files, so a state-
+    # only drop lets them return the superseded script's caption and audio
+    # while the run reports every step complete.
+    kept = [name for name in ctx.state if name not in stale]
+    _discard_stale_artifacts(ctx.state, kept)
     for name in stale:
         del ctx.state[name]
-    if stale:
-        logger.info(
-            "Step '%s' ran again; dropping the steps that read its output: %s",
-            step_name,
-            ", ".join(sorted(stale)),
-        )
+    logger.info(
+        "Step '%s' ran again; dropping the steps that read its output: %s",
+        step_name,
+        ", ".join(sorted(stale)),
+    )
 
 
 async def _update_state_after_step(ctx: PipelineContext, step_name: str):
