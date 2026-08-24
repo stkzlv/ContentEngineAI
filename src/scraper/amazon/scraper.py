@@ -19,6 +19,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.scraper.base.keyword_pillars import pillar_for, read_keyword_pillars
+
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
 from ..base import BaseScraper, Platform, register_scraper
@@ -955,15 +957,10 @@ class BotasaurusAmazonScraper(BaseScraper):
         A flat keyword list, the pre-pillar shape, maps nothing.
         """
         if self._keyword_pillars is None:
-            pillars: dict[str, str] = {}
-            raw = (self.config.get("batch") or {}).get("keywords")
-            if isinstance(raw, dict):
-                for pillar, kw_list in raw.items():
-                    if isinstance(kw_list, list):
-                        for kw in kw_list:
-                            pillars[str(kw)] = str(pillar)
-            self._keyword_pillars = pillars
-        return self._keyword_pillars.get(keyword)
+            _, self._keyword_pillars = read_keyword_pillars(
+                (self.config.get("batch") or {}).get("keywords")
+            )
+        return pillar_for(keyword, self._keyword_pillars)
 
     def process_raw_products(
         self,
@@ -1525,7 +1522,13 @@ def main():
                 # Check batch configuration first
                 batch_config = config.get("batch", {})
                 batch_product_ids = batch_config.get("product_ids", [])
-                batch_keywords = batch_config.get("keywords", [])
+                # Flattened: the config groups keywords by pillar, and
+                # iterating that dict yields the pillar names. A run with no
+                # --keywords searched for "value" and "utility" instead of
+                # any configured keyword.
+                batch_keywords, _ = read_keyword_pillars(
+                    batch_config.get("keywords", [])
+                )
 
                 # Use batch config if available
                 if batch_product_ids or batch_keywords:
