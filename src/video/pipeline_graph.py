@@ -50,9 +50,19 @@ class PipelineStep:
 class PipelineGraph:
     """Manages pipeline step dependencies and parallel execution."""
 
-    def __init__(self):
+    def __init__(self, propagate: tuple[type[BaseException], ...] = ()):
+        """Build an empty graph.
+
+        ``propagate`` names the exceptions a step may raise that are not step
+        failures and must reach the caller unchanged. Everything else is
+        caught and reported as a failed step, which is what a pipeline wants
+        for a genuine error and exactly wrong for a signal: the producer's
+        media rejection is meant to report the product skipped, and being
+        flattened into a failure here made that path unreachable.
+        """
         self.steps: dict[str, PipelineStep] = {}
         self.execution_order: list[list[str]] = []
+        self.propagate = propagate
 
     def add_step(
         self, name: str, function: Callable, dependencies: set[str] | None = None
@@ -200,6 +210,15 @@ class PipelineGraph:
             duration = asyncio.get_event_loop().time() - start_time
             step.status = StepStatus.FAILED
 
+            if self.propagate and isinstance(e, self.propagate):
+                logger.info(
+                    "Step '%s' raised %s after %.2fs; passing it to the caller",
+                    step_name,
+                    type(e).__name__,
+                    duration,
+                )
+                raise
+
             result = StepResult(
                 step_name=step_name,
                 status=StepStatus.FAILED,
@@ -241,6 +260,11 @@ class PipelineGraph:
         step_results: list[StepResult] = []
         for i, result_item in enumerate(results):
             if isinstance(result_item, BaseException):
+                if self.propagate and isinstance(result_item, self.propagate):
+                    # `gather(return_exceptions=True)` turns a raise into a
+                    # value, so re-raising here is what keeps a propagated
+                    # signal from being flattened back into a step failure.
+                    raise result_item
                 # Convert exception to failed result
                 step_result = StepResult(
                     step_name=step_names[i],

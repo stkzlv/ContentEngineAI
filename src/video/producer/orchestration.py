@@ -236,7 +236,9 @@ async def execute_pipeline_parallel(
 
     # Create pipeline graph from the shared dependency map, walked in run
     # order so a step is always added after the steps it depends on.
-    pipeline = PipelineGraph()
+    # A media rejection is a skip, not a step failure: it must reach
+    # `create_video_for_product`, which reports the product SKIPPED.
+    pipeline = PipelineGraph(propagate=(InsufficientMediaError,))
     dependencies = step_dependencies(ctx.profile)
     runners = step_runners()
     for step_name in resolved_step_order(ctx.profile):
@@ -345,6 +347,7 @@ async def create_video_for_product(
     step = ""
     run_paths = get_video_run_paths(config, product_id, profile_name)
     successful_run = False
+    skipped_run = False
 
     if clean_run and run_paths["run_root"].exists():
         logger.info(
@@ -541,6 +544,7 @@ async def create_video_for_product(
         return run_paths.get("final_video_output")
 
     except InsufficientMediaError as e:
+        skipped_run = True
         logger.warning(f"Product skipped due to insufficient media: {e}")
         # Mark as skipped, not failed - this is expected for some products
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
@@ -590,6 +594,13 @@ async def create_video_for_product(
             logger.info(
                 f"Debug mode: Intermediate files preserved in "
                 f"{run_paths.get('run_root')}"
+            )
+        elif skipped_run:
+            # Not a failure: nothing broke, the product just had too little
+            # media. Saying otherwise sends an operator looking for a step
+            # that never went wrong.
+            logger.info(
+                f"Product skipped. Files preserved in " f"{run_paths.get('run_root')}."
             )
         elif not successful_run:
             logger.warning(
