@@ -367,6 +367,11 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
         return False
 
 
+def _is_done(entry: Any) -> bool:
+    """Whether a state entry records a completed step."""
+    return isinstance(entry, dict) and entry.get("status") == "done"
+
+
 def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
     """Forget the recorded steps that read what ``step_name`` just rewrote.
 
@@ -381,11 +386,15 @@ def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
     from src.video.producer.orchestration import step_dependencies, transitive_prereqs
 
     dependencies = step_dependencies(ctx.profile)
+    # Only steps recorded as done. A step may pre-create its own entry while
+    # it runs (`generate_subtitles` records the engine it resolved), and one
+    # that has not finished has nothing stale to drop -- deleting it would
+    # discard what the current run just wrote.
     stale = [
         name
         for name in dependencies
         if name != step_name
-        and name in ctx.state
+        and _is_done(ctx.state.get(name))
         and step_name in transitive_prereqs(dependencies, name)
     ]
     if not stale:

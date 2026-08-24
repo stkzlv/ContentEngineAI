@@ -338,6 +338,20 @@ class TestDropDependents:
         assert STEP_CREATE_VOICEOVER not in state
         assert script.exists()
 
+    def test_an_unfinished_entry_is_left_alone(self):
+        from src.video.producer.state import _drop_dependents
+
+        # `generate_subtitles` records the engine it resolved while it runs.
+        # The state-update loop walks every completed step of this run, so an
+        # ancestor is processed while that entry exists but is not yet done;
+        # dropping it would discard what this run just wrote.
+        state = {
+            STEP_GATHER_VISUALS: {"status": "done"},
+            "generate_subtitles": {"engine": "pycaps"},
+        }
+        _drop_dependents(self._ctx(state), STEP_GATHER_VISUALS)
+        assert state["generate_subtitles"] == {"engine": "pycaps"}
+
     def test_reassembling_drops_the_recorded_burn(self):
         from src.video.producer.state import _drop_dependents
 
