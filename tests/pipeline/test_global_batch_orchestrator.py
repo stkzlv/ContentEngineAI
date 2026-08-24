@@ -850,3 +850,37 @@ def test_summary_format_method():
     assert "Total Images: 5" in formatted
     assert "Total Videos: 1" in formatted
     assert "slideshow_images1: 2 (100.0%)" in formatted
+
+
+@pytest.mark.asyncio
+async def test_scraping_phase_resolves_a_mixed_case_keywords_pillar(
+    orchestrator, mock_product_data
+):
+    """The batch looks the pillar up by keyword before writing `data.json`.
+
+    The map is keyed by the matching form, so a raw lookup returns None for
+    any configured keyword carrying an uppercase letter -- and both bundled
+    configs ship several. A missing pillar is indistinguishable from an
+    unconfigured keyword, so the render would simply have no pillar.
+    """
+    orchestrator.config.product_ids = []
+    orchestrator.config.keywords = ["LED Strip Lights"]
+    orchestrator.config.keyword_pillar_map = {"led strip lights": "value"}
+
+    with patch(
+        "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
+    ) as mock_scraper_class:
+        mock_scraper = Mock()
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "LED Strip Lights", "products": [{"fake": True}]},
+        ]
+        mock_scraper.process_raw_products.return_value = [mock_product_data[0]]
+
+        await orchestrator._execute_scraping_phase()
+
+    assert mock_scraper.process_raw_products.call_args is not None
+    assert (
+        mock_scraper.process_raw_products.call_args.kwargs.get("pillar") == "value"
+    ), "the batch lost the pillar for a mixed-case keyword"

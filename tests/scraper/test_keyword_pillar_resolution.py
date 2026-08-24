@@ -79,40 +79,71 @@ class TestLookupIgnoresPresentation:
 
 
 @pytest.mark.unit
-class TestTheConfiguredKeywordsSurviveToTheProducer:
-    """#208: nothing covered the path from config to a rendered pillar.
+class TestEveryLoaderAndLookupAgrees:
+    """#208: nothing covered the path from config through to a lookup.
 
     The two ends were tested and the link between them was not, which is where
     both of the above defects lived.
     """
 
-    def test_a_configured_keyword_reaches_the_producer_with_its_pillar(self):
-        """Walks the real chain: bundled config -> map -> batch lookup."""
+    def test_every_shipped_keyword_resolves_through_the_real_loader(self):
+        """Through `load_batch_config`, not a hand-built config.
+
+        The loader owns the CLI-over-YAML precedence, so building the map by
+        hand would skip the code that actually runs.
+        """
         import pathlib
+        from unittest.mock import patch
 
         import yaml
 
-        from src.scraper.amazon.models import BatchConfig, SearchParameters
+        from src.scraper.amazon.config import load_batch_config
 
         cfg = yaml.safe_load(pathlib.Path("config/scraper.yaml").read_text())
-        keywords, pillars = read_keyword_pillars(cfg["batch"]["keywords"])
-
-        config = BatchConfig(
-            product_ids=[],
-            keywords=keywords,
-            fail_fast=False,
-            search_params=SearchParameters(),
-            max_products=1,
-            products_per_keyword=1,
-            keyword_pillar_map=pillars,
-        )
+        with patch("src.scraper.amazon.config.CONFIG", cfg):
+            config = load_batch_config()
 
         # Every keyword the config ships must resolve; an unresolved one would
         # render with no pillar and be indistinguishable from an unconfigured
         # keyword.
-        unresolved = [k for k in keywords if config.pillar_for(k) is None]
+        unresolved = [k for k in config.keywords if config.pillar_for(k) is None]
         assert not unresolved, f"configured keywords with no pillar: {unresolved}"
-        assert len(keywords) > 3, "the pillar names leaked in as keywords again"
+        assert len(config.keywords) > 3, "the pillar names leaked in as keywords"
+
+    def test_the_batch_pipeline_loader_resolves_the_same_way(self):
+        """The global batch has its own loader and its own lookup site."""
+        import argparse
+
+        from src.pipeline.config import load_global_batch_config
+        from src.scraper.base.keyword_pillars import pillar_for as lookup
+
+        ns = argparse.Namespace()
+        config = load_global_batch_config(ns, "config/pipeline.yaml")
+
+        assert config.keywords, "no keywords loaded"
+        for keyword in config.keywords:
+            assert (
+                lookup(keyword, config.keyword_pillar_map) is not None
+            ), f"{keyword!r} lost its pillar on the batch path"
+        # The spelling the config ships is not the spelling the map is keyed
+        # by, so a raw lookup is the defect this guards.
+        mixed = [k for k in config.keywords if k != k.casefold()]
+        assert mixed, "expected at least one mixed-case keyword in the config"
+        for keyword in mixed:
+            assert config.keyword_pillar_map.get(keyword) is None
+            assert lookup(keyword, config.keyword_pillar_map) is not None
+
+    def test_the_scrapers_own_lookup_ignores_presentation(self):
+        """`pillar_for_keyword` reads the scraper's own config copy."""
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.config = {"batch": {"keywords": {"value": ["USB C hub"]}}}
+        scraper._keyword_pillars = None
+
+        assert scraper.pillar_for_keyword("USB C hub") == "value"
+        assert scraper.pillar_for_keyword("usb c hub") == "value"
+        assert scraper.pillar_for_keyword("  USB  C hub ") == "value"
 
 
 @pytest.mark.unit
