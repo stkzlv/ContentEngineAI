@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.73.0] - 2026-08-24
 
 ### Changed
+- The end-of-run verdict is renamed and now covers skips: `PIPELINE COMPLETED WITH FAILURES` becomes `PIPELINE COMPLETED WITH LOSSES` and reports succeeded, failed and skipped counts; the producer's `completed with failures` becomes `completed with losses`. **Anything matching the old strings needs updating.** The line now fires on a run that lost products only to skips whether or not `--strict` was passed — previously such a run logged `PIPELINE COMPLETED SUCCESSFULLY` at INFO, and it now logs the loss at WARNING, which changes what a level-based filter surfaces.
 - `--strict` counts a skipped product as a lost one, on the batch and the producer. The two outcomes are still reported apart, because their causes differ, but for an exit code both mean a video that was asked for and does not exist: a profile misconfigured so that every product is rejected for insufficient media loses the whole run while reporting no failures at all. Shipped in 0.72.0 counting failures only.
 
 ## [0.72.0] - 2026-08-24
