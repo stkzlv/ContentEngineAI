@@ -1918,6 +1918,10 @@ def main():
                     total_summary.successful += summary.successful
                     total_summary.failed += summary.failed
                     total_summary.failed_products.extend(summary.failed_products)
+                    # Merged like the product-level failures: without this a
+                    # keyword lost in any chunk after the first is invisible
+                    # to --strict, which is the loss the field exists for.
+                    total_summary.failed_keywords.extend(summary.failed_keywords)
                     total_summary.duration_sec += summary.duration_sec
 
             if total_summary is None:

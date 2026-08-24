@@ -1225,25 +1225,30 @@ async def main():
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
     # Non-zero exit when nothing was produced, so CI, cron, and wrappers
-    # checking $? see the failure. Any success exits 0 (batch is best-effort).
-    # Same contract as the batch and the scraper: nothing produced is a
-    # failure, a partial failure is not unless the caller asked.
+    # checking $? see the failure. Same contract as the batch and the
+    # scraper: nothing produced is a failure, a partial failure is not
+    # unless the caller asked for it.
     exit_code = 0 if batch_summary.succeeded_count > 0 else 1
-    if not exit_code and getattr(args, "strict", False) and batch_summary.failed_count:
-        logger.error(
-            "Producer failed under --strict: %d succeeded, %d failed",
-            batch_summary.succeeded_count,
-            batch_summary.failed_count,
-        )
+    if not exit_code and args.strict and batch_summary.failed_count:
         exit_code = 1
-    if exit_code == 0:
-        logger.info("Video producer completed successfully")
-    else:
+
+    # Keyed on what happened, not on the exit code: under --strict a partial
+    # failure also exits non-zero, and calling that "no videos produced"
+    # would contradict the files on disk.
+    if batch_summary.succeeded_count == 0:
         logger.error(
             "Video producer failed: no videos produced (%d failed, %d skipped)",
             batch_summary.failed_count,
             batch_summary.skipped_count,
         )
+    elif batch_summary.failed_count:
+        logger.warning(
+            "Video producer completed with failures: %d succeeded, %d failed",
+            batch_summary.succeeded_count,
+            batch_summary.failed_count,
+        )
+    else:
+        logger.info("Video producer completed successfully")
     logger.info(f"Complete log saved to: {log_file}")
 
     # Clean up HTTP connection pool

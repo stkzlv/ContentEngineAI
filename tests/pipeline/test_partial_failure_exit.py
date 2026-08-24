@@ -147,3 +147,87 @@ class TestTheScraperUnderStrict:
             summary=self._summary(successful=2),
         )
         assert code == 0
+
+
+@pytest.mark.unit
+class TestChunkedRunsKeepTheirLosses:
+    """`--batch-size` splits a run into chunks whose summaries are merged."""
+
+    def test_lost_keywords_survive_the_merge(self):
+        from src.scraper.amazon.models import BatchSummary
+
+        def _chunk(**kwargs):
+            base = {
+                "total_attempted": 1,
+                "product_ids_attempted": 0,
+                "keywords_attempted": 1,
+                "successful": 1,
+                "failed": 0,
+                "successful_products": ["B0AAAAAAAA"],
+                "failed_products": [],
+                "media_stats": {},
+                "duration_sec": 1.0,
+            }
+            base.update(kwargs)
+            return BatchSummary(**base)
+
+        total = _chunk()
+        second = _chunk(failed_keywords=["a lost keyword"])
+
+        # The merge the scraper performs across chunks.
+        total.successful += second.successful
+        total.failed += second.failed
+        total.failed_products.extend(second.failed_products)
+        total.failed_keywords.extend(second.failed_keywords)
+
+        assert total.failed_keywords == ["a lost keyword"]
+
+    def test_a_keyword_lost_in_a_later_chunk_trips_strict(self):
+        """Driven through `main`, because the merge is where it was dropped."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        from src.scraper.amazon import scraper as scraper_module
+        from src.scraper.amazon.models import BatchSummary
+
+        def _chunk(failed_keywords=()):
+            return BatchSummary(
+                total_attempted=1,
+                product_ids_attempted=1,
+                keywords_attempted=0,
+                successful=1,
+                failed=0,
+                successful_products=["B0AAAAAAAA"],
+                failed_products=[],
+                media_stats={},
+                duration_sec=1.0,
+                failed_keywords=list(failed_keywords),
+            )
+
+        controller = MagicMock()
+        # Chunk one is clean; chunk two loses a keyword.
+        controller.run_batch.side_effect = [_chunk(), _chunk(["a lost keyword"])]
+
+        argv = [
+            "scraper",
+            "--product-ids",
+            "B0AAAAAAAA",
+            "B0BBBBBBBB",
+            "--batch-size",
+            "1",
+            "--strict",
+        ]
+        with (
+            patch.object(sys, "argv", argv),
+            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch(
+                "src.scraper.amazon.batch_controller.BatchController",
+                return_value=controller,
+            ),
+            patch("src.scraper.amazon.config.load_batch_config", MagicMock()),
+            pytest.raises(SystemExit) as exit_info,
+        ):
+            scraper_module.main()
+
+        assert exit_info.value.code == 1
+        assert controller.run_batch.call_count == 2
