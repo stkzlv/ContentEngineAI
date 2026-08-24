@@ -378,7 +378,7 @@ re-running what comes before it.
 
 Re-running one step also forgets every recorded step that reads its output,
 and deletes the files those steps would otherwise short-circuit on — the
-script, the voiceover, the platform metadata. That is what makes the next
+voiceover, the platform metadata. That is what makes the next
 full run redo them against the new input rather than pair fresh narration
 with stale captions, but it does mean `--step generate_script` discards the
 voiceover you already have.
