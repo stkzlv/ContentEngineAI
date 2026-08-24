@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.8] - 2026-08-24
+
+### Fixed
+- A product with too little media is reported skipped rather than failed. `PipelineGraph.execute_step` wrapped every step in `except Exception` and turned the media rejection into a failed step, so the documented skip path could never run: the product was counted as a failed render naming a step that had worked, and a real step failure looked identical to it. The graph now takes the exception types its owner needs passed through unchanged, and the producer declares the media rejection as one.
+
 ## [0.71.7] - 2026-08-24
 
 ### Fixed

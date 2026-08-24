@@ -236,7 +236,9 @@ async def execute_pipeline_parallel(
 
     # Create pipeline graph from the shared dependency map, walked in run
     # order so a step is always added after the steps it depends on.
-    pipeline = PipelineGraph()
+    # A media rejection is a skip, not a step failure: it must reach
+    # `create_video_for_product`, which reports the product SKIPPED.
+    pipeline = PipelineGraph(propagate=(InsufficientMediaError,))
     dependencies = step_dependencies(ctx.profile)
     runners = step_runners()
     for step_name in resolved_step_order(ctx.profile):
