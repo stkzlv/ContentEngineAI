@@ -619,6 +619,22 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
    - **Random profiles**: Content variety for social media feeds
    - **Profile pool**: Balance between variety and brand consistency
 
+### Exit Codes
+
+| Outcome | Exit code | Log line |
+|---|---|---|
+| Every product completed end-to-end | 0 | `PIPELINE COMPLETED SUCCESSFULLY` |
+| Some products completed, some failed | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH FAILURES` |
+| No product completed end-to-end | 1 | `PIPELINE FAILED` |
+
+A partial failure exits 0 by default: a run that loses one product of twenty
+has done most of what was asked, and failing the whole run would stop a
+schedule over a single bad listing. Pass `--strict` when losing a product
+silently is worse than the interruption — an unattended run whose output is
+posted on a cadence, for instance.
+
+The standalone scraper follows the same rule and takes the same flag.
+
 ### Error Recovery
 
 If a batch fails midway:

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-08-24
+
+### Added
+- `--strict` on the global batch and the standalone scraper: exit non-zero when any product failed, not only when none succeeded. A partial failure still exits 0 by default, so one bad listing does not stop a schedule; the three outcomes and their codes are now documented.
+
 ## [0.71.9] - 2026-08-24
 
 ### Fixed

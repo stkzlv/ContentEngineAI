@@ -1353,6 +1353,14 @@ def main():
         help="Maximum products to scrape per individual keyword",
     )
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit non-zero when any product failed, not only when none was "
+            "scraped (default: a partial failure exits 0)"
+        ),
+    )
+    parser.add_argument(
         "--fail-fast",
         action="store_true",
         help=(
@@ -1847,6 +1855,9 @@ def main():
         # Products successfully scraped, across whichever mode ran. Used to set
         # a non-zero exit code when nothing was scraped, so CI/cron see it.
         products_scraped = 0
+        # Bound only by the batch arm; the single-keyword arm counts what it
+        # returned and has no per-product failures to report.
+        summary = None
 
         # Batch mode: use BatchController for multiple products
         if is_batch_mode:
@@ -1951,6 +1962,19 @@ def main():
 
         if products_scraped == 0:
             logger.error("Scraper failed: 0 products scraped")
+            raise SystemExit(1)
+
+        # A partial failure exits 0 by default, matching the global batch:
+        # a run that lost one product of twenty has done most of what was
+        # asked. `--strict` is for a caller that would rather investigate
+        # than lose a product silently.
+        failed = getattr(summary, "failed", 0) or 0
+        if args.strict and failed:
+            logger.error(
+                "Scraper failed under --strict: %d scraped, %d failed",
+                products_scraped,
+                failed,
+            )
             raise SystemExit(1)
 
     except Exception as e:
