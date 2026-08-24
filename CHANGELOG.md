@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.72.0] - 2026-08-24
 
 ### Added
-- `--strict` on the global batch and the standalone scraper: exit non-zero when any product failed, not only when none succeeded. A partial failure still exits 0 by default, so one bad listing does not stop a schedule; the three outcomes and their codes are now documented.
+- `--strict` on the global batch, the standalone scraper and the producer: exit non-zero when any product failed, not only when none succeeded. A partial failure still exits 0 by default, so one bad listing does not stop a schedule; the three outcomes and their codes are now documented. It counts failures, not skips.
+- `BatchSummary.failed_keywords`, so a keyword that returns nothing or whose search raises leaves a trace. That arm records no per-product result, so a lost keyword was previously invisible to everything reading the summary.
 
 ## [0.71.9] - 2026-08-24
 

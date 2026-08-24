@@ -254,6 +254,11 @@ class BatchSummary:
     failed_products: list[str]  # ASINs of failed products
     media_stats: dict[str, int | float]  # Media collection statistics
     duration_sec: float  # Total batch duration
+    # Keywords that produced nothing, tracked apart from the ASIN-shaped
+    # fields above: a keyword that returns no product or whose search raises
+    # is a lost input with no ASIN to name it by, and folding it into
+    # `failed_products` would put a search phrase in a list of identifiers.
+    failed_keywords: list[str] = field(default_factory=list)
 
 
 @dataclass

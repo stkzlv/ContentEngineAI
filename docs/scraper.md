@@ -36,6 +36,7 @@ Both the standalone scraper and the global batch pipeline accept these flags.
 | `--max-products` | Global cap on total products | `--max-products 10` |
 | `--products-per-keyword` | Max products per keyword | `--products-per-keyword 2` |
 | `--fail-fast` | Stop batch on first error | `--fail-fast` |
+| `--strict` | Exit non-zero when any product or keyword produced nothing | `--strict` |
 | `--clean` | Delete output dir before scraping | `--clean` |
 | `--input-file` | Read product IDs/URLs from file | `--input-file products.txt` |
 | `--batch-size` | Process products in chunks of N | `--batch-size 10` |

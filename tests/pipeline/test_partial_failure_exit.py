@@ -60,15 +60,90 @@ class TestBothEntryPointsOfferIt:
 
         assert create_argument_parser().parse_args(["--keywords", "a"]).strict is False
 
-    def test_the_scraper_accepts_strict(self):
-        import argparse
-        import inspect
+    def test_the_producer_accepts_strict(self):
+        from src.video.producer.cli import create_argument_parser
 
-        from src.scraper.amazon import scraper
+        parser = create_argument_parser()
+        assert parser.parse_args(["--batch", "--strict"]).strict is True
+        assert parser.parse_args(["--batch"]).strict is False
 
-        source = inspect.getsource(scraper.main)
-        assert '"--strict"' in source, "the standalone scraper has no --strict"
-        # And it is a flag, not a value-taking option.
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--strict", action="store_true")
-        assert parser.parse_args([]).strict is False
+
+@pytest.mark.unit
+class TestTheScraperUnderStrict:
+    """Driven through `main`, because the flag has to reach an exit code.
+
+    A source grep passes while the flag is registered as a value-taking
+    option, or read from a summary field the arm under test never fills.
+    """
+
+    @staticmethod
+    def _run(argv, *, summary):
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        from src.scraper.amazon import scraper as scraper_module
+
+        controller = MagicMock()
+        controller.run_batch.return_value = summary
+
+        with (
+            patch.object(sys, "argv", ["scraper", *argv]),
+            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch(
+                "src.scraper.amazon.batch_controller.BatchController",
+                return_value=controller,
+            ),
+            patch("src.scraper.amazon.config.load_batch_config", MagicMock()),
+        ):
+            try:
+                scraper_module.main()
+            except SystemExit as exit_info:
+                return exit_info.code
+            return 0
+
+    @staticmethod
+    def _summary(*, successful, failed=0, failed_keywords=()):
+        from src.scraper.amazon.models import BatchSummary
+
+        return BatchSummary(
+            total_attempted=successful + failed,
+            product_ids_attempted=0,
+            keywords_attempted=1,
+            successful=successful,
+            failed=failed,
+            successful_products=["B0AAAAAAAA"] * successful,
+            failed_products=["B0BBBBBBBB"] * failed,
+            media_stats={},
+            duration_sec=1.0,
+            failed_keywords=list(failed_keywords),
+        )
+
+    def test_a_lost_keyword_trips_strict(self):
+        # The keyword arm records no per-product failure, so a check reading
+        # only `failed` would pass here while the keyword was lost.
+        code = self._run(
+            ["--keywords", "a", "b", "--strict"],
+            summary=self._summary(successful=1, failed_keywords=["b"]),
+        )
+        assert code == 1
+
+    def test_a_lost_keyword_is_tolerated_without_the_flag(self):
+        code = self._run(
+            ["--keywords", "a", "b"],
+            summary=self._summary(successful=1, failed_keywords=["b"]),
+        )
+        assert code == 0
+
+    def test_a_failed_product_trips_strict(self):
+        code = self._run(
+            ["--product-ids", "B0AAAAAAAA", "B0BBBBBBBB", "--strict"],
+            summary=self._summary(successful=1, failed=1),
+        )
+        assert code == 1
+
+    def test_a_clean_run_succeeds_under_strict(self):
+        code = self._run(
+            ["--keywords", "a", "b", "--strict"],
+            summary=self._summary(successful=2),
+        )
+        assert code == 0

@@ -1968,12 +1968,21 @@ def main():
         # a run that lost one product of twenty has done most of what was
         # asked. `--strict` is for a caller that would rather investigate
         # than lose a product silently.
-        failed = getattr(summary, "failed", 0) or 0
-        if args.strict and failed:
+        # Both kinds of loss: a product id that yielded nothing, and a
+        # keyword whose search returned nothing or raised. The keyword arm
+        # records no per-product result, so counting only `failed` would
+        # make --strict a no-op on exactly the runs the docs use as
+        # examples.
+        failed = getattr(summary, "failed", 0)
+        lost_keywords = list(getattr(summary, "failed_keywords", []) or [])
+        if args.strict and (failed or lost_keywords):
             logger.error(
-                "Scraper failed under --strict: %d scraped, %d failed",
+                "Scraper failed under --strict: %d scraped, %d products "
+                "failed, %d keywords produced nothing%s",
                 products_scraped,
                 failed,
+                len(lost_keywords),
+                f" ({', '.join(lost_keywords)})" if lost_keywords else "",
             )
             raise SystemExit(1)
 

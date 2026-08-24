@@ -629,9 +629,13 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 
 A partial failure exits 0 by default: a run that loses one product of twenty
 has done most of what was asked, and failing the whole run would stop a
-schedule over a single bad listing. Pass `--strict` when losing a product
-silently is worse than the interruption — an unattended run whose output is
+schedule over a single bad listing. Pass `--strict` when a lost product
+matters more than the interruption — an unattended run whose output is
 posted on a cadence, for instance.
+
+`--strict` counts failures, not skips. A product rejected for insufficient
+media is reported skipped, which is a different outcome from a step that
+broke, and it does not change the exit code either way.
 
 The standalone scraper follows the same rule and takes the same flag.
 
