@@ -143,6 +143,26 @@ class TestTheCleanPreviewMatchesTheClean:
         names = {t.name for t in _clean_targets(outputs, ["B0PRODUCT1"])}
         assert names == {"B0PRODUCT1"}
 
+    def test_a_repeated_product_id_is_named_once(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets
+
+        # The selection is hoisted ahead of the deletion, so a duplicate
+        # would have the second removal hit a directory the first took.
+        outputs = self._outputs(tmp_path)
+        targets = _clean_targets(outputs, ["B0PRODUCT1", "B0PRODUCT1"])
+        assert [t.name for t in targets] == ["B0PRODUCT1"]
+
+    def test_the_clean_survives_a_repeated_product_id(self, tmp_path):
+        import shutil
+
+        from src.pipeline.global_batch import _clean_targets
+
+        outputs = self._outputs(tmp_path)
+        for target in _clean_targets(outputs, ["B0PRODUCT1", "B0PRODUCT1"]):
+            shutil.rmtree(target)
+        assert not (outputs / "B0PRODUCT1").exists()
+        assert (outputs / "B0PRODUCT2").exists()
+
     def test_a_missing_outputs_root_removes_nothing(self, tmp_path):
         from src.pipeline.global_batch import _clean_targets
 

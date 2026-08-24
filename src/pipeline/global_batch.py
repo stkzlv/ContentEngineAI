@@ -349,8 +349,13 @@ def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Pat
     if not outputs_dir.exists():
         return []
     if product_ids:
+        # Deduplicated: the caller may name a product twice, and hoisting
+        # the selection ahead of the deletion means the second occurrence
+        # would try to remove a directory the first one already took.
         return [
-            outputs_dir / pid for pid in product_ids if (outputs_dir / pid).is_dir()
+            outputs_dir / pid
+            for pid in dict.fromkeys(product_ids)
+            if (outputs_dir / pid).is_dir()
         ]
     return sorted(
         item
@@ -511,6 +516,27 @@ class GlobalPipelineOrchestrator:
         print("DRY RUN - EXECUTION PLAN")
         print(f"{separator}\n")
 
+        # What --clean would remove. The plan exists to answer that before
+        # the directories are gone, and it is the one companion flag whose
+        # effect cannot be undone.
+        if self.config.clean:
+            print(f"{section}")
+            print("CLEAN")
+            print(f"{section}")
+            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
+            if targets:
+                print(
+                    f"  Would remove {len(targets)} product director"
+                    f"{'y' if len(targets) == 1 else 'ies'}:"
+                )
+                for target in targets[:10]:
+                    print(f"    - {target.name}")
+                if len(targets) > 10:
+                    print(f"    ... and {len(targets) - 10} more")
+            else:
+                print("  Nothing to remove")
+            print()
+
         # Phase 1: Scraping Plan
         print(f"{section}")
         print("PHASE 1: SCRAPING")
@@ -644,27 +670,6 @@ class GlobalPipelineOrchestrator:
                     print("  Scheduling: Immediate publish")
 
         print()
-
-        # What --clean would remove. The plan exists to answer that before
-        # the directories are gone, and it is the one companion flag whose
-        # effect cannot be undone.
-        if self.config.clean:
-            print(f"{section}")
-            print("CLEAN")
-            print(f"{section}")
-            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
-            if targets:
-                print(
-                    f"  Would remove {len(targets)} product director"
-                    f"{'y' if len(targets) == 1 else 'ies'}:"
-                )
-                for target in targets[:10]:
-                    print(f"    - {target.name}")
-                if len(targets) > 10:
-                    print(f"    ... and {len(targets) - 10} more")
-            else:
-                print("  Nothing to remove")
-            print()
 
         # Common Options
         print(f"{section}")
