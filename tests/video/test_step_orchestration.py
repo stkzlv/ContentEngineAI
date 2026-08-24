@@ -223,3 +223,116 @@ class TestDescriptionArtifactRecording:
     async def test_written_description_is_recorded(self, tmp_path):
         artifacts = await self._artifacts(tmp_path, write_description=True)
         assert "description_file" in artifacts
+
+
+class TestStateBelongsToThisRun:
+    """`pipeline_state.json` is product-level; some artifacts are not."""
+
+    def test_this_runs_artifact_is_accepted(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import _artifact_invalid_reason
+
+        video = tmp_path / "video_A.mp4"
+        video.write_bytes(b"rendered")
+        ctx = MagicMock()
+        ctx.run_paths = {"final_video_output": video}
+        assert _artifact_invalid_reason(ctx, "final_video_output", str(video)) is None
+
+    def test_another_profiles_video_is_rejected(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import _artifact_invalid_reason
+
+        # Present on disk and completely wrong: skipping on it renders
+        # nothing and reports the path of a video this run never wrote.
+        other = tmp_path / "video_profile_a.mp4"
+        other.write_bytes(b"another profile's render")
+        ctx = MagicMock()
+        ctx.run_paths = {"final_video_output": tmp_path / "video_profile_b.mp4"}
+        reason = _artifact_invalid_reason(ctx, "final_video_output", str(other))
+        assert reason is not None
+        assert "another run" in reason
+
+    def test_a_missing_file_is_still_rejected(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import _artifact_invalid_reason
+
+        ctx = MagicMock()
+        ctx.run_paths = {}
+        reason = _artifact_invalid_reason(ctx, "script_file", str(tmp_path / "gone"))
+        assert reason is not None and "not found" in reason
+
+    def test_an_unregistered_key_is_not_compared(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from src.video.producer.state import _artifact_invalid_reason
+
+        # Per-platform metadata keys are generated, not run-path entries.
+        meta = tmp_path / "metadata_youtube.json"
+        meta.write_text("{}")
+        ctx = MagicMock()
+        ctx.run_paths = {}
+        assert (
+            _artifact_invalid_reason(ctx, "platform_metadata_youtube", str(meta))
+            is None
+        )
+
+
+class TestDropDependents:
+    """Re-running a step invalidates what reads its output."""
+
+    @staticmethod
+    def _ctx(state):
+        from unittest.mock import MagicMock
+
+        ctx = MagicMock()
+        ctx.state = state
+        ctx.profile = _profile(stock_only=False)
+        return ctx
+
+    def test_reassembling_drops_the_recorded_burn(self):
+        from src.video.producer.state import _drop_dependents
+
+        state = {
+            STEP_ASSEMBLE_VIDEO: {"status": "done"},
+            STEP_BURN_PYCAPS_SUBTITLES: {"status": "done"},
+        }
+        _drop_dependents(self._ctx(state), STEP_ASSEMBLE_VIDEO)
+        # The burn's captions were re-rendered away by the new assembly.
+        assert STEP_BURN_PYCAPS_SUBTITLES not in state
+        assert STEP_ASSEMBLE_VIDEO in state
+
+    def test_upstream_steps_are_kept(self):
+        from src.video.producer.state import _drop_dependents
+
+        state = {
+            STEP_GATHER_VISUALS: {"status": "done"},
+            STEP_GENERATE_SCRIPT: {"status": "done"},
+            STEP_CREATE_VOICEOVER: {"status": "done"},
+        }
+        _drop_dependents(self._ctx(state), STEP_CREATE_VOICEOVER)
+        assert set(state) == {
+            STEP_GATHER_VISUALS,
+            STEP_GENERATE_SCRIPT,
+            STEP_CREATE_VOICEOVER,
+        }
+
+    def test_indirect_dependents_go_too(self):
+        from src.video.producer.state import (
+            STEP_DOWNLOAD_MUSIC,
+            STEP_GENERATE_SUBTITLES,
+            _drop_dependents,
+        )
+
+        state = {
+            STEP_GENERATE_SCRIPT: {"status": "done"},
+            STEP_CREATE_VOICEOVER: {"status": "done"},
+            STEP_GENERATE_SUBTITLES: {"status": "done"},
+            STEP_DOWNLOAD_MUSIC: {"status": "done"},
+            STEP_ASSEMBLE_VIDEO: {"status": "done"},
+            STEP_BURN_PYCAPS_SUBTITLES: {"status": "done"},
+        }
+        _drop_dependents(self._ctx(state), STEP_CREATE_VOICEOVER)
+        assert set(state) == {STEP_GENERATE_SCRIPT, STEP_CREATE_VOICEOVER}

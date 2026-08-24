@@ -10,13 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.71.6] - 2026-08-24
 
 ### Fixed
-- A resume keeps a finished run's state. `generate_description` recorded `description.txt` as its artifact whether or not it had written one, and the configured path writes platform metadata instead; the next run found the file missing, declared the state invalid and dropped that step and every step after it, so a completed render re-ran the description, the voiceover, the subtitles, the music, the assembly and the burn.
+- A resume keeps a finished run's state. `generate_description` recorded `description.txt` as its artifact, and no path writes that file: the step produces `metadata.json` unified, or `metadata_<platform>.json` per platform. Every subsequent run found the recorded file missing, declared the state invalid and dropped that step and everything after it, so a completed render re-ran the description, the voiceover, the subtitles, the music, the assembly and the burn.
 - A resume loads the artifacts of the steps it skips. The scan for completed steps called `.get` on every value in `pipeline_state.json`, and that file also holds top-level strings (`script_template`, `hook_headline`, `subtitle_engine_resolved`); the resulting error was caught as a corrupt state file, so the resume warned on every run and treated every step as outstanding. The steps themselves were still skipped further down, but their artifacts were never loaded, leaving the script, description and gathered media absent from the context a later step reads.
 - `--step burn_pycaps_subtitles` runs the burn. The step existed in the pipeline graph and passed the command line's validity check, but the single-step path had no branch for it, so it executed nothing and was recorded as done.
 - `--step` requires only what the requested step actually reads. The check walked every earlier position in the step order, so `--step create_voiceover` was refused until `generate_description` had run, though the description feeds it nothing. It now walks the dependency graph the pipeline already declares.
 
 ### Changed
 - Both execution paths read one step table and one dependency map, so a step cannot be wired into the parallel graph and left out of the single-step path.
+- A second render of the same product under a different profile re-renders it. `pipeline_state.json` is product-level while the assembled video is profile-level, so verification accepted the first profile's video as the second's; every step was skipped and the run returned a path nothing had written, which the batch counts as a success and hands to publishing. Verification now rejects a recorded artifact that is not the one this run would write.
+- Re-running one step drops the recorded steps that read its output. `--step assemble_video` left `burn_pycaps_subtitles` marked done over a video whose captions had just been re-rendered away, and the next full run skipped the burn and reported the uncaptioned video as complete.
 - `burn_pycaps_subtitles` refuses to burn over its own output. It replaces the assembled video with the burned one, so a second entry -- from `--step` or a resume -- would draw new captions over the old. It now records what it produced and skips until the video is reassembled.
 
 ### Removed

@@ -381,7 +381,8 @@ Two caveats. On a stock-only profile the paid steps also depend on
 is viable at all, so a doomed one is rejected before an LLM call and a
 voiceover are paid for. And `burn_pycaps_subtitles` replaces the assembled
 video with the burned one, so it will not burn a second time over its own
-output — re-run `--step assemble_video` first to iterate on caption styling.
+output: re-run `--step assemble_video` first to iterate on caption styling,
+which also drops the recorded burn so the next run redoes it.
 
 ### Running Single Steps
 
