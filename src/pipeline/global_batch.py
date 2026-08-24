@@ -21,6 +21,7 @@ Usage:
 """
 
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -336,6 +337,33 @@ Examples:
     return parser
 
 
+_ASIN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
+
+
+def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
+    """The product directories `--clean` would remove.
+
+    Shared with the dry-run plan so the preview cannot describe something
+    other than what the run does.
+    """
+    if not outputs_dir.exists():
+        return []
+    if product_ids:
+        # Deduplicated: the caller may name a product twice, and hoisting
+        # the selection ahead of the deletion means the second occurrence
+        # would try to remove a directory the first one already took.
+        return [
+            outputs_dir / pid
+            for pid in dict.fromkeys(product_ids)
+            if (outputs_dir / pid).is_dir()
+        ]
+    return sorted(
+        item
+        for item in outputs_dir.iterdir()
+        if item.is_dir() and _ASIN_DIR_PATTERN.match(item.name)
+    )
+
+
 class GlobalPipelineOrchestrator:
     """Orchestrates scraping, video production, and publishing phases sequentially.
 
@@ -488,6 +516,27 @@ class GlobalPipelineOrchestrator:
         print("DRY RUN - EXECUTION PLAN")
         print(f"{separator}\n")
 
+        # What --clean would remove. The plan exists to answer that before
+        # the directories are gone, and it is the one companion flag whose
+        # effect cannot be undone.
+        if self.config.clean:
+            print(f"{section}")
+            print("CLEAN")
+            print(f"{section}")
+            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
+            if targets:
+                print(
+                    f"  Would remove {len(targets)} product director"
+                    f"{'y' if len(targets) == 1 else 'ies'}:"
+                )
+                for target in targets[:10]:
+                    print(f"    - {target.name}")
+                if len(targets) > 10:
+                    print(f"    ... and {len(targets) - 10} more")
+            else:
+                print("  Nothing to remove")
+            print()
+
         # Phase 1: Scraping Plan
         print(f"{section}")
         print("PHASE 1: SCRAPING")
@@ -548,8 +597,18 @@ class GlobalPipelineOrchestrator:
             # Show profile details if available
             if self.config.profile in video_config.video_profiles:
                 profile = video_config.video_profiles[self.config.profile]
-                print(f"    - Strategy: {profile.strategy}")
-                print(f"    - Resolution: {profile.resolution}")
+                if profile.description:
+                    print(f"    - {profile.description}")
+                sources = []
+                if profile.use_scraped_images:
+                    sources.append("scraped images")
+                if profile.use_scraped_videos:
+                    sources.append("scraped videos")
+                if profile.use_stock_images:
+                    sources.append(f"{profile.stock_image_count} stock images")
+                if profile.use_stock_videos:
+                    sources.append(f"{profile.stock_video_count} stock videos")
+                print(f"    - Visuals: {', '.join(sources) or 'none configured'}")
         elif self.config.random_profile:
             from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
 
@@ -2053,33 +2112,24 @@ async def main():
         logger.info(f"Resume mode: {config.resume}")
         logger.info(f"Dry-run mode: {config.dry_run}")
 
-        # Handle clean mode
-        if config.clean:
-            import re
-            import shutil
-
-            asin_pattern = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
-            outputs = config.outputs_dir
-
-            if outputs.exists():
-                if config.product_ids:
-                    for pid in config.product_ids:
-                        prod_dir = outputs / pid
-                        if prod_dir.is_dir():
-                            shutil.rmtree(prod_dir)
-                            logger.info("Cleaned product directory: %s", prod_dir)
-                else:
-                    for item in outputs.iterdir():
-                        if item.is_dir() and asin_pattern.match(item.name):
-                            shutil.rmtree(item)
-                            logger.info("Cleaned product directory: %s", item)
-
+        # Dry-run first: it reports what a run would do, so nothing
+        # destructive may precede it. `--clean` used to, which meant
+        # `--dry-run --clean` removed the product directories and then
+        # printed a plan for producing them.
         # Handle dry-run mode
         if config.dry_run:
             orchestrator = GlobalPipelineOrchestrator(config, video_config=video_config)
             orchestrator.display_execution_plan(video_config)
             logger.info("Dry-run completed - exiting without execution")
             sys.exit(0)
+
+        # Handle clean mode
+        if config.clean:
+            import shutil
+
+            for target in _clean_targets(config.outputs_dir, config.product_ids):
+                shutil.rmtree(target)
+                logger.info("Cleaned product directory: %s", target)
 
         # Handle resume mode
         state = None
