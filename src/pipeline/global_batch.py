@@ -39,6 +39,7 @@ from src.pipeline.config import (
 )
 from src.pipeline.webhooks import WebhookConfig, WebhookNotifier
 from src.scraper.amazon.models import ProductData
+from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
 from src.video.config_adapter import load_video_config_modular
 
 logger = logging.getLogger(__name__)
@@ -946,7 +947,9 @@ class GlobalPipelineOrchestrator:
                     break
                 continue
 
-            input_pillar = self.config.keyword_pillar_map.get(input_item)
+            input_pillar = keyword_pillar_for(
+                input_item, self.config.keyword_pillar_map
+            )
 
             try:
                 products = scraper.process_raw_products(
