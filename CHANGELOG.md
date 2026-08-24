@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.5] - 2026-08-24
+
+### Fixed
+- A run with no `--keywords` searches the configured keywords again. `batch.keywords` groups them by pillar, and the CLI assigned that dict straight through; every later consumer treats it as a sequence, and iterating a dict yields its keys, so the run searched for the literal strings `value`, `novelty` and `utility` while all fifty-four configured keywords went unsearched.
+- A keyword differing from its config spelling only in case or spacing keeps its pillar. The lookup was byte-exact, and a missing pillar is indistinguishable from an unconfigured keyword, so it failed silently.
+
+### Changed
+- One reader for the pillar-keyed keyword config, in `src/scraper/base/keyword_pillars.py`. Three places folded it into a keyword list and a pillar map with their own loops and disagreed; the CLI's copy did not fold it at all. The keyword list keeps its spelling because it is what gets searched, and the map is keyed by the matching form because it is what gets looked up.
+
+### Notes
+- `BatchConfig` normalizes whatever map it is handed, so a caller building one directly cannot produce a map that silently never matches.
+- Both loaders and all three lookup sites are now covered against the bundled config: every shipped keyword must resolve, and a mixed-case one must resolve through the batch's own call site rather than only through the helper. Both defects lived in that gap — the two ends were covered and the links between them were not. The path from a written `data.json` to a rendered pillar is covered separately and is unchanged here.
+
 ## [0.71.4] - 2026-08-23
 
 ### Fixed

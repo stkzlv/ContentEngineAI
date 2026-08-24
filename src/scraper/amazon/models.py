@@ -7,6 +7,9 @@ platform-agnostic models with Amazon-specific fields and functionality.
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.scraper.base.keyword_pillars import normalize_keyword
+from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
+
 from ..base import BaseProductData, BaseSearchParameters, Platform
 from .constants import (
     FREE_SHIPPING_FILTER_CODE,
@@ -214,9 +217,24 @@ class BatchConfig:
     products_per_keyword: int  # Max products per keyword/product ID
     keyword_pillar_map: dict[str, str] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # The map is looked up by normalized keyword, so normalize whatever it
+        # was built from. A caller handing over raw keys -- a test, or a config
+        # path that predates the shared reader -- would otherwise build a map
+        # that silently never matches.
+        self.keyword_pillar_map = {
+            normalize_keyword(key): value
+            for key, value in (self.keyword_pillar_map or {}).items()
+        }
+
     def pillar_for(self, keyword: str) -> str | None:
-        """Return the pillar a keyword belongs to, or None."""
-        return self.keyword_pillar_map.get(keyword)
+        """Return the pillar a keyword belongs to, or None.
+
+        Normalized on both sides: the map is keyed by the matching form, so a
+        byte-exact lookup would miss a keyword differing only in case or
+        spacing.
+        """
+        return keyword_pillar_for(keyword, self.keyword_pillar_map)
 
 
 @dataclass

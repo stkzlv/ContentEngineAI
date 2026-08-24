@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 
+from src.scraper.base.keyword_pillars import read_keyword_pillars
+
 # Global configuration storage
 CONFIG: dict[str, Any] = {}
 _BROWSER_CONFIG: dict[str, Any] = {}
@@ -290,19 +292,7 @@ def load_batch_config(
     # Build keyword list and pillar map from YAML.
     # Dict shape (pillar -> keyword list) attaches each keyword to its pillar.
     # Flat list shape (backward compat) leaves the pillar map empty.
-    keyword_pillar_map: dict[str, str] = {}
-    if isinstance(yaml_keywords_raw, dict):
-        yaml_keywords: list[str] = []
-        for pillar, kw_list in yaml_keywords_raw.items():
-            if not isinstance(kw_list, list):
-                continue
-            for kw in kw_list:
-                yaml_keywords.append(kw)
-                keyword_pillar_map[kw] = str(pillar)
-    elif isinstance(yaml_keywords_raw, list):
-        yaml_keywords = yaml_keywords_raw
-    else:
-        yaml_keywords = []
+    yaml_keywords, keyword_pillar_map = read_keyword_pillars(yaml_keywords_raw)
 
     # Apply CLI > YAML > Defaults precedence
     product_ids = cli_product_ids if cli_product_ids is not None else yaml_product_ids

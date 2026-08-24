@@ -60,9 +60,12 @@ class TestLoadBatchConfigDictKeywords:
             from src.scraper.amazon.config import load_batch_config
 
             bc = load_batch_config()
+        # The keyword list keeps its spelling, because it is what gets
+        # searched; the map is keyed by the matching form, because it is what
+        # gets looked up.
         assert bc.keywords == ["USB C hub", "smart plug", "smart ring"]
         assert bc.keyword_pillar_map == {
-            "USB C hub": "value",
+            "usb c hub": "value",
             "smart plug": "value",
             "smart ring": "novelty",
         }

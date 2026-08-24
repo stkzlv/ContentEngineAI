@@ -36,6 +36,7 @@ from typing import Any
 import yaml
 
 from src.scraper.amazon.models import SearchParameters
+from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
@@ -751,17 +752,9 @@ def load_global_batch_config(
     # true regardless of how the keyword reached this run, so a CLI keyword that
     # matches a configured one still carries its pillar. Mirrors the standalone
     # scraper (src/scraper/amazon/config.py), which already works this way.
-    keyword_pillar_map: dict[str, str] = {}
-    yaml_keywords_raw = yaml_config.get("keywords", []) or []
-    yaml_keywords: list[str] = []
-    if isinstance(yaml_keywords_raw, dict):
-        for pillar_name, kw_list in yaml_keywords_raw.items():
-            if isinstance(kw_list, list):
-                for kw in kw_list:
-                    yaml_keywords.append(kw)
-                    keyword_pillar_map[kw] = str(pillar_name)
-    elif isinstance(yaml_keywords_raw, list):
-        yaml_keywords = yaml_keywords_raw
+    yaml_keywords, keyword_pillar_map = read_keyword_pillars(
+        yaml_config.get("keywords", []) or []
+    )
 
     if cli_has_inputs:
         product_ids = cli_product_ids or []
