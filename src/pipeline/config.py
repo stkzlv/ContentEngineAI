@@ -494,12 +494,21 @@ class PipelineSummary:
     total_failures: int
     total_duration_sec: float
 
-    def exit_code(self) -> int:
-        """Process exit code for the run: 0 if any product completed
-        end-to-end, else 1 so CI, cron, and wrappers checking ``$?`` see a
-        run that produced nothing as a failure.
+    def exit_code(self, strict: bool = False) -> int:
+        """Process exit code for the run.
+
+        By default 0 if any product completed end-to-end, else 1, so CI,
+        cron, and wrappers checking ``$?`` see a run that produced nothing
+        as a failure. A partial failure still exits 0: a batch that loses
+        one product of twenty has done most of what was asked, and failing
+        the whole run for it would stop a schedule over a single bad ASIN.
+
+        ``strict`` makes any failure non-zero, for a caller that would
+        rather investigate than lose a product silently.
         """
-        return 0 if self.end_to_end_success > 0 else 1
+        if self.end_to_end_success == 0:
+            return 1
+        return 1 if strict and self.total_failures > 0 else 0
 
     def format(self) -> str:
         """Format pipeline summary as human-readable string.

@@ -1402,3 +1402,50 @@ class TestSummaryLogging:
         summary = controller.run_batch()
 
         assert summary.duration_sec >= 0
+
+
+@pytest.mark.unit
+class TestLostKeywordsAreRecorded:
+    """The keyword arm records no per-product failure, so a lost keyword
+    would otherwise leave no trace in the summary at all.
+    """
+
+    @staticmethod
+    def _controller(keywords):
+        from src.scraper.amazon.batch_controller import BatchController
+        from src.scraper.amazon.models import BatchConfig, SearchParameters
+
+        scraper = MagicMock()
+        config = BatchConfig(
+            product_ids=[],
+            keywords=keywords,
+            fail_fast=False,
+            search_params=SearchParameters(),
+            max_products=10,
+            products_per_keyword=1,
+        )
+        return BatchController(scraper, config), scraper
+
+    def test_a_keyword_that_returns_nothing_is_recorded(self):
+        controller, scraper = self._controller(["a keyword"])
+        scraper.scrape_products_unified.return_value = []
+
+        controller._process_keywords()
+
+        assert controller._failed_keywords == ["a keyword"]
+
+    def test_a_keyword_whose_search_raises_is_recorded(self):
+        controller, scraper = self._controller(["a keyword"])
+        scraper.scrape_products_unified.side_effect = RuntimeError("blocked")
+
+        controller._process_keywords()
+
+        assert controller._failed_keywords == ["a keyword"]
+
+    def test_the_summary_carries_them(self):
+        controller, scraper = self._controller(["good", "bad"])
+        controller._failed_keywords = ["bad"]
+
+        summary = controller._generate_summary([], 0, 2, 1.0)
+
+        assert summary.failed_keywords == ["bad"]

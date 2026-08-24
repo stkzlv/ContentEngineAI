@@ -73,6 +73,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 | `--profile-pool` | Profiles for random selection | `--profile-pool prof1 prof2` |
 | `--outputs-dir` | Custom outputs directory | `--outputs-dir custom_outputs` |
 | `--fail-fast` | Stop batch on first failure | `--fail-fast` |
+| `--strict` | Exit non-zero when any product failed, not only when none succeeded | `--strict` |
 | `--topic` | Render a subject instead of a product; replaces `products_file` | `--topic "Why wifi drops"` |
 | `--topic-description` | Source material the script is written from | `--topic-description "Router placement."` |
 | `--topic-keywords` | Comma-separated stock search terms for the topic | `--topic-keywords "wifi router, home network"` |

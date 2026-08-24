@@ -311,7 +311,12 @@ def _profiles_this_run_may_use(args, config) -> list[str]:
     return [named] if named else []
 
 
-async def main():
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Build the producer CLI parser.
+
+    Extracted so the flags can be asserted without running a render;
+    `main` is the only caller.
+    """
     parser = argparse.ArgumentParser(
         description="Generate promotional videos for e-commerce products."
     )
@@ -411,6 +416,14 @@ async def main():
         "--fail-fast",
         action="store_true",
         help="Stop batch processing on first failure.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit non-zero when any product failed, not only when none "
+            "succeeded (default: a partial failure exits 0)."
+        ),
     )
     parser.add_argument(
         "--product-index", type=int, help="0-based index of product in JSON list."
@@ -659,6 +672,11 @@ async def main():
         help="Format for batch summary output (default: text).",
     )
 
+    return parser
+
+
+async def main():
+    parser = create_argument_parser()
     args = parser.parse_args()
 
     topic_mode = args.topic is not None or args.topics_file is not None
@@ -1207,16 +1225,30 @@ async def main():
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
     # Non-zero exit when nothing was produced, so CI, cron, and wrappers
-    # checking $? see the failure. Any success exits 0 (batch is best-effort).
+    # checking $? see the failure. Same contract as the batch and the
+    # scraper: nothing produced is a failure, a partial failure is not
+    # unless the caller asked for it.
     exit_code = 0 if batch_summary.succeeded_count > 0 else 1
-    if exit_code == 0:
-        logger.info("Video producer completed successfully")
-    else:
+    if not exit_code and args.strict and batch_summary.failed_count:
+        exit_code = 1
+
+    # Keyed on what happened, not on the exit code: under --strict a partial
+    # failure also exits non-zero, and calling that "no videos produced"
+    # would contradict the files on disk.
+    if batch_summary.succeeded_count == 0:
         logger.error(
             "Video producer failed: no videos produced (%d failed, %d skipped)",
             batch_summary.failed_count,
             batch_summary.skipped_count,
         )
+    elif batch_summary.failed_count:
+        logger.warning(
+            "Video producer completed with failures: %d succeeded, %d failed",
+            batch_summary.succeeded_count,
+            batch_summary.failed_count,
+        )
+    else:
+        logger.info("Video producer completed successfully")
     logger.info(f"Complete log saved to: {log_file}")
 
     # Clean up HTTP connection pool

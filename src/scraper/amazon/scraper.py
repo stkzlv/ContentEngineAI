@@ -1353,6 +1353,14 @@ def main():
         help="Maximum products to scrape per individual keyword",
     )
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit non-zero when any product failed, not only when none was "
+            "scraped (default: a partial failure exits 0)"
+        ),
+    )
+    parser.add_argument(
         "--fail-fast",
         action="store_true",
         help=(
@@ -1847,6 +1855,9 @@ def main():
         # Products successfully scraped, across whichever mode ran. Used to set
         # a non-zero exit code when nothing was scraped, so CI/cron see it.
         products_scraped = 0
+        # Bound only by the batch arm; the single-keyword arm counts what it
+        # returned and has no per-product failures to report.
+        summary = None
 
         # Batch mode: use BatchController for multiple products
         if is_batch_mode:
@@ -1907,6 +1918,10 @@ def main():
                     total_summary.successful += summary.successful
                     total_summary.failed += summary.failed
                     total_summary.failed_products.extend(summary.failed_products)
+                    # Merged like the product-level failures: without this a
+                    # keyword lost in any chunk after the first is invisible
+                    # to --strict, which is the loss the field exists for.
+                    total_summary.failed_keywords.extend(summary.failed_keywords)
                     total_summary.duration_sec += summary.duration_sec
 
             if total_summary is None:
@@ -1951,6 +1966,28 @@ def main():
 
         if products_scraped == 0:
             logger.error("Scraper failed: 0 products scraped")
+            raise SystemExit(1)
+
+        # A partial failure exits 0 by default, matching the global batch:
+        # a run that lost one product of twenty has done most of what was
+        # asked. `--strict` is for a caller that would rather investigate
+        # than lose a product silently.
+        # Both kinds of loss: a product id that yielded nothing, and a
+        # keyword whose search returned nothing or raised. The keyword arm
+        # records no per-product result, so counting only `failed` would
+        # make --strict a no-op on exactly the runs the docs use as
+        # examples.
+        failed = getattr(summary, "failed", 0)
+        lost_keywords = list(getattr(summary, "failed_keywords", []) or [])
+        if args.strict and (failed or lost_keywords):
+            logger.error(
+                "Scraper failed under --strict: %d scraped, %d products "
+                "failed, %d keywords produced nothing%s",
+                products_scraped,
+                failed,
+                len(lost_keywords),
+                f" ({', '.join(lost_keywords)})" if lost_keywords else "",
+            )
             raise SystemExit(1)
 
     except Exception as e:

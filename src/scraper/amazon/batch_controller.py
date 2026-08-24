@@ -37,6 +37,10 @@ class BatchController:
         self.logger = scraper.logger
         self.results: list[ProductResult] = []
         self.seen_asins: set[str] = set()
+        # Keywords that produced nothing. The per-product results only ever
+        # hold successes on this arm, so without this a lost keyword is
+        # invisible to anything reading the summary.
+        self._failed_keywords: list[str] = []
 
         # Load logging configuration from YAML
         self.log_config = get_batch_logging_config()
@@ -294,6 +298,7 @@ class BatchController:
                         break
 
                 else:
+                    self._failed_keywords.append(keyword)
                     self.logger.warning(
                         "[%d/%d]  No products found for: %s",
                         i,
@@ -303,6 +308,7 @@ class BatchController:
 
             except Exception as e:
                 error_msg = str(e)
+                self._failed_keywords.append(keyword)
                 self.logger.error(
                     "[%d/%d] Failed to search %s: %s",
                     i,
@@ -390,6 +396,7 @@ class BatchController:
         failed = sum(1 for r in results if not r.success)
         successful_products = [r.product_id for r in results if r.success]
         failed_products = [r.product_id for r in results if not r.success]
+        failed_keywords = list(self._failed_keywords)
 
         # Calculate media statistics
         total_images = 0
@@ -426,6 +433,7 @@ class BatchController:
             failed=failed,
             successful_products=successful_products,
             failed_products=failed_products,
+            failed_keywords=failed_keywords,
             media_stats=media_stats,
             duration_sec=round(duration_sec, duration_places),
         )

@@ -240,6 +240,14 @@ Examples:
         help="Stop pipeline on first failure (default: continue processing)",
     )
     common_group.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit non-zero when any product failed, not only when none "
+            "succeeded (default: a partial failure exits 0)"
+        ),
+    )
+    common_group.add_argument(
         "--process-all-products",
         action="store_true",
         help=(
@@ -2184,7 +2192,7 @@ async def main():
         # Exit code reflects whether the run did what was asked: non-zero when
         # no product completed end-to-end, so CI, cron, and wrappers checking
         # $? see the failure instead of a false success.
-        exit_code = summary.exit_code()
+        exit_code = summary.exit_code(strict=args.strict)
 
         # Output summary in requested format
         if config.output_format == "json":
@@ -2193,7 +2201,10 @@ async def main():
         else:
             # Text output (already logged by _generate_final_summary)
             logger.info("=" * 80)
-            if exit_code:
+            # Keyed on what happened, not on the exit code: under --strict
+            # a partial failure also exits non-zero, and calling that "no
+            # products completed end-to-end" would be false.
+            if summary.end_to_end_success == 0:
                 logger.error(
                     "PIPELINE FAILED: no products completed end-to-end "
                     "(%d failed, %d skipped)",
@@ -2202,7 +2213,7 @@ async def main():
                 )
             elif summary.total_failures > 0:
                 logger.warning(
-                    "PIPELINE COMPLETED WITH FAILURES: " "%d succeeded, %d failed",
+                    "PIPELINE COMPLETED WITH FAILURES: %d succeeded, %d failed",
                     summary.end_to_end_success,
                     summary.total_failures,
                 )
