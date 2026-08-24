@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.6] - 2026-08-24
+
+### Fixed
+- A resume runs only the steps that are still outstanding. The scan for completed steps called `.get` on every value in `pipeline_state.json`, and that file also holds top-level strings (`script_template`, `hook_headline`, `subtitle_engine_resolved`); the resulting error was caught as a corrupt state file, so every resume silently re-ran the whole pipeline, LLM calls and voiceover included.
+- `--step burn_pycaps_subtitles` runs the burn. The step existed in the pipeline graph and passed the command line's validity check, but the single-step path had no branch for it, so it executed nothing and was recorded as done.
+- `--step` requires only what the requested step actually reads. The check walked every earlier position in the step order, so `--step create_voiceover` was refused until `generate_description` had run, though the description feeds it nothing. It now walks the dependency graph the pipeline already declares.
+
+### Changed
+- Both execution paths read one step table and one dependency map, so a step cannot be wired into the parallel graph and left out of the single-step path.
+
 ## [0.71.5] - 2026-08-24
 
 ### Fixed

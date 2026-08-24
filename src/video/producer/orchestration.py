@@ -68,6 +68,114 @@ logger = logging.getLogger(__name__)
 FAILED_PREFIX = "FAILED:"
 
 
+def step_runners() -> dict[str, Any]:
+    """Every step name mapped to the coroutine that runs it.
+
+    One table for both execution paths. The parallel graph and the
+    sequential ``--step`` path used to name their steps separately, so a step
+    added to the graph alone was accepted on the command line, ran nothing,
+    and was still recorded as done.
+    """
+    return {
+        STEP_GATHER_VISUALS: step_gather_visuals,
+        STEP_GENERATE_SCRIPT: step_generate_script,
+        STEP_GENERATE_DESCRIPTION: step_generate_description,
+        STEP_CREATE_VOICEOVER: step_create_voiceover,
+        STEP_GENERATE_SUBTITLES: step_generate_subtitles,
+        STEP_DOWNLOAD_MUSIC: step_download_music,
+        STEP_ASSEMBLE_VIDEO: step_assemble_video,
+        STEP_BURN_PYCAPS_SUBTITLES: step_burn_pycaps_subtitles,
+    }
+
+
+def completed_steps_from_state(state_data: dict[str, Any]) -> set[str]:
+    """Names of the steps a saved state file records as done.
+
+    The file is not only step entries: it also holds top-level scalars
+    (`script_template`, `hook_headline`, `subtitle_engine_resolved`, ...).
+    Calling ``.get`` on those raises, and the caller's broad handler then
+    reports a corrupt state and re-runs a completed pipeline from scratch.
+    """
+    return {
+        name
+        for name, info in state_data.items()
+        if isinstance(info, dict) and info.get("status") == "done"
+    }
+
+
+def step_dependencies(profile: VideoProfile) -> dict[str, set[str]]:
+    """Each step's declared prerequisites under this profile's step order.
+
+    The single source of truth for the pipeline DAG. Both the parallel
+    executor and the ``--step`` prerequisite check read it, so a partial run
+    can never be refused for a step the graph does not actually require.
+
+    Which of the first two runs first depends on where the visuals come from.
+    A scraped product has its photography before anything is written, and
+    gathering first also rejects a product with too few images before an LLM
+    call is paid for. A profile rendering entirely from stock has no such
+    imagery: its search terms are the whole visual layer, so the script has
+    to exist first for the footage to match the narration.
+
+    ``generate_script`` reads nothing ``gather_visuals`` writes, which is what
+    makes the edge safe to reverse.
+    """
+    script_first = draws_visuals_from_script(profile)
+
+    # Both of the paid steps spend money: captions call the LLM once per
+    # platform and the voiceover synthesises audio. On the product path
+    # `gather_visuals` has already run and rejected a product with too few
+    # images before either starts. Under the script-first order it would
+    # otherwise run *alongside* them, and `fail_fast` only stops between
+    # levels, so a render destined to be skipped would pay for both first.
+    # Naming it here restores the ordering property at the cost of one
+    # serialised level.
+    paid_step_deps = {STEP_GENERATE_SCRIPT}
+    if script_first:
+        paid_step_deps = {STEP_GENERATE_SCRIPT, STEP_GATHER_VISUALS}
+
+    return {
+        STEP_GATHER_VISUALS: {STEP_GENERATE_SCRIPT} if script_first else set(),
+        STEP_GENERATE_SCRIPT: set() if script_first else {STEP_GATHER_VISUALS},
+        STEP_GENERATE_DESCRIPTION: set(paid_step_deps),
+        STEP_CREATE_VOICEOVER: set(paid_step_deps),
+        STEP_GENERATE_SUBTITLES: {STEP_CREATE_VOICEOVER},
+        STEP_DOWNLOAD_MUSIC: {STEP_CREATE_VOICEOVER},
+        # `gather_visuals` is named explicitly because it is no longer always
+        # an ancestor: on the script-first order it is a leaf, and without
+        # this edge the assembler could start before the footage is
+        # downloaded.
+        STEP_ASSEMBLE_VIDEO: {
+            STEP_GENERATE_SUBTITLES,
+            STEP_DOWNLOAD_MUSIC,
+            STEP_GATHER_VISUALS,
+        },
+        # Pycaps engine: post-assembly burn-in. Short-circuits at runtime when
+        # the resolved subtitle engine is not "pycaps", so depending on it
+        # unconditionally is safe -- no extra cost in the default ffmpeg path.
+        STEP_BURN_PYCAPS_SUBTITLES: {STEP_ASSEMBLE_VIDEO},
+    }
+
+
+def transitive_prereqs(dependencies: dict[str, set[str]], target: str) -> set[str]:
+    """Every step ``target`` transitively depends on, itself excluded.
+
+    Walks the declared DAG rather than the positional step order. A step
+    sitting earlier in the order is not a prerequisite unless an edge says so:
+    `create_voiceover` reads the script and nothing else, so a `--step` run of
+    it must not be blocked on `generate_description`.
+    """
+    seen: set[str] = set()
+    pending = list(dependencies.get(target, set()))
+    while pending:
+        step = pending.pop()
+        if step in seen:
+            continue
+        seen.add(step)
+        pending.extend(dependencies.get(step, set()))
+    return seen
+
+
 async def execute_pipeline_parallel(
     ctx: PipelineContext,
 ) -> tuple[bool, str | None]:
@@ -91,11 +199,7 @@ async def execute_pipeline_parallel(
     if ctx.run_paths["state_file"].exists():
         try:
             state_data = json.loads(ctx.run_paths["state_file"].read_text())
-            completed_steps = {
-                step_name
-                for step_name, step_info in state_data.items()
-                if step_info.get("status") == "done"
-            }
+            completed_steps = completed_steps_from_state(state_data)
             logger.info(
                 f"Found {len(completed_steps)} already completed steps: "
                 f"{completed_steps}"
@@ -104,83 +208,13 @@ async def execute_pipeline_parallel(
             logger.warning(f"Could not load existing pipeline state: {e}")
             completed_steps = set()
 
-    # Create pipeline graph with dependencies
+    # Create pipeline graph from the shared dependency map, walked in run
+    # order so a step is always added after the steps it depends on.
     pipeline = PipelineGraph()
-
-    # Add steps with proper dependencies.
-    #
-    # Which of these two runs first depends on where the visuals come from.
-    # A scraped product has its photography before anything is written, and
-    # gathering first also rejects a product with too few images before an LLM
-    # call is paid for. A profile rendering entirely from stock has no such
-    # imagery: its search terms are the whole visual layer, so the script has
-    # to exist first for the footage to match the narration.
-    #
-    # `generate_script` reads nothing `gather_visuals` writes, which is what
-    # makes the edge safe to reverse.
-    script_first = draws_visuals_from_script(ctx.profile)
-    if script_first:
-        pipeline.add_step(
-            "generate_script", lambda ctx: step_generate_script(ctx), set()
-        )
-        pipeline.add_step(
-            "gather_visuals", lambda ctx: step_gather_visuals(ctx), {"generate_script"}
-        )
-    else:
-        pipeline.add_step("gather_visuals", lambda ctx: step_gather_visuals(ctx), set())
-        pipeline.add_step(
-            "generate_script", lambda ctx: step_generate_script(ctx), {"gather_visuals"}
-        )
-
-    # Both of these spend money: captions call the LLM once per platform and the
-    # voiceover synthesises audio. On the product path `gather_visuals` has
-    # already run and rejected a product with too few images before either
-    # starts. Under the script-first order it would otherwise run *alongside*
-    # them, and `fail_fast` only stops between levels, so a render destined to
-    # be skipped would pay for both first. Naming it here restores the ordering
-    # property at the cost of one serialised level.
-    paid_step_deps = {"generate_script"}
-    if script_first:
-        paid_step_deps = {"generate_script", "gather_visuals"}
-
-    pipeline.add_step(
-        "generate_description",
-        lambda ctx: step_generate_description(ctx),
-        paid_step_deps,
-    )
-
-    pipeline.add_step(
-        "create_voiceover", lambda ctx: step_create_voiceover(ctx), paid_step_deps
-    )
-
-    # These two steps can run in parallel - they only depend on voiceover
-    pipeline.add_step(
-        "generate_subtitles",
-        lambda ctx: step_generate_subtitles(ctx),
-        {"create_voiceover"},
-    )
-
-    pipeline.add_step(
-        "download_music", lambda ctx: step_download_music(ctx), {"create_voiceover"}
-    )
-
-    # `gather_visuals` is named explicitly because it is no longer always an
-    # ancestor: on the script-first order it is a leaf, and without this edge
-    # the assembler could start before the footage has been downloaded.
-    pipeline.add_step(
-        "assemble_video",
-        lambda ctx: step_assemble_video(ctx),
-        {"generate_subtitles", "download_music", "gather_visuals"},
-    )
-
-    # Pycaps engine: post-assembly burn-in. Short-circuits at runtime when
-    # the profile's subtitle_engine is not "pycaps", so adding it
-    # unconditionally is safe — no extra cost in the default ffmpeg path.
-    pipeline.add_step(
-        "burn_pycaps_subtitles",
-        lambda ctx: step_burn_pycaps_subtitles(ctx),
-        {"assemble_video"},
-    )
+    dependencies = step_dependencies(ctx.profile)
+    runners = step_runners()
+    for step_name in resolved_step_order(ctx.profile):
+        pipeline.add_step(step_name, runners[step_name], dependencies[step_name])
 
     # Skip already completed steps
     if completed_steps:
@@ -366,9 +400,17 @@ async def create_video_for_product(
             # demanding it as a prerequisite of `generate_script` would refuse
             # a run that is in a perfectly good state.
             step_order = resolved_step_order(ctx.profile)
-            target_index = step_order.index(debug_step_target)
-            for i in range(target_index):
-                step_to_load = step_order[i]
+            # Only the requested step's transitive prerequisites are
+            # required. The positional walk this replaces blocked
+            # `--step create_voiceover` on `generate_description`, which
+            # feeds it nothing. Iterated in run order so artifacts load in
+            # the order they were produced.
+            required = transitive_prereqs(
+                step_dependencies(ctx.profile), debug_step_target
+            )
+            for step_to_load in step_order[: step_order.index(debug_step_target)]:
+                if step_to_load not in required:
+                    continue
                 if ctx.state.get(step_to_load, {}).get("status") == "done":
                     logger.info(
                         f"Loading prerequisites for '{debug_step_target}': "
@@ -408,20 +450,10 @@ async def create_video_for_product(
                     if isinstance(path, Path):
                         ensure_dirs_exist(path.parent)
 
-                if step == STEP_GATHER_VISUALS:
-                    await step_gather_visuals(ctx)
-                elif step == STEP_GENERATE_SCRIPT:
-                    await step_generate_script(ctx)
-                elif step == STEP_GENERATE_DESCRIPTION:
-                    await step_generate_description(ctx)
-                elif step == STEP_CREATE_VOICEOVER:
-                    await step_create_voiceover(ctx)
-                elif step == STEP_DOWNLOAD_MUSIC:
-                    await step_download_music(ctx)
-                elif step == STEP_GENERATE_SUBTITLES:
-                    await step_generate_subtitles(ctx)
-                elif step == STEP_ASSEMBLE_VIDEO:
-                    await step_assemble_video(ctx)
+                runner = step_runners().get(step)
+                if runner is None:
+                    raise PipelineError(f"No handler for step '{step}'.")
+                await runner(ctx)
 
                 async with ctx._state_lock:
                     await _update_state_after_step(ctx, step)

@@ -1,0 +1,133 @@
+"""Step wiring: the DAG, the resume scan, and the runner table.
+
+Each test names one way the two execution paths used to disagree with each
+other or with the saved state.
+"""
+
+from types import SimpleNamespace
+
+import pytest
+
+from src.video.producer.orchestration import (
+    completed_steps_from_state,
+    step_dependencies,
+    step_runners,
+    transitive_prereqs,
+)
+from src.video.producer.state import (
+    STEP_ASSEMBLE_VIDEO,
+    STEP_BURN_PYCAPS_SUBTITLES,
+    STEP_CREATE_VOICEOVER,
+    STEP_GATHER_VISUALS,
+    STEP_GENERATE_DESCRIPTION,
+    STEP_GENERATE_SCRIPT,
+    VALID_STEPS,
+    resolved_step_order,
+)
+
+
+def _profile(*, stock_only: bool) -> SimpleNamespace:
+    """A profile stub `draws_visuals_from_script` can read."""
+    return SimpleNamespace(
+        use_scraped_images=not stock_only,
+        use_scraped_videos=not stock_only,
+        use_stock_images=stock_only,
+        use_stock_videos=False,
+    )
+
+
+class TestCompletedStepsFromState:
+    """A state file holds more than step entries."""
+
+    def test_scalar_keys_do_not_hide_the_completed_steps(self):
+        # `.get` on a string raises; the caller's broad handler then treats a
+        # good state file as corrupt and re-runs the whole pipeline.
+        state = {
+            STEP_GATHER_VISUALS: {"status": "done"},
+            STEP_GENERATE_SCRIPT: {"status": "done"},
+            "script_template": "curiosity_hook",
+            "hook_headline": "Why your wifi keeps dropping",
+            "subtitle_engine_resolved": "pycaps",
+        }
+        assert completed_steps_from_state(state) == {
+            STEP_GATHER_VISUALS,
+            STEP_GENERATE_SCRIPT,
+        }
+
+    def test_unfinished_steps_are_excluded(self):
+        state = {
+            STEP_GATHER_VISUALS: {"status": "done"},
+            STEP_GENERATE_SCRIPT: {"status": "failed"},
+            STEP_CREATE_VOICEOVER: {},
+        }
+        assert completed_steps_from_state(state) == {STEP_GATHER_VISUALS}
+
+
+class TestStepRunners:
+    """One table drives both the graph and the `--step` path."""
+
+    def test_every_valid_step_has_a_runner(self):
+        # A step in VALID_STEPS with no runner is accepted on the command
+        # line, executes nothing, and is still recorded as done.
+        assert set(step_runners()) == set(VALID_STEPS)
+
+    def test_runners_are_coroutine_functions(self):
+        import inspect
+
+        for name, runner in step_runners().items():
+            assert inspect.iscoroutinefunction(runner), name
+
+
+class TestStepDependencies:
+    """The DAG both execution paths read."""
+
+    @pytest.mark.parametrize("stock_only", [False, True])
+    def test_covers_every_step_in_the_resolved_order(self, stock_only):
+        profile = _profile(stock_only=stock_only)
+        assert set(step_dependencies(profile)) == set(resolved_step_order(profile))
+
+    def test_scraped_profile_gathers_before_the_script(self):
+        deps = step_dependencies(_profile(stock_only=False))
+        assert deps[STEP_GENERATE_SCRIPT] == {STEP_GATHER_VISUALS}
+        assert deps[STEP_GATHER_VISUALS] == set()
+
+    def test_stock_profile_writes_the_script_first(self):
+        deps = step_dependencies(_profile(stock_only=True))
+        assert deps[STEP_GATHER_VISUALS] == {STEP_GENERATE_SCRIPT}
+        assert deps[STEP_GENERATE_SCRIPT] == set()
+
+    def test_dependencies_are_declared_in_run_order(self):
+        # Adding a step before something it depends on would build a graph
+        # naming an absent step.
+        for profile in (_profile(stock_only=False), _profile(stock_only=True)):
+            order = resolved_step_order(profile)
+            deps = step_dependencies(profile)
+            for index, step in enumerate(order):
+                assert deps[step] <= set(order[:index]), step
+
+
+class TestTransitivePrereqs:
+    """`--step` requires the DAG's ancestors, not the earlier positions."""
+
+    def test_voiceover_does_not_require_the_description(self):
+        # The positional walk this replaced blocked `--step create_voiceover`
+        # on `generate_description`, which feeds it nothing.
+        deps = step_dependencies(_profile(stock_only=False))
+        required = transitive_prereqs(deps, STEP_CREATE_VOICEOVER)
+        assert STEP_GENERATE_DESCRIPTION not in required
+        assert required == {STEP_GATHER_VISUALS, STEP_GENERATE_SCRIPT}
+
+    def test_reaches_indirect_ancestors(self):
+        deps = step_dependencies(_profile(stock_only=False))
+        required = transitive_prereqs(deps, STEP_BURN_PYCAPS_SUBTITLES)
+        assert STEP_ASSEMBLE_VIDEO in required
+        assert STEP_CREATE_VOICEOVER in required
+        assert STEP_GATHER_VISUALS in required
+
+    def test_excludes_the_target_itself(self):
+        deps = step_dependencies(_profile(stock_only=False))
+        assert STEP_ASSEMBLE_VIDEO not in transitive_prereqs(deps, STEP_ASSEMBLE_VIDEO)
+
+    def test_a_root_step_requires_nothing(self):
+        deps = step_dependencies(_profile(stock_only=True))
+        assert transitive_prereqs(deps, STEP_GENERATE_SCRIPT) == set()
