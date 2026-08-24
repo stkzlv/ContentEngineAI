@@ -126,12 +126,12 @@ class BaseProductData:
         reaches the file on both. A second hand-written dict is how ``pillar``
         came to persist for topics and vanish for scraped products.
 
-        It is not the only writer. The Botasaurus output callback
-        (``botasaurus_output.write_scraped_data_output``) writes the raw
-        extractor dict, and on the standalone CLI's ``--product-ids`` arm
-        nothing calls ``_save_products``, so there the raw dict is the final
-        ``data.json`` and a field added here does not appear in it. A
-        multi-keyword run saves through this serialiser.
+        It is not the only writer, but it is the last one. The Botasaurus
+        output callback (``botasaurus_output.write_scraped_data_output``)
+        writes the raw extractor dict mid-scrape, and every scraper arm then
+        overwrites it through ``_save_products``, so a field added here
+        reaches ``data.json`` on all of them. The ``--product-ids`` arm was
+        the exception until it was routed through here too.
         """
         return {
             "title": self.title,
