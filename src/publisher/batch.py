@@ -75,9 +75,9 @@ class BatchPublisher:
             fail_fast: Stop processing on first failure (default: False)
             retry_failed: Only process items from retry queue (default: False)
             link_in_bio_config: Link-in-bio configuration (default: enabled).
+                Bio link is added after each successful publish
             profiles: Per-platform render profile, deciding which video
                 each platform gets when a product has more than one.
-                Bio link is added after each successful publish
 
         Example:
         -------
@@ -302,13 +302,36 @@ class BatchPublisher:
     def _first_platform(self) -> str:
         """The platform whose configured profile decides the render.
 
-        A single post carries one video to every platform, so one of them
-        has to choose; the first configured is the stable answer.
+        This path uploads once per product and posts that one file to each
+        platform separately, so when two platforms name different profiles
+        only one can be honoured. The first is the stable answer;
+        `_warn_overridden_profiles` says whose choice was dropped, because
+        the alternative is a silent routing change nobody can see in the log.
         """
         if not self.platforms:
             return ""
         first = self.platforms[0]
         return str(getattr(first, "value", first))
+
+    def _warn_overridden_profiles(self, product_id: str, chosen: Path) -> None:
+        """Name the platforms whose configured render was not the one sent."""
+        if not self.profiles:
+            return
+        overridden = [
+            str(getattr(p, "value", p))
+            for p in self.platforms
+            if (name := str(getattr(p, "value", p))) in self.profiles
+            and f"_{self.profiles[name]}.mp4" not in chosen.name
+        ]
+        if overridden:
+            logger.warning(
+                "%s: sending %s to %s, though %s configured a different "
+                "render. This path uploads one file per product.",
+                product_id,
+                chosen.name,
+                ", ".join(overridden),
+                "they" if len(overridden) > 1 else "it",
+            )
 
     def _discover_videos(self) -> list[dict]:
         """Discover completed videos in outputs directory.
@@ -344,6 +367,7 @@ class BatchPublisher:
             if chosen is None:
                 continue
             videos.append({"path": chosen, "product_id": product_id})
+            self._warn_overridden_profiles(product_id, chosen)
             skipped = [
                 r.name for r in sorted(product_dir.glob("video_*.mp4")) if r != chosen
             ]

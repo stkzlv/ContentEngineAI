@@ -7,6 +7,8 @@ resolved exactly one video per product through the selector.
 """
 
 import argparse
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -147,20 +149,102 @@ class TestTheImmediateBatchPayload:
         assert found[0]["path"].name.endswith("video_sequential.mp4")
 
     def test_the_retry_queue_uses_the_same_render(self, tmp_path):
+        """Driven through `_get_retry_queue_videos`, which is a fourth
+        discoverer with its own glob. It used an unsorted one, so it could
+        republish a different cut than the run that queued it.
+        """
+        import json
+
         from src.publisher.models import Platform
 
-        d = _product(tmp_path, "B0RETRYQUE", "aaa_first", "zzz_last")
+        _product(tmp_path, "B0RETRYQUE", "aaa_first", "zzz_last")
+        (tmp_path / "publish_history.json").write_text(
+            json.dumps(
+                {
+                    "posts": {},
+                    "retry_queue": {
+                        "B0RETRYQUE": {
+                            "product_id": "B0RETRYQUE",
+                            "retry_count": 1,
+                            "error": "transient",
+                        }
+                    },
+                }
+            )
+        )
         batch = self._batch(
             tmp_path,
             profiles={"youtube": "zzz_last"},
             platforms=[Platform.YOUTUBE],
         )
-        discovered = batch._discover_videos()[0]["path"]
-        from src.publisher.video_selector import sole_render_for_product
 
-        assert discovered == sole_render_for_product(
-            d, {"youtube": "zzz_last"}, "youtube"
+        # Filesystem order is not sorted order, and the queue used to read
+        # whichever the directory happened to yield first. Forced here, so
+        # the assertion does not pass by luck on one filesystem.
+        real_glob = Path.glob
+
+        def adverse(self, pattern):
+            # Alphabetical, which puts the *unconfigured* render first, so a
+            # discoverer that takes whatever the directory yields picks the
+            # wrong one and the assertion below catches it.
+            return iter(sorted(real_glob(self, pattern)))
+
+        with patch.object(Path, "glob", adverse):
+            queued = batch._get_retry_queue_videos()
+
+        assert len(queued) == 1
+        assert queued[0]["path"].name.endswith("zzz_last.mp4")
+
+    @pytest.mark.asyncio
+    async def test_the_rate_limit_retry_sends_the_same_payload(self, tmp_path):
+        """The retry rebuilt its own call. Omitting the payload sent a
+        YouTube leg with no title, which the builder now refuses — turning a
+        recoverable 429 into a failed publish.
+        """
+        import json
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.publisher.base import PublishError
+        from src.publisher.models import Platform
+
+        d = _product(tmp_path, "B0RATELIMT", "slideshow_images1")
+        (d / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "mode": "unified",
+                    "title": "A perfectly good title",
+                    "description": "Body copy.",
+                    "hashtags": ["tech"],
+                }
+            )
         )
+
+        publisher = MagicMock()
+        publisher.publish = AsyncMock(
+            side_effect=[
+                PublishError("HTTP 429 rate limit exceeded"),
+                {"post_id": "p1", "status": "published"},
+            ]
+        )
+        publisher.upload_media = AsyncMock(return_value="media1")
+        publisher.get_status = AsyncMock(return_value={"status": "published"})
+
+        batch = self._batch(tmp_path, platforms=[Platform.YOUTUBE])
+        batch.publisher = publisher
+
+        with patch("asyncio.sleep", new=AsyncMock()):
+            await batch._publish_single_video(
+                d / "video_B0RATELIMT_slideshow_images1.mp4",
+                "B0RATELIMT",
+                1,
+                1,
+                [{"platform": "youtube", "account_id": "acc"}],
+            )
+
+        assert publisher.publish.await_count == 2
+        first, retry = publisher.publish.await_args_list
+        assert first.kwargs["platform_contents"] == retry.kwargs["platform_contents"]
+        assert retry.kwargs["platform_contents"]["youtube"]["title"]
 
     @pytest.mark.asyncio
     async def test_the_title_it_sends_is_clamped(self, tmp_path):
@@ -232,3 +316,30 @@ class TestTheScannerReadsTheConfig:
         _product(tmp_path, "B0NOCONFIG", "aaa_one", "zzz_two")
         found = _scan_and_filter_videos(_args(tmp_path))
         assert len(found) == 1
+
+
+@pytest.mark.unit
+class TestTheScheduleTitleIsClamped:
+    """The schedule path builds its payload from raw JSON, never a
+    `PublishMetadata`, so it gets no clamp from `clamp_to_limits`. A scraped
+    Amazon title routinely runs past YouTube's 100-character cap, and the
+    platform rejects an over-cap title.
+    """
+
+    def test_a_long_data_json_title_is_trimmed(self):
+        from src.publisher.models import _trim_on_word_boundary
+
+        raw = "Wireless Earbuds Bluetooth 5.4 Headphones " * 6
+        assert len(raw) > 100
+        assert len(_trim_on_word_boundary(raw, 100)) <= 100
+
+    def test_the_schedule_path_applies_it(self):
+        import inspect
+
+        from src.publisher import schedule
+
+        source = inspect.getsource(schedule)
+        # Every title the payload carries goes through the trim. A raw
+        # `fb.get("title")` or `meta.get("title")` reaching platform_contents
+        # is the defect.
+        assert source.count("_trim_on_word_boundary(") >= 3

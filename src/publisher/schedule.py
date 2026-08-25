@@ -22,6 +22,7 @@ from src.publisher.models import (
     RecurringSlot,
     ScheduleConfig,
     ScheduleEntry,
+    _trim_on_word_boundary,
 )
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
@@ -924,12 +925,16 @@ class ScheduleManager:
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,
-                                        "title": meta.get("title"),
+                                        "title": _trim_on_word_boundary(
+                                            meta.get("title") or "", 100
+                                        ),
                                     }
                                 else:
                                     platform_contents[p.value] = {
                                         "content": desc,
-                                        "title": meta.get("title", ""),
+                                        "title": _trim_on_word_boundary(
+                                            meta.get("title", ""), 100
+                                        ),
                                     }
                             else:
                                 # Fallback to data.json
@@ -938,7 +943,14 @@ class ScheduleManager:
                                     fb = json.loads(fallback_path.read_text())
                                     if isinstance(fb, list) and fb:
                                         fb = fb[0]
-                                    title = fb.get("title", "Product Video")
+                                    # The raw scraped title, routinely past
+                                    # YouTube's 100-character cap. This path
+                                    # never builds a PublishMetadata, so the
+                                    # clamp the other paths get from
+                                    # `clamp_to_limits` has to be applied here.
+                                    title = _trim_on_word_boundary(
+                                        fb.get("title", "Product Video"), 100
+                                    )
                                     desc = fb.get("description", "")
                                     # The title is carried as well as
                                     # concatenated: without it the YouTube
