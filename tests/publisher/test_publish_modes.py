@@ -450,7 +450,13 @@ class TestPlatformContentsCarryFullPayload:
         assert entry["content"] == meta.format_content()
         assert entry["content"].startswith("#ad")
 
-    def test_no_entry_without_a_comment(self, tmp_path):
+    def test_the_payload_survives_a_platform_with_no_comment(self, tmp_path):
+        """A comment that could not be built must not take the title with it.
+
+        The title is the platform's primary ranking signal, and with none
+        sent the platform derives one from the caption -- whose first line is
+        the `#ad` disclosure.
+        """
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
         with patch("src.publisher.publish_modes.build_first_comment", return_value=""):
@@ -462,14 +468,17 @@ class TestPlatformContentsCarryFullPayload:
                 metadata_by_platform={"youtube": self._youtube_metadata()},
             )
 
-        assert out is None
+        assert out is not None
+        assert out["youtube"]["title"]
+        assert out["youtube"]["content"]
+        assert "first_comment" not in out["youtube"]
 
-    def test_disabled_first_comment_returns_none(self, tmp_path):
-        """With the feature off the builder is skipped entirely.
+    def test_the_payload_is_built_with_comments_disabled(self, tmp_path):
+        """Turning comments off must not turn the title off with them.
 
-        This is the path that masked the bug: no platform_contents means the
-        consumer's per-platform branch never runs, so the title was only
-        missing on publishes that generated a comment.
+        This was the path that masked the bug: no platform_contents meant the
+        consumer's per-platform branch never ran, so the title went missing
+        on exactly the publishes that generated no comment.
         """
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
@@ -484,7 +493,9 @@ class TestPlatformContentsCarryFullPayload:
             metadata_by_platform={"youtube": self._youtube_metadata()},
         )
 
-        assert out is None
+        assert out is not None
+        assert out["youtube"]["title"]
+        assert "first_comment" not in out["youtube"]
 
 
 class TestMaterialConnectionReachesThePublisher:

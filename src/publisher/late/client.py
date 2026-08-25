@@ -1151,6 +1151,17 @@ class LatePublisher(BasePublisher):
                     }
                     if pc.get("title"):
                         yt_psd["title"] = pc["title"]
+                    else:
+                        # Sending no title is not a smaller payload, it is a
+                        # different video: the platform derives one from the
+                        # caption, whose first line is the `#ad` disclosure.
+                        # Refuse rather than publish something misleading
+                        # under a title nobody chose.
+                        raise ValueError(
+                            "No YouTube title for this post. Publishing without "
+                            "one makes the platform title the video from the "
+                            "caption's first line, which is the disclosure."
+                        )
                     platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {

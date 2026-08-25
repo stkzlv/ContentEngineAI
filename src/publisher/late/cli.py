@@ -848,11 +848,26 @@ def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
     logger.info("Scanning %s for videos...", args.outputs_dir)
     video_paths = []
 
-    for product_dir in args.outputs_dir.iterdir():
+    # One video per product, not one per file. A product rendered under a
+    # second profile keeps both files, and taking each of them scheduled the
+    # same product twice -- two posts on different days, each carrying a
+    # different render, burning two slots. `single` has always resolved one
+    # video per product; this makes the two paths agree.
+    for product_dir in sorted(args.outputs_dir.iterdir()):
         if not product_dir.is_dir():
             continue
-        for video_file in product_dir.glob("video_*.mp4"):
-            video_paths.append(video_file)
+        renders = sorted(product_dir.glob("video_*.mp4"))
+        if not renders:
+            continue
+        video_paths.append(renders[0])
+        if len(renders) > 1:
+            logger.info(
+                "%s has %d renders; scheduling %s and ignoring %s",
+                product_dir.name,
+                len(renders),
+                renders[0].name,
+                ", ".join(r.name for r in renders[1:]),
+            )
 
     if not video_paths:
         logger.warning("No video files found in %s", args.outputs_dir)
