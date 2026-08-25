@@ -734,8 +734,9 @@ class GlobalPipelineOrchestrator:
                 **self.state.scraping_summary  # type: ignore[arg-type]
             )
             logger.info(
-                f"→ Using cached results: {scraping_summary.successful} successful, "
-                f"{scraping_summary.failed} failed"
+                "Using cached results: %s successful, %s failed",
+                scraping_summary.successful,
+                scraping_summary.failed,
             )
         else:
             logger.info("=" * 80)
@@ -942,8 +943,9 @@ class GlobalPipelineOrchestrator:
         total_inputs = len(all_inputs)
         logger.info("Scraping %d input(s): %s", total_inputs, ", ".join(all_inputs))
         logger.info(
-            f"Limits: {self.config.products_per_keyword} per keyword, "
-            f"{self.config.max_products} total"
+            "Limits: %s per keyword, %s total",
+            self.config.products_per_keyword,
+            self.config.max_products,
         )
 
         # Initialize scraper with profile-aware validation
@@ -990,8 +992,10 @@ class GlobalPipelineOrchestrator:
         for idx, input_item in enumerate(all_inputs, 1):
             if len(successful_products) >= self.config.max_products:
                 logger.info(
-                    f"Reached max_products limit ({self.config.max_products}). "
-                    f"Stopping with {len(all_inputs) - idx + 1} inputs remaining."
+                    "Reached max_products limit (%s). "
+                    "Stopping with %s inputs remaining.",
+                    self.config.max_products,
+                    len(all_inputs) - idx + 1,
                 )
                 break
 
@@ -1001,8 +1005,12 @@ class GlobalPipelineOrchestrator:
 
             collected = f"{len(successful_products)}/{self.config.max_products}"
             logger.info(
-                f"[{idx}/{total_inputs}] Processing: {input_item} "
-                f"(limit: {per_input_limit}, collected: {collected})"
+                "[%s/%s] Processing: %s (limit: %s, collected: %s)",
+                idx,
+                total_inputs,
+                input_item,
+                per_input_limit,
+                collected,
             )
 
             raw_products = results_by_input.get(input_item, [])
@@ -1085,14 +1093,20 @@ class GlobalPipelineOrchestrator:
                         if hasattr(product, "videos") and product.videos:
                             total_videos += len(product.videos)
                     logger.info(
-                        f"✓ [{idx}/{total_inputs}] Found {len(products)} "
-                        f"product(s) for {input_item}"
+                        "[%s/%s] Found %s product(s) for %s",
+                        idx,
+                        total_inputs,
+                        len(products),
+                        input_item,
                     )
                 else:
                     inputs_failed += 1
                     failed_inputs.append(input_item)
                     logger.warning(
-                        f"✗ [{idx}/{total_inputs}] No valid products for {input_item}"
+                        "[%s/%s] No valid products for %s",
+                        idx,
+                        total_inputs,
+                        input_item,
                     )
                     if self.config.fail_fast:
                         logger.error("Fail-fast enabled, stopping scraping phase")
@@ -1102,7 +1116,11 @@ class GlobalPipelineOrchestrator:
                 inputs_failed += 1
                 failed_inputs.append(input_item)
                 logger.error(
-                    f"✗ [{idx}/{total_inputs}] Failed to process {input_item}: {e}"
+                    "[%s/%s] Failed to process %s: %s",
+                    idx,
+                    total_inputs,
+                    input_item,
+                    e,
                 )
                 if self.config.fail_fast:
                     logger.error("Fail-fast enabled, stopping scraping phase")
@@ -1113,8 +1131,12 @@ class GlobalPipelineOrchestrator:
         media_stats = {"total_images": total_images, "total_videos": total_videos}
 
         logger.info(
-            f"Scraping phase complete: {len(successful_products)} products from "
-            f"{inputs_processed} inputs ({inputs_failed} failed) in {duration:.1f}s"
+            "Scraping phase complete: %s products from %s inputs "
+            "(%s failed) in %.1fs",
+            len(successful_products),
+            inputs_processed,
+            inputs_failed,
+            duration,
         )
 
         return ScrapingPhaseSummary(
@@ -1152,8 +1174,9 @@ class GlobalPipelineOrchestrator:
         all_products = discover_products_for_batch(self.config.outputs_dir)
 
         logger.info(
-            f"Found {len(all_products)} product(s) with data.json in "
-            f"{self.config.outputs_dir}"
+            "Found %s product(s) with data.json in %s",
+            len(all_products),
+            self.config.outputs_dir,
         )
 
         # Filter by scraped products unless process_all_products is enabled
@@ -1169,15 +1192,13 @@ class GlobalPipelineOrchestrator:
                 if hasattr(data, "asin") and data.asin in scraped_set
             ]
             logger.info(
-                f"→ Processing {len(ready_products)} product(s) "
-                f"from current scraping run"
+                "Processing %s product(s) from current scraping run",
+                len(ready_products),
             )
 
         # Log transition
         if ready_products:
-            logger.info(
-                f"→ {len(ready_products)} product(s) ready for video production"
-            )
+            logger.info("%s product(s) ready for video production", len(ready_products))
         else:
             logger.warning("No products ready for video production")
 
@@ -1275,15 +1296,21 @@ class GlobalPipelineOrchestrator:
                     )
                     profile_tracker.record_usage(current_profile)
                     logger.info(
-                        f"[{idx}/{total_products}] Processing {product_id} "
-                        f"with profile '{current_profile}'"
+                        "[%s/%s] Processing %s with profile '%s'",
+                        idx,
+                        total_products,
+                        product_id,
+                        current_profile,
                     )
                 else:
                     # Fixed profile mode
                     assert self.config.profile is not None
                     current_profile = self.config.profile
                     logger.info(
-                        f"[{idx}/{total_products}] Processing product: {product_id}"
+                        "[%s/%s] Processing product: %s",
+                        idx,
+                        total_products,
+                        product_id,
                     )
 
                 try:
@@ -1340,8 +1367,10 @@ class GlobalPipelineOrchestrator:
                         successful += 1
                         produced_videos.append((result_path, product_id))
                         logger.info(
-                            f"✓ [{idx}/{total_products}] Successfully created video "
-                            f"for {product_id}"
+                            "[%s/%s] Successfully created video for %s",
+                            idx,
+                            total_products,
+                            product_id,
                         )
                     else:
                         # The producer never returns None; a None here means
@@ -1364,8 +1393,11 @@ class GlobalPipelineOrchestrator:
                     failed += 1
                     failed_products.append(product_id)
                     logger.error(
-                        f"✗ [{idx}/{total_products}] Pipeline timed out "
-                        f"after {config.pipeline_timeout_sec}s for {product_id}"
+                        "[%s/%s] Pipeline timed out after %ss for %s",
+                        idx,
+                        total_products,
+                        config.pipeline_timeout_sec,
+                        product_id,
                     )
 
                     if self.config.fail_fast:
@@ -1376,8 +1408,11 @@ class GlobalPipelineOrchestrator:
                     failed += 1
                     failed_products.append(product_id)
                     logger.error(
-                        f"✗ [{idx}/{total_products}] "
-                        f"Failed to process {product_id}: {e}",
+                        "[%s/%s] Failed to process %s: %s",
+                        idx,
+                        total_products,
+                        product_id,
+                        e,
                         exc_info=True,
                     )
 
@@ -1390,8 +1425,12 @@ class GlobalPipelineOrchestrator:
         profile_distribution = profile_tracker.get_counts() if profile_tracker else None
 
         logger.info(
-            f"Production phase complete: {successful} successful, "
-            f"{failed} failed, {skipped} skipped in {duration:.1f}s"
+            "Production phase complete: %s successful, %s failed, "
+            "%s skipped in %.1fs",
+            successful,
+            failed,
+            skipped,
+            duration,
         )
 
         summary = ProductionPhaseSummary(
@@ -1480,8 +1519,9 @@ class GlobalPipelineOrchestrator:
             recurring_enabled = recurring_config.get("enabled", False)
 
             logger.debug(
-                f"Scheduling config: immediate_publish={immediate_publish}, "
-                f"recurring_enabled={recurring_enabled}"
+                "Scheduling config: immediate_publish=%s, recurring_enabled=%s",
+                immediate_publish,
+                recurring_enabled,
             )
 
             if not immediate_publish and recurring_enabled:
@@ -1527,8 +1567,8 @@ class GlobalPipelineOrchestrator:
                         vercel_token = os.getenv("LATE_VERCEL_TOKEN")
                         if api_key:
                             logger.debug(
-                                f"Temp publisher init: vercel_token="
-                                f"{'set' if vercel_token else 'NOT SET'}"
+                                "Temp publisher init: vercel_token=%s",
+                                "set" if vercel_token else "NOT SET",
                             )
                             temp_publisher = create_publisher(
                                 provider=PublisherProvider.LATE,
@@ -1541,7 +1581,7 @@ class GlobalPipelineOrchestrator:
 
                                 api_posts = await temp_publisher.list_posts()
                                 logger.debug(
-                                    f"Found {len(api_posts)} existing posts on API"
+                                    "Found %s existing posts on API", len(api_posts)
                                 )
 
                                 for api_post in api_posts:
@@ -1564,8 +1604,8 @@ class GlobalPipelineOrchestrator:
                                     )
                                     occupied_slot_times.add(slot_time)
                                     logger.debug(
-                                        f"Occupied slot: "
-                                        f"{slot_time.strftime('%Y-%m-%d %H:%M %Z')}"
+                                        "Occupied slot: %s",
+                                        slot_time.strftime("%Y-%m-%d %H:%M %Z"),
                                     )
                             except Exception as e:
                                 logger.warning("Failed to fetch occupied slots: %s", e)
@@ -1579,7 +1619,7 @@ class GlobalPipelineOrchestrator:
 
                     except Exception as e:
                         logger.warning(
-                            f"Failed to auto-schedule: {e}. Publishing immediately."
+                            "Failed to auto-schedule: %s. Publishing immediately.", e
                         )
             elif immediate_publish:
                 logger.info("immediate_publish=true: Publishing immediately")
@@ -1609,8 +1649,9 @@ class GlobalPipelineOrchestrator:
 
             vercel_token = os.getenv("LATE_VERCEL_TOKEN")
             logger.debug(
-                f"Publisher init: api_key={'set' if api_key else 'NOT SET'}, "
-                f"vercel_token={'set' if vercel_token else 'NOT SET'}"
+                "Publisher init: api_key=%s, vercel_token=%s",
+                "set" if api_key else "NOT SET",
+                "set" if vercel_token else "NOT SET",
             )
 
             # Parse first_comment config from YAML
@@ -1738,11 +1779,10 @@ class GlobalPipelineOrchestrator:
                             product_schedule_time = next_slot_time
                             ctx_occupied.add(normalized_slot)
                             logger.info(
-                                f"Auto-scheduled {product_id} to slot "
-                                f"#{slot_index}: "
-                                f"{next_slot_time.strftime(
-                                    '%A, %Y-%m-%d %H:%M:%S %Z'
-                                )}"
+                                "Auto-scheduled %s to slot #%s: %s",
+                                product_id,
+                                slot_index,
+                                next_slot_time.strftime("%A, %Y-%m-%d %H:%M:%S %Z"),
                             )
                             break
                         else:
@@ -1753,8 +1793,8 @@ class GlobalPipelineOrchestrator:
                             slot_index = (slot_index + 1) % len(ctx_slots)
                     else:
                         logger.warning(
-                            f"All slots occupied for {product_id}. "
-                            "Publishing immediately."
+                            "All slots occupied for %s. Publishing immediately.",
+                            product_id,
                         )
                         product_schedule_time = None
 
@@ -1793,7 +1833,7 @@ class GlobalPipelineOrchestrator:
                     result_data = pub_result["result"]
                     post_id = str(result_data.get("post_id", ""))
                     logger.info(
-                        "✓ [%d/%d] Published: post_id=%s, status=%s",
+                        "[%d/%d] Published: post_id=%s, status=%s",
                         idx,
                         total_attempted,
                         post_id,
@@ -1851,8 +1891,10 @@ class GlobalPipelineOrchestrator:
                 if video_successful:
                     successful += 1
                     logger.info(
-                        f"✓ [{idx}/{total_attempted}] "
-                        f"Successfully published {product_id} to all platforms"
+                        "[%s/%s] Successfully published %s to all platforms",
+                        idx,
+                        total_attempted,
+                        product_id,
                     )
 
                     # Link-in-bio (non-blocking, before cleanup, default ON to
@@ -1894,14 +1936,13 @@ class GlobalPipelineOrchestrator:
                                     import shutil
 
                                     logger.info(
-                                        "Cleaning up product directory: "
-                                        f"{product_dir}"
+                                        "Cleaning up product directory: %s", product_dir
                                     )
                                     shutil.rmtree(product_dir)
                                     logger.info("Removed %s", product_dir)
                                 except Exception as e:
                                     logger.warning(
-                                        f"Failed to cleanup {product_dir}: {e}"
+                                        "Failed to cleanup %s: %s", product_dir, e
                                     )
                 else:
                     failed += 1
@@ -1913,8 +1954,10 @@ class GlobalPipelineOrchestrator:
                         }
                     )
                     logger.warning(
-                        f"⚠ [{idx}/{total_attempted}] "
-                        f"Partially failed for {product_id}"
+                        "[%s/%s] Partially failed for %s",
+                        idx,
+                        total_attempted,
+                        product_id,
                     )
 
             except Exception as e:
@@ -1922,7 +1965,11 @@ class GlobalPipelineOrchestrator:
                 failed_videos.append(product_id)
                 errors.append({"product_id": product_id, "error": str(e)})
                 logger.error(
-                    f"✗ [{idx}/{total_attempted}] Failed to process {product_id}: {e}",
+                    "[%s/%s] Failed to process %s: %s",
+                    idx,
+                    total_attempted,
+                    product_id,
+                    e,
                     exc_info=True,
                 )
 
@@ -1935,7 +1982,10 @@ class GlobalPipelineOrchestrator:
                 # Non-cryptographic random is acceptable for stagger delay
                 delay = random.randint(stagger_min, stagger_max)  # noqa: S311
                 logger.info(
-                    f"[{idx}/{total_attempted}] Waiting {delay}s before next publish..."
+                    "[%s/%s] Waiting %ss before next publish...",
+                    idx,
+                    total_attempted,
+                    delay,
                 )
                 await asyncio.sleep(delay)
 
@@ -1958,8 +2008,12 @@ class GlobalPipelineOrchestrator:
         # Generate summary
         duration = time.time() - phase_start
         logger.info(
-            f"Publishing phase complete: {successful} successful, "
-            f"{failed} failed, {skipped} skipped in {duration:.1f}s"
+            "Publishing phase complete: %s successful, %s failed, "
+            "%s skipped in %.1fs",
+            successful,
+            failed,
+            skipped,
+            duration,
         )
 
         return PublishingPhaseSummary(
@@ -2108,8 +2162,9 @@ async def main():
 
         logger.info("Configuration validated successfully")
         logger.info(
-            f"Inputs: {len(config.product_ids or [])} product IDs, "
-            f"{len(config.keywords or [])} keywords"
+            "Inputs: %s product IDs, %s keywords",
+            len(config.product_ids or []),
+            len(config.keywords or []),
         )
 
         if config.profile:
@@ -2154,8 +2209,8 @@ async def main():
                 logger.info("Resuming pipeline run: %s", state.run_id)
                 logger.info("  Current phase: %s", state.current_phase.value)
                 logger.info(
-                    f"  Completed phases: "
-                    f"{', '.join(state.completed_phases) or 'none'}"
+                    "  Completed phases: %s",
+                    ", ".join(state.completed_phases) or "none",
                 )
             else:
                 logger.warning("No state file found - starting fresh pipeline")

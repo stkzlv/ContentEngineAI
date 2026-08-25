@@ -227,8 +227,9 @@ async def execute_pipeline_parallel(
             state_data = json.loads(ctx.run_paths["state_file"].read_text())
             completed_steps = completed_steps_from_state(state_data)
             logger.info(
-                f"Found {len(completed_steps)} already completed steps: "
-                f"{completed_steps}"
+                "Found %s already completed steps: %s",
+                len(completed_steps),
+                completed_steps,
             )
         except Exception as e:
             logger.warning("Could not load existing pipeline state: %s", e)
@@ -263,7 +264,7 @@ async def execute_pipeline_parallel(
         if failed_steps:
             for failed_result in failed_steps:
                 logger.error(
-                    f"Step '{failed_result.step_name}' failed: {failed_result.error}"
+                    "Step '%s' failed: %s", failed_result.step_name, failed_result.error
                 )
             return False, failed_steps[0].step_name
 
@@ -353,8 +354,8 @@ async def create_video_for_product(
 
     if clean_run and run_paths["run_root"].exists():
         logger.info(
-            f"--clean flag set. Removing producer-generated files from: "
-            f"{run_paths['run_root']}"
+            "--clean flag set. Removing producer-generated files from: %s",
+            run_paths["run_root"],
         )
         try:
             _clean_producer_files(run_paths, config, product_id, profile_name)
@@ -444,8 +445,9 @@ async def create_video_for_product(
                     continue
                 if ctx.state.get(step_to_load, {}).get("status") == "done":
                     logger.info(
-                        f"Loading prerequisites for '{debug_step_target}': "
-                        f"Loading artifacts from '{step_to_load}'."
+                        "Loading prerequisites for '%s': Loading artifacts from '%s'.",
+                        debug_step_target,
+                        step_to_load,
                     )
                     if not _load_artifacts_from_state(ctx, step_to_load):
                         raise PipelineError(
@@ -500,8 +502,9 @@ async def create_video_for_product(
 
         successful_run = True
         logger.info(
-            f"<<< SUCCESS: Video for '{product_id}': "
-            f"{run_paths.get('final_video_output', 'N/A')}"
+            "<<< SUCCESS: Video for '%s': %s",
+            product_id,
+            run_paths.get("final_video_output", "N/A"),
         )
 
         # Save performance metrics for successful runs
@@ -565,7 +568,9 @@ async def create_video_for_product(
         return f"{FAILED_PREFIX}{step or 'unknown'}"
     except Exception as e:
         logger.error(
-            f"An unexpected error occurred in pipeline for '{product_id}': {e}",
+            "An unexpected error occurred in pipeline for '%s': %s",
+            product_id,
+            e,
             exc_info=True,
         )
         # Mark pipeline as failed for history tracking
@@ -594,18 +599,18 @@ async def create_video_for_product(
             cleanup_temp_dirs(run_paths["intermediate_base"])
         elif debug_mode:
             logger.info(
-                f"Debug mode: Intermediate files preserved in "
-                f"{run_paths.get('run_root')}"
+                "Debug mode: Intermediate files preserved in %s",
+                run_paths.get("run_root"),
             )
         elif skipped_run:
             # Not a failure: nothing broke, the product just had too little
             # media. Saying otherwise sends an operator looking for a step
             # that never went wrong.
             logger.info(
-                f"Product skipped. Files preserved in " f"{run_paths.get('run_root')}."
+                "Product skipped. Files preserved in %s.", run_paths.get("run_root")
             )
         elif not successful_run:
             logger.warning(
-                f"Run failed. Files preserved in "
-                f"{run_paths.get('run_root')} for resume."
+                "Run failed. Files preserved in %s for resume.",
+                run_paths.get("run_root"),
             )

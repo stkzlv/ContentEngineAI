@@ -431,7 +431,7 @@ class VideoConfigValidator:
             )
 
             if has_unified_params:
-                logger.info("Using unified subtitle configuration ")
+                logger.info("Using unified subtitle configuration")
             else:
                 logger.debug("Using default subtitle configuration")
 

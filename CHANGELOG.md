@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.74.2] - 2026-08-25
 
 ### Changed
-- Log messages in the global batch and the producer's orchestration use lazy `%s` formatting rather than f-strings, so a message is not built when its level is disabled. The rest of the codebase still uses f-strings in logging.
-- Log messages carry no emoji or arrow decoration, matching the code standard. The text is unchanged apart from the removed markers.
+- Every log call in the global batch and the producer's orchestration uses lazy `%s` formatting rather than an f-string, so a message is not built when its level is disabled. The rest of the codebase still uses f-strings in logging.
+- No log call anywhere in `src/` carries emoji or arrow decoration, matching the code standard. Only the markers were removed; the wording and any deliberate indent are unchanged.
 
 ## [0.74.1] - 2026-08-25
 
