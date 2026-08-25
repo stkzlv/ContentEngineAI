@@ -89,7 +89,7 @@ def scrape_amazon_products_browser_impl(
             return products
 
         asin = asin_match.group(1)
-        logger.info("Resolved URL → ASIN: %s (from %s)", asin, final_url)
+        logger.info("Resolved URL -> ASIN: %s (from %s)", asin, final_url)
 
         # Extract product data using the resolved ASIN
         product_data = extract_product_data_from_page(
@@ -873,11 +873,11 @@ def _build_browser_config(debug_mode=False):
 
     if debug_mode:
         logger.info("Environment detection:")
-        logger.info("   • Platform: %s", platform.system())
-        logger.info("   • Is Docker: %s", is_docker)
-        logger.info("   • Is CI: %s", is_ci)
-        logger.info("   • Has DISPLAY: %s", has_display)
-        logger.info("   • DISPLAY value: %s", os.environ.get("DISPLAY", "Not set"))
+        logger.info("   Platform: %s", platform.system())
+        logger.info("   Is Docker: %s", is_docker)
+        logger.info("   Is CI: %s", is_ci)
+        logger.info("   Has DISPLAY: %s", has_display)
+        logger.info("   DISPLAY value: %s", os.environ.get("DISPLAY", "Not set"))
 
     # Respect the headless mode from config; the default stays headed under Xvfb
     # because this Botasaurus version raises StopIteration in headless mode.
@@ -1070,9 +1070,9 @@ def scrape_single_product(
         logger.info("[DEBUG] Browser window info:")
         try:
             current_url = driver.current_url
-            logger.info("   • Current URL: %s", current_url)
+            logger.info("   Current URL: %s", current_url)
         except Exception as e:
-            logger.info("   • Current URL: Unable to get (%s)", e)
+            logger.info("   Current URL: Unable to get (%s)", e)
 
         try:
             # Check window size using JavaScript (Botasaurus-compatible)
@@ -1095,16 +1095,16 @@ def scrape_single_product(
                 window_position.get("y", "Unknown"),
             )
         except Exception as e:
-            logger.info("   • Window info: Unable to get (%s)", e)
+            logger.info("   Window info: Unable to get (%s)", e)
 
         try:
             # Use driver properties instead of methods
-            logger.info("   • Browser session active: Yes")
+            logger.info("   Browser session active: Yes")
         except Exception as e:
-            logger.info("   • Browser session: Error (%s)", e)
+            logger.info("   Browser session: Error (%s)", e)
 
-        logger.info("   • Driver type: %s", type(driver).__name__)
-        logger.info("   • Browser name: %s", getattr(driver, "name", "Unknown"))
+        logger.info("   Driver type: %s", type(driver).__name__)
+        logger.info("   Browser name: %s", getattr(driver, "name", "Unknown"))
 
         try:
             from .config import CONFIG

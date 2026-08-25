@@ -231,7 +231,7 @@ async def execute_pipeline_parallel(
                 f"{completed_steps}"
             )
         except Exception as e:
-            logger.warning(f"Could not load existing pipeline state: {e}")
+            logger.warning("Could not load existing pipeline state: %s", e)
             completed_steps = set()
 
     # Create pipeline graph from the shared dependency map, walked in run
@@ -249,7 +249,7 @@ async def execute_pipeline_parallel(
         for step_name in completed_steps:
             if pipeline.has_step(step_name):
                 pipeline.skip_step(step_name)
-                logger.info(f"Skipping already completed step: {step_name}")
+                logger.info("Skipping already completed step: %s", step_name)
 
                 # Load artifacts for skipped steps via registry
                 load_artifacts_for_step(step_name, ctx)
@@ -273,7 +273,7 @@ async def execute_pipeline_parallel(
                 if result.status == StepStatus.COMPLETED:
                     step_name = result.step_name
                     await _update_state_after_step(ctx, step_name)
-                    logger.info(f"Step '{step_name}' completed successfully")
+                    logger.info("Step '%s' completed successfully", step_name)
 
             await _save_pipeline_state(ctx)
         return True, None
@@ -282,7 +282,7 @@ async def execute_pipeline_parallel(
         # Re-raise InsufficientMediaError so main handler can process it cleanly
         raise
     except Exception as e:
-        logger.error(f"Pipeline execution failed: {e}", exc_info=True)
+        logger.error("Pipeline execution failed: %s", e, exc_info=True)
         return False, None
 
 
@@ -313,7 +313,9 @@ async def create_video_for_product(
     cli_overrides: dict[str, Any] | None = None,
 ):
     product_id = product.asin or sanitize_filename(product.title[:30])
-    logger.info(f"--- Starting video for '{product_id}' profile '{profile_name}' ---")
+    logger.info(
+        "--- Starting video for '%s' profile '%s' ---", product_id, profile_name
+    )
 
     # Initialize performance history manager with configurable retention
     max_runs = 100
@@ -357,7 +359,7 @@ async def create_video_for_product(
         try:
             _clean_producer_files(run_paths, config, product_id, profile_name)
         except OSError as e:
-            logger.error(f"Error cleaning producer files: {e}")
+            logger.error("Error cleaning producer files: %s", e)
             raise PipelineError("Could not clean producer files for fresh run.") from e
 
     try:
@@ -470,7 +472,7 @@ async def create_video_for_product(
                     debug_step_target is None
                     and ctx.state.get(current_step, {}).get("status") == "done"  # type: ignore[unreachable]
                 ):
-                    logger.info(f"Skipping step '{current_step}': Already completed.")  # type: ignore[unreachable]
+                    logger.info("Skipping step '%s': Already completed.", current_step)  # type: ignore[unreachable]
                     _load_artifacts_from_state(ctx, current_step)
                     continue
 
@@ -538,14 +540,14 @@ async def create_video_for_product(
         # Clean up background processing
         if ctx.background_processor:
             summary = ctx.background_processor.get_summary()
-            logger.debug(f"Background processing summary: {summary}")
+            logger.debug("Background processing summary: %s", summary)
             await cleanup_global_background_processor()
 
         return run_paths.get("final_video_output")
 
     except InsufficientMediaError as e:
         skipped_run = True
-        logger.warning(f"Product skipped due to insufficient media: {e}")
+        logger.warning("Product skipped due to insufficient media: %s", e)
         # Mark as skipped, not failed - this is expected for some products
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on skip
@@ -553,7 +555,7 @@ async def create_video_for_product(
         # Return special value to indicate skip
         return "SKIPPED"
     except (FileNotFoundError, PipelineError, KeyError) as e:
-        logger.error(f"Pipeline stopped at step '{step}': {e}", exc_info=debug_mode)
+        logger.error("Pipeline stopped at step '%s': %s", step, e, exc_info=debug_mode)
         # Mark pipeline as failed for history tracking
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure

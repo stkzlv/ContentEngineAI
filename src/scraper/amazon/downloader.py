@@ -187,7 +187,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                     "   • Success rate: %.1f%%",
                     validation_report["summary"]["success_rate"],
                 )
-                logger.info("   • Report saved: %s", report_path)
+                logger.info("   Report saved: %s", report_path)
 
         except Exception as e:
             logger.warning("[VALIDATION REPORT] Failed to generate report: %s", e)

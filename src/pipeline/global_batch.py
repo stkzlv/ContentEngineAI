@@ -502,7 +502,7 @@ class GlobalPipelineOrchestrator:
                 await self.webhook_notifier.notify(event, data)
             except Exception as e:
                 # Never let webhook failures affect the pipeline
-                logger.warning(f"Webhook notification failed: {e}")
+                logger.warning("Webhook notification failed: %s", e)
 
     def display_execution_plan(self, video_config: Any) -> None:
         """Display planned execution without running the pipeline.
@@ -716,10 +716,10 @@ class GlobalPipelineOrchestrator:
 
         # Log resume status
         if self.config.resume:
-            logger.info(f"Resuming pipeline run: {self.state.run_id}")
-            logger.info(f"  Started: {self.state.started_at}")
+            logger.info("Resuming pipeline run: %s", self.state.run_id)
+            logger.info("  Started: %s", self.state.started_at)
             completed = ", ".join(self.state.completed_phases) or "none"
-            logger.info(f"  Completed phases: {completed}")
+            logger.info("  Completed phases: %s", completed)
 
         # Save initial state
         self._save_state()
@@ -885,9 +885,9 @@ class GlobalPipelineOrchestrator:
                     {"phase": "publishing", "summary": asdict(publishing_summary)},
                 )
         elif self.config.skip_publish:
-            logger.info("→ Skipping publishing phase (--skip-publish)")
+            logger.info("Skipping publishing phase (--skip-publish)")
         else:
-            logger.info("→ No videos to publish")
+            logger.info("No videos to publish")
 
         # Mark pipeline as completed
         self.state.advance_phase(PipelinePhase.COMPLETED)
@@ -940,7 +940,7 @@ class GlobalPipelineOrchestrator:
             all_inputs.extend(self.config.keywords)
 
         total_inputs = len(all_inputs)
-        logger.info(f"Scraping {total_inputs} input(s): {', '.join(all_inputs)}")
+        logger.info("Scraping %d input(s): %s", total_inputs, ", ".join(all_inputs))
         logger.info(
             f"Limits: {self.config.products_per_keyword} per keyword, "
             f"{self.config.max_products} total"
@@ -1009,7 +1009,7 @@ class GlobalPipelineOrchestrator:
             if not raw_products:
                 inputs_failed += 1
                 failed_inputs.append(input_item)
-                logger.warning(f"✗ [{idx}/{total_inputs}] No data for {input_item}")
+                logger.warning("[%s/%s] No data for %s", idx, total_inputs, input_item)
                 if self.config.fail_fast:
                     logger.error("Fail-fast enabled, stopping scraping phase")
                     break
@@ -1159,7 +1159,7 @@ class GlobalPipelineOrchestrator:
         # Filter by scraped products unless process_all_products is enabled
         if self.config.process_all_products:
             ready_products = all_products
-            logger.info("→ Processing all products in outputs directory")
+            logger.info("Processing all products in outputs directory")
         else:
             # Only process products scraped in current run
             scraped_set = set(scraped_product_ids)
@@ -1179,7 +1179,7 @@ class GlobalPipelineOrchestrator:
                 f"→ {len(ready_products)} product(s) ready for video production"
             )
         else:
-            logger.warning("→ No products ready for video production")
+            logger.warning("No products ready for video production")
 
         return ready_products
 
@@ -1256,7 +1256,7 @@ class GlobalPipelineOrchestrator:
         produced_videos: list[tuple[Path, str]] = []
 
         total_products = len(products)
-        logger.info(f"Processing {total_products} product(s) for video production")
+        logger.info("Processing %s product(s) for video production", total_products)
 
         # Create HTTP session for API calls
         async with aiohttp.ClientSession() as session:
@@ -1442,9 +1442,9 @@ class GlobalPipelineOrchestrator:
         if config_path.exists():
             with open(config_path, encoding="utf-8") as f:
                 publisher_config = yaml.safe_load(f) or {}
-            logger.debug(f"Loaded publisher config from {config_path}")
+            logger.debug("Loaded publisher config from %s", config_path)
         else:
-            logger.warning(f"Publisher config not found: {config_path}")
+            logger.warning("Publisher config not found: %s", config_path)
 
         # Apply CLI overrides to configuration
         platforms_to_publish = self.config.platforms or publisher_config.get(
@@ -1472,7 +1472,7 @@ class GlobalPipelineOrchestrator:
             schedule_time = datetime.fromisoformat(
                 schedule_time_str.replace("Z", "+00:00")
             )
-            logger.info(f"Using explicit schedule time: {schedule_time}")
+            logger.info("Using explicit schedule time: %s", schedule_time)
         else:
             # Priority 2: Auto-schedule if configured
             immediate_publish = publisher_config.get("immediate_publish", True)
@@ -1568,7 +1568,7 @@ class GlobalPipelineOrchestrator:
                                         f"{slot_time.strftime('%Y-%m-%d %H:%M %Z')}"
                                     )
                             except Exception as e:
-                                logger.warning(f"Failed to fetch occupied slots: {e}")
+                                logger.warning("Failed to fetch occupied slots: %s", e)
 
                         # Store context for per-product slot finding
                         auto_schedule_ctx = {
@@ -1640,14 +1640,14 @@ class GlobalPipelineOrchestrator:
             # Authenticate
             logger.info("Authenticating with publisher...")
             await publisher.authenticate()
-            logger.info("✓ Authentication successful")
+            logger.info("Authentication successful")
 
             # Get connected accounts
             accounts = await publisher.get_accounts()
-            logger.info(f"Found {len(accounts)} connected account(s)")
+            logger.info("Found %s connected account(s)", len(accounts))
 
         except Exception as e:
-            logger.error(f"Failed to initialize publisher: {e}", exc_info=True)
+            logger.error("Failed to initialize publisher: %s", e, exc_info=True)
             # Return early with all videos marked as failed
             return PublishingPhaseSummary(
                 total_attempted=total_attempted,
@@ -1669,16 +1669,20 @@ class GlobalPipelineOrchestrator:
 
         # Publish each video
         for idx, (video_path, product_id) in enumerate(produced_videos, 1):
-            logger.info(f"[{idx}/{total_attempted}] Publishing video for {product_id}")
+            logger.info(
+                "[%s/%s] Publishing video for %s", idx, total_attempted, product_id
+            )
 
             video_successful = True
             video_errors: list[str] = []
 
             try:
                 # Upload video once
-                logger.info(f"[{idx}/{total_attempted}] Uploading video...")
+                logger.info("[%s/%s] Uploading video...", idx, total_attempted)
                 media_id = await publisher.upload_media(video_path)
-                logger.info(f"[{idx}/{total_attempted}] Upload complete: {media_id}")
+                logger.info(
+                    "[%s/%s] Upload complete: %s", idx, total_attempted, media_id
+                )
 
                 # Build platforms list (validate accounts upfront)
                 pub_platforms: list[dict[str, str]] = []
@@ -1742,7 +1746,9 @@ class GlobalPipelineOrchestrator:
                             )
                             break
                         else:
-                            logger.debug(f"Slot #{slot_index} occupied, trying next...")
+                            logger.debug(
+                                "Slot #%s occupied, trying next...", slot_index
+                            )
                             now = next_slot_time
                             slot_index = (slot_index + 1) % len(ctx_slots)
                     else:
@@ -1892,7 +1898,7 @@ class GlobalPipelineOrchestrator:
                                         f"{product_dir}"
                                     )
                                     shutil.rmtree(product_dir)
-                                    logger.info(f"✓ Removed {product_dir}")
+                                    logger.info("Removed %s", product_dir)
                                 except Exception as e:
                                     logger.warning(
                                         f"Failed to cleanup {product_dir}: {e}"
@@ -2064,7 +2070,7 @@ async def main():
     logger.info("=" * 80)
     logger.info("GLOBAL BATCH PIPELINE STARTING")
     logger.info("=" * 80)
-    logger.info(f"Log file: {log_file}")
+    logger.info("Log file: %s", log_file)
 
     try:
         # Load configuration with CLI > YAML > defaults precedence
@@ -2107,19 +2113,19 @@ async def main():
         )
 
         if config.profile:
-            logger.info(f"Profile: {config.profile} (fixed)")
+            logger.info("Profile: %s (fixed)", config.profile)
         elif config.random_profile:
             pool_info = (
                 ", ".join(config.profile_pool)
                 if config.profile_pool
                 else "all available"
             )
-            logger.info(f"Profile: random selection from [{pool_info}]")
+            logger.info("Profile: random selection from [%s]", pool_info)
 
-        logger.info(f"Outputs directory: {config.outputs_dir}")
-        logger.info(f"Fail-fast: {config.fail_fast}")
-        logger.info(f"Resume mode: {config.resume}")
-        logger.info(f"Dry-run mode: {config.dry_run}")
+        logger.info("Outputs directory: %s", config.outputs_dir)
+        logger.info("Fail-fast: %s", config.fail_fast)
+        logger.info("Resume mode: %s", config.resume)
+        logger.info("Dry-run mode: %s", config.dry_run)
 
         # Dry-run first: it reports what a run would do, so nothing
         # destructive may precede it. `--clean` used to, which meant
@@ -2145,8 +2151,8 @@ async def main():
         if config.resume:
             state = load_pipeline_state(config.outputs_dir)
             if state:
-                logger.info(f"Resuming pipeline run: {state.run_id}")
-                logger.info(f"  Current phase: {state.current_phase.value}")
+                logger.info("Resuming pipeline run: %s", state.run_id)
+                logger.info("  Current phase: %s", state.current_phase.value)
                 logger.info(
                     f"  Completed phases: "
                     f"{', '.join(state.completed_phases) or 'none'}"
@@ -2173,13 +2179,13 @@ async def main():
             if webhook_config.is_configured():
                 webhook_notifier = WebhookNotifier(webhook_config)
                 if webhook_notifier.is_ready():
-                    logger.info(f"Webhook notifications enabled: {webhook_config.url}")
+                    logger.info("Webhook notifications enabled: %s", webhook_config.url)
                 else:
                     logger.warning("Webhook URL configured but invalid")
         except FileNotFoundError:
             logger.debug("No pipeline.yaml found - webhooks disabled")
         except Exception as e:
-            logger.warning(f"Failed to load webhook config: {e}")
+            logger.warning("Failed to load webhook config: %s", e)
 
         # Execute pipeline
         orchestrator = GlobalPipelineOrchestrator(
@@ -2229,7 +2235,7 @@ async def main():
             else:
                 logger.info("PIPELINE COMPLETED SUCCESSFULLY")
             logger.info("=" * 80)
-            logger.info(f"Complete log saved to: {log_file}")
+            logger.info("Complete log saved to: %s", log_file)
 
         sys.exit(exit_code)
 
@@ -2237,7 +2243,7 @@ async def main():
         logger.warning("\n" + "=" * 80)
         logger.warning("PIPELINE INTERRUPTED BY USER")
         logger.warning("=" * 80)
-        logger.warning(f"Partial log saved to: {log_file}")
+        logger.warning("Partial log saved to: %s", log_file)
         logger.warning("To resume from last checkpoint, run with --resume flag")
         sys.exit(130)  # Standard exit code for SIGINT
 
@@ -2247,7 +2253,7 @@ async def main():
         logger.error("CONFIGURATION ERROR")
         logger.error("=" * 80)
         logger.error(str(e))
-        logger.error(f"Complete log saved to: {log_file}")
+        logger.error("Complete log saved to: %s", log_file)
         sys.exit(1)
 
     except Exception as e:
@@ -2255,8 +2261,8 @@ async def main():
         logger.critical("=" * 80)
         logger.critical("PIPELINE FAILED WITH ERROR")
         logger.critical("=" * 80)
-        logger.critical(f"Error: {e}", exc_info=True)
-        logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("Error: %s", e, exc_info=True)
+        logger.critical("Complete log saved to: %s", log_file)
         logger.critical("To resume from last checkpoint, run with --resume flag")
         sys.exit(1)
 

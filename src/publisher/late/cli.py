@@ -654,7 +654,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
 
                 if cleanup_result["success"]:
-                    logger.info("✓ Cleanup complete: %s", cleanup_result["message"])
+                    logger.info("Cleanup complete: %s", cleanup_result["message"])
                     disk_freed = cleanup_result["disk_freed"]
                     if isinstance(disk_freed, int) and disk_freed > 0:
                         logger.info("  Disk space freed: %s", format_bytes(disk_freed))
@@ -1089,12 +1089,12 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
             )
 
             if result["success"]:
-                logger.info("✓ %s", result["message"])
+                logger.info("%s", result["message"])
                 disk_freed = result["disk_freed"]
                 if isinstance(disk_freed, int) and disk_freed > 0:
                     logger.info("  Disk space freed: %s", format_bytes(disk_freed))
             else:
-                logger.warning("✗ %s", result["message"])
+                logger.warning("%s", result["message"])
                 sys.exit(1)
 
         elif args.all:
