@@ -319,7 +319,68 @@ passed to widen the window — `from_date` makes no difference at any post age.
 
 Figures already captured are safe. Each post's row is merged field by field, so
 a later, shorter reading never replaces a measured value with an absent one;
-what it cannot do is recover a figure that was never taken in time.
+what it cannot do is recover a figure that was never taken in time. The one
+exception is a day-N figure a later sweep finds was measured before every
+platform had started reporting — see below, where the point is that such a
+figure was never true rather than merely stale.
+
+**A day-N figure counts every platform or none.** Platforms start reporting on
+their own lag — one commonly takes days — and a leg's first row carries its
+whole lifetime total to that date rather than that day's increment. A figure
+taken before a leg started would therefore count only part of the post, while
+`views_total` counts all of it, so the two would describe different things.
+
+A format comparison that ranks arms on median day-7 views would rank a post
+understated that way below an identical one, for a reason that is reporting lag
+rather than reach. So `views_day_2`, `views_day_7` and `durability_ratio` are reported
+as unknown when a platform that appears later in the series had not reported by
+the cutoff — the same rule already applied to a window the timeline has not
+reached: unknown, not a small number.
+
+The cost is coverage, and it is not small. Measured against the live API on
+2026-08-25 over the 60 most recent published posts, 57 of them multi-platform:
+
+| | Counting a lagging leg's absence as zero | Reporting it unknown |
+|---|---|---|
+| day-2 available | 56 | 37 |
+| day-7 available | 51 | 33 |
+
+So 18 of 51 day-7 figures — a third — were understated by a leg that had not
+started reporting. That is the size of the bias the old rule carried into a
+comparison, and roughly a third of posts is the coverage the new rule gives up
+to remove it.
+
+The trade is deliberate. A missing figure is visible and can be excluded; a
+quietly understated one is neither. It does mean a comparison needs more posts
+than its target sample to end up with that many usable ones.
+
+Three causes produce a blank, and `timeline_end` alone does not separate them:
+a post that aged past the retention horizon before its first sweep looks the
+same as one with a silent leg. Read `lagged_cutoff_days` in
+`outputs/post_metrics.json` first — it names the cutoffs a leg was silent for.
+Failing that, `timeline_end` earlier than the cutoff means the window had not
+closed when the sweep ran, and at or past it with no marker means the retained
+rows begin after the cutoff.
+
+A sweep still withholds its own figure wherever the retained window covers the
+cutoff and the legs disagree — it just does not mark the post, because marking
+withdraws figures other sweeps took. A figure is only withdrawn on the evidence
+of a sweep whose record still reaches back to publication. Past the retention horizon every leg's rows begin
+at the window edge, so a leg absent from that first date looks identical to one
+that started late — and a ratio measured while the record was whole must not be
+discarded on that reading, because no later sweep can recompute it. For the same
+reason the merge keeps a durability ratio taken from a full record over one
+computed from a truncated window, which divides by a partial figure and reads
+higher.
+
+**The sweep that stores a figure is usually not the one that can tell it was
+biased.** A daily run reaches a young post while the slow platform has no rows
+at all, so one leg looks like the whole post. The marker is what a later sweep
+uses to withdraw a number already stored, and it is never unset: a sweep whose
+rows all begin past the lag sees no disagreement between legs, which says
+nothing about whether the figure was biased when it was taken. Figures captured
+before this rule existed are corrected the same way, on the next sweep that
+observes the lag.
 
 **Running it on a schedule.**
 
