@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.75.0] - 2026-08-25
+## [0.74.1] - 2026-08-25
 
 ### Fixed
 - The YouTube title is sent whether or not a first comment was generated. The per-platform payload was built only for platforms that produced a comment, and skipped entirely when none did, so no title was sent and the platform derived one from the caption — whose first line is the `#ad` disclosure. Observed on two products scheduled by the same command: the one whose comment was empty carried no title at all.
