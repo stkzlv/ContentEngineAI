@@ -362,8 +362,10 @@ Failing that, `timeline_end` earlier than the cutoff means the window had not
 closed when the sweep ran, and at or past it with no marker means the retained
 rows begin after the cutoff.
 
-A figure is only withdrawn on the evidence of a sweep whose record still
-reaches back to publication. Past the retention horizon every leg's rows begin
+A sweep still withholds its own figure wherever the retained window covers the
+cutoff and the legs disagree — it just does not mark the post, because marking
+withdraws figures other sweeps took. A figure is only withdrawn on the evidence
+of a sweep whose record still reaches back to publication. Past the retention horizon every leg's rows begin
 at the window edge, so a leg absent from that first date looks identical to one
 that started late — and a ratio measured while the record was whole must not be
 discarded on that reading, because no later sweep can recompute it. For the same

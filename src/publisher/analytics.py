@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -76,7 +76,13 @@ class PostMetrics:
     # computed from what remains divides by a partial "within" -- a different
     # quantity, not a newer reading of the same one. Recorded so the merge can
     # keep the figure taken while the record was whole.
-    covers_publication: bool = False
+    #
+    # None means a row written before this was recorded. Read as "whole", not
+    # as False: defaulting to False would tell the merge every stored ratio
+    # came from a truncated record, so the first sweep after the upgrade would
+    # overwrite all of them -- the outcome the field exists to prevent, applied
+    # to exactly the figures that cannot be recomputed.
+    covers_publication: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -335,14 +341,23 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     # it. Nothing is lost by staying silent: a truncated reading already
     # reports those cutoffs unknown on its own.
     covers_publication = timeline[0][0] <= when + timedelta(days=1)
-    lagged = (
-        [d for d in (*LAUNCH_DAYS, DURABILITY_WINDOW_DAYS) if straddles(d)]
-        if covers_publication
-        else []
-    )
+    cutoffs = (*LAUNCH_DAYS, DURABILITY_WINDOW_DAYS)
+
+    # Two different questions, and conflating them let a truncated sweep
+    # store a one-leg figure unmarked. Marking is persisted and withdraws a
+    # figure other sweeps stored, so it needs a record reaching publication
+    # to tell a late start from a truncated one. Withholding only governs
+    # this reading, and is safe wherever the retained window actually covers
+    # the cutoff -- there the legs demonstrably disagree.
+    marked = [d for d in cutoffs if covers_publication and straddles(d)]
+    withheld = {
+        d
+        for d in cutoffs
+        if straddles(d) and timeline[0][0] <= when + timedelta(days=d)
+    }
 
     def at_day(day: int) -> int | None:
-        if day in lagged:
+        if day in withheld:
             return None
         return views_at_day(timeline, when, day)
 
@@ -354,11 +369,11 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         views_total=timeline[-1][1],
         durability_ratio=(
             None
-            if DURABILITY_WINDOW_DAYS in lagged
+            if DURABILITY_WINDOW_DAYS in withheld
             else durability_ratio(timeline, when)
         ),
         timeline_end=timeline[-1][0].isoformat(),
-        lagged_cutoff_days=lagged,
+        lagged_cutoff_days=marked,
         covers_publication=covers_publication,
     )
 
@@ -390,7 +405,14 @@ def load_metrics(outputs_dir: Path) -> list[PostMetrics]:
         return []
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-        return [PostMetrics(**row) for row in raw]
+        # Unknown keys are dropped rather than raising, the way the published
+        # registry already does it. Without this a file written by a newer
+        # release is unreadable to an older one, which then refuses to write
+        # at all and the whole history is stuck behind a rollback.
+        known = {f.name for f in fields(PostMetrics)}
+        return [
+            PostMetrics(**{k: v for k, v in row.items() if k in known}) for row in raw
+        ]
     except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
         logger.warning("Failed to load post metrics: %s", exc)
         return []
@@ -473,10 +495,16 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
     # same quantity: its "within" half is missing the days the window needs,
     # so it can read higher than the figure taken while the record was whole.
     # Prefer the one measured from the fuller timeline.
+    # None means a row written before this was recorded; read as whole, so an
+    # existing ratio is not discarded on the strength of a missing key.
+    stored_whole = stored.covers_publication is not False
     ratio_from_fresh = fresh.durability_ratio is not None and not (
         stored.durability_ratio is not None
-        and stored.covers_publication
-        and not fresh.covers_publication
+        and stored_whole
+        # Positively truncated, not merely unrecorded: with both provenances
+        # unknown the newer reading is still the better one, and rejecting it
+        # would freeze whatever happened to be stored first.
+        and fresh.covers_publication is False
     )
     # A ratio about to be withdrawn is not a preserved one, so `timeline_end`
     # must not be pinned to date it. Deciding that after the withdrawal would
@@ -518,7 +546,14 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         # one whose rows all begin after it, which says nothing about whether
         # the figure was biased when it was taken.
         lagged_cutoff_days=lagged,
-        covers_publication=stored.covers_publication or fresh.covers_publication,
+        # Follows the ratio that survived, rather than unioning. Its only
+        # reader asks where the stored ratio came from, and a union let a
+        # young sweep that carried no ratio mark the row whole, after which
+        # every later reading was rejected as truncated and the first
+        # truncated ratio froze permanently.
+        covers_publication=(
+            fresh.covers_publication if ratio_from_fresh else stored.covers_publication
+        ),
     )
     return _withdraw_lagged(merged)
 

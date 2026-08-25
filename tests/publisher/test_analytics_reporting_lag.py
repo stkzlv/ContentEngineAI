@@ -291,3 +291,155 @@ class TestATruncatedSweepDoesNotWithdraw:
             [_row("youtube", 25, 190), _row("tiktok", 33, 60)],
         )
         assert later.lagged_cutoff_days == []
+
+
+@pytest.mark.unit
+class TestRowsWrittenBeforeThisRule:
+    """A missing provenance key must not read as "measured from a stub".
+
+    Every row already on disk lacks it. Defaulting to False would tell the
+    merge each stored ratio came from a truncated record, so the first sweep
+    after the upgrade would overwrite all of them -- the figures the field
+    exists to protect, and the ones that cannot be recomputed.
+    """
+
+    def test_a_legacy_row_keeps_its_ratio_against_a_truncated_sweep(self, tmp_path):
+        import json
+
+        from src.publisher.analytics import (
+            load_metrics,
+            metrics_path,
+            save_metrics,
+            summarize_post,
+        )
+
+        # Written the way a pre-0.74 release wrote it: no new keys at all.
+        metrics_path(tmp_path).parent.mkdir(parents=True, exist_ok=True)
+        metrics_path(tmp_path).write_text(
+            json.dumps(
+                [
+                    {
+                        "post_id": "p",
+                        "published_at": PUBLISHED.replace(tzinfo=None).isoformat(),
+                        "views_day_2": 900,
+                        "views_day_7": 950,
+                        "views_total": 1000,
+                        "durability_ratio": 0.8,
+                        "timeline_end": "2026-08-13T08:00:00",
+                    }
+                ]
+            )
+        )
+        assert load_metrics(tmp_path)[0].covers_publication is None
+
+        truncated = summarize_post(
+            "p",
+            PUBLISHED.isoformat(),
+            [
+                _row("youtube", 25, 190),
+                _row("youtube", 30, 200),
+                _row("tiktok", 33, 60),
+                _row("youtube", 45, 400),
+            ],
+        )
+        assert truncated.covers_publication is False
+        save_metrics([truncated], tmp_path)
+        assert load_metrics(tmp_path)[0].durability_ratio == 0.8
+
+    def test_an_unknown_column_does_not_make_the_file_unreadable(self, tmp_path):
+        import json
+
+        from src.publisher.analytics import load_metrics, metrics_path
+
+        metrics_path(tmp_path).parent.mkdir(parents=True, exist_ok=True)
+        metrics_path(tmp_path).write_text(
+            json.dumps([{"post_id": "p", "views_total": 5, "a_future_column": 1}])
+        )
+        rows = load_metrics(tmp_path)
+        assert len(rows) == 1
+        assert rows[0].views_total == 5
+
+
+@pytest.mark.unit
+class TestATruncatedSweepStillWithholdsItsOwnFigure:
+    """Marking and withholding answer different questions.
+
+    Marking is persisted and withdraws a figure other sweeps stored, so it
+    needs a record reaching publication to tell a late start from a truncated
+    one. Withholding governs only this reading, and is right wherever the
+    retained window actually covers the cutoff -- there the legs demonstrably
+    disagree.
+    """
+
+    def test_a_lagging_leg_inside_a_truncated_window_is_not_reported(self):
+        from src.publisher.analytics import summarize_post
+
+        # Retained from day 3, so day-7 is inside the window; the slow leg
+        # genuinely starts on day 20.
+        m = summarize_post(
+            "p",
+            PUBLISHED.isoformat(),
+            [
+                _row("youtube", 3, 500),
+                _row("youtube", 7, 700),
+                _row("tiktok", 20, 4000),
+                _row("youtube", 40, 1200),
+            ],
+        )
+        assert m.covers_publication is False
+        assert m.views_day_7 is None, "700 counted one leg of two"
+        # Not marked: the record cannot tell a late start from truncation,
+        # and a mark would withdraw other sweeps' figures too.
+        assert m.lagged_cutoff_days == []
+        assert m.views_total == 5200
+
+
+@pytest.mark.unit
+class TestProvenanceFollowsTheStoredRatio:
+    """`covers_publication` records where the *stored ratio* came from.
+
+    Unioning it instead let a young sweep that carried no ratio at all mark
+    the row as whole. Every later reading was then rejected as truncated, so
+    the first truncated ratio froze permanently — including against readings
+    that are strictly more mature and agree with the full record.
+    """
+
+    @staticmethod
+    def _sweep(tmp_path, rows):
+        from src.publisher.analytics import load_metrics, save_metrics, summarize_post
+
+        save_metrics([summarize_post("p", PUBLISHED.isoformat(), rows)], tmp_path)
+        return next(m for m in load_metrics(tmp_path) if m.post_id == "p")
+
+    def test_a_later_truncated_reading_still_updates_the_ratio(self, tmp_path):
+        # Sweep 1: young and whole, so no ratio yet.
+        young = self._sweep(tmp_path, [_row("youtube", 1, 100), _row("tiktok", 1, 20)])
+        assert young.durability_ratio is None
+        assert young.covers_publication is True
+
+        # Sweep 2: aged out, first ratio arrives from a truncated record.
+        second = self._sweep(
+            tmp_path,
+            [
+                _row("youtube", 5, 150),
+                _row("tiktok", 5, 30),
+                _row("youtube", 30, 300),
+                _row("youtube", 40, 400),
+            ],
+        )
+        first_ratio = second.durability_ratio
+        assert first_ratio is not None
+        # The row must not claim a whole record just because sweep 1 saw one.
+        assert second.covers_publication is False
+
+        # Sweep 3: still truncated, but more mature. It must win.
+        third = self._sweep(
+            tmp_path,
+            [
+                _row("youtube", 5, 150),
+                _row("tiktok", 5, 30),
+                _row("youtube", 30, 300),
+                _row("youtube", 55, 900),
+            ],
+        )
+        assert third.durability_ratio != first_ratio
