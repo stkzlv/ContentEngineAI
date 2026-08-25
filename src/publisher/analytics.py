@@ -44,6 +44,11 @@ class PostMetrics:
 
     post_id: str
     published_at: str = ""
+    # None means not comparable, never zero. Two causes, told apart by
+    # `timeline_end`: earlier than the cutoff means the window had not closed
+    # when the sweep ran, and at or past it means a platform leg had not
+    # started reporting by the cutoff, so the figure would have counted only
+    # some of the post.
     views_day_2: int | None = None
     views_day_7: int | None = None
     views_total: int | None = None
@@ -75,9 +80,15 @@ def timeline_resource(client: Any) -> Any:
 
 
 def _parse_date(value: Any) -> datetime | None:
-    """Parse an API timestamp, tolerating the shapes the scheduler returns."""
+    """Parse an API timestamp, tolerating the shapes the scheduler returns.
+
+    An already-parsed `datetime` is normalised the same way a string is, so
+    the function cannot return an aware value down one path and a naive one
+    down the other. Mixing the two raises on the first comparison, and every
+    caller here compares a row date against a publication date.
+    """
     if isinstance(value, datetime):
-        return value
+        return value.replace(tzinfo=None) if value.tzinfo else value
     if not isinstance(value, str) or not value.strip():
         return None
     text = value.strip().replace("Z", "+00:00")
@@ -154,6 +165,29 @@ def normalize_timeline(rows: Any) -> list[tuple[datetime, int]]:
     return out
 
 
+def first_report_dates(rows: Any) -> dict[str, datetime]:
+    """The earliest date each platform appears in a raw timeline.
+
+    A platform's first row carries its **lifetime** total to that date, not
+    that day's increment, so a leg that starts reporting late drops its whole
+    accumulated figure into the middle of the series. Knowing when each leg
+    began is what lets a day-N figure say whether it covers the post or only
+    part of it.
+    """
+    first: dict[str, datetime] = {}
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        when = _parse_date(row.get("date") or row.get("timestamp"))
+        views = row.get("views")
+        if when is None or not isinstance(views, int | float):
+            continue
+        platform = str(row.get("platform") or "")
+        if platform not in first or when < first[platform]:
+            first[platform] = when
+    return first
+
+
 def views_at_day(
     timeline: list[tuple[datetime, int]], published_at: datetime, day: int
 ) -> int | None:
@@ -185,6 +219,7 @@ def durability_ratio(
     timeline: list[tuple[datetime, int]],
     published_at: datetime,
     window_days: int = DURABILITY_WINDOW_DAYS,
+    first_seen: dict[str, datetime] | None = None,
 ) -> float | None:
     """Views after the first `window_days` over views within them.
 
@@ -192,10 +227,17 @@ def durability_ratio(
     it earned nothing in the window: a ratio against zero is undefined, and
     returning 0.0 would rank an unmeasurable post alongside a genuinely dead
     one.
+
+    Also None when `first_seen` shows a platform began reporting after the
+    window closed. Its whole lifetime figure then lands in the "after" half
+    while contributing nothing to the "within" half, which inflates the ratio
+    by an amount that has nothing to do with the post earning attention later.
     """
     if not timeline:
         return None
     cutoff = published_at + timedelta(days=window_days)
+    if first_seen and any(started > cutoff for started in first_seen.values()):
+        return None
     if timeline[-1][0] <= cutoff:
         # Every row is inside the window, so "after" is empty. Returning 0.0
         # here would report a post measured too early as one that stopped
@@ -255,13 +297,29 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     timeline = normalize_timeline(rows)
     if when is None or not timeline:
         return PostMetrics(post_id=post_id, published_at=str(published_at or ""))
+    # A day-N figure counts only the legs that were reporting by the cutoff.
+    # A leg that started later contributes nothing to it while contributing
+    # everything to `views_total`, so the two are not measured over the same
+    # post. Reported as unknown rather than as a small number, which is the
+    # rule `views_at_day` already applies to a window the timeline has not
+    # reached: the reach test ranks arms on median day-7 views, and a post
+    # understated by reporting lag would outrank an identical one for a
+    # reason that is not reach.
+    first_seen = first_report_dates(rows)
+
+    def at_day(day: int) -> int | None:
+        cutoff = when + timedelta(days=day)
+        if any(started > cutoff for started in first_seen.values()):
+            return None
+        return views_at_day(timeline, when, day)
+
     return PostMetrics(
         post_id=post_id,
         published_at=when.isoformat(),
-        views_day_2=views_at_day(timeline, when, LAUNCH_DAYS[0]),
-        views_day_7=views_at_day(timeline, when, LAUNCH_DAYS[1]),
+        views_day_2=at_day(LAUNCH_DAYS[0]),
+        views_day_7=at_day(LAUNCH_DAYS[1]),
         views_total=timeline[-1][1],
-        durability_ratio=durability_ratio(timeline, when),
+        durability_ratio=durability_ratio(timeline, when, first_seen=first_seen),
         timeline_end=timeline[-1][0].isoformat(),
     )
 

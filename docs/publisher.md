@@ -321,6 +321,44 @@ Figures already captured are safe. Each post's row is merged field by field, so
 a later, shorter reading never replaces a measured value with an absent one;
 what it cannot do is recover a figure that was never taken in time.
 
+**A day-N figure counts every platform or none.** Platforms start reporting on
+their own lag — one commonly takes days — and a leg's first row carries its
+whole lifetime total to that date rather than that day's increment. A figure
+taken before a leg started would therefore count only part of the post, while
+`views_total` counts all of it, so the two would describe different things.
+
+The reach test ranks arms on median day-7 views, and a post understated that
+way would rank below an identical one for a reason that is reporting lag rather
+than reach. So `views_day_2`, `views_day_7` and `durability_ratio` are reported
+as unknown when a platform that appears later in the series had not reported by
+the cutoff — the same rule already applied to a window the timeline has not
+reached: unknown, not a small number.
+
+The cost is coverage, and it is not small. Measured against the live API on
+2026-08-25 over the 60 most recent published posts, 57 of them multi-platform:
+
+| | Counting a lagging leg's absence as zero | Reporting it unknown |
+|---|---|---|
+| day-2 available | 56 | 37 |
+| day-7 available | 51 | 33 |
+
+So 18 of 51 day-7 figures — a third — were understated by a leg that had not
+started reporting. That is the size of the bias the old rule carried into a
+comparison, and roughly a third of posts is the coverage the new rule gives up
+to remove it.
+
+The trade is deliberate. A missing figure is visible and can be excluded; a
+quietly understated one is neither. It does mean a comparison needs more posts
+than its target sample to end up with that many usable ones.
+
+Two causes produce a blank, told apart by `timeline_end` in
+`outputs/post_metrics.json`: earlier than the cutoff means the window had not
+closed when the sweep ran, and at or past it means a leg was still silent.
+
+Figures captured before this rule existed were computed the old way and are not
+recomputed by a later sweep — the per-field merge keeps the value it already
+has. Delete the affected rows if a run needs to be measured consistently.
+
 **Running it on a schedule.**
 
 `outputs/` is local and gitignored, and the API key comes from `.env`, so the

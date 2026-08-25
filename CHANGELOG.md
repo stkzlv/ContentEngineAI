@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-08-25
+
+### Changed
+- A day-N view figure counts every platform or none. A platform's first timeline row carries its lifetime total to that date rather than that day's increment, so a leg that started reporting late contributed nothing to `views_day_2` and `views_day_7` while contributing everything to `views_total` — the two described different posts. Those figures, and `durability_ratio`, are now reported unknown when a leg had not started by the cutoff, which is the rule already applied to a window the timeline has not reached. Measured over the 60 most recent posts, a third of day-7 figures were understated this way; removing the bias costs about a third of the coverage.
+
+### Fixed
+- `_parse_date` normalises a `datetime` argument the way it already normalised a string, instead of returning it with its offset intact. Every caller compares a row date against a publication date, and the two paths returning different awareness raised on the first comparison.
+
 ## [0.73.0] - 2026-08-24
 
 ### Changed
