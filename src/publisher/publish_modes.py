@@ -52,8 +52,17 @@ def _build_platform_contents_with_comments(
         entry: dict[str, str] = {}
         if meta is not None:
             entry["content"] = meta.format_content()
-            if getattr(meta, "title", None):
-                entry["title"] = meta.title
+            title = getattr(meta, "title", None)
+            if not title:
+                # Unified mode maps one platform's metadata onto every
+                # platform, and it is whichever one came first. TikTok's
+                # title is None by design, so a list starting with TikTok
+                # left YouTube's real title unread on disk beside it. Fall
+                # back to the platform's own file for the title only.
+                own = load_platform_metadata(product_id, platform_name, outputs_dir)
+                title = getattr(own, "title", None) if own else None
+            if title:
+                entry["title"] = title
         if fc_config is not None and comments_enabled:
             comment = build_first_comment(
                 fc_config, platform_name, product_id, outputs_dir, metadata=meta

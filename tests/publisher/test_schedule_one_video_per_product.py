@@ -64,3 +64,53 @@ class TestOneVideoPerProduct:
             _scan_and_filter_videos(_args(tmp_path))
         assert "slideshow_images1" in caplog.text
         assert "2 renders" in caplog.text
+
+
+@pytest.mark.unit
+class TestEveryDiscovererAgrees:
+    """Three paths find videos; they must choose the same render.
+
+    `single` resolves one per product through the selector. `schedule` and
+    the immediate batch each had their own glob, so a product rendered under
+    two profiles was published once per render — and with a per-platform
+    profile configured, the paths chose different cuts of the same product.
+    """
+
+    def test_the_immediate_batch_takes_one_render_per_product(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from src.publisher.batch import BatchPublisher
+
+        _product(tmp_path, "B0TWORENDS", "product_video_single", "slideshow_images1")
+        publisher = MagicMock()
+        publisher.config = None
+        batch = BatchPublisher(publisher=publisher, outputs_dir=tmp_path)
+
+        found = batch._discover_videos()
+        assert len(found) == 1
+        assert found[0]["product_id"] == "B0TWORENDS"
+
+    def test_a_configured_profile_decides_which_render(self, tmp_path):
+        from src.publisher.video_selector import sole_render_for_product
+
+        d = _product(
+            tmp_path, "B0PROFILES", "product_video_single", "slideshow_short_20s"
+        )
+        profiles = {"youtube": "slideshow_short_20s"}
+
+        chosen = sole_render_for_product(d, profiles, "youtube")
+        assert chosen is not None
+        assert chosen.name == "video_B0PROFILES_slideshow_short_20s.mp4"
+
+        # And it matches what `single` would upload for that platform.
+        from src.publisher.video_selector import select_video_for_platform
+
+        assert chosen == select_video_for_platform(d, "B0PROFILES", "youtube", profiles)
+
+    def test_no_profile_falls_back_to_a_stable_choice(self, tmp_path):
+        from src.publisher.video_selector import sole_render_for_product
+
+        d = _product(tmp_path, "B0NOPROFIL", "b_second", "a_first")
+        chosen = sole_render_for_product(d, None, "")
+        assert chosen is not None
+        assert chosen.name.endswith("a_first.mp4")

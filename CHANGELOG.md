@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The YouTube title is sent whether or not a first comment was generated. The per-platform payload was built only for platforms that produced a comment, and skipped entirely when none did, so no title was sent and the platform derived one from the caption — whose first line is the `#ad` disclosure. Observed on two products scheduled by the same command: the one whose comment was empty carried no title at all.
-- A YouTube leg with no title is refused rather than published. The provider only accepts a metadata update once a post is published, so a title cannot be corrected between scheduling and going live.
-- `schedule` enumerates products rather than video files, so a product rendered under a second profile gets one post instead of two on different days. It now picks the same render `single` does, and names any it passed over.
+- A YouTube leg with no title is refused rather than published, on every path rather than only when per-platform contents were supplied — the immediate-publish path passes none, so an in-branch check never saw it. The batch and scheduled paths now supply the title instead of relying on the refusal. The provider only accepts a metadata update once a post is published, so a title cannot be corrected between scheduling and going live.
+- All three video discoverers pick one render per product, and the same one. `schedule` and the immediate batch each globbed every `video_*.mp4`, so a product rendered under a second profile was published once per render; and with a per-platform profile configured they chose a different cut than `single` would. They now share `sole_render_for_product`, which honours the configured profile, and name any render they passed over.
 
 ## [0.74.0] - 2026-08-25
 

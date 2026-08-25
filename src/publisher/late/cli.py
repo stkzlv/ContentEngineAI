@@ -50,6 +50,7 @@ from src.publisher.product_registry import (
 )
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
+from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
 
 logger = logging.getLogger(__name__)
@@ -853,20 +854,34 @@ def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
     # same product twice -- two posts on different days, each carrying a
     # different render, burning two slots. `single` has always resolved one
     # video per product; this makes the two paths agree.
+    # The configured per-platform profile decides which render goes out, so
+    # the scanner has to consult it too. Reading only the alphabetically
+    # first file sent a different cut than `single` would have chosen.
+    profiles = getattr(getattr(args, "publisher_config", None), "profiles", None)
+    first_platform = ""
+    platform_args = getattr(args, "platforms", None)
+    if platform_args:
+        first = platform_args[0]
+        first_platform = getattr(first, "value", str(first))
+
     for product_dir in sorted(args.outputs_dir.iterdir()):
         if not product_dir.is_dir():
             continue
         renders = sorted(product_dir.glob("video_*.mp4"))
         if not renders:
             continue
-        video_paths.append(renders[0])
+        chosen = sole_render_for_product(product_dir, profiles, first_platform)
+        if chosen is None:
+            continue
+        video_paths.append(chosen)
         if len(renders) > 1:
+            ignored = [r.name for r in renders if r != chosen]
             logger.info(
                 "%s has %d renders; scheduling %s and ignoring %s",
                 product_dir.name,
                 len(renders),
-                renders[0].name,
-                ", ".join(r.name for r in renders[1:]),
+                chosen.name,
+                ", ".join(ignored),
             )
 
     if not video_paths:

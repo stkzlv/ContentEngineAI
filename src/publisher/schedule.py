@@ -927,7 +927,10 @@ class ScheduleManager:
                                         "title": meta.get("title"),
                                     }
                                 else:
-                                    platform_contents[p.value] = {"content": desc}
+                                    platform_contents[p.value] = {
+                                        "content": desc,
+                                        "title": meta.get("title", ""),
+                                    }
                             else:
                                 # Fallback to data.json
                                 fallback_path = video.parent / "data.json"
@@ -937,12 +940,19 @@ class ScheduleManager:
                                         fb = fb[0]
                                     title = fb.get("title", "Product Video")
                                     desc = fb.get("description", "")
+                                    # The title is carried as well as
+                                    # concatenated: without it the YouTube
+                                    # payload has none, and the platform
+                                    # derives one from the caption's first
+                                    # line.
                                     platform_contents[p.value] = {
-                                        "content": f"{title}\n\n{desc}"
+                                        "content": f"{title}\n\n{desc}",
+                                        "title": title,
                                     }
                                 else:
                                     platform_contents[p.value] = {
-                                        "content": f"Product video for {product_id}"
+                                        "content": f"Product video for {product_id}",
+                                        "title": f"Product video for {product_id}",
                                     }
 
                         # Inject first comments into platform_contents

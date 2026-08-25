@@ -800,6 +800,37 @@ class TestBuildSdkPlatformsYouTubeTitle:
         assert built[0]["customContent"] == "#ad\n\nShared caption"
         assert main == "#ad\n\nShared caption"
 
+    def test_a_youtube_leg_is_refused_with_no_platform_contents_at_all(self):
+        """The immediate-publish path passes none, so an in-branch check
+        never sees it. That path published titleless while the guard sat
+        one branch away.
+        """
+        pub = self._publisher()
+        platforms = [{"platform": "youtube", "account_id": "acc_yt"}]
+
+        with pytest.raises(ValueError, match="No YouTube title"):
+            pub._build_sdk_platforms(platforms, "#ad\n\nShared caption", None)
+
+    def test_a_youtube_leg_is_refused_when_the_entry_is_for_another_platform(self):
+        pub = self._publisher()
+        platforms = [
+            {"platform": "youtube", "account_id": "acc_yt"},
+            {"platform": "tiktok", "account_id": "acc_tt"},
+        ]
+        pcs = {"tiktok": {"content": "a caption"}}
+
+        with pytest.raises(ValueError, match="No YouTube title"):
+            pub._build_sdk_platforms(platforms, "#ad\n\nShared caption", pcs)
+
+    def test_platforms_without_youtube_are_unaffected(self):
+        pub = self._publisher()
+        platforms = [
+            {"platform": "tiktok", "account_id": "acc_tt"},
+            {"platform": "instagram", "account_id": "acc_ig"},
+        ]
+        built, _ = pub._build_sdk_platforms(platforms, "#ad\n\nCaption", None)
+        assert len(built) == 2
+
     def test_a_youtube_leg_with_no_title_is_refused(self):
         """Publishing one makes the platform title the video from the
         caption, whose first line is the disclosure. A loud failure beats a

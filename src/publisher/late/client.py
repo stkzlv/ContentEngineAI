@@ -1151,17 +1151,6 @@ class LatePublisher(BasePublisher):
                     }
                     if pc.get("title"):
                         yt_psd["title"] = pc["title"]
-                    else:
-                        # Sending no title is not a smaller payload, it is a
-                        # different video: the platform derives one from the
-                        # caption, whose first line is the `#ad` disclosure.
-                        # Refuse rather than publish something misleading
-                        # under a title nobody chose.
-                        raise ValueError(
-                            "No YouTube title for this post. Publishing without "
-                            "one makes the platform title the video from the "
-                            "caption's first line, which is the disclosure."
-                        )
                     platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {
@@ -1189,6 +1178,23 @@ class LatePublisher(BasePublisher):
                 platform_entry["platformSpecificData"] = {
                     "containsSyntheticMedia": self.synthetic_media_disclosure,
                 }
+
+            # Checked once per platform, after every branch above, because
+            # a caller that passes no per-platform contents at all reaches
+            # only the fallback -- and that is the immediate-publish path.
+            # Sending no title is not a smaller payload, it is a different
+            # video: the platform derives one from the caption, whose first
+            # line is the `#ad` disclosure. It cannot be corrected later
+            # either, since the provider refuses a metadata update until a
+            # post is published.
+            if platform_name == "youtube":
+                psd = platform_entry.get("platformSpecificData")
+                if not (isinstance(psd, dict) and psd.get("title")):
+                    raise ValueError(
+                        "No YouTube title for this post. Publishing without "
+                        "one makes the platform title the video from the "
+                        "caption's first line, which is the disclosure."
+                    )
 
             # Add TikTok settings even without platform-specific content
             if (

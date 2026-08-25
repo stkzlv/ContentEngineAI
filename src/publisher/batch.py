@@ -27,6 +27,7 @@ from src.publisher.tracking import (
     get_retry_queue,
     remove_from_retry_queue,
 )
+from src.publisher.video_selector import sole_render_for_product
 from src.video.config.constants import LATE_DEFAULT_RETRY_AFTER_SEC
 
 logger = logging.getLogger(__name__)
@@ -317,11 +318,15 @@ class BatchPublisher:
 
             product_id = product_dir.name
 
-            # Find video files (video_*.mp4)
-            video_files = list(product_dir.glob("video_*.mp4"))
-
-            for video_file in video_files:
-                videos.append({"path": video_file, "product_id": product_id})
+            # One render per product, resolved the way `single` and
+            # `schedule` resolve it. Taking every file published the same
+            # product once per profile it had been rendered under.
+            chosen = sole_render_for_product(
+                product_dir,
+                getattr(getattr(self.publisher, "config", None), "profiles", None),
+            )
+            if chosen is not None:
+                videos.append({"path": chosen, "product_id": product_id})
 
         logger.info("Discovered %d video(s)", len(videos))
         return videos
@@ -478,6 +483,16 @@ class BatchPublisher:
                 # Format content
                 content = metadata.format_content()
 
+                # The per-platform payload carries the title. Without it the
+                # provider receives none and the platform derives one from
+                # the caption's first line, which is the disclosure.
+                platform_contents = {
+                    platform.value: {
+                        "content": content,
+                        **({"title": metadata.title} if metadata.title else {}),
+                    }
+                }
+
                 # Create post
                 try:
                     result = await self.publisher.publish(
@@ -490,6 +505,7 @@ class BatchPublisher:
                         ],
                         content=content,
                         scheduled_time=None,  # Immediate publish
+                        platform_contents=platform_contents,
                         carries_affiliate_content=(metadata.carries_affiliate_content),
                     )
 

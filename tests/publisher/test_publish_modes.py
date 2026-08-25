@@ -427,6 +427,49 @@ class TestPlatformContentsCarryFullPayload:
             hashtags=["tech"],
         )
 
+    def test_the_title_falls_back_to_the_platforms_own_metadata(self, tmp_path):
+        """Unified mode maps one platform's metadata onto every platform.
+
+        Which one is whichever came first in the list, and TikTok's title is
+        None by design — so a list starting with TikTok left YouTube's real
+        title unread on disk beside it, and the payload went out titleless.
+        """
+        import json
+
+        from src.publisher.models import PublishMetadata
+        from src.publisher.publish_modes import _build_platform_contents_with_comments
+
+        product_dir = tmp_path / "B0FALLBACK"
+        product_dir.mkdir()
+        (product_dir / "metadata_youtube.json").write_text(
+            json.dumps(
+                {
+                    "platform": "youtube",
+                    "title": "The real YouTube title",
+                    "description": "Body copy.",
+                    "hashtags": ["tech"],
+                }
+            )
+        )
+
+        tiktok_shaped = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="A caption.",
+            hashtags=["tech"],
+        )
+
+        out = _build_platform_contents_with_comments(
+            self._publisher_with_comments(),
+            [{"platform": "youtube", "account_id": "acc"}],
+            "B0FALLBACK",
+            tmp_path,
+            metadata_by_platform={"youtube": tiktok_shaped},
+        )
+
+        assert out is not None
+        assert out["youtube"]["title"] == "The real YouTube title"
+
     def test_entry_carries_content_and_title(self, tmp_path):
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
