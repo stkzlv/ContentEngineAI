@@ -21,6 +21,7 @@ import sys
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from dotenv import load_dotenv
@@ -788,7 +789,7 @@ async def cmd_schedule_auto(
             return
 
         # Scheduled mode: scan, filter, and assign calendar slots
-        unpublished_videos = _scan_and_filter_videos(args)
+        unpublished_videos = _scan_and_filter_videos(args, config)
         if not unpublished_videos:
             return
 
@@ -834,12 +835,15 @@ async def cmd_schedule_auto(
         sys.exit(1)
 
 
-def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
+def _scan_and_filter_videos(
+    args: argparse.Namespace, config: Any | None = None
+) -> list[Path]:
     """Scan outputs dir for videos, optionally filtering published ones.
 
     Args:
     ----
         args: Parsed CLI args (needs outputs_dir, force, platforms)
+        config: Loaded publisher config, for the per-platform render profile
 
     Returns:
     -------
@@ -857,7 +861,7 @@ def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
     # The configured per-platform profile decides which render goes out, so
     # the scanner has to consult it too. Reading only the alphabetically
     # first file sent a different cut than `single` would have chosen.
-    profiles = getattr(getattr(args, "publisher_config", None), "profiles", None)
+    profiles = getattr(config, "profiles", None)
     first_platform = ""
     platform_args = getattr(args, "platforms", None)
     if platform_args:
@@ -939,6 +943,7 @@ async def _run_immediate_batch(
         publisher=publisher,
         outputs_dir=args.outputs_dir,
         platforms=args.platforms,
+        profiles=getattr(config, "profiles", None),
         stagger_delay_min=config.stagger_delay_min,
         stagger_delay_max=config.stagger_delay_max,
         fail_fast=getattr(args, "fail_fast", False),

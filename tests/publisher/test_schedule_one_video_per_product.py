@@ -114,3 +114,121 @@ class TestEveryDiscovererAgrees:
         chosen = sole_render_for_product(d, None, "")
         assert chosen is not None
         assert chosen.name.endswith("a_first.mp4")
+
+
+@pytest.mark.unit
+class TestTheImmediateBatchPayload:
+    """The immediate path builds its own payload, and it must be complete."""
+
+    @staticmethod
+    def _batch(tmp_path, profiles=None, platforms=None):
+        from unittest.mock import MagicMock
+
+        from src.publisher.batch import BatchPublisher
+
+        return BatchPublisher(
+            publisher=MagicMock(),
+            outputs_dir=tmp_path,
+            platforms=platforms,
+            profiles=profiles,
+        )
+
+    def test_the_configured_profile_reaches_the_discoverer(self, tmp_path):
+        from src.publisher.models import Platform
+
+        _product(tmp_path, "B0BATCHPRO", "slideshow_images1", "video_sequential")
+        batch = self._batch(
+            tmp_path,
+            profiles={"youtube": "video_sequential"},
+            platforms=[Platform.YOUTUBE],
+        )
+        found = batch._discover_videos()
+        assert len(found) == 1
+        assert found[0]["path"].name.endswith("video_sequential.mp4")
+
+    def test_the_retry_queue_uses_the_same_render(self, tmp_path):
+        from src.publisher.models import Platform
+
+        d = _product(tmp_path, "B0RETRYQUE", "aaa_first", "zzz_last")
+        batch = self._batch(
+            tmp_path,
+            profiles={"youtube": "zzz_last"},
+            platforms=[Platform.YOUTUBE],
+        )
+        discovered = batch._discover_videos()[0]["path"]
+        from src.publisher.video_selector import sole_render_for_product
+
+        assert discovered == sole_render_for_product(
+            d, {"youtube": "zzz_last"}, "youtube"
+        )
+
+    @pytest.mark.asyncio
+    async def test_the_title_it_sends_is_clamped(self, tmp_path):
+        """Driven through the publish call, because the clamp has to happen
+        on this path and not merely exist on the model. A scraped Amazon
+        title routinely runs past YouTube's 100-character cap.
+        """
+        import json
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.publisher.models import Platform
+
+        d = _product(tmp_path, "B0LONGTITL", "slideshow_images1")
+        (d / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "mode": "unified",
+                    "title": "Wireless Earbuds " * 12,
+                    "description": "Body copy.",
+                    "hashtags": ["tech"],
+                }
+            )
+        )
+
+        publisher = MagicMock()
+        publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "published"}
+        )
+        publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "youtube", "account_id": "acc"}]
+        )
+        publisher.upload_media = AsyncMock(return_value="media1")
+
+        batch = self._batch(tmp_path, platforms=[Platform.YOUTUBE])
+        batch.publisher = publisher
+        await batch._publish_single_video(
+            d / "video_B0LONGTITL_slideshow_images1.mp4",
+            "B0LONGTITL",
+            1,
+            1,
+            [{"platform": "youtube", "account_id": "acc"}],
+        )
+
+        assert publisher.publish.await_count >= 1
+        pcs = publisher.publish.await_args.kwargs["platform_contents"]
+        assert len(pcs["youtube"]["title"]) <= 100
+
+
+@pytest.mark.unit
+class TestTheScannerReadsTheConfig:
+    """The scanner has to be given the config to honour the profile."""
+
+    def test_the_configured_profile_reaches_the_scanner(self, tmp_path):
+        from types import SimpleNamespace
+
+        from src.publisher.models import Platform
+
+        _product(tmp_path, "B0SCANPROF", "slideshow_images1", "video_sequential")
+        args = argparse.Namespace(
+            outputs_dir=tmp_path, force=True, platforms=[Platform.YOUTUBE]
+        )
+        config = SimpleNamespace(profiles={"youtube": "video_sequential"})
+
+        found = _scan_and_filter_videos(args, config)
+        assert len(found) == 1
+        assert found[0].name.endswith("video_sequential.mp4")
+
+    def test_no_config_still_yields_one_render(self, tmp_path):
+        _product(tmp_path, "B0NOCONFIG", "aaa_one", "zzz_two")
+        found = _scan_and_filter_videos(_args(tmp_path))
+        assert len(found) == 1

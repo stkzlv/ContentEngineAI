@@ -61,6 +61,7 @@ class BatchPublisher:
         fail_fast: bool = False,
         retry_failed: bool = False,
         link_in_bio_config: LinkInBioConfig | None = None,
+        profiles: dict[str, str] | None = None,
     ):
         """Initialize batch publisher.
 
@@ -74,6 +75,8 @@ class BatchPublisher:
             fail_fast: Stop processing on first failure (default: False)
             retry_failed: Only process items from retry queue (default: False)
             link_in_bio_config: Link-in-bio configuration (default: enabled).
+            profiles: Per-platform render profile, deciding which video
+                each platform gets when a product has more than one.
                 Bio link is added after each successful publish
 
         Example:
@@ -107,6 +110,9 @@ class BatchPublisher:
         self.fail_fast = fail_fast
         self.retry_failed = retry_failed
         self.link_in_bio_config = link_in_bio_config
+        # Which render each platform gets. Without it every discoverer falls
+        # back to the alphabetically first file and disagrees with `single`.
+        self.profiles = profiles
 
         platforms_str = [p.value for p in self.platforms]
         mode = "RETRY MODE" if retry_failed else "normal"
@@ -293,6 +299,17 @@ class BatchPublisher:
 
         return summary
 
+    def _first_platform(self) -> str:
+        """The platform whose configured profile decides the render.
+
+        A single post carries one video to every platform, so one of them
+        has to choose; the first configured is the stable answer.
+        """
+        if not self.platforms:
+            return ""
+        first = self.platforms[0]
+        return str(getattr(first, "value", first))
+
     def _discover_videos(self) -> list[dict]:
         """Discover completed videos in outputs directory.
 
@@ -322,11 +339,22 @@ class BatchPublisher:
             # `schedule` resolve it. Taking every file published the same
             # product once per profile it had been rendered under.
             chosen = sole_render_for_product(
-                product_dir,
-                getattr(getattr(self.publisher, "config", None), "profiles", None),
+                product_dir, self.profiles, self._first_platform()
             )
-            if chosen is not None:
-                videos.append({"path": chosen, "product_id": product_id})
+            if chosen is None:
+                continue
+            videos.append({"path": chosen, "product_id": product_id})
+            skipped = [
+                r.name for r in sorted(product_dir.glob("video_*.mp4")) if r != chosen
+            ]
+            if skipped:
+                logger.info(
+                    "%s has %d renders; publishing %s and ignoring %s",
+                    product_id,
+                    len(skipped) + 1,
+                    chosen.name,
+                    ", ".join(skipped),
+                )
 
         logger.info("Discovered %d video(s)", len(videos))
         return videos
@@ -360,7 +388,10 @@ class BatchPublisher:
                 continue
 
             # Find video file
-            video_files = list(product_dir.glob("video_*.mp4"))
+            chosen = sole_render_for_product(
+                product_dir, self.profiles, self._first_platform()
+            )
+            video_files = [chosen] if chosen is not None else []
             if not video_files:
                 logger.warning("No video file found for retry item: %s", product_id)
                 continue
@@ -480,6 +511,18 @@ class BatchPublisher:
                     )
                     continue
 
+                # Clamp before anything reads the title. The other two
+                # publish paths do this; here it did not matter until the
+                # payload started carrying a title, and a scraped Amazon
+                # title routinely runs past YouTube's 100-character cap.
+                trimmed = metadata.clamp_to_limits()
+                if trimmed:
+                    logger.info(
+                        "Clamped %s for %s to platform limits",
+                        ", ".join(trimmed),
+                        platform.value,
+                    )
+
                 # Format content
                 content = metadata.format_content()
 
@@ -594,6 +637,11 @@ class BatchPublisher:
                             ],
                             content=content,
                             scheduled_time=None,
+                            # Same payload as the first attempt. Omitting it
+                            # sent the retry without a title, which the
+                            # builder now refuses -- turning a recoverable
+                            # rate limit into a failed publish.
+                            platform_contents=platform_contents,
                             carries_affiliate_content=(
                                 metadata.carries_affiliate_content
                             ),
