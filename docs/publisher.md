@@ -351,13 +351,22 @@ The trade is deliberate. A missing figure is visible and can be excluded; a
 quietly understated one is neither. It does mean a comparison needs more posts
 than its target sample to end up with that many usable ones.
 
-Two causes produce a blank, told apart by `timeline_end` in
-`outputs/post_metrics.json`: earlier than the cutoff means the window had not
-closed when the sweep ran, and at or past it means a leg was still silent.
+Three causes produce a blank, and `timeline_end` alone does not separate them:
+a post that aged past the retention horizon before its first sweep looks the
+same as one with a silent leg. Read `lagged_cutoff_days` in
+`outputs/post_metrics.json` first — it names the cutoffs a leg was silent for.
+Failing that, `timeline_end` earlier than the cutoff means the window had not
+closed when the sweep ran, and at or past it with no marker means the retained
+rows begin after the cutoff.
 
-Figures captured before this rule existed were computed the old way and are not
-recomputed by a later sweep — the per-field merge keeps the value it already
-has. Delete the affected rows if a run needs to be measured consistently.
+**The sweep that stores a figure is usually not the one that can tell it was
+biased.** A daily run reaches a young post while the slow platform has no rows
+at all, so one leg looks like the whole post. The marker is what a later sweep
+uses to withdraw a number already stored, and it is never unset: a sweep whose
+rows all begin past the lag sees no disagreement between legs, which says
+nothing about whether the figure was biased when it was taken. Figures captured
+before this rule existed are corrected the same way, on the next sweep that
+observes the lag.
 
 **Running it on a schedule.**
 

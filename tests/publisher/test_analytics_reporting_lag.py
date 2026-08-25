@@ -128,3 +128,92 @@ class TestDurabilityRatioBlanksToo:
         m = summarize_post("p", PUBLISHED, rows)
         assert m.durability_ratio is not None
         assert m.durability_ratio > 0
+
+
+@pytest.mark.unit
+class TestASweepBeforeTheLagAppears:
+    """The sweep that first measures a post usually cannot see the lag.
+
+    A daily run reaches a young post while the slow platform has no rows at
+    all. One leg is visible, nothing looks incomplete, and the biased figure
+    is stored. Only a later sweep knows better, and the per-field merge keeps
+    a measured value over a missing one -- so without a stored marker the
+    first sweep's number would stand forever.
+    """
+
+    @staticmethod
+    def _sweep(tmp_path, rows):
+        from src.publisher.analytics import load_metrics, save_metrics, summarize_post
+
+        save_metrics([summarize_post("p", PUBLISHED.isoformat(), rows)], tmp_path)
+        return next(m for m in load_metrics(tmp_path) if m.post_id == "p")
+
+    def test_a_later_sweep_withdraws_the_biased_figure(self, tmp_path):
+        # Day-2 sweep: only the fast leg has reported.
+        first = self._sweep(
+            tmp_path, [_row("youtube", 1, 600), _row("youtube", 2, 701)]
+        )
+        assert first.views_day_2 == 701
+
+        # Day-10 sweep: the slow leg appears, having started on day 4.
+        later = self._sweep(
+            tmp_path,
+            [
+                _row("youtube", 1, 600),
+                _row("youtube", 2, 701),
+                _row("tiktok", 4, 326),
+                _row("youtube", 10, 747),
+            ],
+        )
+        assert later.views_day_2 is None, "the day-2 figure counted one leg of two"
+        assert later.views_total == 1073
+
+    def test_a_figure_taken_after_every_leg_reported_survives(self, tmp_path):
+        rows = [
+            _row("youtube", 1, 600),
+            _row("tiktok", 1, 100),
+            _row("youtube", 2, 700),
+            _row("tiktok", 2, 200),
+        ]
+        first = self._sweep(tmp_path, rows)
+        assert first.views_day_2 == 900
+        later = self._sweep(tmp_path, [*rows, _row("youtube", 9, 800)])
+        assert later.views_day_2 == 900
+
+    def test_a_truncated_later_sweep_does_not_erase_a_good_figure(self, tmp_path):
+        # The retention case: the merge must still prefer a measured value
+        # over an absent one when the absence is only a shorter timeline.
+        rows = [
+            _row("youtube", 1, 600),
+            _row("tiktok", 1, 100),
+            _row("youtube", 2, 700),
+            _row("tiktok", 2, 200),
+        ]
+        assert self._sweep(tmp_path, rows).views_day_2 == 900
+        truncated = self._sweep(
+            tmp_path, [_row("youtube", 40, 900), _row("tiktok", 40, 400)]
+        )
+        assert truncated.views_day_2 == 900
+
+    def test_the_mark_survives_a_sweep_that_can_no_longer_see_it(self, tmp_path):
+        # Three sweeps. The second is the only one that can observe the lag;
+        # the third's rows all begin past the retention horizon, so it sees
+        # no disagreement between legs. The figure must stay withdrawn: a
+        # sweep that cannot see the lag says nothing about whether the number
+        # was biased when it was taken.
+        self._sweep(tmp_path, [_row("youtube", 1, 600), _row("youtube", 2, 701)])
+        marked = self._sweep(
+            tmp_path,
+            [
+                _row("youtube", 2, 701),
+                _row("tiktok", 4, 326),
+                _row("youtube", 10, 747),
+            ],
+        )
+        assert marked.views_day_2 is None
+
+        truncated = self._sweep(
+            tmp_path, [_row("youtube", 40, 900), _row("tiktok", 40, 400)]
+        )
+        assert truncated.views_day_2 is None
+        assert 2 in truncated.lagged_cutoff_days

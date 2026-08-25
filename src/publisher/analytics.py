@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -61,6 +61,17 @@ class PostMetrics:
     # not comparable with one measured six months past it, and without this the
     # stored number cannot be told apart later.
     timeline_end: str = ""
+    # Day cutoffs this post is known to have straddled: some legs reporting
+    # by then, others not. Recorded rather than recomputed, because the sweep
+    # that first measures a young post usually cannot see the lag -- the slow
+    # platform has no rows at all yet, so one leg looks like the whole post
+    # and the biased figure is stored. A later sweep sees both and marks the
+    # cutoff, which is what lets the merge withdraw a number it already kept.
+    #
+    # Marked only when legs disagree. A sweep whose rows all begin late is a
+    # truncated timeline, not a lagging leg: nothing is biased relative to
+    # anything, and `views_at_day` already reports those cutoffs unknown.
+    lagged_cutoff_days: list[int] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -307,9 +318,16 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     # reason that is not reach.
     first_seen = first_report_dates(rows)
 
-    def at_day(day: int) -> int | None:
+    def straddles(day: int) -> bool:
+        """Whether some leg had reported by this cutoff and another had not."""
         cutoff = when + timedelta(days=day)
-        if any(started > cutoff for started in first_seen.values()):
+        started = [f <= cutoff for f in first_seen.values()]
+        return any(started) and not all(started)
+
+    lagged = [d for d in (*LAUNCH_DAYS, DURABILITY_WINDOW_DAYS) if straddles(d)]
+
+    def at_day(day: int) -> int | None:
+        if day in lagged:
             return None
         return views_at_day(timeline, when, day)
 
@@ -319,8 +337,13 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         views_day_2=at_day(LAUNCH_DAYS[0]),
         views_day_7=at_day(LAUNCH_DAYS[1]),
         views_total=timeline[-1][1],
-        durability_ratio=durability_ratio(timeline, when, first_seen=first_seen),
+        durability_ratio=(
+            None
+            if DURABILITY_WINDOW_DAYS in lagged
+            else durability_ratio(timeline, when)
+        ),
         timeline_end=timeline[-1][0].isoformat(),
+        lagged_cutoff_days=lagged,
     )
 
 
@@ -385,6 +408,28 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
     tmp.replace(path)
 
 
+def _withdraw_lagged(metrics: PostMetrics) -> PostMetrics:
+    """Blank every figure whose cutoff a leg had not started reporting by.
+
+    Applied to the merged row, because the sweep that stored a figure is
+    usually not the one that can tell it was biased. This is the single case
+    where an absence must beat a stored number: the per-field merge keeps a
+    measured value over a missing one, which is right for a truncated
+    timeline -- the figure was true when taken -- and wrong here, where it
+    was never true.
+    """
+    if not metrics.lagged_cutoff_days:
+        return metrics
+    blanked = replace(metrics)
+    if LAUNCH_DAYS[0] in metrics.lagged_cutoff_days:
+        blanked.views_day_2 = None
+    if LAUNCH_DAYS[1] in metrics.lagged_cutoff_days:
+        blanked.views_day_7 = None
+    if DURABILITY_WINDOW_DAYS in metrics.lagged_cutoff_days:
+        blanked.durability_ratio = None
+    return blanked
+
+
 def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
     """Keep the best answer per field rather than the newest row.
 
@@ -410,7 +455,7 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         """The fresh figure when it has one, else what was already measured."""
         return b if b is not None else a
 
-    return PostMetrics(
+    merged = PostMetrics(
         post_id=fresh.post_id,
         published_at=fresh.published_at or stored.published_at,
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
@@ -433,7 +478,14 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
             if (stored.durability_ratio is not None and not ratio_from_fresh)
             else (fresh.timeline_end or stored.timeline_end)
         ),
+        # Union, and never unmarked: a sweep that no longer sees the lag is
+        # one whose rows all begin after it, which says nothing about whether
+        # the figure was biased when it was taken.
+        lagged_cutoff_days=sorted(
+            set(stored.lagged_cutoff_days) | set(fresh.lagged_cutoff_days)
+        ),
     )
+    return _withdraw_lagged(merged)
 
 
 def _readable(path: Path) -> bool:
