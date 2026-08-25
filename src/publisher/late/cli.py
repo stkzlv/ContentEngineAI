@@ -21,6 +21,7 @@ import sys
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from dotenv import load_dotenv
@@ -50,6 +51,7 @@ from src.publisher.product_registry import (
 )
 from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
+from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
 
 logger = logging.getLogger(__name__)
@@ -787,7 +789,7 @@ async def cmd_schedule_auto(
             return
 
         # Scheduled mode: scan, filter, and assign calendar slots
-        unpublished_videos = _scan_and_filter_videos(args)
+        unpublished_videos = _scan_and_filter_videos(args, config)
         if not unpublished_videos:
             return
 
@@ -833,12 +835,15 @@ async def cmd_schedule_auto(
         sys.exit(1)
 
 
-def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
+def _scan_and_filter_videos(
+    args: argparse.Namespace, config: Any | None = None
+) -> list[Path]:
     """Scan outputs dir for videos, optionally filtering published ones.
 
     Args:
     ----
         args: Parsed CLI args (needs outputs_dir, force, platforms)
+        config: Loaded publisher config, for the per-platform render profile
 
     Returns:
     -------
@@ -848,11 +853,40 @@ def _scan_and_filter_videos(args: argparse.Namespace) -> list[Path]:
     logger.info("Scanning %s for videos...", args.outputs_dir)
     video_paths = []
 
-    for product_dir in args.outputs_dir.iterdir():
+    # One video per product, not one per file. A product rendered under a
+    # second profile keeps both files, and taking each of them scheduled the
+    # same product twice -- two posts on different days, each carrying a
+    # different render, burning two slots. `single` has always resolved one
+    # video per product; this makes the two paths agree.
+    # The configured per-platform profile decides which render goes out, so
+    # the scanner has to consult it too. Reading only the alphabetically
+    # first file sent a different cut than `single` would have chosen.
+    profiles = getattr(config, "profiles", None)
+    first_platform = ""
+    platform_args = getattr(args, "platforms", None)
+    if platform_args:
+        first = platform_args[0]
+        first_platform = getattr(first, "value", str(first))
+
+    for product_dir in sorted(args.outputs_dir.iterdir()):
         if not product_dir.is_dir():
             continue
-        for video_file in product_dir.glob("video_*.mp4"):
-            video_paths.append(video_file)
+        renders = sorted(product_dir.glob("video_*.mp4"))
+        if not renders:
+            continue
+        chosen = sole_render_for_product(product_dir, profiles, first_platform)
+        if chosen is None:
+            continue
+        video_paths.append(chosen)
+        if len(renders) > 1:
+            ignored = [r.name for r in renders if r != chosen]
+            logger.info(
+                "%s has %d renders; scheduling %s and ignoring %s",
+                product_dir.name,
+                len(renders),
+                chosen.name,
+                ", ".join(ignored),
+            )
 
     if not video_paths:
         logger.warning("No video files found in %s", args.outputs_dir)
@@ -909,6 +943,7 @@ async def _run_immediate_batch(
         publisher=publisher,
         outputs_dir=args.outputs_dir,
         platforms=args.platforms,
+        profiles=getattr(config, "profiles", None),
         stagger_delay_min=config.stagger_delay_min,
         stagger_delay_max=config.stagger_delay_max,
         fail_fast=getattr(args, "fail_fast", False),

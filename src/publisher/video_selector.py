@@ -59,3 +59,25 @@ def select_video_for_platform(
     if matches:
         return matches[0]
     return None
+
+
+def sole_render_for_product(
+    product_dir: Path, profiles: dict[str, str] | None = None, platform: str = ""
+) -> Path | None:
+    """The one render a product directory contributes to a publish run.
+
+    Every discoverer resolves it the same way, so `single`, `schedule` and
+    the immediate batch cannot disagree about which cut of a product goes
+    out. A directory holding two renders used to give one post per render,
+    on different days, each carrying a different cut.
+    """
+    asin = product_dir.name
+    if platform:
+        chosen = select_video_for_platform(product_dir, asin, platform, profiles)
+        if chosen is not None:
+            return chosen
+    matches = sorted(product_dir.glob(f"video_{asin}_*.mp4"))
+    if matches:
+        return matches[0]
+    fallback = sorted(product_dir.glob("video_*.mp4"))
+    return fallback[0] if fallback else None

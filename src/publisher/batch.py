@@ -27,6 +27,7 @@ from src.publisher.tracking import (
     get_retry_queue,
     remove_from_retry_queue,
 )
+from src.publisher.video_selector import sole_render_for_product
 from src.video.config.constants import LATE_DEFAULT_RETRY_AFTER_SEC
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class BatchPublisher:
         fail_fast: bool = False,
         retry_failed: bool = False,
         link_in_bio_config: LinkInBioConfig | None = None,
+        profiles: dict[str, str] | None = None,
     ):
         """Initialize batch publisher.
 
@@ -74,6 +76,8 @@ class BatchPublisher:
             retry_failed: Only process items from retry queue (default: False)
             link_in_bio_config: Link-in-bio configuration (default: enabled).
                 Bio link is added after each successful publish
+            profiles: Per-platform render profile, deciding which video
+                each platform gets when a product has more than one.
 
         Example:
         -------
@@ -106,6 +110,9 @@ class BatchPublisher:
         self.fail_fast = fail_fast
         self.retry_failed = retry_failed
         self.link_in_bio_config = link_in_bio_config
+        # Which render each platform gets. Without it every discoverer falls
+        # back to the alphabetically first file and disagrees with `single`.
+        self.profiles = profiles
 
         platforms_str = [p.value for p in self.platforms]
         mode = "RETRY MODE" if retry_failed else "normal"
@@ -292,6 +299,40 @@ class BatchPublisher:
 
         return summary
 
+    def _first_platform(self) -> str:
+        """The platform whose configured profile decides the render.
+
+        This path uploads once per product and posts that one file to each
+        platform separately, so when two platforms name different profiles
+        only one can be honoured. The first is the stable answer;
+        `_warn_overridden_profiles` says whose choice was dropped, because
+        the alternative is a silent routing change nobody can see in the log.
+        """
+        if not self.platforms:
+            return ""
+        first = self.platforms[0]
+        return str(getattr(first, "value", first))
+
+    def _warn_overridden_profiles(self, product_id: str, chosen: Path) -> None:
+        """Name the platforms whose configured render was not the one sent."""
+        if not self.profiles:
+            return
+        overridden = [
+            str(getattr(p, "value", p))
+            for p in self.platforms
+            if (name := str(getattr(p, "value", p))) in self.profiles
+            and f"_{self.profiles[name]}.mp4" not in chosen.name
+        ]
+        if overridden:
+            logger.warning(
+                "%s: sending %s to %s, though %s configured a different "
+                "render. This path uploads one file per product.",
+                product_id,
+                chosen.name,
+                ", ".join(overridden),
+                "they" if len(overridden) > 1 else "it",
+            )
+
     def _discover_videos(self) -> list[dict]:
         """Discover completed videos in outputs directory.
 
@@ -317,11 +358,27 @@ class BatchPublisher:
 
             product_id = product_dir.name
 
-            # Find video files (video_*.mp4)
-            video_files = list(product_dir.glob("video_*.mp4"))
-
-            for video_file in video_files:
-                videos.append({"path": video_file, "product_id": product_id})
+            # One render per product, resolved the way `single` and
+            # `schedule` resolve it. Taking every file published the same
+            # product once per profile it had been rendered under.
+            chosen = sole_render_for_product(
+                product_dir, self.profiles, self._first_platform()
+            )
+            if chosen is None:
+                continue
+            videos.append({"path": chosen, "product_id": product_id})
+            self._warn_overridden_profiles(product_id, chosen)
+            skipped = [
+                r.name for r in sorted(product_dir.glob("video_*.mp4")) if r != chosen
+            ]
+            if skipped:
+                logger.info(
+                    "%s has %d renders; publishing %s and ignoring %s",
+                    product_id,
+                    len(skipped) + 1,
+                    chosen.name,
+                    ", ".join(skipped),
+                )
 
         logger.info("Discovered %d video(s)", len(videos))
         return videos
@@ -355,7 +412,10 @@ class BatchPublisher:
                 continue
 
             # Find video file
-            video_files = list(product_dir.glob("video_*.mp4"))
+            chosen = sole_render_for_product(
+                product_dir, self.profiles, self._first_platform()
+            )
+            video_files = [chosen] if chosen is not None else []
             if not video_files:
                 logger.warning("No video file found for retry item: %s", product_id)
                 continue
@@ -475,8 +535,30 @@ class BatchPublisher:
                     )
                     continue
 
+                # Clamp before anything reads the title. The other two
+                # publish paths do this; here it did not matter until the
+                # payload started carrying a title, and a scraped Amazon
+                # title routinely runs past YouTube's 100-character cap.
+                trimmed = metadata.clamp_to_limits()
+                if trimmed:
+                    logger.info(
+                        "Clamped %s for %s to platform limits",
+                        ", ".join(trimmed),
+                        platform.value,
+                    )
+
                 # Format content
                 content = metadata.format_content()
+
+                # The per-platform payload carries the title. Without it the
+                # provider receives none and the platform derives one from
+                # the caption's first line, which is the disclosure.
+                platform_contents = {
+                    platform.value: {
+                        "content": content,
+                        **({"title": metadata.title} if metadata.title else {}),
+                    }
+                }
 
                 # Create post
                 try:
@@ -490,6 +572,7 @@ class BatchPublisher:
                         ],
                         content=content,
                         scheduled_time=None,  # Immediate publish
+                        platform_contents=platform_contents,
                         carries_affiliate_content=(metadata.carries_affiliate_content),
                     )
 
@@ -578,6 +661,11 @@ class BatchPublisher:
                             ],
                             content=content,
                             scheduled_time=None,
+                            # Same payload as the first attempt. Omitting it
+                            # sent the retry without a title, which the
+                            # builder now refuses -- turning a recoverable
+                            # rate limit into a failed publish.
+                            platform_contents=platform_contents,
                             carries_affiliate_content=(
                                 metadata.carries_affiliate_content
                             ),

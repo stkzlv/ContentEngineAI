@@ -280,6 +280,7 @@ class TestPlatformFlags:
             media_id="https://storage.late.dev/media.mp4",
             platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
             content="#ad\n\nBody.",
+            platform_contents={"youtube": {"title": "A title"}},
         )
 
         call = mock_publisher.client.posts.create.call_args
@@ -301,6 +302,7 @@ class TestPlatformFlags:
             media_id="https://storage.late.dev/media.mp4",
             platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
             content="#ad\n\nBody.",
+            platform_contents={"youtube": {"title": "A title"}},
         )
 
         call = mock_publisher.client.posts.create.call_args

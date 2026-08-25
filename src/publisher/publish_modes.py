@@ -32,29 +32,45 @@ def _build_platform_contents_with_comments(
     dict as authoritative and reads ``content`` and ``title`` from it, so a
     missing key silently blanks the field rather than falling back.
 
-    Returns None if no first comments were generated (caller can skip
-    platform_contents entirely).
+    The payload does not depend on a comment existing. It used to: a platform
+    with no comment got no entry, and a run where none was generated returned
+    None, so the caller skipped per-platform contents altogether and no
+    YouTube title was sent. The platform then derived one from the caption,
+    whose first line is the `#ad` disclosure. Title and content come from the
+    metadata; the comment is attached when there is one.
+
+    Returns None only when there is nothing to say per platform.
     """
     fc_config = getattr(publisher, "first_comment_config", None)
-    if not fc_config or not fc_config.enabled:
-        return None
+    comments_enabled = bool(fc_config and fc_config.enabled)
 
     platform_contents: dict[str, dict[str, str]] = {}
 
     for p_info in platforms:
         platform_name = p_info["platform"]
         meta = metadata_by_platform.get(platform_name) if metadata_by_platform else None
-        comment = build_first_comment(
-            fc_config, platform_name, product_id, outputs_dir, metadata=meta
-        )
-        if not comment:
-            continue
-        entry: dict[str, str] = {"first_comment": comment}
+        entry: dict[str, str] = {}
         if meta is not None:
             entry["content"] = meta.format_content()
-            if getattr(meta, "title", None):
-                entry["title"] = meta.title
-        platform_contents[platform_name] = entry
+            title = getattr(meta, "title", None)
+            if not title:
+                # Unified mode maps one platform's metadata onto every
+                # platform, and it is whichever one came first. TikTok's
+                # title is None by design, so a list starting with TikTok
+                # left YouTube's real title unread on disk beside it. Fall
+                # back to the platform's own file for the title only.
+                own = load_platform_metadata(product_id, platform_name, outputs_dir)
+                title = getattr(own, "title", None) if own else None
+            if title:
+                entry["title"] = title
+        if fc_config is not None and comments_enabled:
+            comment = build_first_comment(
+                fc_config, platform_name, product_id, outputs_dir, metadata=meta
+            )
+            if comment:
+                entry["first_comment"] = comment
+        if entry:
+            platform_contents[platform_name] = entry
 
     return platform_contents if platform_contents else None
 

@@ -427,6 +427,49 @@ class TestPlatformContentsCarryFullPayload:
             hashtags=["tech"],
         )
 
+    def test_the_title_falls_back_to_the_platforms_own_metadata(self, tmp_path):
+        """Unified mode maps one platform's metadata onto every platform.
+
+        Which one is whichever came first in the list, and TikTok's title is
+        None by design — so a list starting with TikTok left YouTube's real
+        title unread on disk beside it, and the payload went out titleless.
+        """
+        import json
+
+        from src.publisher.models import PublishMetadata
+        from src.publisher.publish_modes import _build_platform_contents_with_comments
+
+        product_dir = tmp_path / "B0FALLBACK"
+        product_dir.mkdir()
+        (product_dir / "metadata_youtube.json").write_text(
+            json.dumps(
+                {
+                    "platform": "youtube",
+                    "title": "The real YouTube title",
+                    "description": "Body copy.",
+                    "hashtags": ["tech"],
+                }
+            )
+        )
+
+        tiktok_shaped = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="A caption.",
+            hashtags=["tech"],
+        )
+
+        out = _build_platform_contents_with_comments(
+            self._publisher_with_comments(),
+            [{"platform": "youtube", "account_id": "acc"}],
+            "B0FALLBACK",
+            tmp_path,
+            metadata_by_platform={"youtube": tiktok_shaped},
+        )
+
+        assert out is not None
+        assert out["youtube"]["title"] == "The real YouTube title"
+
     def test_entry_carries_content_and_title(self, tmp_path):
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
@@ -450,7 +493,13 @@ class TestPlatformContentsCarryFullPayload:
         assert entry["content"] == meta.format_content()
         assert entry["content"].startswith("#ad")
 
-    def test_no_entry_without_a_comment(self, tmp_path):
+    def test_the_payload_survives_a_platform_with_no_comment(self, tmp_path):
+        """A comment that could not be built must not take the title with it.
+
+        The title is the platform's primary ranking signal, and with none
+        sent the platform derives one from the caption -- whose first line is
+        the `#ad` disclosure.
+        """
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
         with patch("src.publisher.publish_modes.build_first_comment", return_value=""):
@@ -462,14 +511,17 @@ class TestPlatformContentsCarryFullPayload:
                 metadata_by_platform={"youtube": self._youtube_metadata()},
             )
 
-        assert out is None
+        assert out is not None
+        assert out["youtube"]["title"]
+        assert out["youtube"]["content"]
+        assert "first_comment" not in out["youtube"]
 
-    def test_disabled_first_comment_returns_none(self, tmp_path):
-        """With the feature off the builder is skipped entirely.
+    def test_the_payload_is_built_with_comments_disabled(self, tmp_path):
+        """Turning comments off must not turn the title off with them.
 
-        This is the path that masked the bug: no platform_contents means the
-        consumer's per-platform branch never runs, so the title was only
-        missing on publishes that generated a comment.
+        This was the path that masked the bug: no platform_contents meant the
+        consumer's per-platform branch never ran, so the title went missing
+        on exactly the publishes that generated no comment.
         """
         from src.publisher.publish_modes import _build_platform_contents_with_comments
 
@@ -484,7 +536,9 @@ class TestPlatformContentsCarryFullPayload:
             metadata_by_platform={"youtube": self._youtube_metadata()},
         )
 
-        assert out is None
+        assert out is not None
+        assert out["youtube"]["title"]
+        assert "first_comment" not in out["youtube"]
 
 
 class TestMaterialConnectionReachesThePublisher:

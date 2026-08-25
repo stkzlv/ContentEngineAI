@@ -878,7 +878,7 @@ Batch publishing processes multiple videos from the `outputs` directory sequenti
 **How Batch Publishing Works:**
 
 1. **Discovery**: Scans `outputs` directory for product folders
-2. **Video Detection**: Finds videos matching pattern `video_*.mp4`
+2. **Video Detection**: Finds one render per product (`video_<asin>_*.mp4`, honouring `profiles` when configured), so a product rendered under two profiles is published once rather than twice
 3. **Metadata Loading**: Loads platform-specific metadata for each product
 4. **Sequential Upload**: Uploads videos one at a time with stagger delays
 5. **Error Handling**: Continues on failure (unless `--fail-fast` specified)

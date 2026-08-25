@@ -256,6 +256,7 @@ class TestFullPublishWorkflow:
             media_id=media_url,
             platforms=platform_dicts,
             content="Amazing product! #ad #test",
+            platform_contents={"youtube": {"title": "A title"}},
         )
         assert result["post_id"] == "post_abc123"
         assert result["status"] == "scheduled"
@@ -344,6 +345,7 @@ class TestFullPublishWorkflow:
             media_id=media_url,
             platforms=platform_dicts,
             content="Scheduled post! #ad",
+            platform_contents={"youtube": {"title": "A title"}},
             scheduled_time=next_time,
         )
 
@@ -431,6 +433,7 @@ class TestPlatformPublishing:
             media_id="https://storage.late.dev/media_123.mp4",
             platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
             content="Test post #ad",
+            platform_contents={"youtube": {"title": "A title"}},
         )
 
         assert result["post_id"] == "post_abc123"
@@ -445,6 +448,7 @@ class TestPlatformPublishing:
             media_id="https://storage.late.dev/media_123.mp4",
             platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
             content="Scheduled post #ad",
+            platform_contents={"youtube": {"title": "A title"}},
             scheduled_time=scheduled_time,
         )
 
@@ -463,6 +467,7 @@ class TestPlatformPublishing:
             media_id="https://storage.late.dev/media_123.mp4",
             platforms=platforms,
             content="Multi-platform post #ad",
+            platform_contents={"youtube": {"title": "A title"}},
         )
 
         assert result["post_id"] == "post_abc123"
@@ -535,6 +540,7 @@ class TestPlatformPublishing:
             media_id="https://storage.late.dev/media_123.mp4",
             platforms=platforms,
             content="YouTube post #ad",
+            platform_contents={"youtube": {"title": "A title"}},
         )
 
         call_kwargs = mock_publisher.client.posts.create.call_args
@@ -587,6 +593,7 @@ class TestPlatformPublishing:
                 media_id="https://storage.late.dev/media_123.mp4",
                 platforms=[],
                 content="Test #ad",
+                platform_contents={"youtube": {"title": "A title"}},
             )
 
     @pytest.mark.asyncio
@@ -601,6 +608,7 @@ class TestPlatformPublishing:
                 media_id="https://storage.late.dev/media_123.mp4",
                 platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
                 content="Test #ad",
+                platform_contents={"youtube": {"title": "A title"}},
                 scheduled_time=past_time,
             )
 
@@ -1310,6 +1318,7 @@ class TestErrorHandling:
                 media_id="https://storage.late.dev/media_123.mp4",
                 platforms=[{"platform": "youtube", "account_id": "acc_yt_001"}],
                 content="Test #ad",
+                platform_contents={"youtube": {"title": "A title"}},
             )
 
     @pytest.mark.asyncio
