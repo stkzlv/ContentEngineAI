@@ -5,9 +5,9 @@ that day's increment, and platforms start reporting on their own lag. A figure
 taken before a leg started counts only part of the post while `views_total`
 counts all of it, so the two describe different posts.
 
-The reach test ranks arms on median day-7 views. A post understated by
-reporting lag would rank below an identical one for a reason that is not
-reach, so the figure is reported unknown rather than small — the same rule
+A comparison that ranks by median day-7 views would place a post understated
+by reporting lag below an identical one, for a reason that is not reach, so
+the figure is reported unknown rather than small — the same rule
 `views_at_day` already applies to a window the timeline has not reached.
 """
 
@@ -205,6 +205,7 @@ class TestASweepBeforeTheLagAppears:
         marked = self._sweep(
             tmp_path,
             [
+                _row("youtube", 1, 600),
                 _row("youtube", 2, 701),
                 _row("tiktok", 4, 326),
                 _row("youtube", 10, 747),
@@ -217,3 +218,76 @@ class TestASweepBeforeTheLagAppears:
         )
         assert truncated.views_day_2 is None
         assert 2 in truncated.lagged_cutoff_days
+
+    def test_timeline_end_is_not_pinned_to_a_withdrawn_ratio(self, tmp_path):
+        # `timeline_end` is frozen while it dates a preserved ratio. A ratio
+        # the marker withdraws is not preserved, so the field must move with
+        # the newer reading rather than stay frozen against nothing.
+        early = [
+            _row("youtube", 1, 100),
+            _row("tiktok", 1, 10),
+            _row("youtube", 30, 200),
+            _row("youtube", 45, 400),
+        ]
+        first = self._sweep(tmp_path, early)
+        assert first.durability_ratio is not None
+        pinned = first.timeline_end
+
+        # A later sweep reveals a third leg that only started after day 30.
+        later = self._sweep(
+            tmp_path,
+            [*early, _row("instagram", 40, 500), _row("youtube", 60, 420)],
+        )
+        assert later.durability_ratio is None
+        assert later.timeline_end != pinned
+
+
+@pytest.mark.unit
+class TestATruncatedSweepDoesNotWithdraw:
+    """Past the retention horizon, a first row is not a start.
+
+    Every leg's retained rows begin at the window edge, so a leg that happens
+    to be absent from that first date looks exactly like one that started
+    late. Marking there would withdraw a ratio an earlier, fuller sweep had
+    measured correctly — and no later sweep could recompute it, because the
+    days it needs are gone.
+    """
+
+    @staticmethod
+    def _sweep(tmp_path, rows):
+        from src.publisher.analytics import load_metrics, save_metrics, summarize_post
+
+        save_metrics([summarize_post("p", PUBLISHED.isoformat(), rows)], tmp_path)
+        return next(m for m in load_metrics(tmp_path) if m.post_id == "p")
+
+    def test_a_ratio_measured_in_full_survives_a_truncated_sweep(self, tmp_path):
+        full = [
+            _row("youtube", 1, 100),
+            _row("tiktok", 1, 50),
+            _row("youtube", 30, 200),
+            _row("youtube", 45, 400),
+        ]
+        first = self._sweep(tmp_path, full)
+        assert first.durability_ratio is not None
+        measured = first.durability_ratio
+
+        # Aged out: rows retained only from day 25, and the slow leg happens
+        # to be absent from that first retained date.
+        later = self._sweep(
+            tmp_path,
+            [
+                _row("youtube", 25, 190),
+                _row("youtube", 30, 200),
+                _row("tiktok", 33, 60),
+                _row("youtube", 45, 400),
+            ],
+        )
+        assert later.lagged_cutoff_days == []
+        assert later.durability_ratio == measured
+
+    def test_a_truncated_sweep_marks_nothing_at_all(self, tmp_path):
+        later = self._sweep(
+            tmp_path,
+            [_row("youtube", 25, 190), _row("tiktok", 33, 60)],
+        )
+        assert later.lagged_cutoff_days == []

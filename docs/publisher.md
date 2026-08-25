@@ -319,7 +319,10 @@ passed to widen the window — `from_date` makes no difference at any post age.
 
 Figures already captured are safe. Each post's row is merged field by field, so
 a later, shorter reading never replaces a measured value with an absent one;
-what it cannot do is recover a figure that was never taken in time.
+what it cannot do is recover a figure that was never taken in time. The one
+exception is a day-N figure a later sweep finds was measured before every
+platform had started reporting — see below, where the point is that such a
+figure was never true rather than merely stale.
 
 **A day-N figure counts every platform or none.** Platforms start reporting on
 their own lag — one commonly takes days — and a leg's first row carries its
@@ -327,9 +330,9 @@ whole lifetime total to that date rather than that day's increment. A figure
 taken before a leg started would therefore count only part of the post, while
 `views_total` counts all of it, so the two would describe different things.
 
-The reach test ranks arms on median day-7 views, and a post understated that
-way would rank below an identical one for a reason that is reporting lag rather
-than reach. So `views_day_2`, `views_day_7` and `durability_ratio` are reported
+A format comparison that ranks arms on median day-7 views would rank a post
+understated that way below an identical one, for a reason that is reporting lag
+rather than reach. So `views_day_2`, `views_day_7` and `durability_ratio` are reported
 as unknown when a platform that appears later in the series had not reported by
 the cutoff — the same rule already applied to a window the timeline has not
 reached: unknown, not a small number.
@@ -358,6 +361,15 @@ same as one with a silent leg. Read `lagged_cutoff_days` in
 Failing that, `timeline_end` earlier than the cutoff means the window had not
 closed when the sweep ran, and at or past it with no marker means the retained
 rows begin after the cutoff.
+
+A figure is only withdrawn on the evidence of a sweep whose record still
+reaches back to publication. Past the retention horizon every leg's rows begin
+at the window edge, so a leg absent from that first date looks identical to one
+that started late — and a ratio measured while the record was whole must not be
+discarded on that reading, because no later sweep can recompute it. For the same
+reason the merge keeps a durability ratio taken from a full record over one
+computed from a truncated window, which divides by a partial figure and reads
+higher.
 
 **The sweep that stores a figure is usually not the one that can tell it was
 biased.** A daily run reaches a young post while the slow platform has no rows

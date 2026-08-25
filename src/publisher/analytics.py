@@ -44,11 +44,10 @@ class PostMetrics:
 
     post_id: str
     published_at: str = ""
-    # None means not comparable, never zero. Two causes, told apart by
-    # `timeline_end`: earlier than the cutoff means the window had not closed
-    # when the sweep ran, and at or past it means a platform leg had not
-    # started reporting by the cutoff, so the figure would have counted only
-    # some of the post.
+    # None means not comparable, never zero. Three causes, and `timeline_end`
+    # does not separate them: the window had not closed when the sweep ran,
+    # the retained rows begin after the cutoff, or a leg had not started
+    # reporting by it. `lagged_cutoff_days` names the third.
     views_day_2: int | None = None
     views_day_7: int | None = None
     views_total: int | None = None
@@ -72,6 +71,12 @@ class PostMetrics:
     # truncated timeline, not a lagging leg: nothing is biased relative to
     # anything, and `views_at_day` already reports those cutoffs unknown.
     lagged_cutoff_days: list[int] = field(default_factory=list)
+    # Whether the timeline this row was measured from still reached back to
+    # publication. Past the retention horizon it does not, and a ratio
+    # computed from what remains divides by a partial "within" -- a different
+    # quantity, not a newer reading of the same one. Recorded so the merge can
+    # keep the figure taken while the record was whole.
+    covers_publication: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -230,7 +235,6 @@ def durability_ratio(
     timeline: list[tuple[datetime, int]],
     published_at: datetime,
     window_days: int = DURABILITY_WINDOW_DAYS,
-    first_seen: dict[str, datetime] | None = None,
 ) -> float | None:
     """Views after the first `window_days` over views within them.
 
@@ -239,16 +243,14 @@ def durability_ratio(
     returning 0.0 would rank an unmeasurable post alongside a genuinely dead
     one.
 
-    Also None when `first_seen` shows a platform began reporting after the
-    window closed. Its whole lifetime figure then lands in the "after" half
-    while contributing nothing to the "within" half, which inflates the ratio
-    by an amount that has nothing to do with the post earning attention later.
+    A leg that started reporting after the window closed would inflate this,
+    landing its whole lifetime figure in the "after" half while contributing
+    nothing to "within". `summarize_post` withholds the ratio in that case;
+    the check lives there because it needs the raw rows.
     """
     if not timeline:
         return None
     cutoff = published_at + timedelta(days=window_days)
-    if first_seen and any(started > cutoff for started in first_seen.values()):
-        return None
     if timeline[-1][0] <= cutoff:
         # Every row is inside the window, so "after" is empty. Returning 0.0
         # here would report a post measured too early as one that stopped
@@ -313,9 +315,9 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     # everything to `views_total`, so the two are not measured over the same
     # post. Reported as unknown rather than as a small number, which is the
     # rule `views_at_day` already applies to a window the timeline has not
-    # reached: the reach test ranks arms on median day-7 views, and a post
-    # understated by reporting lag would outrank an identical one for a
-    # reason that is not reach.
+    # reached: a comparison that ranks by median day-7 views would rank a
+    # post understated by reporting lag below an identical one, for a reason
+    # that is not reach.
     first_seen = first_report_dates(rows)
 
     def straddles(day: int) -> bool:
@@ -324,7 +326,20 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         started = [f <= cutoff for f in first_seen.values()]
         return any(started) and not all(started)
 
-    lagged = [d for d in (*LAUNCH_DAYS, DURABILITY_WINDOW_DAYS) if straddles(d)]
+    # A leg's first retained row is evidence of when it *started* reporting
+    # only while the record still reaches back to publication. Past the
+    # retention horizon every leg's rows begin at the window edge, and a leg
+    # that happens to be absent from that first date looks identical to one
+    # that started late -- so marking there would withdraw a ratio an earlier,
+    # fuller sweep had measured correctly, and no later sweep could recompute
+    # it. Nothing is lost by staying silent: a truncated reading already
+    # reports those cutoffs unknown on its own.
+    covers_publication = timeline[0][0] <= when + timedelta(days=1)
+    lagged = (
+        [d for d in (*LAUNCH_DAYS, DURABILITY_WINDOW_DAYS) if straddles(d)]
+        if covers_publication
+        else []
+    )
 
     def at_day(day: int) -> int | None:
         if day in lagged:
@@ -344,6 +359,7 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         ),
         timeline_end=timeline[-1][0].isoformat(),
         lagged_cutoff_days=lagged,
+        covers_publication=covers_publication,
     )
 
 
@@ -444,12 +460,32 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
     Taking the newer row wholesale was therefore the defect: it let absence
     overwrite figures captured while they were still reachable.
 
-    A measured value is never replaced by an absent one. `timeline_end` moves
+    A measured value is never replaced by an absent one, with one exception:
+    a cutoff recorded in `lagged_cutoff_days` withdraws the figure taken for
+    it, because that figure counted only part of the post and was never true.
+    `timeline_end` moves
     with the ratio rather than independently, because it exists to say how
     mature that ratio is -- advancing it under an older ratio would misreport
     exactly the thing it was added to record.
     """
-    ratio_from_fresh = fresh.durability_ratio is not None
+    lagged = sorted(set(stored.lagged_cutoff_days) | set(fresh.lagged_cutoff_days))
+    # A ratio measured from a truncated record is not a newer reading of the
+    # same quantity: its "within" half is missing the days the window needs,
+    # so it can read higher than the figure taken while the record was whole.
+    # Prefer the one measured from the fuller timeline.
+    ratio_from_fresh = fresh.durability_ratio is not None and not (
+        stored.durability_ratio is not None
+        and stored.covers_publication
+        and not fresh.covers_publication
+    )
+    # A ratio about to be withdrawn is not a preserved one, so `timeline_end`
+    # must not be pinned to date it. Deciding that after the withdrawal would
+    # leave the field frozen against a ratio that no longer exists.
+    ratio_preserved = (
+        stored.durability_ratio is not None
+        and not ratio_from_fresh
+        and DURABILITY_WINDOW_DAYS not in lagged
+    )
 
     def kept(a: int | None, b: int | None) -> int | None:
         """The fresh figure when it has one, else what was already measured."""
@@ -475,15 +511,14 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         # whole first month.
         timeline_end=(
             stored.timeline_end
-            if (stored.durability_ratio is not None and not ratio_from_fresh)
+            if ratio_preserved
             else (fresh.timeline_end or stored.timeline_end)
         ),
         # Union, and never unmarked: a sweep that no longer sees the lag is
         # one whose rows all begin after it, which says nothing about whether
         # the figure was biased when it was taken.
-        lagged_cutoff_days=sorted(
-            set(stored.lagged_cutoff_days) | set(fresh.lagged_cutoff_days)
-        ),
+        lagged_cutoff_days=lagged,
+        covers_publication=stored.covers_publication or fresh.covers_publication,
     )
     return _withdraw_lagged(merged)
 
