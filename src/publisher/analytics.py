@@ -418,6 +418,35 @@ def load_metrics(outputs_dir: Path) -> list[PostMetrics]:
         return []
 
 
+def _warn_regressed(regressed: list[str], measured: int) -> None:
+    """Report posts that had a view count and came back with none.
+
+    This is the one signal that separates a broken reader from an account
+    whose posts are simply too young to have rows. Both look identical in a
+    single sweep -- every timeline empty, every call successful -- so the
+    sweep cannot fail on it without failing a new account daily until its
+    first rows land. Across sweeps they diverge: a young post gains a figure
+    within days, while a post that *had* one and stopped reporting it did not
+    get younger. A renamed timeline key regresses every mature post at once.
+
+    A warning rather than an error on purpose. The figures already stored are
+    safe -- the merge keeps them per field -- so nothing is lost at the moment
+    this fires; what is at risk is the capture continuing to look healthy
+    while it collects nothing.
+    """
+    sample = ", ".join(regressed[:5])
+    more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
+    logger.warning(
+        "%d of %d measured post(s) had a stored view count and returned none: "
+        "%s%s. A post does not get younger, so this is not reporting lag. "
+        "Check that the timeline response still carries the rows this reads.",
+        len(regressed),
+        measured,
+        sample,
+        more,
+    )
+
+
 def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
     """Write per-post figures, merging each post's row field by field.
 
@@ -434,9 +463,19 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
         raise OSError(f"Refusing to overwrite unreadable metrics file: {path}")
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
+    regressed: list[str] = []
     for m in metrics:
         stored = merged.get(m.post_id)
+        if (
+            stored is not None
+            and stored.views_total is not None
+            and m.views_total is None
+        ):
+            regressed.append(m.post_id)
         merged[m.post_id] = _combine(stored, m) if stored else m
+
+    if regressed:
+        _warn_regressed(regressed, len(metrics))
 
     tmp = path.with_suffix(".tmp")
     tmp.write_text(

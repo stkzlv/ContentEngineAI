@@ -464,6 +464,14 @@ the figures expire. A single post failing stays a warning, because a partial
 reading is still worth storing, and an account with no published posts is not
 an error at all.
 
+A sweep whose timelines all come back *empty* is a different case and is not
+treated as a failure: it is indistinguishable, in that sweep, from an account
+whose posts are too young to have rows, and failing there would fail a new
+account daily. What is reported instead is a regression -- a post that had a
+stored view count and returned none. A post does not get younger, so that is
+not reporting lag, and a renamed timeline key regresses every mature post at
+once. The warning names the count and a sample; stored figures are untouched.
+
 When a sweep fails it is recorded three ways: in the journal, appended to
 `outputs/logs/analytics-failures.log`, and as a desktop notification if a
 session is there to receive one. The log file is the durable one, and

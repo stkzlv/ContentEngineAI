@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-08-26
+
+### Added
+- A sweep warns when a post that had a stored view count comes back with none. This is the only signal that separates a broken reader from an account whose posts are too young to have rows: in a single sweep both look identical, every call succeeding and every timeline empty, which is why the sweep cannot fail on it without failing a new account daily until its first rows land. Across sweeps they diverge, because a post that already reported a figure did not get younger. A renamed timeline key regresses every mature post at once, so the signal is unambiguous rather than a threshold to tune. The warning names the count and up to five posts; stored figures are untouched, since the merge already keeps them per field.
+
 ## [0.75.0] - 2026-08-26
 
 ### Added
