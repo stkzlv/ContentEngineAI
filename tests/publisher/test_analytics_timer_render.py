@@ -219,3 +219,15 @@ class TestFailureReportingIsOptional:
 
         assert directive(tmp_path / SERVICE, "OnFailure") == FAILED
         assert (tmp_path / FAILED).exists()
+
+    def test_the_handler_unit_also_bounds_its_start(self, tmp_path):
+        """The handler is Type=oneshot too, so it has the same default.
+
+        It blocks on nothing today, but it is the script most likely to grow
+        a channel that can -- a webhook, a mail command -- and a failure
+        reporter that activates forever is the worst place to find that out.
+        """
+        render(tmp_path)
+
+        timeout = directive(tmp_path / FAILED, "TimeoutStartSec")
+        assert timeout not in (None, "", "infinity")

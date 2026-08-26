@@ -276,12 +276,17 @@ async def cmd_analytics(
         )
         resource = timeline_resource(publisher.client)
         metrics = []
-        attempted = 0
+        # Count what was listed, not what turned out to be usable. Counting
+        # inside the loop would put the tally behind the id check below, so a
+        # release that renamed the id field again -- it has moved once already,
+        # which is why two keys are read -- would skip every post, leave the
+        # count at zero, and slip past the guard the count exists to feed.
+        attempted = len(posts[:limit])
         for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
+                logger.warning("Skipping a listed post with no id: %s", post)
                 continue
-            attempted += 1
             try:
                 raw = resource.get_post_timeline(post_id=post_id)
                 # The SDK returns the parsed JSON body, a plain dict, not a
@@ -309,6 +314,17 @@ async def cmd_analytics(
         # (a partial reading is still worth storing) and an account with no
         # published posts is not an error at all, so the test is specifically
         # "posts were there to measure and none of them yielded anything".
+        #
+        # Deliberately NOT covered: calls that all succeed with no rows.
+        # `summarize_post` stores a stub for an empty timeline, so `metrics` is
+        # non-empty and this guard stays quiet. A renamed timeline key would
+        # look exactly like an account whose posts are simply too young to have
+        # rows, and failing on it would make a new account fail daily until its
+        # first rows land -- which teaches the operator to ignore the alarm,
+        # the one outcome worse than the gap. Stubs cannot erase stored figures
+        # (`_combine` merges per field), so the cost is a missed signal, not
+        # corruption. Detecting a silent parser break needs a staleness check
+        # over the stored history, not a decision at this point.
         if attempted and not metrics:
             logger.error(
                 "Measured %d post(s) and captured none. Every timeline call "

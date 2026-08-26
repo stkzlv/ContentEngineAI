@@ -543,14 +543,18 @@ uninstall-analytics-timer: ## Remove the analytics timer (keeps captured figures
 analytics-timer-status: ## Show when the sweep last ran and when it runs next
 	@systemctl --user list-timers contentengineai-analytics.timer --no-pager || true
 	@systemctl --user status contentengineai-analytics.service --no-pager -n 5 || true
-	@# Read REPO_DIR the way the installed unit did. The failure handler writes
-	@# its log under the REPO_DIR the timer was rendered with, so a bare
-	@# relative path here reports "no failures" forever when schedule.env
-	@# points at a second checkout -- which the sample explicitly supports.
+	@# Resolve REPO_DIR the way the installer does: environment, then
+	@# schedule.env, then the default. The failure handler writes its log under
+	@# the REPO_DIR the timer was rendered with, so a bare relative path here
+	@# reports "no failures" forever when either points at a second checkout.
+	@# Saving the exported value across the source is what keeps the two in
+	@# agreement -- sourcing alone would silently outrank the one-off override
+	@# the sample documents, and this target would then answer for the wrong
+	@# tree while claiming to read what the unit read.
 	@set -e; \
-	REPO_DIR=""; \
+	REPO_DIR_ENV="$${REPO_DIR-}"; \
 	[ -f deploy/schedule.env ] && . ./deploy/schedule.env; \
-	REPO_DIR="$${REPO_DIR:-.}"; \
+	REPO_DIR="$${REPO_DIR_ENV:-$${REPO_DIR:-.}}"; \
 	if [ -s "$$REPO_DIR/outputs/logs/analytics-failures.log" ]; then \
 		echo "$(RED)Recorded failures ($$REPO_DIR/outputs/logs/analytics-failures.log):$(NC)"; \
 		tail -20 "$$REPO_DIR/outputs/logs/analytics-failures.log"; \
