@@ -276,10 +276,12 @@ async def cmd_analytics(
         )
         resource = timeline_resource(publisher.client)
         metrics = []
+        attempted = 0
         for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
                 continue
+            attempted += 1
             try:
                 raw = resource.get_post_timeline(post_id=post_id)
                 # The SDK returns the parsed JSON body, a plain dict, not a
@@ -300,6 +302,20 @@ async def cmd_analytics(
                 logger.warning("No timeline for %s: %s", post_id, exc)
                 continue
             metrics.append(summarize_post(post_id, publish_time(post), rows))
+        # Every post failing is a broken sweep, not a quiet one, and the whole
+        # scheduled setup detects trouble only through a failed unit: exiting 0
+        # here would satisfy the installer's proof-of-life, keep the timer
+        # green, and let the figures expire. A per-post error stays a warning
+        # (a partial reading is still worth storing) and an account with no
+        # published posts is not an error at all, so the test is specifically
+        # "posts were there to measure and none of them yielded anything".
+        if attempted and not metrics:
+            logger.error(
+                "Measured %d post(s) and captured none. Every timeline call "
+                "failed; see the warnings above. Nothing written.",
+                attempted,
+            )
+            sys.exit(1)
         save_metrics(metrics, outputs_dir)
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 

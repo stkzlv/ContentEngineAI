@@ -543,16 +543,24 @@ uninstall-analytics-timer: ## Remove the analytics timer (keeps captured figures
 analytics-timer-status: ## Show when the sweep last ran and when it runs next
 	@systemctl --user list-timers contentengineai-analytics.timer --no-pager || true
 	@systemctl --user status contentengineai-analytics.service --no-pager -n 5 || true
-	@if [ -s outputs/logs/analytics-failures.log ]; then \
-		echo "$(RED)Recorded failures (outputs/logs/analytics-failures.log):$(NC)"; \
-		tail -20 outputs/logs/analytics-failures.log; \
+	@# Read REPO_DIR the way the installed unit did. The failure handler writes
+	@# its log under the REPO_DIR the timer was rendered with, so a bare
+	@# relative path here reports "no failures" forever when schedule.env
+	@# points at a second checkout -- which the sample explicitly supports.
+	@set -e; \
+	REPO_DIR=""; \
+	[ -f deploy/schedule.env ] && . ./deploy/schedule.env; \
+	REPO_DIR="$${REPO_DIR:-.}"; \
+	if [ -s "$$REPO_DIR/outputs/logs/analytics-failures.log" ]; then \
+		echo "$(RED)Recorded failures ($$REPO_DIR/outputs/logs/analytics-failures.log):$(NC)"; \
+		tail -20 "$$REPO_DIR/outputs/logs/analytics-failures.log"; \
 	else \
 		echo "$(GREEN)No recorded sweep failures.$(NC)"; \
-	fi
-	@if [ -f outputs/post_metrics.json ]; then \
-		echo "$(BLUE)Figures last written: $$(date -r outputs/post_metrics.json '+%F %T')$(NC)"; \
+	fi; \
+	if [ -f "$$REPO_DIR/outputs/post_metrics.json" ]; then \
+		echo "$(BLUE)Figures last written: $$(date -r "$$REPO_DIR/outputs/post_metrics.json" '+%F %T')$(NC)"; \
 	else \
-		echo "$(YELLOW)outputs/post_metrics.json does not exist yet.$(NC)"; \
+		echo "$(YELLOW)$$REPO_DIR/outputs/post_metrics.json does not exist yet.$(NC)"; \
 	fi
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority

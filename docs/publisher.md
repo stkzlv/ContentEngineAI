@@ -457,6 +457,13 @@ failures are silent:
   failure handler never runs either. A stuck sweep would look exactly like a
   working one.
 
+A sweep that measured posts and captured none of them exits non-zero, so the
+failure channels below actually fire. Every timeline call failing is a broken
+sweep, not a quiet one, and exiting 0 there would keep the timer green while
+the figures expire. A single post failing stays a warning, because a partial
+reading is still worth storing, and an account with no published posts is not
+an error at all.
+
 When a sweep fails it is recorded three ways: in the journal, appended to
 `outputs/logs/analytics-failures.log`, and as a desktop notification if a
 session is there to receive one. The log file is the durable one, and

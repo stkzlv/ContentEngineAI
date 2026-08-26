@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `config/publisher.yaml::analytics.limit` sets how many posts a sweep measures, and `deploy/schedule.env` holds the machine-specific values that shape the unit files, with `deploy/schedule.env.example` committed as its sample. The two are split by which one reads them: systemd reads the unit before any of this project's code runs, and it forbids variable expansion in an `ExecStart` path, so the interpreter and the schedule have to be substituted rather than supplied at runtime.
 
 ### Changed
+- A sweep that measured posts and captured none of them exits non-zero. The scheduled setup detects trouble only through a failed unit, so exiting 0 there kept the timer green, satisfied the installer's proof-of-life check, and let the figures expire. A single post failing stays a warning, and an account with no published posts is not an error.
+- A malformed `analytics` config section falls back to the default rather than aborting the load. `analytics: 50` instead of a mapping raised out of `load_publisher_config`, which every publisher subcommand calls, so publishing stopped too. A non-integer limit is now rejected at construction: a float passed the range check and then broke the post slice mid-sweep.
 - `analytics --limit` defaults to the configured value instead of a hardcoded 50. It previously declared a numeric default, which made an omitted flag indistinguishable from a passed one, so a configured size could never take effect. The scheduled unit passes no `--limit` deliberately, keeping the sweep size in one place: editing the YAML changes both the manual and the scheduled run, with no reinstall and no way for the two to disagree.
 
 ### Notes

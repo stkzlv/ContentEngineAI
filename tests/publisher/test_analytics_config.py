@@ -11,6 +11,8 @@ import ast
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from src.publisher.config import load_publisher_config
 from src.publisher.late.cli import _analytics_limit
 from src.publisher.models import AnalyticsConfig, PublisherConfig
@@ -186,3 +188,42 @@ class TestParserDefault:
 
         assert isinstance(default, ast.Constant)
         assert default.value == 25
+
+
+class TestMalformedSectionDoesNotBreakThePublisher:
+    """A bad analytics section degrades; it must not abort the whole load.
+
+    ``load_publisher_config`` backs every publisher subcommand, so an
+    exception escaping the analytics parse stops publishing too, not just the
+    sweep. Every sibling section degrades to its defaults on the same input.
+    """
+
+    @patch.dict("os.environ", {}, clear=True)
+    @pytest.mark.parametrize(
+        "section",
+        [
+            "analytics: 50",
+            "analytics: fifty",
+            "analytics:\n  - 50",
+            "analytics:\n  limit: 12.5",
+            "analytics:\n  limit: true",
+            "analytics:\n  nope: 1",
+        ],
+        ids=["scalar-int", "scalar-str", "list", "float", "bool", "unknown-key"],
+    )
+    def test_bad_shape_falls_back_instead_of_raising(self, tmp_path, section):
+        config = load_publisher_config(
+            config_path=_write(tmp_path, MINIMAL + section + "\n")
+        )
+
+        assert config.analytics_config.limit == AnalyticsConfig().limit
+
+    def test_a_float_limit_is_rejected_at_construction(self):
+        """It would otherwise pass ``< 1`` and break ``posts[:limit]`` mid-sweep."""
+        with pytest.raises(TypeError):
+            AnalyticsConfig(limit=12.5)
+
+    def test_a_bool_limit_is_rejected(self):
+        """``bool`` is an int subclass, so ``posts[:True]`` measures one post."""
+        with pytest.raises(TypeError):
+            AnalyticsConfig(limit=True)

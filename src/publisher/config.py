@@ -350,24 +350,36 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
 
     # Parse analytics config
     analytics_section = result.get("analytics", {})
-    if analytics_section:
+    # The isinstance guard is what keeps a malformed section from taking the
+    # whole publisher down. `analytics: 50` is the shorthand a reader reaches
+    # for when the key's only value is a number, and ** on a scalar raises
+    # TypeError; without the guard the handler below then calls .get() on that
+    # scalar and an AttributeError escapes load_publisher_config, which every
+    # subcommand calls. Publishing would stop, not just the sweep.
+    if isinstance(analytics_section, dict) and analytics_section:
         try:
             result["analytics_config"] = AnalyticsConfig(**analytics_section)
             logger.debug("Parsed analytics config: %s", analytics_section)
         except (ValueError, TypeError) as e:
-            # A rejected limit falls back to the dataclass default rather than
+            # A rejected value falls back to the dataclass default rather than
             # aborting the load, matching every other section here. The
-            # warning names both values because this runs unattended on the
-            # scheduled sweep, where the journal line is the only evidence
-            # that the configured size was not the one used.
+            # warning names the rejected section because this runs unattended
+            # on the scheduled sweep, where the journal line is the only
+            # evidence that the configured size was not the one used.
             logger.warning(
                 "Failed to parse analytics config (%s); using limit=%d instead of %s",
                 e,
                 AnalyticsConfig().limit,
-                analytics_section.get("limit", "the configured value"),
+                analytics_section,
             )
             result["analytics_config"] = AnalyticsConfig()
     else:
+        if analytics_section:
+            logger.warning(
+                "analytics config must be a mapping, got %r; using limit=%d",
+                analytics_section,
+                AnalyticsConfig().limit,
+            )
         result["analytics_config"] = AnalyticsConfig()
 
     # Remove raw YAML sections (already parsed into objects)

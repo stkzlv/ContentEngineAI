@@ -30,21 +30,38 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def render(out_dir, **env_overrides):
-    """Render into out_dir. Returns the CompletedProcess."""
+def base_env(**overrides):
+    """A complete setting environment, so no local file can reach the render.
+
+    Every one of these keys must be set. The installer falls back to
+    ``deploy/schedule.env`` for anything the environment does not carry, and
+    that file is gitignored, so a partial environment makes these tests pass
+    or fail by machine -- green on CI, red on a developer's box, for a reason
+    that has nothing to do with the code.
+    """
     env = {
         "PATH": "/usr/bin:/bin:/usr/local/bin",
         "HOME": str(Path.home()),
         # Skip the `make print-python` probe: this interpreter is already the
         # project's, and the probe is not what these tests are about.
         "PYTHON": sys.executable,
+        "REPO_DIR": str(REPO_ROOT),
+        "ON_CALENDAR": "daily",
+        "RANDOMIZED_DELAY_SEC": "900",
+        "TIMEOUT_START_SEC": "30min",
+        "NOTIFY_ON_FAILURE": "1",
     }
-    env.update({k: str(v) for k, v in env_overrides.items()})
+    env.update({k: str(v) for k, v in overrides.items()})
+    return env
+
+
+def render(out_dir, **env_overrides):
+    """Render into out_dir. Returns the CompletedProcess."""
     return subprocess.run(
         ["bash", str(INSTALLER), "--render-only", str(out_dir)],
         capture_output=True,
         text=True,
-        env=env,
+        env=base_env(**env_overrides),
         cwd=str(REPO_ROOT),
     )
 
@@ -146,7 +163,14 @@ class TestRenderProducesUsableUnits:
 
 class TestRenderRefusesRatherThanInstallSomethingBroken:
     def test_unsubstituted_placeholder_aborts_and_writes_nothing(self, tmp_path):
-        """Injecting an unknown placeholder must stop the render."""
+        """Injecting an unknown placeholder must stop the render.
+
+        ``REPO_DIR`` has to be passed explicitly. The copied installer derives
+        its default from its own location, which here is a temp directory, so
+        without it the script aborts at the earlier import check and both
+        assertions below pass on the wrong abort -- leaving the placeholder
+        guard untested while looking tested.
+        """
         scratch = tmp_path / "deploy"
         shutil.copytree(REPO_ROOT / "deploy", scratch)
         template = scratch / f"{TIMER}.in"
@@ -157,13 +181,13 @@ class TestRenderRefusesRatherThanInstallSomethingBroken:
             ["bash", str(scratch / "install-timer.sh"), "--render-only", str(out)],
             capture_output=True,
             text=True,
-            env={
-                "PATH": "/usr/bin:/bin",
-                "HOME": str(Path.home()),
-                "PYTHON": sys.executable,
-            },
+            env=base_env(),
             cwd=str(REPO_ROOT),
         )
+
+        # Pin the reason, not just the exit code, so a different abort cannot
+        # satisfy this test.
+        assert "placeholder" in result.stderr, result.stderr
 
         assert result.returncode != 0
         assert not out.exists() or not list(out.iterdir())

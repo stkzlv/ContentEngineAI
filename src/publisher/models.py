@@ -180,7 +180,18 @@ class AnalyticsConfig:
     limit: int = 50
 
     def __post_init__(self):
-        """Reject a limit that would measure nothing."""
+        """Reject a limit that would measure nothing, or break the slice.
+
+        The type check is not pedantry: the value reaches ``posts[:limit]``,
+        so a YAML float passes a bare ``< 1`` test and then raises
+        ``TypeError: slice indices must be integers`` mid-sweep, once a day,
+        where nobody is watching. ``bool`` is excluded because it is an int
+        subclass and ``posts[:True]`` silently measures one post.
+        """
+        if isinstance(self.limit, bool) or not isinstance(self.limit, int):
+            raise TypeError(
+                f"analytics.limit must be a whole number, got {self.limit!r}"
+            )
         if self.limit < 1:
             raise ValueError(f"analytics.limit must be at least 1, got {self.limit}")
 
