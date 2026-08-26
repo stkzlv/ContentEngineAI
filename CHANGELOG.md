@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.76.0] - 2026-08-26
 
 ### Added
-- A sweep warns when a post that had a stored view count comes back with none. This is the only signal that separates a broken reader from an account whose posts are too young to have rows: in a single sweep both look identical, every call succeeding and every timeline empty, which is why the sweep cannot fail on it without failing a new account daily until its first rows land. Across sweeps they diverge, because a post that already reported a figure did not get younger. A renamed timeline key regresses every mature post at once, so the signal is unambiguous rather than a threshold to tune. The warning names the count and up to five posts; stored figures are untouched, since the merge already keeps them per field.
+- A sweep reports posts that were reporting views recently and came back with none, both as a warning and as a line in `outputs/logs/analytics-failures.log`, which `make analytics-timer-status` reads. This is the only signal separating a broken reader from an account whose posts are too young to have rows: in a single sweep both look identical, every call succeeding and every timeline empty, which is why the sweep cannot fail on it without failing a new account daily. A renamed timeline key regresses every recently-reporting post at once. Stored figures are untouched, since the merge already keeps them per field.
+- Posts past the retention horizon are excluded from that check. The provider stops returning rows for a post entirely once it is old enough — measured here at 248 days — so an aged-out post loses its figures on a completely healthy install, and counting it would warn every sweep forever. `timeline_end` only advances when rows were seen, which makes it the record of when a post last appeared in the data.
 
 ## [0.75.0] - 2026-08-26
 

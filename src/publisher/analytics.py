@@ -37,6 +37,13 @@ DURABILITY_WINDOW_DAYS = 30
 # it has essentially finished.
 LAUNCH_DAYS = (2, 7)
 
+# How far back the provider's per-post timeline keeps reaching. Measured live
+# on 2026-08-23: posts aged 121, 157 and 188 days still returned rows, a post
+# aged 248 days returned none at all. The boundary between those two is not
+# known, so this is the conservative end -- it only has to be old enough that
+# a post still reporting within it was genuinely reporting.
+RETENTION_HORIZON_DAYS = 40
+
 
 @dataclass
 class PostMetrics:
@@ -437,9 +444,9 @@ def _warn_regressed(regressed: list[str], measured: int) -> None:
     sample = ", ".join(regressed[:5])
     more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
     logger.warning(
-        "%d of %d measured post(s) had a stored view count and returned none: "
-        "%s%s. A post does not get younger, so this is not reporting lag. "
-        "Check that the timeline response still carries the rows this reads.",
+        "%d of %d measured post(s) reported views recently and returned none: "
+        "%s%s. Their timelines were live inside the retention horizon, so this "
+        "is not age. Check that the response still carries the rows this reads.",
         len(regressed),
         measured,
         sample,
@@ -447,12 +454,39 @@ def _warn_regressed(regressed: list[str], measured: int) -> None:
     )
 
 
-def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
+def _was_reporting_recently(stored: PostMetrics, now: datetime) -> bool:
+    """Whether this post's timeline was still producing rows lately.
+
+    The discriminator the regression check needs. An empty timeline is not
+    only a broken reader: past the retention horizon the provider returns no
+    rows for a post at all, so an old post legitimately loses its figures and
+    would otherwise warn on every sweep, forever, on a healthy install. That
+    is the cry-wolf outcome this whole design exists to avoid, so excluding it
+    is not a refinement.
+
+    `timeline_end` only advances when rows were actually seen, which makes it
+    the record of when this post last appeared in the data. Recent means it
+    was live until just now; stale means it aged out and will stay empty.
+    A row with no `timeline_end` never had rows, so there is nothing to regress
+    from.
+    """
+    when = _parse_date(stored.timeline_end)
+    if when is None:
+        return False
+    return (now - when).days <= RETENTION_HORIZON_DAYS
+
+
+def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
     """Write per-post figures, merging each post's row field by field.
 
     Not "the later reading wins": past the provider's retention horizon a
     later reading has *less* history behind it, and its absent day-N figures
     would erase ones captured while they were still reachable.
+
+    Returns the ids of posts that were reporting recently and came back with
+    no view count. The caller routes that where an operator will see it; this
+    function only knows which posts regressed, not what should happen about
+    it, and a warning alone reaches no surface anyone is told to check.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     path = metrics_path(outputs_dir)
@@ -463,6 +497,7 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
         raise OSError(f"Refusing to overwrite unreadable metrics file: {path}")
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
+    now = datetime.now(UTC).replace(tzinfo=None)
     regressed: list[str] = []
     for m in metrics:
         stored = merged.get(m.post_id)
@@ -470,6 +505,7 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
             stored is not None
             and stored.views_total is not None
             and m.views_total is None
+            and _was_reporting_recently(stored, now)
         ):
             regressed.append(m.post_id)
         merged[m.post_id] = _combine(stored, m) if stored else m
@@ -483,6 +519,7 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
         encoding="utf-8",
     )
     tmp.replace(path)
+    return regressed
 
 
 def _withdraw_lagged(metrics: PostMetrics) -> PostMetrics:

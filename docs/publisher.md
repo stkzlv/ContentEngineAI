@@ -470,7 +470,13 @@ whose posts are too young to have rows, and failing there would fail a new
 account daily. What is reported instead is a regression -- a post that had a
 stored view count and returned none. A post does not get younger, so that is
 not reporting lag, and a renamed timeline key regresses every mature post at
-once. The warning names the count and a sample; stored figures are untouched.
+once. It is recorded both as a warning and in
+`outputs/logs/analytics-failures.log`, so `make analytics-timer-status` shows
+it: a warning alone sits behind one line per measured post and never reaches
+the last few journal lines that command prints. Posts past the retention
+horizon are excluded, because the provider stops returning their rows at all
+and they would otherwise warn on every sweep forever. Stored figures are
+untouched.
 
 When a sweep fails it is recorded three ways: in the journal, appended to
 `outputs/logs/analytics-failures.log`, and as a desktop notification if a
