@@ -3,9 +3,10 @@
 A sweep where every timeline comes back empty is indistinguishable, in that
 sweep alone, from an account whose posts are too young to have rows. Both
 succeed, both store stubs, and failing on it would fail a new account daily.
-Across sweeps they separate, but only after excluding the other reason a
-timeline empties: past the retention horizon the provider returns no rows for
-a post at all, so an aged-out post regresses on a completely healthy install.
+Across sweeps they separate, but only in aggregate. Past the retention horizon
+the provider stops returning a post's rows entirely, so an aged-out post loses
+its figures on a healthy install -- one at a time. A reader that stopped
+understanding the response takes every post with it in the same sweep.
 
 Post ids here are deliberately unlike any word in the warning text. Using
 ``"a"`` made ``assert "a" in caplog.text`` pass against the message's own
@@ -13,29 +14,13 @@ prose, so the test held with the sample removed entirely.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
 
-from src.publisher.analytics import (
-    RETENTION_HORIZON_DAYS,
-    PostMetrics,
-    load_metrics,
-    save_metrics,
-)
-
-RECENT = (datetime.now(UTC) - timedelta(days=2)).strftime("%Y-%m-%d")
-AGED_OUT = (datetime.now(UTC) - timedelta(days=RETENTION_HORIZON_DAYS + 30)).strftime(
-    "%Y-%m-%d"
-)
+from src.publisher.analytics import PostMetrics, load_metrics, save_metrics
 
 
-def _reporting(post_id, total=400, end=RECENT):
-    """A post with a stored view count whose timeline reached ``end``."""
-    return PostMetrics(
-        post_id=post_id,
-        published_at="2026-07-01",
-        views_total=total,
-        timeline_end=end,
-    )
+def _reporting(post_id, total=400):
+    """A post with a stored view count."""
+    return PostMetrics(post_id=post_id, published_at="2026-07-01", views_total=total)
 
 
 def _stub(post_id):
@@ -52,27 +37,31 @@ class TestARecentlyReportingPostThatGoesQuiet:
 
         assert "zulu_one" in caplog.text
 
-    def test_the_proportion_reports_the_whole_sweep(self, tmp_path, caplog):
-        """`1 of 2`, not `1 of 1`.
+    def test_the_proportion_counts_the_whole_sweep(self, tmp_path, caplog):
+        """`2 of 3`, not `2 of 2`.
 
-        The denominator is what separates one odd post from a broken reader.
-        Every-post-regresses cases cannot see it, because the two numbers are
-        equal there whatever the code does.
+        The denominator is the measured sweep, not the regressed set, so it
+        says how much of the run went quiet. A case where the two sets are the
+        same size cannot see the difference whatever the code does, so this
+        one measures a third post that had no figure to lose.
         """
         save_metrics([_reporting("zulu_one"), _reporting("zulu_two")], tmp_path)
 
         with caplog.at_level(logging.WARNING):
-            save_metrics([_stub("zulu_one"), _reporting("zulu_two", 450)], tmp_path)
+            save_metrics(
+                [_stub("zulu_one"), _stub("zulu_two"), _stub("zulu_fresh")], tmp_path
+            )
 
-        assert "1 of 2" in caplog.text
+        assert "2 of 3" in caplog.text
 
-    def test_a_healthy_post_is_not_named(self, tmp_path, caplog):
-        save_metrics([_reporting("zulu_one"), _reporting("zulu_two")], tmp_path)
+    def test_a_post_with_nothing_to_lose_is_not_named(self, tmp_path, caplog):
+        """A post that never had a figure did not regress."""
+        save_metrics([_reporting("zulu_one")], tmp_path)
 
         with caplog.at_level(logging.WARNING):
-            save_metrics([_stub("zulu_one"), _reporting("zulu_two", 450)], tmp_path)
+            save_metrics([_stub("zulu_one"), _stub("zulu_fresh")], tmp_path)
 
-        assert "zulu_two" not in caplog.text
+        assert "zulu_fresh" not in caplog.text
 
     def test_the_stored_figure_is_still_kept(self, tmp_path):
         """The warning reports a risk; it does not act on one."""
@@ -100,21 +89,22 @@ class TestARecentlyReportingPostThatGoesQuiet:
 
 
 class TestTheQuietCases:
-    def test_a_post_past_the_retention_horizon_does_not_warn(self, tmp_path, caplog):
-        """The provider stops returning rows for old posts entirely.
+    def test_one_post_of_many_going_quiet_does_not_warn(self, tmp_path, caplog):
+        """A single post losing its figures is ageing, not breakage.
 
-        Measured on this project: posts at 188 days still returned rows, one at
-        248 days returned none. Without this exclusion a healthy install warns
-        on every sweep forever once its posts age, which is the cry-wolf
-        outcome the whole design exists to avoid.
+        The provider stops returning a post's rows once it is old enough, so
+        this happens on a healthy install, one post at a time. Warning here
+        would fire on every sweep forever as posts age -- the cry-wolf outcome
+        the whole design exists to avoid.
         """
-        save_metrics([_reporting("zulu_old", end=AGED_OUT)], tmp_path)
+        save_metrics([_reporting("zulu_one"), _reporting("zulu_two")], tmp_path)
 
         with caplog.at_level(logging.WARNING):
-            regressed = save_metrics([_stub("zulu_old")], tmp_path)
+            regressed = save_metrics(
+                [_stub("zulu_one"), _reporting("zulu_two", 450)], tmp_path
+            )
 
         assert regressed == []
-        assert "stopped reporting" not in caplog.text
         assert "returned none" not in caplog.text
 
     def test_a_first_reading_does_not_warn(self, tmp_path, caplog):

@@ -37,13 +37,6 @@ DURABILITY_WINDOW_DAYS = 30
 # it has essentially finished.
 LAUNCH_DAYS = (2, 7)
 
-# How far back the provider's per-post timeline keeps reaching. Measured live
-# on 2026-08-23: posts aged 121, 157 and 188 days still returned rows, a post
-# aged 248 days returned none at all. The boundary between those two is not
-# known, so this is the conservative end -- it only has to be old enough that
-# a post still reporting within it was genuinely reporting.
-RETENTION_HORIZON_DAYS = 40
-
 
 @dataclass
 class PostMetrics:
@@ -440,40 +433,24 @@ def _warn_regressed(regressed: list[str], measured: int) -> None:
     safe -- the merge keeps them per field -- so nothing is lost at the moment
     this fires; what is at risk is the capture continuing to look healthy
     while it collects nothing.
+
+    The cost of the all-or-nothing rule is a dormant account: one that stopped
+    publishing long enough for every post in the measured window to age out
+    would warn once. That is a rarer and more recoverable wrong answer than
+    warning daily forever, which is where a per-post rule lands.
     """
     sample = ", ".join(regressed[:5])
     more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
     logger.warning(
-        "%d of %d measured post(s) reported views recently and returned none: "
-        "%s%s. Their timelines were live inside the retention horizon, so this "
-        "is not age. Check that the response still carries the rows this reads.",
+        "Every post with a stored view count returned none this sweep: "
+        "%d of %d measured, including %s%s. Posts age out of the provider's "
+        "timeline one at a time, never all at once, so check that the "
+        "response still carries the rows this reads.",
         len(regressed),
         measured,
         sample,
         more,
     )
-
-
-def _was_reporting_recently(stored: PostMetrics, now: datetime) -> bool:
-    """Whether this post's timeline was still producing rows lately.
-
-    The discriminator the regression check needs. An empty timeline is not
-    only a broken reader: past the retention horizon the provider returns no
-    rows for a post at all, so an old post legitimately loses its figures and
-    would otherwise warn on every sweep, forever, on a healthy install. That
-    is the cry-wolf outcome this whole design exists to avoid, so excluding it
-    is not a refinement.
-
-    `timeline_end` only advances when rows were actually seen, which makes it
-    the record of when this post last appeared in the data. Recent means it
-    was live until just now; stale means it aged out and will stay empty.
-    A row with no `timeline_end` never had rows, so there is nothing to regress
-    from.
-    """
-    when = _parse_date(stored.timeline_end)
-    if when is None:
-        return False
-    return (now - when).days <= RETENTION_HORIZON_DAYS
 
 
 def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
@@ -497,21 +474,35 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
         raise OSError(f"Refusing to overwrite unreadable metrics file: {path}")
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
-    now = datetime.now(UTC).replace(tzinfo=None)
+    # Posts this sweep re-measured that already had a view count, and those of
+    # them that came back without one.
+    had_a_count: list[str] = []
     regressed: list[str] = []
     for m in metrics:
         stored = merged.get(m.post_id)
-        if (
-            stored is not None
-            and stored.views_total is not None
-            and m.views_total is None
-            and _was_reporting_recently(stored, now)
-        ):
-            regressed.append(m.post_id)
+        if stored is not None and stored.views_total is not None:
+            had_a_count.append(m.post_id)
+            if m.views_total is None:
+                regressed.append(m.post_id)
         merged[m.post_id] = _combine(stored, m) if stored else m
 
-    if regressed:
+    # Only when *every* such post went quiet at once. A single post losing its
+    # figures is ordinary: past the retention horizon the provider stops
+    # returning a post's rows entirely, so an aged-out post regresses on a
+    # completely healthy install. Those age out one at a time. A reader that
+    # stopped understanding the response takes every post with it in the same
+    # sweep, which no amount of ageing does.
+    #
+    # An earlier version tried to tell the two apart per post, by asking when
+    # each had last produced rows. There is no field that answers that:
+    # `timeline_end` is pinned to whichever reading a preserved durability
+    # ratio came from, so it freezes on live posts -- 17 of 63 rows in the
+    # current store already have it frozen -- and gating on it silenced the
+    # check on exactly the mature posts that make the signal unambiguous.
+    if regressed and len(regressed) == len(had_a_count):
         _warn_regressed(regressed, len(metrics))
+    else:
+        regressed = []
 
     tmp = path.with_suffix(".tmp")
     tmp.write_text(

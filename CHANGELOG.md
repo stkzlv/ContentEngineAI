@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.76.0] - 2026-08-26
 
 ### Added
-- A sweep reports posts that were reporting views recently and came back with none, both as a warning and as a line in `outputs/logs/analytics-failures.log`, which `make analytics-timer-status` reads. This is the only signal separating a broken reader from an account whose posts are too young to have rows: in a single sweep both look identical, every call succeeding and every timeline empty, which is why the sweep cannot fail on it without failing a new account daily. A renamed timeline key regresses every recently-reporting post at once. Stored figures are untouched, since the merge already keeps them per field.
-- Posts past the retention horizon are excluded from that check. The provider stops returning rows for a post entirely once it is old enough — measured here at 248 days — so an aged-out post loses its figures on a completely healthy install, and counting it would warn every sweep forever. `timeline_end` only advances when rows were seen, which makes it the record of when a post last appeared in the data.
+- A sweep reports when every post that had a stored view count comes back with none, both as a warning and as a line in `outputs/logs/analytics-failures.log`, which `make analytics-timer-status` reads. A log line alone would not reach an operator: the status target prints the last few journal lines, and the sweep prints one line per measured post after this point, so at the shipped size the warning is fifty lines out of reach.
+- The check is deliberately all-or-nothing. A single post losing its figures is ordinary ageing, because the provider stops returning a post's rows entirely once it is old enough, and those posts age out one at a time. A reader that stopped understanding the response takes every post with it in the same sweep. The cost is that an account dormant long enough for its whole measured window to age out would warn once, which is rarer and more recoverable than warning daily forever. Stored figures are untouched, since the merge keeps them per field.
 
 ## [0.75.0] - 2026-08-26
 

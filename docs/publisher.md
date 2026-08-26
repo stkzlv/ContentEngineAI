@@ -467,16 +467,14 @@ an error at all.
 A sweep whose timelines all come back *empty* is a different case and is not
 treated as a failure: it is indistinguishable, in that sweep, from an account
 whose posts are too young to have rows, and failing there would fail a new
-account daily. What is reported instead is a regression -- a post that had a
-stored view count and returned none. A post does not get younger, so that is
-not reporting lag, and a renamed timeline key regresses every mature post at
-once. It is recorded both as a warning and in
-`outputs/logs/analytics-failures.log`, so `make analytics-timer-status` shows
-it: a warning alone sits behind one line per measured post and never reaches
-the last few journal lines that command prints. Posts past the retention
-horizon are excluded, because the provider stops returning their rows at all
-and they would otherwise warn on every sweep forever. Stored figures are
-untouched.
+account daily. What is reported instead is every post with a stored view count
+returning none at once. Posts age out of the provider's timeline one at a time,
+so all of them going quiet in the same sweep is the reader, not age.
+
+It is recorded both as a warning and in `outputs/logs/analytics-failures.log`,
+so `make analytics-timer-status` shows it. A warning alone would sit behind one
+line per measured post and never reach the last few journal lines that command
+prints. Stored figures are untouched.
 
 When a sweep fails it is recorded three ways: in the journal, appended to
 `outputs/logs/analytics-failures.log`, and as a desktop notification if a

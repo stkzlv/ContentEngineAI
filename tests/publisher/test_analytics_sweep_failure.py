@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.publisher.analytics import PostMetrics, save_metrics
 from src.publisher.late.cli import cmd_analytics
 from src.publisher.models import AnalyticsConfig, PublisherConfig
 
@@ -132,3 +133,39 @@ class TestASweepThatCapturesNothing:
         stored = json.loads((tmp_path / "post_metrics.json").read_text())
         assert [r["post_id"] for r in stored] == ["b"]
         assert stored[0]["views_total"] == 400
+
+
+class TestTheRegressionReachesTheOperatorSurface:
+    """`make analytics-timer-status` reads a file, not the journal.
+
+    The warning alone sits behind one line per measured post, so at the
+    shipped size it is fifty lines out of reach of the five that command
+    prints. Deleting this wiring left the whole publisher suite green, which
+    is why the file itself has to be asserted.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_total_regression_is_written_where_the_status_target_reads(
+        self, tmp_path
+    ):
+        seeded = PostMetrics(
+            post_id="b", published_at="2026-07-01T08:00:00Z", views_total=400
+        )
+        save_metrics([seeded], tmp_path)
+
+        await _run(tmp_path, [MEASURABLE_POST], {"timeline": []})
+
+        recorded = (tmp_path / "logs" / "analytics-failures.log").read_text()
+        assert "b" in recorded
+        assert "1 of 1" in recorded
+
+    @pytest.mark.asyncio
+    async def test_a_healthy_sweep_writes_no_file(self, tmp_path):
+        """The status target must not report a failure that did not happen."""
+        save_metrics(
+            [PostMetrics(post_id="b", published_at="2026-07-01T08:00:00Z")], tmp_path
+        )
+
+        await _run(tmp_path, [MEASURABLE_POST], MEASURABLE_TIMELINE)
+
+        assert not (tmp_path / "logs" / "analytics-failures.log").exists()

@@ -240,15 +240,19 @@ def _record_regression(regressed: list[str], measured: int, outputs_dir: Path) -
     log = outputs_dir / "logs" / "analytics-failures.log"
     sample = ", ".join(regressed[:5])
     more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
-    when = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S %z")
+    # Local time with an offset, matching `date` in the OnFailure handler that
+    # appends to this same file. Stamping one writer UTC and the other local
+    # puts entries out of order in the tail the status target prints.
+    when = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("a", encoding="utf-8") as fh:
             fh.write(
-                f"{when}  {len(regressed)} of {measured} measured post(s) "
-                f"stopped reporting views: {sample}{more}\n"
-                f"    They were live inside the retention horizon, so this is "
-                f"not age. Check the timeline response shape.\n\n"
+                f"{when}  every post with a stored view count returned none: "
+                f"{len(regressed)} of {measured} measured, including "
+                f"{sample}{more}\n"
+                f"    Posts age out one at a time, never all at once. Check "
+                f"the timeline response shape.\n\n"
             )
     except OSError as e:
         logger.warning("Could not record the regression to %s: %s", log, e)
