@@ -217,8 +217,8 @@ def merge_layout_with_template(
 
     merged = template_layout.model_copy(update=updates)
     logger.debug(
-        "Merged layout: template align=%s offset=%.2f → final align=%s offset=%.2f "
-        "(width=%.2f, lines=%d)",
+        "Merged layout: template align=%s offset=%.2f -> final align=%s "
+        "offset=%.2f (width=%.2f, lines=%d)",
         template_layout.vertical_align.align.value,
         template_layout.vertical_align.offset,
         merged.vertical_align.align.value,

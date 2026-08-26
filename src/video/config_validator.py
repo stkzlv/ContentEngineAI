@@ -431,7 +431,7 @@ class VideoConfigValidator:
             )
 
             if has_unified_params:
-                logger.info("Using unified subtitle configuration ✓")
+                logger.info("Using unified subtitle configuration")
             else:
                 logger.debug("Using default subtitle configuration")
 
@@ -472,12 +472,12 @@ def validate_config_and_exit_on_error(config: VideoConfig) -> None:
     if all_errors:
         logger.critical("Configuration validation failed:")
         for error in all_errors:
-            logger.critical(f"  ❌ {error}")
+            logger.critical(f"{error}")
         logger.critical("Fix configuration errors before proceeding")
         logger.info("See CONFIGURATION.md for configuration guide")
         raise SystemExit(1)
 
-    logger.info("✅ Configuration validation passed")
+    logger.info("Configuration validation passed")
 
 
 def check_stock_media_key(

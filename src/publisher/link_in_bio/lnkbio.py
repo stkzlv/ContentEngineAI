@@ -83,7 +83,7 @@ class LnkBioProvider(BaseLinkInBioProvider):
 
             resp.raise_for_status()
             result: dict[str, object] = resp.json()
-            logger.debug("API response: %s %s → %d", method, path, resp.status_code)
+            logger.debug("API response: %s %s -> %d", method, path, resp.status_code)
             return result
 
     async def add_link(
@@ -146,7 +146,7 @@ class LnkBioProvider(BaseLinkInBioProvider):
 
             resp.raise_for_status()
             result: dict[str, object] = resp.json()
-            logger.debug("API response: POST %s → %d", path, resp.status_code)
+            logger.debug("API response: POST %s -> %d", path, resp.status_code)
             return result
 
     async def list_links(self) -> list[dict[str, object]]:

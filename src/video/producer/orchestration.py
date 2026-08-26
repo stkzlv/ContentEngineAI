@@ -227,11 +227,12 @@ async def execute_pipeline_parallel(
             state_data = json.loads(ctx.run_paths["state_file"].read_text())
             completed_steps = completed_steps_from_state(state_data)
             logger.info(
-                f"Found {len(completed_steps)} already completed steps: "
-                f"{completed_steps}"
+                "Found %s already completed steps: %s",
+                len(completed_steps),
+                completed_steps,
             )
         except Exception as e:
-            logger.warning(f"Could not load existing pipeline state: {e}")
+            logger.warning("Could not load existing pipeline state: %s", e)
             completed_steps = set()
 
     # Create pipeline graph from the shared dependency map, walked in run
@@ -249,7 +250,7 @@ async def execute_pipeline_parallel(
         for step_name in completed_steps:
             if pipeline.has_step(step_name):
                 pipeline.skip_step(step_name)
-                logger.info(f"Skipping already completed step: {step_name}")
+                logger.info("Skipping already completed step: %s", step_name)
 
                 # Load artifacts for skipped steps via registry
                 load_artifacts_for_step(step_name, ctx)
@@ -263,7 +264,7 @@ async def execute_pipeline_parallel(
         if failed_steps:
             for failed_result in failed_steps:
                 logger.error(
-                    f"Step '{failed_result.step_name}' failed: {failed_result.error}"
+                    "Step '%s' failed: %s", failed_result.step_name, failed_result.error
                 )
             return False, failed_steps[0].step_name
 
@@ -273,7 +274,7 @@ async def execute_pipeline_parallel(
                 if result.status == StepStatus.COMPLETED:
                     step_name = result.step_name
                     await _update_state_after_step(ctx, step_name)
-                    logger.info(f"Step '{step_name}' completed successfully")
+                    logger.info("Step '%s' completed successfully", step_name)
 
             await _save_pipeline_state(ctx)
         return True, None
@@ -282,7 +283,7 @@ async def execute_pipeline_parallel(
         # Re-raise InsufficientMediaError so main handler can process it cleanly
         raise
     except Exception as e:
-        logger.error(f"Pipeline execution failed: {e}", exc_info=True)
+        logger.error("Pipeline execution failed: %s", e, exc_info=True)
         return False, None
 
 
@@ -313,7 +314,9 @@ async def create_video_for_product(
     cli_overrides: dict[str, Any] | None = None,
 ):
     product_id = product.asin or sanitize_filename(product.title[:30])
-    logger.info(f"--- Starting video for '{product_id}' profile '{profile_name}' ---")
+    logger.info(
+        "--- Starting video for '%s' profile '%s' ---", product_id, profile_name
+    )
 
     # Initialize performance history manager with configurable retention
     max_runs = 100
@@ -351,13 +354,13 @@ async def create_video_for_product(
 
     if clean_run and run_paths["run_root"].exists():
         logger.info(
-            f"--clean flag set. Removing producer-generated files from: "
-            f"{run_paths['run_root']}"
+            "--clean flag set. Removing producer-generated files from: %s",
+            run_paths["run_root"],
         )
         try:
             _clean_producer_files(run_paths, config, product_id, profile_name)
         except OSError as e:
-            logger.error(f"Error cleaning producer files: {e}")
+            logger.error("Error cleaning producer files: %s", e)
             raise PipelineError("Could not clean producer files for fresh run.") from e
 
     try:
@@ -442,8 +445,9 @@ async def create_video_for_product(
                     continue
                 if ctx.state.get(step_to_load, {}).get("status") == "done":
                     logger.info(
-                        f"Loading prerequisites for '{debug_step_target}': "
-                        f"Loading artifacts from '{step_to_load}'."
+                        "Loading prerequisites for '%s': Loading artifacts from '%s'.",
+                        debug_step_target,
+                        step_to_load,
                     )
                     if not _load_artifacts_from_state(ctx, step_to_load):
                         raise PipelineError(
@@ -470,7 +474,7 @@ async def create_video_for_product(
                     debug_step_target is None
                     and ctx.state.get(current_step, {}).get("status") == "done"  # type: ignore[unreachable]
                 ):
-                    logger.info(f"Skipping step '{current_step}': Already completed.")  # type: ignore[unreachable]
+                    logger.info("Skipping step '%s': Already completed.", current_step)  # type: ignore[unreachable]
                     _load_artifacts_from_state(ctx, current_step)
                     continue
 
@@ -498,8 +502,9 @@ async def create_video_for_product(
 
         successful_run = True
         logger.info(
-            f"<<< SUCCESS: Video for '{product_id}': "
-            f"{run_paths.get('final_video_output', 'N/A')}"
+            "<<< SUCCESS: Video for '%s': %s",
+            product_id,
+            run_paths.get("final_video_output", "N/A"),
         )
 
         # Save performance metrics for successful runs
@@ -538,14 +543,14 @@ async def create_video_for_product(
         # Clean up background processing
         if ctx.background_processor:
             summary = ctx.background_processor.get_summary()
-            logger.debug(f"Background processing summary: {summary}")
+            logger.debug("Background processing summary: %s", summary)
             await cleanup_global_background_processor()
 
         return run_paths.get("final_video_output")
 
     except InsufficientMediaError as e:
         skipped_run = True
-        logger.warning(f"Product skipped due to insufficient media: {e}")
+        logger.warning("Product skipped due to insufficient media: %s", e)
         # Mark as skipped, not failed - this is expected for some products
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on skip
@@ -553,7 +558,7 @@ async def create_video_for_product(
         # Return special value to indicate skip
         return "SKIPPED"
     except (FileNotFoundError, PipelineError, KeyError) as e:
-        logger.error(f"Pipeline stopped at step '{step}': {e}", exc_info=debug_mode)
+        logger.error("Pipeline stopped at step '%s': %s", step, e, exc_info=debug_mode)
         # Mark pipeline as failed for history tracking
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
@@ -563,7 +568,9 @@ async def create_video_for_product(
         return f"{FAILED_PREFIX}{step or 'unknown'}"
     except Exception as e:
         logger.error(
-            f"An unexpected error occurred in pipeline for '{product_id}': {e}",
+            "An unexpected error occurred in pipeline for '%s': %s",
+            product_id,
+            e,
             exc_info=True,
         )
         # Mark pipeline as failed for history tracking
@@ -592,18 +599,18 @@ async def create_video_for_product(
             cleanup_temp_dirs(run_paths["intermediate_base"])
         elif debug_mode:
             logger.info(
-                f"Debug mode: Intermediate files preserved in "
-                f"{run_paths.get('run_root')}"
+                "Debug mode: Intermediate files preserved in %s",
+                run_paths.get("run_root"),
             )
         elif skipped_run:
             # Not a failure: nothing broke, the product just had too little
             # media. Saying otherwise sends an operator looking for a step
             # that never went wrong.
             logger.info(
-                f"Product skipped. Files preserved in " f"{run_paths.get('run_root')}."
+                "Product skipped. Files preserved in %s.", run_paths.get("run_root")
             )
         elif not successful_run:
             logger.warning(
-                f"Run failed. Files preserved in "
-                f"{run_paths.get('run_root')} for resume."
+                "Run failed. Files preserved in %s for resume.",
+                run_paths.get("run_root"),
             )

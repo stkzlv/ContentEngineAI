@@ -1767,7 +1767,7 @@ def main():
     if validation_errors:
         logger.error("Invalid search parameters:")
         for error in validation_errors:
-            logger.error("   • %s", error)
+            logger.error("   %s", error)
         return
 
     # Show search parameters in debug mode
@@ -1777,22 +1777,22 @@ def main():
             price_range = (
                 f"${search_params.min_price or 0:.2f}-${search_params.max_price or '∞'}"
             )
-            logger.debug("   • Price range: %s", price_range)
+            logger.debug("   Price range: %s", price_range)
         if search_params.min_rating:
-            logger.debug("   • Minimum rating: %s+ stars", search_params.min_rating)
+            logger.debug("   Minimum rating: %s+ stars", search_params.min_rating)
         if search_params.prime_only:
-            logger.debug("   • Prime only: Yes")
+            logger.debug("   Prime only: Yes")
         if search_params.free_shipping:
-            logger.debug("   • Free shipping: Yes")
+            logger.debug("   Free shipping: Yes")
         if search_params.brands:
-            logger.debug("   • Brands: %s", ", ".join(search_params.brands))
+            logger.debug("   Brands: %s", ", ".join(search_params.brands))
         if search_params.sort_order != "relevanceblender":
-            logger.debug("   • Sort: %s", search_params.sort_order)
+            logger.debug("   Sort: %s", search_params.sort_order)
 
         # Show config vs CLI override status
         config_defaults = get_default_search_parameters()
         if cli_overrides:
-            logger.debug("   • CLI overrides applied: %s", list(cli_overrides.keys()))
+            logger.debug("   CLI overrides applied: %s", list(cli_overrides.keys()))
         if (
             search_params.min_price != config_defaults.min_price
             or search_params.max_price != config_defaults.max_price
@@ -1801,7 +1801,7 @@ def main():
                 f"${config_defaults.min_price or 0:.2f}-"
                 f"${config_defaults.max_price or '∞'}"
             )
-            logger.debug("   • Config defaults: %s", config_price_range)
+            logger.debug("   Config defaults: %s", config_price_range)
 
     # Detect batch mode: --product-ids provided OR multiple keywords
     is_batch_mode = bool(args.product_ids) or (args.keywords and len(args.keywords) > 1)
