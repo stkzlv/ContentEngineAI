@@ -1,0 +1,23 @@
+# Rendered from deploy/contentengineai-analytics.timer.in by
+# deploy/install-timer.sh. Do not edit the installed copy.
+
+[Unit]
+Description=Schedule the ContentEngineAI analytics sweep
+
+[Timer]
+OnCalendar=@ON_CALENDAR@
+
+# Run a window the machine slept through on the next boot rather than
+# skipping it. The provider's timeline retention is roughly five weeks, so a
+# missed sweep is a permanent hole in the record, not a late reading. This is
+# the whole reason to prefer a timer over cron.
+Persistent=true
+
+RandomizedDelaySec=@RANDOMIZED_DELAY_SEC@
+AccuracySec=1min
+
+# No Unit= line: systemd activates the .service of the same basename. Naming
+# it would be a second copy of the service name, free to drift from the file.
+
+[Install]
+WantedBy=timers.target

@@ -193,7 +193,7 @@ Quick reference for all publisher commands and options.
 | `delete` | Delete a post from Zernio | `python -m src.publisher.late delete POST_ID` |
 | `verify-comments` | Check first comments landed on recent posts | `python -m src.publisher.late verify-comments --limit 25` |
 | `verify-delivery` | Sweep recent posts for silently-failed platform legs | `python -m src.publisher.late verify-delivery --limit 25` |
-| `analytics` | Capture day-N views and rank posts by durability | `python -m src.publisher.late analytics --limit 50` |
+| `analytics` | Capture day-N views and rank posts by durability | `python -m src.publisher.late analytics` |
 
 ### Global Options
 
@@ -305,7 +305,7 @@ python -m src.publisher.late delete <post_id>
 
 ```bash
 # Measure recent published posts and store the figures
-python -m src.publisher.late analytics --limit 50
+python -m src.publisher.late analytics
 
 # Re-rank what is already stored, without touching the network
 python -m src.publisher.late analytics --rank-only
@@ -388,78 +388,100 @@ observes the lag.
 capture belongs on the machine that owns the data rather than in CI.
 
 ```bash
-make analytics ARGS="--limit 50"
+make install-analytics-timer
 ```
 
-Repeat runs are safe: readings merge per field, and a later, better figure
-replaces an earlier partial one. They are not free, though — a sweep costs one
-timeline call per post plus the paging to list them, so `--limit 50` is roughly
-sixty requests against the documented hourly cap. Daily is comfortably inside
-it; several times an hour is not.
+That renders a systemd user timer, installs it, enables it, runs one sweep, and
+checks that `outputs/post_metrics.json` actually changed. It needs no root, and
+with lingering enabled it runs whether or not you are logged in. Check on it
+later with `make analytics-timer-status`, and remove it with
+`make uninstall-analytics-timer`.
 
-**Daily is a sensible default.** Most of a short-form post's views arrive in
-the first day or two, and one platform's analytics rows take 48-72 hours to
-finalise, so a same-day reading of a fresh post is still settling — the merge
-corrects it on the next run. Running less often than weekly risks stepping over
-a post's figures entirely. The durability ratio is the tightest: it needs a post
-past day 30 and still inside the roughly five-week horizon, so its window is
-only a few days wide — every published post older than about four months
-currently returns no ratio at all, because its retained rows begin long after
-its day 30.
+**Daily is the right default, and weekly is not.** Most of a short-form post's
+views arrive in the first day or two, and one platform's analytics rows take
+48-72 hours to finalise, so a same-day reading of a fresh post is still
+settling; the merge corrects it on the next run. The durability ratio is the
+binding constraint: it needs a post past day 30 while its rows still reach back
+to publication, and retention is about five weeks, so the window is roughly five
+days wide. A weekly sweep can step over a post's only window and never produce a
+ratio for it at all.
 
-A systemd user timer, which needs no root and starts with your session:
+Repeat runs are safe. Readings merge per field, and a later, better figure
+replaces an earlier partial one. They are not free, though: a sweep costs one
+timeline call per measured post plus the paging to list them, so the shipped
+size is roughly 53 requests. Daily sits comfortably inside the documented hourly
+cap; several times an hour does not.
 
-```ini
-# ~/.config/systemd/user/contentengine-analytics.service
-[Service]
-Type=oneshot
-WorkingDirectory=%h/path/to/ContentEngineAI
-ExecStart=%h/.pyenv/versions/ContentEngineAI/bin/python -m src.publisher.late analytics --limit 50
+**What to configure, and where.** Two files, split by what reads them:
 
-# ~/.config/systemd/user/contentengine-analytics.timer
-[Timer]
-OnCalendar=daily
-Persistent=true
+| Setting | Lives in | Why there |
+|---|---|---|
+| How many posts a sweep measures | `config/publisher.yaml::analytics.limit` | Behaviour, read by both the manual and the scheduled run |
+| Schedule, timeouts, failure reporting, paths | `deploy/schedule.env` | Shapes the unit files, which systemd reads before any of this project's code runs |
 
-[Install]
-WantedBy=timers.target
-```
+Copy `deploy/schedule.env.example` to `deploy/schedule.env` and edit what you
+need; the copy is gitignored and every key is optional, so the installer works
+before you write it at all.
 
-```bash
-systemctl --user enable --now contentengine-analytics.timer
-systemctl --user list-timers contentengine-analytics.timer
-systemctl --user status contentengine-analytics.service   # check the first run
-```
+Re-run the installer after editing it, because systemd does not pick up a
+changed `OnCalendar` on its own. Use `./deploy/install-timer.sh --no-run` when
+you changed only the schedule: it re-renders and re-arms the timer without
+spending a sweep's worth of API calls to prove something you already proved.
+
+The unit deliberately passes no `--limit`. The size lives in
+`config/publisher.yaml` and nowhere else, so editing the YAML takes effect on
+the next run with no reinstall, and the scheduled sweep cannot drift from
+`make analytics`.
 
 **Name the interpreter; do not go through `poetry run` or `make`.** A user
 service does not inherit your login shell's environment, so its `PATH` has no
-pyenv shims — and because `poetry.toml` sets `virtualenvs.create = false`,
-`poetry run python` then resolves the *base* interpreter rather than the
-project environment. The service fails at the first import, daily, while the
+pyenv shims -- and because `poetry.toml` sets `virtualenvs.create = false`,
+`poetry run python` then resolves the *base* interpreter rather than the project
+environment. The service would fail at the first import, daily, while the
 figures it was meant to capture age out. This is the same trap the `*-lowpri`
-targets work around for `systemd-run`. Substitute your own environment path if
-you are not using pyenv; `poetry env info -p` prints it.
+targets work around for `systemd-run`. The installer resolves the interpreter
+for you and refuses to install a unit whose interpreter cannot import the
+project, because a file that merely exists is not evidence of anything.
 
-Cron needs the same treatment and has no persistence:
+Two more properties of the generated unit are worth knowing, because both
+failures are silent:
+
+- `Persistent=true` runs a window the machine slept through on the next boot
+  rather than skipping it. Retention is finite, so a missed sweep is a permanent
+  hole in the record, not a late reading. Cron simply misses a machine that was
+  asleep, which is why the timer is the better of the two.
+- `TimeoutStartSec=` is set explicitly. systemd disables the start timeout by
+  default for `Type=oneshot` units, and left disabled a hung request would leave
+  the unit activating forever; systemd then refuses to start a second instance,
+  so every later firing is dropped and the unit never reaches `failed` -- so the
+  failure handler never runs either. A stuck sweep would look exactly like a
+  working one.
+
+A sweep that measured posts and captured none of them exits non-zero, so the
+failure channels below actually fire. Every timeline call failing is a broken
+sweep, not a quiet one, and exiting 0 there would keep the timer green while
+the figures expire. A single post failing stays a warning, because a partial
+reading is still worth storing, and an account with no published posts is not
+an error at all.
+
+When a sweep fails it is recorded three ways: in the journal, appended to
+`outputs/logs/analytics-failures.log`, and as a desktop notification if a
+session is there to receive one. The log file is the durable one, and
+`make analytics-timer-status` surfaces it. Set `NOTIFY_ON_FAILURE=0` to install
+no handler at all.
+
+Cron works too, but has no equivalent of `Persistent=true`:
 
 ```cron
-@daily cd /path/to/ContentEngineAI && ~/.pyenv/versions/ContentEngineAI/bin/python -m src.publisher.late analytics --limit 50
+@daily cd /path/to/ContentEngineAI && ~/.pyenv/versions/ContentEngineAI/bin/python -m src.publisher.late analytics
 ```
-
-`Persistent=true` is why the timer is the better of the two: it runs a missed
-sweep on the next boot rather than skipping it, which is the difference between
-a laptop closed for a weekend and a gap in the record. Cron simply misses a
-machine that was asleep at the scheduled time.
-
-Verify the unit actually runs before trusting it — `systemctl --user start
-contentengine-analytics.service` once by hand, then check that
-`outputs/post_metrics.json` has a fresh mtime.
 
 | Option | Required | Description |
 |---|---|---|
-| `--limit N` | No | How many recent published posts to measure (default: 50) |
+| `--limit N` | No | How many recent published posts to measure. Defaults to `analytics.limit` in `config/publisher.yaml`, shipped as 50. The other subcommands' `--limit` flags are not config-backed |
 | `--rank-only` | No | Rank stored metrics without fetching. Makes no network call, but publisher config still loads first, so an API key must be configured |
 | `--outputs-dir PATH` | No | Where `post_metrics.json` lives (default: `outputs`) |
+| `--debug` | No | Enable debug logging |
 
 Ranking by durability answers a different question from ranking by total views.
 A post that spiked and stopped can outrank one still earning months later on
@@ -666,6 +688,12 @@ privacy_settings:
   facebook: public                 # public, friends
   twitter: public                  # public
   linkedin: public                 # public, connections
+
+# === Analytics Capture ===
+analytics:
+  limit: 50                        # Posts measured per sweep; must exceed the
+                                   # number published inside the ~5-week
+                                   # retention horizon or the oldest expire
 
 # === Affiliate Disclosure ===
 affiliate_disclosure:

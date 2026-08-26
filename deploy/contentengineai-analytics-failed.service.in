@@ -1,0 +1,19 @@
+# Rendered from deploy/contentengineai-analytics-failed.service.in by
+# deploy/install-timer.sh. Installed only when NOTIFY_ON_FAILURE=1 in
+# deploy/schedule.env.
+
+[Unit]
+Description=Report a failed ContentEngineAI analytics sweep
+
+[Service]
+Type=oneshot
+# The script finds its own repo root from its location, so the repo path
+# appears here once, as the script's path, rather than twice.
+ExecStart=@REPO_DIR@/deploy/analytics-failure-notify.sh contentengineai-analytics.service
+
+# Same reason as the sweep unit: Type=oneshot has no start timeout by default.
+# Nothing in the handler blocks today, but it is the kind of script that grows
+# a channel that can (a webhook, a mail command), and a hung failure reporter
+# is the worst place to discover that. Short, because every channel here is
+# local and best-effort.
+TimeoutStartSec=1min

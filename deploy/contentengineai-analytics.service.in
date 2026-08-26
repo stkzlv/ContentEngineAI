@@ -1,0 +1,45 @@
+# Rendered from deploy/contentengineai-analytics.service.in by
+# deploy/install-timer.sh. Do not edit the installed copy: the next
+# `make install-analytics-timer` overwrites it. Edit this template, or
+# deploy/schedule.env.
+
+[Unit]
+Description=ContentEngineAI daily analytics sweep (day-N views, durability)
+Documentation=file://@REPO_DIR@/docs/publisher.md
+@ONFAILURE_LINE@
+
+[Service]
+Type=oneshot
+
+# Load-bearing. The sweep's --outputs-dir defaults to the relative path
+# "outputs", so a wrong working directory writes the figures into another
+# tree and still exits 0. The installer checks that post_metrics.json's
+# mtime actually moved, which is what catches this on day zero rather than
+# five weeks later.
+WorkingDirectory=@REPO_DIR@
+
+# The interpreter is named absolutely, and neither `poetry run` nor `make` is
+# involved. A user service inherits no login shell, so PATH has no pyenv
+# shims; and poetry.toml sets virtualenvs.create = false, which makes
+# `poetry run python` resolve the base interpreter rather than the project
+# environment. It would fail at the first import, once a day, unattended,
+# while the figures it exists to capture age out. See docs/publisher.md.
+#
+# No --limit here, deliberately. The sweep size lives in
+# config/publisher.yaml::analytics.limit and nowhere else, so editing the
+# YAML takes effect on the next run with no reinstall. A --limit here would
+# be a second copy of one decision, and the two would drift the first time
+# either changed.
+ExecStart=@PYTHON@ -m src.publisher.late analytics
+
+# systemd disables the start timeout by default for Type=oneshot
+# (systemd.service(5)). Without this, a hung request leaves the unit
+# activating forever; systemd then refuses to start a second instance, so
+# every later firing is silently dropped and the unit never reaches "failed"
+# -- so OnFailure never runs either. A stuck sweep would look exactly like a
+# working one.
+TimeoutStartSec=@TIMEOUT_START_SEC@
+
+# Background maintenance. It must never compete with an interactive render.
+Nice=10
+IOSchedulingClass=idle

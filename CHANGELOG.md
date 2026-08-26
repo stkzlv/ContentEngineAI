@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.75.0] - 2026-08-26
+
+### Added
+- `make install-analytics-timer` installs a systemd user timer that captures day-N view figures daily, and `make uninstall-analytics-timer` removes it. Those figures are perishable: the provider's per-post timeline stops reaching back at roughly five weeks, so a figure not captured inside that window cannot be queried later at any price, and nothing ran the sweep on a schedule. Measured against the live API when this shipped, 36 published posts sat inside the horizon and were ageing out. Daily rather than weekly because the durability ratio needs a post past day 30 whose rows still reach publication, a window about five days wide that a weekly sweep can step over entirely. The installer verifies the interpreter can import the project, refuses to write a unit holding an unsubstituted placeholder, runs one sweep, and checks the metrics file actually changed rather than trusting the exit status.
+- `make analytics-timer-status` reports the last run, the next run, and any recorded sweep failures.
+- A failed sweep is recorded in the journal, appended to `outputs/logs/analytics-failures.log`, and raised as a desktop notification when a session is present. The log file is the durable channel: a notification raised while nobody is at the machine is indistinguishable from none.
+- `config/publisher.yaml::analytics.limit` sets how many posts a sweep measures, and `deploy/schedule.env` holds the machine-specific values that shape the unit files, with `deploy/schedule.env.example` committed as its sample. The two are split by which one reads them: systemd reads the unit before any of this project's code runs, and it forbids variable expansion in an `ExecStart` path, so the interpreter and the schedule have to be substituted rather than supplied at runtime.
+
+### Changed
+- A sweep that measured posts and captured none of them exits non-zero. The scheduled setup detects trouble only through a failed unit, so exiting 0 there kept the timer green, satisfied the installer's proof-of-life check, and let the figures expire. A single post failing stays a warning, and an account with no published posts is not an error.
+- A malformed `analytics` config section falls back to the default rather than aborting the load. `analytics: 50` instead of a mapping raised out of `load_publisher_config`, which every publisher subcommand calls, so publishing stopped too. A non-integer limit is now rejected at construction: a float passed the range check and then broke the post slice mid-sweep.
+- `analytics --limit` defaults to the configured value instead of a hardcoded 50. It previously declared a numeric default, which made an omitted flag indistinguishable from a passed one, so a configured size could never take effect. The scheduled unit passes no `--limit` deliberately, keeping the sweep size in one place: editing the YAML changes both the manual and the scheduled run, with no reinstall and no way for the two to disagree.
+
+### Notes
+- The generated unit sets `TimeoutStartSec=` explicitly because systemd disables the start timeout by default for `Type=oneshot`. Left disabled, a hung request leaves the unit activating forever; systemd then refuses to start a second instance, so every later firing is dropped and the unit never reaches `failed`, which means the failure handler never runs either. A stuck sweep would look exactly like a working one.
+- Units are rendered with `sed` rather than `envsubst`, which renders an unset variable as the empty string. An empty `OnCalendar=` resets the timer list rather than erroring, giving a timer that loads, enables, lists, and never fires.
+
 ## [0.74.2] - 2026-08-26
 
 ### Changed

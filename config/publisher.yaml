@@ -357,3 +357,30 @@ affiliate_disclosure:
 # place. Both are properties of what a music or stock provider returns, so
 # either can become true without any change to this project.
 synthetic_media_disclosure: false
+
+# ============================================================================
+# ANALYTICS CAPTURE
+# ============================================================================
+# How many recently published posts each `analytics` sweep measures.
+#
+# Read by both the manual `make analytics` run and the scheduled systemd
+# timer, which passes no --limit precisely so this stays the only place the
+# sweep size is written down. Passing --limit on the command line still wins
+# for a one-off.
+#
+# Day-2 and day-7 figures are perishable: the provider's per-post timeline
+# stops reaching back at roughly five weeks, and a figure not captured inside
+# that window cannot be queried later at any price. So this value must exceed
+# the number of posts published inside the horizon, or the oldest still-
+# reachable ones are skipped on every sweep and then expire. That failure is
+# silent -- a short sweep looks exactly like a complete one.
+#
+# At one post per day the horizon holds about 35 posts, so 50 leaves headroom.
+# A faster cadence needs a larger value: two posts a day puts 70 inside the
+# window, and 50 would quietly lose the oldest 20.
+#
+# Cost scales with it. A sweep is one timeline call per measured post plus the
+# paging to list them, so 50 is roughly 53 requests. Daily sits well inside
+# the documented hourly cap; several times an hour does not.
+analytics:
+  limit: 50

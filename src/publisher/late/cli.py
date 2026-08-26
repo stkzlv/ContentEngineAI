@@ -41,7 +41,7 @@ from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
-from src.publisher.models import DEFAULT_PLATFORMS, Platform
+from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
 from src.publisher.partial_post_sweep import sweep_partial_posts
 from src.publisher.product_registry import (
     add_to_registry,
@@ -224,6 +224,22 @@ def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     return out
 
 
+def _analytics_limit(args: argparse.Namespace, config: PublisherConfig) -> int:
+    """Resolve the sweep size: the CLI flag if given, else the configured one.
+
+    ``--limit`` defaults to None rather than to a number so that "not passed"
+    stays distinguishable from "passed the value the config already holds".
+    With an argparse default the configured value could never win, and the
+    scheduled run -- which passes no flag, deliberately, so the size lives in
+    one place -- would silently ignore it while appearing to honour it.
+    """
+    # int() because a Namespace attribute is untyped; argparse has already
+    # applied type=int, so this converts nothing at runtime.
+    if args.limit is not None:
+        return int(args.limit)
+    return config.analytics_config.limit
+
+
 async def cmd_analytics(
     args: argparse.Namespace, config, session: aiohttp.ClientSession
 ):
@@ -251,12 +267,25 @@ async def cmd_analytics(
         if not await publisher.authenticate():
             logger.error("Authentication failed - check your API key")
             sys.exit(1)
+        limit = _analytics_limit(args, config)
         posts = await publisher.list_posts(status="published")
+        # Logged because on the scheduled run this line is the only evidence
+        # of which source supplied the size.
+        logger.info(
+            "Measuring the %d most recent of %d published post(s)", limit, len(posts)
+        )
         resource = timeline_resource(publisher.client)
         metrics = []
-        for post in posts[: args.limit]:
+        # Count what was listed, not what turned out to be usable. Counting
+        # inside the loop would put the tally behind the id check below, so a
+        # release that renamed the id field again -- it has moved once already,
+        # which is why two keys are read -- would skip every post, leave the
+        # count at zero, and slip past the guard the count exists to feed.
+        attempted = len(posts[:limit])
+        for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
+                logger.warning("Skipping a listed post with no id: %s", post)
                 continue
             try:
                 raw = resource.get_post_timeline(post_id=post_id)
@@ -278,6 +307,31 @@ async def cmd_analytics(
                 logger.warning("No timeline for %s: %s", post_id, exc)
                 continue
             metrics.append(summarize_post(post_id, publish_time(post), rows))
+        # Every post failing is a broken sweep, not a quiet one, and the whole
+        # scheduled setup detects trouble only through a failed unit: exiting 0
+        # here would satisfy the installer's proof-of-life, keep the timer
+        # green, and let the figures expire. A per-post error stays a warning
+        # (a partial reading is still worth storing) and an account with no
+        # published posts is not an error at all, so the test is specifically
+        # "posts were there to measure and none of them yielded anything".
+        #
+        # Deliberately NOT covered: calls that all succeed with no rows.
+        # `summarize_post` stores a stub for an empty timeline, so `metrics` is
+        # non-empty and this guard stays quiet. A renamed timeline key would
+        # look exactly like an account whose posts are simply too young to have
+        # rows, and failing on it would make a new account fail daily until its
+        # first rows land -- which teaches the operator to ignore the alarm,
+        # the one outcome worse than the gap. Stubs cannot erase stored figures
+        # (`_combine` merges per field), so the cost is a missed signal, not
+        # corruption. Detecting a silent parser break needs a staleness check
+        # over the stored history, not a decision at this point.
+        if attempted and not metrics:
+            logger.error(
+                "Measured %d post(s) and captured none. Every timeline call "
+                "failed; see the warnings above. Nothing written.",
+                attempted,
+            )
+            sys.exit(1)
         save_metrics(metrics, outputs_dir)
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
@@ -1502,8 +1556,11 @@ Examples:
     analytics_parser.add_argument(
         "--limit",
         type=int,
-        default=50,
-        help="How many recent published posts to measure (default: 50)",
+        default=None,
+        help=(
+            "How many recent published posts to measure "
+            "(default: analytics.limit in config/publisher.yaml)"
+        ),
     )
     analytics_parser.add_argument(
         "--rank-only",
