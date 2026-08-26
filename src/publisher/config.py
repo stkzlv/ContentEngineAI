@@ -18,6 +18,7 @@ from src.publisher.models import (
     DEFAULT_PLATFORMS,
     AccountConfig,
     AffiliateDisclosureConfig,
+    AnalyticsConfig,
     BlobRetentionConfig,
     CleanupConfig,
     FirstCommentConfig,
@@ -347,6 +348,28 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     else:
         result["affiliate_disclosure_config"] = AffiliateDisclosureConfig()
 
+    # Parse analytics config
+    analytics_section = result.get("analytics", {})
+    if analytics_section:
+        try:
+            result["analytics_config"] = AnalyticsConfig(**analytics_section)
+            logger.debug("Parsed analytics config: %s", analytics_section)
+        except (ValueError, TypeError) as e:
+            # A rejected limit falls back to the dataclass default rather than
+            # aborting the load, matching every other section here. The
+            # warning names both values because this runs unattended on the
+            # scheduled sweep, where the journal line is the only evidence
+            # that the configured size was not the one used.
+            logger.warning(
+                "Failed to parse analytics config (%s); using limit=%d instead of %s",
+                e,
+                AnalyticsConfig().limit,
+                analytics_section.get("limit", "the configured value"),
+            )
+            result["analytics_config"] = AnalyticsConfig()
+    else:
+        result["analytics_config"] = AnalyticsConfig()
+
     # Remove raw YAML sections (already parsed into objects)
     result.pop("recurring_schedule", None)
     result.pop("schedule_validation", None)
@@ -354,6 +377,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     result.pop("link_in_bio", None)
     result.pop("first_comment", None)
     result.pop("affiliate_disclosure", None)
+    result.pop("analytics", None)
     # Keep use_platform_specific_content and synthetic_media_disclosure for
     # PublisherConfig (don't pop)
 

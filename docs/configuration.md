@@ -122,8 +122,13 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 - **`config/performance.yaml`** - Resource limits and optimization
 - **`config/scraper.yaml`** - Web scraping and browser settings
 - **`config/pipeline.yaml`** - Batch processing and global pipeline settings
-- **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK)
+- **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK), plus the `analytics` sweep size
 - **`config/url_shortener.yaml`** - URL shortening providers and integration
+
+Machine-specific settings for the scheduled analytics sweep are separate, in a
+gitignored `deploy/schedule.env` alongside its committed sample. They shape
+systemd unit files rather than application behaviour, so they are read before
+any of the loading below applies. See [the publisher docs](publisher.md).
 
 ### How Configuration Loading Works
 

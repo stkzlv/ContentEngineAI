@@ -41,7 +41,7 @@ from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
-from src.publisher.models import DEFAULT_PLATFORMS, Platform
+from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
 from src.publisher.partial_post_sweep import sweep_partial_posts
 from src.publisher.product_registry import (
     add_to_registry,
@@ -224,6 +224,22 @@ def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     return out
 
 
+def _analytics_limit(args: argparse.Namespace, config: PublisherConfig) -> int:
+    """Resolve the sweep size: the CLI flag if given, else the configured one.
+
+    ``--limit`` defaults to None rather than to a number so that "not passed"
+    stays distinguishable from "passed the value the config already holds".
+    With an argparse default the configured value could never win, and the
+    scheduled run -- which passes no flag, deliberately, so the size lives in
+    one place -- would silently ignore it while appearing to honour it.
+    """
+    # int() because a Namespace attribute is untyped; argparse has already
+    # applied type=int, so this converts nothing at runtime.
+    if args.limit is not None:
+        return int(args.limit)
+    return config.analytics_config.limit
+
+
 async def cmd_analytics(
     args: argparse.Namespace, config, session: aiohttp.ClientSession
 ):
@@ -251,10 +267,16 @@ async def cmd_analytics(
         if not await publisher.authenticate():
             logger.error("Authentication failed - check your API key")
             sys.exit(1)
+        limit = _analytics_limit(args, config)
         posts = await publisher.list_posts(status="published")
+        # Logged because on the scheduled run this line is the only evidence
+        # of which source supplied the size.
+        logger.info(
+            "Measuring the %d most recent of %d published post(s)", limit, len(posts)
+        )
         resource = timeline_resource(publisher.client)
         metrics = []
-        for post in posts[: args.limit]:
+        for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
                 continue
@@ -1502,8 +1524,11 @@ Examples:
     analytics_parser.add_argument(
         "--limit",
         type=int,
-        default=50,
-        help="How many recent published posts to measure (default: 50)",
+        default=None,
+        help=(
+            "How many recent published posts to measure "
+            "(default: analytics.limit in config/publisher.yaml)"
+        ),
     )
     analytics_parser.add_argument(
         "--rank-only",

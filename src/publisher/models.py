@@ -162,6 +162,34 @@ class AffiliateDisclosureConfig:
 
 
 @dataclass
+class AnalyticsConfig:
+    """Configuration for the per-post analytics sweep.
+
+    Driven from ``config/publisher.yaml::analytics``. The sweep reads this
+    rather than taking the size from its command line, so the manual run and
+    the scheduled one cannot disagree about how many posts to measure.
+
+    ``limit`` must exceed the number of posts published inside the provider's
+    timeline retention horizon, which is roughly five weeks. Below that, the
+    oldest still-reachable figures are skipped on every sweep and then expire
+    unrecorded, which is silent: a short sweep looks exactly like a complete
+    one. At one post a day the horizon holds about 35 posts, so the shipped
+    50 leaves headroom; a faster cadence needs a larger value.
+    """
+
+    limit: int = 50
+
+    def __post_init__(self):
+        """Reject a limit that would measure nothing."""
+        if self.limit < 1:
+            raise ValueError(f"analytics.limit must be at least 1, got {self.limit}")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {"limit": self.limit}
+
+
+@dataclass
 class PublishMetadata:
     """Platform-specific metadata for video publishing.
 
@@ -481,6 +509,9 @@ class PublisherConfig:
     affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
         default_factory=lambda: AffiliateDisclosureConfig()
     )
+    analytics_config: "AnalyticsConfig" = field(
+        default_factory=lambda: AnalyticsConfig()
+    )
     # YouTube's altered-or-synthetic-content disclosure. Off by default
     # because the policy targets realistic material that could mislead about
     # real people or events, and explicitly excludes AI narration, AI scripts
@@ -575,6 +606,7 @@ class PublisherConfig:
             "schedule_config": self.schedule_config.to_dict(),
             "cleanup_config": self.cleanup_config.to_dict(),
             "affiliate_disclosure_config": self.affiliate_disclosure_config.to_dict(),
+            "analytics_config": self.analytics_config.to_dict(),
         }
 
 

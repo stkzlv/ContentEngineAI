@@ -18,7 +18,8 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri analytics
+	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri analytics \
+	print-python install-analytics-timer uninstall-analytics-timer analytics-timer-status
 
 # Default target
 help:
@@ -95,7 +96,10 @@ help:
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
 	@echo "  publish-lowpri     - Same but with reduced priority"
-	@echo "  analytics          - Capture day-N views and durability (ARGS=\"--limit 50\")"
+	@echo "  analytics          - Capture day-N views and durability (size: analytics.limit)"
+	@echo "  install-analytics-timer   - Install and start the daily analytics sweep"
+	@echo "  uninstall-analytics-timer - Remove it (leaves captured figures alone)"
+	@echo "  analytics-timer-status    - When it last ran, when it runs next"
 	@echo ""
 	@echo "$(YELLOW)Advanced Options:$(NC)"
 	@echo "  lint-verbose  - Show detailed linting output"
@@ -520,8 +524,36 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single B0ASIN1 --debug")
 	poetry run python -m src.publisher.late $(ARGS)
 
-analytics: ## Capture per-post day-N and durability figures (ARGS="--limit 50")
+analytics: ## Capture per-post day-N and durability figures (size: analytics.limit)
 	poetry run python -m src.publisher.late analytics $(ARGS)
+
+# Print the project interpreter. The installed timer needs the same one the
+# *-lowpri targets resolve, and a second copy of that candidate list in shell
+# would drift from this one.
+print-python:
+	@echo '$(LOWPRI_PYTHON)'
+
+install-analytics-timer: ## Install and start the daily analytics sweep timer
+	@echo "$(BLUE)Installing the analytics timer...$(NC)"
+	@./deploy/install-timer.sh || { echo "$(RED)Install failed$(NC)"; exit 1; }
+
+uninstall-analytics-timer: ## Remove the analytics timer (keeps captured figures)
+	@./deploy/install-timer.sh --uninstall || { echo "$(RED)Uninstall failed$(NC)"; exit 1; }
+
+analytics-timer-status: ## Show when the sweep last ran and when it runs next
+	@systemctl --user list-timers contentengineai-analytics.timer --no-pager || true
+	@systemctl --user status contentengineai-analytics.service --no-pager -n 5 || true
+	@if [ -s outputs/logs/analytics-failures.log ]; then \
+		echo "$(RED)Recorded failures (outputs/logs/analytics-failures.log):$(NC)"; \
+		tail -20 outputs/logs/analytics-failures.log; \
+	else \
+		echo "$(GREEN)No recorded sweep failures.$(NC)"; \
+	fi
+	@if [ -f outputs/post_metrics.json ]; then \
+		echo "$(BLUE)Figures last written: $$(date -r outputs/post_metrics.json '+%F %T')$(NC)"; \
+	else \
+		echo "$(YELLOW)outputs/post_metrics.json does not exist yet.$(NC)"; \
+	fi
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
