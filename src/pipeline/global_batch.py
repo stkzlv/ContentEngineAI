@@ -94,6 +94,39 @@ Examples:
         metavar="KEYWORD",
         help="Keywords to search for products (e.g., 'wireless earbuds' 'smart watch')",
     )
+    # Same names and semantics as the producer CLI, per the Module/Batch
+    # Alignment Rule. A topic run skips the scraping phase: there is no listing
+    # behind it, so the input is the record rather than a search for one.
+    input_group.add_argument(
+        "--topic",
+        metavar="TITLE",
+        help=(
+            "Render a video about a topic instead of a scraped product. "
+            "Skips scraping; the record is built from the title."
+        ),
+    )
+    input_group.add_argument(
+        "--topic-description",
+        metavar="TEXT",
+        help="Source material the script is written from, for --topic.",
+    )
+    input_group.add_argument(
+        "--topic-keywords",
+        metavar="TERMS",
+        help=(
+            "Comma-separated stock media search terms for this topic, e.g. "
+            "'wifi router, home network'."
+        ),
+    )
+    input_group.add_argument(
+        "--topics-file",
+        type=Path,
+        metavar="FILE",
+        help=(
+            "YAML list of topics to render, each with title, optional "
+            "description and optional keywords."
+        ),
+    )
     input_group.add_argument(
         "--max-products",
         type=int,
@@ -346,7 +379,10 @@ Examples:
     return parser
 
 
-_ASIN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
+# A run directory is a scraped product (ASIN-shaped, or a TEST fixture) or a
+# topic. Topics were absent, so `--clean` walked past them and the dry-run plan
+# under-reported what the run would remove.
+_RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
 
 
 def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
@@ -369,7 +405,7 @@ def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Pat
     return sorted(
         item
         for item in outputs_dir.iterdir()
-        if item.is_dir() and _ASIN_DIR_PATTERN.match(item.name)
+        if item.is_dir() and _RUN_DIR_PATTERN.match(item.name)
     )
 
 
@@ -550,6 +586,15 @@ class GlobalPipelineOrchestrator:
         print(f"{section}")
         print("PHASE 1: SCRAPING")
         print(f"{section}")
+
+        if self.config.topics:
+            # Named as skipped rather than omitted: a plan that simply prints
+            # nothing under SCRAPING reads as a misconfigured run.
+            print(f"  Skipped: {len(self.config.topics)} topic(s), nothing to scrape")
+            for spec in self.config.topics[:10]:
+                print(f"    - {spec.title}")
+            if len(self.config.topics) > 10:
+                print(f"    ... and {len(self.config.topics) - 10} more")
 
         if self.config.product_ids:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
@@ -745,7 +790,13 @@ class GlobalPipelineOrchestrator:
             self.state.advance_phase(PipelinePhase.SCRAPING)
             self._save_state()
 
-            scraping_summary = await self._execute_scraping_phase()
+            if self.config.topics:
+                # A topic has no listing to scrape. The records are built here
+                # instead, into the same directory shape the scraper writes, so
+                # the handoff and everything after it are unchanged.
+                scraping_summary = self._materialise_topics_phase()
+            else:
+                scraping_summary = await self._execute_scraping_phase()
 
             # Update state with scraping results
             self.state.scraping_completed_products = (
@@ -1149,6 +1200,53 @@ class GlobalPipelineOrchestrator:
             duration_sec=duration,
         )
 
+    def _materialise_topics_phase(self) -> ScrapingPhaseSummary:
+        """Stand in for the scraping phase when the inputs are topics.
+
+        Reported as the scraping phase rather than as a new one so resume,
+        state and the phase summaries keep working unchanged; what differs is
+        where the records come from, not what the pipeline does with them.
+
+        Returns a summary whose `successful_products` are the topic
+        identifiers, which is what the handoff phase filters on.
+        """
+        from src.video.producer.topic_input import materialise_topics
+
+        phase_start = time.time()
+        logger.info("Preparing %s topic(s) (no scraping)", len(self.config.topics))
+
+        config = load_video_config_modular()
+        # `materialise_topics` needs a profile only to resolve the run paths,
+        # and the data.json it writes is profile-independent. A random-profile
+        # run has no single profile yet, so any valid one resolves the same
+        # directory.
+        profile = self.config.profile or next(iter(config.video_profiles))
+
+        prepared: list[str] = []
+        failed: list[str] = []
+        for spec in self.config.topics:
+            try:
+                ((topic_dir, product),) = materialise_topics(
+                    [spec], config, profile, outputs_dir=self.config.outputs_dir
+                )
+            except OSError as e:
+                # One unwritable directory must not lose the rest of the batch.
+                logger.error("Could not prepare topic %r: %s", spec.title, e)
+                failed.append(spec.title)
+                continue
+            logger.info("Prepared topic %r in %s", spec.title, topic_dir)
+            prepared.append(str(product.asin))
+
+        return ScrapingPhaseSummary(
+            total_attempted=len(self.config.topics),
+            successful=len(prepared),
+            failed=len(failed),
+            successful_products=prepared,
+            failed_products=failed,
+            media_stats={"total_images": 0, "total_videos": 0},
+            duration_sec=time.time() - phase_start,
+        )
+
     def _execute_handoff_phase(
         self, scraped_product_ids: list[str]
     ) -> list[tuple[Path, ProductData]]:
@@ -1171,7 +1269,12 @@ class GlobalPipelineOrchestrator:
         logger.info("Discovering products ready for video production...")
 
         # Use existing discover_products_for_batch function
-        all_products = discover_products_for_batch(self.config.outputs_dir)
+        # A topic run named its inputs, so its directories are what it asked
+        # for. Discovery skips them by default, which would drop every topic
+        # between the phase that wrote them and the phase that renders them.
+        all_products = discover_products_for_batch(
+            self.config.outputs_dir, include_topics=bool(self.config.topics)
+        )
 
         logger.info(
             "Found %s product(s) with data.json in %s",

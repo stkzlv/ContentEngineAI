@@ -274,7 +274,7 @@ End-to-end automation combining scraping, video production, and publishing in a 
 
 The global batch pipeline orchestrates four phases:
 
-1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords)
+1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords). A topic run has no listing behind it, so this phase prepares the topic records instead of scraping.
 2. **Handoff Phase** - Discover scraped products and filter by media availability
 3. **Production Phase** - Generate videos using configured profile settings
 4. **Publishing Phase** - Upload and publish videos to social media platforms (optional)
@@ -289,6 +289,31 @@ poetry run python -m src.pipeline.global_batch \
   --profile slideshow_images1 \
   --debug
 ```
+
+#### Topics
+
+A topic is rendered and published without a scraper run. The flags match the
+producer's, so a command that works on one entry point works on the other.
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --topic "Why your wifi keeps dropping" \
+  --topic-description "Router placement, channel congestion, 2.4 vs 5GHz." \
+  --topic-keywords "wifi router, home network" \
+  --profile slideshow_stock \
+  --debug
+
+# Several at once
+poetry run python -m src.pipeline.global_batch \
+  --topics-file topics.yaml --profile slideshow_stock
+```
+
+Use a stock-sourced profile: a topic has no product imagery, and a profile that
+expects some reports the run skipped rather than failed. `--topic-keywords` is
+comma-separated so a phrase stays one search term.
+
+Output lands in `outputs/topic-<slug>-<digest>/`, which `--clean` removes along
+with product directories.
 
 #### Keywords Only
 

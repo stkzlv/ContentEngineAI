@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.78.1"
+version = "0.79.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"

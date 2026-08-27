@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-08-27
+
+### Added
+- The global batch accepts topics: `--topic`, `--topic-description`, `--topic-keywords` and `--topics-file`, with the producer's names and semantics. The producer could render a topic and the batch could not, so topic content had no path to the daily cadence -- the one command that also publishes could only produce the product arm. A topic run replaces the scraping phase rather than skipping into it, since there is no listing to scrape, and is reported under the same phase name so resume and the summaries are unchanged. Closes #226.
+
+### Changed
+- `--clean` now removes topic directories along with product ones, and the dry-run plan lists them. The pattern matched an ASIN shape, so topic runs accumulated in `outputs/` and the plan under-reported what a clean would remove. Destructive, and worth knowing before the first clean after upgrading.
+
+### Notes
+- Five things assumed a run's input was a scraped product, and each failed differently, which is why the tests are five separate cases rather than one end-to-end run: input precedence counted product ids and keywords only, so `--topic` fell through to the YAML branch and scraped every configured keyword beside it; validation refused a topics-only run as having no inputs; batch discovery skips topic directories on purpose, which dropped every topic between the phase that wrote them and the phase that renders them; the clean pattern above; and the scraping phase itself.
+- The flags are declared twice but the behaviour is not. Argument parsing, the comma-splitting of `--topic-keywords` and the record-writing loop moved into `topic_input`, so the two entry points cannot disagree about whether "wifi router, home network" is one search term or two.
+
 ## [0.78.1] - 2026-08-27
 
 ### Fixed

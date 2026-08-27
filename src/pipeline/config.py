@@ -38,6 +38,7 @@ import yaml
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.video.config import VideoConfig
+from src.video.producer.topic_input import TopicSpec, specs_from_args
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +313,7 @@ class GlobalBatchConfig:
     ----------
         product_ids: List of ASINs to scrape directly
         keywords: List of keywords to search for products
+        topics: Topics to render without scraping
         max_products: Maximum total products to collect across all keywords (global cap)
         products_per_keyword: Maximum products to scrape per individual keyword
         scraper_filters: SearchParameters for filtering products
@@ -330,6 +332,9 @@ class GlobalBatchConfig:
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     keyword_pillar_map: dict[str, str] = field(default_factory=dict)
+    # Topics render without a scraper run, so they are an input source in their
+    # own right rather than a filter on one.
+    topics: list[TopicSpec] = field(default_factory=list)
     max_products: int = 10
     products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
@@ -785,7 +790,16 @@ def load_global_batch_config(
     # picking up 28 YAML keywords.
     cli_product_ids = getattr(cli_args, "product_ids", None)
     cli_keywords = getattr(cli_args, "keywords", None)
-    cli_has_inputs = cli_product_ids or cli_keywords
+    # Topics count as a CLI input set. Leaving them out meant `--topic` fell
+    # through to the YAML branch and the run scraped every configured keyword
+    # alongside the topic nobody asked it to pair them with.
+    cli_topics = specs_from_args(
+        topic=getattr(cli_args, "topic", None),
+        topic_description=getattr(cli_args, "topic_description", None),
+        topic_keywords=getattr(cli_args, "topic_keywords", None),
+        topics_file=getattr(cli_args, "topics_file", None),
+    )
+    cli_has_inputs = cli_product_ids or cli_keywords or cli_topics
 
     # Build the pillar map from YAML whichever source supplies the keyword
     # list. It describes which pillar a configured keyword belongs to, which is
@@ -921,6 +935,7 @@ def load_global_batch_config(
         product_ids=product_ids,
         keywords=keywords,
         keyword_pillar_map=keyword_pillar_map,
+        topics=cli_topics,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,
@@ -956,7 +971,7 @@ def validate_global_batch_config(
     """Validate global batch configuration before pipeline execution.
 
     Validates:
-    - At least one input source (product_ids or keywords) is provided
+    - At least one input source (product_ids, keywords or topics) is provided
     - Profile configuration is valid (profile XOR random_profile)
     - Profile names exist in video configuration
     - Profile pool is not empty when random_profile is enabled
@@ -973,11 +988,12 @@ def validate_global_batch_config(
 
     """
     # Validate inputs exist
-    if not config.product_ids and not config.keywords:
+    if not config.product_ids and not config.keywords and not config.topics:
         raise ValueError(
             "No inputs provided. Specify at least one of:\n"
             "  --product-ids ASIN1 ASIN2 ...\n"
-            "  --keywords 'keyword1' 'keyword2' ..."
+            "  --keywords 'keyword1' 'keyword2' ...\n"
+            "  --topic 'subject' / --topics-file topics.yaml"
         )
 
     # Validate profile configuration

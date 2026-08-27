@@ -35,10 +35,8 @@ from src.video.producer.orchestration import (
 from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
-    TopicSpec,
-    build_topic_product,
-    load_topics_file,
-    topic_product_id,
+    materialise_topics,
+    specs_from_args,
 )
 from src.video.producer.utils import (
     ProfileUsageTracker,
@@ -97,12 +95,19 @@ class BatchSummary:
         return json.dumps(asdict(self), indent=2)
 
 
-def discover_products_for_batch(outputs_dir: Path) -> list[tuple[Path, ProductData]]:
+def discover_products_for_batch(
+    outputs_dir: Path, *, include_topics: bool = False
+) -> list[tuple[Path, ProductData]]:
     """Discover products in the outputs directory for batch processing.
 
     Args:
     ----
         outputs_dir: Directory to scan for product subdirectories
+        include_topics: Return topic directories as well. Off by default
+            because a plain batch run means "every product here" and a topic
+            handed to a product profile fails the run rather than skipping it.
+            The global batch turns it on for a run whose inputs *are* topics,
+            where the caller named them and the profile is theirs.
 
     Returns:
     -------
@@ -138,7 +143,7 @@ def discover_products_for_batch(outputs_dir: Path) -> list[tuple[Path, ProductDa
             logger.debug(f"Skipping {product_dir.name}: no data.json found")
             continue
 
-        if product_dir.name.startswith(TOPIC_ID_PREFIX):
+        if product_dir.name.startswith(TOPIC_ID_PREFIX) and not include_topics:
             # Topic renders need a stock-sourced profile. Batch discovery hands
             # products to product profiles, which would find no imagery here and
             # fail the run rather than skip it.
@@ -896,39 +901,18 @@ async def main():
             # Topic mode: build the record instead of reading one the scraper
             # wrote. Everything downstream is unchanged; the run directory comes
             # from the record's identifier the same way a scraped product's does.
-            if args.topics_file:
-                specs = load_topics_file(args.topics_file)
-            else:
-                specs = [
-                    TopicSpec(
-                        title=args.topic,
-                        description=args.topic_description or "",
-                        keywords=[
-                            k.strip()
-                            for k in (args.topic_keywords or "").split(",")
-                            if k.strip()
-                        ],
-                    )
-                ]
-            products_list = []
-            for spec in specs:
-                product = build_topic_product(spec)
-                # Materialise data.json so the run is inspectable and resumable
-                # in the same shape as a scraped product's directory.
-                # `scraped_data` is the data.json path the producer reads, so
-                # take the directory from it rather than naming a key that only
-                # happens to exist today.
-                data_path = config.get_product_paths(
-                    topic_product_id(spec.title), args.profile
-                )["scraped_data"]
-                topic_dir = data_path.parent
-                topic_dir.mkdir(parents=True, exist_ok=True)
-                data_path.write_text(
-                    json.dumps(product.to_dict(), indent=2, ensure_ascii=False),
-                    encoding="utf-8",
-                )
-                logger.info("Prepared topic %r in %s", spec.title, topic_dir)
-                products_list.append((topic_dir, product))
+            specs = specs_from_args(
+                topic=args.topic,
+                topic_description=args.topic_description,
+                topic_keywords=args.topic_keywords,
+                topics_file=args.topics_file,
+            )
+            # Materialises data.json so the run is inspectable and resumable in
+            # the same shape as a scraped product's directory. Shared with the
+            # global batch, which reads those directories back off disk.
+            products_list = materialise_topics(specs, config, args.profile)
+            for topic_dir, product in products_list:
+                logger.info("Prepared topic %r in %s", product.topic, topic_dir)
             profile_name = args.profile
         else:
             # Single product mode: load from file
