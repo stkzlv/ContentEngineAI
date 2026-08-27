@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.77.0] - 2026-08-27
+
+### Added
+- A topic render gets its own hook-headline prompt. The product one requires a product category noun "as early as the line reads naturally", which on a topic with no device forces an invention: measured against the live model, "why your passwords keep getting leaked" produced `Password manager that stops leaks` over a script that never mentions one, and a real render produced `Password leaks explained`, three words where the prompt's own rule warns that a short line means the category was left out. The topic prompt asks for the symptom or the fix instead, and forbids naming anything the script does not cover. Its anti-examples are the four failures actually measured, because a rule the model already broke demonstrates more than a description does. Closes #230.
+- Topic counterparts to the pillar preamble and audience maps, so `--pillar` works with `--topic`. The product versions are written about a thing being shown, so pairing one with a topic template produced a prompt that argued with itself: the template says never invent a product, the preamble assumes one exists. The CLI refused the combination rather than emit that; the guard is now gone. Both families use the same pillar keys, so a later taxonomy change moves one key list rather than two vocabularies. Closes #229.
+
+### Changed
+- A pillar that narrows no templates on a topic render logs at debug rather than warning. `pillars` maps a pillar to product templates and a topic replaces the pool with the topic family, so the two never intersect by design; the pillar still shapes the preamble and the audience. The warning stays for a product render, where an empty intersection is a real misconfiguration.
+- `TOPIC_TITLE` and `TOPIC_DETAIL` are supplied by the caption-prompt renderer as well as the script one. Two renderers offering different placeholder sets for the same record is how a topic prompt written against the documented names dies with `Missing placeholder in template`.
+
 ## [0.76.0] - 2026-08-27
 
 ### Added
