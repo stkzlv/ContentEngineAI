@@ -7,8 +7,6 @@ an auto-flag suppresses distribution, so the label protects reach rather than
 costing it.
 """
 
-import pytest
-
 from src.publisher.models import TikTokContentSettings
 
 

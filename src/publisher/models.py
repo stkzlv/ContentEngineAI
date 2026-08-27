@@ -1160,6 +1160,7 @@ class TikTokContentSettings:
         is_brand_organic_post: Whether post is brand organic
         content_preview_confirmed: User confirmed content preview
         express_consent_given: User gave express consent
+        video_made_with_ai: Declare TikTok's AI-generated-content label
 
     """
 

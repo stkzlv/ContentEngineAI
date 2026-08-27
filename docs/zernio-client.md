@@ -257,7 +257,7 @@ A transient IG Graph container failure. `retry()` is the correct fix.
 
 ### `Commercial content disclosure is enabled but no option selected` (TikTok)
 
-The TikTok disclosure settings are missing. Use `posts.update()` with the correct `platformSpecificData.tiktokSettings` (or the project-level `TikTokContentSettings`) so the post auto-republishes.
+The TikTok disclosure settings are missing. Follow the repair snippet in [publisher.md](publisher.md) rather than rebuilding `platformSpecificData` by hand: an update *replaces* that object instead of merging into it, so every key the post already carried has to be re-sent. `TikTokContentSettings.to_sdk_dict()` is not enough on its own -- it builds the nested `tiktokSettings` block only, and the AI-content label sits flat beside it.
 
 ---
 
