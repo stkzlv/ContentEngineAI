@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-08-27
+
+### Added
+- Every TikTok post declares the AI-generated-content label. TikTok requires it for AI-generated speech and extends it to AI voiceover even when the footage is real, which every render here carries; script writing, captions and hashtags are exempt but the voice is not. Undisclosed AI content is auto-labelled from C2PA credentials and an auto-flag suppresses distribution, so the label protects reach rather than costing it, and enforcement escalates from a warning to a posting restriction to a ban. On by default, the opposite of YouTube's synthetic-media disclosure, because YouTube lists cloning one's own voice for voiceover as explicitly not requiring one. Closes #170.
+
+### Notes
+- The label is sent flat beside `tiktokSettings` rather than inside it. The SDK types `platformSpecificData` as a flat `TikTokPlatformData` and models no `tiktokSettings` key at all; the nested block this project sends is a legacy shape the API still accepts. `platformSpecificData` is passed through as a raw dict, so a key the API does not recognise is dropped in silence and the post publishes undisclosed — the test asserts the key against the SDK's own field names rather than a string literal.
+- An update replaces `platformSpecificData` rather than merging it, measured against the live API. Both documented TikTok repair runbooks rebuilt that object by hand and so would have republished an AI-voiced post with no AI-content label, silently. One now carries the field; the other points at it rather than keeping a second copy to go stale.
+- The flat key round-trips: a real post created against the live API and read back stored `videoMadeWithAi` beside `tiktokSettings`, not nested inside it. That is as far as this side can see -- whether TikTok then applies the label on-platform is not observable through the scheduler, so the publish-option runbook gained the read-back check rather than a claim.
+- Turning the label off applies to the `single` and `schedule` paths only. The global batch builds its own publisher and does not pass `tiktok_settings` (#255), so it uses the dataclass defaults and keeps the label on. The compliance outcome is right on both paths; only a deliberate opt-out is ignored, which fails safe.
+
 ## [0.77.0] - 2026-08-27
 
 ### Added

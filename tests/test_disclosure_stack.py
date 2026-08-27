@@ -349,3 +349,66 @@ class TestStackInvariants:
         )
         assert (tmp_path / "disclosure_text.txt").read_text() == "#publi"
         assert meta.format_content().startswith("#publi\n")
+
+
+class TestTikTokAiContentLabel:
+    """The AI-generated-content label reaches the payload on both branches.
+
+    `platformSpecificData` is passed through as a raw dict, so a key the API
+    does not recognise is dropped in silence and the post publishes
+    undisclosed. Asserting the built payload is the only guard that survives a
+    rename and still catches a new builder that forgets it; an earlier
+    source-text count did neither.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_unified_path_declares_it(self, mock_publisher):
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="#ad\n\nBody.",
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        tiktok = next(
+            p for p in call.kwargs.get("platforms", []) if p["platform"] == "tiktok"
+        )
+        assert tiktok["platformSpecificData"]["videoMadeWithAi"] is True
+
+    @pytest.mark.asyncio
+    async def test_the_per_platform_path_declares_it(self, mock_publisher):
+        """The branch `schedule` takes, which builds its own payload."""
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="#ad\n\nBody.",
+            platform_contents={"tiktok": {"content": "#ad\n\nBody."}},
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        tiktok = next(
+            p for p in call.kwargs.get("platforms", []) if p["platform"] == "tiktok"
+        )
+        assert tiktok["platformSpecificData"]["videoMadeWithAi"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_topic_post_still_declares_it(self, mock_publisher):
+        """No material connection, but still an AI voiceover.
+
+        `for_render` rewrites the commercial fields for a topic render; the
+        AI label is orthogonal and must survive that rewrite.
+        """
+        await mock_publisher.publish(
+            media_id="https://storage.late.dev/media.mp4",
+            platforms=[{"platform": "tiktok", "account_id": "acc_tt"}],
+            content="Body.",
+            carries_affiliate_content=False,
+        )
+
+        call = mock_publisher.client.posts.create.call_args
+        tiktok = next(
+            p for p in call.kwargs.get("platforms", []) if p["platform"] == "tiktok"
+        )
+        psd = tiktok["platformSpecificData"]
+        assert psd["videoMadeWithAi"] is True
+        assert psd["tiktokSettings"]["commercial_content_type"] == "none"

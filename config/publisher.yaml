@@ -359,6 +359,37 @@ affiliate_disclosure:
 synthetic_media_disclosure: false
 
 # ============================================================================
+# TIKTOK CONTENT SETTINGS
+# ============================================================================
+# Per-post TikTok options. Every key here has a dataclass default, so the
+# block is optional; it is shipped commented so the keys are discoverable.
+#
+# `video_made_with_ai` is TikTok's AI-generated-content label, and it is ON by
+# default -- the opposite of `synthetic_media_disclosure` above. That is not an
+# inconsistency: the two platforms draw the line in different places and this
+# pipeline lands on opposite sides of it. TikTok requires the label for
+# AI-generated speech and extends it to AI voiceover even over real footage,
+# and every render here carries an AI TTS voiceover. YouTube lists cloning
+# one's own voice for voiceover as explicitly NOT requiring disclosure.
+#
+# Disclosing is also the cheaper error: TikTok reads C2PA credentials and
+# auto-labels undisclosed AI content, an auto-flag suppresses distribution,
+# and enforcement escalates from a warning to a posting restriction to a ban.
+#
+# Turning it off applies to the `single` and `schedule` paths only. The global
+# batch builds its own publisher without passing this block (issue #255), so
+# it uses the defaults and keeps the label on regardless.
+#
+# A single unknown key discards the whole block back to defaults, with a
+# warning. Keep it minimal.
+#tiktok_settings:
+#  video_made_with_ai: true
+#  privacy_level: "PUBLIC_TO_EVERYONE"
+#  allow_comment: true
+#  allow_duet: false
+#  allow_stitch: false
+
+# ============================================================================
 # ANALYTICS CAPTURE
 # ============================================================================
 # How many recently published posts each `analytics` sweep measures.

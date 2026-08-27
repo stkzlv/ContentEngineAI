@@ -1160,6 +1160,7 @@ class TikTokContentSettings:
         is_brand_organic_post: Whether post is brand organic
         content_preview_confirmed: User confirmed content preview
         express_consent_given: User gave express consent
+        video_made_with_ai: Declare TikTok's AI-generated-content label
 
     """
 
@@ -1171,6 +1172,20 @@ class TikTokContentSettings:
     is_brand_organic_post: bool = True
     content_preview_confirmed: bool = True
     express_consent_given: bool = True
+    # TikTok's AI-generated-content label. On by default, unlike YouTube's
+    # synthetic-media disclosure, because the two platforms draw the line in
+    # different places and this pipeline lands on opposite sides of it.
+    # TikTok requires the label for AI-generated speech and says so
+    # explicitly, extending it to AI voiceover even when the footage is real;
+    # every render here carries an AI TTS voiceover. YouTube lists cloning
+    # one's own voice for voiceover as *not* requiring disclosure, which is
+    # why `synthetic_media_disclosure` defaults off.
+    #
+    # Disclosing is also the cheaper error. TikTok reads C2PA credentials and
+    # auto-labels undisclosed AI content, and an auto-flag suppresses
+    # distribution; self-disclosure keeps reach. Enforcement escalates from a
+    # warning to a posting restriction to a ban.
+    video_made_with_ai: bool = True
 
     def for_render(self, carries_affiliate_content: bool) -> "TikTokContentSettings":
         """Return the settings this particular render should declare.
@@ -1204,6 +1219,17 @@ class TikTokContentSettings:
             "content_preview_confirmed": self.content_preview_confirmed,
             "express_consent_given": self.express_consent_given,
         }
+
+    def to_platform_data(self) -> dict[str, object]:
+        """Fields that belong beside `tiktokSettings`, not inside it.
+
+        The SDK types `platformSpecificData` as a flat `TikTokPlatformData`
+        and models no `tiktokSettings` key at all; the nested block this
+        project sends is a legacy shape the API still accepts. So a field the
+        SDK does model is sent where the SDK models it, rather than guessed
+        into the nested block where nothing says it would be read.
+        """
+        return {"videoMadeWithAi": self.video_made_with_ai}
 
     def to_top_level_dict(self) -> dict[str, str]:
         """Convert to top-level tiktok_settings format."""
