@@ -275,6 +275,7 @@ class TestAProfileThatCannotRenderATopicIsRefusedUpFront:
                     topics=[TopicSpec(title="Why wifi drops")],
                     random_profile=True,
                     profile_pool=["slideshow_stock", "slideshow_images1"],
+                    profile_pool_from_cli=True,
                     skip_publish=True,
                 ),
                 real_video_config,
@@ -328,4 +329,143 @@ class TestTheTwoTopicSourcesAreExclusive:
                 topic_description=None,
                 topic_keywords=None,
                 topics_file=topics_file,
+            )
+
+
+class TestCleanRemovesOnlyWhatTheRunNamed:
+    """A topics run named its inputs, so it must not wipe the machine.
+
+    `_clean_targets` takes the "remove everything" branch when no product ids
+    are given, and topics were not counted as named inputs -- so
+    `--topic X --clean` would delete every scraped product directory in
+    `outputs/`, along with any rendered-but-unpublished video in them.
+    """
+
+    @staticmethod
+    def _tree(root):
+        for name in ("B0ABCDEFGH", "B0FC5S16YM", "logs"):
+            (root / name).mkdir()
+        (root / topic_product_id("Why wifi drops")).mkdir()
+        (root / topic_product_id("Some other topic")).mkdir()
+
+    def test_a_topics_run_removes_only_its_own_topics(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets, _named_run_ids
+
+        self._tree(tmp_path)
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")], outputs_dir=tmp_path
+        )
+
+        targets = {p.name for p in _clean_targets(tmp_path, _named_run_ids(config))}
+
+        assert targets == {topic_product_id("Why wifi drops")}
+
+    def test_a_product_run_is_unchanged(self, tmp_path):
+        from src.pipeline.global_batch import _clean_targets, _named_run_ids
+
+        self._tree(tmp_path)
+        config = GlobalBatchConfig(product_ids=["B0FC5S16YM"], outputs_dir=tmp_path)
+
+        targets = {p.name for p in _clean_targets(tmp_path, _named_run_ids(config))}
+
+        assert targets == {"B0FC5S16YM"}
+
+    def test_a_run_naming_nothing_still_sweeps_every_run_directory(self, tmp_path):
+        """The keyword-run behaviour this must not break."""
+        from src.pipeline.global_batch import _clean_targets, _named_run_ids
+
+        self._tree(tmp_path)
+        config = GlobalBatchConfig(keywords=["wireless earbuds"], outputs_dir=tmp_path)
+
+        targets = {p.name for p in _clean_targets(tmp_path, _named_run_ids(config))}
+
+        assert "logs" not in targets
+        assert targets == {
+            "B0ABCDEFGH",
+            "B0FC5S16YM",
+            topic_product_id("Why wifi drops"),
+            topic_product_id("Some other topic"),
+        }
+
+
+class TestResumeKeepsTheTopics:
+    """`--resume` carries no input flags, so the config has no topics on it.
+
+    Reading `config.topics` to decide whether discovery returns them meant a
+    resumed topics run found nothing and reported PIPELINE FAILED.
+    """
+
+    def test_discovery_opts_in_from_the_ids_being_handed_off(self, tmp_path):
+        import json
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+        from src.video.producer.topic_input import build_topic_product
+
+        pid = topic_product_id("Why wifi drops")
+        (tmp_path / pid).mkdir()
+        (tmp_path / pid / "data.json").write_text(
+            json.dumps(
+                build_topic_product(TopicSpec(title="Why wifi drops")).to_dict()
+            ),
+            encoding="utf-8",
+        )
+
+        # A resumed run: no topics on the config, ids from the saved state.
+        resumed = GlobalBatchConfig(outputs_dir=tmp_path, skip_publish=True)
+        ready = GlobalPipelineOrchestrator(resumed)._execute_handoff_phase([pid])
+
+        assert [p.name for p, _ in ready] == [pid]
+
+
+class TestTopicsAndProcessAllProducts:
+    def test_the_combination_is_refused(self, real_video_config):
+        """It would render scraped products from generic stock footage.
+
+        A topics run narrows the pool to stock-sourced profiles, and
+        `--process-all-products` sweeps every product directory into the same
+        run, so each would be rendered with its own photos ignored -- and then
+        published.
+        """
+        with pytest.raises(ValueError, match="--process-all-products"):
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    profile="slideshow_stock",
+                    process_all_products=True,
+                    skip_publish=True,
+                ),
+                real_video_config,
+            )
+
+
+class TestAConfiguredPoolIsNotAnInstructionForThisRun:
+    """`pipeline.yaml` can set `profile_pool` for the default product run.
+
+    Refusing it made "omit --profile" fail on any install that configured one,
+    while the tests passed because they build the config directly.
+    """
+
+    def test_a_yaml_pool_is_replaced(self, real_video_config):
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            random_profile=True,
+            profile_pool=["slideshow_images1", "slideshow_images2"],
+            profile_pool_from_cli=False,
+            skip_publish=True,
+        )
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile_pool == ["slideshow_stock"]
+
+    def test_a_pool_named_on_the_command_line_is_refused(self, real_video_config):
+        with pytest.raises(ValueError, match="cannot render a topic"):
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    random_profile=True,
+                    profile_pool=["slideshow_images1"],
+                    profile_pool_from_cli=True,
+                    skip_publish=True,
+                ),
+                real_video_config,
             )

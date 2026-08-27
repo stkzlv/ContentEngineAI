@@ -385,6 +385,23 @@ Examples:
 _RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
 
 
+def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
+    """The run directories this invocation named, if it named any.
+
+    Topics are a named input exactly like product ids, and were falling into
+    the unnamed branch below, which removes every run directory in `outputs/`.
+    A `--topic X --clean` run would delete every scraped product the machine
+    held, along with any rendered-but-unpublished video in them.
+    """
+    from src.video.producer.topic_input import topic_product_id
+
+    if config.product_ids:
+        return list(config.product_ids)
+    if config.topics:
+        return [topic_product_id(spec.title) for spec in config.topics]
+    return []
+
+
 def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
     """The product directories `--clean` would remove.
 
@@ -568,7 +585,9 @@ class GlobalPipelineOrchestrator:
             print(f"{section}")
             print("CLEAN")
             print(f"{section}")
-            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
+            targets = _clean_targets(
+                self.config.outputs_dir, _named_run_ids(self.config)
+            )
             if targets:
                 print(
                     f"  Would remove {len(targets)} product director"
@@ -1283,8 +1302,17 @@ class GlobalPipelineOrchestrator:
         # A topic run named its inputs, so its directories are what it asked
         # for. Discovery skips them by default, which would drop every topic
         # between the phase that wrote them and the phase that renders them.
+        # Derived from the ids being handed off, not from the config: a
+        # `--resume` carries no input flags, so `config.topics` is empty while
+        # the saved state's ids are topics. Reading the config there returned
+        # nothing and the resumed run reported PIPELINE FAILED.
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+        include_topics = bool(self.config.topics) or any(
+            pid.startswith(TOPIC_ID_PREFIX) for pid in scraped_product_ids
+        )
         all_products = discover_products_for_batch(
-            self.config.outputs_dir, include_topics=bool(self.config.topics)
+            self.config.outputs_dir, include_topics=include_topics
         )
 
         logger.info(
@@ -2320,7 +2348,7 @@ async def main():
         if config.clean:
             import shutil
 
-            for target in _clean_targets(config.outputs_dir, config.product_ids):
+            for target in _clean_targets(config.outputs_dir, _named_run_ids(config)):
                 shutil.rmtree(target)
                 logger.info("Cleaned product directory: %s", target)
 

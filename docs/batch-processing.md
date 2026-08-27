@@ -313,8 +313,9 @@ the run **fails** with `No visual inputs were found or gathered for this
 profile` -- it does not degrade to a skip, because visual gathering raises
 before the media check that would report one. The batch refuses the
 combination up front rather than paying for a script and a voiceover first, so
-omitting `--profile` entirely is safe: a topics run draws from the profiles
-that can render one.
+omitting `--profile` is safe: a topics run draws from the profiles that can
+render one, replacing any pool configured in `pipeline.yaml` for product runs.
+A pool named on the command line is refused rather than replaced.
 
 `--topic-keywords` is comma-separated so a phrase stays one search term.
 
@@ -462,7 +463,7 @@ poetry run python -m src.pipeline.global_batch \
   --clean \
   --debug
 
-# Clean all product directories (ASIN-pattern dirs only)
+# Clean every run directory (ASIN-shaped and topic-*)
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" \
   --profile slideshow_images1 \
@@ -470,7 +471,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-With `--product-ids`, only those product dirs are removed. Without it, all ASIN-matching directories under outputs/ are cleaned. Non-product directories (logs/, coverage/) are preserved.
+A run that names its inputs removes only those: `--product-ids` removes those products, and a topics run removes its own topic directories. A run that names none removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
 
 **Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 

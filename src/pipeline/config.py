@@ -343,6 +343,10 @@ class GlobalBatchConfig:
     profile: str | None = None
     random_profile: bool = False
     profile_pool: list[str] = field(default_factory=list)
+    # Whether the pool was named for THIS run or inherited from YAML. A topics
+    # run cannot use a product-run default, but must still refuse a pool the
+    # operator named on the command line rather than silently replacing it.
+    profile_pool_from_cli: bool = False
 
     # Common configuration
     fail_fast: bool = False
@@ -851,11 +855,8 @@ def load_global_batch_config(
     if not profile and not random_profile:
         random_profile = True
 
-    profile_pool = (
-        getattr(cli_args, "profile_pool", None)
-        or yaml_config.get("profile_pool", [])
-        or []
-    )
+    cli_profile_pool = getattr(cli_args, "profile_pool", None)
+    profile_pool = cli_profile_pool or yaml_config.get("profile_pool", []) or []
 
     # Common configuration
     fail_fast = getattr(cli_args, "fail_fast", False) or yaml_config.get(
@@ -942,6 +943,7 @@ def load_global_batch_config(
         profile=profile,
         random_profile=random_profile,
         profile_pool=profile_pool,
+        profile_pool_from_cli=bool(cli_profile_pool),
         fail_fast=fail_fast,
         process_all_products=process_all_products,
         outputs_dir=outputs_dir,
@@ -972,12 +974,21 @@ def _topic_capable_profiles(video_config: VideoConfig) -> list[str]:
     *product* batch must not draw it, so the topic pool cannot be the product
     pool minus exclusions -- it is close to the complement.
     """
-    from src.video.producer.utils import profile_needs_stock_media
+    from src.video.producer.utils import (
+        draws_visuals_from_script,
+        profile_needs_stock_media,
+    )
 
+    # Both halves, matching `config_validator.check_stock_media_key`: asking
+    # for stock is not enough on its own. A hybrid profile that also draws
+    # scraped images would gather only its stock share on a topic, which below
+    # `min_images_if_no_video` reports the run SKIPPED rather than rendering.
     return sorted(
         name
         for name, profile in video_config.video_profiles.items()
-        if name != "base" and profile_needs_stock_media(profile)
+        if name != "base"
+        and profile_needs_stock_media(profile)
+        and draws_visuals_from_script(profile)
     )
 
 
@@ -996,7 +1007,10 @@ def _validate_topic_profiles(
             )
         return
 
-    if config.profile_pool:
+    # A pool inherited from YAML describes the default product run, not this
+    # one, so it is replaced rather than refused; only a pool named on the
+    # command line for this run is an instruction worth contradicting.
+    if config.profile_pool and config.profile_pool_from_cli:
         unusable = [p for p in config.profile_pool if p not in capable]
         if unusable:
             raise ValueError(
@@ -1052,6 +1066,14 @@ def validate_global_batch_config(
     # A topic run replaces the scraping phase outright, so anything to scrape
     # named alongside it is silently discarded. Refuse rather than drop an
     # input the operator asked for.
+    if config.topics and config.process_all_products:
+        raise ValueError(
+            "Cannot combine topics with --process-all-products. A topics run "
+            "narrows its profile pool to stock-sourced profiles, which draw "
+            "no product imagery, so every scraped product swept in would be "
+            "rendered from generic stock footage and published."
+        )
+
     if config.topics and (config.product_ids or config.keywords):
         also = []
         if config.product_ids:
