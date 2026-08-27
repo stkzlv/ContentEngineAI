@@ -83,6 +83,13 @@ class PostMetrics:
     # overwrite all of them -- the outcome the field exists to prevent, applied
     # to exactly the figures that cannot be recomputed.
     covers_publication: bool | None = None
+    # Set once a sweep finds this post had a view count and returned none.
+    # Without it the check cannot fire on a transition: the merge keeps the
+    # stored figure, so the same post satisfies "had a count, returned none"
+    # on every later sweep and an account whose posts have aged out would
+    # warn daily forever -- the outcome the rule above was chosen to avoid.
+    # Cleared as soon as a figure comes back, so a later break still reports.
+    stopped_reporting: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -418,12 +425,56 @@ def load_metrics(outputs_dir: Path) -> list[PostMetrics]:
         return []
 
 
-def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
+def _warn_regressed(regressed: list[str], measured: int) -> None:
+    """Report posts that had a view count and came back with none.
+
+    This is the one signal that separates a broken reader from an account
+    whose posts are simply too young to have rows. Both look identical in a
+    single sweep -- every timeline empty, every call successful -- so the
+    sweep cannot fail on it without failing a new account daily until its
+    first rows land. Across sweeps they diverge: a young post gains a figure
+    within days, while a post that *had* one and stopped reporting it did not
+    get younger. A renamed timeline key regresses every mature post at once.
+
+    A warning rather than an error on purpose. The figures already stored are
+    safe -- the merge keeps them per field -- so nothing is lost at the moment
+    this fires; what is at risk is the capture continuing to look healthy
+    while it collects nothing.
+
+    Fires on the transition, not on the state. `stopped_reporting` marks a
+    post whose figure went away, and a marked post stops counting, so an
+    account dormant long enough for its whole measured window to age out
+    warns once rather than daily. Without that marker the merge's own
+    keep-per-field behaviour makes the condition permanent: the stored figure
+    survives the empty reading, so the same posts satisfy it forever.
+    """
+    sample = ", ".join(regressed[:5])
+    more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
+    logger.warning(
+        "Every post with a stored view count returned none this sweep: "
+        "%d of %d measured, including %s%s. Posts age out of the provider's "
+        "timeline one at a time, never all at once, so check that the "
+        "response still carries the rows this reads.",
+        len(regressed),
+        measured,
+        sample,
+        more,
+    )
+
+
+def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
     """Write per-post figures, merging each post's row field by field.
 
     Not "the later reading wins": past the provider's retention horizon a
     later reading has *less* history behind it, and its absent day-N figures
     would erase ones captured while they were still reachable.
+
+    Returns post ids only when *every* re-measured post that still counted --
+    one with a stored view count, not already marked quiet -- came back
+    without one, and an empty list otherwise. A partial regression is ageing
+    and deliberately reports nothing. The caller routes the result where an
+    operator will see it, because a warning alone reaches no surface anyone
+    is told to check.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     path = metrics_path(outputs_dir)
@@ -434,9 +485,42 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
         raise OSError(f"Refusing to overwrite unreadable metrics file: {path}")
 
     merged = {m.post_id: m for m in load_metrics(outputs_dir)}
+    # Posts this sweep re-measured that already had a view count, and those of
+    # them that came back without one.
+    had_a_count: list[str] = []
+    regressed: list[str] = []
     for m in metrics:
         stored = merged.get(m.post_id)
+        # A post already known to be quiet does not count again. The merge
+        # keeps its stored figure, so without this it satisfies "had a count,
+        # returned none" on every later sweep and the warning repeats daily.
+        if (
+            stored is not None
+            and stored.views_total is not None
+            and not stored.stopped_reporting
+        ):
+            had_a_count.append(m.post_id)
+            if m.views_total is None:
+                regressed.append(m.post_id)
         merged[m.post_id] = _combine(stored, m) if stored else m
+
+    # Only when *every* such post went quiet at once. A single post losing its
+    # figures is ordinary: past the retention horizon the provider stops
+    # returning a post's rows entirely, so an aged-out post regresses on a
+    # completely healthy install. Those age out one at a time. A reader that
+    # stopped understanding the response takes every post with it in the same
+    # sweep, which no amount of ageing does.
+    #
+    # An earlier version tried to tell the two apart per post, by asking when
+    # each had last produced rows. There is no field that answers that:
+    # `timeline_end` is pinned to whichever reading a preserved durability
+    # ratio came from (see `_combine`), so it freezes on live posts and gating
+    # on it silenced the check on exactly the mature posts that make the
+    # signal unambiguous.
+    if regressed and len(regressed) == len(had_a_count):
+        _warn_regressed(regressed, len(metrics))
+    else:
+        regressed = []
 
     tmp = path.with_suffix(".tmp")
     tmp.write_text(
@@ -444,6 +528,7 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> None:
         encoding="utf-8",
     )
     tmp.replace(path)
+    return regressed
 
 
 def _withdraw_lagged(metrics: PostMetrics) -> PostMetrics:
@@ -522,6 +607,13 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
     merged = PostMetrics(
         post_id=fresh.post_id,
         published_at=fresh.published_at or stored.published_at,
+        # Sticky while the post stays quiet, cleared the moment a figure comes
+        # back. What makes the regression check fire on the transition rather
+        # than on every sweep that follows it.
+        stopped_reporting=(
+            fresh.views_total is None
+            and (stored.views_total is not None or stored.stopped_reporting)
+        ),
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
         # Window-independent, so the fresh figure is simply the more recent

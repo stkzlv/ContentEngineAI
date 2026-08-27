@@ -464,6 +464,23 @@ the figures expire. A single post failing stays a warning, because a partial
 reading is still worth storing, and an account with no published posts is not
 an error at all.
 
+A sweep whose timelines all come back *empty* is a different case and is not
+treated as a failure: it is indistinguishable, in that sweep, from an account
+whose posts are too young to have rows, and failing there would fail a new
+account daily. What is reported instead is every post with a stored view count
+returning none at once. Posts age out of the provider's timeline one at a time,
+so all of them going quiet in the same sweep is the reader, not age.
+
+The one case where this fires without a reader fault is an account quiet long
+enough for every post in the measured window to age out. It reports once there
+rather than on every sweep, because a post already known to have gone quiet
+stops counting.
+
+It is recorded both as a warning and in `outputs/logs/analytics-failures.log`,
+so `make analytics-timer-status` shows it. A warning alone would sit behind one
+line per measured post and never reach the last few journal lines that command
+prints. Stored figures are untouched.
+
 When a sweep fails it is recorded three ways: in the journal, appended to
 `outputs/logs/analytics-failures.log`, and as a desktop notification if a
 session is there to receive one. The log file is the durable one, and

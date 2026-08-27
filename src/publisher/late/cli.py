@@ -224,6 +224,40 @@ def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     return out
 
 
+def _record_regression(regressed: list[str], measured: int, outputs_dir: Path) -> None:
+    """Append a regression to the file `make analytics-timer-status` reads.
+
+    A log line is not enough on its own. The status target shows the last five
+    journal lines, and the sweep prints a header plus one line per measured
+    post after this point, so at the shipped size the warning is fifty lines
+    out of reach. The one command the docs tell an operator to run would keep
+    reporting no failures while the capture was dead.
+
+    Shares the file the OnFailure handler writes, so both reasons to look at
+    this timer surface in one place. Best effort: a sweep that captured
+    figures must not fail because it could not write a note about them.
+    """
+    log = outputs_dir / "logs" / "analytics-failures.log"
+    sample = ", ".join(regressed[:5])
+    more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
+    # Local time with an offset, matching `date` in the OnFailure handler that
+    # appends to this same file. Stamping one writer UTC and the other local
+    # puts entries out of order in the tail the status target prints.
+    when = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
+    try:
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as fh:
+            fh.write(
+                f"{when}  every post with a stored view count returned none: "
+                f"{len(regressed)} of {measured} measured, including "
+                f"{sample}{more}\n"
+                f"    Posts age out one at a time, never all at once. Check "
+                f"the timeline response shape.\n\n"
+            )
+    except OSError as e:
+        logger.warning("Could not record the regression to %s: %s", log, e)
+
+
 def _analytics_limit(args: argparse.Namespace, config: PublisherConfig) -> int:
     """Resolve the sweep size: the CLI flag if given, else the configured one.
 
@@ -323,8 +357,8 @@ async def cmd_analytics(
         # first rows land -- which teaches the operator to ignore the alarm,
         # the one outcome worse than the gap. Stubs cannot erase stored figures
         # (`_combine` merges per field), so the cost is a missed signal, not
-        # corruption. Detecting a silent parser break needs a staleness check
-        # over the stored history, not a decision at this point.
+        # corruption. That break is caught across sweeps instead, by the
+        # regression check in `save_metrics`, whose result is recorded below.
         if attempted and not metrics:
             logger.error(
                 "Measured %d post(s) and captured none. Every timeline call "
@@ -332,7 +366,9 @@ async def cmd_analytics(
                 attempted,
             )
             sys.exit(1)
-        save_metrics(metrics, outputs_dir)
+        regressed = save_metrics(metrics, outputs_dir)
+        if regressed:
+            _record_regression(regressed, len(metrics), outputs_dir)
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")

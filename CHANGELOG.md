@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-08-27
+
+### Added
+- A sweep reports when every post that had a stored view count comes back with none, both as a warning and as a line in `outputs/logs/analytics-failures.log`, which `make analytics-timer-status` reads. A log line alone would not reach an operator: the status target prints the last few journal lines, and the sweep prints one line per measured post after this point, so at the shipped size the warning is fifty lines out of reach.
+- The check is deliberately all-or-nothing, and fires on the transition. A single post losing its figures is ordinary ageing, because the provider stops returning a post's rows entirely once it is old enough, and those posts age out one at a time; a reader that stopped understanding the response takes every post with it in the same sweep. A post already known to be quiet stops counting, so an account dormant long enough for its whole measured window to age out reports once rather than on every sweep — without that the merge's keep-per-field behaviour would make the condition permanent, since the stored figure survives an empty reading. Stored figures are untouched.
+
 ## [0.75.0] - 2026-08-26
 
 ### Added
