@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - The compliance outcome never differed: every value the batch defaulted to matched what a stock config asks for, so what was lost was a deliberate opt-out, not a disclosure. The 0.78.0 caveat saying so is removed from the three places that carried it.
-- The test asserts the payload rather than the constructor argument, and reads the batch's call site to confirm it is wired at all. Sharing a parser is not the fix on its own: the defect was a call site that called no parser. The slot-occupancy publisher a few lines above still passes nothing, correctly -- it reads scheduled posts and never publishes.
+- Three seams, three tests, because a settings object can be built right, handed over right, and still not reach the payload. The two producers are driven through their own code and compared rather than the shared parser being called twice, which would assert one function against itself. The batch's call site is read to confirm it is wired at all, since sharing a parser is not the guard when the defect was a call site that called no parser. And a real publisher is built to assert the configured value survives into `platformSpecificData`. The slot-occupancy publisher a few lines above still passes nothing, correctly -- it reads scheduled posts and never publishes.
 
 ## [0.78.0] - 2026-08-27
 

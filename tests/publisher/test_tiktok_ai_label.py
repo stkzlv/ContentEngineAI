@@ -76,31 +76,42 @@ class TestBothPathsHonourTheConfiguredSettings:
     `schedule` paths and was silently ignored on the one `CLAUDE.md` names as
     the default for batch runs.
 
-    Asserting the payload rather than the constructor argument is deliberate.
-    The two paths can agree on what they pass and still disagree on what they
-    send, and the payload is the only thing TikTok sees.
+    Each producer of the settings is driven through its own real code here.
+    Calling the shared parser twice and comparing the results would assert one
+    deterministic function against itself, which no change can falsify -- and
+    the loader dropping the section is #255 happening on the other path.
     """
 
     def test_the_default_is_on(self):
         """If this ever flips, every post goes out undisclosed by default."""
         assert TikTokContentSettings().video_made_with_ai is True
 
-    def test_a_configured_opt_out_reaches_the_payload_on_both_paths(self):
-        from src.publisher.config import parse_tiktok_settings
+    def test_the_two_producers_agree_on_a_configured_opt_out(self):
+        from src.publisher.config import (
+            _parse_schedule_and_cleanup_config,
+            parse_tiktok_settings,
+        )
 
         section = {"video_made_with_ai": False}
-        cli_settings = parse_tiktok_settings(section)
-        batch_settings = parse_tiktok_settings(section)
+        # The publisher CLI reaches its settings through the loader; the batch
+        # reads publisher.yaml inline and calls the parser directly.
+        cli_settings = _parse_schedule_and_cleanup_config(
+            {"tiktok_settings": dict(section)}
+        )["tiktok_settings"]
+        batch_settings = parse_tiktok_settings(dict(section))
 
         assert cli_settings == batch_settings
-        for settings in (cli_settings, batch_settings):
-            assert settings.to_platform_data() == {"videoMadeWithAi": False}
+        assert cli_settings.to_platform_data() == {"videoMadeWithAi": False}
 
     def test_the_batch_passes_what_the_yaml_section_says(self):
         """Reads the call site, because nothing else proves it is wired.
 
         The parser being shared is not the fix on its own -- the defect was a
         call site that never called any parser at all.
+
+        Pinned to the call that also carries `synthetic_media_disclosure`, so
+        moving the kwarg onto the slot-occupancy publisher a few lines above
+        fails here rather than keeping a bare count at one.
         """
         import ast
         from pathlib import Path
@@ -112,9 +123,49 @@ class TestBothPathsHonourTheConfiguredSettings:
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "create_publisher"
-            and any(kw.arg == "tiktok_settings" for kw in node.keywords)
+            and {"tiktok_settings", "synthetic_media_disclosure"}
+            <= {kw.arg for kw in node.keywords}
         ]
         assert len(wired) == 1, (
             "the batch's publishing publisher must pass tiktok_settings; the "
             "slot-occupancy publisher never publishes and must not need it"
         )
+
+
+class TestTheConfiguredValueSurvivesIntoThePayload:
+    """The seam between a settings object and what TikTok receives.
+
+    Everything above stops at the settings object. That is one link short:
+    `_build_sdk_platforms` could ignore it and hardcode the flag, and every
+    other test here would stay green while a configured opt-out published as
+    a disclosure.
+    """
+
+    @staticmethod
+    def _tiktok_payload(settings):
+        from src.publisher.late.client import LatePublisher
+
+        publisher = LatePublisher(api_key="k" * 40, tiktok_settings=settings)
+        platforms, _ = publisher._build_sdk_platforms(
+            [{"platform": "tiktok", "account_id": "acc1"}],
+            "media_1",
+            platform_contents=None,
+            carries_affiliate_content=True,
+        )
+        return platforms[0]["platformSpecificData"]
+
+    def test_an_opt_out_publishes_as_an_opt_out(self):
+        payload = self._tiktok_payload(TikTokContentSettings(video_made_with_ai=False))
+
+        assert payload["videoMadeWithAi"] is False
+
+    def test_a_stock_install_publishes_the_label(self):
+        payload = self._tiktok_payload(TikTokContentSettings())
+
+        assert payload["videoMadeWithAi"] is True
+
+    def test_a_neighbouring_field_travels_too(self):
+        """The label is not the only thing #255 was dropping."""
+        payload = self._tiktok_payload(TikTokContentSettings(allow_duet=True))
+
+        assert payload["tiktokSettings"]["allow_duet"] is True

@@ -645,10 +645,12 @@ async def test_batch_publisher_gets_the_configured_tiktok_settings(
     """#255: the batch passed none, so a YAML opt-out died on the batch path.
 
     Driven from a section that turns the AI-content label off and flips a
-    second field, so the assertion cannot pass on the dataclass defaults. The
-    payload is checked rather than the kwarg, because a settings object that
-    reaches the publisher and never reaches `platformSpecificData` is the same
-    outcome for TikTok as one that was never passed.
+    second field, so the assertion cannot pass on the dataclass defaults.
+
+    The publisher is mocked, so this proves the orchestrator hands the parsed
+    section over -- not that it survives into `platformSpecificData`. That
+    last link is asserted against a real publisher in
+    tests/publisher/test_tiktok_ai_label.py.
     """
     config = GlobalBatchConfig(
         product_ids=["B0TEST1"],
