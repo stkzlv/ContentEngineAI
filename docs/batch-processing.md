@@ -316,7 +316,9 @@ combination up front, so a misconfiguration is reported as one rather than as
 a per-product render failure, and so
 omitting `--profile` is safe: a topics run draws from the profiles that can
 render one, replacing any pool configured in `pipeline.yaml` for product runs.
-A pool named on the command line is refused rather than replaced.
+A pool named on the command line is refused rather than replaced, and so is a
+`profile` set in `pipeline.yaml` -- that one carries no record of whether it
+was meant for this run, so it is reported rather than overridden.
 
 `--topic-keywords` is comma-separated so a phrase stays one search term.
 

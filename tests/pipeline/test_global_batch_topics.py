@@ -689,15 +689,55 @@ class TestRecognisingAResumedTopicsRun:
             GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
         )
 
-    def test_main_wires_it(self):
-        """The helper having tests is not the guard; the call site is."""
+    def test_main_acts_on_it_before_validating(self):
+        """The helper having tests is not the guard; the call site is.
+
+        And neither is the call: keeping `_is_resuming_topics(config)` while
+        dropping the assignment it gates leaves validation blind, and the
+        whole suite green. The flag must also be set *before* validation,
+        since that is what narrows the pool.
+        """
         import ast
         from pathlib import Path
 
         tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
-        assert any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "_is_resuming_topics"
-            for node in ast.walk(tree)
-        ), "main no longer detects a topics resume"
+        # `main` is async; matching only FunctionDef finds nothing and the
+        # assertions below would then pass vacuously on an empty search.
+        main = next(
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == "main"
+        )
+
+        def line_of(pred):
+            return next(
+                (n.lineno for n in ast.walk(main) if pred(n)),
+                None,
+            )
+
+        set_line = line_of(
+            lambda n: isinstance(n, ast.Assign)
+            and any(
+                isinstance(tgt, ast.Attribute) and tgt.attr == "topics_resume"
+                for tgt in n.targets
+            )
+        )
+        gate_line = line_of(
+            lambda n: isinstance(n, ast.If)
+            and isinstance(n.test, ast.Call)
+            and isinstance(n.test.func, ast.Name)
+            and n.test.func.id == "_is_resuming_topics"
+        )
+        validate_line = line_of(
+            lambda n: isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name)
+            and n.func.id == "validate_global_batch_config"
+        )
+
+        assert gate_line, "main no longer detects a topics resume"
+        assert set_line, "main detects a topics resume and does nothing with it"
+        assert gate_line < set_line, "the assignment is not gated by the detection"
+        assert (
+            validate_line and set_line < validate_line
+        ), "topics_resume is set after validation, which is what reads it"

@@ -582,6 +582,25 @@ class GlobalPipelineOrchestrator:
                 # Never let webhook failures affect the pipeline
                 logger.warning("Webhook notification failed: %s", e)
 
+    def _resumed_topic_ids(self) -> list[str]:
+        """Topic ids from the saved state, for a `--resume` plan.
+
+        `config.topics` is empty on a resume, so the plan has nothing to name
+        without reading them back.
+        """
+        if not self.config.topics_resume:
+            return []
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+        saved = load_pipeline_state(self.config.outputs_dir)
+        if saved is None:
+            return []
+        return [
+            pid
+            for pid in (saved.scraping_completed_products or [])
+            if pid.startswith(TOPIC_ID_PREFIX)
+        ]
+
     def display_execution_plan(self, video_config: Any) -> None:
         """Display planned execution without running the pipeline.
 
@@ -631,26 +650,32 @@ class GlobalPipelineOrchestrator:
         print("PHASE 1: SCRAPING")
         print(f"{section}")
 
-        if self.config.topics:
+        # A resumed topics run scrapes nothing either, and its topics are not
+        # on the config -- reading only `topics` printed a full keyword plan
+        # for a run that would render the saved topic and search for nothing.
+        resumed_ids = self._resumed_topic_ids()
+        is_topics_run = bool(self.config.topics) or bool(resumed_ids)
+        if is_topics_run:
             # Named as skipped rather than omitted: a plan that simply prints
             # nothing under SCRAPING reads as a misconfigured run.
-            print(f"  Skipped: {len(self.config.topics)} topic(s), nothing to scrape")
-            for spec in self.config.topics[:10]:
-                print(f"    - {spec.title}")
-            if len(self.config.topics) > 10:
-                print(f"    ... and {len(self.config.topics) - 10} more")
+            named = [spec.title for spec in self.config.topics] or resumed_ids
+            print(f"  Skipped: {len(named)} topic(s), nothing to scrape")
+            for title in named[:10]:
+                print(f"    - {title}")
+            if len(named) > 10:
+                print(f"    ... and {len(named) - 10} more")
 
         # Everything below describes scraping, which a topic run does not do.
         # Printing it anyway promised work the run would discard, which is the
         # one thing the plan exists to rule out.
-        if self.config.product_ids and not self.config.topics:
+        if self.config.product_ids and not is_topics_run:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
             for pid in self.config.product_ids[:10]:  # Show first 10
                 print(f"    - {pid}")
             if len(self.config.product_ids) > 10:
                 print(f"    ... and {len(self.config.product_ids) - 10} more")
 
-        if self.config.keywords and not self.config.topics:
+        if self.config.keywords and not is_topics_run:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
                 kw_limit = self.config.products_per_keyword
@@ -671,7 +696,7 @@ class GlobalPipelineOrchestrator:
         if filters.prime_only:
             active_filters.append("prime_only=true")
 
-        if not self.config.topics:
+        if not is_topics_run:
             # Scraper filters, so meaningless on a run that scrapes nothing.
             if active_filters:
                 print(f"  Filters: {', '.join(active_filters)}")
