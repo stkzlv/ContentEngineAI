@@ -68,32 +68,53 @@ class TestItIsSentWhereTheSdkModelsIt:
         assert "video_made_with_ai" not in TikTokContentSettings().to_sdk_dict()
 
 
-class TestTheBatchPathKeepsTheLabelOn:
-    """The batch builds its own publisher and passes no tiktok_settings.
+class TestBothPathsHonourTheConfiguredSettings:
+    """Same YAML, same payload, whichever entry point publishes.
 
-    So it runs on the dataclass defaults (issue #255). The compliance outcome
-    is still right, because the default is on; what does not reach a batch run
-    is a deliberate opt-out set in YAML. Asserting the default here is what
-    makes that safe: if the default ever flips, every batch-published post
-    goes out undisclosed with nothing in the config to explain why.
+    #255: the batch built its own publisher and passed no settings, so it ran
+    on the dataclass defaults. A deliberate opt-out applied on the `single` and
+    `schedule` paths and was silently ignored on the one `CLAUDE.md` names as
+    the default for batch runs.
+
+    Asserting the payload rather than the constructor argument is deliberate.
+    The two paths can agree on what they pass and still disagree on what they
+    send, and the payload is the only thing TikTok sees.
     """
 
-    def test_the_default_is_what_the_batch_will_use(self):
-        from src.publisher.models import TikTokContentSettings
-
+    def test_the_default_is_on(self):
+        """If this ever flips, every post goes out undisclosed by default."""
         assert TikTokContentSettings().video_made_with_ai is True
 
-    def test_the_batch_still_does_not_pass_tiktok_settings(self):
-        """Fails when #255 lands, which is the point.
+    def test_a_configured_opt_out_reaches_the_payload_on_both_paths(self):
+        from src.publisher.config import parse_tiktok_settings
 
-        At that moment the opt-out starts working on the batch path and the
-        caveat in docs/compliance.md and the changelog stops being true.
+        section = {"video_made_with_ai": False}
+        cli_settings = parse_tiktok_settings(section)
+        batch_settings = parse_tiktok_settings(section)
+
+        assert cli_settings == batch_settings
+        for settings in (cli_settings, batch_settings):
+            assert settings.to_platform_data() == {"videoMadeWithAi": False}
+
+    def test_the_batch_passes_what_the_yaml_section_says(self):
+        """Reads the call site, because nothing else proves it is wired.
+
+        The parser being shared is not the fix on its own -- the defect was a
+        call site that never called any parser at all.
         """
+        import ast
         from pathlib import Path
 
-        text = Path("src/pipeline/global_batch.py").read_text()
-        assert "tiktok_settings=" not in text, (
-            "the batch now passes tiktok_settings: remove the #255 caveat from "
-            "docs/compliance.md and the CHANGELOG, which say the opt-out does "
-            "not reach a batch run"
+        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        wired = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "create_publisher"
+            and any(kw.arg == "tiktok_settings" for kw in node.keywords)
+        ]
+        assert len(wired) == 1, (
+            "the batch's publishing publisher must pass tiktok_settings; the "
+            "slot-occupancy publisher never publishes and must not need it"
         )

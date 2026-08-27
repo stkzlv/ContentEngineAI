@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.78.1] - 2026-08-27
+
+### Fixed
+- The global batch honours the configured TikTok settings. It builds its own publisher and passed none, so privacy level, comment, duet and stitch permissions and the AI-content label all fell back to the dataclass defaults while `single` and `schedule` used the YAML -- the same config producing two payloads, with no log line either way, on the path `CLAUDE.md` names as the default for batch runs. Both entry points now parse the block through one function rather than two copies. Closes #255.
+
+### Notes
+- The compliance outcome never differed: every value the batch defaulted to matched what a stock config asks for, so what was lost was a deliberate opt-out, not a disclosure. The 0.78.0 caveat saying so is removed from the three places that carried it.
+- The test asserts the payload rather than the constructor argument, and reads the batch's call site to confirm it is wired at all. Sharing a parser is not the fix on its own: the defect was a call site that called no parser. The slot-occupancy publisher a few lines above still passes nothing, correctly -- it reads scheduled posts and never publishes.
+
 ## [0.78.0] - 2026-08-27
 
 ### Added

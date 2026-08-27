@@ -122,6 +122,31 @@ def load_publisher_config(
         raise ValueError(f"Invalid publisher configuration: {e}") from e
 
 
+def parse_tiktok_settings(section: Any) -> TikTokContentSettings:
+    """Build TikTok content settings from a raw `publisher.yaml` section.
+
+    Two entry points build their own publisher from the same YAML: the
+    publisher CLI, which loads it through `load_publisher_config`, and the
+    global batch, which reads the file inline (#126). Both call this so the
+    same config cannot produce two different payloads -- which is what #255
+    was: the batch passed no settings at all and silently used the dataclass
+    defaults, so a configured opt-out applied on one path and not the other.
+
+    A section with an unknown key falls back to defaults with a warning rather
+    than raising, because a publish run that has already rendered a video
+    should not die on a typo in a block whose defaults are correct.
+    """
+    if not section:
+        return TikTokContentSettings()
+    try:
+        settings = TikTokContentSettings(**section)
+    except (ValueError, TypeError) as e:
+        logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
+        return TikTokContentSettings()
+    logger.debug("Parsed tiktok_settings config: %s", section)
+    return settings
+
+
 def _load_yaml_config(config_path: Path) -> dict[str, Any]:
     """Load configuration from YAML file.
 
@@ -288,16 +313,7 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         result["link_in_bio_config"] = LinkInBioConfig()
 
     # Parse tiktok_settings config
-    tiktok_section = result.get("tiktok_settings", {})
-    if tiktok_section:
-        try:
-            result["tiktok_settings"] = TikTokContentSettings(**tiktok_section)
-            logger.debug("Parsed tiktok_settings config: %s", tiktok_section)
-        except (ValueError, TypeError) as e:
-            logger.warning("Failed to parse tiktok_settings: %s, using defaults", e)
-            result["tiktok_settings"] = TikTokContentSettings()
-    else:
-        result["tiktok_settings"] = TikTokContentSettings()
+    result["tiktok_settings"] = parse_tiktok_settings(result.get("tiktok_settings"))
 
     # Parse first_comment config
     first_comment_section = result.get("first_comment", {})

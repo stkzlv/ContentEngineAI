@@ -358,9 +358,8 @@ the FTC `#ad` overlay above.
   disclosure via TikTok's AI-content label keeps reach intact. The
   publisher sets this flag on every TikTok payload, on by default,
   configurable at `config/publisher.yaml::tiktok_settings.video_made_with_ai`.
-  No manual per-render step is needed. The opt-out does not reach a global
-  batch run, which uses the dataclass defaults and so keeps the label on
-  (issue #255); see `docs/compliance.md`.
+  No manual per-render step is needed, and the setting applies on every
+  publish path; see `docs/compliance.md`.
 - **Instagram / Reels**: enforced now, not draft. As of 2026 Meta runs
   automatic AI detection-and-enforcement, strongest on the paid/ads surface
   (auto-applies a disclosure label, rejects undisclosed AI creative, can
