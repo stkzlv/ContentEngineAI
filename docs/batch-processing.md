@@ -308,9 +308,18 @@ poetry run python -m src.pipeline.global_batch \
   --topics-file topics.yaml --profile slideshow_stock
 ```
 
-Use a stock-sourced profile: a topic has no product imagery, and a profile that
-expects some reports the run skipped rather than failed. `--topic-keywords` is
-comma-separated so a phrase stays one search term.
+A topic needs a stock-sourced profile. A product profile gathers nothing and
+the run **fails** with `No visual inputs were found or gathered for this
+profile` -- it does not degrade to a skip, because visual gathering raises
+before the media check that would report one. The batch refuses the
+combination up front rather than paying for a script and a voiceover first, so
+omitting `--profile` entirely is safe: a topics run draws from the profiles
+that can render one.
+
+`--topic-keywords` is comma-separated so a phrase stays one search term.
+
+Topics cannot be combined with `--product-ids` or `--keywords` in one run: a
+topic run skips scraping outright, so those inputs would be discarded.
 
 Output lands in `outputs/topic-<slug>-<digest>/`, which `--clean` removes along
 with product directories.

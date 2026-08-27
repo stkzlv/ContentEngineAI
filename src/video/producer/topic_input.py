@@ -226,6 +226,10 @@ def specs_from_args(
     rule restated in two places is one edit away from disagreeing about whether
     "wifi router, home network" is one search term or two.
     """
+    if topics_file is not None and topic is not None:
+        # The producer rejects this pair at the parser. Raising here as well
+        # means the batch cannot quietly keep the file and drop the flag.
+        raise TopicInputError("--topic and --topics-file cannot be used together")
     if topics_file is not None:
         return load_topics_file(topics_file)
     if topic is None:

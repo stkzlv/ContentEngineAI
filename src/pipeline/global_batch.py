@@ -596,14 +596,17 @@ class GlobalPipelineOrchestrator:
             if len(self.config.topics) > 10:
                 print(f"    ... and {len(self.config.topics) - 10} more")
 
-        if self.config.product_ids:
+        # Everything below describes scraping, which a topic run does not do.
+        # Printing it anyway promised work the run would discard, which is the
+        # one thing the plan exists to rule out.
+        if self.config.product_ids and not self.config.topics:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
             for pid in self.config.product_ids[:10]:  # Show first 10
                 print(f"    - {pid}")
             if len(self.config.product_ids) > 10:
                 print(f"    ... and {len(self.config.product_ids) - 10} more")
 
-        if self.config.keywords:
+        if self.config.keywords and not self.config.topics:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
                 kw_limit = self.config.products_per_keyword
@@ -624,10 +627,12 @@ class GlobalPipelineOrchestrator:
         if filters.prime_only:
             active_filters.append("prime_only=true")
 
-        if active_filters:
-            print(f"  Filters: {', '.join(active_filters)}")
-        else:
-            print("  Filters: none")
+        if not self.config.topics:
+            # Scraper filters, so meaningless on a run that scrapes nothing.
+            if active_filters:
+                print(f"  Filters: {', '.join(active_filters)}")
+            else:
+                print("  Filters: none")
 
         print()
 
@@ -1209,6 +1214,12 @@ class GlobalPipelineOrchestrator:
 
         Returns a summary whose `successful_products` are the topic
         identifiers, which is what the handoff phase filters on.
+
+        `--fail-fast` is deliberately not honoured here, unlike the scraping
+        phase it stands in for. That flag exists to stop a run before it pays
+        for more scrapes after one has failed; writing a record costs nothing,
+        and the only way this fails is an unwritable outputs directory, which
+        is not a reason to discard the topics that did write.
         """
         from src.video.producer.topic_input import materialise_topics
 
@@ -2273,9 +2284,10 @@ async def main():
 
         logger.info("Configuration validated successfully")
         logger.info(
-            "Inputs: %s product IDs, %s keywords",
+            "Inputs: %s product IDs, %s keywords, %s topics",
             len(config.product_ids or []),
             len(config.keywords or []),
+            len(config.topics or []),
         )
 
         if config.profile:

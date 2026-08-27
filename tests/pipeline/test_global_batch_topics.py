@@ -27,13 +27,11 @@ from src.video.producer.topic_input import TopicSpec, topic_product_id
 
 
 @pytest.fixture
-def video_config():
-    """Minimal stand-in: validation reads only the profile names."""
-    from unittest.mock import MagicMock
+def real_video_config():
+    """The bundled profiles: which ones can render a topic is the thing tested."""
+    from src.video.config_adapter import load_video_config_modular
 
-    config = MagicMock()
-    config.video_profiles = {"slideshow_stock": MagicMock()}
-    return config
+    return load_video_config_modular()
 
 
 def _args(**overrides) -> argparse.Namespace:
@@ -90,21 +88,21 @@ class TestTopicsAreAnInputSource:
 
 
 class TestValidation:
-    def test_topics_alone_are_enough_to_run(self, video_config):
+    def test_topics_alone_are_enough_to_run(self, real_video_config):
         validate_global_batch_config(
             GlobalBatchConfig(
                 topics=[TopicSpec(title="Why wifi drops")],
                 profile="slideshow_stock",
                 skip_publish=True,
             ),
-            video_config,
+            real_video_config,
         )
 
-    def test_a_run_with_no_inputs_at_all_is_still_refused(self, video_config):
+    def test_a_run_with_no_inputs_at_all_is_still_refused(self, real_video_config):
         with pytest.raises(ValueError, match="No inputs provided") as excinfo:
             validate_global_batch_config(
                 GlobalBatchConfig(profile="slideshow_stock", skip_publish=True),
-                video_config,
+                real_video_config,
             )
 
         # The message lists what to pass; omitting topics sends the reader to
@@ -222,3 +220,112 @@ class TestTheTopicPhaseReplacesScraping:
         record = json.loads((tmp_path / pid / "data.json").read_text())
         assert record["topic"] == "Why your wifi keeps dropping"
         assert record["asin"] == pid
+
+
+class TestAProfileThatCannotRenderATopicIsRefusedUpFront:
+    """A product profile does not degrade gracefully on a topic.
+
+    It gathers nothing and `step_gather_visuals` raises, so the run is
+    reported FAILED rather than skipped -- and only after the script and the
+    voiceover have been paid for. Every case here is refused during
+    validation instead.
+    """
+
+    def test_the_shortest_invocation_works(self, real_video_config):
+        """`--topic X` with no profile at all.
+
+        The default pool is built from the product profiles, every one of
+        which fails on a topic, so leaving it to the normal random-profile
+        path made the shortest possible command fail deterministically.
+        """
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")], skip_publish=True
+        )
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile_pool, "a topics run was left with no usable pool"
+        assert "slideshow_stock" in config.profile_pool
+        assert not any(p.startswith("slideshow_images") for p in config.profile_pool)
+
+    def test_a_named_product_profile_is_refused(self, real_video_config):
+        with pytest.raises(ValueError, match="draws no stock media"):
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    profile="slideshow_images1",
+                    skip_publish=True,
+                ),
+                real_video_config,
+            )
+
+    def test_a_named_stock_profile_is_accepted(self, real_video_config):
+        validate_global_batch_config(
+            GlobalBatchConfig(
+                topics=[TopicSpec(title="Why wifi drops")],
+                profile="slideshow_stock",
+                skip_publish=True,
+            ),
+            real_video_config,
+        )
+
+    def test_a_pool_carrying_a_product_profile_is_refused(self, real_video_config):
+        with pytest.raises(ValueError, match="cannot render a topic"):
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    random_profile=True,
+                    profile_pool=["slideshow_stock", "slideshow_images1"],
+                    skip_publish=True,
+                ),
+                real_video_config,
+            )
+
+
+class TestTopicsAreExclusiveWithScraperInputs:
+    """A topic run replaces the scraping phase, so anything to scrape is lost.
+
+    Both were accepted and the scraper inputs silently discarded, while the
+    dry-run plan printed the keywords as work the run would do.
+    """
+
+    @pytest.mark.parametrize(
+        "extra,expected",
+        [
+            ({"keywords": ["wireless earbuds"]}, "--keywords"),
+            ({"product_ids": ["B0ABCDEFGH"]}, "--product-ids"),
+        ],
+    )
+    def test_the_combination_is_refused(self, real_video_config, extra, expected):
+        with pytest.raises(ValueError, match="Cannot combine topics") as excinfo:
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    profile="slideshow_stock",
+                    skip_publish=True,
+                    **extra,
+                ),
+                real_video_config,
+            )
+
+        assert expected in str(excinfo.value)
+
+
+class TestTheTwoTopicSourcesAreExclusive:
+    def test_naming_both_a_flag_and_a_file_is_refused(self, tmp_path):
+        """The producer errors on this pair; the batch used to drop `--topic`.
+
+        Silently taking the file meant a run rendered something other than
+        what was asked for.
+        """
+        from src.video.producer.topic_input import TopicInputError, specs_from_args
+
+        topics_file = tmp_path / "topics.yaml"
+        topics_file.write_text("- title: From file\n", encoding="utf-8")
+
+        with pytest.raises(TopicInputError, match="cannot be used together"):
+            specs_from_args(
+                topic="From flag",
+                topic_description=None,
+                topic_keywords=None,
+                topics_file=topics_file,
+            )

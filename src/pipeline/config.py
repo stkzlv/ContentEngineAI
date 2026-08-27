@@ -965,6 +965,59 @@ def load_global_batch_config(
     )
 
 
+def _topic_capable_profiles(video_config: VideoConfig) -> list[str]:
+    """Profiles that can render a topic: ones that source stock media.
+
+    `slideshow_stock` is in `EXCLUDED_RANDOM_PROFILES` precisely because a
+    *product* batch must not draw it, so the topic pool cannot be the product
+    pool minus exclusions -- it is close to the complement.
+    """
+    from src.video.producer.utils import profile_needs_stock_media
+
+    return sorted(
+        name
+        for name, profile in video_config.video_profiles.items()
+        if name != "base" and profile_needs_stock_media(profile)
+    )
+
+
+def _validate_topic_profiles(
+    config: GlobalBatchConfig, video_config: VideoConfig
+) -> None:
+    """Refuse a topics run that would draw a product-only profile."""
+    capable = _topic_capable_profiles(video_config)
+
+    if config.profile:
+        if config.profile not in capable:
+            raise ValueError(
+                f"Profile '{config.profile}' draws no stock media, so a topic "
+                "render under it gathers no visuals and the run fails.\n"
+                f"Profiles that can render a topic: {', '.join(capable) or 'none'}"
+            )
+        return
+
+    if config.profile_pool:
+        unusable = [p for p in config.profile_pool if p not in capable]
+        if unusable:
+            raise ValueError(
+                f"Profile pool contains {', '.join(sorted(unusable))}, which "
+                "draw no stock media and cannot render a topic.\n"
+                f"Profiles that can render a topic: {', '.join(capable) or 'none'}"
+            )
+        return
+
+    # No profile named at all. The default pool is built from the product
+    # profiles, every one of which fails on a topic, so fill it here instead
+    # of letting the run pick one and die in `gather_visuals`.
+    if not capable:
+        raise ValueError(
+            "No configured profile can render a topic: none source stock "
+            "media. Add one, or pass --profile explicitly."
+        )
+    config.random_profile = True
+    config.profile_pool = capable
+
+
 def validate_global_batch_config(
     config: GlobalBatchConfig, video_config: VideoConfig
 ) -> None:
@@ -996,6 +1049,21 @@ def validate_global_batch_config(
             "  --topic 'subject' / --topics-file topics.yaml"
         )
 
+    # A topic run replaces the scraping phase outright, so anything to scrape
+    # named alongside it is silently discarded. Refuse rather than drop an
+    # input the operator asked for.
+    if config.topics and (config.product_ids or config.keywords):
+        also = []
+        if config.product_ids:
+            also.append("--product-ids")
+        if config.keywords:
+            also.append("--keywords")
+        raise ValueError(
+            f"Cannot combine topics with {' and '.join(also)}. A topic run "
+            "skips scraping entirely, so those inputs would be ignored.\n"
+            "Run them as separate batches."
+        )
+
     # Validate profile configuration
     if config.profile and config.random_profile:
         raise ValueError(
@@ -1012,6 +1080,14 @@ def validate_global_batch_config(
         raise ValueError(
             f"Invalid profile: '{config.profile}'\n" f"Available profiles: {available}"
         )
+
+    # A topic has no product imagery, so a profile that draws only scraped
+    # media gathers nothing and the run fails outright -- it does not degrade
+    # to a skip, because `step_gather_visuals` raises before the media check
+    # that reports one. Checked here rather than left to the render, which
+    # costs a script and a voiceover before it finds out.
+    if config.topics:
+        _validate_topic_profiles(config, video_config)
 
     # Validate random profile configuration
     if config.random_profile:
