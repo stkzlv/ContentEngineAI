@@ -188,6 +188,15 @@ class TestNarratorResolver:
             text = path.read_text(encoding="utf-8")
             assert "narrator_profile=script_cfg.narrator_profile," not in text, path
             assert "script_templates.narrator_profile," not in text, path
+            # The preamble map travels with the profile: the requirements doc
+            # pins that captions receive the same pair the script does. Both
+            # steps.py call sites hardcoded the product map once already,
+            # which put "the product fixes a specific annoyance" three lines
+            # above the topic prompt's rule against naming a product.
+            assert "pillar_preambles=script_cfg.pillar_preambles," not in text, path
+            assert (
+                "pillar_preambles=settings.script_templates.pillar_preambles,"
+            ) not in text, path
 
 
 @pytest.mark.unit
