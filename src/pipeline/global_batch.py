@@ -94,6 +94,39 @@ Examples:
         metavar="KEYWORD",
         help="Keywords to search for products (e.g., 'wireless earbuds' 'smart watch')",
     )
+    # Same names and semantics as the producer CLI, per the Module/Batch
+    # Alignment Rule. A topic run skips the scraping phase: there is no listing
+    # behind it, so the input is the record rather than a search for one.
+    input_group.add_argument(
+        "--topic",
+        metavar="TITLE",
+        help=(
+            "Render a video about a topic instead of a scraped product. "
+            "Skips scraping; the record is built from the title."
+        ),
+    )
+    input_group.add_argument(
+        "--topic-description",
+        metavar="TEXT",
+        help="Source material the script is written from, for --topic.",
+    )
+    input_group.add_argument(
+        "--topic-keywords",
+        metavar="TERMS",
+        help=(
+            "Comma-separated stock media search terms for this topic, e.g. "
+            "'wifi router, home network'."
+        ),
+    )
+    input_group.add_argument(
+        "--topics-file",
+        type=Path,
+        metavar="FILE",
+        help=(
+            "YAML list of topics to render, each with title, optional "
+            "description and optional keywords."
+        ),
+    )
     input_group.add_argument(
         "--max-products",
         type=int,
@@ -346,7 +379,52 @@ Examples:
     return parser
 
 
-_ASIN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+)$")
+# A run directory is a scraped product (ASIN-shaped, or a TEST fixture) or a
+# topic. Topics were absent, so `--clean` walked past them and the dry-run plan
+# under-reported what the run would remove.
+_RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
+
+
+def _is_resuming_topics(config: "GlobalBatchConfig") -> bool:
+    """Whether this `--resume` is picking up a topics run.
+
+    Topics are not persisted: the identifier carries a one-way digest of the
+    title, so the specs cannot be read back out of the state. The ids can,
+    and they are enough, because topics are exclusive with scraper inputs --
+    a state whose completed products are topics was a topics run entire.
+
+    Separated from `main` so it can be tested. Left inline it was the one
+    piece of this feature no test touched, and deleting it left the suite
+    green while every resumed topic rendered under a product profile.
+    """
+    if not config.resume or config.topics:
+        return False
+    from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+    saved = load_pipeline_state(config.outputs_dir)
+    if saved is None:
+        return False
+    return any(
+        pid.startswith(TOPIC_ID_PREFIX)
+        for pid in (saved.scraping_completed_products or [])
+    )
+
+
+def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
+    """The run directories this invocation named, if it named any.
+
+    Topics are a named input exactly like product ids, and were falling into
+    the unnamed branch below, which removes every run directory in `outputs/`.
+    A `--topic X --clean` run would delete every scraped product the machine
+    held, along with any rendered-but-unpublished video in them.
+    """
+    from src.video.producer.topic_input import topic_product_id
+
+    if config.product_ids:
+        return list(config.product_ids)
+    if config.topics:
+        return [topic_product_id(spec.title) for spec in config.topics]
+    return []
 
 
 def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
@@ -369,7 +447,7 @@ def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Pat
     return sorted(
         item
         for item in outputs_dir.iterdir()
-        if item.is_dir() and _ASIN_DIR_PATTERN.match(item.name)
+        if item.is_dir() and _RUN_DIR_PATTERN.match(item.name)
     )
 
 
@@ -504,6 +582,25 @@ class GlobalPipelineOrchestrator:
                 # Never let webhook failures affect the pipeline
                 logger.warning("Webhook notification failed: %s", e)
 
+    def _resumed_topic_ids(self) -> list[str]:
+        """Topic ids from the saved state, for a `--resume` plan.
+
+        `config.topics` is empty on a resume, so the plan has nothing to name
+        without reading them back.
+        """
+        if not self.config.topics_resume:
+            return []
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+        saved = load_pipeline_state(self.config.outputs_dir)
+        if saved is None:
+            return []
+        return [
+            pid
+            for pid in (saved.scraping_completed_products or [])
+            if pid.startswith(TOPIC_ID_PREFIX)
+        ]
+
     def display_execution_plan(self, video_config: Any) -> None:
         """Display planned execution without running the pipeline.
 
@@ -532,7 +629,9 @@ class GlobalPipelineOrchestrator:
             print(f"{section}")
             print("CLEAN")
             print(f"{section}")
-            targets = _clean_targets(self.config.outputs_dir, self.config.product_ids)
+            targets = _clean_targets(
+                self.config.outputs_dir, _named_run_ids(self.config)
+            )
             if targets:
                 print(
                     f"  Would remove {len(targets)} product director"
@@ -551,14 +650,32 @@ class GlobalPipelineOrchestrator:
         print("PHASE 1: SCRAPING")
         print(f"{section}")
 
-        if self.config.product_ids:
+        # A resumed topics run scrapes nothing either, and its topics are not
+        # on the config -- reading only `topics` printed a full keyword plan
+        # for a run that would render the saved topic and search for nothing.
+        resumed_ids = self._resumed_topic_ids()
+        is_topics_run = bool(self.config.topics) or bool(resumed_ids)
+        if is_topics_run:
+            # Named as skipped rather than omitted: a plan that simply prints
+            # nothing under SCRAPING reads as a misconfigured run.
+            named = [spec.title for spec in self.config.topics] or resumed_ids
+            print(f"  Skipped: {len(named)} topic(s), nothing to scrape")
+            for title in named[:10]:
+                print(f"    - {title}")
+            if len(named) > 10:
+                print(f"    ... and {len(named) - 10} more")
+
+        # Everything below describes scraping, which a topic run does not do.
+        # Printing it anyway promised work the run would discard, which is the
+        # one thing the plan exists to rule out.
+        if self.config.product_ids and not is_topics_run:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
             for pid in self.config.product_ids[:10]:  # Show first 10
                 print(f"    - {pid}")
             if len(self.config.product_ids) > 10:
                 print(f"    ... and {len(self.config.product_ids) - 10} more")
 
-        if self.config.keywords:
+        if self.config.keywords and not is_topics_run:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
                 kw_limit = self.config.products_per_keyword
@@ -579,10 +696,12 @@ class GlobalPipelineOrchestrator:
         if filters.prime_only:
             active_filters.append("prime_only=true")
 
-        if active_filters:
-            print(f"  Filters: {', '.join(active_filters)}")
-        else:
-            print("  Filters: none")
+        if not is_topics_run:
+            # Scraper filters, so meaningless on a run that scrapes nothing.
+            if active_filters:
+                print(f"  Filters: {', '.join(active_filters)}")
+            else:
+                print("  Filters: none")
 
         print()
 
@@ -745,7 +864,13 @@ class GlobalPipelineOrchestrator:
             self.state.advance_phase(PipelinePhase.SCRAPING)
             self._save_state()
 
-            scraping_summary = await self._execute_scraping_phase()
+            if self.config.topics:
+                # A topic has no listing to scrape. The records are built here
+                # instead, into the same directory shape the scraper writes, so
+                # the handoff and everything after it are unchanged.
+                scraping_summary = self._materialise_topics_phase()
+            else:
+                scraping_summary = await self._execute_scraping_phase()
 
             # Update state with scraping results
             self.state.scraping_completed_products = (
@@ -1149,6 +1274,59 @@ class GlobalPipelineOrchestrator:
             duration_sec=duration,
         )
 
+    def _materialise_topics_phase(self) -> ScrapingPhaseSummary:
+        """Stand in for the scraping phase when the inputs are topics.
+
+        Reported as the scraping phase rather than as a new one so resume,
+        state and the phase summaries keep working unchanged; what differs is
+        where the records come from, not what the pipeline does with them.
+
+        Returns a summary whose `successful_products` are the topic
+        identifiers, which is what the handoff phase filters on.
+
+        `--fail-fast` is deliberately not honoured here, unlike the scraping
+        phase it stands in for. That flag exists to stop a run before it pays
+        for more scrapes after one has failed; writing a record costs nothing,
+        and the only way this fails is an unwritable outputs directory, which
+        is not a reason to discard the topics that did write.
+        """
+        from src.video.producer.topic_input import materialise_topics
+
+        phase_start = time.time()
+        logger.info("Preparing %s topic(s) (no scraping)", len(self.config.topics))
+
+        config = load_video_config_modular()
+        # `materialise_topics` needs a profile only to resolve the run paths,
+        # and the data.json it writes is profile-independent. A random-profile
+        # run has no single profile yet, so any valid one resolves the same
+        # directory.
+        profile = self.config.profile or next(iter(config.video_profiles))
+
+        prepared: list[str] = []
+        failed: list[str] = []
+        for spec in self.config.topics:
+            try:
+                ((topic_dir, product),) = materialise_topics(
+                    [spec], config, profile, outputs_dir=self.config.outputs_dir
+                )
+            except OSError as e:
+                # One unwritable directory must not lose the rest of the batch.
+                logger.error("Could not prepare topic %r: %s", spec.title, e)
+                failed.append(spec.title)
+                continue
+            logger.info("Prepared topic %r in %s", spec.title, topic_dir)
+            prepared.append(str(product.asin))
+
+        return ScrapingPhaseSummary(
+            total_attempted=len(self.config.topics),
+            successful=len(prepared),
+            failed=len(failed),
+            successful_products=prepared,
+            failed_products=failed,
+            media_stats={"total_images": 0, "total_videos": 0},
+            duration_sec=time.time() - phase_start,
+        )
+
     def _execute_handoff_phase(
         self, scraped_product_ids: list[str]
     ) -> list[tuple[Path, ProductData]]:
@@ -1171,7 +1349,26 @@ class GlobalPipelineOrchestrator:
         logger.info("Discovering products ready for video production...")
 
         # Use existing discover_products_for_batch function
-        all_products = discover_products_for_batch(self.config.outputs_dir)
+        # A topic run named its inputs, so its directories are what it asked
+        # for. Discovery skips them by default, which would drop every topic
+        # between the phase that wrote them and the phase that renders them.
+        # Derived from the ids being handed off, not from the config: a
+        # `--resume` carries no input flags, so `config.topics` is empty while
+        # the saved state's ids are topics. Reading the config there returned
+        # nothing and the resumed run reported PIPELINE FAILED.
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+        # `topics_resume` is set in `main` before validation, which is what
+        # narrows the profile pool. The id check stays as the fallback for a
+        # caller that builds the orchestrator directly.
+        include_topics = (
+            bool(self.config.topics)
+            or self.config.topics_resume
+            or any(pid.startswith(TOPIC_ID_PREFIX) for pid in scraped_product_ids)
+        )
+        all_products = discover_products_for_batch(
+            self.config.outputs_dir, include_topics=include_topics
+        )
 
         logger.info(
             "Found %s product(s) with data.json in %s",
@@ -2142,6 +2339,15 @@ async def main():
         # Load video configuration for validation
         video_config = load_video_config_modular()
 
+        # A `--resume` carries no input flags, so a topics run looks like a
+        # product run to everything below unless the saved state is consulted
+        # first. Reading it here rather than in the handoff phase keeps one
+        # copy of the topic rules and lets the stock-key pre-flight see the
+        # pool a topics run will actually draw from.
+        if _is_resuming_topics(config):
+            logger.info("Resuming a topics run (recognised from saved state)")
+            config.topics_resume = True
+
         # Validate configuration
         logger.info("Validating configuration...")
         validate_global_batch_config(config, video_config)
@@ -2170,9 +2376,10 @@ async def main():
 
         logger.info("Configuration validated successfully")
         logger.info(
-            "Inputs: %s product IDs, %s keywords",
+            "Inputs: %s product IDs, %s keywords, %s topics",
             len(config.product_ids or []),
             len(config.keywords or []),
+            len(config.topics or []),
         )
 
         if config.profile:
@@ -2205,7 +2412,7 @@ async def main():
         if config.clean:
             import shutil
 
-            for target in _clean_targets(config.outputs_dir, config.product_ids):
+            for target in _clean_targets(config.outputs_dir, _named_run_ids(config)):
                 shutil.rmtree(target)
                 logger.info("Cleaned product directory: %s", target)
 

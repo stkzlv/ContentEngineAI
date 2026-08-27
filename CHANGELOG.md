@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-08-27
+
+### Added
+- The global batch accepts topics: `--topic`, `--topic-description`, `--topic-keywords` and `--topics-file`, with the producer's names and semantics. The producer could render a topic and the batch could not, so topic content had no path to the daily cadence -- the one command that also publishes could only produce the product arm. A topic run replaces the scraping phase rather than skipping into it, since there is no listing to scrape, and is reported under the same phase name so the summaries and the state are unchanged. Closes #226.
+
+### Changed
+- `--clean` now removes topic directories along with product ones, and the dry-run plan lists them. The pattern matched an ASIN shape, so topic runs accumulated in `outputs/` and the plan under-reported what a clean would remove. Destructive, and worth knowing before the first clean after upgrading.
+
+### Notes
+- A `--resume` of a topics run is recognised from the ids in the saved state, because topics themselves are not persisted: the identifier carries a one-way digest of the title, so it cannot be read back. The input check, the `--process-all-products` refusal and the profile rules key off that as well as the flags, which is what makes a resume accept exactly what a fresh run accepts. The scraper-input exclusivity deliberately does not: a resume inherits the YAML keywords whatever it is resuming, and the completed scraping phase already ignored them, so refusing the pair there would break every topics resume. Doing the narrowing later, in the handoff phase, put a second and weaker copy of the policy there.
+- Omitting `--profile` on a topics run is safe, unless `pipeline.yaml` configures one: a configured pool is replaced, but a configured `profile` is refused with the list of profiles that can render a topic. The two differ because the pool records whether it was named for this run and the profile does not. The default random pool is built from the product profiles, every one of which gathers nothing on a topic and **fails** the run rather than skipping it, so a topics run draws from the profiles that source stock media instead. A product profile named explicitly, or a pool named on the command line, is refused during validation, so a configuration mistake is reported as one rather than as a render failure per product. A pool configured in `pipeline.yaml` describes the default product run and is replaced.
+- Topics cannot be combined with `--product-ids`, `--keywords` or `--process-all-products`. Each would be discarded by a run that skips scraping, and the last would additionally render any swept-in scraped product from generic stock footage. `--topic` with `--topics-file` is refused on both entry points.
+- Five things assumed a run's input was a scraped product, and each failed differently, which is why the tests are five separate cases rather than one end-to-end run: input precedence counted product ids and keywords only, so `--topic` fell through to the YAML branch and scraped every configured keyword beside it; validation refused a topics-only run as having no inputs; batch discovery skips topic directories on purpose, which dropped every topic between the phase that wrote them and the phase that renders them; the clean pattern above; and the scraping phase itself.
+- The flags are declared twice but the behaviour is not. Argument parsing, the comma-splitting of `--topic-keywords` and the record-writing loop moved into `topic_input`, so the two entry points cannot disagree about whether "wifi router, home network" is one search term or two.
+
 ## [0.78.1] - 2026-08-27
 
 ### Fixed

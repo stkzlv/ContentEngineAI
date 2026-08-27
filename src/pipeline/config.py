@@ -38,6 +38,7 @@ import yaml
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.video.config import VideoConfig
+from src.video.producer.topic_input import TopicSpec, specs_from_args
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +313,7 @@ class GlobalBatchConfig:
     ----------
         product_ids: List of ASINs to scrape directly
         keywords: List of keywords to search for products
+        topics: Topics to render without scraping
         max_products: Maximum total products to collect across all keywords (global cap)
         products_per_keyword: Maximum products to scrape per individual keyword
         scraper_filters: SearchParameters for filtering products
@@ -330,6 +332,9 @@ class GlobalBatchConfig:
     product_ids: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     keyword_pillar_map: dict[str, str] = field(default_factory=dict)
+    # Topics render without a scraper run, so they are an input source in their
+    # own right rather than a filter on one.
+    topics: list[TopicSpec] = field(default_factory=list)
     max_products: int = 10
     products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
@@ -338,6 +343,16 @@ class GlobalBatchConfig:
     profile: str | None = None
     random_profile: bool = False
     profile_pool: list[str] = field(default_factory=list)
+    # Whether the pool was named for THIS run or inherited from YAML. A topics
+    # run cannot use a product-run default, but must still refuse a pool the
+    # operator named on the command line rather than silently replacing it.
+    profile_pool_from_cli: bool = False
+    # Set when a `--resume` is picking up a topics run. Topics themselves are
+    # not persisted -- the identifier carries a one-way digest of the title --
+    # so the run is recognised from the ids in the saved state instead. Every
+    # topic rule keys off this as well as `topics`, or a resume reaches
+    # combinations a fresh run refuses.
+    topics_resume: bool = False
 
     # Common configuration
     fail_fast: bool = False
@@ -785,7 +800,16 @@ def load_global_batch_config(
     # picking up 28 YAML keywords.
     cli_product_ids = getattr(cli_args, "product_ids", None)
     cli_keywords = getattr(cli_args, "keywords", None)
-    cli_has_inputs = cli_product_ids or cli_keywords
+    # Topics count as a CLI input set. Leaving them out meant `--topic` fell
+    # through to the YAML branch and the run scraped every configured keyword
+    # alongside the topic nobody asked it to pair them with.
+    cli_topics = specs_from_args(
+        topic=getattr(cli_args, "topic", None),
+        topic_description=getattr(cli_args, "topic_description", None),
+        topic_keywords=getattr(cli_args, "topic_keywords", None),
+        topics_file=getattr(cli_args, "topics_file", None),
+    )
+    cli_has_inputs = cli_product_ids or cli_keywords or cli_topics
 
     # Build the pillar map from YAML whichever source supplies the keyword
     # list. It describes which pillar a configured keyword belongs to, which is
@@ -837,11 +861,8 @@ def load_global_batch_config(
     if not profile and not random_profile:
         random_profile = True
 
-    profile_pool = (
-        getattr(cli_args, "profile_pool", None)
-        or yaml_config.get("profile_pool", [])
-        or []
-    )
+    cli_profile_pool = getattr(cli_args, "profile_pool", None)
+    profile_pool = cli_profile_pool or yaml_config.get("profile_pool", []) or []
 
     # Common configuration
     fail_fast = getattr(cli_args, "fail_fast", False) or yaml_config.get(
@@ -921,12 +942,14 @@ def load_global_batch_config(
         product_ids=product_ids,
         keywords=keywords,
         keyword_pillar_map=keyword_pillar_map,
+        topics=cli_topics,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,
         profile=profile,
         random_profile=random_profile,
         profile_pool=profile_pool,
+        profile_pool_from_cli=bool(cli_profile_pool),
         fail_fast=fail_fast,
         process_all_products=process_all_products,
         outputs_dir=outputs_dir,
@@ -950,13 +973,78 @@ def load_global_batch_config(
     )
 
 
+def topic_capable_profiles(video_config: VideoConfig) -> list[str]:
+    """Profiles that can render a topic: ones that source stock media.
+
+    `slideshow_stock` is in `EXCLUDED_RANDOM_PROFILES` precisely because a
+    *product* batch must not draw it, so the topic pool cannot be the product
+    pool minus exclusions -- it is close to the complement.
+    """
+    from src.video.producer.utils import (
+        draws_visuals_from_script,
+        profile_needs_stock_media,
+    )
+
+    # Both halves, matching `config_validator.check_stock_media_key`: asking
+    # for stock is not enough on its own. A hybrid profile that also draws
+    # scraped images would gather only its stock share on a topic, which below
+    # `min_images_if_no_video` reports the run SKIPPED rather than rendering.
+    return sorted(
+        name
+        for name, profile in video_config.video_profiles.items()
+        if name != "base"
+        and profile_needs_stock_media(profile)
+        and draws_visuals_from_script(profile)
+    )
+
+
+def _validate_topic_profiles(
+    config: GlobalBatchConfig, video_config: VideoConfig
+) -> None:
+    """Refuse a topics run that would draw a product-only profile."""
+    capable = topic_capable_profiles(video_config)
+
+    if config.profile:
+        if config.profile not in capable:
+            raise ValueError(
+                f"Profile '{config.profile}' draws no stock media, so a topic "
+                "render under it gathers no visuals and the run fails.\n"
+                f"Profiles that can render a topic: {', '.join(capable) or 'none'}"
+            )
+        return
+
+    # A pool inherited from YAML describes the default product run, not this
+    # one, so it is replaced rather than refused; only a pool named on the
+    # command line for this run is an instruction worth contradicting.
+    if config.profile_pool and config.profile_pool_from_cli:
+        unusable = [p for p in config.profile_pool if p not in capable]
+        if unusable:
+            raise ValueError(
+                f"Profile pool contains {', '.join(sorted(unusable))}, which "
+                "draw no stock media and cannot render a topic.\n"
+                f"Profiles that can render a topic: {', '.join(capable) or 'none'}"
+            )
+        return
+
+    # No profile named at all. The default pool is built from the product
+    # profiles, every one of which fails on a topic, so fill it here instead
+    # of letting the run pick one and die in `gather_visuals`.
+    if not capable:
+        raise ValueError(
+            "No configured profile can render a topic: none source stock "
+            "media. Add one, or pass --profile explicitly."
+        )
+    config.random_profile = True
+    config.profile_pool = capable
+
+
 def validate_global_batch_config(
     config: GlobalBatchConfig, video_config: VideoConfig
 ) -> None:
     """Validate global batch configuration before pipeline execution.
 
     Validates:
-    - At least one input source (product_ids or keywords) is provided
+    - At least one input source (product_ids, keywords or topics) is provided
     - Profile configuration is valid (profile XOR random_profile)
     - Profile names exist in video configuration
     - Profile pool is not empty when random_profile is enabled
@@ -973,11 +1061,49 @@ def validate_global_batch_config(
 
     """
     # Validate inputs exist
-    if not config.product_ids and not config.keywords:
+    # A resumed topics run has its inputs in the saved state, not on the
+    # command line.
+    if (
+        not config.product_ids
+        and not config.keywords
+        and not config.topics
+        and not config.topics_resume
+    ):
         raise ValueError(
             "No inputs provided. Specify at least one of:\n"
             "  --product-ids ASIN1 ASIN2 ...\n"
-            "  --keywords 'keyword1' 'keyword2' ..."
+            "  --keywords 'keyword1' 'keyword2' ...\n"
+            "  --topic 'subject' / --topics-file topics.yaml"
+        )
+
+    # A topic run replaces the scraping phase outright, so anything to scrape
+    # named alongside it is silently discarded. Refuse rather than drop an
+    # input the operator asked for.
+    is_topics_run = bool(config.topics) or config.topics_resume
+
+    if is_topics_run and config.process_all_products:
+        raise ValueError(
+            "Cannot combine topics with --process-all-products. A topics run "
+            "narrows its profile pool to stock-sourced profiles, which draw "
+            "no product imagery, so every scraped product swept in would be "
+            "rendered from generic stock footage and published."
+        )
+
+    # Keyed on `topics` rather than `is_topics_run`: a resume inherits the
+    # YAML keywords whatever it is resuming, and they were already unused by
+    # the completed scraping phase, so refusing them would break every topics
+    # resume. Only inputs named alongside a topic on one command line are a
+    # contradiction worth reporting.
+    if config.topics and (config.product_ids or config.keywords):
+        also = []
+        if config.product_ids:
+            also.append("--product-ids")
+        if config.keywords:
+            also.append("--keywords")
+        raise ValueError(
+            f"Cannot combine topics with {' and '.join(also)}. A topic run "
+            "skips scraping entirely, so those inputs would be ignored.\n"
+            "Run them as separate batches."
         )
 
     # Validate profile configuration
@@ -996,6 +1122,14 @@ def validate_global_batch_config(
         raise ValueError(
             f"Invalid profile: '{config.profile}'\n" f"Available profiles: {available}"
         )
+
+    # A topic has no product imagery, so a profile that draws only scraped
+    # media gathers nothing and the run fails outright -- it does not degrade
+    # to a skip, because `step_gather_visuals` raises before the media check
+    # that reports one. Checked here rather than left to the render, which
+    # reports a configuration mistake as a render failure, once per product.
+    if is_topics_run:
+        _validate_topic_profiles(config, video_config)
 
     # Validate random profile configuration
     if config.random_profile:

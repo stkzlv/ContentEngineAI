@@ -34,6 +34,7 @@ poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --debug
 
 # Or render a topic, with no scraper run and no product directory.
+# The same flags work on the global batch, which also publishes it.
 # This profile has no product photography, so it writes the script first and
 # then searches stock footage on phrases taken from the narration.
 poetry run python -m src.video.producer slideshow_stock \

@@ -274,7 +274,7 @@ End-to-end automation combining scraping, video production, and publishing in a 
 
 The global batch pipeline orchestrates four phases:
 
-1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords)
+1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords). A topic run has no listing behind it, so this phase prepares the topic records instead of scraping.
 2. **Handoff Phase** - Discover scraped products and filter by media availability
 3. **Production Phase** - Generate videos using configured profile settings
 4. **Publishing Phase** - Upload and publish videos to social media platforms (optional)
@@ -289,6 +289,44 @@ poetry run python -m src.pipeline.global_batch \
   --profile slideshow_images1 \
   --debug
 ```
+
+#### Topics
+
+A topic is rendered and published without a scraper run. The flags match the
+producer's, so a command that works on one entry point works on the other.
+
+```bash
+poetry run python -m src.pipeline.global_batch \
+  --topic "Why your wifi keeps dropping" \
+  --topic-description "Router placement, channel congestion, 2.4 vs 5GHz." \
+  --topic-keywords "wifi router, home network" \
+  --profile slideshow_stock \
+  --debug
+
+# Several at once
+poetry run python -m src.pipeline.global_batch \
+  --topics-file topics.yaml --profile slideshow_stock
+```
+
+A topic needs a stock-sourced profile. A product profile gathers nothing and
+the run **fails** with `No visual inputs were found or gathered for this
+profile` -- it does not degrade to a skip, because visual gathering raises
+before the media check that would report one. The batch refuses the
+combination up front, so a misconfiguration is reported as one rather than as
+a per-product render failure, and so
+omitting `--profile` is safe: a topics run draws from the profiles that can
+render one, replacing any pool configured in `pipeline.yaml` for product runs.
+A pool named on the command line is refused rather than replaced, and so is a
+`profile` set in `pipeline.yaml` -- that one carries no record of whether it
+was meant for this run, so it is reported rather than overridden.
+
+`--topic-keywords` is comma-separated so a phrase stays one search term.
+
+Topics cannot be combined with `--product-ids` or `--keywords` in one run: a
+topic run skips scraping outright, so those inputs would be discarded.
+
+Output lands in `outputs/topic-<slug>-<digest>/`, which `--clean` removes along
+with product directories.
 
 #### Keywords Only
 
@@ -428,7 +466,7 @@ poetry run python -m src.pipeline.global_batch \
   --clean \
   --debug
 
-# Clean all product directories (ASIN-pattern dirs only)
+# Clean every run directory (ASIN-shaped and topic-*)
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" \
   --profile slideshow_images1 \
@@ -436,7 +474,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-With `--product-ids`, only those product dirs are removed. Without it, all ASIN-matching directories under outputs/ are cleaned. Non-product directories (logs/, coverage/) are preserved.
+A run that names its inputs removes only those: `--product-ids` removes those products, and a topics run removes its own topic directories. A run that names none removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
 
 **Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 

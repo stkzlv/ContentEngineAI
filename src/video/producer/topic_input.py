@@ -18,6 +18,7 @@ tracked separately.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -209,3 +210,76 @@ def load_topics_file(path: Path) -> list[TopicSpec]:
             )
         seen[pid] = spec.title
     return specs
+
+
+def specs_from_args(
+    *,
+    topic: str | None,
+    topic_description: str | None,
+    topic_keywords: str | None,
+    topics_file: Path | None,
+) -> list[TopicSpec]:
+    """Resolve the topic CLI flags into specs.
+
+    Shared so `--topic-keywords` splits the same way on both entry points. The
+    producer and the batch declare the same four flags, and a comma-splitting
+    rule restated in two places is one edit away from disagreeing about whether
+    "wifi router, home network" is one search term or two.
+    """
+    if topics_file is not None and topic is not None:
+        # The producer rejects this pair at the parser. Raising here as well
+        # means the batch cannot quietly keep the file and drop the flag.
+        raise TopicInputError("--topic and --topics-file cannot be used together")
+    if topics_file is not None:
+        return load_topics_file(topics_file)
+    if topic is None:
+        return []
+    return [
+        TopicSpec(
+            title=topic,
+            description=topic_description or "",
+            keywords=[
+                k.strip() for k in (topic_keywords or "").split(",") if k.strip()
+            ],
+        )
+    ]
+
+
+def materialise_topics(
+    specs: list[TopicSpec],
+    config: Any,
+    profile: str,
+    outputs_dir: Path | None = None,
+) -> list[tuple[Path, ProductData]]:
+    """Write each topic's `data.json` and return what the producer consumes.
+
+    The record is built and written here rather than by the caller because the
+    producer and the global batch both need it, and the batch's handoff phase
+    reads the directory back off disk. A second copy of this loop is how the
+    two paths end up disagreeing about the record they hand to the same
+    pipeline.
+
+    `scraped_data` is the path the producer reads, so the directory is taken
+    from it rather than from a key that only happens to exist today.
+
+    `outputs_dir` overrides where the directories land, for the global batch,
+    which takes an `--outputs-dir` the video config knows nothing about. Its
+    later phases scan that directory, so writing to the config's root instead
+    would leave every topic prepared somewhere the run never looks. The file
+    name still comes from the config, so only the root moves.
+    """
+    materialised: list[tuple[Path, ProductData]] = []
+    for spec in specs:
+        product = build_topic_product(spec)
+        product_id = topic_product_id(spec.title)
+        data_path = Path(config.get_product_paths(product_id, profile)["scraped_data"])
+        if outputs_dir is not None:
+            data_path = Path(outputs_dir) / product_id / data_path.name
+        topic_dir = data_path.parent
+        topic_dir.mkdir(parents=True, exist_ok=True)
+        data_path.write_text(
+            json.dumps(product.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        materialised.append((topic_dir, product))
+    return materialised
