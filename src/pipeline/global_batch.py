@@ -1570,6 +1570,9 @@ class GlobalPipelineOrchestrator:
                                 "Temp publisher init: vercel_token=%s",
                                 "set" if vercel_token else "NOT SET",
                             )
+                            # Reads slot occupancy and never publishes, so it
+                            # needs none of the payload settings the publisher
+                            # below is given.
                             temp_publisher = create_publisher(
                                 provider=PublisherProvider.LATE,
                                 api_key=api_key,
@@ -1665,6 +1668,8 @@ class GlobalPipelineOrchestrator:
             except (ValueError, TypeError):
                 first_comment_config = None
 
+            from src.publisher.config import parse_tiktok_settings
+
             publisher = create_publisher(
                 provider=PublisherProvider.LATE,
                 api_key=api_key,
@@ -1675,6 +1680,9 @@ class GlobalPipelineOrchestrator:
                 # same config produces different payloads on the two paths.
                 synthetic_media_disclosure=bool(
                     publisher_config.get("synthetic_media_disclosure", False)
+                ),
+                tiktok_settings=parse_tiktok_settings(
+                    publisher_config.get("tiktok_settings")
                 ),
             )
 

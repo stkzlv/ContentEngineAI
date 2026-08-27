@@ -639,6 +639,99 @@ async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
 
 
 @pytest.mark.asyncio
+async def test_batch_publisher_gets_the_configured_tiktok_settings(
+    temp_outputs_dir, mock_publisher_config, mock_video_config
+):
+    """#255: the batch passed none, so a YAML opt-out died on the batch path.
+
+    Driven from a section that turns the AI-content label off and flips a
+    second field, so the assertion cannot pass on the dataclass defaults.
+
+    The publisher is mocked, so this proves the orchestrator hands the parsed
+    section over -- not that it survives into `platformSpecificData`. That
+    last link is asserted against a real publisher in
+    tests/publisher/test_tiktok_ai_label.py.
+    """
+    config = GlobalBatchConfig(
+        product_ids=["B0TEST1"],
+        keywords=[],
+        max_products=1,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        outputs_dir=temp_outputs_dir,
+        skip_publish=False,
+        platforms=["tiktok"],
+    )
+
+    product_dir = temp_outputs_dir / "B0TEST1"
+    product_dir.mkdir(parents=True)
+    video_path = product_dir / "video.mp4"
+    video_path.write_text("fake video")
+    (product_dir / "metadata.json").write_text(
+        '{"title": "Test", "description": "Test"}'
+    )
+
+    publisher_config = dict(mock_publisher_config)
+    publisher_config["tiktok_settings"] = {
+        "video_made_with_ai": False,
+        "allow_duet": True,
+    }
+    publisher_config["immediate_publish"] = True
+
+    orchestrator = GlobalPipelineOrchestrator(config)
+
+    with (
+        patch(
+            "builtins.open",
+            side_effect=[
+                tempfile._TemporaryFileWrapper(
+                    tempfile.NamedTemporaryFile(mode="w", delete=False),
+                    name="publisher.yaml",
+                )
+            ],
+        ),
+        patch("yaml.safe_load", return_value=publisher_config),
+        patch.dict(
+            "os.environ",
+            {"LATE_API_KEY": "test_key", "LATE_VERCEL_TOKEN": "test_vercel_token"},
+        ),
+        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch(
+            "src.publisher.publish_modes.load_platform_metadata"
+        ) as mock_load_metadata,
+    ):
+        main_publisher = AsyncMock()
+        main_publisher.authenticate = AsyncMock()
+        main_publisher.first_comment_config = FirstCommentConfig(enabled=False)
+        main_publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "tiktok", "account_id": "acc1"}]
+        )
+        main_publisher.upload_media = AsyncMock(return_value="media_123")
+        main_publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "published"}
+        )
+        mock_create_publisher.return_value = main_publisher
+
+        mock_metadata = Mock()
+        mock_metadata.format_content = Mock(return_value="Test content")
+        mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.carries_affiliate_content = True
+        mock_load_metadata.return_value = mock_metadata
+
+        await orchestrator._execute_publishing_phase([(video_path, "B0TEST1")])
+
+    publishing_calls = [
+        c for c in mock_create_publisher.call_args_list if "tiktok_settings" in c.kwargs
+    ]
+    assert (
+        publishing_calls
+    ), "the batch built a publisher without passing tiktok_settings"
+    settings = publishing_calls[-1].kwargs["tiktok_settings"]
+    assert settings.to_platform_data() == {"videoMadeWithAi": False}
+    assert settings.to_sdk_dict()["allow_duet"] is True
+
+
+@pytest.mark.asyncio
 async def test_the_batch_does_not_promote_the_product_pillar_to_an_override(
     temp_outputs_dir, mock_video_config
 ):
