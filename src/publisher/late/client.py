@@ -1154,7 +1154,8 @@ class LatePublisher(BasePublisher):
                     platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {
-                        "tiktokSettings": tiktok_settings.to_sdk_dict()
+                        "tiktokSettings": tiktok_settings.to_sdk_dict(),
+                        **tiktok_settings.to_platform_data(),
                     }
 
                 # Attach first comment via platformSpecificData
@@ -1202,7 +1203,8 @@ class LatePublisher(BasePublisher):
                 and "platformSpecificData" not in platform_entry
             ):
                 platform_entry["platformSpecificData"] = {
-                    "tiktokSettings": tiktok_settings.to_sdk_dict()
+                    "tiktokSettings": tiktok_settings.to_sdk_dict(),
+                    **tiktok_settings.to_platform_data(),
                 }
 
             sdk_platforms.append(platform_entry)
