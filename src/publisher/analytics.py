@@ -83,6 +83,13 @@ class PostMetrics:
     # overwrite all of them -- the outcome the field exists to prevent, applied
     # to exactly the figures that cannot be recomputed.
     covers_publication: bool | None = None
+    # Set once a sweep finds this post had a view count and returned none.
+    # Without it the check cannot fire on a transition: the merge keeps the
+    # stored figure, so the same post satisfies "had a count, returned none"
+    # on every later sweep and an account whose posts have aged out would
+    # warn daily forever -- the outcome the rule above was chosen to avoid.
+    # Cleared as soon as a figure comes back, so a later break still reports.
+    stopped_reporting: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -434,10 +441,12 @@ def _warn_regressed(regressed: list[str], measured: int) -> None:
     this fires; what is at risk is the capture continuing to look healthy
     while it collects nothing.
 
-    The cost of the all-or-nothing rule is a dormant account: one that stopped
-    publishing long enough for every post in the measured window to age out
-    would warn once. That is a rarer and more recoverable wrong answer than
-    warning daily forever, which is where a per-post rule lands.
+    Fires on the transition, not on the state. `stopped_reporting` marks a
+    post whose figure went away, and a marked post stops counting, so an
+    account dormant long enough for its whole measured window to age out
+    warns once rather than daily. Without that marker the merge's own
+    keep-per-field behaviour makes the condition permanent: the stored figure
+    survives the empty reading, so the same posts satisfy it forever.
     """
     sample = ", ".join(regressed[:5])
     more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
@@ -460,10 +469,12 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
     later reading has *less* history behind it, and its absent day-N figures
     would erase ones captured while they were still reachable.
 
-    Returns the ids of posts that were reporting recently and came back with
-    no view count. The caller routes that where an operator will see it; this
-    function only knows which posts regressed, not what should happen about
-    it, and a warning alone reaches no surface anyone is told to check.
+    Returns post ids only when *every* re-measured post that still counted --
+    one with a stored view count, not already marked quiet -- came back
+    without one, and an empty list otherwise. A partial regression is ageing
+    and deliberately reports nothing. The caller routes the result where an
+    operator will see it, because a warning alone reaches no surface anyone
+    is told to check.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     path = metrics_path(outputs_dir)
@@ -480,7 +491,14 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
     regressed: list[str] = []
     for m in metrics:
         stored = merged.get(m.post_id)
-        if stored is not None and stored.views_total is not None:
+        # A post already known to be quiet does not count again. The merge
+        # keeps its stored figure, so without this it satisfies "had a count,
+        # returned none" on every later sweep and the warning repeats daily.
+        if (
+            stored is not None
+            and stored.views_total is not None
+            and not stored.stopped_reporting
+        ):
             had_a_count.append(m.post_id)
             if m.views_total is None:
                 regressed.append(m.post_id)
@@ -496,9 +514,9 @@ def save_metrics(metrics: list[PostMetrics], outputs_dir: Path) -> list[str]:
     # An earlier version tried to tell the two apart per post, by asking when
     # each had last produced rows. There is no field that answers that:
     # `timeline_end` is pinned to whichever reading a preserved durability
-    # ratio came from, so it freezes on live posts -- 17 of 63 rows in the
-    # current store already have it frozen -- and gating on it silenced the
-    # check on exactly the mature posts that make the signal unambiguous.
+    # ratio came from (see `_combine`), so it freezes on live posts and gating
+    # on it silenced the check on exactly the mature posts that make the
+    # signal unambiguous.
     if regressed and len(regressed) == len(had_a_count):
         _warn_regressed(regressed, len(metrics))
     else:
@@ -589,6 +607,13 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
     merged = PostMetrics(
         post_id=fresh.post_id,
         published_at=fresh.published_at or stored.published_at,
+        # Sticky while the post stays quiet, cleared the moment a figure comes
+        # back. What makes the regression check fire on the transition rather
+        # than on every sweep that follows it.
+        stopped_reporting=(
+            fresh.views_total is None
+            and (stored.views_total is not None or stored.stopped_reporting)
+        ),
         views_day_2=kept(stored.views_day_2, fresh.views_day_2),
         views_day_7=kept(stored.views_day_7, fresh.views_day_7),
         # Window-independent, so the fresh figure is simply the more recent

@@ -471,6 +471,11 @@ account daily. What is reported instead is every post with a stored view count
 returning none at once. Posts age out of the provider's timeline one at a time,
 so all of them going quiet in the same sweep is the reader, not age.
 
+The one case where this fires without a reader fault is an account quiet long
+enough for every post in the measured window to age out. It reports once there
+rather than on every sweep, because a post already known to have gone quiet
+stops counting.
+
 It is recorded both as a warning and in `outputs/logs/analytics-failures.log`,
 so `make analytics-timer-status` shows it. A warning alone would sit behind one
 line per measured post and never reach the last few journal lines that command

@@ -145,3 +145,48 @@ class TestTheQuietCases:
             assert save_metrics([_reporting("zulu_one", 450)], tmp_path) == []
 
         assert "returned none" not in caplog.text
+
+
+class TestItFiresOnTheTransition:
+    """Once, when the figures go away -- not on every sweep after.
+
+    The merge keeps a stored figure through an empty reading, so "had a count
+    and returned none" stays true forever once it becomes true. Without a
+    marker the warning repeats daily, which is the cry-wolf outcome the
+    all-or-nothing rule was chosen to avoid.
+    """
+
+    def test_a_second_quiet_sweep_is_silent(self, tmp_path, caplog):
+        save_metrics([_reporting("zulu_one"), _reporting("zulu_two")], tmp_path)
+        assert save_metrics([_stub("zulu_one"), _stub("zulu_two")], tmp_path) != []
+
+        # The first sweep's warning is in caplog too; only the second matters.
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            again = save_metrics([_stub("zulu_one"), _stub("zulu_two")], tmp_path)
+
+        assert again == []
+        assert "returned none" not in caplog.text
+
+    def test_a_fourth_quiet_sweep_is_still_silent(self, tmp_path):
+        """A dormant account must not accumulate a daily entry forever."""
+        save_metrics([_reporting("zulu_one")], tmp_path)
+        save_metrics([_stub("zulu_one")], tmp_path)
+
+        for _ in range(3):
+            assert save_metrics([_stub("zulu_one")], tmp_path) == []
+
+    def test_figures_returning_re_arms_the_check(self, tmp_path):
+        """A fixed reader must be able to report the next break."""
+        save_metrics([_reporting("zulu_one")], tmp_path)
+        save_metrics([_stub("zulu_one")], tmp_path)
+        save_metrics([_reporting("zulu_one", 500)], tmp_path)
+
+        assert save_metrics([_stub("zulu_one")], tmp_path) == ["zulu_one"]
+
+    def test_the_stored_figure_survives_every_quiet_sweep(self, tmp_path):
+        save_metrics([_reporting("zulu_one", 400)], tmp_path)
+        for _ in range(4):
+            save_metrics([_stub("zulu_one")], tmp_path)
+
+        assert load_metrics(tmp_path)[0].views_total == 400

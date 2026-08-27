@@ -153,19 +153,35 @@ class TestTheRegressionReachesTheOperatorSurface:
         )
         save_metrics([seeded], tmp_path)
 
-        await _run(tmp_path, [MEASURABLE_POST], {"timeline": []})
+        # Two posts measured, one with a figure to lose, so the denominator in
+        # the file is pinned to the sweep size rather than the regressed count.
+        await _run(
+            tmp_path,
+            [MEASURABLE_POST, {"id": "c", "platforms": []}],
+            [{"timeline": []}, {"timeline": []}],
+        )
 
         recorded = (tmp_path / "logs" / "analytics-failures.log").read_text()
         assert "b" in recorded
-        assert "1 of 1" in recorded
+        assert "1 of 2" in recorded
 
     @pytest.mark.asyncio
     async def test_a_healthy_sweep_writes_no_file(self, tmp_path):
         """The status target must not report a failure that did not happen."""
+        # Seeded WITH a figure, so this sweep genuinely re-measures a post
+        # that had something to lose and keeps it. Seeding a stub made the
+        # test vacuous: nothing counted, so no file could ever be written.
         save_metrics(
-            [PostMetrics(post_id="b", published_at="2026-07-01T08:00:00Z")], tmp_path
+            [
+                PostMetrics(
+                    post_id="b",
+                    published_at="2026-07-01T08:00:00Z",
+                    views_total=400,
+                )
+            ],
+            tmp_path,
         )
 
-        await _run(tmp_path, [MEASURABLE_POST], MEASURABLE_TIMELINE)
+        await _run(tmp_path, [MEASURABLE_POST], [MEASURABLE_TIMELINE])
 
         assert not (tmp_path / "logs" / "analytics-failures.log").exists()
