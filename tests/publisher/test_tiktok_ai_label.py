@@ -82,3 +82,34 @@ class TestEveryTikTokPayloadIncludesIt:
             "both platformSpecificData builders must carry the label; "
             "one that does not publishes an undisclosed AI post"
         )
+
+
+class TestTheBatchPathKeepsTheLabelOn:
+    """The batch builds its own publisher and passes no tiktok_settings.
+
+    So it runs on the dataclass defaults (issue #255). The compliance outcome
+    is still right, because the default is on; what does not reach a batch run
+    is a deliberate opt-out set in YAML. Asserting the default here is what
+    makes that safe: if the default ever flips, every batch-published post
+    goes out undisclosed with nothing in the config to explain why.
+    """
+
+    def test_the_default_is_what_the_batch_will_use(self):
+        from src.publisher.models import TikTokContentSettings
+
+        assert TikTokContentSettings().video_made_with_ai is True
+
+    def test_the_batch_still_does_not_pass_tiktok_settings(self):
+        """Fails when #255 lands, which is the point.
+
+        At that moment the opt-out starts working on the batch path and the
+        caveat in docs/compliance.md and the changelog stops being true.
+        """
+        from pathlib import Path
+
+        text = Path("src/pipeline/global_batch.py").read_text()
+        assert "tiktok_settings=" not in text, (
+            "the batch now passes tiktok_settings: remove the #255 caveat from "
+            "docs/compliance.md and the CHANGELOG, which say the opt-out does "
+            "not reach a batch run"
+        )
