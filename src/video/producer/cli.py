@@ -675,9 +675,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=str,
         help=(
             "Content pillar for this run (e.g. value, novelty, utility). "
-            "Filters the script template pool to templates listed under the "
-            "pillar in ai_services.yaml and prepends the pillar preamble to "
-            "the LLM prompt. Without this flag, all templates are eligible."
+            "Prepends the pillar preamble to the LLM prompt and picks the "
+            "pillar audience. On a product render it also narrows the script "
+            "template pool to the templates listed under that pillar; a topic "
+            "render uses the topic family instead, so only the preamble and "
+            "audience apply. Without this flag, every template in the "
+            "render's own family is eligible."
         ),
     )
     parser.add_argument(
@@ -740,15 +743,6 @@ async def main():
             parser.error(
                 "--batch-profile, --fail-fast and --random-profile "
                 "can only be used with --batch"
-            )
-        if args.pillar:
-            # Every pillar preamble and audience hint is written about a
-            # product ("the product fixes...", "practical buyers"), which
-            # contradicts the topic templates' own instruction not to invent
-            # one. Refusing beats emitting a prompt that argues with itself.
-            parser.error(
-                "--pillar cannot be used with --topic/--topics-file: the "
-                "pillar preambles and audiences are written about a product"
             )
     else:
         # Non-batch mode validation

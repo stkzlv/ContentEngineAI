@@ -97,7 +97,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 | `--voice-profile` | Force a specific TTS voice profile | `--voice-profile calm_confident` |
 | `--pillar` | Content pillar for the run (filters templates, prepends pillar preamble, picks pillar audience) | `--pillar value` |
 
-**Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, the product record's own pillar applies when it has one — the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies. See [Requirements](requirements.md) "Content Pillars" for the full system.
+**Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, the product record's own pillar applies when it has one — the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies. `--pillar` works with `--topic` too: the preambles and audiences have topic counterparts (`pillar_preambles_topic`, `pillar_audiences_topic`) using the same keys, because the product versions are written about a thing being shown and would put a purchase in a script that recommends nothing. Template narrowing does not apply on a topic, since `pillars` maps to product templates and a topic uses the topic family; the pillar still shapes the preamble and the audience. See [Requirements](requirements.md) "Content Pillars" for the full system.
 
 ### Subtitle Configuration
 
@@ -215,7 +215,11 @@ globally, or per run with `--subtitle-format`.
 Three visual-layer knobs live on `video_settings` and the per-profile partial override:
 
 - `first_frame_pre_motion` / `pre_motion_peak_zoom` — when enabled, the first image segment starts at `pre_motion_peak_zoom` and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. Default off on the existing 30-45s profiles, on for `slideshow_short_20s`.
-- `hook_overlay` — burns a short headline as centre-upper static drawtext on the first `duration_sec` seconds (default 1.5), at `size_factor` times narration size, with no per-word reveal. The text is an authored headline generated separately from the spoken script, so the hook doesn't repeat the first caption line; when no headline is available it falls back to the script's first sentence. Long text wraps to at most `max_lines` lines, each held within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone can't fit. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top. The headline lands in `pipeline_state.json::hook_headline`.
+- `hook_overlay` — burns a short headline as centre-upper static drawtext on the first `duration_sec` seconds (default 1.5), at `size_factor` times narration size, with no per-word reveal. The text is an authored headline generated separately from the spoken script, so the hook doesn't repeat the first caption line; when no headline is available it falls back to the script's first sentence. Long text wraps to at most `max_lines` lines, each held within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone can't fit. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top. The headline lands in `pipeline_state.json::hook_headline`. A topic render uses a
+separate headline prompt: the product one requires a product category noun,
+which on a topic with no device makes the model invent one. The topic prompt
+asks for the symptom or the fix and forbids naming anything the script does
+not cover.
 - `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.

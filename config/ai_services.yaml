@@ -225,6 +225,23 @@ llm_settings:
       novelty: "Curious people who enjoy discovering lesser-known products before everyone else."
       utility: "Practical buyers solving a real, recurring problem with the right tool."
 
+    # Topic counterparts. The maps above are written about a product being
+    # shown, so pairing one with a topic template gives the model a prompt
+    # that argues with itself: the template says never invent a product, the
+    # preamble assumes one exists. Same keys, so --pillar takes the same
+    # values on both families.
+    pillar_preambles_topic:
+      value: |-
+        Pillar context: this video runs under the value pillar. Lean into the free-or-cheap angle, where the fix costs nothing but a few minutes and the viewer already owns everything they need. If the topic fits another angle better, follow the topic.
+      novelty: |-
+        Pillar context: this video runs under the novelty pillar. Lean into the did-not-know-that angle, framing the cause as something the viewer has lived with without ever knowing why. If the topic fits another angle better, follow the topic.
+      utility: |-
+        Pillar context: this video runs under the utility pillar. Lean into the problem-solving angle, where a specific, recurring annoyance the viewer would recognize gets diagnosed and fixed. If the topic fits another angle better, follow the topic.
+    pillar_audiences_topic:
+      value: "People who would rather fix it themselves than pay for a fix or a replacement."
+      novelty: "Curious people who like knowing why their devices behave the way they do."
+      utility: "Practical people troubleshooting a specific, recurring annoyance right now."
+
 # ============================================================================
 # TTS CONFIGURATION
 # ============================================================================

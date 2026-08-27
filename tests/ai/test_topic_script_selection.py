@@ -6,13 +6,17 @@ prompt. A template that is selected but whose placeholders never fill looks
 identical to one that works.
 """
 
+import logging
 import re
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.ai.script_generator import (
     _short_product_name,
     format_prompt,
+    generate_hook_headline,
     select_script_template,
 )
 from src.scraper.amazon.models import ProductData
@@ -184,30 +188,316 @@ class TestNarratorResolver:
             text = path.read_text(encoding="utf-8")
             assert "narrator_profile=script_cfg.narrator_profile," not in text, path
             assert "script_templates.narrator_profile," not in text, path
+            # The preamble map travels with the profile: the requirements doc
+            # pins that captions receive the same pair the script does. Both
+            # steps.py call sites hardcoded the product map once already,
+            # which put "the product fixes a specific annoyance" three lines
+            # above the topic prompt's rule against naming a product.
+            assert "pillar_preambles=script_cfg.pillar_preambles," not in text, path
+            assert (
+                "pillar_preambles=settings.script_templates.pillar_preambles,"
+            ) not in text, path
 
 
 @pytest.mark.unit
-class TestPillarPreamblesAreProductShaped:
-    """Why `--pillar` is refused with `--topic`.
+class TestEachFamilyGetsItsOwnPillarVocabulary:
+    """`--pillar` works for both, because each has its own maps.
 
-    The preambles and audience hints are written about a product, so combining
-    them with a topic template produces a prompt that argues with itself: one
-    half says never invent a product, the other assumes there is one.
+    The product preambles are written about a thing being shown, so pairing
+    one with a topic template used to produce a prompt that argued with
+    itself: one half said never invent a product, the other assumed there was
+    one. The CLI refused the combination rather than emit that. Refusing was
+    a stopgap; the topic maps are the answer, and the guard is gone.
     """
 
-    def test_preambles_still_talk_about_a_product(self):
+    def test_product_preambles_still_talk_about_a_product(self):
         from src.video.config import config
 
         preambles = config.llm_settings.script_templates.pillar_preambles
         assert preambles, "no pillar preambles configured"
         assert any("product" in text.lower() for text in preambles.values())
 
-    def test_audiences_still_describe_buyers(self):
+    def test_topic_preambles_never_mention_a_product(self):
         from src.video.config import config
 
-        audiences = config.llm_settings.script_templates.pillar_audiences
-        assert audiences, "no pillar audiences configured"
-        assert any(
-            "buyer" in text.lower() or "shopper" in text.lower()
-            for text in audiences.values()
+        preambles = config.llm_settings.script_templates.pillar_preambles_topic
+        assert preambles, "no topic pillar preambles configured"
+        for name, text in preambles.items():
+            assert "product" not in text.lower(), name
+
+    def test_topic_audiences_never_describe_buyers(self):
+        """Nobody watching a tech-help video is shopping.
+
+        The product map says "buyers" and "shoppers"; the same words would put
+        a purchase in a script that recommends nothing.
+        """
+        from src.video.config import config
+
+        audiences = config.llm_settings.script_templates.pillar_audiences_topic
+        assert audiences, "no topic pillar audiences configured"
+        for name, text in audiences.items():
+            low = text.lower()
+            assert "buyer" not in low and "shopper" not in low, name
+
+    def test_both_families_offer_the_same_pillars(self):
+        """So --pillar takes the same values whichever family is rendering.
+
+        A later taxonomy change then moves one key list rather than leaving
+        two vocabularies to drift apart.
+        """
+        from src.video.config import config
+
+        cfg = config.llm_settings.script_templates
+        assert set(cfg.pillar_preambles_topic) == set(cfg.pillar_preambles)
+        assert set(cfg.pillar_audiences_topic) == set(cfg.pillar_audiences)
+
+    def test_a_topic_render_selects_the_topic_maps(self):
+        from src.video.config import config
+
+        cfg = config.llm_settings.script_templates
+        assert cfg.preambles_for(True) == cfg.pillar_preambles_topic
+        assert cfg.audiences_for(True) == cfg.pillar_audiences_topic
+        assert cfg.preambles_for(False) == cfg.pillar_preambles
+        assert cfg.audiences_for(False) == cfg.pillar_audiences
+
+
+@pytest.mark.unit
+class TestPillarSelectionOnATopic:
+    """A pillar narrows product templates; on a topic it shapes the preamble.
+
+    `pillars` maps a pillar to product template names, and a topic replaces
+    the pool with the topic family, so the two never intersect. That is the
+    designed outcome, not a misconfiguration, and warning about it would fire
+    on every topic render that names a pillar.
+    """
+
+    def test_a_topic_with_a_pillar_keeps_the_topic_pool(self):
+        from src.video.config import config
+
+        cfg = config.llm_settings
+        chosen = select_script_template(
+            cfg, product_id="topic-x", pillar="utility", is_topic=True
         )
+
+        assert chosen.stem in cfg.script_templates.topic_templates
+
+    def test_it_does_not_warn(self, caplog):
+        from src.video.config import config
+
+        with caplog.at_level(logging.WARNING):
+            select_script_template(
+                config.llm_settings,
+                product_id="topic-x",
+                pillar="utility",
+                is_topic=True,
+            )
+
+        assert "intersecting current pool" not in caplog.text
+
+    def test_a_product_with_an_unmatched_pillar_still_warns(self, caplog):
+        """The real misconfiguration must stay loud.
+
+        A configured pillar whose templates cannot intersect the pool. The
+        earlier version of this test passed an unconfigured pillar name, which
+        never reaches the branch at all -- `select_script_template` gates on
+        `pillar in pillars` first -- and asserted nothing, so deleting the
+        warning entirely left it green.
+        """
+        from src.video.config import config
+
+        cfg = config.llm_settings.model_copy(deep=True)
+        pillar = next(iter(cfg.script_templates.pillars))
+        # A pool holding only templates this pillar does not list.
+        listed = set(cfg.script_templates.pillars[pillar])
+        cfg.script_templates.template_pool = [
+            t for t in cfg.script_templates.topic_templates if t not in listed
+        ]
+
+        with caplog.at_level(logging.WARNING):
+            select_script_template(
+                cfg, product_id="B0TEST", pillar=pillar, is_topic=False
+            )
+
+        assert "intersecting current pool" in caplog.text
+
+
+@pytest.mark.unit
+class TestTheHookHeadlineHasATopicVariant:
+    """The product headline prompt requires a product category noun.
+
+    On a topic with no device that forces an invention. Measured against the
+    live model: "why your passwords keep getting leaked" produced "Password
+    manager that stops leaks" over a script that never mentions one. Rewording
+    the rule alone would not hold, because every example in the product file
+    is product-shaped and examples beat rules when the two disagree.
+    """
+
+    def test_the_topic_prompt_exists_and_names_no_product(self):
+        text = Path("src/ai/prompts/hook_headline_topic.md").read_text()
+
+        assert "{TOPIC_TITLE}" in text
+        assert "{FULL_PRODUCT_NAME}" not in text
+
+    def test_it_forbids_naming_a_product_the_script_omits(self):
+        text = Path("src/ai/prompts/hook_headline_topic.md").read_text().lower()
+
+        assert "never name a product" in text
+
+    def test_the_measured_failures_are_the_anti_examples(self):
+        """Anti-examples are real outputs, not invented ones.
+
+        A rule the model already broke is worth more as a demonstration than
+        a description, and these four are what it actually produced.
+        """
+        text = Path("src/ai/prompts/hook_headline_topic.md").read_text()
+
+        for produced in (
+            "Password manager that stops leaks",
+            "Password leaks explained",
+            "Laptop speed up with these tips",
+            "Website won't load fixer",
+        ):
+            assert produced in text, produced
+
+    def test_the_product_prompt_is_untouched(self):
+        """A product render must keep requiring its category noun."""
+        text = Path("src/ai/prompts/hook_headline.md").read_text()
+
+        assert "The product category noun MUST appear" in text
+
+
+@pytest.mark.unit
+class TestTheWiringSelectsTheTopicVariants:
+    """Asserting the files exist does not assert anything reads them.
+
+    Reverting either selection left every other test in this file green, so
+    these capture the argument the code actually passes.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_topic_render_loads_the_topic_headline_prompt(self):
+        from src.video.config import config
+
+        spec = TopicSpec(title="Why wifi drops", description="Channels.", keywords=[])
+        captured = {}
+
+        async def fake(template_path, *a, **kw):
+            captured["path"] = Path(template_path)
+            return "Your wifi drops because of this"
+
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm", side_effect=fake
+        ):
+            await generate_hook_headline(
+                build_topic_product(spec),
+                config.llm_settings,
+                {config.llm_settings.api_key_env_var: "k"},
+                MagicMock(),
+            )
+
+        assert captured["path"].name == "hook_headline_topic.md"
+
+    @pytest.mark.asyncio
+    async def test_a_product_render_still_loads_the_product_prompt(self):
+        from src.video.config import config
+
+        product = ProductData(
+            asin="B0TEST",
+            title="A gadget",
+            description="Does things.",
+            price="9.99",
+            url="https://example.com/dp/B0TEST",
+            platform=Platform.AMAZON,
+        )
+        captured = {}
+
+        async def fake(template_path, *a, **kw):
+            captured["path"] = Path(template_path)
+            return "Gadget that does things"
+
+        with patch(
+            "src.ai.platform_metadata.utilities.generate_with_llm", side_effect=fake
+        ):
+            await generate_hook_headline(
+                product,
+                config.llm_settings,
+                {config.llm_settings.api_key_env_var: "k"},
+                MagicMock(),
+            )
+
+        assert captured["path"].name == "hook_headline.md"
+
+    def test_a_topic_audience_comes_from_the_topic_map(self):
+        from src.ai.script_generator import _resolve_audience
+        from src.video.config import config
+
+        cfg = config.llm_settings
+        assert (
+            _resolve_audience("utility", cfg, is_topic=True)
+            == cfg.script_templates.pillar_audiences_topic["utility"]
+        )
+        assert (
+            _resolve_audience("utility", cfg, is_topic=False)
+            == cfg.script_templates.pillar_audiences["utility"]
+        )
+
+
+@pytest.mark.unit
+class TestTheWholePromptStackFollowsTheFamily:
+    """The hook headline resolves the family, behaviourally.
+
+    The narrator profile and the pillar preamble travel together: the
+    requirements doc pins that captions receive the same pair the script does.
+    Resolving one per call site is how a topic render kept the purchase voice
+    in four of its five prompts while only the script changed.
+
+    The caption call site is covered by the source-level guard in
+    ``TestNarratorResolver`` rather than here: driving
+    ``_generate_optimized_metadata`` needs most of a pipeline context, and the
+    guard catches the regression this actually had.
+    """
+
+    @staticmethod
+    def _topic_ctx(pillar):
+        from src.video.config import config
+
+        spec = TopicSpec(
+            title="Why your passwords keep getting leaked",
+            description="Reuse, breach databases, 2FA.",
+            keywords=[],
+        )
+        ctx = MagicMock()
+        ctx.product = build_topic_product(spec)
+        ctx.config = config
+        ctx.script = "Most leaks come from reusing one password."
+        ctx.debug_mode = False
+        ctx.state = {"pillar": pillar}
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_the_hook_headline_gets_the_topic_preamble(self):
+        from src.video.producer import steps
+
+        captured = {}
+
+        async def fake(*args, **kw):
+            captured.update(kw)
+            return "Your passwords leak because you reuse them"
+
+        with patch.object(steps, "generate_hook_headline", side_effect=fake):
+            await steps._ensure_hook_headline(self._topic_ctx("utility"), "utility")
+
+        from src.video.config import config
+
+        cfg = config.llm_settings.script_templates
+        assert captured["pillar_preambles"] == cfg.pillar_preambles_topic
+        assert captured["pillar_preambles"] != cfg.pillar_preambles
+
+    def test_the_product_preamble_still_names_a_product(self):
+        """So the assertion above is not vacuous."""
+        from src.video.config import config
+
+        product_text = " ".join(
+            config.llm_settings.script_templates.pillar_preambles.values()
+        )
+        assert "product" in product_text.lower()

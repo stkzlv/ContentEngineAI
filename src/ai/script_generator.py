@@ -271,6 +271,18 @@ def select_script_template(
         narrowed = [t for t in pool if t in pillar_templates]
         if narrowed:
             pool = narrowed
+        elif is_topic:
+            # Expected, not a misconfiguration. `pillars` maps a pillar to
+            # product templates, and a topic has replaced the pool with the
+            # topic family, so the two never intersect. The pillar still acts
+            # on this run through its preamble and audience; only the template
+            # narrowing does not apply. Warning here would fire on every
+            # topic render that names a pillar.
+            logger.debug(
+                "Pillar '%s' narrows product templates only; the topic pool "
+                "stands and the pillar still shapes the preamble",
+                pillar,
+            )
         else:
             logger.warning(
                 "Pillar '%s' has no templates intersecting current pool; "
@@ -299,16 +311,21 @@ def select_script_template(
     return templates_dir / f"{name}.md"
 
 
-def _resolve_audience(pillar: str | None, settings: LLMSettings) -> str:
+def _resolve_audience(
+    pillar: str | None, settings: LLMSettings, is_topic: bool = False
+) -> str:
     """Pick the audience hint for this run.
 
-    Per-pillar audience (`pillar_audiences[pillar]`) wins when both are set
-    and the entry is non-empty. Falls back to the global `target_audience`
-    when pillar is None, has no entry in `pillar_audiences`, or the entry
-    is an empty string.
+    Per-pillar audience wins when both are set and the entry is non-empty.
+    Falls back to the global `target_audience` when pillar is None, has no
+    entry, or the entry is an empty string.
+
+    A topic reads the topic map. The product one says "buyers" and "shoppers",
+    and nobody watching a tech-help video is shopping, so the same words would
+    put a purchase in a script that recommends nothing.
     """
     if pillar:
-        pillar_audience = settings.script_templates.pillar_audiences.get(pillar)
+        pillar_audience = settings.script_templates.audiences_for(is_topic).get(pillar)
         if pillar_audience:
             return pillar_audience
     return settings.target_audience
@@ -324,13 +341,20 @@ def _warn_unknown_pillar(pillar: str, settings: LLMSettings) -> None:
     had no effect.
     """
     cfg = settings.script_templates
-    known = set(cfg.pillars) | set(cfg.pillar_preambles) | set(cfg.pillar_audiences)
+    known = (
+        set(cfg.pillars)
+        | set(cfg.pillar_preambles)
+        | set(cfg.pillar_audiences)
+        | set(cfg.pillar_preambles_topic)
+        | set(cfg.pillar_audiences_topic)
+    )
     if pillar in known:
         return
     logger.info(
-        "Pillar '%s' is not configured in pillars, pillar_preambles, or "
-        "pillar_audiences. No template filter, preamble, or audience override "
-        "will apply for this run. Known pillars: %s",
+        "Pillar '%s' is not configured in pillars, pillar_preambles, "
+        "pillar_audiences, pillar_preambles_topic or pillar_audiences_topic. "
+        "No template filter, preamble, or audience override will apply for "
+        "this run. Known pillars: %s",
         pillar,
         sorted(known) or [],
     )
@@ -782,7 +806,8 @@ async def generate_script(
         settings, product_id, pillar, is_topic=bool(getattr(product, "topic", None))
     )
     template_name = template_path.stem
-    audience = _resolve_audience(pillar, settings)
+    is_topic = bool(getattr(product, "topic", None))
+    audience = _resolve_audience(pillar, settings, is_topic)
     try:
         template = load_prompt_template(template_path)
         prompt = format_prompt(template, product, audience)
@@ -791,9 +816,9 @@ async def generate_script(
 
     prompt = apply_prompt_preambles(
         prompt,
-        settings.script_templates.narrator_for(bool(getattr(product, "topic", None))),
+        settings.script_templates.narrator_for(is_topic),
         pillar,
-        settings.script_templates.pillar_preambles,
+        settings.script_templates.preambles_for(is_topic),
     )
 
     if "formatted_prompt" in intermediate_paths:
@@ -1089,9 +1114,21 @@ async def generate_hook_headline(
         return ""
     from src.ai.platform_metadata.utilities import generate_with_llm
 
+    # A topic gets its own prompt rather than a reworded rule. The product
+    # file requires a product category noun, which on a topic with no device
+    # forces an invention: measured against the live model, "why your
+    # passwords keep getting leaked" produced "Password manager that stops
+    # leaks" over a script that never mentions one. Rewording the rule alone
+    # would not hold, because every example in that file is product-shaped and
+    # examples beat rules when the two disagree.
+    prompt = (
+        "src/ai/prompts/hook_headline_topic.md"
+        if getattr(product, "topic", None)
+        else "src/ai/prompts/hook_headline.md"
+    )
     try:
         raw = await generate_with_llm(
-            Path("src/ai/prompts/hook_headline.md"),
+            Path(prompt),
             product,
             settings,
             api_key,

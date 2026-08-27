@@ -30,12 +30,20 @@ def _ctx(*, state=None, hook_enabled=True, max_words=7):
                 script_templates=SimpleNamespace(
                     narrator_profile="narrator",
                     narrator_profile_topic="topic narrator",
-                    pillar_preambles={},
-                    # The real config resolves which profile a render gets, so
-                    # the stub has to answer the same question rather than
-                    # exposing the field the caller no longer reads.
+                    pillar_preambles={"utility": "product preamble"},
+                    pillar_preambles_topic={"utility": "topic preamble"},
+                    # The real config resolves which profile and which pillar
+                    # map a render gets, so the stub has to answer the same
+                    # questions rather than exposing the fields the caller no
+                    # longer reads. A stub missing one of these fails with an
+                    # AttributeError that looks like a code bug.
                     narrator_for=lambda is_topic: (
                         "topic narrator" if is_topic else "narrator"
+                    ),
+                    preambles_for=lambda is_topic: (
+                        {"utility": "topic preamble"}
+                        if is_topic
+                        else {"utility": "product preamble"}
                     ),
                 )
             ),

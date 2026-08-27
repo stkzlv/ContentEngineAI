@@ -118,6 +118,14 @@ def format_prompt(
             FULL_PRODUCT_NAME=product.title or "Product",
             PRODUCT_DESCRIPTION=product.description or "No description available",
             VIDEO_SCRIPT=video_script or "",
+            # Neutral aliases, matching what the script-template renderer
+            # already supplies. Two renderers offering different placeholder
+            # sets for the same record is how a topic prompt written against
+            # the documented names dies with "Missing placeholder". Passing
+            # them always is harmless: `str.format` ignores keys a template
+            # does not reference, so no product prompt changes.
+            TOPIC_TITLE=product.title or "Topic",
+            TOPIC_DETAIL=product.description or "No description available",
             **(extra_placeholders or {}),
         )
     except KeyError as e:

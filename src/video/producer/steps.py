@@ -602,7 +602,14 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
             bool(getattr(ctx.product, "topic", None))
         ),
         pillar=pillar,
-        pillar_preambles=script_cfg.pillar_preambles,
+        # The map has to follow the family the narrator already follows. The
+        # product preamble says "the product fixes a specific annoyance",
+        # which lands three lines above the topic prompt's own rule forbidding
+        # a product the script does not cover -- a prompt arguing with itself,
+        # at the one prompt whose measured failure motivated the topic variant.
+        pillar_preambles=script_cfg.preambles_for(
+            bool(getattr(ctx.product, "topic", None))
+        ),
         max_words=ctx.config.video_settings.hook_overlay.max_words,
     )
     if headline:
@@ -792,7 +799,12 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                 bool(getattr(ctx.product, "topic", None))
             ),
             pillar=active_pillar,
-            pillar_preambles=script_cfg.pillar_preambles,
+            # Same family as the narrator above: the requirements doc pins
+            # that captions receive the same profile and preamble the script
+            # does, so splitting them here would break that contract.
+            pillar_preambles=script_cfg.preambles_for(
+                bool(getattr(ctx.product, "topic", None))
+            ),
         )
 
         # Save metadata to individual platform files

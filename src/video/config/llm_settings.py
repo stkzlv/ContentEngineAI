@@ -64,6 +64,28 @@ class ScriptTemplateConfig(BaseModel):
     # buyer it's actually written for. Empty dict falls back to the global
     # target_audience.
     pillar_audiences: dict[str, str] = Field(default_factory=dict)
+    # Topic counterparts to the two maps above. The product versions are
+    # written about a thing being shown -- "the product fixes a specific
+    # annoyance", "practical buyers" -- so pairing one with a topic template
+    # gives the model a prompt that argues with itself: the template says
+    # never invent a product, the preamble assumes one exists. Same keys, so
+    # --pillar takes the same values on both families and a later taxonomy
+    # change moves one key list rather than two vocabularies. Empty falls back
+    # to the product map, which is the pre-existing behaviour.
+    pillar_preambles_topic: dict[str, str] = Field(default_factory=dict)
+    pillar_audiences_topic: dict[str, str] = Field(default_factory=dict)
+
+    def preambles_for(self, is_topic: bool) -> dict[str, str]:
+        """The pillar preamble map a render should use."""
+        if is_topic and self.pillar_preambles_topic:
+            return self.pillar_preambles_topic
+        return self.pillar_preambles
+
+    def audiences_for(self, is_topic: bool) -> dict[str, str]:
+        """The pillar audience map a render should use."""
+        if is_topic and self.pillar_audiences_topic:
+            return self.pillar_audiences_topic
+        return self.pillar_audiences
 
 
 class ScriptValidationConfig(BaseModel):
