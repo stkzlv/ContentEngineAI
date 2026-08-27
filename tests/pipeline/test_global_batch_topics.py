@@ -555,15 +555,73 @@ class TestThePoolProvenanceIsSetByTheLoader:
         assert config.profile_pool_from_cli is False
 
 
-class TestAResumedTopicsRunKeepsAUsableProfilePool:
-    """Finding the directories is not enough.
+class TestAResumedTopicsRunIsValidatedLikeAFreshOne:
+    """A resume must accept exactly what a fresh run accepts.
 
-    Topics are not persisted in the pipeline state, so a `--resume` carries
-    none and validation never narrows the pool. Discovery returned the topics
-    and production then drew a product profile for each, failing every one.
+    Topics are not persisted -- the identifier carries a one-way digest of the
+    title -- so a `--resume` looks like a product run to every topic rule
+    unless the saved state is consulted. Narrowing the pool in the handoff
+    instead put a second, weaker copy of the policy there: it dropped both
+    refusals, so a resume rendered topics under a product profile named with
+    `--profile` while logging that it had narrowed the pool.
     """
 
-    def test_the_pool_is_narrowed_from_the_handed_off_ids(self, tmp_path):
+    @staticmethod
+    def _resumed(**kw):
+        return GlobalBatchConfig(topics_resume=True, skip_publish=True, **kw)
+
+    def test_the_pool_is_narrowed(self, real_video_config):
+        config = self._resumed(random_profile=True, profile_pool=["slideshow_images1"])
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile_pool == ["slideshow_stock"]
+        assert config.random_profile is True
+
+    def test_a_stock_profile_stays_fixed(self, real_video_config):
+        """`random_profile` must not be forced on when a profile was named."""
+        config = self._resumed(profile="slideshow_stock")
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile == "slideshow_stock"
+        assert config.random_profile is False
+
+    def test_a_product_profile_is_refused(self, real_video_config):
+        with pytest.raises(ValueError, match="draws no stock media"):
+            validate_global_batch_config(
+                self._resumed(profile="slideshow_images1"), real_video_config
+            )
+
+    def test_a_cli_named_product_pool_is_refused(self, real_video_config):
+        with pytest.raises(ValueError, match="cannot render a topic"):
+            validate_global_batch_config(
+                self._resumed(
+                    random_profile=True,
+                    profile_pool=["slideshow_images1"],
+                    profile_pool_from_cli=True,
+                ),
+                real_video_config,
+            )
+
+    def test_process_all_products_is_refused(self, real_video_config):
+        """It would render swept-in scraped products from generic stock."""
+        with pytest.raises(ValueError, match="--process-all-products"):
+            validate_global_batch_config(
+                self._resumed(process_all_products=True), real_video_config
+            )
+
+    def test_inherited_yaml_keywords_do_not_refuse_the_resume(self, real_video_config):
+        """A resume inherits the YAML keywords whatever it is resuming.
+
+        The completed scraping phase never used them, so refusing the pair
+        would break every topics resume -- the exclusivity rule is about
+        inputs named together on one command line.
+        """
+        config = self._resumed(keywords=["wireless earbuds"])
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile_pool == ["slideshow_stock"]
+
+    def test_discovery_still_returns_the_topics(self, tmp_path):
         import json
 
         from src.pipeline.global_batch import GlobalPipelineOrchestrator
@@ -577,37 +635,69 @@ class TestAResumedTopicsRunKeepsAUsableProfilePool:
             ),
             encoding="utf-8",
         )
-
-        # What a `--resume` looks like: no topics, a product pool from YAML.
-        resumed = GlobalBatchConfig(
-            outputs_dir=tmp_path,
-            random_profile=True,
-            profile_pool=["slideshow_images1", "slideshow_images2"],
-            skip_publish=True,
-        )
-        orchestrator = GlobalPipelineOrchestrator(resumed)
-        ready = orchestrator._execute_handoff_phase([pid])
+        resumed = self._resumed(outputs_dir=tmp_path)
+        ready = GlobalPipelineOrchestrator(resumed)._execute_handoff_phase([pid])
 
         assert [p.name for p, _ in ready] == [pid]
-        assert resumed.profile_pool == ["slideshow_stock"]
 
-    def test_a_resumed_product_run_keeps_its_pool(self, tmp_path):
-        import json
 
-        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+class TestRecognisingAResumedTopicsRun:
+    """The detection that makes every topic rule apply on a resume.
 
-        (tmp_path / "B0ABCDEFGH").mkdir()
-        (tmp_path / "B0ABCDEFGH" / "data.json").write_text(
-            json.dumps({"title": "T", "price": "1", "url": "u", "asin": "B0ABCDEFGH"}),
-            encoding="utf-8",
+    Left inline in `main` it was the one piece of this feature no test
+    touched: deleting it kept the suite green while every resumed topic
+    rendered under a product profile.
+    """
+
+    @staticmethod
+    def _state(tmp_path, product_ids):
+        from src.pipeline.config import PipelineState, save_pipeline_state
+
+        state = PipelineState.create_new(GlobalBatchConfig(outputs_dir=tmp_path))
+        state.scraping_completed_products = product_ids
+        save_pipeline_state(state, tmp_path)
+
+    def test_topic_ids_in_the_saved_state_are_recognised(self, tmp_path):
+        from src.pipeline.global_batch import _is_resuming_topics
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops")])
+
+        assert _is_resuming_topics(GlobalBatchConfig(resume=True, outputs_dir=tmp_path))
+
+    def test_product_ids_are_not(self, tmp_path):
+        from src.pipeline.global_batch import _is_resuming_topics
+
+        self._state(tmp_path, ["B0ABCDEFGH"])
+
+        assert not _is_resuming_topics(
+            GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
         )
-        pool = ["slideshow_images1", "slideshow_images2"]
-        resumed = GlobalBatchConfig(
-            outputs_dir=tmp_path,
-            random_profile=True,
-            profile_pool=list(pool),
-            skip_publish=True,
-        )
-        GlobalPipelineOrchestrator(resumed)._execute_handoff_phase(["B0ABCDEFGH"])
 
-        assert resumed.profile_pool == pool
+    def test_a_run_that_is_not_resuming_is_not(self, tmp_path):
+        from src.pipeline.global_batch import _is_resuming_topics
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops")])
+
+        assert not _is_resuming_topics(
+            GlobalBatchConfig(resume=False, outputs_dir=tmp_path)
+        )
+
+    def test_no_saved_state_is_not(self, tmp_path):
+        from src.pipeline.global_batch import _is_resuming_topics
+
+        assert not _is_resuming_topics(
+            GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
+        )
+
+    def test_main_wires_it(self):
+        """The helper having tests is not the guard; the call site is."""
+        import ast
+        from pathlib import Path
+
+        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        assert any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_is_resuming_topics"
+            for node in ast.walk(tree)
+        ), "main no longer detects a topics resume"

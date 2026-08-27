@@ -385,6 +385,31 @@ Examples:
 _RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
 
 
+def _is_resuming_topics(config: "GlobalBatchConfig") -> bool:
+    """Whether this `--resume` is picking up a topics run.
+
+    Topics are not persisted: the identifier carries a one-way digest of the
+    title, so the specs cannot be read back out of the state. The ids can,
+    and they are enough, because topics are exclusive with scraper inputs --
+    a state whose completed products are topics was a topics run entire.
+
+    Separated from `main` so it can be tested. Left inline it was the one
+    piece of this feature no test touched, and deleting it left the suite
+    green while every resumed topic rendered under a product profile.
+    """
+    if not config.resume or config.topics:
+        return False
+    from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+    saved = load_pipeline_state(config.outputs_dir)
+    if saved is None:
+        return False
+    return any(
+        pid.startswith(TOPIC_ID_PREFIX)
+        for pid in (saved.scraping_completed_products or [])
+    )
+
+
 def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
     """The run directories this invocation named, if it named any.
 
@@ -1308,26 +1333,14 @@ class GlobalPipelineOrchestrator:
         # nothing and the resumed run reported PIPELINE FAILED.
         from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
-        resumed_topics = not self.config.topics and any(
-            pid.startswith(TOPIC_ID_PREFIX) for pid in scraped_product_ids
+        # `topics_resume` is set in `main` before validation, which is what
+        # narrows the profile pool. The id check stays as the fallback for a
+        # caller that builds the orchestrator directly.
+        include_topics = (
+            bool(self.config.topics)
+            or self.config.topics_resume
+            or any(pid.startswith(TOPIC_ID_PREFIX) for pid in scraped_product_ids)
         )
-        include_topics = bool(self.config.topics) or resumed_topics
-        if resumed_topics:
-            # Finding the directories is not enough. Topics are not persisted
-            # in the state, so validation never saw any and left the pool full
-            # of product profiles -- each of which gathers nothing on a topic
-            # and fails. Topics are exclusive with scraper inputs, so a run
-            # handing back topic ids is a topics run in its entirety.
-            from src.pipeline.config import topic_capable_profiles
-
-            capable = topic_capable_profiles(load_video_config_modular())
-            if capable:
-                logger.info(
-                    "Resumed topics run: narrowing profile pool to %s",
-                    ", ".join(capable),
-                )
-                self.config.profile_pool = capable
-                self.config.random_profile = not self.config.profile
         all_products = discover_products_for_batch(
             self.config.outputs_dir, include_topics=include_topics
         )
@@ -2300,6 +2313,15 @@ async def main():
 
         # Load video configuration for validation
         video_config = load_video_config_modular()
+
+        # A `--resume` carries no input flags, so a topics run looks like a
+        # product run to everything below unless the saved state is consulted
+        # first. Reading it here rather than in the handoff phase keeps one
+        # copy of the topic rules and lets the stock-key pre-flight see the
+        # pool a topics run will actually draw from.
+        if _is_resuming_topics(config):
+            logger.info("Resuming a topics run (recognised from saved state)")
+            config.topics_resume = True
 
         # Validate configuration
         logger.info("Validating configuration...")

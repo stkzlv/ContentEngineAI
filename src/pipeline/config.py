@@ -347,6 +347,12 @@ class GlobalBatchConfig:
     # run cannot use a product-run default, but must still refuse a pool the
     # operator named on the command line rather than silently replacing it.
     profile_pool_from_cli: bool = False
+    # Set when a `--resume` is picking up a topics run. Topics themselves are
+    # not persisted -- the identifier carries a one-way digest of the title --
+    # so the run is recognised from the ids in the saved state instead. Every
+    # topic rule keys off this as well as `topics`, or a resume reaches
+    # combinations a fresh run refuses.
+    topics_resume: bool = False
 
     # Common configuration
     fail_fast: bool = False
@@ -1055,7 +1061,14 @@ def validate_global_batch_config(
 
     """
     # Validate inputs exist
-    if not config.product_ids and not config.keywords and not config.topics:
+    # A resumed topics run has its inputs in the saved state, not on the
+    # command line.
+    if (
+        not config.product_ids
+        and not config.keywords
+        and not config.topics
+        and not config.topics_resume
+    ):
         raise ValueError(
             "No inputs provided. Specify at least one of:\n"
             "  --product-ids ASIN1 ASIN2 ...\n"
@@ -1066,7 +1079,9 @@ def validate_global_batch_config(
     # A topic run replaces the scraping phase outright, so anything to scrape
     # named alongside it is silently discarded. Refuse rather than drop an
     # input the operator asked for.
-    if config.topics and config.process_all_products:
+    is_topics_run = bool(config.topics) or config.topics_resume
+
+    if is_topics_run and config.process_all_products:
         raise ValueError(
             "Cannot combine topics with --process-all-products. A topics run "
             "narrows its profile pool to stock-sourced profiles, which draw "
@@ -1074,6 +1089,11 @@ def validate_global_batch_config(
             "rendered from generic stock footage and published."
         )
 
+    # Keyed on `topics` rather than `is_topics_run`: a resume inherits the
+    # YAML keywords whatever it is resuming, and they were already unused by
+    # the completed scraping phase, so refusing them would break every topics
+    # resume. Only inputs named alongside a topic on one command line are a
+    # contradiction worth reporting.
     if config.topics and (config.product_ids or config.keywords):
         also = []
         if config.product_ids:
@@ -1108,7 +1128,7 @@ def validate_global_batch_config(
     # to a skip, because `step_gather_visuals` raises before the media check
     # that reports one. Checked here rather than left to the render, which
     # reports a configuration mistake as a render failure, once per product.
-    if config.topics:
+    if is_topics_run:
         _validate_topic_profiles(config, video_config)
 
     # Validate random profile configuration
