@@ -1225,13 +1225,17 @@ llm_settings:
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, whose call-to-action list points at something to buy. |
+| `pillar_preambles_topic` | dict[str, str] | Topic counterpart to `pillar_preambles`, using the same pillar keys. Read instead of the product map on a topic render. **Empty dict falls back to the product map**, which describes a product fixing an annoyance and lands above the topic prompt's rule against naming one. |
+| `pillar_audiences_topic` | dict[str, str] | Topic counterpart to `pillar_audiences`, same keys. Empty dict falls back to the product map, which describes buyers and shoppers. |
 
 **Runtime prompt structure:**
 
 ```
 [narrator_profile]      <- always, when non-empty; narrator_profile_topic
                            instead for a topic render, when set
-[pillar_preambles[X]]   <- when --pillar X is set and the entry exists
+[pillar_preambles[X]]   <- when --pillar X is set and the entry exists;
+                           pillar_preambles_topic[X] instead for a topic
+                           render, when that map is non-empty
 [template content]      <- selected template, with {FULL_PRODUCT_NAME},
                            {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION},
                            {AUDIENCE} substituted. Topic templates use
@@ -1247,7 +1251,7 @@ llm_settings:
    families share one directory and the default pool is a glob over it.
    For a topic render, the pool is replaced by `topic_templates` outright, since
    a product template left reachable renders the topic as an advertisement.
-3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged.
+3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged. On a topic render the intersection is always empty by design, because `pillars` lists product templates and the pool is the topic family, so that case logs at debug and the pillar acts through its preamble and audience only.
 4. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).
 
 **Pillar resolution order:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/global_batch.py`, then the pillar a previous run of the same product recorded, then the product record's own value, which the scraper attaches from the source keyword's configured group. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes.

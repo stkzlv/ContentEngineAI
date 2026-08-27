@@ -679,7 +679,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "pillar audience. On a product render it also narrows the script "
             "template pool to the templates listed under that pillar; a topic "
             "render uses the topic family instead, so only the preamble and "
-            "audience apply. Without this flag, all templates are eligible."
+            "audience apply. Without this flag, every template in the "
+            "render's own family is eligible."
         ),
     )
     parser.add_argument(

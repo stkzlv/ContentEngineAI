@@ -444,12 +444,17 @@ class TestTheWiringSelectsTheTopicVariants:
 
 @pytest.mark.unit
 class TestTheWholePromptStackFollowsTheFamily:
-    """Every prompt a topic render touches, not just the one that was fixed.
+    """The hook headline resolves the family, behaviourally.
 
     The narrator profile and the pillar preamble travel together: the
     requirements doc pins that captions receive the same pair the script does.
     Resolving one per call site is how a topic render kept the purchase voice
     in four of its five prompts while only the script changed.
+
+    The caption call site is covered by the source-level guard in
+    ``TestNarratorResolver`` rather than here: driving
+    ``_generate_optimized_metadata`` needs most of a pipeline context, and the
+    guard catches the regression this actually had.
     """
 
     @staticmethod

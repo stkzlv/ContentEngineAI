@@ -351,9 +351,10 @@ def _warn_unknown_pillar(pillar: str, settings: LLMSettings) -> None:
     if pillar in known:
         return
     logger.info(
-        "Pillar '%s' is not configured in pillars, pillar_preambles, or "
-        "pillar_audiences. No template filter, preamble, or audience override "
-        "will apply for this run. Known pillars: %s",
+        "Pillar '%s' is not configured in pillars, pillar_preambles, "
+        "pillar_audiences, pillar_preambles_topic or pillar_audiences_topic. "
+        "No template filter, preamble, or audience override will apply for "
+        "this run. Known pillars: %s",
         pillar,
         sorted(known) or [],
     )
