@@ -759,7 +759,9 @@ export LATE_STAGGER_MAX=30
   - Both are per render, not per config: `TikTokContentSettings.for_render()` returns `"none"` / `false` for a render with no material connection, such as a topic video with no affiliate link
   - `content_preview_confirmed`: `true` (user confirmed preview)
   - `express_consent_given`: `true` (user gave consent)
-  - These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)
+  - `video_made_with_ai`: `true` (AI-generated-content label). On by default because every render carries an AI TTS voiceover, which TikTok names explicitly, unlike YouTube. Sent flat beside `tiktokSettings`, where the SDK models it, not inside it.
+
+These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)
 
 **Instagram:**
 - Privacy: `everyone`, `followers`, `close_friends`
@@ -2321,7 +2323,13 @@ async def fix_tiktok(post_id: str):
                     "is_brand_organic_post": True,
                     "content_preview_confirmed": True,
                     "express_consent_given": True,
-                }
+                },
+                # Measured: an update REPLACES platformSpecificData rather than
+                # merging it, so anything omitted here is stripped from the
+                # post. Leaving this out republishes an AI-voiced video with
+                # no AI-content label, silently, because the field is passed
+                # through as a raw dict and nothing rejects its absence.
+                "videoMadeWithAi": True,
             },
         },
         {"platform": "instagram", "accountId": "<instagram_account_id>"},

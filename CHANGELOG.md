@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - The label is sent flat beside `tiktokSettings` rather than inside it. The SDK types `platformSpecificData` as a flat `TikTokPlatformData` and models no `tiktokSettings` key at all; the nested block this project sends is a legacy shape the API still accepts. `platformSpecificData` is passed through as a raw dict, so a key the API does not recognise is dropped in silence and the post publishes undisclosed — the test asserts the key against the SDK's own field names rather than a string literal.
+- An update replaces `platformSpecificData` rather than merging it, measured against the live API. The documented TikTok repair runbook rebuilt that object by hand and so would have republished an AI-voiced post with no AI-content label, silently. The snippet now carries the field.
 - Turning the label off applies to the `single` and `schedule` paths only. The global batch builds its own publisher and does not pass `tiktok_settings` (#255), so it uses the dataclass defaults and keeps the label on. The compliance outcome is right on both paths; only a deliberate opt-out is ignored, which fails safe.
 
 ## [0.77.0] - 2026-08-27

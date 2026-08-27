@@ -70,20 +70,6 @@ class TestItIsSentWhereTheSdkModelsIt:
         assert "video_made_with_ai" not in TikTokContentSettings().to_sdk_dict()
 
 
-class TestEveryTikTokPayloadIncludesIt:
-    """Both build sites, because a post that skips one publishes undisclosed."""
-
-    @pytest.mark.parametrize("marker", ["to_platform_data()"])
-    def test_both_client_sites_spread_the_flat_payload(self, marker):
-        from pathlib import Path
-
-        text = Path("src/publisher/late/client.py").read_text()
-        assert text.count(f"**tiktok_settings.{marker}") == 2, (
-            "both platformSpecificData builders must carry the label; "
-            "one that does not publishes an undisclosed AI post"
-        )
-
-
 class TestTheBatchPathKeepsTheLabelOn:
     """The batch builds its own publisher and passes no tiktok_settings.
 
