@@ -262,7 +262,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - A topics file renders several in turn. A malformed entry fails the run rather than being skipped, since skipping renders fewer videos than requested without saying so
 - Topic directories are excluded from producer batch discovery and from a product run's random profile selection, both of which assume scraped imagery. The global batch opts in for a run whose inputs are topics
 - Topics are a batch input as well as a producer one, and replace the scraping phase rather than running it
-- A topics run draws only from profiles whose visuals come entirely from stock. A profile that draws product imagery is refused before the run starts, because it would gather nothing and fail after the script and the voiceover had been paid for
+- A topics run draws only from profiles whose visuals come entirely from stock. A profile that draws product imagery is refused before the run starts, because it would gather nothing and fail per product mid-run, reported as a render failure rather than as the configuration error it is
 - Topics cannot be combined with scraper inputs (`--product-ids`, `--keywords`, `--process-all-products`): a topic run skips scraping, so those inputs would be discarded or rendered under the wrong profile
 
 ### Media Validation

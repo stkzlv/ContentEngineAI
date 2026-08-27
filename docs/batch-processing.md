@@ -312,7 +312,8 @@ A topic needs a stock-sourced profile. A product profile gathers nothing and
 the run **fails** with `No visual inputs were found or gathered for this
 profile` -- it does not degrade to a skip, because visual gathering raises
 before the media check that would report one. The batch refuses the
-combination up front rather than paying for a script and a voiceover first, so
+combination up front, so a misconfiguration is reported as one rather than as
+a per-product render failure, and so
 omitting `--profile` is safe: a topics run draws from the profiles that can
 render one, replacing any pool configured in `pipeline.yaml` for product runs.
 A pool named on the command line is refused rather than replaced.

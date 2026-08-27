@@ -1308,9 +1308,26 @@ class GlobalPipelineOrchestrator:
         # nothing and the resumed run reported PIPELINE FAILED.
         from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
-        include_topics = bool(self.config.topics) or any(
+        resumed_topics = not self.config.topics and any(
             pid.startswith(TOPIC_ID_PREFIX) for pid in scraped_product_ids
         )
+        include_topics = bool(self.config.topics) or resumed_topics
+        if resumed_topics:
+            # Finding the directories is not enough. Topics are not persisted
+            # in the state, so validation never saw any and left the pool full
+            # of product profiles -- each of which gathers nothing on a topic
+            # and fails. Topics are exclusive with scraper inputs, so a run
+            # handing back topic ids is a topics run in its entirety.
+            from src.pipeline.config import topic_capable_profiles
+
+            capable = topic_capable_profiles(load_video_config_modular())
+            if capable:
+                logger.info(
+                    "Resumed topics run: narrowing profile pool to %s",
+                    ", ".join(capable),
+                )
+                self.config.profile_pool = capable
+                self.config.random_profile = not self.config.profile
         all_products = discover_products_for_batch(
             self.config.outputs_dir, include_topics=include_topics
         )

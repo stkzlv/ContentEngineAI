@@ -967,7 +967,7 @@ def load_global_batch_config(
     )
 
 
-def _topic_capable_profiles(video_config: VideoConfig) -> list[str]:
+def topic_capable_profiles(video_config: VideoConfig) -> list[str]:
     """Profiles that can render a topic: ones that source stock media.
 
     `slideshow_stock` is in `EXCLUDED_RANDOM_PROFILES` precisely because a
@@ -996,7 +996,7 @@ def _validate_topic_profiles(
     config: GlobalBatchConfig, video_config: VideoConfig
 ) -> None:
     """Refuse a topics run that would draw a product-only profile."""
-    capable = _topic_capable_profiles(video_config)
+    capable = topic_capable_profiles(video_config)
 
     if config.profile:
         if config.profile not in capable:
@@ -1107,7 +1107,7 @@ def validate_global_batch_config(
     # media gathers nothing and the run fails outright -- it does not degrade
     # to a skip, because `step_gather_visuals` raises before the media check
     # that reports one. Checked here rather than left to the render, which
-    # costs a script and a voiceover before it finds out.
+    # reports a configuration mistake as a render failure, once per product.
     if config.topics:
         _validate_topic_profiles(config, video_config)
 

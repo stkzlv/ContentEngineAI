@@ -226,9 +226,10 @@ class TestAProfileThatCannotRenderATopicIsRefusedUpFront:
     """A product profile does not degrade gracefully on a topic.
 
     It gathers nothing and `step_gather_visuals` raises, so the run is
-    reported FAILED rather than skipped -- and only after the script and the
-    voiceover have been paid for. Every case here is refused during
-    validation instead.
+    reported FAILED rather than skipped. For a product profile that step runs
+    first, so nothing is wasted -- what is wrong is the reporting: a
+    configuration mistake surfaces as a render failure, once per product.
+    Every case here is refused during validation instead.
     """
 
     def test_the_shortest_invocation_works(self, real_video_config):
@@ -469,3 +470,144 @@ class TestAConfiguredPoolIsNotAnInstructionForThisRun:
                 ),
                 real_video_config,
             )
+
+
+class TestTheCleanCallSitesAreWired:
+    """`_named_run_ids` having tests is not the guard.
+
+    The defect was a call site passing the wrong thing, so reverting both
+    sites to `config.product_ids` -- exactly the bug that deleted every
+    scraped product directory -- left the whole suite green. The same
+    reasoning as the publisher's `create_publisher` AST check.
+    """
+
+    def test_both_call_sites_pass_the_named_run_ids(self):
+        import ast
+        from pathlib import Path
+
+        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_clean_targets"
+        ]
+        assert len(calls) == 2, "expected the dry-run plan and the deletion"
+        for call in calls:
+            second = call.args[1]
+            assert (
+                isinstance(second, ast.Call)
+                and isinstance(second.func, ast.Name)
+                and second.func.id == "_named_run_ids"
+            ), (
+                "a _clean_targets call site is not passing _named_run_ids; a "
+                "topics run would delete every product directory in outputs/"
+            )
+
+    def test_the_plan_names_only_the_topic(self, tmp_path, capsys):
+        """Drives the printed plan, which is what the deletion mirrors."""
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        (tmp_path / "B0ABCDEFGH").mkdir()
+        (tmp_path / topic_product_id("Why wifi drops")).mkdir()
+
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            profile="slideshow_stock",
+            outputs_dir=tmp_path,
+            clean=True,
+            skip_publish=True,
+        )
+        from unittest.mock import MagicMock
+
+        video_config = MagicMock()
+        video_config.video_profiles = {"slideshow_stock": MagicMock()}
+        GlobalPipelineOrchestrator(config).display_execution_plan(video_config)
+
+        out = capsys.readouterr().out
+        assert topic_product_id("Why wifi drops") in out
+        assert "B0ABCDEFGH" not in out
+
+
+class TestThePoolProvenanceIsSetByTheLoader:
+    """The field only matters if the loader sets it.
+
+    Both branches were tested by constructing the config with the flag set by
+    hand, so blanking the loader line left the suite green while a pool named
+    on the command line was silently replaced instead of refused.
+    """
+
+    def test_a_named_pool_is_marked_as_coming_from_the_cli(self):
+        config = load_global_batch_config(
+            _args(
+                topic="Why wifi drops",
+                random_profile=True,
+                profile_pool=["slideshow_images1"],
+            )
+        )
+
+        assert config.profile_pool_from_cli is True
+
+    def test_no_pool_flag_leaves_it_unmarked(self):
+        config = load_global_batch_config(_args(topic="Why wifi drops"))
+
+        assert config.profile_pool_from_cli is False
+
+
+class TestAResumedTopicsRunKeepsAUsableProfilePool:
+    """Finding the directories is not enough.
+
+    Topics are not persisted in the pipeline state, so a `--resume` carries
+    none and validation never narrows the pool. Discovery returned the topics
+    and production then drew a product profile for each, failing every one.
+    """
+
+    def test_the_pool_is_narrowed_from_the_handed_off_ids(self, tmp_path):
+        import json
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+        from src.video.producer.topic_input import build_topic_product
+
+        pid = topic_product_id("Why wifi drops")
+        (tmp_path / pid).mkdir()
+        (tmp_path / pid / "data.json").write_text(
+            json.dumps(
+                build_topic_product(TopicSpec(title="Why wifi drops")).to_dict()
+            ),
+            encoding="utf-8",
+        )
+
+        # What a `--resume` looks like: no topics, a product pool from YAML.
+        resumed = GlobalBatchConfig(
+            outputs_dir=tmp_path,
+            random_profile=True,
+            profile_pool=["slideshow_images1", "slideshow_images2"],
+            skip_publish=True,
+        )
+        orchestrator = GlobalPipelineOrchestrator(resumed)
+        ready = orchestrator._execute_handoff_phase([pid])
+
+        assert [p.name for p, _ in ready] == [pid]
+        assert resumed.profile_pool == ["slideshow_stock"]
+
+    def test_a_resumed_product_run_keeps_its_pool(self, tmp_path):
+        import json
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        (tmp_path / "B0ABCDEFGH").mkdir()
+        (tmp_path / "B0ABCDEFGH" / "data.json").write_text(
+            json.dumps({"title": "T", "price": "1", "url": "u", "asin": "B0ABCDEFGH"}),
+            encoding="utf-8",
+        )
+        pool = ["slideshow_images1", "slideshow_images2"]
+        resumed = GlobalBatchConfig(
+            outputs_dir=tmp_path,
+            random_profile=True,
+            profile_pool=list(pool),
+            skip_publish=True,
+        )
+        GlobalPipelineOrchestrator(resumed)._execute_handoff_phase(["B0ABCDEFGH"])
+
+        assert resumed.profile_pool == pool
