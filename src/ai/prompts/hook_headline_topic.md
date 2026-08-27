@@ -29,7 +29,7 @@ Good, for "why your wifi keeps dropping":
 - Move your router, fix your wifi
 
 Good, for other topics:
-- Your laptop is slow because of startup apps
+- Your laptop is slow from startup apps
 - Phone battery dies overnight, here's why
 - That email is phishing, three tells
 - Your passwords leak because you reuse them

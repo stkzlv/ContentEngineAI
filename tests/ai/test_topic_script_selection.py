@@ -286,16 +286,30 @@ class TestPillarSelectionOnATopic:
         assert "intersecting current pool" not in caplog.text
 
     def test_a_product_with_an_unmatched_pillar_still_warns(self, caplog):
-        """The real misconfiguration must stay loud."""
+        """The real misconfiguration must stay loud.
+
+        A configured pillar whose templates cannot intersect the pool. The
+        earlier version of this test passed an unconfigured pillar name, which
+        never reaches the branch at all -- `select_script_template` gates on
+        `pillar in pillars` first -- and asserted nothing, so deleting the
+        warning entirely left it green.
+        """
         from src.video.config import config
+
+        cfg = config.llm_settings.model_copy(deep=True)
+        pillar = next(iter(cfg.script_templates.pillars))
+        # A pool holding only templates this pillar does not list.
+        listed = set(cfg.script_templates.pillars[pillar])
+        cfg.script_templates.template_pool = [
+            t for t in cfg.script_templates.topic_templates if t not in listed
+        ]
 
         with caplog.at_level(logging.WARNING):
             select_script_template(
-                config.llm_settings,
-                product_id="B0TEST",
-                pillar="not_a_real_pillar_but_mapped",
-                is_topic=False,
+                cfg, product_id="B0TEST", pillar=pillar, is_topic=False
             )
+
+        assert "intersecting current pool" in caplog.text
 
 
 @pytest.mark.unit
@@ -417,3 +431,59 @@ class TestTheWiringSelectsTheTopicVariants:
             _resolve_audience("utility", cfg, is_topic=False)
             == cfg.script_templates.pillar_audiences["utility"]
         )
+
+
+@pytest.mark.unit
+class TestTheWholePromptStackFollowsTheFamily:
+    """Every prompt a topic render touches, not just the one that was fixed.
+
+    The narrator profile and the pillar preamble travel together: the
+    requirements doc pins that captions receive the same pair the script does.
+    Resolving one per call site is how a topic render kept the purchase voice
+    in four of its five prompts while only the script changed.
+    """
+
+    @staticmethod
+    def _topic_ctx(pillar):
+        from src.video.config import config
+
+        spec = TopicSpec(
+            title="Why your passwords keep getting leaked",
+            description="Reuse, breach databases, 2FA.",
+            keywords=[],
+        )
+        ctx = MagicMock()
+        ctx.product = build_topic_product(spec)
+        ctx.config = config
+        ctx.script = "Most leaks come from reusing one password."
+        ctx.debug_mode = False
+        ctx.state = {"pillar": pillar}
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_the_hook_headline_gets_the_topic_preamble(self):
+        from src.video.producer import steps
+
+        captured = {}
+
+        async def fake(*args, **kw):
+            captured.update(kw)
+            return "Your passwords leak because you reuse them"
+
+        with patch.object(steps, "generate_hook_headline", side_effect=fake):
+            await steps._ensure_hook_headline(self._topic_ctx("utility"), "utility")
+
+        from src.video.config import config
+
+        cfg = config.llm_settings.script_templates
+        assert captured["pillar_preambles"] == cfg.pillar_preambles_topic
+        assert captured["pillar_preambles"] != cfg.pillar_preambles
+
+    def test_the_product_preamble_still_names_a_product(self):
+        """So the assertion above is not vacuous."""
+        from src.video.config import config
+
+        product_text = " ".join(
+            config.llm_settings.script_templates.pillar_preambles.values()
+        )
+        assert "product" in product_text.lower()

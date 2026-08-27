@@ -675,9 +675,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=str,
         help=(
             "Content pillar for this run (e.g. value, novelty, utility). "
-            "Filters the script template pool to templates listed under the "
-            "pillar in ai_services.yaml and prepends the pillar preamble to "
-            "the LLM prompt. Without this flag, all templates are eligible."
+            "Prepends the pillar preamble to the LLM prompt and picks the "
+            "pillar audience. On a product render it also narrows the script "
+            "template pool to the templates listed under that pillar; a topic "
+            "render uses the topic family instead, so only the preamble and "
+            "audience apply. Without this flag, all templates are eligible."
         ),
     )
     parser.add_argument(
