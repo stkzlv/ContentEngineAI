@@ -36,7 +36,7 @@ from tenacity import (
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
-from src.video.config import LLMSettings, config
+from src.video.config import MIN_PHRASE_WORDS, LLMSettings, config
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -1181,13 +1181,6 @@ _VISUAL_PHRASE_BULLET = re.compile(r"^\s*(?:[-*\u2022\u00b7]+\s*|\d+[.)](?!\d)\s
 _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
 # Trailing `*` covers bold markup the bullet rule strips only the front of.
 _VISUAL_PHRASE_QUOTES = "\"'`*\u201c\u201d "
-
-
-# A phrase shorter than this is an object with no place and no actor, which
-# the stock library answers with a catalogue page. Stated once: the prompt
-# renders it into its own rule, so the instruction and the filter cannot
-# disagree about what is acceptable.
-MIN_PHRASE_WORDS = 3
 
 
 def sanitize_visual_search_phrases(

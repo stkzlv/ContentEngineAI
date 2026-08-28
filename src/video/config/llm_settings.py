@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from src.video.config.constants import MIN_PHRASE_WORDS
+
 
 class ScriptTemplateConfig(BaseModel):
     """Config for multi-template script generation."""
@@ -113,11 +115,12 @@ class VisualSearchTermsConfig(BaseModel):
     # Words per phrase. A long phrase is matched only in part, so the extra
     # words narrow nothing and the result drifts from what was asked for.
     #
-    # The floor is 4 rather than 2 because the sanitizer refuses anything
-    # under `MIN_PHRASE_WORDS` (3): a maximum below that renders a prompt
-    # asking for "3 to 2 words" and drops every phrase that obeys it, which
-    # falls the render back to a title-only search with nothing logged.
-    max_words_per_phrase: int = Field(5, ge=4, le=8)
+    # Floored at the minimum rather than at a number of its own: a maximum
+    # below it renders a prompt asking for "3 to 2 words" and drops every
+    # phrase that obeys it, falling the render back to a title-only search
+    # with nothing logged. Equal to it is coherent -- exactly-three-word
+    # phrases -- so the bound is `ge`, not `gt`.
+    max_words_per_phrase: int = Field(5, ge=MIN_PHRASE_WORDS, le=8)
 
 
 class LLMSettings(BaseModel):

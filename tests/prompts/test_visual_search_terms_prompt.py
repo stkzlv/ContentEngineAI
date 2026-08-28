@@ -52,8 +52,26 @@ def test_no_worked_example_block_is_reintroduced(prompt):
     A fresh block with different phrases would satisfy every assertion above
     while reintroducing exactly the defect, since what gets copied is any
     good-example block, not those six lines in particular.
+
+    Matching any example heading rather than the literal `## Examples`: the
+    first version of this test passed against a block titled `## Worked
+    examples`, which is the same defect under another name.
     """
-    assert "## Examples" not in prompt
+    import re
+
+    headings = re.findall(r"^#+\s*(.+)$", prompt, re.M)
+    offending = [
+        h
+        for h in headings
+        if "example" in h.lower() and not h.lower().startswith("bad")
+    ]
+
+    assert not offending, (
+        f"{PROMPT} has a worked-example section ({offending}); measured at "
+        "2 in 10 runs, the model returns such a block verbatim for an "
+        "unrelated script. Only the bad-example block is safe, because "
+        "copying an example labelled bad is self-defeating."
+    )
 
 
 def test_the_bad_examples_are_kept(prompt):
@@ -101,3 +119,72 @@ def test_the_sanitizer_enforces_the_floor():
     )
 
     assert kept == ["hand typing on laptop", "person at a desk"]
+
+
+def test_the_rendered_prompt_carries_the_floor():
+    """The template names `{MIN_WORDS}`; exactly one call site supplies it.
+
+    Dropping it is not a loud failure. `format_prompt` raises, the caller
+    catches `ValueError`, logs one warning and returns no phrases, which the
+    render reads as "keep the terms you had" -- a stock profile then searches
+    on the topic title alone. Nothing else renders this template, so nothing
+    else would notice.
+    """
+    from src.ai.description_generator import format_prompt
+    from src.ai.script_generator import MIN_PHRASE_WORDS
+    from src.scraper.amazon.models import ProductData
+    from src.scraper.base.models import Platform
+
+    product = ProductData(
+        title="Why your wifi keeps dropping",
+        price="",
+        url="",
+        platform=Platform.AMAZON,
+        description="Router placement and channel congestion.",
+        asin="topic-x",
+        topic="Why your wifi keeps dropping",
+    )
+
+    rendered = format_prompt(
+        PROMPT.read_text(encoding="utf-8"),
+        product,
+        video_script="Change the channel to 1, 6 or 11.",
+        extra_placeholders={
+            "MAX_PHRASES": "3",
+            "MAX_WORDS": "5",
+            "MIN_WORDS": str(MIN_PHRASE_WORDS),
+        },
+    )
+
+    assert "Each phrase is 3 to 5 words" in rendered
+    assert "{MIN_WORDS}" not in rendered
+
+
+def test_the_call_site_supplies_the_floor():
+    """The render test above builds its own placeholder dict.
+
+    So it proves the template is renderable, not that production renders it.
+    Dropping `MIN_WORDS` from the real call site left that test green while
+    every stock render fell back to a title-only search.
+    """
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path("src/ai/script_generator.py").read_text())
+    supplied = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Dict)
+        and {
+            k.value
+            for k in node.keys
+            if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        }
+        >= {"MAX_PHRASES", "MAX_WORDS", "MIN_WORDS"}
+    ]
+
+    assert supplied, (
+        "no call site builds a placeholder dict carrying MIN_WORDS; the "
+        "visual-search prompt names it, so rendering raises and the render "
+        "falls back to searching on the topic title alone"
+    )
