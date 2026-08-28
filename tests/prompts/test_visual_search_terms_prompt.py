@@ -30,6 +30,10 @@ COPIED_PHRASES = [
     "wifi router on a shelf",
     "frustrated person with laptop",
     "person resetting router cables",
+    # Not from an examples block: this one illustrated a rule inline, which
+    # made it exactly as copyable and put a phone in a bedroom on the page of
+    # a prompt that a wifi script also reads.
+    "hand holding smartphone in bed",
 ]
 
 
@@ -156,7 +160,7 @@ def test_the_rendered_prompt_carries_the_floor():
         },
     )
 
-    assert "Each phrase is 3 to 5 words" in rendered
+    assert f"Each phrase is {MIN_PHRASE_WORDS} to 5 words" in rendered
     assert "{MIN_WORDS}" not in rendered
 
 
