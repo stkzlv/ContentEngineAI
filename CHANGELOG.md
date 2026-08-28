@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 - The Pydantic default stays `color`, so a `VideoSettings` built in code is unchanged and only an install reading the bundled config sees the new treatment. Same split the subtitle engine uses.
 - The backdrop is scaled to *cover* and then cropped, not fitted. Fitting it would letterbox the backdrop itself, which is the same defect one layer down.
+- Assembly costs more: measured on an 8-image graph, wall time 18-20s to 29-36s and peak RSS +~300 MB, almost all of it `gblur`. Against a 3-6 minute full render and the 6G lowpri cap that is not material, but it is real and repeatable.
+- Video segments still pad black. `apply_aspect_ratio_mode` is a separate path with no shared code, so a profile rendering both images and video now shows a blurred backdrop on one and bars on the other. Tracked separately rather than widened into this change.
 - Filter labels are scoped by image index. A shared label name collides as soon as a render has two images, which every profile does.
 - `base:` in `video_production.yaml` is not a merge parent -- `get_profile` returns the named profile and precedence is CLI over profile over global -- so the default belongs in the global `video_settings` block. Setting it under `base:` looked right and reached nothing.
 

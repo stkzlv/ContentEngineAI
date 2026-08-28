@@ -47,10 +47,23 @@ class TestTheFilterShape:
         assert "crop=1080:1920" in chain
 
     def test_blur_composites_the_sharp_image_on_top(self):
+        """Pinned whole, like the `color` branch.
+
+        `overlay` takes its output frame size from the *main* (first) input,
+        so `[fgs][bgb]` rather than `[bgb][fgs]` is not a reordering -- it
+        renders the whole video at the scaled image's size, 1080x836 instead
+        of 1080x1920. A substring assertion on `overlay=...` says nothing
+        about which stream is the base and passed that mutation.
+        """
         chain = _placement()
 
-        assert "gblur=sigma=20.0" in chain
-        assert "overlay=(W-w)/2:555" in chain
+        assert chain == (
+            "[0:v]split=2[bg_0][fg_0];"
+            "[bg_0]scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,gblur=sigma=20.0,setsar=1[bgb_0];"
+            "[fg_0]scale=1080:810,setsar=1[fgs_0];"
+            "[bgb_0][fgs_0]overlay=(W-w)/2:555,format=yuv420p[v_temp_0]"
+        )
 
     def test_the_sharp_copy_is_scaled_by_the_callers_expression(self):
         """The backdrop must not replace the existing sizing logic."""
@@ -99,10 +112,21 @@ class TestTheProfileWiring:
 
         return load_video_config_modular()
 
-    def test_the_bundled_profiles_fill_the_frame(self, config):
-        for name in config.video_profiles:
-            if name == "base":
-                continue
+    def test_a_profile_that_names_nothing_inherits_the_global_default(self, config):
+        """Asserted on profiles that do not override, not on all of them.
+
+        The point of the field is that a profile can ask for the solid pad
+        back; a blanket assertion would fail the first one that legitimately
+        does.
+        """
+        inheriting = [
+            name
+            for name, profile in config.video_profiles.items()
+            if profile.image_background_fill is None
+        ]
+
+        assert inheriting, "no profile inherits the global value any more"
+        for name in inheriting:
             merged = config.get_profile_merged_settings(name)
             assert merged.video_settings.image_background_fill == "blur", name
 
@@ -117,3 +141,18 @@ class TestTheProfileWiring:
         merged = patched.get_profile_merged_settings("slideshow_images4")
 
         assert merged.video_settings.image_background_fill == "color"
+
+    def test_the_blur_strength_is_overridable_too(self, config):
+        """The second field's `_collect_overrides` entry was unguarded.
+
+        Deleting it left the suite green, so only one of the two new fields
+        satisfied the third of the project's three conditions.
+        """
+        from copy import deepcopy
+
+        patched = deepcopy(config)
+        patched.video_profiles["slideshow_images4"].image_background_blur_sigma = 8.0
+
+        merged = patched.get_profile_merged_settings("slideshow_images4")
+
+        assert merged.video_settings.image_background_blur_sigma == 8.0
