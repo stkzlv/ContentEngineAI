@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.3] - 2026-08-28
+
+### Fixed
+- The stock-search prompt no longer offers phrases the model can copy. Its worked examples came back verbatim in 2 of 10 runs measured against a real topic script -- the phone-battery block, for a video about wifi channel congestion -- so the render searched a stock library for a phone at night and got one. That is why an unrelated sunset photo played under narration about wifi channels. Closes #299.
+
+### Notes
+- The same lesson as the script prompts, applied to a second file: a worked example teaches its subject, not just its shape, so it has to be deleted rather than warned against. The bad-example block is kept, since copying an example labelled bad is self-defeating.
+- Deleting the examples alone traded one defect for another. Three of ten runs then returned a bare `wifi router`, which the prompt's own rules call a catalogue search. A shape template and a rule requiring both halves -- the object, and the place or the person -- recovered it.
+- Two copyable phrases were also inline in the rules rather than in the examples block, one of them naming a wifi router, which is the subject that collided. The test asserts the phrases are absent rather than that a section is missing, because availability was the defect, not the heading.
+- Measured across ten runs per variant on the same script: copied phrases 2/10 to 0/10, bare categories 0 to 3 to 0, phrases naming the script's subject 8/10 to 10/10.
+- `visual_search_terms.max_phrases` is 3 while a stock profile asks for 8 images, so each phrase still supplies roughly a third of the shots. Left alone here: raising it costs output on every render and is a tuning decision, not a defect.
+
 ## [0.79.2] - 2026-08-28
 
 ### Fixed
