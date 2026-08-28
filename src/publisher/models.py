@@ -207,6 +207,47 @@ class AnalyticsConfig:
 DEFAULT_DISCLOSURE = "#ad"
 
 
+def strip_disclosure_tokens(
+    description: str,
+    hashtags: list[str],
+    disclosure: str = DEFAULT_DISCLOSURE,
+) -> tuple[str, list[str]]:
+    """Remove disclosure tokens from a caption with nothing to disclose.
+
+    Shared because `schedule auto` builds its caption straight from the
+    metadata JSON rather than through `PublishMetadata`, so a guard living
+    only on the object leaves that path publishing the token -- the same
+    re-implementation the Module/Batch Alignment Rule is about.
+
+    Covers `#ad` and the configured token. The prompts write `#ad` whatever
+    the publisher is configured to say, and on a Spanish render those are two
+    different strings.
+
+    The body is edited only for a standalone `#token`; anything else is the
+    model's prose. The whitespace repair runs only where a token was actually
+    removed, so a caption that never contained one is returned untouched --
+    French spacing before `!` and `?`, deliberate ellipses and double spaces
+    all survive.
+    """
+    tokens = {"ad", disclosure.lstrip("#").lower()} - {""}
+
+    kept = [tag for tag in hashtags if tag.lstrip("#").lower() not in tokens]
+
+    for token in tokens:
+        # Word-bounded so `#advice` and `#adapter` are left alone. The
+        # trailing horizontal space is consumed with the token so the repair
+        # below has nothing to do in the common case.
+        description, count = re.subn(
+            rf"(?<!\w)#{re.escape(token)}\b[ \t]*",
+            "",
+            description,
+            flags=re.IGNORECASE,
+        )
+        if count:
+            description = re.sub(r"[ \t]+([.,!?])", r"\1", description)
+    return description.strip(), kept
+
+
 @dataclass
 class PublishMetadata:
     """Platform-specific metadata for video publishing.
@@ -283,31 +324,10 @@ class PublishMetadata:
                 self.character_counts["title"] = len(self.title)
 
     def _strip_disclosure_tokens(self) -> None:
-        """Remove disclosure hashtags from a render that has nothing to disclose.
-
-        Covers the configured token and `#ad` itself, because the prompts write
-        `#ad` regardless of what the publisher is configured to say, and a
-        caption asserting a material connection that does not exist is the
-        same class of false statement as omitting one that does.
-
-        The body is edited only for a standalone `#token`; anything else is
-        the model's prose and not ours to rewrite.
-        """
-        tokens = {"ad", self.disclosure.lstrip("#").lower()} - {""}
-
-        self.hashtags = [t for t in self.hashtags if t.lower() not in tokens]
-
-        for token in tokens:
-            # Word-bounded so `#advice` and `#adapter` are left alone.
-            self.description = re.sub(
-                rf"(?<!\w)#{re.escape(token)}\b",
-                "",
-                self.description,
-                flags=re.IGNORECASE,
-            )
-        # Collapse the gap the removal leaves, without touching line breaks.
-        self.description = re.sub(r"[ \t]{2,}", " ", self.description)
-        self.description = re.sub(r" +([.,!?])", r"\1", self.description).strip()
+        """Remove disclosure tokens from a render that has nothing to disclose."""
+        self.description, self.hashtags = strip_disclosure_tokens(
+            self.description, self.hashtags, self.disclosure
+        )
 
     def validate_limits(self) -> tuple[bool, str]:
         """Validate content against platform-specific character limits.
@@ -403,8 +423,12 @@ class PublishMetadata:
         """
         parts = []
 
-        # Disclosure leads the caption (FTC: clear and conspicuous, top of caption)
-        if self.disclosure:
+        # Disclosure leads the caption (FTC: clear and conspicuous, top of caption).
+        # Gated on the recorded decision as well as the string: a caller that
+        # sets `carries_affiliate_content=False` without also blanking the
+        # field would otherwise lead with a disclosure while the body it just
+        # had stripped says there is nothing to disclose.
+        if self.disclosure and self.carries_affiliate_content:
             parts.append(self.disclosure)
 
         # Affiliate program literal phrase (Amazon Associates requirement).

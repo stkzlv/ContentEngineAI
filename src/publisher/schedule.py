@@ -23,6 +23,7 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
     _trim_on_word_boundary,
+    strip_disclosure_tokens,
 )
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
@@ -36,6 +37,33 @@ if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
+
+
+def caption_from_metadata(meta: dict, product_id: str | None) -> str:
+    """Build the caption `schedule auto` publishes, from a metadata file.
+
+    Extracted so it can be driven directly. `schedule auto` does not go
+    through `PublishMetadata`, so the disclosure guard on that object does not
+    protect this path -- and a test asserting the shared function is merely
+    *called* here passes while the call sits behind a dead branch.
+    """
+    desc = str(meta.get("description", "") or "")
+    hashtags = list(meta.get("hashtags", []))
+
+    if not bool(meta.get("carries_affiliate_content", True)):
+        # The caption prompts write `#ad` whatever the render carries, and
+        # this path gets neither the object guard nor the loader's
+        # trailing-hashtag rule.
+        desc, hashtags = strip_disclosure_tokens(desc, hashtags)
+
+    if product_id and product_id not in hashtags:
+        hashtags.append(product_id)
+    if hashtags:
+        hashtag_str = " ".join(
+            f"#{t}" if not t.startswith("#") else t for t in hashtags
+        )
+        desc = f"{desc}\n\n{hashtag_str}"
+    return desc
 
 
 class ScheduleManager:
@@ -912,16 +940,7 @@ class ScheduleManager:
                                 carries_affiliate[p.value] = bool(
                                     meta.get("carries_affiliate_content", True)
                                 )
-                                desc = meta.get("description", "")
-                                hashtags = list(meta.get("hashtags", []))
-                                if product_id and product_id not in hashtags:
-                                    hashtags.append(product_id)
-                                if hashtags:
-                                    hashtag_str = " ".join(
-                                        f"#{t}" if not t.startswith("#") else t
-                                        for t in hashtags
-                                    )
-                                    desc = f"{desc}\n\n{hashtag_str}"
+                                desc = caption_from_metadata(meta, product_id)
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,

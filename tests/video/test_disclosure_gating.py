@@ -94,10 +94,23 @@ class TestCaptionDisclosure:
             return _load_from_json(path, Platform.YOUTUBE, "X")
 
     def test_the_recorded_decision_is_honoured(self):
-        assert self._load(carries_affiliate_content=False).disclosure == ""
+        """Asserted on the published caption, not on the field.
+
+        The field keeps its configured value even when the decision is not to
+        disclose, because the token is what tells the strip which string to
+        remove from what the caption prompt wrote. Blanking it made that strip
+        unable to see anything but the `#ad` default.
+        """
+        metadata = self._load(carries_affiliate_content=False)
+
+        assert not metadata.format_content().startswith("#ad")
 
     def test_a_recorded_true_discloses(self):
-        assert self._load(carries_affiliate_content=True).disclosure == "#ad"
+        assert (
+            self._load(carries_affiliate_content=True)
+            .format_content()
+            .startswith("#ad")
+        )
 
     def test_metadata_written_before_the_field_existed_discloses(self):
         """An older `metadata.json` has no such key.
@@ -105,7 +118,7 @@ class TestCaptionDisclosure:
         Reading its absence as "no affiliate content" would silently drop the
         disclosure from every product produced before this change.
         """
-        assert self._load().disclosure == "#ad"
+        assert self._load().format_content().startswith("#ad")
 
     def test_the_caption_leads_with_the_disclosure_when_present(self):
         content = self._load(carries_affiliate_content=True).format_content()
