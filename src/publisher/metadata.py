@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
-from src.publisher.models import Platform, PublishMetadata
+from src.publisher.models import DEFAULT_DISCLOSURE, Platform, PublishMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,11 @@ def _load_from_json(
         # a needless one merely asserts a connection that does not exist.
         disclose = data.get("carries_affiliate_content", True)
 
-        # Create PublishMetadata
+        # Both passed to the constructor rather than assigned after it.
+        # `__post_init__` is where the disclosure tokens are removed, so a
+        # flag set afterwards is a flag the guard never saw -- which is how
+        # the removal came to depend on `disclosure` still holding its
+        # default at construction time.
         metadata = PublishMetadata(
             platform=platform,
             title=title,
@@ -159,10 +163,10 @@ def _load_from_json(
             hashtags=hashtags,
             keywords=keywords,
             product_id=product_id,
+            disclosure=DEFAULT_DISCLOSURE if disclose else "",
+            carries_affiliate_content=bool(disclose),
         )
-        metadata.carries_affiliate_content = bool(disclose)
         if not disclose:
-            metadata.disclosure = ""
             logger.info(
                 "Caption disclosure omitted for %s: no affiliate content",
                 product_id or json_path,

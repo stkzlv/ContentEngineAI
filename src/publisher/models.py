@@ -5,6 +5,7 @@ implementations, providing type-safe representations of publish results,
 metadata, configuration, and batch summaries.
 """
 
+import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -200,6 +201,12 @@ class AnalyticsConfig:
         return {"limit": self.limit}
 
 
+# The caption-leading disclosure. Named so `load_platform_metadata` can pass
+# it explicitly at construction time -- the guard that strips disclosure
+# tokens runs in `__post_init__`, so anything set afterwards is invisible to it.
+DEFAULT_DISCLOSURE = "#ad"
+
+
 @dataclass
 class PublishMetadata:
     """Platform-specific metadata for video publishing.
@@ -226,7 +233,7 @@ class PublishMetadata:
     keywords: list[str] = field(default_factory=list)
     character_counts: dict[str, int] = field(default_factory=dict)
     product_id: str | None = None
-    disclosure: str = "#ad"
+    disclosure: str = DEFAULT_DISCLOSURE
     affiliate_disclosure: str | None = None
     # Whether the render has a material connection to disclose, as recorded by
     # the producer. Carried explicitly rather than inferred from an empty
@@ -256,11 +263,51 @@ class PublishMetadata:
             disc_token = self.disclosure.lstrip("#").lower()
             self.hashtags = [t for t in self.hashtags if t.lower() != disc_token]
 
+        # A render with no material connection must not carry a disclosure
+        # token at all, wherever it came from. The caption prompts instruct
+        # the model to write `#ad` and demonstrate it in every example, and
+        # they are not told whether this render has an affiliate link.
+        #
+        # Until now it was removed by two accidents: the trailing-hashtag rule
+        # in `load_platform_metadata`, written for legacy metadata, and the
+        # dedup above, which only matches while `disclosure` still holds its
+        # `#ad` default. Neither survives a non-trailing token or a disclosure
+        # configured to a language variant.
+        if not self.carries_affiliate_content:
+            self._strip_disclosure_tokens()
+
         # Calculate character counts if not provided
         if not self.character_counts:
             self.character_counts = {"description": len(self.description)}
             if self.title:
                 self.character_counts["title"] = len(self.title)
+
+    def _strip_disclosure_tokens(self) -> None:
+        """Remove disclosure hashtags from a render that has nothing to disclose.
+
+        Covers the configured token and `#ad` itself, because the prompts write
+        `#ad` regardless of what the publisher is configured to say, and a
+        caption asserting a material connection that does not exist is the
+        same class of false statement as omitting one that does.
+
+        The body is edited only for a standalone `#token`; anything else is
+        the model's prose and not ours to rewrite.
+        """
+        tokens = {"ad", self.disclosure.lstrip("#").lower()} - {""}
+
+        self.hashtags = [t for t in self.hashtags if t.lower() not in tokens]
+
+        for token in tokens:
+            # Word-bounded so `#advice` and `#adapter` are left alone.
+            self.description = re.sub(
+                rf"(?<!\w)#{re.escape(token)}\b",
+                "",
+                self.description,
+                flags=re.IGNORECASE,
+            )
+        # Collapse the gap the removal leaves, without touching line breaks.
+        self.description = re.sub(r"[ \t]{2,}", " ", self.description)
+        self.description = re.sub(r" +([.,!?])", r"\1", self.description).strip()
 
     def validate_limits(self) -> tuple[bool, str]:
         """Validate content against platform-specific character limits.
