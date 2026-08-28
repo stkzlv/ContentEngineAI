@@ -8,8 +8,8 @@ narration about wifi channels.
 
 This is the project's recorded lesson about examples applied to a second
 prompt: a worked example teaches its subject, not just its shape, so the fix
-is to delete it rather than warn against it. The bad-example block is left
-alone, since copying an example labelled bad is self-defeating.
+is to delete it rather than warn against it. The bad-example block is kept and
+extended, since copying an example labelled bad is self-defeating.
 """
 
 from __future__ import annotations
@@ -46,6 +46,16 @@ def test_no_copyable_search_phrase_is_offered(prompt, phrase):
     )
 
 
+def test_no_worked_example_block_is_reintroduced(prompt):
+    """The phrase list above pins six strings; this pins the shape.
+
+    A fresh block with different phrases would satisfy every assertion above
+    while reintroducing exactly the defect, since what gets copied is any
+    good-example block, not those six lines in particular.
+    """
+    assert "## Examples" not in prompt
+
+
 def test_the_bad_examples_are_kept(prompt):
     """They teach without being copyable, so removing them costs accuracy."""
     assert "Bad, and why:" in prompt
@@ -63,6 +73,31 @@ def test_the_shape_is_still_taught(prompt):
     assert "Every phrase needs both halves" in prompt
 
 
-def test_a_minimum_length_is_required(prompt):
-    """A two-word phrase is an object with no place and no actor."""
-    assert "3 to {MAX_WORDS} words" in prompt
+def test_the_floor_is_not_restated_in_the_prompt(prompt):
+    """The number lives in `MIN_PHRASE_WORDS` and renders in.
+
+    Stated separately, the instruction and the filter drift: the prompt asked
+    for three words while the sanitizer accepted two, so the rule held only
+    for as long as the model chose to follow it.
+    """
+    from src.ai.script_generator import MIN_PHRASE_WORDS
+
+    assert "{MIN_WORDS} to {MAX_WORDS} words" in prompt
+    assert MIN_PHRASE_WORDS == 3
+
+
+def test_the_sanitizer_enforces_the_floor():
+    """A prompt rule is model compliance; the filter is the constraint.
+
+    Measured 0 of 30 phrases dropped, so this was latent rather than live --
+    which is the reason to close it now rather than after it bites.
+    """
+    from src.ai.script_generator import sanitize_visual_search_phrases
+
+    kept = sanitize_visual_search_phrases(
+        "wifi router\nhand typing on laptop\nperson at a desk",
+        max_phrases=3,
+        max_words=5,
+    )
+
+    assert kept == ["hand typing on laptop", "person at a desk"]

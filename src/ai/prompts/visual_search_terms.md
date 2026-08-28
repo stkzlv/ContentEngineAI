@@ -13,7 +13,7 @@ Spoken script:
 
 - Output {MAX_PHRASES} search phrases, one per line. Nothing else: no numbering,
   no bullets, no quotes, no explanation.
-- Each phrase is 3 to {MAX_WORDS} words. A stock library answers a long phrase
+- Each phrase is {MIN_WORDS} to {MAX_WORDS} words. A stock library answers a long phrase
   by matching only part of it, so the extra words buy nothing -- but a bare
   object name is a catalogue search, and every result looks like one.
 - Write what a camera can see. A stock library indexes photographs, not ideas:

@@ -112,7 +112,12 @@ class VisualSearchTermsConfig(BaseModel):
     max_phrases: int = Field(3, ge=1, le=6)
     # Words per phrase. A long phrase is matched only in part, so the extra
     # words narrow nothing and the result drifts from what was asked for.
-    max_words_per_phrase: int = Field(5, ge=2, le=8)
+    #
+    # The floor is 4 rather than 2 because the sanitizer refuses anything
+    # under `MIN_PHRASE_WORDS` (3): a maximum below that renders a prompt
+    # asking for "3 to 2 words" and drops every phrase that obeys it, which
+    # falls the render back to a title-only search with nothing logged.
+    max_words_per_phrase: int = Field(5, ge=4, le=8)
 
 
 class LLMSettings(BaseModel):

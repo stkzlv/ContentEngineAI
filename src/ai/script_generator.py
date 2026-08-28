@@ -1183,6 +1183,13 @@ _DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
 _VISUAL_PHRASE_QUOTES = "\"'`*\u201c\u201d "
 
 
+# A phrase shorter than this is an object with no place and no actor, which
+# the stock library answers with a catalogue page. Stated once: the prompt
+# renders it into its own rule, so the instruction and the filter cannot
+# disagree about what is acceptable.
+MIN_PHRASE_WORDS = 3
+
+
 def sanitize_visual_search_phrases(
     text: str | None, max_phrases: int = 3, max_words: int = 5
 ) -> list[str]:
@@ -1217,7 +1224,7 @@ def sanitize_visual_search_phrases(
         if any(ch in _DECIMAL_POINT.sub("", line) for ch in ",.;:!?#"):
             continue
         words = line.split()
-        if not 2 <= len(words) <= max_words:
+        if not MIN_PHRASE_WORDS <= len(words) <= max_words:
             continue
         if lowered in seen:
             continue
@@ -1271,6 +1278,7 @@ async def generate_visual_search_phrases(
             extra_placeholders={
                 "MAX_PHRASES": str(max_phrases),
                 "MAX_WORDS": str(max_words),
+                "MIN_WORDS": str(MIN_PHRASE_WORDS),
             },
         )
     except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
