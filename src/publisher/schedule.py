@@ -15,10 +15,12 @@ from src.publisher.base import PublishError
 from src.publisher.first_comment import build_first_comment
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import (
+    DEFAULT_DISCLOSURE,
     CleanupConfig,
     ConflictResolution,
     LinkInBioConfig,
     Platform,
+    PublishMetadata,
     RecurringSlot,
     ScheduleConfig,
     ScheduleEntry,
@@ -39,31 +41,51 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def caption_from_metadata(meta: dict, product_id: str | None) -> str:
+def caption_from_metadata(
+    meta: dict, product_id: str | None, platform: Platform
+) -> str:
     """Build the caption `schedule auto` publishes, from a metadata file.
 
-    Extracted so it can be driven directly. `schedule auto` does not go
-    through `PublishMetadata`, so the disclosure guard on that object does not
-    protect this path -- and a test asserting the shared function is merely
-    *called* here passes while the call sits behind a dead branch.
+    Routed through `PublishMetadata.format_content` rather than assembling the
+    parts here. Hand-assembling them is what left this path without the
+    leading disclosure line every other publish path gets: an affiliate post
+    scheduled here disclosed wherever the model happened to write it, and the
+    prompts' own examples put that at the end of the caption, below the fold
+    the first-line placement exists to clear.
+
+    The caller has already chosen between the unified and per-platform files,
+    so this takes the loaded mapping rather than repeating that discovery.
     """
-    desc = str(meta.get("description", "") or "")
     hashtags = list(meta.get("hashtags", []))
-
-    if not bool(meta.get("carries_affiliate_content", True)):
-        # The caption prompts write `#ad` whatever the render carries, and
-        # this path gets neither the object guard nor the loader's
-        # trailing-hashtag rule.
-        desc, hashtags = strip_disclosure_tokens(desc, hashtags)
-
-    if product_id and product_id not in hashtags:
-        hashtags.append(product_id)
-    if hashtags:
-        hashtag_str = " ".join(
-            f"#{t}" if not t.startswith("#") else t for t in hashtags
+    discloses = bool(meta.get("carries_affiliate_content", True))
+    try:
+        metadata = PublishMetadata(
+            platform=platform,
+            title=str(meta.get("title") or ""),
+            description=str(meta.get("description", "") or ""),
+            hashtags=hashtags,
+            keywords=list(meta.get("keywords", [])),
+            product_id=product_id,
+            carries_affiliate_content=discloses,
         )
-        desc = f"{desc}\n\n{hashtag_str}"
-    return desc
+    except ValueError as e:
+        # An empty description, or a YouTube entry with no title. Losing the
+        # whole scheduling run to one malformed file would be worse, so this
+        # falls back -- but it applies the two compliance rules by hand rather
+        # than shipping a caption that skipped them, which is the pair of
+        # defects this function exists to close.
+        logger.warning(
+            "Could not build caption for %s on %s (%s); "
+            "falling back to the raw description",
+            product_id,
+            platform.value,
+            e,
+        )
+        description = str(meta.get("description", "") or "")
+        if discloses:
+            return f"{DEFAULT_DISCLOSURE}\n\n{description}" if description else ""
+        return strip_disclosure_tokens(description, [])[0]
+    return metadata.format_content()
 
 
 class ScheduleManager:
@@ -940,7 +962,7 @@ class ScheduleManager:
                                 carries_affiliate[p.value] = bool(
                                     meta.get("carries_affiliate_content", True)
                                 )
-                                desc = caption_from_metadata(meta, product_id)
+                                desc = caption_from_metadata(meta, product_id, p)
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,
@@ -976,8 +998,23 @@ class ScheduleManager:
                                     # payload has none, and the platform
                                     # derives one from the caption's first
                                     # line.
+                                    #
+                                    # Routed through the same builder so this
+                                    # branch leads with the disclosure too.
+                                    # `data.json` records no affiliate
+                                    # decision, so the default applies and it
+                                    # discloses -- right for the scraped
+                                    # product this fallback exists for, and
+                                    # the safe direction either way.
                                     platform_contents[p.value] = {
-                                        "content": f"{title}\n\n{desc}",
+                                        "content": caption_from_metadata(
+                                            {
+                                                "title": title,
+                                                "description": f"{title}\n\n{desc}",
+                                            },
+                                            product_id,
+                                            p,
+                                        ),
                                         "title": title,
                                     }
                                 else:

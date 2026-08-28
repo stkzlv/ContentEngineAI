@@ -217,24 +217,33 @@ class TestTheScheduleAutoPathStripsItToo:
                 "carries_affiliate_content": False,
             },
             "topic-wifi",
+            Platform.TIKTOK,
         )
 
         assert "#ad" not in caption
         assert caption == "Fix your wifi. Which fix worked?\n\n#WifiFix #topic-wifi"
 
-    def test_an_affiliate_caption_keeps_it(self):
+    def test_an_affiliate_caption_leads_with_it(self):
+        """Placement, not presence.
+
+        The old assertion was `"#ad" in caption`, which passes on a token the
+        model left at the end -- below the fold the first-line placement
+        exists to clear. That is how this path went without a leading
+        disclosure unnoticed.
+        """
         from src.publisher.schedule import caption_from_metadata
 
         caption = caption_from_metadata(
             {
                 "description": "Great earbuds under $50.",
-                "hashtags": ["Earbuds", "ad"],
+                "hashtags": ["Earbuds"],
                 "carries_affiliate_content": True,
             },
             "B0ABCDEFGH",
+            Platform.TIKTOK,
         )
 
-        assert "#ad" in caption
+        assert caption.startswith("#ad\n\n")
 
     def test_auto_schedule_actually_uses_the_builder(self):
         """The behavioural tests above only bind if the caller calls it.
@@ -253,23 +262,50 @@ class TestTheScheduleAutoPathStripsItToo:
             and n.name == "auto_schedule"
         )
 
-        assert any(
-            isinstance(node, ast.Call)
+        calls = [
+            node
+            for node in ast.walk(auto)
+            if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "caption_from_metadata"
-            for node in ast.walk(auto)
-        ), "auto_schedule builds its caption without the shared builder"
+        ]
 
-    def test_an_absent_flag_keeps_it(self):
+        # Two branches build a caption: from a metadata file, and from
+        # `data.json` when none exists. Both must go through the builder, or
+        # one of them publishes without the leading disclosure.
+        assert len(calls) == 2, (
+            f"auto_schedule has {len(calls)} caption_from_metadata call(s); "
+            "both the metadata branch and the data.json fallback need one"
+        )
+
+    def test_an_absent_flag_still_leads_with_it(self):
         """Same default as everywhere else: disclose unless told otherwise."""
         from src.publisher.schedule import caption_from_metadata
 
         caption = caption_from_metadata(
-            {"description": "Great earbuds. #ad", "hashtags": ["Earbuds"]},
+            {"description": "Great earbuds.", "hashtags": ["Earbuds"]},
             "B0ABCDEFGH",
+            Platform.TIKTOK,
         )
 
-        assert "#ad" in caption
+        assert caption.startswith("#ad\n\n")
+
+    def test_the_model_token_is_not_doubled(self):
+        """The leading line and a trailing token would disclose twice."""
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Great earbuds under $50.",
+                "hashtags": ["Earbuds", "ad"],
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.TIKTOK,
+        )
+
+        assert caption.startswith("#ad\n\n")
+        assert caption.count("#ad") == 1
 
     def test_it_removes_the_token_a_prompt_wrote(self):
         from src.publisher.models import strip_disclosure_tokens
@@ -303,3 +339,43 @@ class TestACaptionWithNoTokenIsReturnedUntouched:
         from src.publisher.models import strip_disclosure_tokens
 
         assert strip_disclosure_tokens(description, [])[0] == description
+
+
+class TestTheFallbackPathIsCompliantToo:
+    """A malformed metadata file must not publish a non-compliant caption.
+
+    `caption_from_metadata` falls back when `PublishMetadata` refuses the
+    input -- an empty description, or a YouTube entry with no title. Losing
+    the whole scheduling run to one bad file would be worse, but the fallback
+    has to apply the same two rules, or it ships exactly the pair of defects
+    the function exists to close.
+    """
+
+    def test_an_affiliate_youtube_entry_with_no_title_still_leads_with_it(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Great earbuds under $50.",
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.YOUTUBE,
+        )
+
+        assert caption.startswith("#ad\n\n")
+
+    def test_a_topic_youtube_entry_with_no_title_still_loses_the_token(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Fix your wifi #ad by changing the channel.",
+                "carries_affiliate_content": False,
+            },
+            "topic-wifi",
+            Platform.YOUTUBE,
+        )
+
+        assert "#ad" not in caption
+        assert caption == "Fix your wifi by changing the channel."

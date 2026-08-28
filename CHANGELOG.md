@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.2] - 2026-08-28
+
+### Fixed
+- `schedule auto` leads its caption with the disclosure, like every other publish path. It built the caption by hand, so an affiliate post scheduled through it disclosed wherever the model happened to write the token -- and the caption prompts' own worked examples put that at the end, below the `...more` fold that first-line placement exists to clear. Both of that path's caption branches, the metadata one and the `data.json` fallback, now go through `PublishMetadata.format_content`. Closes #297.
+
+### Notes
+- This is the mirror of #295, and the more serious direction of the two: a needless disclosure asserts a connection that is not there, while a missing one misstates a connection that is.
+- It hid behind a weak assertion. The test written for #295 checked `"#ad" in caption`, which passes on a token the model left at the end. Placement is now asserted on the first line, and a second case pins that the leading line and a model-written token do not disclose twice.
+- The builder falls back when `PublishMetadata` refuses the input -- an empty description, or a YouTube entry with no title. The fallback applies both rules by hand rather than shipping a caption that skipped them, since a malformed file should cost one post's formatting, not its compliance.
+- The `data.json` fallback records no affiliate decision, so the default applies and it discloses. That is right for the scraped product the fallback exists for, and the safe direction regardless.
+
 ## [0.79.1] - 2026-08-28
 
 ### Fixed
