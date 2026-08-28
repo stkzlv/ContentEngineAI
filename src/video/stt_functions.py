@@ -163,6 +163,21 @@ async def generate_subtitles_with_whisper(
             if whisper_settings.enable_resource_cleanup:
                 _cleanup_whisper_resources()
 
+        # Rejoin words Whisper split at a separator, before the flat list is
+        # extracted from this dict rather than after. `_extract_word_timings`
+        # strips each word, and the leading space is the only thing that
+        # separates a continuation from a word legitimately beginning with an
+        # apostrophe -- joining afterwards protects pycaps and glues
+        # `get 'em` into `get'em` on the FFmpeg engine, which is what a
+        # default install renders with.
+        #
+        # Outside the smoothing gate below: that flag governs four cosmetic
+        # timing rules, and turning it off must not restore a caption reading
+        # `2 4GHz` for `2.4GHz`. Text correctness is not a timing preference.
+        from src.video.subtitle_timing_smoother import join_continuations_in_result
+
+        result_w = join_continuations_in_result(result_w)
+
         # Extract word timing data from transcription result
         word_list_whisper = _extract_word_timings(result_w)
 
@@ -170,18 +185,6 @@ async def generate_subtitles_with_whisper(
             logger.warning("Whisper provided no usable word timings.")
             return None
         logger.info(f"Extracted {len(word_list_whisper)} word timings from Whisper.")
-
-        # Rejoin words Whisper split at a separator. Runs outside the
-        # smoothing gate below: that flag governs four cosmetic timing rules,
-        # and turning it off must not restore a caption that reads `2 4GHz`
-        # for `2.4GHz`. Text correctness is not a timing preference.
-        from src.video.subtitle_timing_smoother import (
-            join_continuations_in_result,
-            join_continuations_in_timings,
-        )
-
-        word_list_whisper = join_continuations_in_timings(word_list_whisper)
-        result_w = join_continuations_in_result(result_w)
 
         # Apply timing smoothing to fix Whisper's coarse word timestamps.
         # Smooth both the flat list (for FFmpeg) and the raw dict (for pycaps).

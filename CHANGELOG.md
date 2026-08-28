@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A leading space is Whisper's own mark that a new word starts, and it is the only thing separating a continuation from a word that legitimately begins with an apostrophe. Stripping before the check glued `get 'em` into `get'em`.
 - The rejoin runs outside the timing-smoothing feature flag. Those four rules are cosmetic and an operator may turn them off; a caption reading `2 4GHz` for `2.4GHz` is not a timing preference.
 - The rule cannot key on digits, and cannot key on punctuation generally. The same script that produced `2 4GHz` lists channels as `1,` `6,` `11.` -- three separate words carrying trailing punctuation. What separates the two cases is where the separator sits: a continuation starts with one and is followed by an alphanumeric, and the word before it ends in one.
-- Applied in the timing smoother, which is the single call site both engines pass through, and before the timing rules rather than after: merging two words changes what the gap and duration rules are measuring, and padding a token that is about to disappear pads nothing.
-- Both formats needed it. The flat list feeds the FFmpeg engine and the nested dict feeds pycaps, which is what the bundled config uses -- fixing only the first would have left the defect visible in exactly the renders where it was measured.
+- Lives in the timing-smoother module but is applied in `generate_subtitles_with_whisper`, the single call site both engines pass through. It runs on the result dict *before* the flat list is extracted from it: the extractor strips each word, and the leading space is the only thing separating a continuation from a word beginning with an apostrophe, so joining afterwards protected pycaps and glued `get 'em` into `get'em` on the FFmpeg engine -- which is what a default install renders with, since the pycaps group is optional.
+- One join serves both engines: the flat list the FFmpeg engine consumes is derived from the dict pycaps consumes, so it inherits the result rather than repeating the work on words that have already been stripped.
 
 ## [0.80.0] - 2026-08-28
 

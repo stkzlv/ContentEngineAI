@@ -85,18 +85,6 @@ def _join_continuations(
     return merged
 
 
-def join_continuations_in_timings(
-    timings: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Rejoin split words in the flat list the FFmpeg engine consumes.
-
-    Separate from the smoothing rules and called outside their feature flag:
-    those four rules are cosmetic timing adjustments an operator may turn off,
-    and a caption that reads `2 4GHz` for `2.4GHz` is not a timing preference.
-    """
-    return _join_continuations([dict(t) for t in timings], "word", "end_time")
-
-
 def join_continuations_in_result(result: dict[str, Any]) -> dict[str, Any]:
     """Rejoin split words in the nested dict pycaps consumes.
 
