@@ -261,6 +261,9 @@ async def _fetch_stock_across_queries(
             if item.path in seen:
                 continue
             seen.add(item.path)
+            # Stamped here because this is the only place that knows both.
+            # The provider returns items; the attribution is the loop.
+            item.query = " ".join(query)
             pooled.append(item)
     return pooled
 
@@ -411,6 +414,10 @@ async def step_gather_visuals(ctx: PipelineContext):
             # supplied the phrases, because the preloader was primed from the
             # product before the script existed and holds results for a query
             # this render is no longer making.
+            # Declared before the branch: only the fetch arm builds queries,
+            # and the preloaded arm reaching a name bound inside the other one
+            # is the unbound-local trap this file has hit before.
+            stock_queries_issued: list[list[str]] = []
             preloaded_media = None
             if ctx.resource_preloader and not script_phrases:
                 preloaded_media = ctx.resource_preloader.get_preloaded_stock_media(
@@ -441,14 +448,14 @@ async def step_gather_visuals(ctx: PipelineContext):
                 )
             else:
                 # Fallback to regular fetch if no pre-loaded media
-                queries = (
+                stock_queries_issued = (
                     [phrase.split() for phrase in script_phrases]
                     if script_phrases
                     else [keywords]
                 )
                 stock_media_fetched = await _fetch_stock_across_queries(
                     fetcher,
-                    queries,
+                    stock_queries_issued,
                     ctx.profile.stock_image_count,
                     ctx.profile.stock_video_count,
                     ctx.run_paths["assets_dir"],
@@ -494,6 +501,7 @@ async def step_gather_visuals(ctx: PipelineContext):
             scraped_videos,
             stock_media_fetched,
             ctx.run_paths,
+            search_queries=[" ".join(q) for q in stock_queries_issued],
         )
         logger.info(
             f"Saved gathered visuals info to "

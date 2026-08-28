@@ -530,10 +530,19 @@ def save_visuals_info(
     scraped_vids: list[Path],
     stock_media: list[StockMediaInfo],
     run_paths: dict,
+    search_queries: list[str] | None = None,
 ):
+    """Record what this render gathered, and what it asked for.
+
+    `search_queries` is written even when a query returned nothing, which is
+    the case per-item attribution cannot express and the most diagnostic one:
+    a phrase that found no footage looks identical, from the item list, to a
+    phrase that was never issued.
+    """
     data = {
         "scraped_images": [str(p) for p in scraped_imgs],
         "scraped_videos": [str(p) for p in scraped_vids],
+        "search_queries": list(search_queries or []),
         "stock_media": [
             {**item.__dict__, "path": str(item.path)} for item in stock_media
         ],
