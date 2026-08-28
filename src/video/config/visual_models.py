@@ -293,6 +293,17 @@ class VideoSettings(BaseModel):
     subtitle_box_border_width: int = Field(5)  # Configurable via YAML
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
+    # What fills the frame around an image that does not cover it. A product
+    # photo is square or landscape and the frame is 9:16, so `color` leaves
+    # roughly half the screen empty -- measured 42-52% across four frames of
+    # a real render. `blur` fills it with a scaled, blurred copy of the same
+    # image, which is the standard short-form treatment and needs no second
+    # asset. Defaults to `color` so a programmatic construction is unchanged;
+    # the bundled profiles opt in, the way the subtitle engine does.
+    image_background_fill: Literal["color", "blur"] = Field("color")
+    # Blur strength for `image_background_fill: blur`. High enough that the
+    # backdrop reads as texture rather than as a second, competing image.
+    image_background_blur_sigma: float = Field(20.0, ge=1.0, le=100.0)
     disclosure_overlay: DisclosureSettings = Field(
         default_factory=DisclosureSettings  # type: ignore[arg-type]
     )
@@ -500,6 +511,13 @@ class VideoProfile(BaseModel):
 
     # ---- PER-PROFILE IMAGE SETTINGS ----
     # Image positioning and sizing overrides
+    image_background_fill: Literal["color", "blur"] | None = Field(
+        None,
+        description="Frame fill around an image: solid colour or a blurred copy",
+    )
+    image_background_blur_sigma: float | None = Field(
+        None, ge=1.0, le=100.0, description="Blur strength for image_background_fill"
+    )
     image_width_percent: float | None = Field(
         None, description="Override global image width as percentage of frame (0.0-1.0)"
     )

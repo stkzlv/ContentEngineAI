@@ -759,6 +759,8 @@ class VideoConfig(BaseModel):
                 "image_width_percent": "image_width_percent",
                 "image_top_position_percent": "image_top_position_percent",
                 "image_vertical_align": "image_vertical_align",
+                "image_background_fill": "image_background_fill",
+                "image_background_blur_sigma": "image_background_blur_sigma",
                 "preserve_aspect_ratio": "preserve_aspect_ratio",
                 "video_assembly_mode": "video_assembly_mode",
                 "video_aspect_mode": "video_aspect_mode",
