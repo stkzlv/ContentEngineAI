@@ -9,6 +9,7 @@ import logging
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from src.publisher.base import PublishError
@@ -30,6 +31,7 @@ from src.publisher.models import (
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
 from src.publisher.tracking import is_already_published, record_publish
+from src.scraper.base.models import carries_affiliate_content
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -58,11 +60,22 @@ def caption_from_metadata(
     """
     hashtags = list(meta.get("hashtags", []))
     discloses = bool(meta.get("carries_affiliate_content", True))
+
+    # The caption prompts end their worked examples with `#ad`, so the model
+    # writes it into the body whatever this render carries. Removed either
+    # way: on a disclosing render the leading line is the disclosure and a
+    # second copy below the fold is noise, and on a topic render it is the
+    # false statement #295 was about. `single` gets the same outcome from the
+    # loader's trailing-hashtag rule, which this path never had.
+    description, hashtags = strip_disclosure_tokens(
+        str(meta.get("description", "") or ""), hashtags
+    )
+
     try:
         metadata = PublishMetadata(
             platform=platform,
             title=str(meta.get("title") or ""),
-            description=str(meta.get("description", "") or ""),
+            description=description,
             hashtags=hashtags,
             keywords=list(meta.get("keywords", [])),
             product_id=product_id,
@@ -81,10 +94,17 @@ def caption_from_metadata(
             platform.value,
             e,
         )
-        description = str(meta.get("description", "") or "")
-        if discloses:
-            return f"{DEFAULT_DISCLOSURE}\n\n{description}" if description else ""
-        return strip_disclosure_tokens(description, [])[0]
+        parts = [DEFAULT_DISCLOSURE] if discloses else []
+        if description:
+            parts.append(description)
+        tags = list(hashtags)
+        if product_id and product_id not in tags:
+            tags.append(product_id)
+        if tags:
+            parts.append(
+                " ".join(f"#{t}" if not t.startswith("#") else t for t in tags)
+            )
+        return "\n\n".join(parts)
     return metadata.format_content()
 
 
@@ -1001,16 +1021,26 @@ class ScheduleManager:
                                     #
                                     # Routed through the same builder so this
                                     # branch leads with the disclosure too.
-                                    # `data.json` records no affiliate
-                                    # decision, so the default applies and it
-                                    # discloses -- right for the scraped
-                                    # product this fallback exists for, and
-                                    # the safe direction either way.
+                                    #
+                                    # The decision is read off the record
+                                    # rather than defaulted. `data.json`
+                                    # carries the two fields the rule uses, so
+                                    # defaulting here would stamp `#ad` on a
+                                    # topic whose own record says there is
+                                    # nothing to disclose -- the defect this
+                                    # fix's sibling removed.
+                                    fb_discloses = carries_affiliate_content(
+                                        SimpleNamespace(**fb)
+                                    )
+                                    carries_affiliate[p.value] = fb_discloses
                                     platform_contents[p.value] = {
                                         "content": caption_from_metadata(
                                             {
                                                 "title": title,
                                                 "description": f"{title}\n\n{desc}",
+                                                "carries_affiliate_content": (
+                                                    fb_discloses
+                                                ),
                                             },
                                             product_id,
                                             p,

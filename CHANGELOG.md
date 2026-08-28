@@ -14,9 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - This is the mirror of #295, and the more serious direction of the two: a needless disclosure asserts a connection that is not there, while a missing one misstates a connection that is.
-- It hid behind a weak assertion. The test written for #295 checked `"#ad" in caption`, which passes on a token the model left at the end. Placement is now asserted on the first line, and a second case pins that the leading line and a model-written token do not disclose twice.
-- The builder falls back when `PublishMetadata` refuses the input -- an empty description, or a YouTube entry with no title. The fallback applies both rules by hand rather than shipping a caption that skipped them, since a malformed file should cost one post's formatting, not its compliance.
-- The `data.json` fallback records no affiliate decision, so the default applies and it discloses. That is right for the scraped product the fallback exists for, and the safe direction regardless.
+- It hid behind a weak assertion. The test written for #295 checked `"#ad" in caption`, which passes on a token the model left at the end. Placement is asserted on the first line now.
+- The token the model writes into the caption body is removed whichever way the render goes: on a disclosing one the leading line is the disclosure and a second copy below the fold is noise, and on a topic render it is the false statement #295 was about. `single` gets the same outcome from the loader's trailing-hashtag rule, which this path never had. The first attempt pinned this with a token in the hashtag list, which `PublishMetadata` already deduped -- a case that was never broken.
+- The builder falls back when `PublishMetadata` refuses the input -- an empty description, or a YouTube entry with no title. The fallback applies both rules by hand and carries the hashtag block through, since a malformed file should cost one post's formatting, not its compliance or its `#{product_id}` tag.
+- The `data.json` fallback reads the decision off the record rather than defaulting. The file carries both fields the rule uses, so defaulting stamped `#ad` on a topic whose own record says there is nothing to disclose -- the defect #295 removed, reintroduced on one branch by the fix for its mirror.
 
 ## [0.79.1] - 2026-08-28
 

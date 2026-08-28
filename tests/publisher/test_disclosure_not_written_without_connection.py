@@ -273,7 +273,10 @@ class TestTheScheduleAutoPathStripsItToo:
         # Two branches build a caption: from a metadata file, and from
         # `data.json` when none exists. Both must go through the builder, or
         # one of them publishes without the leading disclosure.
-        assert len(calls) == 2, (
+        # At least, not exactly: a third caption branch could legitimately be
+        # routed through the builder, and pinning the count would fail on the
+        # improvement rather than on a regression.
+        assert len(calls) >= 2, (
             f"auto_schedule has {len(calls)} caption_from_metadata call(s); "
             "both the metadata branch and the data.json fallback need one"
         )
@@ -365,6 +368,26 @@ class TestTheFallbackPathIsCompliantToo:
 
         assert caption.startswith("#ad\n\n")
 
+    def test_the_hashtag_block_survives_the_fallback(self):
+        """Dropping it lost every tag, including `#{product_id}`.
+
+        The other fallback cases here pass no hashtags, so emptying the list
+        changes nothing in them -- this is the case that binds.
+        """
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "A comfy tilted bowl.",
+                "hashtags": ["Andoll", "Cat"],
+                "carries_affiliate_content": True,
+            },
+            "B0DF7H6SGZ",
+            Platform.YOUTUBE,
+        )
+
+        assert caption == ("#ad\n\nA comfy tilted bowl.\n\n#Andoll #Cat #B0DF7H6SGZ")
+
     def test_a_topic_youtube_entry_with_no_title_still_loses_the_token(self):
         from src.publisher.schedule import caption_from_metadata
 
@@ -378,4 +401,96 @@ class TestTheFallbackPathIsCompliantToo:
         )
 
         assert "#ad" not in caption
-        assert caption == "Fix your wifi by changing the channel."
+        # The hashtag block survives the fallback: dropping it lost the
+        # `#{product_id}` tag every other branch emits.
+        assert caption == "Fix your wifi by changing the channel.\n\n#topic-wifi"
+
+
+class TestTheTokenTheModelWroteIsNotDoubled:
+    """The prompts end their worked examples with `#ad`, in the body.
+
+    So the model writes it there whatever the render carries. Removing it
+    either way is what makes the leading line the sole disclosure -- `single`
+    gets the same outcome from the loader's trailing-hashtag rule, which this
+    path never had. The earlier test put the token in the hashtag list, which
+    `PublishMetadata` already deduped, so it pinned a case that was never
+    broken.
+    """
+
+    def test_an_affiliate_body_token_is_replaced_by_the_leading_line(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "title": "Earbuds",
+                "description": "Great earbuds - which do you reach for? #ad",
+                "hashtags": ["WirelessEarbuds"],
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.TIKTOK,
+        )
+
+        assert caption.startswith("#ad\n\n")
+        assert caption.count("#ad") == 1
+
+
+class TestTheDataJsonFallbackReadsTheRecord:
+    """`data.json` carries the two fields the disclosure rule uses.
+
+    Defaulting to disclose here stamped `#ad` on a topic whose own record says
+    there is nothing to disclose -- the defect this fix's sibling removed,
+    reintroduced on one branch by the fix for its mirror.
+    """
+
+    def test_a_topic_record_does_not_disclose(self):
+        from types import SimpleNamespace
+
+        from src.scraper.base.models import carries_affiliate_content
+
+        record = {"title": "Why wifi drops", "topic": "Why wifi drops", "url": ""}
+
+        assert carries_affiliate_content(SimpleNamespace(**record)) is False
+
+    def test_a_product_record_discloses(self):
+        from types import SimpleNamespace
+
+        from src.scraper.base.models import carries_affiliate_content
+
+        record = {"title": "Earbuds", "affiliate_link": "https://amzn.to/x"}
+
+        assert carries_affiliate_content(SimpleNamespace(**record)) is True
+
+    def test_the_fallback_branch_derives_it_rather_than_defaulting(self):
+        """Reads the call site: the dict must carry the derived decision.
+
+        A driven test cannot reach this branch without standing up the whole
+        of `auto_schedule`, and the failure mode is a missing key rather than
+        wrong logic -- the builder's default is what does the damage.
+        """
+        import ast
+        from pathlib import Path
+
+        tree = ast.parse(Path("src/publisher/schedule.py").read_text())
+        auto = next(
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == "auto_schedule"
+        )
+        dicts = [
+            node
+            for node in ast.walk(auto)
+            if isinstance(node, ast.Dict)
+            and any(
+                isinstance(k, ast.Constant) and k.value == "carries_affiliate_content"
+                for k in node.keys
+                if k is not None
+            )
+        ]
+
+        assert dicts, (
+            "the data.json fallback builds a caption dict without "
+            "carries_affiliate_content, so it defaults to disclosing and "
+            "stamps #ad on a topic render"
+        )
