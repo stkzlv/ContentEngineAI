@@ -461,36 +461,64 @@ class TestTheDataJsonFallbackReadsTheRecord:
 
         assert carries_affiliate_content(SimpleNamespace(**record)) is True
 
-    def test_the_fallback_branch_derives_it_rather_than_defaulting(self):
-        """Reads the call site: the dict must carry the derived decision.
+    @pytest.mark.asyncio
+    async def test_a_topic_scheduled_from_data_json_discloses_nothing(self, tmp_path):
+        """Drives `auto_schedule`, which reaches this branch directly.
 
-        A driven test cannot reach this branch without standing up the whole
-        of `auto_schedule`, and the failure mode is a missing key rather than
-        wrong logic -- the builder's default is what does the damage.
+        An AST check stood here, on the reasoning that the branch could not be
+        driven without standing up the whole method. That was wrong: the
+        method is already driven elsewhere with a mock publisher, and the
+        fixture there writes only `data.json`. The AST form was also satisfied
+        by a literal `True` in the dict, so it did not constrain the fix.
         """
-        import ast
-        from pathlib import Path
+        import json
+        from unittest.mock import AsyncMock
 
-        tree = ast.parse(Path("src/publisher/schedule.py").read_text())
-        auto = next(
-            n
-            for n in ast.walk(tree)
-            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
-            and n.name == "auto_schedule"
-        )
-        dicts = [
-            node
-            for node in ast.walk(auto)
-            if isinstance(node, ast.Dict)
-            and any(
-                isinstance(k, ast.Constant) and k.value == "carries_affiliate_content"
-                for k in node.keys
-                if k is not None
-            )
-        ]
+        from src.publisher.models import RecurringSlot, ScheduleConfig
+        from src.publisher.schedule import ScheduleManager
 
-        assert dicts, (
-            "the data.json fallback builds a caption dict without "
-            "carries_affiliate_content, so it defaults to disclosing and "
-            "stamps #ad on a topic render"
+        product_dir = tmp_path / "outputs" / "topic-why-wifi-drops-df04e256"
+        product_dir.mkdir(parents=True)
+        video = product_dir / "video_topic.mp4"
+        video.write_text("mock")
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                {
+                    "title": "Why your wifi keeps dropping",
+                    "description": "Change the channel to 1, 6 or 11.",
+                    "topic": "Why your wifi keeps dropping",
+                    "affiliate_link": None,
+                }
+            ),
+            encoding="utf-8",
         )
+
+        publisher = AsyncMock()
+        publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "tiktok", "account_id": "acc1"}]
+        )
+        publisher.upload_media = AsyncMock(return_value="media_1")
+        publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "scheduled"}
+        )
+
+        config = ScheduleConfig(
+            enabled=True,
+            slots=[RecurringSlot("monday", "10:00:00", "UTC")],
+            timezone="UTC",
+            min_post_spacing_hours=0,
+            prevent_duplicates=False,
+            allow_past_schedules=True,
+            max_posts_per_day=0,
+        )
+        manager = ScheduleManager(tmp_path / "schedule.json", config)
+        await manager.auto_schedule(
+            videos=[video], platforms=[Platform.TIKTOK], publisher=publisher
+        )
+
+        assert publisher.publish.await_count == 1
+        kwargs = publisher.publish.await_args.kwargs
+        # The caption and the flag that drives TikTok's commercial-content
+        # settings must agree. Pinning only one lets the other contradict it.
+        assert kwargs["carries_affiliate_content"] is False
+        assert "#ad" not in kwargs["content"]
