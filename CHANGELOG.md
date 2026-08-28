@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.1] - 2026-08-28
+
+### Fixed
+- A render with no material connection cannot publish a disclosure token. The caption prompts instruct the model to write `#ad` and demonstrate it in every worked example, and they are not told whether the render carries an affiliate link, so the token arrives in the metadata whatever the publisher decided. On a stock config it was already being removed, but by two accidents: the trailing-hashtag rule in `load_platform_metadata`, written for legacy metadata, and the disclosure dedup, which only matched while `disclosure` still held its `#ad` default at construction time. An `#ad` mid-sentence survived the first, and a disclosure configured to a language variant such as `#publi` stopped the second matching at all. Closes #295.
+
+### Notes
+- `carries_affiliate_content` is now passed to `PublishMetadata` at construction rather than assigned after it. The guard runs in `__post_init__`, so a flag set afterwards is a flag it never saw -- which is how the removal came to depend on the default still being in place when the object was built. `disclosure` keeps its configured value, and `format_content` gates on the flag instead of on the field being blank; blanking it was what made the configured half of the token set unreachable.
+- Both `#ad` and the configured token are removed, because on a Spanish render those are different strings and the prompt writes the first regardless of what the publisher is configured to say. The body edit is word-bounded, so `#advice` and `#adapter` survive.
+- `schedule auto` builds its caption from the metadata file rather than through `PublishMetadata`, so a guard on that object left it publishing the token, and it gets neither the object guard nor the loader's trailing-hashtag rule. The strip is a shared function and the caption build is extracted, so both publish paths run the same code -- and both a driven test and a call-site check, because a test that reads the call site passes while the call sits behind a dead branch.
+- The whitespace repair runs only where a token was actually removed. Applied unconditionally it rewrote every non-affiliate caption, collapsing French spacing before `!` and `?`, deliberate ellipses and double spaces on renders that never carried a disclosure.
+- This is the guarantee, not the whole fix. The prompts still author the token; stopping that needs topic variants with their own examples, which is #289 -- rules lose to examples, and every example in those files ends with `#ad`.
+
 ## [0.79.0] - 2026-08-27
 
 ### Added

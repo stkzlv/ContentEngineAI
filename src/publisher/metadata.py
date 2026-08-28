@@ -151,7 +151,15 @@ def _load_from_json(
         # a needless one merely asserts a connection that does not exist.
         disclose = data.get("carries_affiliate_content", True)
 
-        # Create PublishMetadata
+        # Passed to the constructor rather than assigned after it.
+        # `__post_init__` is where the disclosure tokens are removed, so a
+        # flag set afterwards is a flag the guard never saw -- which is how
+        # the removal came to depend on `disclosure` still holding its
+        # default at construction time.
+        #
+        # `disclosure` keeps its configured value either way: the strip needs
+        # it to know which token to remove, and `format_content` gates on the
+        # flag rather than on the field being blank.
         metadata = PublishMetadata(
             platform=platform,
             title=title,
@@ -159,10 +167,9 @@ def _load_from_json(
             hashtags=hashtags,
             keywords=keywords,
             product_id=product_id,
+            carries_affiliate_content=bool(disclose),
         )
-        metadata.carries_affiliate_content = bool(disclose)
         if not disclose:
-            metadata.disclosure = ""
             logger.info(
                 "Caption disclosure omitted for %s: no affiliate content",
                 product_id or json_path,
