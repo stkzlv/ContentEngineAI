@@ -36,7 +36,7 @@ from tenacity import (
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
-from src.video.config import LLMSettings, config
+from src.video.config import MIN_PHRASE_WORDS, LLMSettings, config
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -1217,7 +1217,7 @@ def sanitize_visual_search_phrases(
         if any(ch in _DECIMAL_POINT.sub("", line) for ch in ",.;:!?#"):
             continue
         words = line.split()
-        if not 2 <= len(words) <= max_words:
+        if not MIN_PHRASE_WORDS <= len(words) <= max_words:
             continue
         if lowered in seen:
             continue
@@ -1271,6 +1271,7 @@ async def generate_visual_search_phrases(
             extra_placeholders={
                 "MAX_PHRASES": str(max_phrases),
                 "MAX_WORDS": str(max_words),
+                "MIN_WORDS": str(MIN_PHRASE_WORDS),
             },
         )
     except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:

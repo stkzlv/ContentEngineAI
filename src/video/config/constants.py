@@ -118,3 +118,14 @@ LATE_API_KEY_MIN_LENGTH = 10
 SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS = 100
 # Multiplier for max attempts when finding alternatives (count * multiplier)
 SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER = 10
+
+
+# =============================================================================
+# STOCK SEARCH PHRASES
+# =============================================================================
+# Shortest acceptable stock-search phrase, in words. Below this a phrase is an
+# object with no place and no actor, which the library answers with a
+# catalogue page. Lives here so the config bound, the sanitizer and the prompt
+# all read one number: stated separately, the instruction and the filter drift
+# and the rule holds only for as long as the model chooses to follow it.
+MIN_PHRASE_WORDS = 3
