@@ -1005,10 +1005,11 @@ class ScheduleManager:
                                     if isinstance(fb, list) and fb:
                                         fb = fb[0]
                                     # The raw scraped title, routinely past
-                                    # YouTube's 100-character cap. This path
-                                    # never builds a PublishMetadata, so the
-                                    # clamp the other paths get from
-                                    # `clamp_to_limits` has to be applied here.
+                                    # YouTube's 100-character cap. The caption
+                                    # builder below constructs a
+                                    # `PublishMetadata` but never calls
+                                    # `clamp_to_limits`, so the cap the other
+                                    # paths get from it is applied here.
                                     title = _trim_on_word_boundary(
                                         fb.get("title", "Product Video"), 100
                                     )
