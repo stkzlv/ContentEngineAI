@@ -217,24 +217,33 @@ class TestTheScheduleAutoPathStripsItToo:
                 "carries_affiliate_content": False,
             },
             "topic-wifi",
+            Platform.TIKTOK,
         )
 
         assert "#ad" not in caption
         assert caption == "Fix your wifi. Which fix worked?\n\n#WifiFix #topic-wifi"
 
-    def test_an_affiliate_caption_keeps_it(self):
+    def test_an_affiliate_caption_leads_with_it(self):
+        """Placement, not presence.
+
+        The old assertion was `"#ad" in caption`, which passes on a token the
+        model left at the end -- below the fold the first-line placement
+        exists to clear. That is how this path went without a leading
+        disclosure unnoticed.
+        """
         from src.publisher.schedule import caption_from_metadata
 
         caption = caption_from_metadata(
             {
                 "description": "Great earbuds under $50.",
-                "hashtags": ["Earbuds", "ad"],
+                "hashtags": ["Earbuds"],
                 "carries_affiliate_content": True,
             },
             "B0ABCDEFGH",
+            Platform.TIKTOK,
         )
 
-        assert "#ad" in caption
+        assert caption.startswith("#ad\n\n")
 
     def test_auto_schedule_actually_uses_the_builder(self):
         """The behavioural tests above only bind if the caller calls it.
@@ -253,23 +262,53 @@ class TestTheScheduleAutoPathStripsItToo:
             and n.name == "auto_schedule"
         )
 
-        assert any(
-            isinstance(node, ast.Call)
+        calls = [
+            node
+            for node in ast.walk(auto)
+            if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "caption_from_metadata"
-            for node in ast.walk(auto)
-        ), "auto_schedule builds its caption without the shared builder"
+        ]
 
-    def test_an_absent_flag_keeps_it(self):
+        # Two branches build a caption: from a metadata file, and from
+        # `data.json` when none exists. Both must go through the builder, or
+        # one of them publishes without the leading disclosure.
+        # At least, not exactly: a third caption branch could legitimately be
+        # routed through the builder, and pinning the count would fail on the
+        # improvement rather than on a regression.
+        assert len(calls) >= 2, (
+            f"auto_schedule has {len(calls)} caption_from_metadata call(s); "
+            "both the metadata branch and the data.json fallback need one"
+        )
+
+    def test_an_absent_flag_still_leads_with_it(self):
         """Same default as everywhere else: disclose unless told otherwise."""
         from src.publisher.schedule import caption_from_metadata
 
         caption = caption_from_metadata(
-            {"description": "Great earbuds. #ad", "hashtags": ["Earbuds"]},
+            {"description": "Great earbuds.", "hashtags": ["Earbuds"]},
             "B0ABCDEFGH",
+            Platform.TIKTOK,
         )
 
-        assert "#ad" in caption
+        assert caption.startswith("#ad\n\n")
+
+    def test_the_model_token_is_not_doubled(self):
+        """The leading line and a trailing token would disclose twice."""
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Great earbuds under $50.",
+                "hashtags": ["Earbuds", "ad"],
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.TIKTOK,
+        )
+
+        assert caption.startswith("#ad\n\n")
+        assert caption.count("#ad") == 1
 
     def test_it_removes_the_token_a_prompt_wrote(self):
         from src.publisher.models import strip_disclosure_tokens
@@ -303,3 +342,183 @@ class TestACaptionWithNoTokenIsReturnedUntouched:
         from src.publisher.models import strip_disclosure_tokens
 
         assert strip_disclosure_tokens(description, [])[0] == description
+
+
+class TestTheFallbackPathIsCompliantToo:
+    """A malformed metadata file must not publish a non-compliant caption.
+
+    `caption_from_metadata` falls back when `PublishMetadata` refuses the
+    input -- an empty description, or a YouTube entry with no title. Losing
+    the whole scheduling run to one bad file would be worse, but the fallback
+    has to apply the same two rules, or it ships exactly the pair of defects
+    the function exists to close.
+    """
+
+    def test_an_affiliate_youtube_entry_with_no_title_still_leads_with_it(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Great earbuds under $50.",
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.YOUTUBE,
+        )
+
+        assert caption.startswith("#ad\n\n")
+
+    def test_the_hashtag_block_survives_the_fallback(self):
+        """Dropping it lost every tag, including `#{product_id}`.
+
+        The other fallback cases here pass no hashtags, so emptying the list
+        changes nothing in them -- this is the case that binds.
+        """
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "A comfy tilted bowl.",
+                "hashtags": ["Andoll", "Cat"],
+                "carries_affiliate_content": True,
+            },
+            "B0DF7H6SGZ",
+            Platform.YOUTUBE,
+        )
+
+        assert caption == ("#ad\n\nA comfy tilted bowl.\n\n#Andoll #Cat #B0DF7H6SGZ")
+
+    def test_a_topic_youtube_entry_with_no_title_still_loses_the_token(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "description": "Fix your wifi #ad by changing the channel.",
+                "carries_affiliate_content": False,
+            },
+            "topic-wifi",
+            Platform.YOUTUBE,
+        )
+
+        assert "#ad" not in caption
+        # The hashtag block survives the fallback: dropping it lost the
+        # `#{product_id}` tag every other branch emits.
+        assert caption == "Fix your wifi by changing the channel.\n\n#topic-wifi"
+
+
+class TestTheTokenTheModelWroteIsNotDoubled:
+    """The prompts end their worked examples with `#ad`, in the body.
+
+    So the model writes it there whatever the render carries. Removing it
+    either way is what makes the leading line the sole disclosure -- `single`
+    gets the same outcome from the loader's trailing-hashtag rule, which this
+    path never had. The earlier test put the token in the hashtag list, which
+    `PublishMetadata` already deduped, so it pinned a case that was never
+    broken.
+    """
+
+    def test_an_affiliate_body_token_is_replaced_by_the_leading_line(self):
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            {
+                "title": "Earbuds",
+                "description": "Great earbuds - which do you reach for? #ad",
+                "hashtags": ["WirelessEarbuds"],
+                "carries_affiliate_content": True,
+            },
+            "B0ABCDEFGH",
+            Platform.TIKTOK,
+        )
+
+        assert caption.startswith("#ad\n\n")
+        assert caption.count("#ad") == 1
+
+
+class TestTheDataJsonFallbackReadsTheRecord:
+    """`data.json` carries the two fields the disclosure rule uses.
+
+    Defaulting to disclose here stamped `#ad` on a topic whose own record says
+    there is nothing to disclose -- the defect this fix's sibling removed,
+    reintroduced on one branch by the fix for its mirror.
+    """
+
+    def test_a_topic_record_does_not_disclose(self):
+        from types import SimpleNamespace
+
+        from src.scraper.base.models import carries_affiliate_content
+
+        record = {"title": "Why wifi drops", "topic": "Why wifi drops", "url": ""}
+
+        assert carries_affiliate_content(SimpleNamespace(**record)) is False
+
+    def test_a_product_record_discloses(self):
+        from types import SimpleNamespace
+
+        from src.scraper.base.models import carries_affiliate_content
+
+        record = {"title": "Earbuds", "affiliate_link": "https://amzn.to/x"}
+
+        assert carries_affiliate_content(SimpleNamespace(**record)) is True
+
+    @pytest.mark.asyncio
+    async def test_a_topic_scheduled_from_data_json_discloses_nothing(self, tmp_path):
+        """Drives `auto_schedule`, which reaches this branch directly.
+
+        An AST check stood here, on the reasoning that the branch could not be
+        driven without standing up the whole method. That was wrong: the
+        method is already driven elsewhere with a mock publisher, and the
+        fixture there writes only `data.json`. The AST form was also satisfied
+        by a literal `True` in the dict, so it did not constrain the fix.
+        """
+        import json
+        from unittest.mock import AsyncMock
+
+        from src.publisher.models import RecurringSlot, ScheduleConfig
+        from src.publisher.schedule import ScheduleManager
+
+        product_dir = tmp_path / "outputs" / "topic-why-wifi-drops-df04e256"
+        product_dir.mkdir(parents=True)
+        video = product_dir / "video_topic.mp4"
+        video.write_text("mock")
+        (product_dir / "data.json").write_text(
+            json.dumps(
+                {
+                    "title": "Why your wifi keeps dropping",
+                    "description": "Change the channel to 1, 6 or 11.",
+                    "topic": "Why your wifi keeps dropping",
+                    "affiliate_link": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        publisher = AsyncMock()
+        publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "tiktok", "account_id": "acc1"}]
+        )
+        publisher.upload_media = AsyncMock(return_value="media_1")
+        publisher.publish = AsyncMock(
+            return_value={"post_id": "p1", "status": "scheduled"}
+        )
+
+        config = ScheduleConfig(
+            enabled=True,
+            slots=[RecurringSlot("monday", "10:00:00", "UTC")],
+            timezone="UTC",
+            min_post_spacing_hours=0,
+            prevent_duplicates=False,
+            allow_past_schedules=True,
+            max_posts_per_day=0,
+        )
+        manager = ScheduleManager(tmp_path / "schedule.json", config)
+        await manager.auto_schedule(
+            videos=[video], platforms=[Platform.TIKTOK], publisher=publisher
+        )
+
+        assert publisher.publish.await_count == 1
+        kwargs = publisher.publish.await_args.kwargs
+        # The caption and the flag that drives TikTok's commercial-content
+        # settings must agree. Pinning only one lets the other contradict it.
+        assert kwargs["carries_affiliate_content"] is False
+        assert "#ad" not in kwargs["content"]

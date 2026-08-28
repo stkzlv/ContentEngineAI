@@ -212,12 +212,14 @@ def strip_disclosure_tokens(
     hashtags: list[str],
     disclosure: str = DEFAULT_DISCLOSURE,
 ) -> tuple[str, list[str]]:
-    """Remove disclosure tokens from a caption with nothing to disclose.
+    """Remove disclosure tokens from a caption body.
 
-    Shared because `schedule auto` builds its caption straight from the
-    metadata JSON rather than through `PublishMetadata`, so a guard living
-    only on the object leaves that path publishing the token -- the same
-    re-implementation the Module/Batch Alignment Rule is about.
+    Shared rather than a `PublishMetadata` method because both callers need it
+    at a different moment. On the object it runs in `__post_init__`, only for
+    a render with nothing to disclose. `schedule auto` runs it ahead of
+    construction and for every render, because the leading line is the sole
+    disclosure there and a second copy the model left in the body would sit
+    below the fold saying the same thing twice.
 
     Covers `#ad` and the configured token. The prompts write `#ad` whatever
     the publisher is configured to say, and on a Spanish render those are two

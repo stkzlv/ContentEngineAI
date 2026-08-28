@@ -9,16 +9,19 @@ import logging
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from src.publisher.base import PublishError
 from src.publisher.first_comment import build_first_comment
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import (
+    DEFAULT_DISCLOSURE,
     CleanupConfig,
     ConflictResolution,
     LinkInBioConfig,
     Platform,
+    PublishMetadata,
     RecurringSlot,
     ScheduleConfig,
     ScheduleEntry,
@@ -28,6 +31,7 @@ from src.publisher.models import (
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
 from src.publisher.tracking import is_already_published, record_publish
+from src.scraper.base.models import carries_affiliate_content
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -39,31 +43,69 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def caption_from_metadata(meta: dict, product_id: str | None) -> str:
+def caption_from_metadata(
+    meta: dict, product_id: str | None, platform: Platform
+) -> str:
     """Build the caption `schedule auto` publishes, from a metadata file.
 
-    Extracted so it can be driven directly. `schedule auto` does not go
-    through `PublishMetadata`, so the disclosure guard on that object does not
-    protect this path -- and a test asserting the shared function is merely
-    *called* here passes while the call sits behind a dead branch.
+    Routed through `PublishMetadata.format_content` rather than assembling the
+    parts here. Hand-assembling them is what left this path without the
+    leading disclosure line every other publish path gets: an affiliate post
+    scheduled here disclosed wherever the model happened to write it, and the
+    prompts' own examples put that at the end of the caption, below the fold
+    the first-line placement exists to clear.
+
+    The caller has already chosen between the unified and per-platform files,
+    so this takes the loaded mapping rather than repeating that discovery.
     """
-    desc = str(meta.get("description", "") or "")
     hashtags = list(meta.get("hashtags", []))
+    discloses = bool(meta.get("carries_affiliate_content", True))
 
-    if not bool(meta.get("carries_affiliate_content", True)):
-        # The caption prompts write `#ad` whatever the render carries, and
-        # this path gets neither the object guard nor the loader's
-        # trailing-hashtag rule.
-        desc, hashtags = strip_disclosure_tokens(desc, hashtags)
+    # The caption prompts end their worked examples with `#ad`, so the model
+    # writes it into the body whatever this render carries. Removed either
+    # way: on a disclosing render the leading line is the disclosure and a
+    # second copy below the fold is noise, and on a topic render it is the
+    # false statement #295 was about. `single` gets the same outcome from the
+    # loader's trailing-hashtag rule, which this path never had.
+    description, hashtags = strip_disclosure_tokens(
+        str(meta.get("description", "") or ""), hashtags
+    )
 
-    if product_id and product_id not in hashtags:
-        hashtags.append(product_id)
-    if hashtags:
-        hashtag_str = " ".join(
-            f"#{t}" if not t.startswith("#") else t for t in hashtags
+    try:
+        metadata = PublishMetadata(
+            platform=platform,
+            title=str(meta.get("title") or ""),
+            description=description,
+            hashtags=hashtags,
+            keywords=list(meta.get("keywords", [])),
+            product_id=product_id,
+            carries_affiliate_content=discloses,
         )
-        desc = f"{desc}\n\n{hashtag_str}"
-    return desc
+    except ValueError as e:
+        # An empty description, or a YouTube entry with no title. Losing the
+        # whole scheduling run to one malformed file would be worse, so this
+        # falls back -- but it applies the two compliance rules by hand rather
+        # than shipping a caption that skipped them, which is the pair of
+        # defects this function exists to close.
+        logger.warning(
+            "Could not build caption for %s on %s (%s); "
+            "falling back to the raw description",
+            product_id,
+            platform.value,
+            e,
+        )
+        parts = [DEFAULT_DISCLOSURE] if discloses else []
+        if description:
+            parts.append(description)
+        tags = list(hashtags)
+        if product_id and product_id not in tags:
+            tags.append(product_id)
+        if tags:
+            parts.append(
+                " ".join(f"#{t}" if not t.startswith("#") else t for t in tags)
+            )
+        return "\n\n".join(parts)
+    return metadata.format_content()
 
 
 class ScheduleManager:
@@ -940,7 +982,7 @@ class ScheduleManager:
                                 carries_affiliate[p.value] = bool(
                                     meta.get("carries_affiliate_content", True)
                                 )
-                                desc = caption_from_metadata(meta, product_id)
+                                desc = caption_from_metadata(meta, product_id, p)
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
                                         "content": desc,
@@ -963,10 +1005,11 @@ class ScheduleManager:
                                     if isinstance(fb, list) and fb:
                                         fb = fb[0]
                                     # The raw scraped title, routinely past
-                                    # YouTube's 100-character cap. This path
-                                    # never builds a PublishMetadata, so the
-                                    # clamp the other paths get from
-                                    # `clamp_to_limits` has to be applied here.
+                                    # YouTube's 100-character cap. The caption
+                                    # builder below constructs a
+                                    # `PublishMetadata` but never calls
+                                    # `clamp_to_limits`, so the cap the other
+                                    # paths get from it is applied here.
                                     title = _trim_on_word_boundary(
                                         fb.get("title", "Product Video"), 100
                                     )
@@ -976,8 +1019,33 @@ class ScheduleManager:
                                     # payload has none, and the platform
                                     # derives one from the caption's first
                                     # line.
+                                    #
+                                    # Routed through the same builder so this
+                                    # branch leads with the disclosure too.
+                                    #
+                                    # The decision is read off the record
+                                    # rather than defaulted. `data.json`
+                                    # carries the two fields the rule uses, so
+                                    # defaulting here would stamp `#ad` on a
+                                    # topic whose own record says there is
+                                    # nothing to disclose -- the defect this
+                                    # fix's sibling removed.
+                                    fb_discloses = carries_affiliate_content(
+                                        SimpleNamespace(**fb)
+                                    )
+                                    carries_affiliate[p.value] = fb_discloses
                                     platform_contents[p.value] = {
-                                        "content": f"{title}\n\n{desc}",
+                                        "content": caption_from_metadata(
+                                            {
+                                                "title": title,
+                                                "description": f"{title}\n\n{desc}",
+                                                "carries_affiliate_content": (
+                                                    fb_discloses
+                                                ),
+                                            },
+                                            product_id,
+                                            p,
+                                        ),
                                         "title": title,
                                     }
                                 else:
