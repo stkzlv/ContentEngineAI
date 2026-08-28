@@ -21,6 +21,59 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+# Characters that can continue a word rather than start one. Whisper emits a
+# thousands separator, a decimal point or a hyphen as its own token, so
+# "80,000" arrives as "80" + ",000" and the renderers space-join it into
+# "80 ,000". The decimal case is worse than cosmetic: "2.4GHz" becomes
+# "2 4GHz", which reads as a different number.
+_CONTINUATION_STARTS = (",", ".", "-", "'", "\u2019")
+
+
+def _is_continuation(prev_word: str, word: str) -> bool:
+    """Whether `word` continues `prev_word` rather than beginning a new one.
+
+    Requires the separator to be followed by an alphanumeric and the previous
+    token to end in one, so a token that merely *carries* punctuation is left
+    alone. That distinction is the whole rule: in a script listing channels
+    "1," "6," and "11." are three separate words with trailing punctuation,
+    while ",000" is the tail of the number before it.
+    """
+    stripped = word.strip()
+    if len(stripped) < 2 or not stripped.startswith(_CONTINUATION_STARTS):
+        return False
+    if not stripped[1].isalnum():
+        return False
+    return bool(prev_word.strip()) and prev_word.strip()[-1].isalnum()
+
+
+def _join_continuations(
+    words: list[dict[str, Any]], text_key: str, end_key: str
+) -> list[dict[str, Any]]:
+    """Fold continuation tokens into the word they continue.
+
+    Runs before the timing rules: merging two words into one changes what the
+    gap and duration rules are looking at, and a rule that has already padded
+    a token about to disappear has padded nothing.
+    """
+    if not words:
+        return words
+
+    merged: list[dict[str, Any]] = [dict(words[0])]
+    for current in words[1:]:
+        previous = merged[-1]
+        if _is_continuation(
+            str(previous.get(text_key, "")), str(current.get(text_key, ""))
+        ):
+            previous[text_key] = (
+                str(previous[text_key]).rstrip() + str(current[text_key]).strip()
+            )
+            # The joined word is spoken across both spans.
+            previous[end_key] = current[end_key]
+            continue
+        merged.append(dict(current))
+    return merged
+
+
 def smooth_word_timings(
     timings: list[dict[str, Any]],
     *,
@@ -66,7 +119,8 @@ def smooth_word_timings(
     if not timings:
         return timings
 
-    out = [dict(t) for t in timings]
+    # Rule 0: fold continuation tokens before anything measures the list.
+    out = _join_continuations([dict(t) for t in timings], "word", "end_time")
 
     # Rule 4: lead — shift start earlier so the word appears just before
     # it's spoken. Don't touch end_time; that still marks the audio offset.
@@ -146,6 +200,12 @@ def smooth_whisper_result_dict(
         words = segment.get("words")
         if not words:
             continue
+
+        # Rule 0: fold continuation tokens before anything measures the list.
+        # This is the path pycaps consumes, so it is the one that decides what
+        # the burned caption reads.
+        words = _join_continuations(words, "word", "end")
+        segment["words"] = words
 
         # Rule 4: lead
         for w in words:

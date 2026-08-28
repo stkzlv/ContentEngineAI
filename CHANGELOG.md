@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.80.1] - 2026-08-28
+
+### Fixed
+- A word Whisper splits at a separator is rejoined before it reaches either caption engine. It emits the tail of a word as its own token, and both renderers space-join tokens, so `80,000` was burned as `80 ,000` and `go-to` as `go  -to`. `2.4GHz` was worse than cosmetic: it came out `2 4GHz`, the decimal point dropped, which a viewer reads as a different number. Closes #292.
+
+### Notes
+- The rule cannot key on digits, and cannot key on punctuation generally. The same script that produced `2 4GHz` lists channels as `1,` `6,` `11.` -- three separate words carrying trailing punctuation. What separates the two cases is where the separator sits: a continuation starts with one and is followed by an alphanumeric, and the word before it ends in one.
+- Applied in the timing smoother, which is the single call site both engines pass through, and before the timing rules rather than after: merging two words changes what the gap and duration rules are measuring, and padding a token that is about to disappear pads nothing.
+- Both formats needed it. The flat list feeds the FFmpeg engine and the nested dict feeds pycaps, which is what the bundled config uses -- fixing only the first would have left the defect visible in exactly the renders where it was measured.
+
 ## [0.80.0] - 2026-08-28
 
 ### Fixed
