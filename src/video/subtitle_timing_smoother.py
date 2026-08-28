@@ -38,6 +38,14 @@ def _is_continuation(prev_word: str, word: str) -> bool:
     "1," "6," and "11." are three separate words with trailing punctuation,
     while ",000" is the tail of the number before it.
     """
+    # A leading space is Whisper's own mark that a new word starts here, and
+    # it is the only thing separating a continuation from a word that
+    # legitimately begins with an apostrophe: "'em" and "'90s" arrive with the
+    # space, ",000" and ".4GHz" without it. Stripping first threw that away
+    # and glued them to the word before.
+    if word[:1].isspace():
+        return False
+
     stripped = word.strip()
     if len(stripped) < 2 or not stripped.startswith(_CONTINUATION_STARTS):
         return False
@@ -68,10 +76,43 @@ def _join_continuations(
                 str(previous[text_key]).rstrip() + str(current[text_key]).strip()
             )
             # The joined word is spoken across both spans.
-            previous[end_key] = current[end_key]
+            # `.get`, matching the guards every neighbouring rule applies:
+            # an entry missing its end would otherwise take the whole
+            # subtitle step down rather than being skipped.
+            previous[end_key] = current.get(end_key, previous.get(end_key))
             continue
         merged.append(dict(current))
     return merged
+
+
+def join_continuations_in_timings(
+    timings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Rejoin split words in the flat list the FFmpeg engine consumes.
+
+    Separate from the smoothing rules and called outside their feature flag:
+    those four rules are cosmetic timing adjustments an operator may turn off,
+    and a caption that reads `2 4GHz` for `2.4GHz` is not a timing preference.
+    """
+    return _join_continuations([dict(t) for t in timings], "word", "end_time")
+
+
+def join_continuations_in_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Rejoin split words in the nested dict pycaps consumes.
+
+    Returns a copy; the caller's dict is not mutated, matching
+    `smooth_whisper_result_dict`.
+    """
+    import copy
+
+    if not result.get("segments"):
+        return result
+    out = copy.deepcopy(result)
+    for segment in out["segments"]:
+        words = segment.get("words")
+        if words:
+            segment["words"] = _join_continuations(words, "word", "end")
+    return out
 
 
 def smooth_word_timings(
@@ -119,8 +160,7 @@ def smooth_word_timings(
     if not timings:
         return timings
 
-    # Rule 0: fold continuation tokens before anything measures the list.
-    out = _join_continuations([dict(t) for t in timings], "word", "end_time")
+    out = [dict(t) for t in timings]
 
     # Rule 4: lead — shift start earlier so the word appears just before
     # it's spoken. Don't touch end_time; that still marks the audio offset.
@@ -200,12 +240,6 @@ def smooth_whisper_result_dict(
         words = segment.get("words")
         if not words:
             continue
-
-        # Rule 0: fold continuation tokens before anything measures the list.
-        # This is the path pycaps consumes, so it is the one that decides what
-        # the burned caption reads.
-        words = _join_continuations(words, "word", "end")
-        segment["words"] = words
 
         # Rule 4: lead
         for w in words:

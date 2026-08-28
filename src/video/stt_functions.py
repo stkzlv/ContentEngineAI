@@ -171,6 +171,18 @@ async def generate_subtitles_with_whisper(
             return None
         logger.info(f"Extracted {len(word_list_whisper)} word timings from Whisper.")
 
+        # Rejoin words Whisper split at a separator. Runs outside the
+        # smoothing gate below: that flag governs four cosmetic timing rules,
+        # and turning it off must not restore a caption that reads `2 4GHz`
+        # for `2.4GHz`. Text correctness is not a timing preference.
+        from src.video.subtitle_timing_smoother import (
+            join_continuations_in_result,
+            join_continuations_in_timings,
+        )
+
+        word_list_whisper = join_continuations_in_timings(word_list_whisper)
+        result_w = join_continuations_in_result(result_w)
+
         # Apply timing smoothing to fix Whisper's coarse word timestamps.
         # Smooth both the flat list (for FFmpeg) and the raw dict (for pycaps).
         ts_cfg = timing_smoothing_config or {}
