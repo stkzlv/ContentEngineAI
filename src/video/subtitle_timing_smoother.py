@@ -21,6 +21,88 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+# Characters that can continue a word rather than start one. Whisper emits a
+# thousands separator, a decimal point or a hyphen as its own token, so
+# "80,000" arrives as "80" + ",000" and the renderers space-join it into
+# "80 ,000". The decimal case is worse than cosmetic: "2.4GHz" becomes
+# "2 4GHz", which reads as a different number.
+_CONTINUATION_STARTS = (",", ".", "-", "'", "\u2019")
+
+
+def _is_continuation(prev_word: str, word: str) -> bool:
+    """Whether `word` continues `prev_word` rather than beginning a new one.
+
+    Requires the separator to be followed by an alphanumeric and the previous
+    token to end in one, so a token that merely *carries* punctuation is left
+    alone. That distinction is the whole rule: in a script listing channels
+    "1," "6," and "11." are three separate words with trailing punctuation,
+    while ",000" is the tail of the number before it.
+    """
+    # A leading space is Whisper's own mark that a new word starts here, and
+    # it is the only thing separating a continuation from a word that
+    # legitimately begins with an apostrophe: "'em" and "'90s" arrive with the
+    # space, ",000" and ".4GHz" without it. Stripping first threw that away
+    # and glued them to the word before.
+    if word[:1].isspace():
+        return False
+
+    stripped = word.strip()
+    if len(stripped) < 2 or not stripped.startswith(_CONTINUATION_STARTS):
+        return False
+    if not stripped[1].isalnum():
+        return False
+    return bool(prev_word.strip()) and prev_word.strip()[-1].isalnum()
+
+
+def _join_continuations(
+    words: list[dict[str, Any]], text_key: str, end_key: str
+) -> list[dict[str, Any]]:
+    """Fold continuation tokens into the word they continue.
+
+    Runs before the timing rules: merging two words into one changes what the
+    gap and duration rules are looking at, and a rule that has already padded
+    a token about to disappear has padded nothing.
+    """
+    if not words:
+        return words
+
+    merged: list[dict[str, Any]] = [dict(words[0])]
+    for current in words[1:]:
+        previous = merged[-1]
+        if _is_continuation(
+            str(previous.get(text_key, "")), str(current.get(text_key, ""))
+        ):
+            previous[text_key] = (
+                str(previous[text_key]).rstrip() + str(current[text_key]).strip()
+            )
+            # The joined word is spoken across both spans.
+            # `.get`, matching the guards every neighbouring rule applies:
+            # an entry missing its end would otherwise take the whole
+            # subtitle step down rather than being skipped.
+            previous[end_key] = current.get(end_key, previous.get(end_key))
+            continue
+        merged.append(dict(current))
+    return merged
+
+
+def join_continuations_in_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Rejoin split words in the nested dict pycaps consumes.
+
+    Returns a copy; the caller's dict is not mutated, matching
+    `smooth_whisper_result_dict`.
+    """
+    import copy
+
+    if not result.get("segments"):
+        return result
+    out = copy.deepcopy(result)
+    for segment in out["segments"]:
+        words = segment.get("words")
+        if words:
+            segment["words"] = _join_continuations(words, "word", "end")
+    return out
+
+
 def smooth_word_timings(
     timings: list[dict[str, Any]],
     *,

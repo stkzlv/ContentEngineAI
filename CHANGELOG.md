@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.80.1] - 2026-08-29
+
+### Fixed
+- A word Whisper splits at a separator is rejoined before it reaches either caption engine. It emits the tail of a word as its own token, and both renderers space-join tokens, so `80,000` was burned as `80 ,000` and `go-to` as `go  -to`. `2.4GHz` was worse than cosmetic: it came out `2 4GHz`, the decimal point dropped, which a viewer reads as a different number. Closes #292.
+
+### Notes
+- Joining the word was only half the fix on the default engine. `word-focus`, one of the two bundled pycaps templates, ships an effect that deletes every `.` in a word, so the rejoined `2.4GHz` burned as `24GHz` and `$1,299.99` as `$1,29999` -- the same harm arriving by another route, and arguably worse, since a number with no separator reads as a confident wrong figure. The effect is dropped from the pipeline; its own exception list cannot express "a period between digits", so the template cannot be configured out of it.
+- A leading space is Whisper's own mark that a new word starts, and it is the only thing separating a continuation from a word that legitimately begins with an apostrophe. Stripping before the check glued `get 'em` into `get'em`.
+- The rejoin runs outside the timing-smoothing feature flag. Those four rules are cosmetic and an operator may turn them off; a caption reading `2 4GHz` for `2.4GHz` is not a timing preference.
+- The rule cannot key on digits, and cannot key on punctuation generally. The same script that produced `2 4GHz` lists channels as `1,` `6,` `11.` -- three separate words carrying trailing punctuation. What separates the two cases is where the separator sits: a continuation starts with one and is followed by an alphanumeric, and the word before it ends in one.
+- Lives in the timing-smoother module but is applied in `generate_subtitles_with_whisper`, the single call site both engines pass through. It runs on the result dict *before* the flat list is extracted from it: the extractor strips each word, and the leading space is the only thing separating a continuation from a word beginning with an apostrophe, so joining afterwards protected pycaps and glued `get 'em` into `get'em` on the FFmpeg engine -- which is what a default install renders with, since the pycaps group is optional.
+- One join serves both engines: the flat list the FFmpeg engine consumes is derived from the dict pycaps consumes, so it inherits the result rather than repeating the work on words that have already been stripped.
+
 ## [0.80.0] - 2026-08-28
 
 ### Fixed

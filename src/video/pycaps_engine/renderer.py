@@ -156,6 +156,45 @@ def _safe_zone_max_width(safe_zone: Any) -> float | None:
     return max(0.1, limit)  # floor at 10% to avoid degenerate layouts
 
 
+def _drop_punctuation_stripping(builder: Any) -> None:
+    """Stop a template deleting the decimal point out of a number.
+
+    `word-focus` ships `RemovePunctuationMarksEffect(['.'])`, whose
+    implementation is `text.replace('.', '')` -- every period in the word, not
+    just a trailing one. It is a styling choice that reads fine on prose and
+    silently rewrites a figure: joining "2" and ".4GHz" back into one word
+    hands it an internal period, and it burns `24GHz`. `$1,299.99` becomes
+    `$1,29999`.
+
+    The effect's own `exception_marks` cannot express "a period between
+    digits", so the template cannot be configured out of it; the effect has to
+    go. A caption losing a full stop costs nothing next to a caption stating a
+    different number.
+
+    Reaches into the pipeline the same way the layout merge above does, and
+    tolerates the attribute being absent so a pycaps upgrade that renames it
+    degrades to the old behaviour rather than raising.
+    """
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    if pipeline is None:
+        return
+    effects = getattr(pipeline, "_text_effects", None)
+    if not effects:
+        return
+
+    kept = [
+        effect
+        for effect in effects
+        if type(effect).__name__ != "RemovePunctuationMarksEffect"
+    ]
+    if len(kept) != len(effects):
+        logger.debug(
+            "Dropped %d punctuation-stripping effect(s) from the template",
+            len(effects) - len(kept),
+        )
+        pipeline._text_effects = kept
+
+
 def merge_layout_with_template(
     template_layout: Any,
     settings: PycapsSettings,
@@ -436,6 +475,7 @@ class PycapsRenderer:
             template_layout, settings, visual_bounds, safe_zone=safe_zone
         )
         builder.with_layout_options(merged_layout)
+        _drop_punctuation_stripping(builder)
 
         custom_renderer: Any | None = None
         if settings.renderer == "pictex":
