@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.3] - 2026-08-29
+
+### Fixed
+- A product scraped by ASIN or URL now carries a rating and a review count. Both were sourced only from a search-results card, which those two arms never see, so the record differed by scrape route: `--min-rating` filtered nothing, and any line that would mention a rating had nothing to use. The detail page is now read for both, on every arm. Closes #271.
+
+### Notes
+- The rating was already being read from the detail page, but only when `rating` was configured as an essential field, and the value was discarded after validation instead of being put on the record.
+- The specific review hooks are tried before `.a-icon-alt`, which matches every star widget on the page including a single customer review's. Reading that one would put one reviewer's score on the record as the product average.
+- A matched element carrying no parseable score now falls through to the next selector rather than ending the search, and the search card remains the fallback for a page whose widget could not be read at all.
 ## [0.82.2] - 2026-08-29
 
 ### Fixed

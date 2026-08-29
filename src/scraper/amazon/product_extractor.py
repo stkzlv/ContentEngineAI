@@ -74,6 +74,52 @@ def _price_from_parts(whole_raw: str, fraction_raw: str | None) -> str:
     return f"{whole}.{fraction}" if fraction else whole
 
 
+_RATING_SELECTORS = (
+    "[data-hook='average-star-rating'] .a-icon-alt",
+    ".reviewCountTextLinkedHistogram .a-icon-alt",
+    ".a-icon-alt",
+)
+
+_REVIEWS_COUNT_SELECTORS = (
+    "#acrCustomerReviewText",
+    "[data-hook='total-review-count']",
+)
+
+
+def _extract_detail_rating(driver) -> str | None:
+    """Read the star rating from a product detail page.
+
+    The specific hooks come first: `.a-icon-alt` matches every star widget on
+    the page, including a review's own rating, so leading with it can read a
+    single review instead of the product average.
+    """
+    for selector in _RATING_SELECTORS:
+        element = driver.select(selector)
+        if not element:
+            continue
+        text = (element.text or "").strip()
+        # "4.5 out of 5 stars", localised as "4,5 de 5 estrellas".
+        for separator in (" out of", " de "):
+            if separator in text:
+                return text.split(separator)[0].strip()
+    return None
+
+
+def _extract_detail_reviews_count(driver) -> str | None:
+    """Read the review count from a product detail page.
+
+    Returned as written ("1,234 ratings"), matching the search card, which is
+    the other source of this field.
+    """
+    for selector in _REVIEWS_COUNT_SELECTORS:
+        element = driver.select(selector)
+        if element:
+            text = (element.text or "").strip()
+            if text:
+                return text
+    return None
+
+
 def extract_product_data_from_page(
     driver: Driver,
     asin: str,
@@ -181,21 +227,13 @@ def extract_product_data_from_page(
             .get("essential_fields", [])
         )
 
-        # Extract rating for validation if required
-        rating = None
-        if "rating" in essential_fields:
-            rating_selectors = [
-                ".a-icon-alt",
-                "[data-hook='average-star-rating'] .a-icon-alt",
-                ".reviewCountTextLinkedHistogram .a-icon-alt",
-            ]
-            for selector in rating_selectors:
-                rating_element = driver.select(selector)
-                if rating_element:
-                    rating_text = rating_element.text
-                    if "out of" in rating_text:
-                        rating = rating_text.split(" out of")[0]
-                    break
+        # Read the rating from the detail page. This used to run only when
+        # `rating` was an essential field, and the value was thrown away after
+        # validation -- so a scrape that never sees a search card (an ASIN or a
+        # URL) produced a record with no rating at all, while the same product
+        # scraped by keyword carried one from the card.
+        rating = _extract_detail_rating(driver)
+        reviews_count = _extract_detail_reviews_count(driver)
 
         # Validate product data BEFORE extracting media
         if not is_valid_product_data(
@@ -232,6 +270,8 @@ def extract_product_data_from_page(
             "url": driver.current_url,
             "asin": asin,
             "keyword": keyword,
+            "rating": rating,
+            "reviews_count": reviews_count,
             "serp_rating": serp_info.rating if serp_info else None,
             "serp_reviews_count": (serp_info.reviews_count if serp_info else None),
             "downloaded_images": [],

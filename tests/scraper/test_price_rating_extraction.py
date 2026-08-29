@@ -4,9 +4,10 @@ Price: `.a-price-whole` text includes Amazon's nested `.a-price-decimal` span,
 yielding values with a trailing newline and dot. `_normalize_price` pulls a
 clean numeric string.
 
-Rating: the detail-page rating selector is unreliable, so `rating` is often
-empty while the search-results card captured `serp_rating`. ProductData falls
-back to `serp_rating` so consumers see a value.
+Rating: the detail page supplies `rating` on every arm, and a keyword scrape
+also captures `serp_rating` from the search card. ProductData falls back to the
+card when the page's star widget could not be read, so a product still carries
+a rating either way. See `test_detail_page_rating.py` for the page side.
 """
 
 import pytest

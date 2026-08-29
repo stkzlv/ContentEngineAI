@@ -738,6 +738,11 @@ class BotasaurusAmazonScraper(BaseScraper):
                 platform=Platform.AMAZON,
                 asin=result["asin"],
                 keyword=result["keyword"],
+                # The detail page carries these on every arm; the search card
+                # only exists on a keyword scrape. Without them a product
+                # scraped by ASIN or URL had no rating at all.
+                rating=result.get("rating"),
+                reviews_count=result.get("reviews_count"),
                 serp_rating=result["serp_rating"],
                 serp_reviews_count=result["serp_reviews_count"],
                 downloaded_images=result["downloaded_images"],
