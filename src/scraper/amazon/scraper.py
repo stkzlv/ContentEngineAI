@@ -169,6 +169,14 @@ class BotasaurusAmazonScraper(BaseScraper):
         self.debug_options = debug_options or {}
         # Built on first use by pillar_for_keyword.
         self._keyword_pillars: dict[str, str] | None = None
+        # Loaded once, and at construction rather than at first use, so a
+        # malformed `config/url_shortener.yaml` is reported before a scrape
+        # starts instead of after the browser work is paid for. Imported here
+        # rather than at module scope: `src.video.config` imports back into the
+        # scraper package, and a top-level import closes the cycle.
+        from ...video.config.core_models import load_url_shortener_settings
+
+        self.url_shortener_settings = load_url_shortener_settings()
 
         # Override debug mode if specified (CLI takes precedence over config)
         if debug_override is not None:
@@ -1076,27 +1084,18 @@ class BotasaurusAmazonScraper(BaseScraper):
                 raise
 
     def _shorten_affiliate_links(self, products: list[ProductData]) -> None:
-        """Shorten affiliate links for products if URL shortening is enabled"""
+        """Shorten affiliate links for products if URL shortening is enabled.
+
+        Settings come from the typed model rather than from a second read of
+        `config/url_shortener.yaml`. The inline read carried its own defaults
+        beside the model's, so the two drifted -- the model still said
+        `picsee` after the file had been flipped to `bare` -- and a typo'd key
+        fell back to a default rather than being reported.
+        """
         try:
-            # Load URL shortener config
-            project_root = Path(__file__).parent.parent.parent.parent
-            config_path = project_root / "config/url_shortener.yaml"
+            settings = self.url_shortener_settings
 
-            if not config_path.exists():
-                if self.debug_mode:
-                    self.logger.debug("URL shortener config not found, skipping")
-                return
-
-            with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f)
-
-            url_config = config.get("url_shortener", {})
-            integration_config = url_config.get("integration", {})
-
-            # Check if shortening is enabled and shorten_on_scrape is true
-            if not url_config.get("enabled", False) or not integration_config.get(
-                "shorten_on_scrape", False
-            ):
+            if not settings.enabled or not settings.integration.shorten_on_scrape:
                 if self.debug_mode:
                     self.logger.debug("URL shortening disabled, skipping")
                 return
@@ -1108,42 +1107,34 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             load_dotenv()
 
-            # Get provider and config
-            provider = url_config.get("provider", "bare")
-            provider_config = url_config.get(provider, {})
-            api_config = url_config.get("api", {})
+            provider = settings.provider
+            provider_settings = settings.active_provider()
 
             # Bare provider returns input unchanged; no API key, no network.
             api_key = ""
             if provider != "bare":
-                api_key_env_var = provider_config.get(
-                    "api_key_env_var", "PICSEE_API_KEY"
-                )
-                api_key = os.getenv(api_key_env_var) or ""
+                api_key_env_var = provider_settings.api_key_env_var or ""
+                api_key = os.getenv(api_key_env_var, "") if api_key_env_var else ""
                 if not api_key:
                     if self.debug_mode:
                         self.logger.warning(
                             "%s not found, skipping URL shortening",
-                            api_key_env_var,
+                            api_key_env_var or "<no api_key_env_var configured>",
                         )
                     return
 
             # Import URL shortener utilities
             from ...utils.url_shortener import create_url_shortener
 
-            # Load all config values
-            timeout = api_config.get("timeout_sec", 30)
-            custom_domain = provider_config.get("custom_domain")
-            api_base_url = provider_config.get("api_base_url", "https://api.pics.ee")
-            max_bulk_size = provider_config.get("max_bulk_size", 100)
-            bulk_timeout_multiplier = provider_config.get(
-                "bulk_timeout_multiplier", 2.0
-            )
+            timeout = settings.api.timeout_sec
+            custom_domain = provider_settings.custom_domain
+            api_base_url = provider_settings.api_base_url or "https://api.pics.ee"
+            max_bulk_size = provider_settings.max_bulk_size
+            bulk_timeout_multiplier = provider_settings.bulk_timeout_multiplier
 
-            # Load retry configuration
-            max_retries = api_config.get("max_retries", 3)
-            retry_delay = api_config.get("retry_delay_sec", 2.0)
-            retry_backoff = api_config.get("retry_backoff_multiplier", 2.0)
+            max_retries = settings.api.max_retries
+            retry_delay = settings.api.retry_delay_sec
+            retry_backoff = settings.api.retry_backoff_multiplier
 
             # The bare provider doesn't shorten or retry, so the verbose
             # "Shortening N using ...", custom-domain, and retry-config lines
@@ -1204,7 +1195,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         self.logger.warning(
                             "Failed to shorten link for %s: %s", product.asin, e
                         )
-                        if integration_config.get("fallback_to_original", True):
+                        if settings.integration.fallback_to_original:
                             product.shortened_affiliate_link = product.affiliate_link
 
             # Run async shortening - handle both sync and async contexts
