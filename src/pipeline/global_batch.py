@@ -732,10 +732,13 @@ class GlobalPipelineOrchestrator:
             self.config.keywords or self.config.product_ids
         )
         if has_topics:
-            # Named as skipped rather than omitted: a plan that simply prints
-            # nothing under SCRAPING reads as a misconfigured run.
+            # Named rather than omitted: a plan that simply prints nothing
+            # under SCRAPING reads as a misconfigured run. Worded as "prepared"
+            # rather than "skipped" because the topic IS produced -- only the
+            # scraping is skipped, and on a mixed run "skipped" reads as if the
+            # topic will not be rendered at all.
             named = [spec.title for spec in self.config.topics] or resumed_ids
-            print(f"  Skipped: {len(named)} topic(s), nothing to scrape")
+            print(f"  Prepared without scraping: {len(named)} topic(s)")
             for title in named[:10]:
                 print(f"    - {title}")
             if len(named) > 10:

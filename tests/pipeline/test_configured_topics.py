@@ -578,6 +578,28 @@ class TestTheDryRunPlanShowsBothHalves:
         GlobalPipelineOrchestrator(config).display_execution_plan(real_video_config)
         return capsys.readouterr().out
 
+    def test_the_topic_line_does_not_read_as_a_skipped_render(
+        self, tmp_path, real_video_config, capsys
+    ):
+        """The word Skipped was true of the scraping and false of the render.
+
+        On a mixed run, beside a list of keywords that will be scraped, it read
+        as if the topic would not be produced at all -- which is the one thing
+        the configured mix exists to make visible.
+        """
+        out = self._plan(
+            GlobalBatchConfig(
+                topics=[TopicSpec(title="Why wifi drops")],
+                keywords=["wireless earbuds"],
+                outputs_dir=tmp_path,
+                skip_publish=True,
+            ),
+            real_video_config,
+            capsys,
+        )
+
+        assert "Skipped" not in out.split("PHASE 2")[0]
+
     def test_a_mixed_run_lists_its_keywords(self, tmp_path, real_video_config, capsys):
         out = self._plan(
             GlobalBatchConfig(
@@ -628,6 +650,6 @@ class TestTheDryRunPlanShowsBothHalves:
             capsys,
         )
 
-        assert "nothing to scrape" in out
+        assert "Prepared without scraping" in out
         assert "Keywords to search" not in out
         assert "Filters:" not in out
