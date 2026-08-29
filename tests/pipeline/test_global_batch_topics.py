@@ -68,10 +68,14 @@ class TestTopicsAreAnInputSource:
         assert config.product_ids == []
 
     def test_a_run_with_no_flags_still_reads_the_yaml_keywords(self):
-        """The guard above must not disable the configured default run."""
+        """The guard above must not disable the configured default run.
+
+        The no-flag run now also carries the configured topics -- see
+        `test_configured_topics.py` -- so this asserts the keyword half is
+        still there, not that the topic half is absent.
+        """
         config = load_global_batch_config(_args())
 
-        assert config.topics == []
         assert config.keywords, "the no-flag run lost its YAML keyword list"
 
     def test_topic_keywords_survive_as_phrases(self):
@@ -283,33 +287,99 @@ class TestAProfileThatCannotRenderATopicIsRefusedUpFront:
             )
 
 
-class TestTopicsAreExclusiveWithScraperInputs:
-    """A topic run replaces the scraping phase, so anything to scrape is lost.
+class TestTopicsAndProductsRunTogether:
+    """The combination used to be refused, and now it is the point.
 
-    Both were accepted and the scraper inputs silently discarded, while the
-    dry-run plan printed the keywords as work the run would do.
+    It was refused because a topic run replaced the scraping phase outright and
+    the scraped inputs were silently discarded while the dry-run plan printed
+    them as work. Both phases now run, and they have to: a run with no CLI
+    inputs reads its topics and its keywords from the same config file, which
+    is how the tutorial arm becomes part of the daily cadence instead of
+    something typed by hand each morning.
     """
 
     @pytest.mark.parametrize(
-        "extra,expected",
+        "extra",
         [
-            ({"keywords": ["wireless earbuds"]}, "--keywords"),
-            ({"product_ids": ["B0ABCDEFGH"]}, "--product-ids"),
+            {"keywords": ["wireless earbuds"]},
+            {"product_ids": ["B0ABCDEFGH"]},
         ],
     )
-    def test_the_combination_is_refused(self, real_video_config, extra, expected):
-        with pytest.raises(ValueError, match="Cannot combine topics") as excinfo:
+    def test_the_combination_is_accepted(self, real_video_config, extra):
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            skip_publish=True,
+            **extra,
+        )
+
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.topic_profile_pool, "topics have no pool to draw from"
+
+    def test_the_product_pool_is_not_narrowed_to_stock_profiles(
+        self, real_video_config
+    ):
+        """The defect this replaces the refusal with, if done carelessly.
+
+        A topics-only run narrows the shared pool to stock-sourced profiles.
+        Doing that on a mixed run renders the scraped products from generic
+        footage, ignoring the photography that was scraped for them.
+        """
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            keywords=["wireless earbuds"],
+            skip_publish=True,
+        )
+
+        validate_global_batch_config(config, real_video_config)
+
+        assert "slideshow_images1" in config.profile_pool
+        assert "slideshow_images1" not in config.topic_profile_pool
+
+    def test_a_product_only_fixed_profile_is_refused(self, real_video_config):
+        """One name cannot serve both kinds of record.
+
+        Applying it to the products and quietly picking something else for the
+        topics would be a run doing something other than what was asked.
+        """
+        with pytest.raises(ValueError, match="cannot render the topics"):
             validate_global_batch_config(
                 GlobalBatchConfig(
                     topics=[TopicSpec(title="Why wifi drops")],
-                    profile="slideshow_stock",
+                    keywords=["wireless earbuds"],
+                    profile="slideshow_images1",
                     skip_publish=True,
-                    **extra,
                 ),
                 real_video_config,
             )
 
-        assert expected in str(excinfo.value)
+    def test_process_all_products_is_allowed_on_a_mixed_run(self, real_video_config):
+        """It is refused on a topics-only run because the pool is narrowed.
+
+        On a mixed run the product pool is intact, so a swept-in product
+        renders the way it would have rendered anyway.
+        """
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            keywords=["wireless earbuds"],
+            process_all_products=True,
+            skip_publish=True,
+        )
+
+        validate_global_batch_config(config, real_video_config)
+
+    def test_process_all_products_is_still_refused_on_a_topics_only_run(
+        self, real_video_config
+    ):
+        with pytest.raises(ValueError, match="--process-all-products"):
+            validate_global_batch_config(
+                GlobalBatchConfig(
+                    topics=[TopicSpec(title="Why wifi drops")],
+                    process_all_products=True,
+                    skip_publish=True,
+                ),
+                real_video_config,
+            )
 
 
 class TestTheTwoTopicSourcesAreExclusive:
@@ -658,44 +728,68 @@ class TestRecognisingAResumedTopicsRun:
         save_pipeline_state(state, tmp_path)
 
     def test_topic_ids_in_the_saved_state_are_recognised(self, tmp_path):
-        from src.pipeline.global_batch import _is_resuming_topics
+        from src.pipeline.global_batch import resumed_record_kinds
 
         self._state(tmp_path, [topic_product_id("Why wifi drops")])
 
-        assert _is_resuming_topics(GlobalBatchConfig(resume=True, outputs_dir=tmp_path))
+        topics, products = resumed_record_kinds(
+            GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
+        )
+
+        assert topics
+        assert not products
 
     def test_product_ids_are_not(self, tmp_path):
-        from src.pipeline.global_batch import _is_resuming_topics
+        from src.pipeline.global_batch import resumed_record_kinds
 
         self._state(tmp_path, ["B0ABCDEFGH"])
 
-        assert not _is_resuming_topics(
+        topics, products = resumed_record_kinds(
             GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
         )
 
+        assert not topics
+        assert products
+
     def test_a_run_that_is_not_resuming_is_not(self, tmp_path):
-        from src.pipeline.global_batch import _is_resuming_topics
+        from src.pipeline.global_batch import resumed_record_kinds
 
         self._state(tmp_path, [topic_product_id("Why wifi drops")])
 
-        assert not _is_resuming_topics(
+        assert resumed_record_kinds(
             GlobalBatchConfig(resume=False, outputs_dir=tmp_path)
-        )
+        ) == (False, False)
 
     def test_no_saved_state_is_not(self, tmp_path):
-        from src.pipeline.global_batch import _is_resuming_topics
+        from src.pipeline.global_batch import resumed_record_kinds
 
-        assert not _is_resuming_topics(
+        assert resumed_record_kinds(
             GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
-        )
+        ) == (False, False)
+
+    def test_a_mixed_state_reports_both(self, tmp_path):
+        """A resume can carry both, now that a run can.
+
+        Reporting only the topic half would narrow the shared profile pool to
+        stock-sourced profiles, and the resumed scraped products would render
+        from generic footage.
+        """
+        from src.pipeline.global_batch import resumed_record_kinds
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops"), "B0ABCDEFGH"])
+
+        assert resumed_record_kinds(
+            GlobalBatchConfig(resume=True, outputs_dir=tmp_path)
+        ) == (True, True)
 
     def test_main_acts_on_it_before_validating(self):
         """The helper having tests is not the guard; the call site is.
 
-        And neither is the call: keeping `_is_resuming_topics(config)` while
-        dropping the assignment it gates leaves validation blind, and the
-        whole suite green. The flag must also be set *before* validation,
-        since that is what narrows the pool.
+        And neither is the call: keeping `resumed_record_kinds(config)` while
+        dropping the assignments it feeds leaves validation blind, and the
+        whole suite green. Both flags must be set *before* validation, since
+        that is what narrows the pool -- and `resume_has_products` is what
+        stops it narrowing on a resume that also carries scraped products.
         """
         import ast
         from pathlib import Path
@@ -711,33 +805,37 @@ class TestRecognisingAResumedTopicsRun:
         )
 
         def line_of(pred):
-            return next(
-                (n.lineno for n in ast.walk(main) if pred(n)),
-                None,
+            return next((n.lineno for n in ast.walk(main) if pred(n)), None)
+
+        def assignment_to(attr):
+            return line_of(
+                lambda n: isinstance(n, ast.Assign)
+                and any(
+                    isinstance(tgt, ast.Attribute) and tgt.attr == attr
+                    for tgt in n.targets
+                )
             )
 
-        set_line = line_of(
-            lambda n: isinstance(n, ast.Assign)
-            and any(
-                isinstance(tgt, ast.Attribute) and tgt.attr == "topics_resume"
-                for tgt in n.targets
-            )
+        detect_line = line_of(
+            lambda n: isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name)
+            and n.func.id == "resumed_record_kinds"
         )
-        gate_line = line_of(
-            lambda n: isinstance(n, ast.If)
-            and isinstance(n.test, ast.Call)
-            and isinstance(n.test.func, ast.Name)
-            and n.test.func.id == "_is_resuming_topics"
-        )
+        resume_line = assignment_to("topics_resume")
+        products_line = assignment_to("resume_has_products")
         validate_line = line_of(
             lambda n: isinstance(n, ast.Call)
             and isinstance(n.func, ast.Name)
             and n.func.id == "validate_global_batch_config"
         )
 
-        assert gate_line, "main no longer detects a topics resume"
-        assert set_line, "main detects a topics resume and does nothing with it"
-        assert gate_line < set_line, "the assignment is not gated by the detection"
-        assert (
-            validate_line and set_line < validate_line
-        ), "topics_resume is set after validation, which is what reads it"
+        assert detect_line, "main no longer inspects the saved state"
+        assert resume_line, "main detects a topics resume and does nothing with it"
+        assert products_line, (
+            "main never records whether the resume also carries products, so "
+            "validation narrows the pool and the resumed products render from "
+            "generic stock footage"
+        )
+        assert validate_line, "main no longer validates the config"
+        assert detect_line < resume_line < validate_line
+        assert detect_line < products_line < validate_line

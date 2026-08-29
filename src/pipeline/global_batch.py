@@ -385,29 +385,35 @@ Examples:
 _RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
 
 
-def _is_resuming_topics(config: "GlobalBatchConfig") -> bool:
-    """Whether this `--resume` is picking up a topics run.
+def resumed_record_kinds(config: "GlobalBatchConfig") -> tuple[bool, bool]:
+    """What kinds of record a `--resume` is picking up: (topics, products).
 
     Topics are not persisted: the identifier carries a one-way digest of the
-    title, so the specs cannot be read back out of the state. The ids can,
-    and they are enough, because topics are exclusive with scraper inputs --
-    a state whose completed products are topics was a topics run entire.
+    title, so the specs cannot be read back out of the state. The ids can, and
+    the prefix tells the two kinds apart.
+
+    Both halves are needed, not just the first. A run can carry topics and
+    scraped products together, and the config's own `keywords` cannot settle it
+    -- a resume inherits the configured keywords whatever it is resuming, and
+    the completed scraping phase already ignored them. Reading the state is the
+    only way to know whether this resume has products in it.
 
     Separated from `main` so it can be tested. Left inline it was the one
     piece of this feature no test touched, and deleting it left the suite
     green while every resumed topic rendered under a product profile.
     """
     if not config.resume or config.topics:
-        return False
+        return (False, False)
     from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
     saved = load_pipeline_state(config.outputs_dir)
     if saved is None:
-        return False
-    return any(
-        pid.startswith(TOPIC_ID_PREFIX)
-        for pid in (saved.scraping_completed_products or [])
-    )
+        return (False, False)
+
+    ids = saved.scraping_completed_products or []
+    topics = any(pid.startswith(TOPIC_ID_PREFIX) for pid in ids)
+    products = any(not pid.startswith(TOPIC_ID_PREFIX) for pid in ids)
+    return (topics, products)
 
 
 def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
@@ -2394,9 +2400,11 @@ async def main():
         # first. Reading it here rather than in the handoff phase keeps one
         # copy of the topic rules and lets the stock-key pre-flight see the
         # pool a topics run will actually draw from.
-        if _is_resuming_topics(config):
+        resuming_topics, resuming_products = resumed_record_kinds(config)
+        if resuming_topics:
             logger.info("Resuming a topics run (recognised from saved state)")
             config.topics_resume = True
+            config.resume_has_products = resuming_products
 
         # Validate configuration
         logger.info("Validating configuration...")

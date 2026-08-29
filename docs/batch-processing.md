@@ -322,11 +322,46 @@ was meant for this run, so it is reported rather than overridden.
 
 `--topic-keywords` is comma-separated so a phrase stays one search term.
 
-Topics cannot be combined with `--product-ids` or `--keywords` in one run: a
-topic run skips scraping outright, so those inputs would be discarded.
-
 Output lands in `outputs/topic-<slug>-<digest>/`, which `--clean` removes along
 with product directories.
+
+#### Topics in the daily cadence
+
+A topic named on the command line is a one-off. To make the tutorial arm part
+of the repeatable run, put the topics in `config/pipeline.yaml`:
+
+```yaml
+global_batch:
+  keywords:
+    value: ["portable charger"]
+  topics:
+    - title: "Why your wifi keeps dropping"
+      description: "Router placement, channel congestion, 2.4 vs 5GHz bands."
+      keywords: ["wifi router", "home network"]
+    - title: "Your phone battery is not dying as fast as you think"
+      description: "Background refresh, screen brightness, battery health."
+  topics_per_run: 1
+```
+
+A run with no input flags then produces both formats: the configured keywords
+are scraped and rendered as before, and `topics_per_run` topics are rendered
+alongside them. `topics_per_run: 0` returns to products only.
+
+Which topics a run takes rotates with the date, so a daily run works through
+the list instead of re-rendering the first entry every morning. Interleaving
+matters beyond variety: comparing the two content formats fairly needs them
+mixed through the week rather than run in blocks, since a block comparison
+cannot separate the format from whatever else changed that week. `registry
+--summary` segments by `content_format` for the same reason.
+
+Each record draws from its own profile pool on a mixed run -- topics from the
+stock-sourced profiles, products from the rest -- so no profile has to serve
+both. A fixed `--profile` cannot: one that draws no stock media is refused
+rather than applied to the products and quietly swapped for the topics.
+
+CLI inputs still replace the configured set entirely. `--keywords earbuds`
+renders products only, and `--topic "..."` renders that topic only; neither
+picks up the other arm from the config file.
 
 #### Keywords Only
 

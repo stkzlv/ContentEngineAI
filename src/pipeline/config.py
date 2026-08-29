@@ -367,6 +367,11 @@ class GlobalBatchConfig:
     # topic rule keys off this as well as `topics`, or a resume reaches
     # combinations a fresh run refuses.
     topics_resume: bool = False
+    # Whether that resume also carries scraped products. Read from the saved
+    # state, not from `keywords`: a resume inherits the configured keywords
+    # whatever it is resuming, and the completed scraping phase already
+    # ignored them.
+    resume_has_products: bool = False
 
     # Common configuration
     fail_fast: bool = False
@@ -1060,6 +1065,20 @@ def topic_capable_profiles(video_config: VideoConfig) -> list[str]:
     )
 
 
+def _run_has_product_records(config: GlobalBatchConfig) -> bool:
+    """Whether this run renders scraped products as well as topics.
+
+    On a resume the answer comes from the saved state rather than from the
+    inputs: `keywords` is inherited from the config whatever the run is
+    resuming, and the completed scraping phase already ignored it, so reading
+    it here would call every resumed topics run "mixed" and stop narrowing its
+    profile pool.
+    """
+    if config.topics_resume:
+        return config.resume_has_products
+    return bool(config.product_ids or config.keywords)
+
+
 def _validate_topic_profiles(
     config: GlobalBatchConfig, video_config: VideoConfig
 ) -> None:
@@ -1077,7 +1096,7 @@ def _validate_topic_profiles(
     # and the production loop picks by record. A fixed profile has no such
     # escape -- one name cannot serve both -- so it is refused rather than
     # quietly applied to the products and ignored for the topics.
-    if config.product_ids or config.keywords:
+    if _run_has_product_records(config):
         if config.profile and config.profile not in capable:
             raise ValueError(
                 f"Profile '{config.profile}' draws no stock media, so it "
@@ -1088,6 +1107,13 @@ def _validate_topic_profiles(
                 f"Profiles that can render a topic: {', '.join(capable)}"
             )
         config.topic_profile_pool = capable
+        # The products still need a pool of their own. Left unset with no
+        # fixed profile there is nothing to select from, so say what a run
+        # carrying two kinds of record means: each picks from its own pool.
+        # The generic block below fills `profile_pool` with the product
+        # profiles.
+        if not config.profile:
+            config.random_profile = True
         return
 
     config.topic_profile_pool = capable
@@ -1167,7 +1193,7 @@ def validate_global_batch_config(
     # Only on a topics-ONLY run. That is the one that narrows the shared pool;
     # a mixed run keeps the product pool for products, so sweeping in an old
     # product directory renders it the way it would have been rendered anyway.
-    topics_only = is_topics_run and not (config.product_ids or config.keywords)
+    topics_only = is_topics_run and not _run_has_product_records(config)
     if topics_only and config.process_all_products:
         raise ValueError(
             "Cannot combine topics with --process-all-products. A topics-only "
