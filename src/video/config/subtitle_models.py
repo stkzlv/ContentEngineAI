@@ -120,11 +120,6 @@ class SubtitleEffectsSettings(BaseModel):
         100, description="Normal scale percentage for pulse effect"
     )
 
-    # Movement effect parameters
-    movement_distance_pixels: int = Field(
-        50, description="Vertical movement distance in pixels for movement effect"
-    )
-
     # Rotation bounce parameters
     bounce_rotation_max: int = Field(
         5, description="Maximum rotation degrees for bounce effect"

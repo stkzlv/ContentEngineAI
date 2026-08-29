@@ -200,7 +200,7 @@ subtitle_settings:
   #   - minimal: Clean, simple styling with no effects
   #   - modern: Contemporary look with karaoke effect (default)
   #   - bold: High contrast with fade effect
-  #   - animated: Full animations with movement effect
+  #   - animated: Karaoke highlighting, the strongest of the presets
   #   - random: Randomized font, colors, and one random effect per video
   # Presets are defined in style_presets section below
   style_preset: "modern"
@@ -580,13 +580,6 @@ subtitle_effects:
   pulse_scale_max: 110            # Maximum scale (110% = 10% larger)
   pulse_scale_normal: 100         # Normal scale (100% = original size)
 
-  # ---- MOVEMENT EFFECT PARAMETERS ----
-  # Controls vertical movement animation
-
-  # Vertical distance to move subtitles up/down (pixels)
-  # Used by movement effect to create subtle vertical animation
-  movement_distance_pixels: 50
-
   # ---- BOUNCE/ROTATION EFFECT PARAMETERS ----
   # Controls rotation-based bounce animation
 
@@ -787,11 +780,11 @@ style_presets:
     bold: true                         # Bold weight
     outline_thickness: 3               # Thicker outline (was 2)
     shadow: true                       # Drop shadow
-    effects: ["karaoke"]               # Karaoke (was "movement" — anti-pattern
-                                        # per best-practice research; full
-                                        # removal of the effect tracked as a
-                                        # GitHub Issue with the `subtitles`
-                                        # label)
+    effects: ["karaoke"]               # Karaoke. Was "movement", an
+                                        # anti-pattern per best-practice
+                                        # research; that effect is gone, and a
+                                        # config still naming it is migrated
+                                        # to "fade" with a warning.
     font_width_to_height_ratio: 0.5
 
   # ---- RANDOM PRESET ----

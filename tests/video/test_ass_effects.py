@@ -419,24 +419,59 @@ class TestASSSyntaxValidation:
         assert 0 <= y <= frame_size[1], f"Y={y} outside frame height {frame_size[1]}"
 
 
-class TestMovementEffect:
-    """Tests for movement/floating effect."""
+class TestTheRetiredMovementEffect:
+    r"""`movement` drifted the caption vertically with an ASS \move tag.
 
-    def test_movement_uses_move_tag(self, animated_config, frame_size, sample_segments):
-        r"""Movement effect should use \move tag instead of \pos."""
+    Retired as an anti-pattern: a caption that moves while it is being read
+    costs legibility for decoration. The bundled `animated` preset was switched
+    to karaoke separately; this removes the effect itself.
+    """
+
+    def test_a_configured_movement_is_migrated_not_dropped(
+        self, animated_config, frame_size, caplog
+    ):
+        """Dropping it would leave the preset with no effect at all.
+
+        A caption with no animation reads as a rendering bug, so the config is
+        migrated to the nearest surviving effect and the warning says so.
+        """
+        import logging
+
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
         )
-        generator._selected_effects["movement"] = True
+        generator.style_config = dict(generator.style_config)
+        generator.style_config["effects"] = ["movement"]
+
+        with caplog.at_level(logging.WARNING):
+            selected = generator._select_effects()
+
+        assert selected["fade"] is True
+        assert "movement" not in selected
+        assert "retired" in caplog.text
+
+    def test_no_dialogue_line_can_emit_a_move_tag(
+        self, animated_config, frame_size, sample_segments
+    ):
+        r"""The effect is gone, so \pos is the only positioning tag left."""
+        generator = UnifiedSubtitleGenerator(
+            config=animated_config, frame_size=frame_size, product_id="TEST001"
+        )
 
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}
 
         dialogue = generator._create_dialogue_line(sample_segments[0], position, colors)
 
-        assert dialogue is not None, "Dialogue should not be None"
-        assert "\\move(" in dialogue, f"Expected \\move tag in: {dialogue}"
-        assert "\\pos(" not in dialogue, "Should not have \\pos when using \\move"
+        assert dialogue is not None
+        assert "\\move(" not in dialogue
+        assert "\\pos(" in dialogue
+
+    def test_the_dead_parameter_is_gone(self):
+        """`movement_distance_pixels` had no reader once the effect went."""
+        from src.video.config.subtitle_models import SubtitleEffectsSettings
+
+        assert not hasattr(SubtitleEffectsSettings(), "movement_distance_pixels")
 
 
 class TestScalePulseEffect:

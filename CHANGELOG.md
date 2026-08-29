@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.0] - 2026-08-29
+
+### Removed
+- The `movement` subtitle effect and its `movement_distance_pixels` parameter. It drifted the caption vertically while it was being read, which costs legibility for decoration; the bundled `animated` preset was switched to karaoke in an earlier release and nothing else used it. Closes #91.
+
+### Notes
+- A config still naming `movement` is migrated to `fade` with a warning rather than having the effect dropped. The presets carry exactly one effect, so dropping it silently would leave a caption with no animation at all, which reads as a rendering bug rather than as a stale config.
 ## [0.84.1] - 2026-08-29
 
 ### Fixed

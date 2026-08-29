@@ -31,6 +31,35 @@ logger = logging.getLogger(__name__)
 # Use standardized result type from result_types module
 
 
+# Effects removed as anti-patterns. A configured value is migrated to its
+# replacement with a warning rather than dropped: a silently ignored effect
+# leaves a caption with no animation at all, which reads as a rendering bug.
+_RETIRED_EFFECTS = {"movement": "fade"}
+
+
+def _migrate_retired_effects(effects: list[str], preset_name: str) -> list[str]:
+    """Replace a retired effect name with its successor, warning once."""
+    if not effects:
+        return effects
+
+    migrated = []
+    for effect in effects:
+        replacement = _RETIRED_EFFECTS.get(effect)
+        if replacement is None:
+            migrated.append(effect)
+            continue
+        logger.warning(
+            "Subtitle effect %r is retired and has been replaced with %r for "
+            "preset %r. Update config/subtitles.yaml style_presets.%s.effects.",
+            effect,
+            replacement,
+            preset_name,
+            preset_name,
+        )
+        migrated.append(replacement)
+    return migrated
+
+
 class UnifiedSubtitleGenerator:
     """Unified subtitle generator supporting both SRT and ASS formats."""
 
@@ -777,11 +806,13 @@ class UnifiedSubtitleGenerator:
             "glow": False,
             "typewriter": False,
             "karaoke": False,
-            "movement": False,
         }
 
         # Get effects from preset configuration
-        preset_effects = self.style_config.get("effects", [])
+        preset_effects = _migrate_retired_effects(
+            self.style_config.get("effects", []),
+            self.style_config.get("preset_name", "unknown"),
+        )
 
         if not preset_effects:
             # No effects for minimal preset
@@ -802,7 +833,7 @@ class UnifiedSubtitleGenerator:
                 logger.debug(f"Selected random effect for video: {chosen_effect}")
         else:
             # Non-random presets: Use exactly 1 effect from preset
-            # (modern=karaoke, bold=fade, animated=movement)
+            # (modern=karaoke, bold=fade, animated=karaoke)
             if len(preset_effects) == 1:
                 effect = preset_effects[0]
                 if effect in selected_effects:
@@ -957,7 +988,6 @@ class UnifiedSubtitleGenerator:
 
             # Apply pre-selected effects consistently across all segments
             final_text = text
-            movement_effect = ""
 
             # Fade effect
             if self._selected_effects.get("fade", False):
@@ -970,7 +1000,7 @@ class UnifiedSubtitleGenerator:
                 effects.append(f"\\fad({fade_duration},{fade_out})")
 
             # Other effects (scale_pulse, rotation_bounce, glow, typewriter,
-            # karaoke, movement)
+            # karaoke)
             # Scale pulse effect
             if self._selected_effects.get("scale_pulse", False):
                 subtitle_effects = config.subtitle_effects
@@ -1058,27 +1088,7 @@ class UnifiedSubtitleGenerator:
             if self._selected_effects.get("karaoke", False):
                 final_text = self._create_karaoke_effects(text, segment_duration)
 
-            # Movement effect (subtle floating)
-            if self._selected_effects.get("movement", False):
-                subtitle_effects = config.subtitle_effects
-                move_distance = (
-                    subtitle_effects.movement_distance_pixels
-                    if subtitle_effects
-                    else 10
-                )
-
-                move_duration = int(segment_duration * 1000)
-                start_y = pos_y
-                end_y = pos_y - move_distance
-                movement_effect = (
-                    f"\\move({pos_x},{start_y},{pos_x},{end_y},0,{move_duration})"
-                )
-
-            # Set positioning effect
-            if movement_effect:
-                pos_effect = movement_effect
-            else:
-                pos_effect = f"\\pos({pos_x},{pos_y})"
+            pos_effect = f"\\pos({pos_x},{pos_y})"
 
             # Combine effects
             effect_str = "".join(effects)
