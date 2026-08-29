@@ -1153,11 +1153,12 @@ class CleanupConfig:
         preserve_metadata: Keep metadata JSON files when cleaning
         preserve_logs: Keep log files when cleaning
         settle_timeout_sec: Seconds to wait for a platform still publishing to
-            reach a final status. 0 checks once and gives up, which is what
-            an immediate publish always used to do.
+            reach a final status. 0 or less checks once and gives up, which is
+            what an immediate publish always used to do.
         settle_initial_delay_sec: Delay before the second status check. Each
             later delay doubles, and the last one is trimmed so the delays sum
-            to settle_timeout_sec.
+            to settle_timeout_sec. 0 or less disables waiting, like a zero
+            timeout.
 
     """
 
@@ -1178,15 +1179,15 @@ class CleanupConfig:
         if self.keep_published_days < 0:
             raise ValueError("keep_published_days must be non-negative")
 
-        if self.settle_timeout_sec < 0:
-            raise ValueError("settle_timeout_sec must be non-negative")
-
-        # A zero delay with a non-zero timeout would poll without pausing.
-        if self.settle_timeout_sec > 0 and self.settle_initial_delay_sec <= 0:
-            raise ValueError(
-                "settle_initial_delay_sec must be positive when "
-                "settle_timeout_sec is set"
-            )
+        # Neither settle field raises. The cleanup section is parsed inside a
+        # `except (ValueError, TypeError)` that falls back to a whole default
+        # `CleanupConfig`, so one rejected key discards the operator's
+        # `enabled: false`, `archive_before_delete: true` and
+        # `keep_published_days` along with it -- turning a typo in a wait into
+        # immediate unarchived deletion on an install that had cleanup off.
+        # A non-positive value in either field means "do not wait", which is
+        # the reading `settle_timeout_sec: 0` already has, and
+        # `_settle_delays` enforces it.
 
         # Validate archive_dir if archiving enabled
         if self.archive_before_delete and not self.archive_dir:

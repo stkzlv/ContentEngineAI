@@ -13,10 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cleanup after an `--immediate` publish now waits for the platforms to finish. `verify_publication` read each platform once, immediately after the post was created, and the scheduler takes roughly 30-90s to move a leg to `published` even on an immediate run -- so every leg read `publishing`, verification failed, and the product directory and its uploaded blob stayed behind on a product that went fully live a minute later. The check now repeats on a widening delay (`settle_timeout_sec`, `settle_initial_delay_sec` in `config/publisher.yaml`) until every platform reaches a final status. Closes #110, closes #159.
 
 ### Notes
-- Both issues read the three log lines -- one per platform, inside a second -- as a retry loop giving up too fast, and asked for a slower cadence. There was no loop: the call checked once per platform and returned. So the fix adds waiting rather than pacing it.
-- Waiting is conditional on a transient status, not on the config being set. A scheduled post's legs are final on the first read, so the batch path pays nothing; only a leg reporting `publishing`, `processing` or `pending` costs a delay.
+- #110 read the three log lines -- one per platform, inside a second -- as a retry loop giving up too fast and asked for a slower cadence. There was no loop: the call checked once per platform and returned, which is the diagnosis #159 gives. So the fix adds waiting rather than pacing it.
+- Waiting is conditional on a transient status, not on the config being set. A post read as `scheduled` is final on the first read, so the `schedule` path pays nothing; only a leg still publishing costs a delay.
+- Waiting also stops as soon as the verdict can no longer change. One failed leg already sinks a `require_all_platforms` run and one published leg already carries a run that does not require all, so a `cleanup --all` sweep over a product published to some of the configured platforms no longer sits out the budget per product to reach an answer it had on the first read.
+- A dry run never waits. `cleanup --all --dry-run` is step one of the documented pre-cleanup runbook, and a preview that takes five minutes per product to report "still publishing" is not a preview.
 - The delay schedule is derived from the two knobs rather than listed, and the last delay is trimmed so the waits sum to the budget instead of overrunning or stopping short of it.
-- The cleanup parser filters the YAML section against an explicit key list, so both new fields are added there as well as to the dataclass. A field present in one and not the other is dropped in silence.
+- Neither new field raises on a bad value. The cleanup parser falls back to a whole default `CleanupConfig` when a key is rejected, so refusing a mistyped wait would discard the operator's `enabled: false` and `archive_before_delete: true` along with it and delete the directory unarchived. A non-positive value in either field means "do not wait", enforced where the schedule is built.
+- Both new fields are added to the parser's explicit key list as well as to the dataclass. A field present in one and not the other is dropped in silence.
+
 ## [0.82.1] - 2026-08-29
 
 ### Fixed

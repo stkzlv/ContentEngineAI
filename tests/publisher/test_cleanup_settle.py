@@ -83,14 +83,57 @@ class TestSettleDelays:
 
         assert manager._settle_delays() == [30, 60, 10]
 
-    def test_a_non_positive_delay_with_a_budget_is_refused(self):
-        """Otherwise the schedule is an unbounded list of zero-length waits."""
-        with pytest.raises(ValueError, match="settle_initial_delay_sec"):
-            CleanupConfig(settle_timeout_sec=300, settle_initial_delay_sec=0)
+    def test_a_zero_delay_means_check_once_rather_than_raising(self, outputs_dir):
+        """A zero delay must be handled here, not rejected at construction.
 
-    def test_a_negative_timeout_is_refused(self):
-        with pytest.raises(ValueError, match="settle_timeout_sec"):
-            CleanupConfig(settle_timeout_sec=-1)
+        Two reasons. It would otherwise be an unbounded list of zero-length
+        waits, since the loop never advances. And rejecting it is worse than
+        useless: `_parse_schedule_and_cleanup_config` catches `ValueError` and
+        falls back to a whole default `CleanupConfig`, so a typo in a wait
+        would silently discard the operator's `enabled: false` and
+        `archive_before_delete: true` and delete the directory unarchived.
+        """
+        config = CleanupConfig(settle_timeout_sec=300, settle_initial_delay_sec=0)
+        manager = CleanupManager(outputs_dir, config, AsyncMock())
+
+        assert manager._settle_delays() == []
+
+    def test_a_negative_timeout_means_check_once(self, outputs_dir):
+        config = CleanupConfig(settle_timeout_sec=-1)
+        manager = CleanupManager(outputs_dir, config, AsyncMock())
+
+        assert manager._settle_delays() == []
+
+    def test_a_rejected_neighbouring_key_would_discard_the_section(self, tmp_path):
+        """The amplifier itself, pinned so a future raise is thought about.
+
+        `keep_published_days: -1` still raises, and this shows what that costs:
+        every other cleanup key in the file reverts to its default.
+        """
+        import yaml
+
+        from src.publisher.config import load_publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            yaml.safe_dump(
+                {
+                    "cleanup": {
+                        "enabled": False,
+                        "archive_before_delete": True,
+                        "keep_published_days": -1,
+                    }
+                }
+            )
+        )
+
+        with patch.dict("os.environ", {"LATE_API_KEY": "test-api-key-1234"}, True):
+            config = load_publisher_config(path)
+
+        assert config.cleanup_config.enabled is True, (
+            "one rejected key reverted `enabled: false`; this is why the "
+            "settle fields validate in `_settle_delays` instead"
+        )
 
 
 class TestVerifyPublicationWaits:
@@ -265,3 +308,110 @@ class TestConfigReachesTheManager:
 
         assert config.cleanup_config.settle_timeout_sec > 0
         assert config.cleanup_config.settle_initial_delay_sec > 0
+
+
+class TestWaitingStopsWhenTheAnswerCannotChange:
+    """A transient leg is only worth waiting for while the verdict is open.
+
+    Without this the loop spent the whole budget to reach a verdict it already
+    had on the first read -- reachable from `cleanup --all`, which checks every
+    configured platform against a product that may have been published to only
+    some of them.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_failed_leg_ends_the_wait_for_the_others(self, outputs_dir, config):
+        """`require_all_platforms` is already lost, so nothing can rescue it."""
+        write_record(outputs_dir, "B0TEST001", "youtube", "post1")
+        write_record(outputs_dir, "B0TEST001", "tiktok", "post2")
+
+        async def get_status(post_id):
+            return {"status": "failed" if post_id == "post1" else "publishing"}
+
+        publisher = AsyncMock()
+        publisher.get_status = AsyncMock(side_effect=get_status)
+        manager = CleanupManager(outputs_dir, config, publisher)
+
+        with patch("asyncio.sleep", new=AsyncMock()) as sleep:
+            success, _ = await manager.verify_publication(
+                "B0TEST001", [Platform.YOUTUBE, Platform.TIKTOK]
+            )
+
+        assert success is False
+        sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_one_published_leg_is_enough_when_all_are_not_required(
+        self, outputs_dir
+    ):
+        write_record(outputs_dir, "B0TEST001", "youtube", "post1")
+        write_record(outputs_dir, "B0TEST001", "tiktok", "post2")
+
+        config = CleanupConfig(
+            require_all_platforms=False,
+            settle_timeout_sec=300,
+            settle_initial_delay_sec=30,
+        )
+
+        async def get_status(post_id):
+            return {"status": "published" if post_id == "post1" else "publishing"}
+
+        publisher = AsyncMock()
+        publisher.get_status = AsyncMock(side_effect=get_status)
+        manager = CleanupManager(outputs_dir, config, publisher)
+
+        with patch("asyncio.sleep", new=AsyncMock()) as sleep:
+            success, _ = await manager.verify_publication(
+                "B0TEST001", [Platform.YOUTUBE, Platform.TIKTOK]
+            )
+
+        assert success is True
+        sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_open_verdict_still_waits(self, outputs_dir, config):
+        """The guard must not swallow the case the change exists for."""
+        write_record(outputs_dir, "B0TEST001", "youtube", "post1")
+        write_record(outputs_dir, "B0TEST001", "tiktok", "post2")
+
+        seen = {"post2": 0}
+
+        async def get_status(post_id):
+            if post_id == "post1":
+                return {"status": "published"}
+            seen["post2"] += 1
+            return {"status": "publishing" if seen["post2"] == 1 else "published"}
+
+        publisher = AsyncMock()
+        publisher.get_status = AsyncMock(side_effect=get_status)
+        manager = CleanupManager(outputs_dir, config, publisher)
+
+        with patch("asyncio.sleep", new=AsyncMock()) as sleep:
+            success, _ = await manager.verify_publication(
+                "B0TEST001", [Platform.YOUTUBE, Platform.TIKTOK]
+            )
+
+        assert success is True
+        sleep.assert_awaited_once_with(30)
+
+
+@pytest.mark.asyncio
+async def test_a_dry_run_does_not_pay_the_budget(outputs_dir, config, tmp_path):
+    """`cleanup --all --dry-run` is step one of the pre-cleanup runbook.
+
+    A preview that waits five minutes per product to report "still publishing"
+    is not a preview.
+    """
+    product_dir = outputs_dir / "B0TEST001"
+    product_dir.mkdir()
+    (product_dir / "data.json").write_text("{}")
+    write_record(outputs_dir, "B0TEST001", "youtube", "post1")
+
+    publisher = AsyncMock()
+    publisher.get_status = AsyncMock(return_value={"status": "publishing"})
+    manager = CleanupManager(outputs_dir, config, publisher)
+
+    with patch("asyncio.sleep", new=AsyncMock()) as sleep:
+        await manager.cleanup("B0TEST001", [Platform.YOUTUBE], dry_run=True)
+
+    sleep.assert_not_awaited()

@@ -1404,7 +1404,7 @@ cleanup:
 
 **Cleanup Behavior:**
 - **Verification**: Confirms publication success via API status check before deletion
-- **Settling**: A platform reporting `publishing`, `processing` or `pending` has not finished and has not failed, so the check is repeated on a widening delay until every platform reaches a final status or `settle_timeout_sec` is spent. This matters on `--immediate` runs, where the scheduler takes roughly 30-90s and a single check right after the post is created always reads `publishing`. Scheduled posts settle on the first read and never wait. Set `settle_timeout_sec: 0` to check once.
+- **Settling**: A platform reporting `publishing` has not finished and has not failed, so the check is repeated on a widening delay until every platform reaches a final status or `settle_timeout_sec` is spent. This matters on `--immediate` runs, where the scheduler takes roughly 30-90s and a single check right after the post is created always reads `publishing`. Waiting stops early once the verdict can no longer change: one failed leg already sinks a `require_all_platforms` run, and one published leg already carries a run that does not require all. A post read as `scheduled` is final on the first read and never waits, and a dry run never waits at all. Set `settle_timeout_sec: 0` (or a non-positive delay) to check once.
 - **Multi-Platform Validation**: Requires successful publication to ALL configured platforms (unless `require_all_platforms: false`)
 - **Audit Logging**: Logs all deleted directories with product IDs, platforms, and post URLs
 - **Selective Cleanup**: Respects per-platform `auto_cleanup` settings
@@ -1462,6 +1462,10 @@ cleanup:
   enabled: true
   verify_before_delete: true
   require_all_platforms: true
+
+  # How long to keep re-checking a platform that is still publishing
+  settle_timeout_sec: 300             # 0 = check once and give up
+  settle_initial_delay_sec: 30        # each later delay doubles
 
   # Archive before cleanup
   archive_before_delete: false

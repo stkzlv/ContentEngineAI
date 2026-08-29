@@ -24,7 +24,15 @@ logger = logging.getLogger(__name__)
 # scheduler takes roughly 30-90s even on an immediate publish, so a single
 # check right after `posts.create` sees every leg here and reads it as a
 # failure to publish.
+# `publishing` is what the post-level status reports; `processing` and
+# `pending` belong to the per-platform vocabulary and cannot reach this reader
+# today. They are listed so the set stays right if the source of the status
+# changes, and because treating either as final would be the original bug.
 TRANSIENT_STATUSES = frozenset({"publishing", "processing", "pending"})
+
+# `scheduled` counts: a scheduled post is accepted and its media lives on the
+# scheduler's CDN, so the local directory is no longer the only copy.
+VALID_FOR_CLEANUP = frozenset({"published", "scheduled"})
 
 
 def get_schedule_entry(
@@ -301,13 +309,20 @@ class CleanupManager:
         Starts at ``settle_initial_delay_sec`` and doubles, with the final delay
         trimmed so the schedule never waits longer than the configured budget.
         An empty list means the caller checks once and does not wait.
+
+        A non-positive value in either field means "do not wait". The delay is
+        checked here rather than rejected at construction: the cleanup parser
+        falls back to a whole default config on a `ValueError`, so refusing one
+        key would discard the operator's other cleanup settings with it. A zero
+        delay must also be caught before the loop, which would otherwise never
+        advance `spent`.
         """
         budget = float(self.config.settle_timeout_sec)
-        if budget <= 0:
+        delay = float(self.config.settle_initial_delay_sec)
+        if budget <= 0 or delay <= 0:
             return []
 
         delays: list[float] = []
-        delay = float(self.config.settle_initial_delay_sec)
         spent = 0.0
         while spent < budget:
             step = min(delay, budget - spent)
@@ -317,8 +332,30 @@ class CleanupManager:
 
         return delays
 
+    def _verdict(self, platform_statuses: dict[str, str]) -> bool:
+        """Whether these statuses satisfy the configured cleanup requirement."""
+        valid = VALID_FOR_CLEANUP
+        if self.config.require_all_platforms:
+            return all(s in valid for s in platform_statuses.values())
+        return any(s in valid for s in platform_statuses.values())
+
+    def _verdict_is_settled(self, platform_statuses: dict[str, str]) -> bool:
+        """Whether waiting longer could still change the answer.
+
+        Waiting for a transient leg is pointless once the verdict is fixed: one
+        `failed` leg already sinks an all-platforms run, and one `published` leg
+        already carries an any-platform run. Without this, a `cleanup --all`
+        sweep over a product published to two of three platforms sat out the
+        whole budget per product to reach a verdict it had on the first read.
+        """
+        valid = VALID_FOR_CLEANUP
+        final = [s for s in platform_statuses.values() if s not in TRANSIENT_STATUSES]
+        if self.config.require_all_platforms:
+            return any(s not in valid for s in final)
+        return any(s in valid for s in final)
+
     async def verify_publication(
-        self, product_id: str, platforms: list[Platform]
+        self, product_id: str, platforms: list[Platform], settle: bool = True
     ) -> tuple[bool, dict[str, str]]:
         """Verify all platforms successfully published via API.
 
@@ -335,6 +372,10 @@ class CleanupManager:
         ----
             product_id: Product identifier to verify
             platforms: List of platforms to check
+            settle: Wait for a platform still publishing. False checks once,
+                which is what a dry run wants: a preview that reports "still
+                publishing" carries the same information as one that waited
+                five minutes to say so.
 
         Returns:
         -------
@@ -355,11 +396,11 @@ class CleanupManager:
         """
         platform_statuses = await self._collect_platform_statuses(product_id, platforms)
 
-        for delay in self._settle_delays():
+        for delay in self._settle_delays() if settle else []:
             pending = sorted(
                 p for p, s in platform_statuses.items() if s in TRANSIENT_STATUSES
             )
-            if not pending:
+            if not pending or self._verdict_is_settled(platform_statuses):
                 break
 
             logger.info(
@@ -373,18 +414,7 @@ class CleanupManager:
                 product_id, platforms
             )
 
-        # Determine if all platforms published/scheduled successfully
-        # Accept both "published" and "scheduled" as valid statuses for cleanup
-        valid_statuses = {"published", "scheduled"}
-        if self.config.require_all_platforms:
-            all_published = all(
-                status in valid_statuses for status in platform_statuses.values()
-            )
-        else:
-            # At least one platform published/scheduled
-            all_published = any(
-                status in valid_statuses for status in platform_statuses.values()
-            )
+        all_published = self._verdict(platform_statuses)
 
         if all_published:
             logger.info(
@@ -585,8 +615,12 @@ class CleanupManager:
         # Verify publication if configured
         if self.config.verify_before_delete:
             logger.info("Verifying publication status for %s...", product_id)
+            # A preview must not sit out the settle budget. `cleanup --all
+            # --dry-run` is step one of the documented pre-cleanup runbook, and
+            # "would skip, still publishing" is the same answer five minutes
+            # later.
             all_published, statuses = await self.verify_publication(
-                product_id, platforms
+                product_id, platforms, settle=not dry_run
             )
 
             if not all_published:
