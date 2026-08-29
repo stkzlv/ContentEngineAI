@@ -4,6 +4,7 @@ This module handles cleanup of product directories after successful publication,
 with safety features including verification, archiving, and audit logging.
 """
 
+import asyncio
 import contextlib
 import json
 import logging
@@ -18,6 +19,12 @@ from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
 
 logger = logging.getLogger(__name__)
+
+# A platform in one of these states has not finished and has not failed. The
+# scheduler takes roughly 30-90s even on an immediate publish, so a single
+# check right after `posts.create` sees every leg here and reads it as a
+# failure to publish.
+TRANSIENT_STATUSES = frozenset({"publishing", "processing", "pending"})
 
 
 def get_schedule_entry(
@@ -215,36 +222,10 @@ class CleanupManager:
                 temp_path.unlink()
             raise OSError(f"Failed to save cleanup audit log: {e}") from e
 
-    async def verify_publication(
+    async def _collect_platform_statuses(
         self, product_id: str, platforms: list[Platform]
-    ) -> tuple[bool, dict[str, str]]:
-        """Verify all platforms successfully published via API.
-
-        Checks publication status for each platform by querying the publisher's
-        API. If require_all_platforms is True, verifies all platforms are published.
-
-        Args:
-        ----
-            product_id: Product identifier to verify
-            platforms: List of platforms to check
-
-        Returns:
-        -------
-            Tuple of (all_published, platform_statuses)
-                - all_published: True if all required platforms published
-                - platform_statuses: Dict mapping platform name to status
-
-        Example:
-        -------
-            >>> success, statuses = await manager.verify_publication(
-            ...     "B0TEST001", [Platform.YOUTUBE, Platform.TIKTOK]
-            ... )
-            >>> if success:
-            ...     print("Ready for cleanup")
-            >>> else:
-            ...     print(f"Not published: {statuses}")
-
-        """
+    ) -> dict[str, str]:
+        """Read the current status of every platform, one pass, no waiting."""
         platform_statuses: dict[str, str] = {}
 
         for platform in platforms:
@@ -311,6 +292,86 @@ class CleanupManager:
                     e,
                 )
                 platform_statuses[platform.value] = "api_error"
+
+        return platform_statuses
+
+    def _settle_delays(self) -> list[float]:
+        """Delays between status re-checks, summing to settle_timeout_sec.
+
+        Starts at ``settle_initial_delay_sec`` and doubles, with the final delay
+        trimmed so the schedule never waits longer than the configured budget.
+        An empty list means the caller checks once and does not wait.
+        """
+        budget = float(self.config.settle_timeout_sec)
+        if budget <= 0:
+            return []
+
+        delays: list[float] = []
+        delay = float(self.config.settle_initial_delay_sec)
+        spent = 0.0
+        while spent < budget:
+            step = min(delay, budget - spent)
+            delays.append(step)
+            spent += step
+            delay *= 2
+
+        return delays
+
+    async def verify_publication(
+        self, product_id: str, platforms: list[Platform]
+    ) -> tuple[bool, dict[str, str]]:
+        """Verify all platforms successfully published via API.
+
+        Checks publication status for each platform by querying the publisher's
+        API. If require_all_platforms is True, verifies all platforms are published.
+
+        A platform that is still working (``publishing``, ``processing``,
+        ``pending``) has not failed yet, so the check is repeated on a widening
+        delay until every platform reaches a final status or
+        ``settle_timeout_sec`` is spent. Nothing transient means no waiting and
+        no extra API calls.
+
+        Args:
+        ----
+            product_id: Product identifier to verify
+            platforms: List of platforms to check
+
+        Returns:
+        -------
+            Tuple of (all_published, platform_statuses)
+                - all_published: True if all required platforms published
+                - platform_statuses: Dict mapping platform name to status
+
+        Example:
+        -------
+            >>> success, statuses = await manager.verify_publication(
+            ...     "B0TEST001", [Platform.YOUTUBE, Platform.TIKTOK]
+            ... )
+            >>> if success:
+            ...     print("Ready for cleanup")
+            >>> else:
+            ...     print(f"Not published: {statuses}")
+
+        """
+        platform_statuses = await self._collect_platform_statuses(product_id, platforms)
+
+        for delay in self._settle_delays():
+            pending = sorted(
+                p for p, s in platform_statuses.items() if s in TRANSIENT_STATUSES
+            )
+            if not pending:
+                break
+
+            logger.info(
+                "Waiting %.0fs for %s to settle on %s",
+                delay,
+                product_id,
+                ", ".join(pending),
+            )
+            await asyncio.sleep(delay)
+            platform_statuses = await self._collect_platform_statuses(
+                product_id, platforms
+            )
 
         # Determine if all platforms published/scheduled successfully
         # Accept both "published" and "scheduled" as valid statuses for cleanup

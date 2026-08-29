@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.2] - 2026-08-29
+
+### Fixed
+- Cleanup after an `--immediate` publish now waits for the platforms to finish. `verify_publication` read each platform once, immediately after the post was created, and the scheduler takes roughly 30-90s to move a leg to `published` even on an immediate run -- so every leg read `publishing`, verification failed, and the product directory and its uploaded blob stayed behind on a product that went fully live a minute later. The check now repeats on a widening delay (`settle_timeout_sec`, `settle_initial_delay_sec` in `config/publisher.yaml`) until every platform reaches a final status. Closes #110, closes #159.
+
+### Notes
+- Both issues read the three log lines -- one per platform, inside a second -- as a retry loop giving up too fast, and asked for a slower cadence. There was no loop: the call checked once per platform and returned. So the fix adds waiting rather than pacing it.
+- Waiting is conditional on a transient status, not on the config being set. A scheduled post's legs are final on the first read, so the batch path pays nothing; only a leg reporting `publishing`, `processing` or `pending` costs a delay.
+- The delay schedule is derived from the two knobs rather than listed, and the last delay is trimmed so the waits sum to the budget instead of overrunning or stopping short of it.
+- The cleanup parser filters the YAML section against an explicit key list, so both new fields are added there as well as to the dataclass. A field present in one and not the other is dropped in silence.
 ## [0.82.1] - 2026-08-29
 
 ### Fixed

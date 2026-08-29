@@ -1152,6 +1152,12 @@ class CleanupConfig:
         keep_published_days: Days to wait before cleanup (0 = immediate)
         preserve_metadata: Keep metadata JSON files when cleaning
         preserve_logs: Keep log files when cleaning
+        settle_timeout_sec: Seconds to wait for a platform still publishing to
+            reach a final status. 0 checks once and gives up, which is what
+            an immediate publish always used to do.
+        settle_initial_delay_sec: Delay before the second status check. Each
+            later delay doubles, and the last one is trimmed so the delays sum
+            to settle_timeout_sec.
 
     """
 
@@ -1163,12 +1169,24 @@ class CleanupConfig:
     keep_published_days: int = 0
     preserve_metadata: bool = False
     preserve_logs: bool = True
+    settle_timeout_sec: float = 300.0
+    settle_initial_delay_sec: float = 30.0
 
     def __post_init__(self):
         """Post-initialization validation."""
         # Validate keep_published_days
         if self.keep_published_days < 0:
             raise ValueError("keep_published_days must be non-negative")
+
+        if self.settle_timeout_sec < 0:
+            raise ValueError("settle_timeout_sec must be non-negative")
+
+        # A zero delay with a non-zero timeout would poll without pausing.
+        if self.settle_timeout_sec > 0 and self.settle_initial_delay_sec <= 0:
+            raise ValueError(
+                "settle_initial_delay_sec must be positive when "
+                "settle_timeout_sec is set"
+            )
 
         # Validate archive_dir if archiving enabled
         if self.archive_before_delete and not self.archive_dir:
@@ -1191,6 +1209,8 @@ class CleanupConfig:
             "keep_published_days": self.keep_published_days,
             "preserve_metadata": self.preserve_metadata,
             "preserve_logs": self.preserve_logs,
+            "settle_timeout_sec": self.settle_timeout_sec,
+            "settle_initial_delay_sec": self.settle_initial_delay_sec,
         }
 
 

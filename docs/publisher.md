@@ -1387,6 +1387,8 @@ cleanup:
   enabled: true                         # Enable automatic cleanup
   verify_before_delete: true            # Verify publication success before cleanup
   require_all_platforms: true           # Only cleanup if published to ALL configured platforms
+  settle_timeout_sec: 300               # Wait this long for a platform still publishing
+  settle_initial_delay_sec: 30          # Delay before the second check; each later one doubles
 
   # Per-platform cleanup settings
   platforms:
@@ -1402,6 +1404,7 @@ cleanup:
 
 **Cleanup Behavior:**
 - **Verification**: Confirms publication success via API status check before deletion
+- **Settling**: A platform reporting `publishing`, `processing` or `pending` has not finished and has not failed, so the check is repeated on a widening delay until every platform reaches a final status or `settle_timeout_sec` is spent. This matters on `--immediate` runs, where the scheduler takes roughly 30-90s and a single check right after the post is created always reads `publishing`. Scheduled posts settle on the first read and never wait. Set `settle_timeout_sec: 0` to check once.
 - **Multi-Platform Validation**: Requires successful publication to ALL configured platforms (unless `require_all_platforms: false`)
 - **Audit Logging**: Logs all deleted directories with product IDs, platforms, and post URLs
 - **Selective Cleanup**: Respects per-platform `auto_cleanup` settings

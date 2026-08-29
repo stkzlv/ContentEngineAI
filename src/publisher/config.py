@@ -281,6 +281,8 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         "keep_published_days",
         "preserve_metadata",
         "preserve_logs",
+        "settle_timeout_sec",
+        "settle_initial_delay_sec",
     ]:
         if key in cleanup_section:
             cleanup_config_dict[key] = cleanup_section[key]
