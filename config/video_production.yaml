@@ -156,7 +156,16 @@ video_settings:
   base_font_height_percent: 0.05      # Base font size for subtitle height calculation (5% of frame height)
                                       # Used by: visual_builder.py to estimate subtitle vertical space
   image_loop: 1                       # Number of times to loop images (1=no loop)
-  pad_color: "black"                  # Padding color for letterboxing
+  pad_color: "black"                  # Padding color, used when fill is "color"
+
+  # What fills the frame around an image that does not cover it.
+  # A product photo is square or landscape and the frame is 9:16, so "color"
+  # leaves roughly half the screen empty: measured 42-52% black across four
+  # frames of a real render. "blur" fills it with a scaled, blurred copy of
+  # the same image, which is the standard short-form treatment and needs no
+  # second asset. Set per profile to override.
+  image_background_fill: "blur"
+  image_background_blur_sigma: 20.0
 
   # Persistent on-frame disclosure overlay (FTC #ad, Spain #publi, etc.)
   # Burned into every render in a fixed corner. Required for affiliate
