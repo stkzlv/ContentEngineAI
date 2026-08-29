@@ -123,45 +123,56 @@ async def generate_subtitles_with_whisper(
         trans_ops["_model_size"] = whisper_settings.model_size
         trans_ops["_model_device"] = whisper_settings.model_device
 
-        # Run Whisper with timeout and progress monitoring
-        start_time = time.time()
-        try:
-            result_w = await asyncio.wait_for(
-                _transcribe_with_monitoring(
-                    model_whisper,
-                    str(audio_path),
-                    trans_ops,
-                    debug_mode,
-                    whisper_settings,
-                ),
-                timeout=transcription_timeout,
-            )
-            elapsed = time.time() - start_time
-            logger.info(f"Whisper transcription completed in {elapsed:.1f}s")
-        except TimeoutError:
-            elapsed = time.time() - start_time
-            logger.error(
-                f"Whisper transcription timed out after {elapsed:.1f}s "
-                f"(limit: {transcription_timeout:.1f}s)"
-            )
-            if whisper_settings.enable_resource_monitoring:
-                _log_system_resources("after Whisper timeout")
-            if whisper_settings.enable_resource_cleanup:
-                _cleanup_whisper_resources()
+        # Run Whisper with timeout and progress monitoring. A timeout is not
+        # final: the limit is derived from audio duration and knows nothing
+        # about machine speed, and by this point the run has already paid for
+        # the LLM script and the TTS voiceover.
+        result_w = None
+        for limit in _timeout_schedule(transcription_timeout, whisper_settings):
+            start_time = time.time()
+            try:
+                result_w = await asyncio.wait_for(
+                    _transcribe_with_monitoring(
+                        model_whisper,
+                        str(audio_path),
+                        trans_ops,
+                        debug_mode,
+                        whisper_settings,
+                    ),
+                    timeout=limit,
+                )
+                elapsed = time.time() - start_time
+                logger.info(f"Whisper transcription completed in {elapsed:.1f}s")
+                break
+            except TimeoutError:
+                elapsed = time.time() - start_time
+                logger.error(
+                    f"Whisper transcription timed out after {elapsed:.1f}s "
+                    f"(limit: {limit:.1f}s). The limit is derived from audio "
+                    f"duration alone; raise whisper_settings.duration_multiplier "
+                    f"or max_timeout_sec in config/ai_services.yaml, or run on a "
+                    f"less loaded machine."
+                )
+                if whisper_settings.enable_resource_monitoring:
+                    _log_system_resources("after Whisper timeout")
+                if whisper_settings.enable_resource_cleanup:
+                    _cleanup_whisper_resources()
+            except Exception as e:
+                elapsed = time.time() - start_time
+                logger.error(f"Whisper transcription failed after {elapsed:.1f}s: {e}")
+                if whisper_settings.enable_resource_monitoring:
+                    _log_system_resources("after Whisper error")
+                if whisper_settings.enable_resource_cleanup:
+                    _cleanup_whisper_resources()
+                return None
+            finally:
+                if whisper_settings.enable_resource_monitoring:
+                    _log_system_resources("after Whisper transcription")
+                if whisper_settings.enable_resource_cleanup:
+                    _cleanup_whisper_resources()
+
+        if result_w is None:
             return None
-        except Exception as e:
-            elapsed = time.time() - start_time
-            logger.error(f"Whisper transcription failed after {elapsed:.1f}s: {e}")
-            if whisper_settings.enable_resource_monitoring:
-                _log_system_resources("after Whisper error")
-            if whisper_settings.enable_resource_cleanup:
-                _cleanup_whisper_resources()
-            return None
-        finally:
-            if whisper_settings.enable_resource_monitoring:
-                _log_system_resources("after Whisper transcription")
-            if whisper_settings.enable_resource_cleanup:
-                _cleanup_whisper_resources()
 
         # Rejoin words Whisper split at a separator, before the flat list is
         # extracted from this dict rather than after. `_extract_word_timings`
@@ -463,6 +474,29 @@ def _calculate_timeout(
         audio_duration * whisper_settings.duration_multiplier
     )
     return min(timeout, whisper_settings.max_timeout_sec)
+
+
+def _timeout_schedule(
+    first_limit: float, whisper_settings: WhisperSettings
+) -> list[float]:
+    """Limits to try, widening after each timeout.
+
+    A retry that gets the same limit cannot do better than the attempt that
+    just failed, so the schedule stops as soon as widening is capped by
+    `max_timeout_sec`. That also makes the empty-retry case explicit rather
+    than a loop that silently repeats itself.
+    """
+    limits = [first_limit]
+    ceiling = float(whisper_settings.max_timeout_sec)
+    multiplier = whisper_settings.timeout_retry_multiplier
+
+    for _ in range(max(0, whisper_settings.timeout_retry_attempts)):
+        widened = min(limits[-1] * multiplier, ceiling)
+        if widened <= limits[-1]:
+            break
+        limits.append(widened)
+
+    return limits
 
 
 async def _transcribe_with_monitoring(

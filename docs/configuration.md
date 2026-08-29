@@ -1632,8 +1632,10 @@ whisper_settings:
 
   # Timeout settings (configurable for system performance)
   base_timeout_sec: 120              # Base timeout before audio duration added
-  duration_multiplier: 6.0           # Multiplier for audio duration (timeout = base + duration * multiplier)
-  max_timeout_sec: 900               # Maximum timeout (15 minutes)
+  duration_multiplier: 15.0          # Multiplier for audio duration (timeout = base + duration * multiplier)
+  max_timeout_sec: 1800              # Maximum timeout (30 minutes)
+  timeout_retry_attempts: 1          # Retries after a timeout, each on a wider limit
+  timeout_retry_multiplier: 2.0      # How much wider each retry's limit is
   progress_monitor_interval_sec: 30  # Progress monitoring interval
   enable_resource_monitoring: true   # Monitor CPU/memory during transcription
   enable_resource_cleanup: true      # Cleanup resources after processing
@@ -1856,9 +1858,16 @@ api_settings:
 ```yaml
 whisper_settings:
   base_timeout_sec: 120
-  duration_multiplier: 6.0
-  max_timeout_sec: 900
+  duration_multiplier: 15.0
+  max_timeout_sec: 1800
+  timeout_retry_attempts: 1
 ```
+
+The limit is derived from audio duration, which says nothing about how fast the
+machine transcribes. A contended machine can cross it, and the step sits after
+the script and the voiceover, so a timeout discards a render that has already
+been paid for. One retry on a widened limit costs far less than that loss; set
+`timeout_retry_attempts: 0` to restore the single attempt.
 
 ## Environment Variables
 

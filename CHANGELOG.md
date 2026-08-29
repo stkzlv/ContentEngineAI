@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.4] - 2026-08-29
+
+### Fixed
+- A slow transcription no longer discards the render. The Whisper limit is `base_timeout_sec + audio_duration * duration_multiplier`, which knows nothing about how fast the machine transcribes: measured on the same 26.3s clip twice in one day, 268.5s idle and 305.5s under load against a 277.7s limit, so a healthy machine had nine seconds of margin and any contention lost a render that had already paid for an LLM script and a TTS voiceover. The multiplier is now 15.0, the ceiling 1800s, and a timeout is retried once on a doubled limit. Closes #293.
+
+### Notes
+- `make *-lowpri`, the documented way to run a batch, slows transcription on purpose with `nice` and a memory cap. The resource rule and the timeout formula were pulling against each other.
+- Only a timeout is retried. A broken model or an unreadable file fails the same way twice, so retrying it just doubles the wall clock.
+- The schedule stops widening once `max_timeout_sec` caps it: a retry that gets the same limit cannot beat the attempt that just failed, and would cost another full transcription to prove it.
+- The timeout message now names the two config keys to change, rather than only reporting that a limit was crossed.
 ## [0.82.3] - 2026-08-29
 
 ### Fixed
