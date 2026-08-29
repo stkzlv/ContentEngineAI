@@ -29,6 +29,9 @@ git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI
 poetry install && poetry run playwright install
 cp .env.example .env  # Configure API keys
 
+# 1b. Animated captions (optional, and on by default in the bundled config)
+poetry install --with pycaps && poetry run playwright install chromium
+
 # 2. Generate a video
 poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
 poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --debug
@@ -50,6 +53,20 @@ poetry run python -m src.pipeline.global_batch \
 ```
 
 See [Installation](docs/installation.md) for complete setup instructions.
+
+**Two things the quickstart assumes:**
+
+- **Animated captions need the optional `pycaps` group.** The bundled config sets
+  `subtitle_engine: pycaps`, so step 1b is what makes the shipped default work.
+  Without it a run falls back to FFmpeg captions and warns once; that is a
+  supported configuration, just not the one the config describes. On Wayland or
+  a headless box the renderer also needs a virtual display, so wrap the producer
+  in `xvfb-run -a`. See [Subtitles](docs/pycaps-subtitles.md) and
+  [Troubleshooting](docs/troubleshooting.md).
+- **Publishing needs an account before `--platforms` does anything.** Set
+  `LATE_API_KEY` in `.env` and connect YouTube, TikTok or Instagram in the
+  scheduler first. Add `--skip-publish` to run the batch without it. See
+  [Publisher](docs/publisher.md).
 
 ## Documentation
 
