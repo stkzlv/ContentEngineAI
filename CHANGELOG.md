@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.80.1] - 2026-08-28
+## [0.80.1] - 2026-08-29
 
 ### Fixed
 - A word Whisper splits at a separator is rejoined before it reaches either caption engine. It emits the tail of a word as its own token, and both renderers space-join tokens, so `80,000` was burned as `80 ,000` and `go-to` as `go  -to`. `2.4GHz` was worse than cosmetic: it came out `2 4GHz`, the decimal point dropped, which a viewer reads as a different number. Closes #292.
