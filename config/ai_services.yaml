@@ -693,9 +693,21 @@ whisper_settings:
   patience: null
 
   # Timeout settings for Whisper processing
+  # The limit is derived from audio duration, which says nothing about how
+  # fast this machine transcribes. Measured on 26.3s of audio: 268.5s idle and
+  # 305.5s under load. At the old 6.0 multiplier the limit was 277.7s, so a
+  # healthy machine had nine seconds of margin and any contention lost the
+  # render -- and `make *-lowpri`, the documented way to run a batch, makes
+  # transcription slower on purpose.
   base_timeout_sec: 120
-  duration_multiplier: 6.0  # Increased from 3.0 for reliable transcription
-  max_timeout_sec: 900  # Increased from 600 for longer audio
+  duration_multiplier: 15.0
+  max_timeout_sec: 1800
+
+  # A timeout arrives after the LLM script and the TTS voiceover are already
+  # paid for, so one retry on a widened limit costs far less than the render
+  # it saves. 0 restores the single attempt.
+  timeout_retry_attempts: 1
+  timeout_retry_multiplier: 2.0
 
   # Progress monitoring interval in seconds
   progress_monitor_interval_sec: 30

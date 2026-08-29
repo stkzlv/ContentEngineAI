@@ -166,10 +166,22 @@ class WhisperSettings(BaseModel):
     task: str = Field("transcribe")
     patience: float | None = Field(None)
 
-    # Timeout settings for Whisper processing
+    # Timeout settings for Whisper processing.
+    #
+    # The limit is derived from audio duration, which says nothing about how
+    # fast this machine transcribes. Measured on 26.3s of audio: 268.5s on an
+    # idle 16-core box and 305.5s under load, against a 277.7s limit at the
+    # old 6.0 multiplier -- so the margin on a healthy machine was nine
+    # seconds and any contention lost the render. `nice`-d batch runs (the
+    # documented way to render) are exactly the contended case.
     base_timeout_sec: int = Field(120)
-    duration_multiplier: float = Field(6.0)  # Increased from 3.0
-    max_timeout_sec: int = Field(900)  # Increased from 600
+    duration_multiplier: float = Field(15.0)
+    max_timeout_sec: int = Field(1800)
+    # A timeout discards a render that has already paid for the LLM script and
+    # the TTS voiceover, so one retry on a widened limit is far cheaper than
+    # the loss. 0 restores the single attempt.
+    timeout_retry_attempts: int = Field(1)
+    timeout_retry_multiplier: float = Field(2.0)
     progress_monitor_interval_sec: int = Field(30)
     enable_resource_monitoring: bool = Field(True)
     enable_resource_cleanup: bool = Field(True)
