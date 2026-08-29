@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-08-29
+
+### Added
+- `gathered_visuals.json` records the stock searches a render issued, and stamps each downloaded item with the phrase it came back from. Closes #303.
+
+### Notes
+- Footage that does not match the narration has two causes needing opposite fixes: the phrase named the wrong subject, or the library answered a good phrase loosely. The first is a prompt problem, the second wants a relevance filter or a second provider. From the output directory the two were indistinguishable -- diagnosing the prompt defect meant re-running the phrase generator ten times to infer what a past render *would* have searched for, which is not the same as knowing what it did, and is unavailable for a render from last week.
+- The phrases are persisted as well as attributed, because per-item attribution cannot express a search that found nothing -- and from the item list, a phrase that returned no footage looks identical to one that was never issued.
+- The query list is declared before the preloaded/fetch branch rather than inside the arm that builds it. Only one arm searches, and a name bound inside the other is the unbound-local trap this file has hit before.
+- An older `gathered_visuals.json` still loads: the field defaults to `None`, so a resume of a render made before this does not break.
+
 ## [0.81.0] - 2026-08-29
 
 ### Changed

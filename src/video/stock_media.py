@@ -50,6 +50,12 @@ class StockMediaInfo:
         author: Creator/photographer name for attribution
         path: Local filesystem path where the media is stored
         duration: Length in seconds (for videos only, None for images)
+        query: The search phrase this item came back from, when the render
+            searched several. A render whose footage does not match its
+            narration has two possible causes needing opposite fixes -- the
+            phrase named the wrong subject, or the library answered a good
+            phrase loosely -- and without this the two are indistinguishable
+            from the run directory.
 
     """
 
@@ -59,6 +65,7 @@ class StockMediaInfo:
     author: str
     path: Path
     duration: float | None = None
+    query: str | None = None
 
 
 class StockMediaFetcher:
