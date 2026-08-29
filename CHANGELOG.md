@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-08-29
+
+### Changed
+- `URLShortenerSettings` mirrors `config/url_shortener.yaml` and is now loaded and read, from `src.utils.url_shortener`. It declared a flattened paraphrase of the file (`api_timeout_sec` for `api.timeout_sec`) that nothing populated and nothing consumed, while the scraper opened the file itself and walked the dict with its own defaults. A typo in the file now fails at load instead of falling through to a default, and an undeclared `provider` is refused rather than resolving to an empty block. Closes #124.
+
+### Fixed
+- The model's `provider` default said `picsee` while the shipped file said `bare`. Two independently maintained default sets is what the single typed load removes.
+
+### Removed
+- `VideoConfig.url_shortener_settings`, which nothing populated and nothing read. The typed settings now live beside the shortening providers themselves.
+
+### Notes
+- The old model could not have been populated from the file as it stood: it had no field for `api_base_url` or `bulk_timeout_multiplier`, both of which the consumer read.
+- Providers are declared fields rather than collected from unknown keys. Collecting them would mean a misspelled section silently configured nothing, which is the failure shape being removed.
+- The models live in `src/utils/url_shortener/config.py` rather than in `src/video/config/`. Importing any submodule of that package runs its `__init__`, which eagerly loads the whole video configuration from five cwd-relative YAML files -- so loading the shortener settings from there would make a scraper built from another directory, or on a machine with an unrelated video-config error, fail to construct at all.
+- The default config path is anchored on the module rather than the working directory, for the same reason: the scraper is invoked from anywhere, and a cwd-relative miss would silently load the `bare` no-op instead of the operator's provider.
+- Defaults for `enabled`, `integration.shorten_on_scrape` and `picsee.api_key_env_var` match what the old consumer read an absent key as, so a partial override file behaves exactly as before. The first two default off and the third defaults to the env-var name rather than to nothing.
+- The scraper loads the settings in its constructor, so a malformed file is reported before a scrape starts rather than after the browser work is paid for.
+
 ## [0.83.0] - 2026-08-29
 
 ### Added
