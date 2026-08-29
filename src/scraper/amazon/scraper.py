@@ -1897,7 +1897,15 @@ def main():
                 # Load batch configuration with CLI precedence
                 batch_config = load_batch_config(
                     cli_product_ids=chunk,
-                    cli_keywords=all_keywords if chunk_idx == 0 else None,
+                    # `[]`, not `None`, for the later chunks. The loader reads
+                    # `None` as "the CLI named no keywords" and falls back to
+                    # the configured list, so a chunked `--product-ids` run
+                    # searched every keyword in `scraper.yaml` from the second
+                    # chunk on -- silently, since the log reads like a normal
+                    # keyword run. The keywords belong to the first chunk
+                    # because they are searched once for the whole run, not
+                    # once per chunk.
+                    cli_keywords=all_keywords if chunk_idx == 0 else [],
                     cli_fail_fast=args.fail_fast,
                     cli_max_products=args.max_products,
                     cli_products_per_keyword=args.products_per_keyword,

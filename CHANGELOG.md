@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.1] - 2026-08-29
+
+### Fixed
+- A chunked `--product-ids` run no longer searches the configured keywords. The chunk loop passed `cli_keywords=None` for every chunk after the first, and the loader reads `None` as "the CLI named no keywords" and answers with the configured list -- 54 of them on the bundled config. So a run with a `--batch-size` small enough to produce two chunks scraped the requested ASINs plus every configured keyword from chunk 2 on, and the log read like a normal keyword run. Closes #273.
+
+### Notes
+- The loader already distinguished the two; only the call site was wrong. It now passes `[]`, which means "searched nothing", against `None`, which means "not supplied". Same class as the pillar-map defect fixed earlier: a not-supplied sentinel colliding with supplied-as-empty.
+- The keywords belong to the first chunk because they are searched once for the whole run rather than once per chunk.
+
 ## [0.82.0] - 2026-08-29
 
 ### Added
