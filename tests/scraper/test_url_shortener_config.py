@@ -20,7 +20,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from src.video.config.core_models import (
+from src.utils.url_shortener import (
     URLShortenerSettings,
     load_url_shortener_settings,
 )
@@ -160,6 +160,7 @@ class TestTheScraperReadsTheTypedObject:
             write(
                 tmp_path,
                 {
+                    "enabled": True,
                     "provider": "picsee",
                     "api": {"timeout_sec": 45, "max_retries": 7},
                     "picsee": {
@@ -167,6 +168,7 @@ class TestTheScraperReadsTheTypedObject:
                         "custom_domain": "example.test",
                         "max_bulk_size": 25,
                     },
+                    "integration": {"shorten_on_scrape": True},
                 },
             )
         )
@@ -211,3 +213,94 @@ class TestTheScraperReadsTheTypedObject:
         scraper._shorten_affiliate_links([])
 
         assert called["n"] == 0
+
+
+class TestTheDefaultsPreserveTheOldBehaviour:
+    """The consumer read an absent key as off; the model said on.
+
+    Swapping one for the other would make a partial override file start
+    calling a third-party API on every scrape and change what lands in
+    `data.json`, without anyone editing that file.
+    """
+
+    def test_an_absent_enabled_key_is_off(self, tmp_path):
+        settings = load_url_shortener_settings(write(tmp_path, {"provider": "picsee"}))
+
+        assert settings.enabled is False
+
+    def test_an_absent_integration_block_does_not_shorten_on_scrape(self, tmp_path):
+        settings = load_url_shortener_settings(write(tmp_path, {"enabled": True}))
+
+        assert settings.integration.shorten_on_scrape is False
+
+    def test_a_picsee_block_without_an_env_var_name_still_finds_the_key(
+        self, tmp_path, monkeypatch
+    ):
+        """The old consumer defaulted the *name*, not the value.
+
+        Leaving it unset made such a config skip shortening entirely, with only
+        a debug-gated warning to say so.
+        """
+        settings = load_url_shortener_settings(
+            write(
+                tmp_path,
+                {
+                    "enabled": True,
+                    "provider": "picsee",
+                    "picsee": {"custom_domain": "example.test"},
+                    "integration": {"shorten_on_scrape": True},
+                },
+            )
+        )
+
+        assert settings.active_provider().api_key_env_var == "PICSEE_API_KEY"
+
+    def test_the_shipped_config_still_shortens(self):
+        """The bundled file sets both keys, so the run is unchanged."""
+        settings = load_url_shortener_settings()
+
+        assert settings.enabled is True
+        assert settings.integration.shorten_on_scrape is True
+
+
+class TestTheLoaderDoesNotDependOnTheWorkingDirectory:
+    def test_the_default_path_is_anchored_on_the_repo(self, tmp_path, monkeypatch):
+        """The scraper runs from anywhere; its own config reads are anchored.
+
+        A cwd-relative default would silently load the `bare` no-op instead of
+        the operator's provider.
+        """
+        monkeypatch.chdir(tmp_path)
+
+        assert load_url_shortener_settings().enabled is True
+
+
+class TestTheConstructorWiresTheLoader:
+    """Both scraper tests above assign the settings by hand.
+
+    Deleting the load from `__init__` left the whole suite green: at runtime
+    `_shorten_affiliate_links` then raises `AttributeError`, its broad handler
+    catches it, and every link falls back to the long URL.
+    """
+
+    def test_a_normally_constructed_scraper_carries_the_settings(self):
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper()
+
+        assert scraper.url_shortener_settings.provider in (
+            URLShortenerSettings.provider_names()
+        )
+
+    def test_construction_does_not_need_the_repo_as_the_cwd(
+        self, tmp_path, monkeypatch
+    ):
+        """It used to import the video config package, which loads five
+        cwd-relative YAML files eagerly, so a scraper built from elsewhere
+        failed to construct at all.
+        """
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        monkeypatch.chdir(tmp_path)
+
+        assert BotasaurusAmazonScraper().url_shortener_settings is not None

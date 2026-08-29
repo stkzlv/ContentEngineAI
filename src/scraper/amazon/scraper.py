@@ -23,6 +23,7 @@ from src.scraper.base.keyword_pillars import pillar_for, read_keyword_pillars
 
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
+from ...utils.url_shortener import load_url_shortener_settings
 from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
 from .browser_functions import (
@@ -171,11 +172,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         self._keyword_pillars: dict[str, str] | None = None
         # Loaded once, and at construction rather than at first use, so a
         # malformed `config/url_shortener.yaml` is reported before a scrape
-        # starts instead of after the browser work is paid for. Imported here
-        # rather than at module scope: `src.video.config` imports back into the
-        # scraper package, and a top-level import closes the cycle.
-        from ...video.config.core_models import load_url_shortener_settings
-
+        # starts instead of after the browser work is paid for.
         self.url_shortener_settings = load_url_shortener_settings()
 
         # Override debug mode if specified (CLI takes precedence over config)
