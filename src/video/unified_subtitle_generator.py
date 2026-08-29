@@ -90,6 +90,13 @@ class UnifiedSubtitleGenerator:
             product_id=product_id,
             video_config=video_config,
         )
+        # `style_config` is the preset's `model_dump`, and `StylePresetConfig`
+        # declares no name field -- so reading a name out of it always gave
+        # "unknown", in the two messages whose only job is to say which preset
+        # to fix.
+        self._preset_name = getattr(
+            config.style_preset, "value", str(config.style_preset)
+        )
         # Pre-select colors once per producer run to ensure consistency
         self._selected_colors = self._select_colors()
         # Pre-select effects once per video to ensure consistency
@@ -811,7 +818,7 @@ class UnifiedSubtitleGenerator:
         # Get effects from preset configuration
         preset_effects = _migrate_retired_effects(
             self.style_config.get("effects", []),
-            self.style_config.get("preset_name", "unknown"),
+            self._preset_name,
         )
 
         if not preset_effects:
@@ -841,7 +848,7 @@ class UnifiedSubtitleGenerator:
                     logger.debug(f"Applied preset effect: {effect}")
             elif len(preset_effects) > 1:
                 # REQUIREMENTS.md violation: "exactly 1 effect per video"
-                preset_name = self.style_config.get("preset_name", "unknown")
+                preset_name = self._preset_name
                 msg = (
                     f"Preset '{preset_name}' has {len(preset_effects)} effects. "
                     f"REQUIREMENTS.md mandates exactly 1 effect per video. "

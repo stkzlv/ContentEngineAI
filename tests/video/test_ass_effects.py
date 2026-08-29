@@ -449,14 +449,28 @@ class TestTheRetiredMovementEffect:
         assert selected["fade"] is True
         assert "movement" not in selected
         assert "retired" in caplog.text
+        # The warning's only job is to say which preset to fix. It read the
+        # name out of `style_config`, which is the preset's `model_dump` and
+        # carries no name field -- so it always said "unknown", and pointed at
+        # a `style_presets.unknown.effects` that is not in the file.
+        assert "animated" in caplog.text
+        assert "unknown" not in caplog.text
 
     def test_no_dialogue_line_can_emit_a_move_tag(
         self, animated_config, frame_size, sample_segments
     ):
-        r"""The effect is gone, so \pos is the only positioning tag left."""
+        r"""The effect is gone, so \pos is the only positioning tag left.
+
+        The flag is set even though the key is now foreign to the dict: that
+        is the point. Without it the assertion holds on the pre-removal source
+        too, since the fixture preset selects karaoke and the `\move` branch
+        was never reached either way -- so a partial revert would leave this
+        green while captions drifted again.
+        """
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
         )
+        generator._selected_effects["movement"] = True
 
         position = Position(x=0.5, y=0.8)
         colors = {"primary": "&H00FFFFFF", "outline": "&H00000000"}

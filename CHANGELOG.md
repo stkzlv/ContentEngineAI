@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `movement` subtitle effect and its `movement_distance_pixels` parameter. It drifted the caption vertically while it was being read, which costs legibility for decoration; the bundled `animated` preset was switched to karaoke in an earlier release and nothing else used it. Closes #91.
 
 ### Notes
-- A config still naming `movement` is migrated to `fade` with a warning rather than having the effect dropped. The presets carry exactly one effect, so dropping it silently would leave a caption with no animation at all, which reads as a rendering bug rather than as a stale config.
+- A config still naming `movement` is migrated to `fade` with a warning rather than having the effect dropped. The non-random presets carry exactly one effect, so dropping it silently would leave such a preset with no animation at all, which reads as a rendering bug rather than as a stale config.
+- The migration warning names the preset to fix. It read the name out of the preset's own `model_dump`, which carries no name field, so it always said `unknown` and pointed at a `style_presets.unknown.effects` that is not in the file. The same string in the neighbouring "exactly 1 effect" error had the same defect and is fixed with it.
+- `docs/video-producer.md` and `docs/configuration.md` no longer document the effect. Two of the config examples offered it as a value to copy, which would now warn and silently substitute `fade`.
+
 ## [0.84.1] - 2026-08-29
 
 ### Fixed
