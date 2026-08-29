@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.7] - 2026-08-29
+
+### Changed
+- `config/subtitles.yaml` records why `subtitle_format` and `subtitle_engine` remain separate fields rather than one three-valued field. Closes #95.
+
+### Notes
+- `pycaps.fallback_policy: fallback_ffmpeg` switches the engine mid-run on an install without pycaps. A collapsed field would leave that run with no format, so the fallback would need a hidden default -- the shape of a silent-caption bug this module has already shipped.
+
 ## [0.82.6] - 2026-08-29
 
 ### Changed
