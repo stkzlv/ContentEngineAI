@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.3] - 2026-08-29
+
+### Fixed
+- A product scraped by ASIN or URL now carries a rating. It was sourced only from a search-results card, which those two arms never see, so the record differed by scrape route and anything that would mention a rating had nothing to use. Closes #271.
+- `reviews_count` is now populated at all. Only `rating` had a fallback from the card, so the field was empty on every arm, keyword scrapes included.
+
+### Notes
+- The rating was already being read from the detail page, but only when `rating` was configured as an essential field, and the value was discarded after validation instead of being put on the record.
+- The specific review hooks are tried before `.a-icon-alt`, which matches every star widget on the page including a single customer review's. Reading that one would put one reviewer's score on the record as the product average.
+- A candidate that is not a number is rejected. `.a-icon-alt` is unscoped and the localised separator is a bare substring, so "Producto de Amazon Renewed" would otherwise be read as a rating of `Producto` -- and a wrong truthy rating is worse than none, because it also suppresses the fallback to the card's.
+- A matched element carrying no parseable score falls through to the next selector rather than ending the search, and the card remains the fallback for a page whose widget could not be read at all.
+- The probes pass `wait=None`. The driver polls for four seconds per miss by default, and a listing with no reviews misses all five, which would have added twenty seconds to every such product on a config where these reads previously never ran.
+- The detail page's review count reads as the page writes it ("1,234 ratings"), which is not the digits-only shape the card path stores in `serp_reviews_count`. Nothing reads either numerically today.
+
 ## [0.82.2] - 2026-08-29
 
 ### Fixed
