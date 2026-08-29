@@ -271,7 +271,15 @@ subtitle_settings:
   randomize_effects: true
 
   # ---- OUTPUT FORMAT ----
-  # Subtitle file format: "srt" or "ass"
+  # Subtitle file format: "srt" or "ass". Read only by the FFmpeg engine;
+  # pycaps burns from the Whisper transcript and writes no subtitle file.
+  #
+  # Kept separate from `subtitle_engine` rather than collapsed into a single
+  # three-valued field, because `pycaps.fallback_policy: fallback_ffmpeg`
+  # switches the engine mid-run on an install without pycaps. A collapsed
+  # field would carry no format for a `pycaps` run, so the fallback would have
+  # to invent one -- a hidden default in exactly the place this pipeline has
+  # already shipped a silent-caption bug.
   subtitle_format: "ass"
 
   # ---- TWO-PART SUBTITLE SYSTEM ----
