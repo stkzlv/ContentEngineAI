@@ -241,6 +241,17 @@ cleanup:
   # Directory for archived product backups (if archive_before_delete=true)
   archive_dir: outputs/archive
 
+  # Seconds to keep re-checking a platform that is still publishing before
+  # giving up on cleanup. The scheduler takes roughly 30-90s even on an
+  # --immediate publish, so a single check right after the post is created
+  # always sees "publishing" and skips cleanup.
+  # 0 = check once and give up
+  settle_timeout_sec: 300
+
+  # Delay before the second status check. Each later delay doubles, and the
+  # last one is trimmed so the delays sum to settle_timeout_sec.
+  settle_initial_delay_sec: 30
+
   # Only cleanup products published more than N days ago
   # 0 = Cleanup immediately after successful publish
   # >0 = Keep files for N days after publish
