@@ -139,7 +139,7 @@ def build_topic_product(spec: TopicSpec) -> ProductData:
     )
 
 
-def _spec_from_mapping(entry: Any, index: int, source: Path) -> TopicSpec:
+def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     """Validate one entry of a topics file into a `TopicSpec`."""
     where = f"{source}, entry {index + 1}"
     if not isinstance(entry, dict):
@@ -174,6 +174,35 @@ def _spec_from_mapping(entry: Any, index: int, source: Path) -> TopicSpec:
     )
 
 
+def specs_from_mappings(raw: Any, source: str | Path) -> list[TopicSpec]:
+    """Validate a list of topic mappings, whatever file it came from.
+
+    Shared by `--topics-file` and the `topics:` section of the batch config, so
+    a config-file topic is validated exactly as a hand-written topics file is.
+    `source` appears only in error messages.
+    """
+    if raw is None:
+        raise TopicInputError(f"Topics in {source} are empty")
+    if not isinstance(raw, list):
+        raise TopicInputError(f"Topics in {source} must be a list of topics")
+
+    specs = [_spec_from_mapping(entry, i, source) for i, entry in enumerate(raw)]
+
+    seen: dict[str, str] = {}
+    for spec in specs:
+        pid = topic_product_id(spec.title)
+        if pid in seen:
+            # The identifier carries a digest of the title, so only an exact
+            # duplicate reaches here. Two entries for one title would render
+            # into a single directory, the second overwriting the first.
+            raise TopicInputError(
+                f"{source}: '{spec.title}' and '{seen[pid]}' both produce the "
+                f"identifier '{pid}'; give them more distinct titles"
+            )
+        seen[pid] = spec.title
+    return specs
+
+
 def load_topics_file(path: Path) -> list[TopicSpec]:
     """Read a YAML list of topics.
 
@@ -190,26 +219,7 @@ def load_topics_file(path: Path) -> list[TopicSpec]:
     except yaml.YAMLError as e:
         raise TopicInputError(f"Could not parse topics file {path}: {e}") from e
 
-    if raw is None:
-        raise TopicInputError(f"Topics file {path} is empty")
-    if not isinstance(raw, list):
-        raise TopicInputError(f"Topics file {path} must contain a list of topics")
-
-    specs = [_spec_from_mapping(entry, i, path) for i, entry in enumerate(raw)]
-
-    seen: dict[str, str] = {}
-    for spec in specs:
-        pid = topic_product_id(spec.title)
-        if pid in seen:
-            # The identifier carries a digest of the title, so only an exact
-            # duplicate reaches here. Two entries for one title would render
-            # into a single directory, the second overwriting the first.
-            raise TopicInputError(
-                f"{path}: '{spec.title}' and '{seen[pid]}' both produce the "
-                f"identifier '{pid}'; give them more distinct titles"
-            )
-        seen[pid] = spec.title
-    return specs
+    return specs_from_mappings(raw, path)
 
 
 def specs_from_args(

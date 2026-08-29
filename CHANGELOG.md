@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-08-29
+
+### Added
+- `global_batch.topics` and `global_batch.topics_per_run` in `config/pipeline.yaml`. A run with no input flags now produces both content formats: the configured keywords are scraped and rendered as before, and a configured number of topics are rendered alongside them. Closes #298.
+
+### Changed
+- Topics and scraper inputs are no longer mutually exclusive. Both phases run, and each record draws from its own profile pool -- topics from the stock-sourced profiles, products from the rest.
+- `--process-all-products` is refused only on a topics-only run, which is the one that narrows the shared pool.
+
+### Notes
+- Topics were nameable only on the command line, so the repeatable path -- the one a scheduled run uses -- produced product renders and nothing else, and the tutorial arm could not be part of the cadence.
+- Which topics a run takes rotates with the date rather than starting at the top of the list, so a daily run works through the list instead of re-rendering the first entry every morning, and the two formats interleave. A block comparison cannot separate the content format from whatever else changed that week, which is the same reason `registry --summary` segments by `content_format`. The rotation is stateless: a cursor file would have to be written by every run, survive `--clean`, and be reconciled after a failure, while the date advances on its own.
+- The mix was refused before because a topic run replaced the scraping phase outright and the scraped inputs were silently discarded. Removing the refusal without splitting the profile pool would have rendered the scraped products from generic stock footage, ignoring the photography scraped for them.
+- One fixed `--profile` cannot serve both kinds of record, so a product-only profile on a mixed run is refused rather than applied to the products and quietly swapped for the topics.
+- A resume reads which kinds of record it carries from the saved state, not from `keywords`. A resume inherits the configured keywords whatever it is resuming, and the completed scraping phase already ignored them, so reading them would call every resumed topics run mixed and stop narrowing its pool.
+- CLI inputs still replace the configured set entirely, as they already did for keywords: `--keywords` renders products only and `--topic` renders that topic only.
+- `--clean` now removes the union of the directories a run names, and treats any run carrying a keyword as naming nothing. Returning the first non-empty input kind would have spared every product directory on exactly the no-flag run this feature produces.
+- The dry-run plan shows the scraping half of a mixed run, and names the topic pool alongside the product one. Suppressing them whenever a topic was present hid work the run would do.
+- `topics_per_run` above the configured list length is capped rather than wrapping. Wrapping returned the same topic twice, which renders into one directory but counts as two, and the batch summary then reported a product scraped but never produced.
+
 ## [0.82.7] - 2026-08-29
 
 ### Changed

@@ -28,7 +28,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -38,7 +38,11 @@ import yaml
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.video.config import VideoConfig
-from src.video.producer.topic_input import TopicSpec, specs_from_args
+from src.video.producer.topic_input import (
+    TopicSpec,
+    specs_from_args,
+    specs_from_mappings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +318,7 @@ class GlobalBatchConfig:
         product_ids: List of ASINs to scrape directly
         keywords: List of keywords to search for products
         topics: Topics to render without scraping
+        topics_per_run: How many configured topics a no-flag run includes
         max_products: Maximum total products to collect across all keywords (global cap)
         products_per_keyword: Maximum products to scrape per individual keyword
         scraper_filters: SearchParameters for filtering products
@@ -335,6 +340,10 @@ class GlobalBatchConfig:
     # Topics render without a scraper run, so they are an input source in their
     # own right rather than a filter on one.
     topics: list[TopicSpec] = field(default_factory=list)
+    # How many of the configured topics a run with no CLI inputs includes,
+    # alongside the configured keywords. Topics named on the command line are
+    # taken in full and ignore this.
+    topics_per_run: int = 1
     max_products: int = 10
     products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
@@ -347,12 +356,22 @@ class GlobalBatchConfig:
     # run cannot use a product-run default, but must still refuse a pool the
     # operator named on the command line rather than silently replacing it.
     profile_pool_from_cli: bool = False
+    # Profiles a topic record may draw. Separate from `profile_pool` because a
+    # run can carry both kinds of record, and the two need opposite profiles:
+    # a topic has no product photography and a product profile gathers nothing
+    # for it. Populated by validation, not by the loader.
+    topic_profile_pool: list[str] = field(default_factory=list)
     # Set when a `--resume` is picking up a topics run. Topics themselves are
     # not persisted -- the identifier carries a one-way digest of the title --
     # so the run is recognised from the ids in the saved state instead. Every
     # topic rule keys off this as well as `topics`, or a resume reaches
     # combinations a fresh run refuses.
     topics_resume: bool = False
+    # Whether that resume also carries scraped products. Read from the saved
+    # state, not from `keywords`: a resume inherits the configured keywords
+    # whatever it is resuming, and the completed scraping phase already
+    # ignored them.
+    resume_has_products: bool = False
 
     # Common configuration
     fail_fast: bool = False
@@ -761,6 +780,37 @@ class PipelineSummary:
         return json.dumps(self.to_dict(started_at), indent=indent)
 
 
+def topics_for_run(
+    configured: list[TopicSpec], count: int, day_ordinal: int | None = None
+) -> list[TopicSpec]:
+    """Pick which configured topics this run renders.
+
+    Taken in rotation from the day of the month rather than from the top of the
+    list, so a daily cadence works through the list instead of re-rendering the
+    first entry every morning. Interleaving matters beyond variety: comparing
+    the two content formats fairly needs them mixed through the week rather
+    than run in blocks, since a block comparison cannot separate the format
+    from whatever else changed that week.
+
+    Stateless on purpose. A cursor file would have to be written by every run,
+    survive `--clean`, and be reconciled after a failed batch; the date already
+    advances once a day on its own.
+    """
+    if count <= 0 or not configured:
+        return []
+
+    if day_ordinal is None:
+        day_ordinal = date.today().toordinal()
+
+    # Capped at the list length rather than wrapping. Wrapping returned the
+    # same spec twice, and two entries with one title render into one
+    # directory -- so the run wrote one video and counted two, which the
+    # summary then reported as a product scraped but never produced.
+    count = min(count, len(configured))
+    start = day_ordinal % len(configured)
+    return [configured[(start + i) % len(configured)] for i in range(count)]
+
+
 def load_global_batch_config(
     cli_args: argparse.Namespace, config_path: str = "config/pipeline.yaml"
 ) -> GlobalBatchConfig:
@@ -820,12 +870,31 @@ def load_global_batch_config(
         yaml_config.get("keywords", []) or []
     )
 
+    # How many configured topics a no-flag run includes. CLI topics ignore it:
+    # a topic named on the command line was asked for explicitly.
+    topics_per_run = yaml_config.get("topics_per_run", 1)
+    if not isinstance(topics_per_run, int) or isinstance(topics_per_run, bool):
+        raise ValueError(
+            f"global_batch.topics_per_run must be an integer, got "
+            f"{topics_per_run!r}"
+        )
+
     if cli_has_inputs:
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
+        topics = cli_topics
     else:
         product_ids = yaml_config.get("product_ids", []) or []
         keywords = yaml_keywords
+        # Without this the tutorial arm could only enter a run by being typed
+        # on that day's command line, so the repeatable path -- the one a
+        # scheduled run uses -- produced product renders and nothing else.
+        configured_topics = (
+            specs_from_mappings(yaml_config["topics"], config_path)
+            if yaml_config.get("topics")
+            else []
+        )
+        topics = topics_for_run(configured_topics, topics_per_run)
 
     # Max products (global cap across all keywords)
     max_products = (
@@ -942,7 +1011,8 @@ def load_global_batch_config(
         product_ids=product_ids,
         keywords=keywords,
         keyword_pillar_map=keyword_pillar_map,
-        topics=cli_topics,
+        topics=topics,
+        topics_per_run=topics_per_run,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,
@@ -998,11 +1068,58 @@ def topic_capable_profiles(video_config: VideoConfig) -> list[str]:
     )
 
 
+def _run_has_product_records(config: GlobalBatchConfig) -> bool:
+    """Whether this run renders scraped products as well as topics.
+
+    On a resume the answer comes from the saved state rather than from the
+    inputs: `keywords` is inherited from the config whatever the run is
+    resuming, and the completed scraping phase already ignored it, so reading
+    it here would call every resumed topics run "mixed" and stop narrowing its
+    profile pool.
+    """
+    if config.topics_resume:
+        return config.resume_has_products
+    return bool(config.product_ids or config.keywords)
+
+
 def _validate_topic_profiles(
     config: GlobalBatchConfig, video_config: VideoConfig
 ) -> None:
     """Refuse a topics run that would draw a product-only profile."""
     capable = topic_capable_profiles(video_config)
+
+    if not capable:
+        raise ValueError(
+            "No configured profile can render a topic: none source stock "
+            "media. Add one, or pass --profile explicitly."
+        )
+
+    # A run carrying both kinds of record cannot narrow the shared pool: the
+    # products in it need the product profiles. The two pools coexist instead,
+    # and the production loop picks by record. A fixed profile has no such
+    # escape -- one name cannot serve both -- so it is refused rather than
+    # quietly applied to the products and ignored for the topics.
+    if _run_has_product_records(config):
+        if config.profile and config.profile not in capable:
+            raise ValueError(
+                f"Profile '{config.profile}' draws no stock media, so it "
+                "cannot render the topics in this run, and one fixed profile "
+                "cannot serve both kinds of record.\n"
+                "Drop --profile to let each record pick its own, or set "
+                "topics_per_run: 0 to run products alone.\n"
+                f"Profiles that can render a topic: {', '.join(capable)}"
+            )
+        config.topic_profile_pool = capable
+        # The products still need a pool of their own. Left unset with no
+        # fixed profile there is nothing to select from, so say what a run
+        # carrying two kinds of record means: each picks from its own pool.
+        # The generic block below fills `profile_pool` with the product
+        # profiles.
+        if not config.profile:
+            config.random_profile = True
+        return
+
+    config.topic_profile_pool = capable
 
     if config.profile:
         if config.profile not in capable:
@@ -1029,11 +1146,6 @@ def _validate_topic_profiles(
     # No profile named at all. The default pool is built from the product
     # profiles, every one of which fails on a topic, so fill it here instead
     # of letting the run pick one and die in `gather_visuals`.
-    if not capable:
-        raise ValueError(
-            "No configured profile can render a topic: none source stock "
-            "media. Add one, or pass --profile explicitly."
-        )
     config.random_profile = True
     config.profile_pool = capable
 
@@ -1081,30 +1193,23 @@ def validate_global_batch_config(
     # input the operator asked for.
     is_topics_run = bool(config.topics) or config.topics_resume
 
-    if is_topics_run and config.process_all_products:
+    # Only on a topics-ONLY run. That is the one that narrows the shared pool;
+    # a mixed run keeps the product pool for products, so sweeping in an old
+    # product directory renders it the way it would have been rendered anyway.
+    topics_only = is_topics_run and not _run_has_product_records(config)
+    if topics_only and config.process_all_products:
         raise ValueError(
-            "Cannot combine topics with --process-all-products. A topics run "
-            "narrows its profile pool to stock-sourced profiles, which draw "
-            "no product imagery, so every scraped product swept in would be "
-            "rendered from generic stock footage and published."
+            "Cannot combine topics with --process-all-products. A topics-only "
+            "run narrows its profile pool to stock-sourced profiles, which "
+            "draw no product imagery, so every scraped product swept in would "
+            "be rendered from generic stock footage and published."
         )
 
-    # Keyed on `topics` rather than `is_topics_run`: a resume inherits the
-    # YAML keywords whatever it is resuming, and they were already unused by
-    # the completed scraping phase, so refusing them would break every topics
-    # resume. Only inputs named alongside a topic on one command line are a
-    # contradiction worth reporting.
-    if config.topics and (config.product_ids or config.keywords):
-        also = []
-        if config.product_ids:
-            also.append("--product-ids")
-        if config.keywords:
-            also.append("--keywords")
-        raise ValueError(
-            f"Cannot combine topics with {' and '.join(also)}. A topic run "
-            "skips scraping entirely, so those inputs would be ignored.\n"
-            "Run them as separate batches."
-        )
+    # Topics and products used to be refused together, because a topic run
+    # replaced the scraping phase outright and the scraped inputs were
+    # silently discarded. Both phases now run, so the combination is the
+    # supported mix rather than a contradiction -- and it has to be, since a
+    # no-flag run reads both from the same config file.
 
     # Validate profile configuration
     if config.profile and config.random_profile:

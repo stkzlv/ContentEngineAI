@@ -385,29 +385,57 @@ Examples:
 _RUN_DIR_PATTERN = re.compile(r"^([A-Z0-9]{10}|TEST[A-Z0-9]+|topic-[a-z0-9-]+)$")
 
 
-def _is_resuming_topics(config: "GlobalBatchConfig") -> bool:
-    """Whether this `--resume` is picking up a topics run.
+def resumed_record_kinds(config: "GlobalBatchConfig") -> tuple[bool, bool]:
+    """What kinds of record a `--resume` is picking up: (topics, products).
 
     Topics are not persisted: the identifier carries a one-way digest of the
-    title, so the specs cannot be read back out of the state. The ids can,
-    and they are enough, because topics are exclusive with scraper inputs --
-    a state whose completed products are topics was a topics run entire.
+    title, so the specs cannot be read back out of the state. The ids can, and
+    the prefix tells the two kinds apart.
+
+    Both halves are needed, not just the first. A run can carry topics and
+    scraped products together, and the config's own `keywords` cannot settle it
+    -- a resume inherits the configured keywords whatever it is resuming, and
+    the completed scraping phase already ignored them. Reading the state is the
+    only way to know whether this resume has products in it.
 
     Separated from `main` so it can be tested. Left inline it was the one
     piece of this feature no test touched, and deleting it left the suite
     green while every resumed topic rendered under a product profile.
     """
     if not config.resume or config.topics:
-        return False
+        return (False, False)
     from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
     saved = load_pipeline_state(config.outputs_dir)
     if saved is None:
-        return False
-    return any(
-        pid.startswith(TOPIC_ID_PREFIX)
-        for pid in (saved.scraping_completed_products or [])
-    )
+        return (False, False)
+
+    ids = saved.scraping_completed_products or []
+    topics = any(pid.startswith(TOPIC_ID_PREFIX) for pid in ids)
+    products = any(not pid.startswith(TOPIC_ID_PREFIX) for pid in ids)
+    return (topics, products)
+
+
+def apply_resume_record_kinds(config: "GlobalBatchConfig") -> None:
+    """Stamp what a `--resume` is picking up onto the config.
+
+    Both flags, not just the first. `topics_resume` narrows the profile pool
+    to stock-sourced profiles, and `resume_has_products` is what stops that
+    narrowing on a resume that also carries scraped products -- which would
+    otherwise render them from generic footage, ignoring the photography
+    scraped for them.
+
+    A function rather than two lines in `main` so the values can be tested.
+    Inline, the only reachable guard was an AST check that an assignment
+    existed, which passes just as well when the assignment is a constant.
+    """
+    resuming_topics, resuming_products = resumed_record_kinds(config)
+    if not resuming_topics:
+        return
+
+    logger.info("Resuming a topics run (recognised from saved state)")
+    config.topics_resume = True
+    config.resume_has_products = resuming_products
 
 
 def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
@@ -417,14 +445,23 @@ def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
     the unnamed branch below, which removes every run directory in `outputs/`.
     A `--topic X --clean` run would delete every scraped product the machine
     held, along with any rendered-but-unpublished video in them.
+
+    Keywords name nothing: which products they produce is not known until the
+    search runs, so a run carrying them is a sweep and the answer is the empty
+    list. That has to be checked first, and both other kinds have to be
+    unioned. Returning the first non-empty kind meant a run with a topic and
+    keywords -- which the bundled config now produces with no flags at all --
+    named only the topic, and `--clean` silently spared every product
+    directory the operator asked it to remove.
     """
     from src.video.producer.topic_input import topic_product_id
 
-    if config.product_ids:
-        return list(config.product_ids)
-    if config.topics:
-        return [topic_product_id(spec.title) for spec in config.topics]
-    return []
+    if config.keywords:
+        return []
+
+    named = list(config.product_ids)
+    named += [topic_product_id(spec.title) for spec in config.topics]
+    return named
 
 
 def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
@@ -448,6 +485,38 @@ def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Pat
         item
         for item in outputs_dir.iterdir()
         if item.is_dir() and _RUN_DIR_PATTERN.match(item.name)
+    )
+
+
+def _merge_scraping_summaries(
+    *summaries: ScrapingPhaseSummary | None,
+) -> ScrapingPhaseSummary:
+    """Fold the topic and scrape phases into the one summary the state holds.
+
+    Both write into the same directory shape and both feed the same handoff, so
+    downstream reads one list of prepared ids. Reported as a single phase
+    because that is what resume, the saved state and the phase summaries
+    already understand.
+
+    Duration is summed rather than maxed: the phases run one after the other.
+    """
+    present = [s for s in summaries if s is not None]
+    if len(present) == 1:
+        return present[0]
+
+    media: dict[str, int] = {}
+    for summary in present:
+        for key, value in summary.media_stats.items():
+            media[key] = media.get(key, 0) + value
+
+    return ScrapingPhaseSummary(
+        total_attempted=sum(s.total_attempted for s in present),
+        successful=sum(s.successful for s in present),
+        failed=sum(s.failed for s in present),
+        successful_products=[p for s in present for p in s.successful_products],
+        failed_products=[p for s in present for p in s.failed_products],
+        media_stats=media,
+        duration_sec=sum(s.duration_sec for s in present),
     )
 
 
@@ -654,8 +723,15 @@ class GlobalPipelineOrchestrator:
         # on the config -- reading only `topics` printed a full keyword plan
         # for a run that would render the saved topic and search for nothing.
         resumed_ids = self._resumed_topic_ids()
-        is_topics_run = bool(self.config.topics) or bool(resumed_ids)
-        if is_topics_run:
+        has_topics = bool(self.config.topics) or bool(resumed_ids)
+        # A mixed run does both, so only a run with nothing to scrape may
+        # suppress the scraping half. Suppressing it on a mixed run hides work
+        # the run will do -- the same defect as printing work it would
+        # discard, in the other direction.
+        topics_only = has_topics and not (
+            self.config.keywords or self.config.product_ids
+        )
+        if has_topics:
             # Named as skipped rather than omitted: a plan that simply prints
             # nothing under SCRAPING reads as a misconfigured run.
             named = [spec.title for spec in self.config.topics] or resumed_ids
@@ -665,17 +741,17 @@ class GlobalPipelineOrchestrator:
             if len(named) > 10:
                 print(f"    ... and {len(named) - 10} more")
 
-        # Everything below describes scraping, which a topic run does not do.
-        # Printing it anyway promised work the run would discard, which is the
-        # one thing the plan exists to rule out.
-        if self.config.product_ids and not is_topics_run:
+        # Everything below describes scraping, which a topics-only run does
+        # not do. Printing it anyway promised work the run would discard,
+        # which is the one thing the plan exists to rule out.
+        if self.config.product_ids and not topics_only:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
             for pid in self.config.product_ids[:10]:  # Show first 10
                 print(f"    - {pid}")
             if len(self.config.product_ids) > 10:
                 print(f"    ... and {len(self.config.product_ids) - 10} more")
 
-        if self.config.keywords and not is_topics_run:
+        if self.config.keywords and not topics_only:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
                 kw_limit = self.config.products_per_keyword
@@ -696,7 +772,7 @@ class GlobalPipelineOrchestrator:
         if filters.prime_only:
             active_filters.append("prime_only=true")
 
-        if not is_topics_run:
+        if not topics_only:
             # Scraper filters, so meaningless on a run that scrapes nothing.
             if active_filters:
                 print(f"  Filters: {', '.join(active_filters)}")
@@ -751,6 +827,17 @@ class GlobalPipelineOrchestrator:
                 print(f"    - {p}")
             if len(pool) > 5:
                 print(f"    ... and {len(pool) - 5} more")
+
+            # A topic draws from its own pool, so a mixed run has two. Printing
+            # only the product one leaves the plan silent about which profile
+            # the topics in it will actually use.
+            topic_pool = self.config.topic_profile_pool
+            if topic_pool and topic_pool != pool:
+                print(f"  Topic profile pool ({len(topic_pool)} profiles):")
+                for p in topic_pool[:5]:
+                    print(f"    - {p}")
+                if len(topic_pool) > 5:
+                    print(f"    ... and {len(topic_pool) - 5} more")
         else:
             print("  Profile mode: Not configured")
             print("  WARNING: No profile specified - will fail at runtime")
@@ -864,13 +951,21 @@ class GlobalPipelineOrchestrator:
             self.state.advance_phase(PipelinePhase.SCRAPING)
             self._save_state()
 
-            if self.config.topics:
-                # A topic has no listing to scrape. The records are built here
-                # instead, into the same directory shape the scraper writes, so
-                # the handoff and everything after it are unchanged.
-                scraping_summary = self._materialise_topics_phase()
-            else:
-                scraping_summary = await self._execute_scraping_phase()
+            # A topic has no listing to scrape. Its records are built here
+            # instead, into the same directory shape the scraper writes, so the
+            # handoff and everything after it are unchanged. A run can carry
+            # both kinds of input -- that is what a configured `topics:`
+            # section alongside `keywords:` produces -- so this is two phases
+            # that both may run, not a choice between them.
+            topic_summary = (
+                self._materialise_topics_phase() if self.config.topics else None
+            )
+            scrape_summary = (
+                await self._execute_scraping_phase()
+                if (self.config.keywords or self.config.product_ids)
+                else None
+            )
+            scraping_summary = _merge_scraping_summaries(topic_summary, scrape_summary)
 
             # Update state with scraping results
             self.state.scraping_completed_products = (
@@ -1481,14 +1576,24 @@ class GlobalPipelineOrchestrator:
             for idx, (_product_dir, product) in enumerate(products, 1):
                 product_id = product.asin or product.title or f"product_{idx}"
 
-                # Select profile for this product
+                # Select profile for this product. A topic draws from its own
+                # pool: it has no product photography, so a profile that
+                # sources only scraped media gathers nothing and the render
+                # fails outright. On a topics-only run the two pools are the
+                # same list; on a mixed run they are close to complements.
+                is_topic = bool(getattr(product, "topic", None))
+                pool = (
+                    self.config.topic_profile_pool
+                    if is_topic and self.config.topic_profile_pool
+                    else self.config.profile_pool
+                )
                 if self.config.random_profile:
                     # Random profile selection (deterministic by product ID)
-                    assert self.config.profile_pool is not None
+                    assert pool is not None
                     assert profile_tracker is not None
                     current_profile = select_profile_for_product(
                         product_id=product_id,
-                        profile_pool=self.config.profile_pool,
+                        profile_pool=pool,
                         config=config,
                     )
                     profile_tracker.record_usage(current_profile)
@@ -2344,9 +2449,7 @@ async def main():
         # first. Reading it here rather than in the handoff phase keeps one
         # copy of the topic rules and lets the stock-key pre-flight see the
         # pool a topics run will actually draw from.
-        if _is_resuming_topics(config):
-            logger.info("Resuming a topics run (recognised from saved state)")
-            config.topics_resume = True
+        apply_resume_record_kinds(config)
 
         # Validate configuration
         logger.info("Validating configuration...")

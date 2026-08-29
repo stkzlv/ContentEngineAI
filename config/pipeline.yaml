@@ -29,6 +29,37 @@ global_batch:
     utility:
       - "wallet finder"
 
+  # Topics to render without scraping. A topic has no listing, so it produces
+  # a video from a title and a description instead of from product data.
+  #
+  # This is what puts the tutorial arm into the daily cadence: without it a
+  # topic could only enter a run by being typed on that day's command line, so
+  # a run with no input flags -- the repeatable path, and the one a scheduled
+  # run uses -- produced product renders and nothing else.
+  #
+  # Same shape as a `--topics-file`.
+  topics:
+    - title: "Why your wifi keeps dropping"
+      description: "Router placement, channel congestion, 2.4 vs 5GHz bands."
+      keywords: ["wifi router", "home network"]
+    - title: "Your phone battery is not dying as fast as you think"
+      description: "Background refresh, screen brightness, battery health."
+      keywords: ["phone charging", "smartphone battery"]
+
+  # How many of the topics above a run with no input flags includes, alongside
+  # the configured keywords. Topics named on the command line are taken in
+  # full and ignore this.
+  #
+  # Taken in rotation from the date rather than from the top of the list, so a
+  # daily run works through the list instead of re-rendering the first entry
+  # every morning. Interleaving matters beyond variety: comparing the two
+  # content formats fairly needs them mixed through the week rather than run in
+  # blocks, since a block comparison cannot separate the format from whatever
+  # else changed that week.
+  #
+  # 0 = products only.
+  topics_per_run: 1
+
   # Maximum total products to collect across all keywords (global cap)
   # Processing stops when this limit is reached, even if keywords remain
   # Default: 10
