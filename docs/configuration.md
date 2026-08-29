@@ -345,6 +345,13 @@ url_shortener:
     fallback_to_original: true     # On shortener failure, keep canonical URL
 ```
 
+Every block is strict: an unknown key fails at load rather than falling through
+to a default, and a `provider` with no block of its own is refused rather than
+resolving to an empty one. Adding a provider means adding a field to
+`URLShortenerSettings` as well as a section here, which is deliberate -- a
+misspelled section would otherwise configure nothing while the run reported
+shortening as enabled.
+
 ## Core Configuration Sections
 
 <details>
