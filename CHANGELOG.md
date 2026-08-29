@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.84.1] - 2026-08-29
+
+### Fixed
+- The dry-run plan says a topic is "Prepared without scraping" rather than "Skipped". Beside a list of keywords that will be scraped, "skipped" read as if the topic would not be produced at all, which is the one thing the configured mix exists to make visible.
+
 ## [0.84.0] - 2026-08-29
 
 ### Changed
