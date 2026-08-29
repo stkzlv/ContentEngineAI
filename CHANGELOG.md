@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.6] - 2026-08-29
+
+### Changed
+- The README quickstart names the two things it assumed: the optional `pycaps` install that the bundled config's default subtitle engine needs, and the scheduler account that `--platforms` needs before it does anything. Both were documented only in the module guides. Closes #187.
 ## [0.82.5] - 2026-08-29
 
 ### Added
