@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.5] - 2026-08-29
+
+### Added
+- `make test-lowpri` runs the suite inside the same `systemd-run --user --scope` cgroup as the pipeline targets, with the same `MEM_LIMIT` and `NICE_LEVEL` overrides, and takes pytest arguments through `ARGS`. Closes #285.
+
+### Changed
+- `make test-parallel` takes `PYTEST_WORKERS`, defaulting to the previous `auto`. `auto` is one worker per core, so on a 16-core machine it was 16 uncapped pytest processes, and `ci-test` runs the same target.
+
+### Notes
+- The test targets were the only heavy commands with no resource containment. A full run holds the machine for several minutes, and this is the same class of problem the 0.44.0 entry describes for the producer, where an uncontained run let `systemd-oomd` kill unrelated session apps.
+- `test-lowpri` resolves the interpreter through `LOWPRI_PYTHON` rather than `poetry run`, for the reason the other lowpri targets do: the scope runs through the user service manager, which does not carry the caller's virtualenv.
 ## [0.82.4] - 2026-08-29
 
 ### Fixed
