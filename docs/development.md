@@ -353,7 +353,18 @@ stock_media_settings:
 ```bash
 make test          # Run all tests
 make test-cov      # Run tests with coverage report
-make test-parallel # Run tests in parallel
+make test-parallel # Run tests in parallel (PYTEST_WORKERS=4 to bound the workers)
+make test-lowpri   # Run tests under a memory cap and low priority
+```
+
+`test-parallel` defaults to one worker per core with no memory cap, which makes
+the machine unpleasant to use while a full run is in flight. `test-lowpri` wraps
+pytest in the same `systemd-run --user --scope` cgroup the pipeline targets use,
+with the same `MEM_LIMIT` and `NICE_LEVEL` overrides, and takes pytest arguments
+through `ARGS`:
+
+```bash
+make test-lowpri ARGS="tests/publisher -q" MEM_LIMIT=4G NICE_LEVEL=19
 ```
 
 ## Usage Examples

@@ -64,7 +64,7 @@ The scraper and the producer are the heavy commands. The producer pipeline peaks
 
 **Rule: full scrape and full produce ALWAYS go through `make scrape-lowpri` / `make produce-lowpri` (or `make batch-lowpri` for the global pipeline).** These targets wrap the command in a `systemd-run --user --scope` cgroup with `MEM_LIMIT` (default 6G) + `nice` (default 15) + `MemorySwapMax=0`. Tune via `MEM_LIMIT=4G NICE_LEVEL=19` when thrashing. `nice`/`ionice` are CPU/IO priority only and do nothing for OOM; `MemoryMax` + `MemorySwapMax=0` are what contain a memory blow-up to the pipeline cgroup instead of letting it (or systemd-oomd) kill unrelated session apps. The bare `poetry run python -m src.scraper.amazon.scraper` and `poetry run python -m src.video.producer` forms are reserved for:
 
-- Unit tests / pytest runs (no full render).
+- A targeted pytest run (a file or a directory, no full render). The **full suite** is not exempt: it holds the machine for several minutes, and `make test-parallel` is one uncapped worker per core, so use `make test-lowpri` (`ARGS=` takes pytest arguments) or bound the workers with `make test-parallel PYTEST_WORKERS=4`.
 - Single-step debug runs that pass `--step <name>` and skip the heavy steps.
 - Dry runs (`--dry-run`).
 - One-second invocations that just print help or load config.

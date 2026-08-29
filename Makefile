@@ -19,6 +19,7 @@ NC := \033[0m # No Color
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
 	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri analytics \
+	test-parallel test-lowpri \
 	print-python install-analytics-timer uninstall-analytics-timer analytics-timer-status
 
 # Default target
@@ -47,7 +48,8 @@ help:
 	@echo "$(GREEN)Testing:$(NC)"
 	@echo "  test          - Run tests"
 	@echo "  test-cov      - Run tests with coverage report"
-	@echo "  test-parallel - Run tests in parallel"
+	@echo "  test-parallel - Run tests in parallel (PYTEST_WORKERS=N to bound)"
+	@echo "  test-lowpri   - Run tests under a memory cap and low priority"
 	@echo ""
 	@echo "$(GREEN)Build and Package:$(NC)"
 	@echo "  build         - Build the package"
@@ -202,10 +204,15 @@ test-cov:
 	@poetry run pytest --cov=src --cov-report=html:outputs/coverage --cov-report=term-missing || { echo "$(RED)Tests with coverage failed$(NC)"; exit 1; }
 	@echo "$(GREEN)Tests with coverage completed!$(NC)"
 
+# `auto` is one worker per core, which on a 16-core box is 16 uncapped pytest
+# processes. Overridable so a developer sharing the machine can bound it:
+# `make test-parallel PYTEST_WORKERS=4`.
+PYTEST_WORKERS ?= auto
+
 test-parallel:
-	@echo "$(BLUE)Running tests in parallel...$(NC)"
+	@echo "$(BLUE)Running tests in parallel ($(PYTEST_WORKERS) workers)...$(NC)"
 	@poetry run python -c "import pytest_xdist" 2>/dev/null || { echo "$(RED)Error: pytest-xdist plugin not installed. Run 'poetry install' or use 'make test'$(NC)"; exit 1; }
-	poetry run pytest -n auto
+	poetry run pytest -n $(PYTEST_WORKERS)
 	@echo "$(GREEN)Parallel tests completed!$(NC)"
 
 # Build and package
@@ -442,6 +449,22 @@ MEM_LIMIT := 6G
 # no usable candidate even though the project's own interpreter is installed.
 # Lazily assigned (=) so it only runs when a *-lowpri recipe needs it.
 LOWPRI_PYTHON = $(shell for p in "$$HOME/.pyenv/versions/$$(cat .python-version 2>/dev/null)/bin/python" "$$VIRTUAL_ENV/bin/python" "$$(python3 -c 'import sys;print(sys.executable)' 2>/dev/null)" "$$(poetry env info -p 2>/dev/null)/bin/python"; do [ -x "$$p" ] && "$$p" -c 'import yaml' >/dev/null 2>&1 && { echo "$$p"; break; }; done)
+
+test-lowpri: ## Run the test suite under the lowpri cgroup (ARGS="tests/publisher")
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Running tests with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m pytest $(ARGS); \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		echo "$(BLUE)Running tests with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			"$$PY" -m pytest $(ARGS); \
+	fi
 
 batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 	poetry run python -m src.pipeline.global_batch $(ARGS)
