@@ -295,7 +295,7 @@ poetry run python -m src.video.producer data.json profile --subtitle-format srt
 
 Rich format supporting:
 - **Styling**: Fonts, colors, outlines, shadows
-- **Effects**: Karaoke, fade, typewriter, movement
+- **Effects**: Karaoke, fade, typewriter
 - **Positioning**: Precise pixel placement, animations
 
 ```bash
@@ -314,7 +314,7 @@ poetry run python -m src.video.producer data.json profile \
 | `minimal` | Clean, no animations | None |
 | `modern` | Subtle styling | Fade only |
 | `bold` | Strong visual presence | Glow, fade |
-| `animated` | Full animation suite | Karaoke, movement, pulse |
+| `animated` | Strongest of the presets | Karaoke |
 | `random` | Random effect per video | Varies |
 
 ---
@@ -340,10 +340,6 @@ Smooth fade in/out transitions. Uses `\fad(in,out)` timing in milliseconds.
 ### Typewriter
 
 Character-by-character reveal effect. Uses alpha transparency transitions.
-
-### Movement
-
-Subtitles slide into position. Uses `\move(x1,y1,x2,y2)` for animated positioning.
 
 ### Scale Pulse
 

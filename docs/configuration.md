@@ -254,11 +254,11 @@ style_presets:
     bold: true
   animated:
     font_name: "Gabarito"
-    effects: ["movement"]
+    effects: ["karaoke"]
     bold: true
   random:
     # Randomly selects from available fonts, colors, and single effect
-    effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke", "movement"]
+    effects: ["fade", "scale_pulse", "rotation_bounce", "glow", "typewriter", "karaoke"]
 ```
 
 ### 5. **Performance Configuration** (`config/performance.yaml`)
@@ -639,7 +639,7 @@ subtitle_settings:
 - **`minimal`**: Clean, simple styling with no effects (Arial font)
 - **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold) - **Default**
 - **`bold`**: High contrast styling with fade effect (Gabarito font, bold)
-- **`animated`**: Full animations with movement effect (Gabarito font, bold)
+- **`animated`**: Karaoke highlighting, the strongest of the presets (Gabarito font, bold)
 - **`random`**: Deterministic randomization with product-specific fonts, colors, and single effect from available pool
 
 #### Two-Part Subtitle System
