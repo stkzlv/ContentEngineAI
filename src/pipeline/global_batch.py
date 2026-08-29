@@ -451,6 +451,38 @@ def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Pat
     )
 
 
+def _merge_scraping_summaries(
+    *summaries: ScrapingPhaseSummary | None,
+) -> ScrapingPhaseSummary:
+    """Fold the topic and scrape phases into the one summary the state holds.
+
+    Both write into the same directory shape and both feed the same handoff, so
+    downstream reads one list of prepared ids. Reported as a single phase
+    because that is what resume, the saved state and the phase summaries
+    already understand.
+
+    Duration is summed rather than maxed: the phases run one after the other.
+    """
+    present = [s for s in summaries if s is not None]
+    if len(present) == 1:
+        return present[0]
+
+    media: dict[str, int] = {}
+    for summary in present:
+        for key, value in summary.media_stats.items():
+            media[key] = media.get(key, 0) + value
+
+    return ScrapingPhaseSummary(
+        total_attempted=sum(s.total_attempted for s in present),
+        successful=sum(s.successful for s in present),
+        failed=sum(s.failed for s in present),
+        successful_products=[p for s in present for p in s.successful_products],
+        failed_products=[p for s in present for p in s.failed_products],
+        media_stats=media,
+        duration_sec=sum(s.duration_sec for s in present),
+    )
+
+
 class GlobalPipelineOrchestrator:
     """Orchestrates scraping, video production, and publishing phases sequentially.
 
@@ -864,13 +896,21 @@ class GlobalPipelineOrchestrator:
             self.state.advance_phase(PipelinePhase.SCRAPING)
             self._save_state()
 
-            if self.config.topics:
-                # A topic has no listing to scrape. The records are built here
-                # instead, into the same directory shape the scraper writes, so
-                # the handoff and everything after it are unchanged.
-                scraping_summary = self._materialise_topics_phase()
-            else:
-                scraping_summary = await self._execute_scraping_phase()
+            # A topic has no listing to scrape. Its records are built here
+            # instead, into the same directory shape the scraper writes, so the
+            # handoff and everything after it are unchanged. A run can carry
+            # both kinds of input -- that is what a configured `topics:`
+            # section alongside `keywords:` produces -- so this is two phases
+            # that both may run, not a choice between them.
+            topic_summary = (
+                self._materialise_topics_phase() if self.config.topics else None
+            )
+            scrape_summary = (
+                await self._execute_scraping_phase()
+                if (self.config.keywords or self.config.product_ids)
+                else None
+            )
+            scraping_summary = _merge_scraping_summaries(topic_summary, scrape_summary)
 
             # Update state with scraping results
             self.state.scraping_completed_products = (
@@ -1481,14 +1521,24 @@ class GlobalPipelineOrchestrator:
             for idx, (_product_dir, product) in enumerate(products, 1):
                 product_id = product.asin or product.title or f"product_{idx}"
 
-                # Select profile for this product
+                # Select profile for this product. A topic draws from its own
+                # pool: it has no product photography, so a profile that
+                # sources only scraped media gathers nothing and the render
+                # fails outright. On a topics-only run the two pools are the
+                # same list; on a mixed run they are close to complements.
+                is_topic = bool(getattr(product, "topic", None))
+                pool = (
+                    self.config.topic_profile_pool
+                    if is_topic and self.config.topic_profile_pool
+                    else self.config.profile_pool
+                )
                 if self.config.random_profile:
                     # Random profile selection (deterministic by product ID)
-                    assert self.config.profile_pool is not None
+                    assert pool is not None
                     assert profile_tracker is not None
                     current_profile = select_profile_for_product(
                         product_id=product_id,
-                        profile_pool=self.config.profile_pool,
+                        profile_pool=pool,
                         config=config,
                     )
                     profile_tracker.record_usage(current_profile)
