@@ -86,33 +86,51 @@ _REVIEWS_COUNT_SELECTORS = (
 )
 
 
+# A rating is a number, possibly with a comma as the decimal separator on a
+# localised page. Anything else is a different element's text.
+_RATING_VALUE = re.compile(r"\d+(?:[.,]\d+)?$")
+
+
 def _extract_detail_rating(driver) -> str | None:
     """Read the star rating from a product detail page.
 
     The specific hooks come first: `.a-icon-alt` matches every star widget on
     the page, including a review's own rating, so leading with it can read a
     single review instead of the product average.
+
+    The candidate must look like a number. `.a-icon-alt` is unscoped, and the
+    separator is a bare substring, so "Producto de Amazon Renewed" would
+    otherwise be read as a rating of `Producto` -- and a wrong truthy rating is
+    worse than none, because it also suppresses the fallback to the card's.
+
+    `wait=None` because these are page furniture, not something to wait for:
+    the driver's default polls for four seconds per miss, and a listing with no
+    reviews misses every selector here.
     """
     for selector in _RATING_SELECTORS:
-        element = driver.select(selector)
+        element = driver.select(selector, wait=None)
         if not element:
             continue
         text = (element.text or "").strip()
         # "4.5 out of 5 stars", localised as "4,5 de 5 estrellas".
         for separator in (" out of", " de "):
-            if separator in text:
-                return text.split(separator)[0].strip()
+            if separator not in text:
+                continue
+            candidate = text.split(separator)[0].strip()
+            if _RATING_VALUE.match(candidate):
+                return candidate
     return None
 
 
 def _extract_detail_reviews_count(driver) -> str | None:
     """Read the review count from a product detail page.
 
-    Returned as written ("1,234 ratings"), matching the search card, which is
-    the other source of this field.
+    Returned as the page writes it ("1,234 ratings"). This does not match
+    `serp_reviews_count`, which the card path stores digits-only, so a consumer
+    parsing either has to handle both shapes. Nothing reads it numerically yet.
     """
     for selector in _REVIEWS_COUNT_SELECTORS:
-        element = driver.select(selector)
+        element = driver.select(selector, wait=None)
         if element:
             text = (element.text or "").strip()
             if text:

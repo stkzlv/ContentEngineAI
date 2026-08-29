@@ -39,10 +39,11 @@ class ProductData(BaseProductData):
             self.platform = Platform.AMAZON
         if self.asin and (not hasattr(self, "platform_id") or self.platform_id is None):
             self.platform_id = self.asin
-        # The scrape path doesn't populate `rating` from the detail page, so it
-        # arrives empty while the search-results card captured `serp_rating`.
-        # Fall back so consumers (e.g. rating-based product filtering) see a
-        # value. An explicit `rating`, if a caller ever sets one, still wins.
+        # The detail page is read first and supplies `rating` on every arm; the
+        # search-results card is the fallback for a page whose star widget
+        # could not be parsed, which is why this stays conditional. Making it
+        # unconditional would overwrite a correct detail-page rating with the
+        # card's on every keyword scrape.
         if not self.rating and self.serp_rating:
             self.rating = self.serp_rating
 

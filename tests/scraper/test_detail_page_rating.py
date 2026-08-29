@@ -30,7 +30,7 @@ class FakeDriver:
         self.texts = texts
         self.current_url = current_url
 
-    def select(self, selector: str):
+    def select(self, selector: str, wait=None):
         text = self.texts.get(selector)
         return SimpleNamespace(text=text) if text is not None else None
 
@@ -85,6 +85,49 @@ class TestRating:
 
     def test_no_star_widget_is_not_an_error(self):
         assert _extract_detail_rating(FakeDriver({})) is None
+
+    def test_a_non_numeric_candidate_is_rejected(self):
+        """`.a-icon-alt` is unscoped and the separator is a bare substring.
+
+        A wrong truthy rating is worse than none: it also suppresses the
+        fallback to the search card's, so a keyword scrape that had a correct
+        rating would lose it.
+        """
+        driver = FakeDriver({".a-icon-alt": "Producto de Amazon Renewed"})
+
+        assert _extract_detail_rating(driver) is None
+
+    def test_a_non_numeric_candidate_falls_through(self):
+        driver = FakeDriver(
+            {
+                "[data-hook='average-star-rating'] .a-icon-alt": "Bag made de leather",
+                ".a-icon-alt": "4.7 out of 5 stars",
+            }
+        )
+
+        assert _extract_detail_rating(driver) == "4.7"
+
+    def test_the_probes_do_not_wait(self):
+        """The driver polls four seconds per miss by default.
+
+        These read page furniture after the page is already loaded, and a
+        listing with no reviews misses every selector -- which before this
+        would have added twenty seconds to each such product.
+        """
+        seen: list = []
+
+        class RecordingDriver(FakeDriver):
+            def select(self, selector, wait="unset"):
+                seen.append(wait)
+                return super().select(selector)
+
+        driver = RecordingDriver({})
+        _extract_detail_rating(driver)
+        _extract_detail_reviews_count(driver)
+
+        assert seen and all(
+            w is None for w in seen
+        ), f"a probe left the driver's default wait in place: {seen}"
 
 
 class TestReviewsCount:
