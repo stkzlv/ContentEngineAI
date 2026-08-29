@@ -416,6 +416,28 @@ def resumed_record_kinds(config: "GlobalBatchConfig") -> tuple[bool, bool]:
     return (topics, products)
 
 
+def apply_resume_record_kinds(config: "GlobalBatchConfig") -> None:
+    """Stamp what a `--resume` is picking up onto the config.
+
+    Both flags, not just the first. `topics_resume` narrows the profile pool
+    to stock-sourced profiles, and `resume_has_products` is what stops that
+    narrowing on a resume that also carries scraped products -- which would
+    otherwise render them from generic footage, ignoring the photography
+    scraped for them.
+
+    A function rather than two lines in `main` so the values can be tested.
+    Inline, the only reachable guard was an AST check that an assignment
+    existed, which passes just as well when the assignment is a constant.
+    """
+    resuming_topics, resuming_products = resumed_record_kinds(config)
+    if not resuming_topics:
+        return
+
+    logger.info("Resuming a topics run (recognised from saved state)")
+    config.topics_resume = True
+    config.resume_has_products = resuming_products
+
+
 def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
     """The run directories this invocation named, if it named any.
 
@@ -423,14 +445,23 @@ def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
     the unnamed branch below, which removes every run directory in `outputs/`.
     A `--topic X --clean` run would delete every scraped product the machine
     held, along with any rendered-but-unpublished video in them.
+
+    Keywords name nothing: which products they produce is not known until the
+    search runs, so a run carrying them is a sweep and the answer is the empty
+    list. That has to be checked first, and both other kinds have to be
+    unioned. Returning the first non-empty kind meant a run with a topic and
+    keywords -- which the bundled config now produces with no flags at all --
+    named only the topic, and `--clean` silently spared every product
+    directory the operator asked it to remove.
     """
     from src.video.producer.topic_input import topic_product_id
 
-    if config.product_ids:
-        return list(config.product_ids)
-    if config.topics:
-        return [topic_product_id(spec.title) for spec in config.topics]
-    return []
+    if config.keywords:
+        return []
+
+    named = list(config.product_ids)
+    named += [topic_product_id(spec.title) for spec in config.topics]
+    return named
 
 
 def _clean_targets(outputs_dir: Path, product_ids: list[str] | None) -> list[Path]:
@@ -692,8 +723,15 @@ class GlobalPipelineOrchestrator:
         # on the config -- reading only `topics` printed a full keyword plan
         # for a run that would render the saved topic and search for nothing.
         resumed_ids = self._resumed_topic_ids()
-        is_topics_run = bool(self.config.topics) or bool(resumed_ids)
-        if is_topics_run:
+        has_topics = bool(self.config.topics) or bool(resumed_ids)
+        # A mixed run does both, so only a run with nothing to scrape may
+        # suppress the scraping half. Suppressing it on a mixed run hides work
+        # the run will do -- the same defect as printing work it would
+        # discard, in the other direction.
+        topics_only = has_topics and not (
+            self.config.keywords or self.config.product_ids
+        )
+        if has_topics:
             # Named as skipped rather than omitted: a plan that simply prints
             # nothing under SCRAPING reads as a misconfigured run.
             named = [spec.title for spec in self.config.topics] or resumed_ids
@@ -703,17 +741,17 @@ class GlobalPipelineOrchestrator:
             if len(named) > 10:
                 print(f"    ... and {len(named) - 10} more")
 
-        # Everything below describes scraping, which a topic run does not do.
-        # Printing it anyway promised work the run would discard, which is the
-        # one thing the plan exists to rule out.
-        if self.config.product_ids and not is_topics_run:
+        # Everything below describes scraping, which a topics-only run does
+        # not do. Printing it anyway promised work the run would discard,
+        # which is the one thing the plan exists to rule out.
+        if self.config.product_ids and not topics_only:
             print(f"  Product IDs to scrape: {len(self.config.product_ids)}")
             for pid in self.config.product_ids[:10]:  # Show first 10
                 print(f"    - {pid}")
             if len(self.config.product_ids) > 10:
                 print(f"    ... and {len(self.config.product_ids) - 10} more")
 
-        if self.config.keywords and not is_topics_run:
+        if self.config.keywords and not topics_only:
             print(f"  Keywords to search: {len(self.config.keywords)}")
             for kw in self.config.keywords[:5]:  # Show first 5
                 kw_limit = self.config.products_per_keyword
@@ -734,7 +772,7 @@ class GlobalPipelineOrchestrator:
         if filters.prime_only:
             active_filters.append("prime_only=true")
 
-        if not is_topics_run:
+        if not topics_only:
             # Scraper filters, so meaningless on a run that scrapes nothing.
             if active_filters:
                 print(f"  Filters: {', '.join(active_filters)}")
@@ -789,6 +827,17 @@ class GlobalPipelineOrchestrator:
                 print(f"    - {p}")
             if len(pool) > 5:
                 print(f"    ... and {len(pool) - 5} more")
+
+            # A topic draws from its own pool, so a mixed run has two. Printing
+            # only the product one leaves the plan silent about which profile
+            # the topics in it will actually use.
+            topic_pool = self.config.topic_profile_pool
+            if topic_pool and topic_pool != pool:
+                print(f"  Topic profile pool ({len(topic_pool)} profiles):")
+                for p in topic_pool[:5]:
+                    print(f"    - {p}")
+                if len(topic_pool) > 5:
+                    print(f"    ... and {len(topic_pool) - 5} more")
         else:
             print("  Profile mode: Not configured")
             print("  WARNING: No profile specified - will fail at runtime")
@@ -2400,11 +2449,7 @@ async def main():
         # first. Reading it here rather than in the handoff phase keeps one
         # copy of the topic rules and lets the stock-key pre-flight see the
         # pool a topics run will actually draw from.
-        resuming_topics, resuming_products = resumed_record_kinds(config)
-        if resuming_topics:
-            logger.info("Resuming a topics run (recognised from saved state)")
-            config.topics_resume = True
-            config.resume_has_products = resuming_products
+        apply_resume_record_kinds(config)
 
         # Validate configuration
         logger.info("Validating configuration...")

@@ -785,11 +785,10 @@ class TestRecognisingAResumedTopicsRun:
     def test_main_acts_on_it_before_validating(self):
         """The helper having tests is not the guard; the call site is.
 
-        And neither is the call: keeping `resumed_record_kinds(config)` while
-        dropping the assignments it feeds leaves validation blind, and the
-        whole suite green. Both flags must be set *before* validation, since
-        that is what narrows the pool -- and `resume_has_products` is what
-        stops it narrowing on a resume that also carries scraped products.
+        What the call sets is asserted in `test_configured_topics.py` against
+        `apply_resume_record_kinds` itself. This pins only the ordering: the
+        flags must be stamped *before* validation, since that is what reads
+        them to narrow the pool.
         """
         import ast
         from pathlib import Path
@@ -807,22 +806,11 @@ class TestRecognisingAResumedTopicsRun:
         def line_of(pred):
             return next((n.lineno for n in ast.walk(main) if pred(n)), None)
 
-        def assignment_to(attr):
-            return line_of(
-                lambda n: isinstance(n, ast.Assign)
-                and any(
-                    isinstance(tgt, ast.Attribute) and tgt.attr == attr
-                    for tgt in n.targets
-                )
-            )
-
         detect_line = line_of(
             lambda n: isinstance(n, ast.Call)
             and isinstance(n.func, ast.Name)
-            and n.func.id == "resumed_record_kinds"
+            and n.func.id == "apply_resume_record_kinds"
         )
-        resume_line = assignment_to("topics_resume")
-        products_line = assignment_to("resume_has_products")
         validate_line = line_of(
             lambda n: isinstance(n, ast.Call)
             and isinstance(n.func, ast.Name)
@@ -830,12 +818,7 @@ class TestRecognisingAResumedTopicsRun:
         )
 
         assert detect_line, "main no longer inspects the saved state"
-        assert resume_line, "main detects a topics resume and does nothing with it"
-        assert products_line, (
-            "main never records whether the resume also carries products, so "
-            "validation narrows the pool and the resumed products render from "
-            "generic stock footage"
-        )
         assert validate_line, "main no longer validates the config"
-        assert detect_line < resume_line < validate_line
-        assert detect_line < products_line < validate_line
+        assert detect_line < validate_line, (
+            "the resume flags are stamped after validation, which is what " "reads them"
+        )

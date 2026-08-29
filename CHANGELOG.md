@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One fixed `--profile` cannot serve both kinds of record, so a product-only profile on a mixed run is refused rather than applied to the products and quietly swapped for the topics.
 - A resume reads which kinds of record it carries from the saved state, not from `keywords`. A resume inherits the configured keywords whatever it is resuming, and the completed scraping phase already ignored them, so reading them would call every resumed topics run mixed and stop narrowing its pool.
 - CLI inputs still replace the configured set entirely, as they already did for keywords: `--keywords` renders products only and `--topic` renders that topic only.
+- `--clean` now removes the union of the directories a run names, and treats any run carrying a keyword as naming nothing. Returning the first non-empty input kind would have spared every product directory on exactly the no-flag run this feature produces.
+- The dry-run plan shows the scraping half of a mixed run, and names the topic pool alongside the product one. Suppressing them whenever a topic was present hid work the run would do.
+- `topics_per_run` above the configured list length is capped rather than wrapping. Wrapping returned the same topic twice, which renders into one directory but counts as two, and the batch summary then reported a product scraped but never produced.
+
 ## [0.82.7] - 2026-08-29
 
 ### Changed

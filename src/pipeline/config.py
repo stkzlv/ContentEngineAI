@@ -802,9 +802,12 @@ def topics_for_run(
     if day_ordinal is None:
         day_ordinal = date.today().toordinal()
 
+    # Capped at the list length rather than wrapping. Wrapping returned the
+    # same spec twice, and two entries with one title render into one
+    # directory -- so the run wrote one video and counted two, which the
+    # summary then reported as a product scraped but never produced.
+    count = min(count, len(configured))
     start = day_ordinal % len(configured)
-    # Wraps, so a count larger than the list repeats it rather than returning
-    # fewer topics than asked for.
     return [configured[(start + i) % len(configured)] for i in range(count)]
 
 

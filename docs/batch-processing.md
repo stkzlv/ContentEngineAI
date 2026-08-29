@@ -325,6 +325,12 @@ was meant for this run, so it is reported rather than overridden.
 Output lands in `outputs/topic-<slug>-<digest>/`, which `--clean` removes along
 with product directories.
 
+A topics-only run refuses a fixed `--profile` that draws no stock media, and
+replaces a pool inherited from `pipeline.yaml`. A pool named on the command
+line is refused rather than replaced. On a run that also carries products the
+two pools coexist instead, and the CLI pool governs the products; the topics
+draw from the stock-sourced profiles either way.
+
 #### Topics in the daily cadence
 
 A topic named on the command line is a one-off. To make the tutorial arm part
@@ -509,7 +515,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-A run that names its inputs removes only those: `--product-ids` removes those products, and a topics run removes its own topic directories. A run that names none removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
+A run that names its inputs removes only those, and a run carrying both kinds removes both: `--product-ids B0X --topic "Y"` removes `B0X` and the topic's directory. Keywords name nothing -- which products they produce is not known until the search runs -- so a run carrying any keyword, including a no-flag run reading them from the config, removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
 
 **Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 

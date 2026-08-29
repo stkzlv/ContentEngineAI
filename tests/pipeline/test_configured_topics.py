@@ -11,6 +11,7 @@ become part of the cadence.
 from __future__ import annotations
 
 import argparse
+import contextlib
 
 import pytest
 import yaml
@@ -60,13 +61,17 @@ class TestTheRotation:
             "C",
         ]
 
-    def test_the_selection_wraps(self):
-        """A count larger than the list repeats rather than returning fewer.
+    def test_a_count_above_the_list_length_is_capped(self):
+        """Wrapping returned the same spec twice.
 
-        Silently returning three topics for `topics_per_run: 5` would be a run
-        quietly doing less than it was configured to do.
+        Two entries with one title render into one directory, so the run wrote
+        one video and counted two -- and the batch summary then reported a
+        product scraped but never produced.
         """
-        assert len(topics_for_run(self.TOPICS, 5, day_ordinal=0)) == 5
+        picked = topics_for_run(self.TOPICS, 5, day_ordinal=0)
+
+        assert len(picked) == len(self.TOPICS)
+        assert len({t.title for t in picked}) == len(picked)
 
     def test_zero_means_products_only(self):
         assert topics_for_run(self.TOPICS, 0, day_ordinal=10) == []
@@ -233,32 +238,68 @@ class TestTheBundledConfigCarriesBoth:
 
 
 class TestBothPhasesRun:
-    def test_the_orchestrator_does_not_choose_between_them(self):
-        """The topic phase used to replace the scraping phase outright.
+    @pytest.mark.asyncio
+    async def test_a_mixed_run_scrapes_and_materialises(self, tmp_path, monkeypatch):
+        """The branch's central change, driven rather than read.
 
-        Reading it as a choice is what made the two inputs exclusive, and a
-        mixed run would silently render the topics and drop every keyword.
+        An AST check that both method names appear passes on the old `if/else`
+        too, since both appear there as well -- so restoring the exclusive form
+        left the suite green while a mixed run silently dropped every
+        configured keyword.
         """
-        import ast
-        from pathlib import Path
+        from src.pipeline.config import PipelinePhase, ScrapingPhaseSummary
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
 
-        source = Path("src/pipeline/global_batch.py").read_text()
-        tree = ast.parse(source)
-
-        calls = {
-            node.func.attr
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr
-            in {"_materialise_topics_phase", "_execute_scraping_phase"}
-        }
-
-        assert calls == {"_materialise_topics_phase", "_execute_scraping_phase"}
-        assert "_merge_scraping_summaries" in source, (
-            "the two phases run but their summaries are not combined, so the "
-            "saved state records only one of them"
+        config = GlobalBatchConfig(
+            topics=[TopicSpec(title="Why wifi drops")],
+            keywords=["wireless earbuds"],
+            outputs_dir=tmp_path,
+            skip_publish=True,
         )
+        orchestrator = GlobalPipelineOrchestrator(config)
+        called: list[str] = []
+
+        def summary(pid: str) -> ScrapingPhaseSummary:
+            return ScrapingPhaseSummary(
+                total_attempted=1,
+                successful=1,
+                failed=0,
+                successful_products=[pid],
+                failed_products=[],
+                media_stats={},
+                duration_sec=0.0,
+            )
+
+        def fake_topics():
+            called.append("topics")
+            return summary("topic-why-wifi-drops-abc")
+
+        async def fake_scrape():
+            called.append("scrape")
+            return summary("B0ABCDEFGH")
+
+        monkeypatch.setattr(orchestrator, "_materialise_topics_phase", fake_topics)
+        monkeypatch.setattr(orchestrator, "_execute_scraping_phase", fake_scrape)
+        # Stop after the phase under test; the rest needs a browser and a
+        # renderer, and neither says anything about which phases ran.
+        monkeypatch.setattr(
+            orchestrator,
+            "_execute_handoff_phase",
+            lambda ids: (_ for _ in ()).throw(RuntimeError("stop here")),
+        )
+
+        with contextlib.suppress(RuntimeError):
+            await orchestrator.run_pipeline()
+
+        assert called == ["topics", "scrape"], (
+            "a mixed run must do both; a choice between them silently drops "
+            f"one input kind (ran: {called})"
+        )
+        assert orchestrator.state.is_phase_completed(PipelinePhase.SCRAPING)
+        assert sorted(orchestrator.state.scraping_completed_products) == [
+            "B0ABCDEFGH",
+            "topic-why-wifi-drops-abc",
+        ]
 
     def test_the_summaries_are_folded_into_one(self):
         from src.pipeline.config import ScrapingPhaseSummary
@@ -383,3 +424,210 @@ class TestEachRecordDrawsItsOwnProfile:
         )
         assert used["B0ABCDEFGH"] in config.profile_pool
         assert used["B0ABCDEFGH"] not in config.topic_profile_pool
+
+
+class TestAResumedMixedRunKeepsBothPools:
+    """The AST guard checks that `resume_has_products` is assigned, not what.
+
+    Two independent mutations -- `_run_has_product_records` returning False on
+    a resume, and `main` assigning False -- each produced the exact defect its
+    docstring names, with the whole suite green.
+    """
+
+    def _state(self, tmp_path, product_ids):
+        from src.pipeline.config import (
+            PipelineState,
+            save_pipeline_state,
+        )
+
+        state = PipelineState.create_new(GlobalBatchConfig(outputs_dir=tmp_path))
+        state.scraping_completed_products = product_ids
+        save_pipeline_state(state, tmp_path)
+
+    def test_the_product_pool_survives(self, tmp_path, real_video_config):
+        from src.video.producer.topic_input import topic_product_id
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops"), "B0ABCDEFGH"])
+
+        config = GlobalBatchConfig(
+            outputs_dir=tmp_path,
+            resume=True,
+            keywords=["wireless earbuds"],
+            topics_resume=True,
+            resume_has_products=True,
+            skip_publish=True,
+        )
+        validate_global_batch_config(config, real_video_config)
+
+        assert "slideshow_images1" in config.profile_pool, (
+            "the resumed scraped products would render from generic stock "
+            "footage, ignoring the photography scraped for them"
+        )
+        assert config.topic_profile_pool == ["slideshow_stock"]
+
+    def test_a_topics_only_resume_still_narrows(self, tmp_path, real_video_config):
+        """The opposite direction, so the fix cannot be a blanket widening."""
+        from src.video.producer.topic_input import topic_product_id
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops")])
+
+        config = GlobalBatchConfig(
+            outputs_dir=tmp_path,
+            resume=True,
+            keywords=["wireless earbuds"],
+            topics_resume=True,
+            resume_has_products=False,
+            skip_publish=True,
+        )
+        validate_global_batch_config(config, real_video_config)
+
+        assert config.profile_pool == ["slideshow_stock"]
+
+    def test_both_flags_are_stamped_from_the_state(self, tmp_path):
+        """`resume_has_products` has to come from the state, not the config.
+
+        A resume inherits the configured keywords whatever it is resuming, and
+        the completed scraping phase already ignored them. Asserted on the
+        function `main` calls, because an AST check that an assignment exists
+        passes just as well when the assignment is a constant.
+        """
+        from src.pipeline.global_batch import apply_resume_record_kinds
+        from src.video.producer.topic_input import topic_product_id
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops"), "B0ABCDEFGH"])
+        config = GlobalBatchConfig(
+            outputs_dir=tmp_path, resume=True, keywords=["wireless earbuds"]
+        )
+
+        apply_resume_record_kinds(config)
+
+        assert config.topics_resume is True
+        assert config.resume_has_products is True
+
+    def test_a_topics_only_state_leaves_the_products_flag_off(self, tmp_path):
+        from src.pipeline.global_batch import apply_resume_record_kinds
+        from src.video.producer.topic_input import topic_product_id
+
+        self._state(tmp_path, [topic_product_id("Why wifi drops")])
+        config = GlobalBatchConfig(
+            outputs_dir=tmp_path, resume=True, keywords=["wireless earbuds"]
+        )
+
+        apply_resume_record_kinds(config)
+
+        assert config.topics_resume is True
+        assert config.resume_has_products is False
+
+
+class TestCleanOnAMixedRun:
+    """`--clean` narrows the sweep to the ids a run names.
+
+    Returning the first non-empty input kind meant a run carrying a topic and
+    keywords -- which the bundled config now produces with no flags at all --
+    named only the topic, and every product directory the operator asked to
+    remove survived.
+    """
+
+    def test_keywords_name_nothing_so_the_sweep_is_unnarrowed(self):
+        from src.pipeline.global_batch import _named_run_ids
+
+        assert (
+            _named_run_ids(
+                GlobalBatchConfig(
+                    keywords=["wireless earbuds"],
+                    topics=[TopicSpec(title="Why wifi drops")],
+                )
+            )
+            == []
+        )
+
+    def test_ids_and_topics_are_unioned(self):
+        from src.pipeline.global_batch import _named_run_ids
+        from src.video.producer.topic_input import topic_product_id
+
+        named = _named_run_ids(
+            GlobalBatchConfig(
+                product_ids=["B0ABCDEFGH"],
+                topics=[TopicSpec(title="Why wifi drops")],
+            )
+        )
+
+        assert named == ["B0ABCDEFGH", topic_product_id("Why wifi drops")]
+
+    def test_a_topics_only_run_still_names_its_topics(self):
+        from src.pipeline.global_batch import _named_run_ids
+        from src.video.producer.topic_input import topic_product_id
+
+        assert _named_run_ids(
+            GlobalBatchConfig(topics=[TopicSpec(title="Why wifi drops")])
+        ) == [topic_product_id("Why wifi drops")]
+
+
+class TestTheDryRunPlanShowsBothHalves:
+    """The plan exists to rule out a run doing something other than it says.
+
+    Suppressing the scraping half whenever a topic is present hid work a mixed
+    run will do -- the same defect as printing work it would discard, in the
+    other direction.
+    """
+
+    def _plan(self, config, real_video_config, capsys):
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        validate_global_batch_config(config, real_video_config)
+        GlobalPipelineOrchestrator(config).display_execution_plan(real_video_config)
+        return capsys.readouterr().out
+
+    def test_a_mixed_run_lists_its_keywords(self, tmp_path, real_video_config, capsys):
+        out = self._plan(
+            GlobalBatchConfig(
+                topics=[TopicSpec(title="Why wifi drops")],
+                keywords=["wireless earbuds"],
+                outputs_dir=tmp_path,
+                skip_publish=True,
+            ),
+            real_video_config,
+            capsys,
+        )
+
+        assert "wireless earbuds" in out, (
+            "the plan promises a run that scrapes nothing while the run "
+            "scrapes every configured keyword"
+        )
+        assert "Why wifi drops" in out
+
+    def test_a_mixed_run_names_the_topic_pool(
+        self, tmp_path, real_video_config, capsys
+    ):
+        """Two pools, so printing one leaves the plan silent about the other."""
+        out = self._plan(
+            GlobalBatchConfig(
+                topics=[TopicSpec(title="Why wifi drops")],
+                keywords=["wireless earbuds"],
+                outputs_dir=tmp_path,
+                skip_publish=True,
+            ),
+            real_video_config,
+            capsys,
+        )
+
+        assert "Topic profile pool" in out
+        assert "slideshow_stock" in out
+
+    def test_a_topics_only_run_still_hides_the_scraping_half(
+        self, tmp_path, real_video_config, capsys
+    ):
+        """The original defect, in its original direction."""
+        out = self._plan(
+            GlobalBatchConfig(
+                topics=[TopicSpec(title="Why wifi drops")],
+                outputs_dir=tmp_path,
+                skip_publish=True,
+            ),
+            real_video_config,
+            capsys,
+        )
+
+        assert "nothing to scrape" in out
+        assert "Keywords to search" not in out
+        assert "Filters:" not in out
