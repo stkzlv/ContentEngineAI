@@ -35,7 +35,7 @@ Both the standalone scraper and the global batch pipeline accept these flags.
 | `--product-ids` | ASINs or URLs for direct scraping | `--product-ids B0123... B0456...` |
 | `--max-products` | Global cap on total products | `--max-products 10` |
 | `--products-per-keyword` | Max products per keyword | `--products-per-keyword 2` |
-| `--fail-fast` | Stop batch on first error | `--fail-fast` |
+| `--fail-fast` / `--no-fail-fast` | Stop batch on first error. Omitted, `batch.fail_fast` in the config decides | `--fail-fast` |
 | `--strict` | Exit non-zero when any product or keyword produced nothing | `--strict` |
 | `--clean` | Delete output dir before scraping | `--clean` |
 | `--input-file` | Read product IDs/URLs from file | `--input-file products.txt` |

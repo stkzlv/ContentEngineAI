@@ -884,7 +884,15 @@ async def cmd_schedule_auto(
             return
 
         schedule_mgr = ScheduleManager(config=config.schedule_config)
-        cleanup_config = None if args.no_cleanup else config.cleanup_config
+        # `--no-cleanup` says "do not clean up", which is not the same as
+        # "no config supplied". `auto_schedule` reads `None` as the latter and
+        # substitutes a default `CleanupConfig()` whose `enabled` is True, so
+        # the flag was a no-op and a scheduled run cleaned up anyway.
+        cleanup_config = (
+            replace(config.cleanup_config, enabled=False)
+            if args.no_cleanup
+            else config.cleanup_config
+        )
 
         summary = await schedule_mgr.auto_schedule(
             videos=unpublished_videos,

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.1] - 2026-08-30
+
+### Fixed
+- `batch.fail_fast` in `config/scraper.yaml` is reachable again. `--fail-fast` was `action="store_true"`, so an omitted flag arrived as `False`, and the loader resolves it with `cli_fail_fast if cli_fail_fast is not None` -- a supplied `False` always beat the configured value. The flag is now a paired `--fail-fast` / `--no-fail-fast` defaulting to `None`. Closes #309.
+- `schedule --no-cleanup` no longer cleans up. The flag was expressed by passing `cleanup_config=None`, which `auto_schedule` reads as "the caller supplied nothing" and answers with a default `CleanupConfig()` whose `enabled` is True. It now passes a config with `enabled=False`. Closes #311.
+
+### Notes
+- Both are the collision fixed in 0.82.1 for `--product-ids`: a not-supplied sentinel meeting a value that is falsy but deliberate. Neither logged anything, so a user who set `fail_fast: true` got a run that kept going and a user who passed `--no-cleanup` got their directories deleted.
+- The pairing is not decoration. With `default=None` a `store_true` flag can only produce True or unset, so a user who configured `fail_fast: true` would have had no way to ask for continue-on-error on a single run.
+- The scraper's argparse setup moves into `build_argument_parser`. What an omitted flag resolves to is a property of the parser rather than of any one run, and inline in `main` there was nothing a test could read. A sweep test now fails if any argument the loader resolves with that sentinel defaults to `False`, which catches the next instance rather than these two.
+
 ## [0.85.0] - 2026-08-29
 
 ### Removed

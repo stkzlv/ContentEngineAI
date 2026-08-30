@@ -5,6 +5,7 @@ This module provides advanced web scraping capabilities for Amazon products usin
 the Botasaurus framework with built-in anti-detection and performance optimization.
 """
 
+import argparse
 import logging
 import shutil
 import warnings
@@ -1297,19 +1298,15 @@ class BotasaurusAmazonScraper(BaseScraper):
         self.cleanup()
 
 
-def main():
-    """Command-line interface for the Botasaurus Amazon scraper"""
-    import argparse
+def build_argument_parser() -> argparse.ArgumentParser:
+    """The scraper CLI parser.
 
-    # Load .env BEFORE anything reads env vars. Without this, AMAZON_ASSOCIATE_TAG
-    # (and any other secret in .env) is invisible to build_affiliate_url, which
-    # silently falls back to returning the input URL unchanged: untagged
-    # affiliate links end up in data.json. The global batch entry point in
-    # src/pipeline/global_batch.py loads .env the same way for the same reason.
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
+    Extracted from `main` so a test can read what an omitted flag
+    resolves to. `load_batch_config` resolves several arguments with an
+    `is not None` sentinel, so a flag defaulting to a falsy value rather
+    than to `None` makes the configured value unreachable -- and that is
+    a property of the parser, not of any one run.
+    """
     parser = argparse.ArgumentParser(
         description="Botasaurus Amazon Scraper for ContentEngineAI"
     )
@@ -1355,10 +1352,22 @@ def main():
     )
     parser.add_argument(
         "--fail-fast",
-        action="store_true",
+        # `BooleanOptionalAction` with `default=None`, not `store_true`. The
+        # loader resolves this with `cli_fail_fast if cli_fail_fast is not
+        # None`, so an omitted `store_true` flag arriving as False was
+        # indistinguishable from one passed deliberately, and
+        # `batch.fail_fast` in the YAML could never win. Same collision as the
+        # chunked-keywords defect: a not-supplied sentinel meeting a supplied
+        # value.
+        #
+        # The paired form matters once the default is None: `store_true` can
+        # then only produce True or "unset", leaving a user who configured
+        # `fail_fast: true` no way to ask for continue-on-error for one run.
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Stop batch processing on first failure "
-            "(default: continue processing remaining items)"
+            "(default: batch.fail_fast in config/scraper.yaml, else continue)"
         ),
     )
     parser.add_argument(
@@ -1481,6 +1490,22 @@ def main():
         metavar="DIR",
         help='Override output directory (default: "outputs" from config)',
     )
+
+    return parser
+
+
+def main():
+    """Command-line interface for the Botasaurus Amazon scraper"""
+    # Load .env BEFORE anything reads env vars. Without this, AMAZON_ASSOCIATE_TAG
+    # (and any other secret in .env) is invisible to build_affiliate_url, which
+    # silently falls back to returning the input URL unchanged: untagged
+    # affiliate links end up in data.json. The global batch entry point in
+    # src/pipeline/global_batch.py loads .env the same way for the same reason.
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    parser = build_argument_parser()
 
     args = parser.parse_args()
 
