@@ -203,11 +203,42 @@ class TestTheMarkerMeansARunStarted:
             "publisher and batch invocation logs a scrape that never happened"
         )
 
-    def test_the_scraper_marks_its_own_run(self):
-        """Suppressing at import is only correct if the run marks itself."""
-        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+    def test_the_scraper_marks_its_own_run_after_parsing(self):
+        """Suppressing at import is only correct if the run marks itself.
 
-        assert "=== AmazonScraper run starting ===" in source, (
-            "the import-time marker was suppressed and nothing replaced it, "
-            "so a real scrape now has no boundary at all"
+        Located structurally, not by searching the file for the string. A
+        plain substring check passes when the literal survives only in a
+        comment, and passes again when the marker is moved back to module
+        scope -- which is the exact defect the gating exists to remove. Both
+        mutations were tried and both slipped through the substring form.
+        """
+        import ast
+
+        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        main = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "main"
+        )
+
+        def index_of(predicate) -> int | None:
+            for position, statement in enumerate(main.body):
+                if predicate(ast.dump(statement)):
+                    return position
+            return None
+
+        parsed_at = index_of(lambda dumped: "parse_args" in dumped)
+        marked_at = index_of(
+            lambda dumped: "=== AmazonScraper run starting ===" in dumped
+        )
+
+        assert parsed_at is not None, "main() no longer parses arguments"
+        assert marked_at is not None, (
+            "main() does not log the run marker, so with the import-time one "
+            "suppressed a real scrape has no boundary at all"
+        )
+        assert marked_at > parsed_at, (
+            "the marker runs before argument parsing, so `--help` and an "
+            "argparse error write a marker for a run that never started"
         )

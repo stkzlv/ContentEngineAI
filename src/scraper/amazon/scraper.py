@@ -1514,8 +1514,11 @@ def main():
     args = parser.parse_args()
 
     # Written here rather than by `setup_debug_logging`, which this module
-    # calls at import: only a real scrape reaches this line, and `--help`
-    # exits inside `parse_args` above without writing one.
+    # calls at import and so reaches every producer, publisher and batch
+    # invocation. This marks an invoked run, not a completed scrape -- a
+    # missing `--input-file` or no inputs at all still returns below, after
+    # the marker and followed by its own error. `--help` and an argparse
+    # error exit inside `parse_args` above and write nothing.
     logging.getLogger("AmazonScraper").info("=== AmazonScraper run starting ===")
 
     # --input-file: read product IDs/URLs from file and merge with --product-ids
