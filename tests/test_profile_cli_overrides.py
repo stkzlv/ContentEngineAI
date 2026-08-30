@@ -59,33 +59,6 @@ class TestProfileSpecificSettings:
         assert profile.subtitle_settings.margin == 0.15
         assert profile.subtitle_settings.content_aware is False
 
-    def test_profile_subtitle_nested_keys_load(self, mock_config: VideoConfig):
-        """The nested shape, which the bundled profiles now use.
-
-        The flat spelling was migrated by a shim for one release; it is
-        refused now, with the nested field named. See
-        `tests/video/test_profile_strict_keys.py`.
-        """
-        profile = VideoProfile(
-            description="Nested-style profile",
-            use_scraped_images=True,
-            subtitle_settings={
-                "anchor": "top",
-                "margin": 0.15,
-                "max_duration": 3.0,
-                "pycaps": {"template_name": "hype", "renderer": "css"},
-            },
-        )
-
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.anchor == "top"
-        assert profile.subtitle_settings.margin == 0.15
-        assert profile.subtitle_settings.max_duration == 3.0
-        assert profile.subtitle_settings.pycaps == {
-            "template_name": "hype",
-            "renderer": "css",
-        }
-
     def test_profile_vertical_align_field(self):
         """Test video_vertical_align field on VideoProfile."""
         profile = VideoProfile(

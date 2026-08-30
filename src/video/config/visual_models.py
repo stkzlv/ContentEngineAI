@@ -2,7 +2,6 @@
 """Visual configuration models for video, images, and media settings."""
 
 import logging
-import warnings
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -481,8 +480,8 @@ class VideoProfile(BaseModel):
     nothing. That is how `subtitle_format` sat dead in seven bundled profiles,
     including `slideshow_images1` asking for a format it never got.
 
-    Legacy flat subtitle keys are migrated and removed by the validator below
-    before this check applies, so they are still accepted.
+    Legacy flat subtitle keys are refused by the validator below, which names
+    the nested field to move each one to.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -592,8 +591,8 @@ class VideoProfile(BaseModel):
     # ---- PER-PROFILE SUBTITLE SETTINGS ----
     # Single nested override block. Replaces the historical 30+ flat
     # subtitle_*/pycaps_*/two_part_subtitles_* fields. Profile YAML written
-    # in the legacy flat shape is migrated at load time by the
-    # _migrate_legacy_subtitle_keys validator below.
+    # in the legacy flat shape is refused at load time by the
+    # _reject_legacy_subtitle_keys validator below.
     subtitle_settings: PartialSubtitleSettings | None = Field(
         None,
         description=(
@@ -610,12 +609,11 @@ class VideoProfile(BaseModel):
 
         These were migrated silently for one release with a
         `DeprecationWarning`; the bundled profiles are now nested and the
-        window is closed. Refused here rather than left to `extra="forbid"`,
-        which reports `Extra inputs are not permitted` and leaves the reader
-        to work out that `subtitle_anchor` is now `subtitle_settings.anchor`.
-        Two of these keys -- `two_part_subtitles` and `pycaps_*` -- are not
-        even unknown to Pydantic in every shape, so `extra="forbid"` would not
-        catch them consistently.
+        window is closed. `extra="forbid"` already catches every one of them,
+        so this validator exists purely for the message: it names the nested
+        field to move each key to, and lists them all at once, rather than
+        reporting `Extra inputs are not permitted` and leaving the reader to
+        work out that `subtitle_anchor` is now `subtitle_settings.anchor`.
         """
         if not isinstance(data, dict):
             return data

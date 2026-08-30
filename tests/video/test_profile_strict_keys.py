@@ -39,7 +39,7 @@ class TestUnknownKeysFail:
 
 
 @pytest.mark.unit
-class TestLegacyKeysStillAccepted:
+class TestLegacyKeysRefused:
     """The flat keys were migrated for one release; that window is closed.
 
     The bundled profiles are nested now, so the shim's only remaining job was
@@ -138,25 +138,16 @@ class TestBundledProfilesLoad:
     def test_no_bundled_profile_sets_a_key_the_model_ignores(self):
         """States the accepted-key set, so a reader can see what it is.
 
-        It cannot fail on a config the loader accepts: the set is built from
-        the same three maps the validator pops from. It is here as a readable
-        inventory, not as a second gate.
+        It cannot fail on a config the loader accepts: the set is the model's
+        own fields, and `extra="forbid"` rejects everything else. It is here
+        as a readable inventory, not as a second gate. It used to add the
+        three legacy maps, which the validator popped from; the validator now
+        raises on them, so naming them here would advertise 29 keys that fail
+        the load.
         """
         import yaml
 
-        from src.video.config.visual_models import (
-            _LEGACY_FLAT_TO_NESTED,
-            _LEGACY_PYCAPS_FIELDS,
-            _LEGACY_SAFE_ZONE_FIELDS,
-        )
-
-        accepted = (
-            set(VideoProfile.model_fields)
-            | set(_LEGACY_FLAT_TO_NESTED)
-            | set(_LEGACY_SAFE_ZONE_FIELDS)
-            | set(_LEGACY_PYCAPS_FIELDS)
-            | {"two_part_subtitles"}
-        )
+        accepted = set(VideoProfile.model_fields)
         with open("config/video_production.yaml", encoding="utf-8") as f:
             profiles = yaml.safe_load(f)["video_profiles"]
         unknown = {
