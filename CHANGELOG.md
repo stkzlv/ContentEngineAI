@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A single empty Jamendo response no longer drops the provider for the render. The API intermittently answers a working query with zero results, roughly one call in three for identical input; an empty list was read as "no tracks" and the chain fell through to the next provider.
 
 ### Notes
+- The floor is what mattered. `AudioManager._try_provider` filters `duration >= min_duration` client-side after the fetch, so a page of tracks all shorter than the voiceover emptied the provider entirely and fell the chain through. Moving that filter server-side is the practical win; the ceiling is `9999` in the bundled config and was never the constraint.
 - Only the empty-but-successful case is retried. An HTTP or API error has already been recorded against the circuit breaker, and retrying it would record the same failure several times over and open the breaker early.
 - The query is re-drawn from the configured pool per attempt. The emptiness is not query-specific, so a different query is a second sample rather than a second guess.
 - Giving up now logs at WARNING rather than INFO. The next provider may only offer preview-quality audio, so an intermittent Jamendo miss quietly changes the audio of a published video -- that downgrade should be greppable in `outputs/logs/`.

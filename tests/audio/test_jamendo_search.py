@@ -143,18 +143,28 @@ class TestAnEmptyResponseIsRetried:
         assert len(session.calls) == 1
 
     @pytest.mark.asyncio
-    async def test_the_query_is_redrawn_per_attempt(self):
+    async def test_the_query_is_redrawn_per_attempt(self, monkeypatch):
         """The emptiness is not query-specific, so a different query is a
-        second sample rather than a second guess -- but only a configured pool
-        can supply one.
+        second sample rather than a second guess.
+
+        Asserted as an ordered sequence, not as membership. Membership holds
+        for any code that draws from the pool at all -- including code that
+        draws once above the loop, which is the natural "simplification" a
+        later reader makes, and which turns three samples into one query
+        issued three times.
         """
+        import src.audio.jamendo_provider as mod
+
+        pool = ["alpha", "beta", "gamma"]
+        draws = iter(pool)
+        monkeypatch.setattr(mod.random, "choice", lambda _seq: next(draws))
+
         session = FakeSession([{"results": []} for _ in range(5)])
-        p = provider(search_queries=["alpha", "beta", "gamma"])
+        p = provider(search_queries=pool)
 
         await p.search("ignored", 10, 60, 20, session)
 
-        used = [c.get("fuzzytags") for c in session.calls]
-        assert all(q in {"alpha", "beta", "gamma"} for q in used)
+        assert [c.get("fuzzytags") for c in session.calls] == pool
 
     @pytest.mark.asyncio
     async def test_a_real_failure_is_not_retried(self):
