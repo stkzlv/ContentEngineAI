@@ -57,14 +57,22 @@ class TestTheKeyIsAccepted:
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.subtitle_format == "srt"
 
-    def test_the_flat_spelling_migrates_like_its_siblings(self, video_config):
-        """It was deliberately absent from the legacy map for the same reason
-        the nested form was rejected.
-        """
-        profile = profile_with(video_config, "slideshow_images1", subtitle_format="srt")
+    def test_the_flat_spelling_is_refused_like_its_siblings(self, video_config):
+        """The key is settable per profile; the flat spelling is not a spelling.
 
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.subtitle_format == "srt"
+        It was deliberately absent from the legacy map for the same reason the
+        nested form was rejected. It is in the map now, which under the current
+        rule means the error names where to move it rather than that it is
+        accepted -- no subtitle key has a flat spelling any more.
+        """
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as excinfo:
+            profile_with(video_config, "slideshow_images1", subtitle_format="srt")
+
+        assert "subtitle_format -> subtitle_settings.subtitle_format" in str(
+            excinfo.value
+        )
 
     def test_an_invalid_format_is_still_rejected(self, video_config):
         from pydantic import ValidationError

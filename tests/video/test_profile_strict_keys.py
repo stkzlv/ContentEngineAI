@@ -6,8 +6,6 @@ to work while its override does nothing. `docs/requirements.md` has claimed
 strict validation for profiles since before the model had it.
 """
 
-import warnings
-
 import pytest
 from pydantic import ValidationError
 
@@ -85,20 +83,23 @@ class TestLegacyKeysRefused:
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.anchor == "below_content"
 
-    def test_subtitle_format_migrates_like_its_siblings(self):
-        """It used to be the one flat key deliberately left out of the map.
+    def test_subtitle_format_is_refused_like_its_siblings(self):
+        """It is a normal subtitle key now, in both directions.
 
-        Honouring it in the merged settings alone broke the render, because
-        the subtitle file's extension came from the global value -- so a
-        profile asking for srt under a global of ass wrote SRT text into
-        `subtitles.ass`. The path follows the profile now, so the key is a
-        normal one; see `test_subtitle_format_per_profile.py`.
+        It used to be the one flat key deliberately left out of the map,
+        because honouring it in the merged settings alone broke the render:
+        the file's extension came from the global value, so a profile asking
+        for srt under a global of ass wrote SRT text into `subtitles.ass`.
+        The path follows the profile now, so the key is settable per profile
+        (see `test_subtitle_format_per_profile.py`) -- in the nested spelling,
+        which is the only spelling any subtitle key has.
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            profile = VideoProfile(**_profile(subtitle_format="srt"))
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.subtitle_format == "srt"
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(**_profile(subtitle_format="srt"))
+
+        assert "subtitle_format -> subtitle_settings.subtitle_format" in str(
+            excinfo.value
+        )
 
     def test_a_nested_block_is_accepted(self):
         profile = VideoProfile(**_profile(subtitle_settings={"style_preset": "bold"}))
@@ -130,9 +131,8 @@ class TestBundledProfilesLoad:
     def test_all_bundled_profiles_parse(self):
         from src.video.config import load_video_config_modular
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            config = load_video_config_modular()
+        config = load_video_config_modular()
+
         assert len(config.video_profiles) >= 11
 
     def test_no_bundled_profile_sets_a_key_the_model_ignores(self):
