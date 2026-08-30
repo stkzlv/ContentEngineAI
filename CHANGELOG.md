@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.2] - 2026-08-30
+
+### Fixed
+- The background-task summary reports how long a task ran, not how long ago it started. `BackgroundTask.duration` was `time.time() - start_time` recomputed on every read, so the completion log got the truth while the end-of-run summary, reading minutes later, reported the whole pipeline's wall clock. Closes #115.
+- Only TTS providers named in `provider_order` are warmed. A provider left configured but absent from that list is never tried, so warming it is pure cost -- which is the shipped case for coqui, whose dependency was dropped while its config block was kept.
+
+### Notes
+- The metric is what made this look like a race the warmers lost. Measured on a real render, the google_cloud warmer completed in 0.54s and `create_voiceover` started 8ms later; the summary reported 187s for both warmers because it read `duration` at the end of the run. The warmers were winning all along.
+- Because of that, the issue's proposed fix -- blocking the first TTS step on warmer completion -- is not needed. It would add a wait to every render to solve a problem that was in the reporting.
+- `enabled` is not the same question as "can this run reach it". The warmer checked the first and needed the second.
+
 ## [0.86.1] - 2026-08-30
 
 ### Fixed
