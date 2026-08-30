@@ -91,7 +91,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "min_visual_segment_duration_sec": 0.1,
             "dynamic_image_count_limit": 25,
             "verification_probe_timeout_sec": 30,
-            "preserve_aspect_ratio": True,
             "default_max_chars_per_line": 20,
             "subtitle_box_border_width": 5,
             "image_loop": 1,
