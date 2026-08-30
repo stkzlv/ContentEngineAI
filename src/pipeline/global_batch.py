@@ -225,6 +225,14 @@ Examples:
         ),
     )
     producer_group.add_argument(
+        "--subtitle-format",
+        choices=["srt", "ass"],
+        help=(
+            "Subtitle format: srt or ass (with animations). Ignored when the "
+            "pycaps engine renders the captions."
+        ),
+    )
+    producer_group.add_argument(
         "--subtitle-engine",
         choices=["ffmpeg", "pycaps"],
         help=(
@@ -579,6 +587,8 @@ class GlobalPipelineOrchestrator:
             overrides["script_template"] = self.config.script_template
         if self.config.pillar:
             overrides["pillar"] = self.config.pillar
+        if self.config.subtitle_format:
+            overrides["subtitle_settings.subtitle_format"] = self.config.subtitle_format
         if self.config.subtitle_engine:
             overrides["subtitle_settings.subtitle_engine"] = self.config.subtitle_engine
         if self.config.pycaps_template:

@@ -86,6 +86,8 @@ No YAML or profile edits needed — the CLI overrides flow through the same
 | Producer CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 | Global batch CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 
+`--subtitle-format` is available at the same two CLI levels and the same two config levels; the pycaps engine ignores it.
+
 CLI beats profile. Profile beats YAML. Bundled YAML default is `pycaps`;
 the `SubtitleSettings` Pydantic field default (used when constructing
 without YAML) stays `ffmpeg`.

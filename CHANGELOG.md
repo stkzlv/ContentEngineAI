@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-08-30
+
+### Added
+- `--subtitle-format` on the global batch, matching the producer's flag and its `srt`/`ass` choices. The batch had no way to ask for a format, so a batch run took the global value whatever the operator wanted.
+
+### Fixed
+- Configuring logging no longer truncates the previous run's log. `setup_debug_logging` built its file handler with `mode="w"`, which truncates when the handler is constructed, so anything that merely imported a module configuring logging destroyed the log before writing a line. That is not hypothetical: a tool reading the source emptied `outputs/logs/scraper.log` without running the scraper, because an editable install resolved the import to the working tree.
+
+### Notes
+- The flag is the Module/Batch Alignment Rule applied: the producer CLI and `global_batch` re-implement the same logic rather than one calling the other, so `--subtitle-engine` and the three pycaps flags were on both while `--subtitle-format` was on the producer alone. Its three hops -- the parser, the config resolution, the dotted override handed to the producer -- are pinned separately, because a partial wiring parses and stores the value and then does nothing with it.
+- The log handler now rotates rather than only appending. Appending alone would grow the file forever, which is what overwriting per run was buying; rotation keeps that bound without making a run destructive.
+
 ## [0.88.1] - 2026-08-30
 
 ### Fixed
