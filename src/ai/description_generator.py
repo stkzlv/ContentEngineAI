@@ -30,12 +30,13 @@ from tenacity import (
     wait_exponential,
 )
 
+# Configure module logger
+from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
 from src.video.config.llm_settings import LLMSettings
 
-# Configure module logger
 logger = logging.getLogger(__name__)
 
 
@@ -519,7 +520,9 @@ async def generate_description(
     # Load and format the description prompt template
     # Use absolute path to ensure it works regardless of working directory
     project_root = Path(__file__).parent.parent.parent
-    template_path = project_root / "src/ai/prompts/video_description.md"
+    template_path = project_root / prompt_path_for(
+        product, "src/ai/prompts/video_description.md"
+    )
     try:
         template = load_prompt_template(template_path)
         prompt = format_prompt(template, product)

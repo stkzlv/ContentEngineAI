@@ -17,6 +17,7 @@ from src.ai.platform_metadata.utilities import (
     generate_with_llm,
     load_prompt_template,
 )
+from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
 
@@ -123,7 +124,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             caption_style = self._determine_caption_style()
 
             # Load and format prompt with caption style
-            template_path = Path("src/ai/prompts/instagram_caption.md")
+            template_path = prompt_path_for(
+                product, "src/ai/prompts/instagram_caption.md"
+            )
             template = load_prompt_template(template_path)
 
             # Add caption style and emoji enabled to template

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.0] - 2026-08-30
+
+### Added
+- Topic variants of the four caption prompts, selected on the record carrying a topic: `video_description_topic.md`, `youtube_metadata_topic.md`, `tiktok_caption_topic.md`, `instagram_caption_topic.md`. Closes #289.
+
+### Fixed
+- A topic render's YouTube description no longer ships `https://example.com/product`. All three worked examples in the product prompt end `Shop now: https://example.com/product`, and the model copied that line verbatim -- so on the one surface where a viewer could click, a topic render offered a placeholder. Nothing downstream removes a URL, so it published.
+- An Instagram caption for a topic no longer carries an example from a different product. The measured output ended "Most people only need two ports, but three is usually better.", which is the literal illustration of the Closing-line Mirror rule in `instagram_caption.md`, on a video about phone batteries.
+
+### Notes
+- Measured against a real topic render with the generators production uses, then re-measured after: the placeholder URL and the carried-over example are both gone, and the captions mirror the script's own closing line.
+- Rewording the product prompts would not have held. This project has recorded the reason twice: an example teaches its subject rather than only its shape, and when an example contradicts a rule the example wins. So the topic path gets its own files, with its own examples.
+- Selection is on `topic`, which is the same property `carries_affiliate_content` keys off, so the caption framing and the disclosure decision cannot disagree about whether a render has a product.
+- A prompt with no variant, or a variant that is missing, falls back to the product file rather than raising. A caller wired up before its variant exists then renders exactly as it did before.
+- The `#ad` the product prompts request is **not** a defect on the topic path: `PublishMetadata.__post_init__` strips disclosure tokens when the record carries no material connection, and the metadata writer drops the tag before the file is written. The topic prompts do not ask for it, which saves a hashtag slot and stops the artifact contradicting its sibling, but nothing was reaching a published caption.
+- The tests drive all four call sites, not just the selector. Unwiring them left the selector's own tests green while a topic render went back to the product prompt.
+
 ## [0.85.3] - 2026-08-30
 
 ### Fixed
