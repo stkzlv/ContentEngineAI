@@ -3,12 +3,13 @@
 `AudioFilterBuilder.build_audio_filters_with_video_audio` was defined and never
 called: the assembler's only audio call site is `build_audio_filters`, whose
 signature takes no video-audio arguments. So `video_audio_handling` and
-`video_original_volume` reached the merged settings and stopped there, and four
-bundled profiles configured a mix they never got.
+`video_original_volume` reached the merged settings and stopped there, and three
+bundled profiles configured a mix they never got. (A fourth asked for the
+audio to be stripped, and got that.)
 
 Wiring it up was the other option. Against it: the setting has never run in any
 release, so nothing regresses by removing it; at the configured -30/-35 dB it
-sat below the music bed at -24 dB under narration at 0 dB, so the benefit was
+sat below the music bed at -24 dB under narration at +3 dB, so the benefit was
 inaudible; and both video sources are third-party -- a scraped product video is
 a manufacturer's marketing clip with a licensed music bed, stock footage is
 whatever the contributor recorded -- so mixing either into a published upload

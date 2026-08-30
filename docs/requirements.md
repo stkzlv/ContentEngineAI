@@ -177,7 +177,7 @@ High-level requirements for ContentEngineAI.
 - **Content height**: configurable portion of frame (default 75%)
 - **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select when aspect ratios within 10%)
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
-- **Audio handling**: remove original audio or mix at configurable volume
+- **Audio handling**: source video audio is dropped; the mix is voiceover and background music
 - Match final duration to voiceover (±1 second tolerance)
 
 ### Subtitles

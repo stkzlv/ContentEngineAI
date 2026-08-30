@@ -100,11 +100,13 @@ class TestEveryMappedTargetIsReal:
 # Targets with a reference in the source that is not a live read, recorded so
 # the reader check below stops reporting them as covered. Empty: the two that
 # were here, `video_audio_handling` and `video_original_volume`, appeared only
-# inside `AudioBuilder.build_audio_filters_with_video_audio`, which had no
+# inside `AudioFilterBuilder.build_audio_filters_with_video_audio`, which had no
 # caller, and were removed with it rather than wired up.
 #
 # The set only shrinks. A new dead target is a defect to fix, not an entry to
-# add, and `test_the_known_dead_set_only_shrinks` is what keeps it that way.
+# add -- `test_the_known_dead_set_is_empty` refuses one outright, because the
+# older shrink-only check passes for any name that is still mapped, which is
+# every name a future author would plausibly reach for.
 KNOWN_DEAD_TARGETS: set[str] = set()
 
 
@@ -122,9 +124,9 @@ class TestEveryMappedTargetHasAReader:
 
         A substring count, which is why `KNOWN_DEAD_TARGETS` exists: a
         reference inside a function nothing calls looks identical to a live
-        read from here, and two targets are exactly that today. Proving
-        reachability properly means call-graph analysis; recording the two
-        known cases keeps the assertion honest without pretending to it.
+        read from here. Proving reachability properly means call-graph
+        analysis; recording the known cases keeps the assertion honest without
+        pretending to it. The set is empty today.
         """
         count = 0
         for directory in self.SOURCE_DIRS:
@@ -145,18 +147,24 @@ class TestEveryMappedTargetHasAReader:
             "profile that overrides it is configuring a value with no effect"
         )
 
-    def test_the_known_dead_set_only_shrinks(self):
+    def test_the_known_dead_set_is_empty(self):
         """A new dead target must not be waved through by adding it here.
 
-        Every name in the set has to still be mapped; once one is fixed or
-        removed, its entry has to go too, which is what makes the set a
-        shrinking record rather than a growing exemption list.
-        """
-        stale = KNOWN_DEAD_TARGETS - set(override_map().values())
+        This used to assert only that every recorded name was still mapped,
+        which passes for any name a future author would plausibly add -- a
+        dead target is by definition a mapped one. So the check that was
+        meant to stop the set growing could not, and the skip above would
+        have hidden the new target silently.
 
-        assert not stale, (
-            f"{sorted(stale)} are recorded as dead but no longer mapped; "
-            "remove them from KNOWN_DEAD_TARGETS"
+        The set is empty now that #330 removed the two that were in it, so
+        the honest assertion is the strong one. If a genuinely unfixable
+        case turns up, re-widening this is a deliberate decision with a
+        reason attached, which is the point.
+        """
+        assert not KNOWN_DEAD_TARGETS, (
+            f"{sorted(KNOWN_DEAD_TARGETS)} were added rather than fixed; a "
+            "mapped target nothing reads is a defect, and recording it here "
+            "makes the reader check skip it"
         )
 
 

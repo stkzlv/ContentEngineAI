@@ -278,7 +278,7 @@ dependencies = {
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
 - **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
-- **Audio Normalization**: Configurable video audio handling (remove/mixed)
+- **Audio Mixing**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
 - **Audio Mixing**: Multi-track audio with volume control and ducking
