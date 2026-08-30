@@ -269,7 +269,7 @@ dependencies = {
 - **`core.py`** - VideoAssembler orchestrator (~690 lines)
 - **`visual_builder.py`** - Visual filter chains (~590 lines)
 - **`subtitle_builder.py`** - Subtitle positioning (~850 lines)
-- **`audio_builder.py`** - Audio filter chains (~200 lines)
+- **`audio_builder.py`** - Audio filter chains (~130 lines)
 - **`video_strategies.py`** - Video mode strategies (~665 lines)
 - **`media_inspector.py`** - Media file inspection (~170 lines)
 - **`subtitle_utils.py`** - Subtitle parsing/styling (~280 lines)
@@ -278,10 +278,10 @@ dependencies = {
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
 - **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
-- **Audio Mixing**: Voiceover and background music only; source video audio is dropped
+- **Audio Sources**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
-- **Audio Mixing**: Multi-track audio with volume control and ducking
+- **Audio Mixing**: Fixed-level multi-track mixing with per-track volume
 - **Verification**: Post-assembly quality checks
 
 #### Video Assembly Modes
