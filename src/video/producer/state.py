@@ -149,11 +149,16 @@ def _clean_producer_files(
 
 
 def get_video_run_paths(
-    config: VideoConfig, product_identifier: str, profile_name: str
+    config: VideoConfig,
+    product_identifier: str,
+    profile_name: str,
+    cli_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Path]:
     """Generate video production paths using the configurable directory structure."""
     # Use the new path generation method from VideoConfig
-    paths = config.get_video_project_paths(product_identifier, profile_name)
+    paths = config.get_video_project_paths(
+        product_identifier, profile_name, cli_overrides
+    )
 
     # Map new paths to legacy path names for backward compatibility
     legacy_paths = {

@@ -53,33 +53,38 @@ class TestLegacyKeysStillAccepted:
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.anchor == "below_content"
 
-    def test_subtitle_format_is_rejected_rather_than_migrated(self):
-        """It is the one flat key deliberately left out of the migration map.
+    def test_subtitle_format_migrates_like_its_siblings(self):
+        """It used to be the one flat key deliberately left out of the map.
 
-        Honouring it in the merged settings alone would break the render: the
-        subtitle file's extension comes from the global value, so a profile
-        asking for srt under a global of ass writes SRT text into
-        `subtitles.ass` and the assembler hands that to FFmpeg's `ass` filter.
-        A load error is the honest answer until the path follows the profile.
+        Honouring it in the merged settings alone broke the render, because
+        the subtitle file's extension came from the global value -- so a
+        profile asking for srt under a global of ass wrote SRT text into
+        `subtitles.ass`. The path follows the profile now, so the key is a
+        normal one; see `test_subtitle_format_per_profile.py`.
         """
-        with pytest.raises(ValidationError, match="subtitle_format"):
-            VideoProfile(**_profile(subtitle_format="srt"))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            profile = VideoProfile(**_profile(subtitle_format="srt"))
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.subtitle_format == "srt"
 
     def test_a_nested_block_is_accepted(self):
         profile = VideoProfile(**_profile(subtitle_settings={"style_preset": "bold"}))
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.style_preset == "bold"
 
-    def test_the_nested_route_cannot_set_the_format_either(self):
-        """`extra="forbid"` only sees the flat key.
+    def test_the_nested_route_sets_the_format_too(self):
+        """Both spellings reach the same place.
 
-        `PartialSubtitleSettings` declares `subtitle_format`, so a nested
-        override loads and reaches the merged settings while the file path
-        stays derived from the global value. Rejecting only the flat spelling
-        would leave the same render failure one line of YAML away.
+        The nested one was rejected explicitly, because `extra="forbid"` only
+        sees the flat key and `PartialSubtitleSettings` declares the field --
+        so rejecting only the flat spelling would have left the same render
+        failure one line of YAML away. Neither is rejected now.
         """
-        with pytest.raises(ValidationError, match="cannot be set per profile"):
-            VideoProfile(**_profile(subtitle_settings={"subtitle_format": "srt"}))
+        profile = VideoProfile(**_profile(subtitle_settings={"subtitle_format": "srt"}))
+
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.subtitle_format == "srt"
 
 
 @pytest.mark.unit

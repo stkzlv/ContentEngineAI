@@ -203,12 +203,10 @@ rather than being dropped and leaving the profile to render with the global
 value. Subtitle settings go in the nested `subtitle_settings` block; the flat
 `subtitle_*` keys still load but warn.
 
-`subtitle_format` is not settable per profile, in either the flat or the
-nested spelling, and a profile that sets it fails at config load. The subtitle
-file's extension is derived from the global `config/subtitles.yaml` value, so a
-profile-level format would be honoured by the merged settings and ignored by
-the path, which mismatches the file against the filter that reads it. Set it
-globally, or per run with `--subtitle-format`.
+`subtitle_format` is settable per profile, in either spelling. The subtitle
+file's extension follows the merged value, so the file the generator writes and
+the path the assembler reads always agree. `--subtitle-format` still wins over
+both.
 
 ### Hook Overlay and Pre-Motion
 

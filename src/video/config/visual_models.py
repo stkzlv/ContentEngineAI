@@ -42,14 +42,7 @@ _LEGACY_FLAT_TO_NESTED: dict[str, str] = {
     "subtitle_selected_font": "selected_font",
     "subtitle_selected_color_pair": "selected_color_pair",
     "subtitle_engine": "subtitle_engine",
-    # `subtitle_format` is deliberately NOT here. Migrating it would make
-    # a profile-level value take effect in the merged settings while the
-    # subtitle file path is still derived from the global one
-    # (`core_models.py::_get_subtitle_filename`), so a profile asking for
-    # srt under a global of ass writes SRT text into `subtitles.ass` and
-    # the assembler feeds it to FFmpeg's `ass` filter, which aborts.
-    # `extra="forbid"` rejects the key instead, which is honest: it does
-    # not work at profile level until the path follows the profile.
+    "subtitle_format": "subtitle_format",
 }
 
 _LEGACY_SAFE_ZONE_FIELDS = (
@@ -672,29 +665,6 @@ class VideoProfile(BaseModel):
 
         if nested:
             data["subtitle_settings"] = nested
-
-        if nested.get("subtitle_format") is not None:
-            # Rejected here rather than by `extra="forbid"`, which only sees
-            # the flat key. `PartialSubtitleSettings` declares the field, so a
-            # nested override loads and reaches the merged settings while the
-            # subtitle file's extension stays derived from the global value
-            # (`core_models.py::_get_subtitle_filename`). The generator then
-            # writes one format into a path named for the other, and the
-            # assembler picks its filter from the suffix: SRT text handed to
-            # FFmpeg's `ass` filter aborts the render, and the mirror case
-            # ships a caption-less video with no error at all. Lifting this
-            # means making the path profile-aware first (#243).
-            #
-            # Tested by value rather than by key presence: a
-            # `PartialSubtitleSettings` instance yields every field when it is
-            # turned into a dict, so `"subtitle_format" in nested` is true of
-            # any model passed in and would reject a plain round-trip.
-            raise ValueError(
-                "subtitle_format cannot be set per profile: the subtitle "
-                "file's extension comes from the global config, so a "
-                "profile-level format would be written into a file named for "
-                "a different one. Set it in config/subtitles.yaml."
-            )
 
         return data
 
