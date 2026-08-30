@@ -206,7 +206,7 @@ in the error.
 `subtitle_format` is settable per profile, in the nested spelling only, and per run with `--subtitle-format` on both the producer and the global batch. The subtitle
 file's extension follows the merged value, so the file the generator writes and
 the path the assembler reads always agree. `--subtitle-format` still wins over
-both.
+the profile and the global value.
 
 ### Hook Overlay and Pre-Motion
 

@@ -104,3 +104,44 @@ class TestTheSizeStaysBounded:
 
         assert log_file.stat().st_size <= 4096, "the live file grew past the cap"
         assert (tmp_path / "run.log.1").exists(), "nothing rotated"
+
+
+class TestEachRunIsFindable:
+    """Appending without a boundary makes a grep ambiguous.
+
+    `CLAUDE.md` verifies a render by grepping the log for a completion line.
+    Under the old overwrite the file held one run, so a match was unambiguous.
+    Appending removes that guarantee, and the producer, scraper and publisher
+    log no run banner of their own -- only the batch does. So the marker has to
+    be visible at the default level, not just under `--debug`.
+    """
+
+    def test_a_run_marker_is_written_at_info(self, tmp_path: Path):
+        log_file = tmp_path / "run.log"
+
+        setup_debug_logging(log_file, component_name="Probe")
+
+        contents = log_file.read_text(encoding="utf-8")
+        assert "Probe run starting" in contents
+        assert "INFO" in contents
+
+    def test_it_appears_without_debug_mode(self, tmp_path: Path):
+        """The case that matters: a default run, which is most of them."""
+        log_file = tmp_path / "run.log"
+
+        setup_debug_logging(log_file, debug_mode=False, component_name="Probe")
+
+        assert "Probe run starting" in log_file.read_text(encoding="utf-8")
+
+    def test_two_runs_leave_two_markers(self, tmp_path: Path):
+        """So a reader can tell which run a later line belongs to."""
+        log_file = tmp_path / "run.log"
+
+        setup_debug_logging(log_file, component_name="Probe")
+        logging.getLogger("probe").warning("first")
+        setup_debug_logging(log_file, component_name="Probe")
+        logging.getLogger("probe").warning("second")
+
+        contents = log_file.read_text(encoding="utf-8")
+        assert contents.count("Probe run starting") == 2
+        assert contents.index("first") < contents.rindex("Probe run starting")

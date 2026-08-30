@@ -228,8 +228,9 @@ Examples:
         "--subtitle-format",
         choices=["srt", "ass"],
         help=(
-            "Subtitle format: srt or ass (with animations). Ignored when the "
-            "pycaps engine renders the captions."
+            "Subtitle format: srt or ass (with animations). The pycaps engine "
+            "ignores it, and the bundled YAML default is pycaps, so pair this "
+            "with --subtitle-engine ffmpeg to have it apply."
         ),
     )
     producer_group.add_argument(

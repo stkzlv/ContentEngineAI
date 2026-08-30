@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 - The flag is the Module/Batch Alignment Rule applied: the producer CLI and `global_batch` re-implement the same logic rather than one calling the other, so `--subtitle-engine` and the three pycaps flags were on both while `--subtitle-format` was on the producer alone. Its three hops -- the parser, the config resolution, the dotted override handed to the producer -- are pinned separately, because a partial wiring parses and stores the value and then does nothing with it.
 - The log handler now rotates rather than only appending. Appending alone would grow the file forever, which is what overwriting per run was buying; rotation keeps that bound without making a run destructive.
+- Appending also fixes a corruption the overwrite caused. Several writers share a log -- the scraper configures logging at module import, so every parallel test worker opens it, and the scheduled analytics sweep writes the publisher log an operator's `make publish` also writes. Without `O_APPEND` each wrote at its own offset and clobbered the others, which is why the checked-out `scraper.log` interleaves records out of order.
+- Every run now opens with an `INFO` marker naming the component. The file is a history rather than one run, and the documented way to verify a render is to grep the log for a completion line -- without a boundary visible at the default level, that grep can match the previous run. The batch already logged a banner; the producer, scraper and publisher did not, so the marker is in `setup_debug_logging`, which every entry point reaches.
 
 ## [0.88.1] - 2026-08-30
 

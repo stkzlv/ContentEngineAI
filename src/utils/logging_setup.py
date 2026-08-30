@@ -252,8 +252,14 @@ def setup_debug_logging(
         # Keep websocket quiet even in debug mode (cleanup messages are noise)
         logging.getLogger("websocket").setLevel(logging.CRITICAL)
 
-    # Log initialization message
+    # Run boundary, at INFO on purpose. The file is appended to, so without a
+    # marker every run visible at the default level a reader greps the log --
+    # which is how the docs say to verify a render -- can match the previous
+    # run's line instead of this one's. The batch logs its own banner; the
+    # producer, scraper and publisher have none, so it belongs here where every
+    # entry point reaches it.
     logger = logging.getLogger(component_name)
+    logger.info("=== %s run starting ===", component_name)
     logger.debug(
         f"Logging initialized: level={logging.getLevelName(log_level)}, "
         f"log_file={log_file}, verbose={verbose}"
