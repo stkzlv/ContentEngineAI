@@ -6,8 +6,6 @@ to work while its override does nothing. `docs/requirements.md` has claimed
 strict validation for profiles since before the model had it.
 """
 
-import warnings
-
 import pytest
 from pydantic import ValidationError
 
@@ -39,34 +37,69 @@ class TestUnknownKeysFail:
 
 
 @pytest.mark.unit
-class TestLegacyKeysStillAccepted:
-    """The migration validator runs first and removes what it migrates.
+class TestLegacyKeysRefused:
+    """The flat keys were migrated for one release; that window is closed.
 
-    Strictness must not break the flat keys the bundled profiles still use, or
-    every profile fails to load.
+    The bundled profiles are nested now, so the shim's only remaining job was
+    to accept config nobody ships. It is replaced by an error that names the
+    nested field to move each key to.
     """
 
-    def test_a_migrated_flat_key_is_accepted(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            profile = VideoProfile(**_profile(subtitle_anchor="below_content"))
+    def test_a_flat_key_is_refused_with_its_replacement_named(self):
+        """`extra="forbid"` alone would say only "Extra inputs are not
+        permitted", leaving the reader to work out that `subtitle_anchor` is
+        now `subtitle_settings.anchor`.
+        """
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(**_profile(subtitle_anchor="below_content"))
+
+        message = str(excinfo.value)
+        assert "subtitle_anchor -> subtitle_settings.anchor" in message
+
+    def test_every_offending_key_is_listed_at_once(self):
+        """One key at a time would mean one config-load cycle per key."""
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(
+                **_profile(
+                    subtitle_anchor="below_content",
+                    subtitle_safe_zone_min_y=0.1,
+                    pycaps_template="hype",
+                )
+            )
+
+        message = str(excinfo.value)
+        assert "subtitle_anchor -> subtitle_settings.anchor" in message
+        assert (
+            "subtitle_safe_zone_min_y -> subtitle_settings.safe_zone.min_y" in message
+        )
+        assert "pycaps_template -> subtitle_settings.pycaps.template_name" in message
+
+    def test_a_nested_profile_still_loads(self):
+        """The shape the bundled profiles now use."""
+        profile = VideoProfile(
+            **_profile(subtitle_settings={"anchor": "below_content"})
+        )
+
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.anchor == "below_content"
 
-    def test_subtitle_format_migrates_like_its_siblings(self):
-        """It used to be the one flat key deliberately left out of the map.
+    def test_subtitle_format_is_refused_like_its_siblings(self):
+        """It is a normal subtitle key now, in both directions.
 
-        Honouring it in the merged settings alone broke the render, because
-        the subtitle file's extension came from the global value -- so a
-        profile asking for srt under a global of ass wrote SRT text into
-        `subtitles.ass`. The path follows the profile now, so the key is a
-        normal one; see `test_subtitle_format_per_profile.py`.
+        It used to be the one flat key deliberately left out of the map,
+        because honouring it in the merged settings alone broke the render:
+        the file's extension came from the global value, so a profile asking
+        for srt under a global of ass wrote SRT text into `subtitles.ass`.
+        The path follows the profile now, so the key is settable per profile
+        (see `test_subtitle_format_per_profile.py`) -- in the nested spelling,
+        which is the only spelling any subtitle key has.
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            profile = VideoProfile(**_profile(subtitle_format="srt"))
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.subtitle_format == "srt"
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(**_profile(subtitle_format="srt"))
+
+        assert "subtitle_format -> subtitle_settings.subtitle_format" in str(
+            excinfo.value
+        )
 
     def test_a_nested_block_is_accepted(self):
         profile = VideoProfile(**_profile(subtitle_settings={"style_preset": "bold"}))
@@ -98,33 +131,23 @@ class TestBundledProfilesLoad:
     def test_all_bundled_profiles_parse(self):
         from src.video.config import load_video_config_modular
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            config = load_video_config_modular()
+        config = load_video_config_modular()
+
         assert len(config.video_profiles) >= 11
 
     def test_no_bundled_profile_sets_a_key_the_model_ignores(self):
         """States the accepted-key set, so a reader can see what it is.
 
-        It cannot fail on a config the loader accepts: the set is built from
-        the same three maps the validator pops from. It is here as a readable
-        inventory, not as a second gate.
+        It cannot fail on a config the loader accepts: the set is the model's
+        own fields, and `extra="forbid"` rejects everything else. It is here
+        as a readable inventory, not as a second gate. It used to add the
+        three legacy maps, which the validator popped from; the validator now
+        raises on them, so naming them here would advertise 29 keys that fail
+        the load.
         """
         import yaml
 
-        from src.video.config.visual_models import (
-            _LEGACY_FLAT_TO_NESTED,
-            _LEGACY_PYCAPS_FIELDS,
-            _LEGACY_SAFE_ZONE_FIELDS,
-        )
-
-        accepted = (
-            set(VideoProfile.model_fields)
-            | set(_LEGACY_FLAT_TO_NESTED)
-            | set(_LEGACY_SAFE_ZONE_FIELDS)
-            | set(_LEGACY_PYCAPS_FIELDS)
-            | {"two_part_subtitles"}
-        )
+        accepted = set(VideoProfile.model_fields)
         with open("config/video_production.yaml", encoding="utf-8") as f:
             profiles = yaml.safe_load(f)["video_profiles"]
         unknown = {

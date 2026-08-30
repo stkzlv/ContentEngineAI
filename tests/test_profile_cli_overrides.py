@@ -59,30 +59,6 @@ class TestProfileSpecificSettings:
         assert profile.subtitle_settings.margin == 0.15
         assert profile.subtitle_settings.content_aware is False
 
-    def test_profile_subtitle_legacy_flat_keys_migrate(self, mock_config: VideoConfig):
-        """Legacy flat subtitle_*/pycaps_*/two_part_subtitles keys load via
-        the deprecation shim and end up in the nested subtitle_settings.
-        """
-        with pytest.warns(DeprecationWarning, match="legacy flat subtitle"):
-            profile = VideoProfile(
-                description="Legacy-style profile",
-                use_scraped_images=True,
-                subtitle_anchor="top",
-                subtitle_margin=0.15,
-                subtitle_max_duration=3.0,
-                pycaps_template="hype",
-                pycaps_renderer="css",
-            )
-
-        assert profile.subtitle_settings is not None
-        assert profile.subtitle_settings.anchor == "top"
-        assert profile.subtitle_settings.margin == 0.15
-        assert profile.subtitle_settings.max_duration == 3.0
-        assert profile.subtitle_settings.pycaps == {
-            "template_name": "hype",
-            "renderer": "css",
-        }
-
     def test_profile_vertical_align_field(self):
         """Test video_vertical_align field on VideoProfile."""
         profile = VideoProfile(
@@ -539,9 +515,11 @@ class TestTwoPartProfileOverride:
             description="Two-part override profile",
             use_scraped_images=True,
             use_scraped_videos=False,
-            two_part_subtitles={
-                "enabled": True,
-                "upper_line": {"margin": 0.02, "style_preset": "bold"},
+            subtitle_settings={
+                "two_part_subtitles": {
+                    "enabled": True,
+                    "upper_line": {"margin": 0.02, "style_preset": "bold"},
+                }
             },
         )
         mock_config.video_profiles["two_part_override"] = profile

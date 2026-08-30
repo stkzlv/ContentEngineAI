@@ -69,10 +69,10 @@ subtitle_settings:
 
 ```yaml
 # config/video_production.yaml — per-profile override
-profiles:
+video_profiles:
   slideshow_images1:
-    subtitle_engine: "ffmpeg"                  # beats YAML default
     subtitle_settings:
+      subtitle_engine: "ffmpeg"                # beats YAML default
       pycaps:
         template_pool: ["explosive"]           # profile-level override
 ```

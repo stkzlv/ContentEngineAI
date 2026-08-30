@@ -82,7 +82,7 @@ No YAML or profile edits needed — the CLI overrides flow through the same
 | Level | Key | Example |
 |---|---|---|
 | YAML (`config/subtitles.yaml`) | `subtitle_settings.subtitle_engine` | `subtitle_engine: pycaps` |
-| Profile override (`config/video_production.yaml`) | `profiles.<name>.subtitle_engine` | `subtitle_engine: pycaps` |
+| Profile override (`config/video_production.yaml`) | `video_profiles.<name>.subtitle_settings.subtitle_engine` | `subtitle_engine: pycaps` |
 | Producer CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 | Global batch CLI | `--subtitle-engine` | `--subtitle-engine pycaps` |
 
@@ -93,8 +93,9 @@ without YAML) stays `ffmpeg`.
 ### Pycaps sub-settings
 
 All fields live under `subtitle_settings.pycaps` (YAML + merged runtime).
-Per-profile overrides use a flat prefix (`pycaps_template`, `pycaps_renderer`,
-etc.) to mirror the other profile override naming.
+Per-profile overrides go under `subtitle_settings.pycaps` and use the field
+names in the table below (`template_name`, `renderer`, ...). The flat
+`pycaps_*` prefix is refused at config load.
 
 The "Default" column lists the `PycapsSettings` Pydantic field defaults
 (used for programmatic construction without YAML). The bundled
@@ -234,11 +235,11 @@ check a frame before trusting the output.
 ## Limitations (v1)
 
 - **Single-line captions only.** Two-part (upper URL + lower voiceover) is
-  FFmpeg-only. When a profile has `two_part_subtitles.enabled: true` and you
-  flip the engine to pycaps, the producer logs a warning and disables the
-  two-part system for that run. The upper URL is not rendered.
-- **Font randomization doesn't apply.** The `subtitle_randomize_fonts` setting
-  only affects the FFmpeg path. Pycaps templates ship their own `@font-face`
+  FFmpeg-only. When a profile has `subtitle_settings.two_part_subtitles.enabled:
+  true` and you flip the engine to pycaps, the producer logs a warning and
+  disables the two-part system for that run. The upper URL is not rendered.
+- **Font randomization doesn't apply.** The `subtitle_settings.randomize_fonts`
+  setting only affects the FFmpeg path. Pycaps templates ship their own `@font-face`
   declarations via their `resources/` directory.
 - **Upstream is alpha.** Pycaps 0.2.1 is the first public release. Breaking
   changes are possible. We pin to an exact git commit in `pyproject.toml`

@@ -240,7 +240,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Subtitle overrides use a single nested `subtitle_settings` block on each profile; only fields that differ from the global value need to be set, and nested sub-blocks (`pycaps`, `two_part_subtitles`, `safe_zone`) deep-merge per-field rather than being replaced wholesale
 - Cold-open knobs (pre-motion toggle, peak zoom) are per-profile overrides as well; the short profile enables pre-motion by default while the existing 30-45s profiles inherit the off default
 - Strict validation: unknown keys in subtitle YAML or profile overrides fail at config load with a typed error, instead of being silently dropped at render time
-- Legacy flat per-profile keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) still load with a deprecation warning during one-release migration window
+- Legacy flat per-profile keys (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles`, ...) are refused at config load, with the nested field to move each one to named in the error
 - Typed Pydantic models for merged settings
 - Deterministic random profile selection per product
 - **Short profile (15-30 s)** sized for hook-iteration renders. Script word budget around 50-60 words at natural TTS pacing. 60-90 s long-form for platform-revenue-program eligibility lives in a separate planned profile, not in the short profile.

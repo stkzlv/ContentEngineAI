@@ -401,7 +401,7 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 - **Configurable Video/Subtitle Layout**: Per-profile control of video positioning and subtitle gaps
   - `video_top_position_percent`: Vertical video start position (default: 10% from top)
   - `video_content_height_percent`: Video height as frame percentage (default: 75%)
-  - `subtitle_margin`: Gap between content and subtitles (default: 2%)
+  - `subtitle_settings.margin`: Gap between content and subtitles (bundled config: 4%)
 - **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
 
 ### 6. URL Shortening System (`src/utils/url_shortener/`)

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.87.0] - 2026-08-30
+
+### Changed
+- Every bundled profile in `config/video_production.yaml` uses the nested `subtitle_settings:` block. Closes #93.
+
+### Removed
+- `VideoProfile`'s legacy-key migration shim. A flat `subtitle_*`, `pycaps_*` or `two_part_subtitles` key on a profile is now refused, with the nested field to move it to named in the error.
+
+### Notes
+- The migration was done programmatically, with `ruamel` so the file's comments survived -- they document every knob, and losing them would have cost more than the migration gained. Equivalence was checked by capturing the merged settings for all eleven profiles before and after: zero differences.
+- `extra="forbid"` already refuses every one of these keys, so the explicit rejecter exists purely for the message: it names the nested field to move each key to and lists them all at once, rather than reporting `Extra inputs are not permitted` and leaving the reader to work out that `subtitle_anchor` is now `subtitle_settings.anchor`. Migrating a profile is one config-load cycle rather than one per key.
+- Four shipped documents, `config/subtitles.yaml` among them, told the reader to write a flat key per profile. Following any of them now aborts every render rather than the one profile being edited, since the loader raises on the first offender. A test derives the sweep from the legacy maps rather than from a list of files, so it cannot go stale when a key is added. Three names are outside it, being legal keys in their own right wherever they appear: `subtitle_engine`, `subtitle_format`, and `two_part_subtitles`, which is the nested block's own name. `pycaps_template` and its two siblings are judged everywhere except the `global_batch` section that declares them. It is a backstop for review, not a replacement.
+- The suite's warning count drops from 590 to 13. Every profile load was emitting a `DeprecationWarning` naming its migrated keys, which is noise that hides real warnings.
+- `subtitle_format` is settable per profile, added in 0.86.5, but in the nested spelling only. It goes through the same refusal as every other subtitle key, which names `subtitle_settings.subtitle_format` in the error.
+
 ## [0.86.5] - 2026-08-30
 
 ### Added
