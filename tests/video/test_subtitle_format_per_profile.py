@@ -1,0 +1,143 @@
+"""A profile can set `subtitle_format`, and the path follows it.
+
+It could not before, and the reason was a disagreement rather than a missing
+field. The generator wrote whichever format the profile-merged settings named,
+while `_get_subtitle_filename` derived the file's extension from the *global*
+block. The moment a profile overrode the format the two parted company, and
+both directions failed:
+
+- global `ass`, profile `srt`: SRT text lands in `subtitles.ass`, the assembler
+  picks its filter from the suffix and hands it to FFmpeg's `ass` filter, which
+  aborts the render.
+- global `srt`, profile `ass`: the generator writes `subtitles.ass`, the step
+  looks for `subtitles.srt`, finds nothing, sets `subtitle_path = None`, and
+  ships a caption-less video with no error at all.
+
+The key was rejected at profile level to keep both unreachable. That was a
+stopgap: the field is settable everywhere else, so its absence from profiles
+was a limitation, not a decision.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from src.video.config.visual_models import VideoProfile
+
+
+@pytest.fixture
+def video_config():
+    from src.video.config import config
+
+    return config
+
+
+def profile_with(video_config, base_name: str, **overrides) -> VideoProfile:
+    """A real bundled profile with a field replaced.
+
+    Built from a real one because `VideoProfile` has required fields, and
+    because the question is what an operator editing a shipped profile gets.
+    """
+    data = video_config.video_profiles[base_name].model_dump(exclude_none=True)
+    data.pop("subtitle_settings", None)
+    data.update(overrides)
+    return VideoProfile(**data)
+
+
+class TestTheKeyIsAccepted:
+    def test_the_nested_spelling_loads(self, video_config):
+        profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.subtitle_format == "srt"
+
+    def test_the_flat_spelling_migrates_like_its_siblings(self, video_config):
+        """It was deliberately absent from the legacy map for the same reason
+        the nested form was rejected.
+        """
+        profile = profile_with(video_config, "slideshow_images1", subtitle_format="srt")
+
+        assert profile.subtitle_settings is not None
+        assert profile.subtitle_settings.subtitle_format == "srt"
+
+    def test_an_invalid_format_is_still_rejected(self, video_config):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            profile_with(
+                video_config,
+                "slideshow_images1",
+                subtitle_settings={"subtitle_format": "vtt"},
+            )
+
+
+class TestThePathFollowsTheProfile:
+    """The disagreement that made the key unsafe to accept."""
+
+    def test_a_profile_asking_for_srt_gets_an_srt_path(self, video_config, monkeypatch):
+        """Global is `ass` in the bundled config; this is the aborting case."""
+        assert video_config.subtitle_settings.get("subtitle_format") == "ass"
+
+        srt_profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "srt_profile", srt_profile)
+
+        path = video_config.get_product_paths("B0TEST001", "srt_profile")["subtitles"]
+
+        assert path.suffix == ".srt", (
+            "the path still comes from the global format, so SRT text would "
+            "be written into a file the assembler feeds to FFmpeg's ass filter"
+        )
+
+    def test_a_profile_asking_for_ass_gets_an_ass_path(self, video_config, monkeypatch):
+        """The mirror case, which fails silently rather than loudly."""
+        ass_profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "ass"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "ass_profile", ass_profile)
+        monkeypatch.setitem(video_config.subtitle_settings, "subtitle_format", "srt")
+
+        path = video_config.get_product_paths("B0TEST001", "ass_profile")["subtitles"]
+
+        assert path.suffix == ".ass", (
+            "the path follows the global `srt`, so the step looks for a file "
+            "the generator never wrote and ships a caption-less video"
+        )
+
+    def test_the_path_and_the_merged_format_agree_for_every_profile(self, video_config):
+        """The invariant, rather than the two cases.
+
+        Whatever a profile resolves to, the file it is written to must carry
+        that extension -- that agreement is the whole fix.
+        """
+        for name in video_config.video_profiles:
+            if name == "base":
+                continue
+            merged = video_config.get_profile_merged_settings(name)
+            path = video_config.get_product_paths("B0TEST001", name)["subtitles"]
+
+            assert path.suffix == f".{merged.subtitle_settings.subtitle_format}", (
+                f"{name} resolves to "
+                f"{merged.subtitle_settings.subtitle_format} but writes to "
+                f"{path.name}"
+            )
+
+    def test_no_profile_still_uses_the_global_value(self, video_config):
+        """Callers with no profile in hand must keep working."""
+        assert video_config._get_subtitle_filename("subtitles.srt") == "subtitles.ass"
+
+    def test_an_unknown_profile_falls_back_rather_than_raising(self, video_config):
+        """Reporting a bad profile name is not this function's job."""
+        assert (
+            video_config._get_subtitle_filename("subtitles.srt", "no_such_profile")
+            == "subtitles.ass"
+        )

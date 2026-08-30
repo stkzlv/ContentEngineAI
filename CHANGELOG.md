@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.5] - 2026-08-30
+
+### Added
+- A profile can set `subtitle_format`, in either the nested or the flat spelling. Closes #243.
+
+### Fixed
+- The subtitle file's extension follows the profile rather than the global block. The generator wrote whichever format the merged settings named while the path was derived from the global one, so an override made the two disagree: SRT text in a `.ass` path is handed to FFmpeg's `ass` filter and aborts the render, and the mirror case looks for a file the generator never wrote and ships a caption-less video with no error.
+
+### Notes
+- The key was rejected at profile level to keep both failures unreachable. That was a stopgap, not a design decision -- the field is settable everywhere else.
+- Both spellings had to be handled. `extra="forbid"` only sees the flat key, and `PartialSubtitleSettings` declares the field, so the nested route needed its own rejection and now needs its own acceptance.
+- `_get_subtitle_filename` takes the profile optionally and falls back to the global value, so callers with no profile in hand are unchanged. An unknown profile falls back rather than raising: reporting a bad profile name is not this function's job, and the caller does it with a better message.
+- A test asserts the invariant for every bundled profile -- whatever format a profile resolves to, the file it writes to carries that extension -- rather than only the two failing cases.
+
 ## [0.86.4] - 2026-08-30
 
 ### Fixed

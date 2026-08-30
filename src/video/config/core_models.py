@@ -943,7 +943,8 @@ class VideoConfig(BaseModel):
             "script": temp_dir / files.script,
             "description": temp_dir / files.description,
             "voiceover": temp_dir / files.voiceover,
-            "subtitles": temp_dir / self._get_subtitle_filename(files.subtitles),
+            "subtitles": temp_dir
+            / self._get_subtitle_filename(files.subtitles, profile_name),
             "attribution": temp_dir / files.attribution,
             # Debug/temp files (in temp directory)
             "pipeline_state": temp_dir / temp_files.pipeline_state,
@@ -969,9 +970,34 @@ class VideoConfig(BaseModel):
             "metadata": temp_dir / temp_files.pipeline_state,  # Legacy alias
         }
 
-    def _get_subtitle_filename(self, default_filename: str) -> str:
-        """Get subtitle filename with correct extension based on subtitle format."""
-        if self.subtitle_settings.get("subtitle_format") == "ass":
+    def _get_subtitle_filename(
+        self, default_filename: str, profile_name: str | None = None
+    ) -> str:
+        """Subtitle filename, with the extension the profile will actually use.
+
+        Read from the profile-merged settings rather than the global block.
+        The generator writes whichever format the merged settings say, so a
+        path derived from the global one disagrees with the file's contents
+        the moment a profile overrides it -- and the two failure modes are
+        both bad: SRT text in a `.ass` path is handed to FFmpeg's `ass`
+        filter and aborts the render, while the mirror case finds no file at
+        the expected path and ships a caption-less video with no error.
+
+        `profile_name` is optional so callers with no profile in hand (and
+        the global-only paths) keep working on the global value.
+        """
+        subtitle_format = self.subtitle_settings.get("subtitle_format")
+        if profile_name:
+            try:
+                merged = self.get_profile_merged_settings(profile_name)
+                subtitle_format = merged.subtitle_settings.subtitle_format
+            except (KeyError, ValueError):
+                # An unknown or unloadable profile is not this function's
+                # error to raise; the caller will hit it with a better
+                # message. Fall back to the global value.
+                pass
+
+        if subtitle_format == "ass":
             return default_filename.replace(".srt", ".ass")
         return default_filename
 
