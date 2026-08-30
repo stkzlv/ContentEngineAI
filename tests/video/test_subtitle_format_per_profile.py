@@ -20,6 +20,8 @@ was a limitation, not a decision.
 
 from __future__ import annotations
 
+import ast
+
 import pytest
 
 from src.video.config.visual_models import VideoProfile
@@ -146,17 +148,19 @@ class TestThePathFollowsTheProfile:
 class TestTheCliOverrideReachesThePath:
     """`--subtitle-format` resolves the same way for the path and the writer.
 
-    Threading the profile in closed the config-level disagreement and opened a
-    second one by the same shape: every runtime consumer merges *with*
-    `ctx.cli_overrides`, so a path merged without them parts company from the
-    written file the moment the flag is passed. The producer's `--subtitle-format`
-    is the only way to reach it, and the two failure modes are the same two.
+    This half is older than the profile key and reachable on a stock install:
+    every runtime consumer merges *with* `ctx.cli_overrides` while the path did
+    not, so `--subtitle-format srt` against the bundled `ass` global wrote SRT
+    text into `subtitles.ass` and FFmpeg's `ass` filter aborted the render.
+    Threading the profile in neither caused nor closed it. The producer's
+    `--subtitle-format` is the only way to reach it -- `global_batch` has no
+    such flag.
     """
 
     OVERRIDE = {"subtitle_settings.subtitle_format": "ass"}
 
     def test_the_flag_moves_the_path(self, video_config, monkeypatch):
-        """Global and profile both say `srt`; the flag says `ass`."""
+        """The profile says `srt`; the flag says `ass` and must win."""
         profile = profile_with(
             video_config,
             "slideshow_images1",
@@ -223,3 +227,47 @@ class TestTheCliOverrideReachesThePath:
             ].suffix
             == ".srt"
         )
+
+
+class TestTheProductionCallSitePassesThem:
+    """The one wiring that makes the CLI half real, read from the source.
+
+    `orchestration.py` is the only place `ctx.run_paths` is built, and dropping
+    the fourth argument there reinstates both failure modes while the whole
+    suite stays green -- the tests above call `get_video_run_paths` directly,
+    so they cover the helper and not the call. Asserted the way the publisher's
+    `create_publisher` kwargs are: by walking the AST of the call site, because
+    the defect is a call that passes nothing, which no shared helper can guard.
+    """
+
+    def call(self):
+        import ast
+        from pathlib import Path
+
+        source = Path("src/video/producer/orchestration.py").read_text(encoding="utf-8")
+        calls = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "get_video_run_paths"
+        ]
+        assert len(calls) == 1, f"expected one call site, found {len(calls)}"
+        return calls[0]
+
+    def test_it_passes_the_cli_overrides(self):
+        names = [a.id for a in self.call().args if isinstance(a, ast.Name)] + [
+            kw.arg for kw in self.call().keywords
+        ]
+
+        assert "cli_overrides" in names, (
+            "the run paths are built without the CLI overrides, so "
+            "`--subtitle-format` moves the generator and not the path"
+        )
+
+    def test_it_passes_the_profile_too(self):
+        names = [a.id for a in self.call().args if isinstance(a, ast.Name)] + [
+            kw.arg for kw in self.call().keywords
+        ]
+
+        assert "profile_name" in names

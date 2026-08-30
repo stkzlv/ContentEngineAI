@@ -13,16 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A profile can set `subtitle_format`, in either the nested or the flat spelling. Closes #243.
 
 ### Fixed
-- The subtitle file's extension follows the profile rather than the global block. The generator wrote whichever format the merged settings named while the path was derived from the global one, so an override made the two disagree: SRT text in a `.ass` path is handed to FFmpeg's `ass` filter and aborts the render, and the mirror case looks for a file the generator never wrote and ships a caption-less video with no error.
+- `--subtitle-format srt` aborted the render on a stock install. The generator wrote whichever format the merged settings named while the path was derived from the global block, so the flag moved one and not the other: SRT text landed in `subtitles.ass`, the assembler picked its filter from the suffix, and FFmpeg's `ass` filter aborted. The mirror case looks for a file the generator never wrote and ships a caption-less video with no error at all.
+- The subtitle file's extension follows the profile too, for the same reason. Both the profile and the CLI overrides now resolve the path, so the file the generator writes and the path the assembler reads cannot disagree by either route.
 
 ### Notes
 - The key was rejected at profile level to keep both failures unreachable. That was a stopgap, not a design decision -- the field is settable everywhere else.
 - Both spellings had to be handled. `extra="forbid"` only sees the flat key, and `PartialSubtitleSettings` declares the field, so the nested route needed its own rejection and now needs its own acceptance.
 - `_get_subtitle_filename` takes the profile optionally and falls back to the global value, so callers with no profile in hand are unchanged. An unknown profile falls back rather than raising: reporting a bad profile name is not this function's job, and the caller does it with a better message.
 - A test asserts the invariant for every bundled profile -- whatever format a profile resolves to, the file it writes to carries that extension -- rather than only the two failing cases.
-
-### Notes
-- The path resolution takes the CLI overrides too, not only the profile. Every runtime consumer of the written file resolves its format with `ctx.cli_overrides` applied, so a path resolved without them parts company from the file the moment `--subtitle-format` is passed -- the same two failure modes, reached by a different route, and reachable only because this release makes the profile-level key legal.
+- The path resolution takes the CLI overrides as well as the profile. Every runtime consumer of the written file resolves its format with `ctx.cli_overrides` applied, so a path resolved without them parts company from the file. That half predates this release: the flag disagreed with the path on the bundled config, with no profile key involved.
 
 ## [0.86.4] - 2026-08-30
 
