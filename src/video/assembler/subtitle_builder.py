@@ -1011,7 +1011,17 @@ class SubtitleGraphBuilder:
         """Calculate segment end times from timed visuals."""
         segment_end_times = []
         cumulative_time = 0.0
-        transition_duration = self.config.video_settings.transition_duration_sec
+        # Profile-merged, matching `visual_builder`. These two must agree: the
+        # assembler lays out the xfade offsets from its value and this places
+        # the caption boundaries against them, so reading different objects
+        # drifts every reposition after the first visual by the difference,
+        # cumulatively. Before the assembler was fixed both read the global,
+        # which was wrong but at least consistent.
+        transition_duration = (
+            self.profile_settings.video_settings.transition_duration_sec
+            if self.profile_settings
+            else self.config.video_settings.transition_duration_sec
+        )
 
         for i, (_, duration, _) in enumerate(timed_visuals):
             effective_duration = duration - (transition_duration if i > 0 else 0)

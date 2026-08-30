@@ -59,104 +59,182 @@ class TestSomeProfileActuallyOverridesThese:
         )
 
 
-class TestTheBuilderReadsTheProfile:
-    """Asserted against the builder's own binding, not the config layer.
+class TestTheAssemblerEmitsWhatTheProfileAsked:
+    """Drives `build_visual_chain`, the method that held the defect.
 
-    The config layer was never wrong -- `get_profile_merged_settings` returned
-    `crop-to-fit` throughout. Only the consumer was.
+    An earlier version of this file asserted two weaker things and claimed
+    they would have caught the bug. Neither would: one constructed the builder
+    with `profile_settings=None` and passed the aspect mode in as a literal,
+    so no profile value flowed through it; the other asserted that `__init__`
+    stored the object it was handed. Nine of ten tests here passed against the
+    unfixed code.
+
+    This one renders a real landscape input under a profile that asks to crop,
+    and reads the emitted filter.
     """
 
-    def builder(self, profile_name: str):
-        from unittest.mock import MagicMock
+    async def chain_for(self, profile_name: str, tmp_path):
+        from unittest.mock import AsyncMock, MagicMock
 
         from src.video.assembler.visual_builder import VisualFilterBuilder
 
-        return VisualFilterBuilder(
-            media_inspector=MagicMock(),
+        source = tmp_path / "clip.mp4"
+        source.write_bytes(b"")
+
+        inspector = MagicMock()
+        inspector.is_video.return_value = True
+        # 1920x1080 into a 1080x1920 frame: the case the modes differ on.
+        inspector.get_media_dimensions = AsyncMock(return_value=(1920, 1080))
+        inspector.get_video_dimensions = AsyncMock(return_value=(1920, 1080))
+        inspector.get_media_duration = AsyncMock(return_value=20.0)
+
+        # The assembly strategy only decides which clips play for how long;
+        # the aspect handling under test happens after it. Stubbed to one
+        # full-length segment so the filter chain is the only variable.
+        strategy = MagicMock()
+        strategy.assemble = AsyncMock(return_value=([(source, 20.0, True)], "stubbed"))
+        strategy_factory = MagicMock()
+        strategy_factory.get_strategy.return_value = strategy
+
+        settings = merged(profile_name)
+        builder = VisualFilterBuilder(
+            media_inspector=inspector,
             config=config,
-            strategy_factory=None,
-            profile_settings=merged(profile_name),
+            strategy_factory=strategy_factory,
+            profile_settings=settings,
         )
+        filter_parts, *_ = await builder.build_visual_chain(
+            visual_inputs=[source],
+            total_video_duration=20.0,
+            is_relative_mode=False,
+            video_settings_dict=settings.video_settings.model_dump(),
+        )
+        return "\n".join(filter_parts)
 
-    @pytest.mark.parametrize("field", OVERRIDDEN_FIELDS)
-    def test_the_builder_sees_the_profile_value(self, field):
-        for name in profiles_overriding(field):
-            expected = getattr(merged(name).video_settings, field)
-            actual = getattr(self.builder(name).profile_settings.video_settings, field)
+    @pytest.mark.asyncio
+    async def test_a_cropping_profile_emits_a_crop(self, tmp_path):
+        """`product_video_single` sets crop-to-fit and was letterboxing."""
+        chain = await self.chain_for("product_video_single", tmp_path)
 
-            assert actual == expected, (
-                f"{name} asks for {field}={expected!r} and the builder holds "
-                f"{actual!r}"
-            )
+        assert "crop=" in chain, (
+            "the profile asks to crop and the assembler padded, so its "
+            "video_aspect_mode is being ignored"
+        )
+        assert "pad=" not in chain
 
-    def test_the_binding_is_not_the_global(self):
-        """The defect itself: one line, and the whole class of bug follows.
+    @pytest.mark.asyncio
+    async def test_a_letterboxing_profile_still_pads(self, tmp_path):
+        """The counterpart, so the test above cannot pass by emitting nothing."""
+        chain = await self.chain_for("product_video_mixed", tmp_path)
 
-        Read from the source because the binding is a local inside a long
-        method; calling it needs the full assembly context.
-        """
+        assert "pad=" in chain
+
+
+class TestNoOverridableFieldIsReadFromTheGlobal:
+    """Derived from the override map, scoped to the method that had the bug.
+
+    The first version of this check asserted that no assignment to the *name*
+    `video_settings` lacked `profile_settings` in its value. That pinned a
+    spelling: renaming the local reintroduced the defect with the test green,
+    an annotated assignment skipped the walk entirely, and a legitimate global
+    binding in a different method failed it with a message that was false.
+
+    This asks the question the map already answers -- which fields a profile
+    can override -- and checks that none of them is reached through
+    `self.config.video_settings` inside `build_visual_chain`.
+    """
+
+    METHOD = "build_visual_chain"
+
+    def overridable_targets(self) -> set[str]:
+        from tests.video.test_profile_override_coverage import override_map
+
+        return set(override_map().values())
+
+    def method_node(self):
         import ast
         import inspect
+        import textwrap
 
         from src.video.assembler.visual_builder import VisualFilterBuilder
 
-        source = inspect.getsource(VisualFilterBuilder)
-        tree = ast.parse(source.lstrip())
-
-        globals_only = [
+        source = textwrap.dedent(inspect.getsource(VisualFilterBuilder))
+        tree = ast.parse(source)
+        return next(
             node
             for node in ast.walk(tree)
-            if isinstance(node, ast.Assign)
-            and any(
-                isinstance(t, ast.Name) and t.id == "video_settings"
-                for t in node.targets
+            if isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef)
+            and node.name == self.METHOD
+        )
+
+    def test_the_method_is_found(self):
+        """Vacuous if the walk finds nothing."""
+        assert self.method_node().body
+        assert len(self.overridable_targets()) > 5
+
+    def test_no_global_read_of_an_overridable_field(self):
+        import ast
+
+        def is_global_chain(node) -> bool:
+            """The literal `self.config.video_settings` attribute chain."""
+            return (
+                isinstance(node, ast.Attribute)
+                and node.attr == "video_settings"
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "config"
             )
-            and "profile_settings" not in ast.dump(node.value)
-        ]
 
-        assert not globals_only, (
-            "`video_settings` is bound to the global config, so every "
-            "profile-overridable field read from it is silently ignored"
+        method_for_aliases = self.method_node()
+        # Locals bound to the global object. Following these is the whole
+        # point: the first version of this check matched the attribute chain
+        # only, so renaming the local reintroduced the defect with the test
+        # green -- which is exactly how the bug shipped in the first place.
+        aliases = {
+            target.id
+            for node in ast.walk(method_for_aliases)
+            if isinstance(node, ast.Assign) and is_global_chain(node.value)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        } | {
+            node.target.id
+            for node in ast.walk(method_for_aliases)
+            if isinstance(node, ast.AnnAssign)
+            and node.value is not None
+            and is_global_chain(node.value)
+            and isinstance(node.target, ast.Name)
+        }
+
+        def is_global_settings(node) -> bool:
+            """The chain, or any local aliased to it."""
+            return is_global_chain(node) or (
+                isinstance(node, ast.Name) and node.id in aliases
+            )
+
+        method = self.method_node()
+
+        # A global read that is an operand of a comparison is deliberate: the
+        # `image_positioning_overridden` branch asks whether the profile
+        # differs from the global, which requires reading both. A global read
+        # used as a value is the defect.
+        compared = {
+            id(inner)
+            for node in ast.walk(method)
+            if isinstance(node, ast.Compare)
+            for operand in [node.left, *node.comparators]
+            for inner in ast.walk(operand)
+        }
+
+        targets = self.overridable_targets()
+        offenders = {
+            node.attr
+            for node in ast.walk(method)
+            if isinstance(node, ast.Attribute)
+            and node.attr in targets
+            and is_global_settings(node.value)
+            and id(node) not in compared
+        }
+
+        assert not offenders, (
+            f"{sorted(offenders)} are read from the global config inside "
+            f"{self.METHOD}, so a profile overriding them is ignored"
         )
-
-
-class TestTheRenderedFilterFollowsTheProfile:
-    """The end of the chain: the FFmpeg filter string itself.
-
-    `crop-to-fit` and `letterbox` produce visibly different filters, so this
-    is the assertion that would have failed on the shipped code.
-    """
-
-    def filter_for(self, aspect_mode: str) -> str:
-        from unittest.mock import MagicMock
-
-        from src.video.assembler.visual_builder import VisualFilterBuilder
-
-        builder = VisualFilterBuilder(
-            media_inspector=MagicMock(),
-            config=config,
-            strategy_factory=None,
-            profile_settings=None,
-        )
-        filter_string, _, _ = builder.apply_aspect_ratio_mode(
-            "[0:v]", aspect_mode, 1080, 1920, 1920, 1080
-        )
-        return filter_string
-
-    def test_crop_to_fit_fills_the_frame(self):
-        rendered = self.filter_for("crop-to-fit")
-
-        assert "crop=1080:1920" in rendered
-        assert "increase" in rendered
-        assert "pad=" not in rendered, "crop-to-fit padded, so it letterboxed"
-
-    def test_letterbox_pads(self):
-        """The counterpart, so the test above cannot pass by rendering nothing."""
-        rendered = self.filter_for("letterbox")
-
-        assert "pad=1080:1920" in rendered
-        assert "decrease" in rendered
-
-    def test_a_landscape_source_is_the_case_that_differs(self):
-        """16:9 into 9:16 is what the bundled profiles actually receive."""
-        assert self.filter_for("crop-to-fit") != self.filter_for("letterbox")
