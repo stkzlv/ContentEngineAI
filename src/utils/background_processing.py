@@ -452,9 +452,7 @@ class TTSWarmer:
             if name in reachable
         ]
         if not providers_to_check:
-            logger.debug(
-                "No TTS provider in provider_order has a config block to warm"
-            )
+            logger.debug("No TTS provider in provider_order has a config block to warm")
 
         # Gemini uses same client as google_cloud, so warm it if any
         # voice profile uses gemini and we haven't already warmed google_cloud
