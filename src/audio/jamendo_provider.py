@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
 JAMENDO_MAX_RESULTS = 200  # Jamendo API hard limit
+# Extra attempts after an empty-but-successful response. Measured at
+# roughly one call in three coming back empty for identical input, so two
+# retries put the odds of three consecutive misses near one in thirty.
+JAMENDO_EMPTY_RETRIES = 2
 
 # Separate circuit breaker for Jamendo
 jamendo_circuit_breaker = CircuitBreaker(
@@ -66,6 +70,14 @@ class JamendoProvider(BaseAudioProvider):
         max_results: int,
         session: aiohttp.ClientSession,
     ) -> list[AudioTrack]:
+        """Search Jamendo, retrying an empty-but-successful response.
+
+        The API intermittently answers a working query with zero results --
+        measured at roughly one call in three for identical input. Treating
+        that as "no tracks" dropped Jamendo for the whole render and fell
+        through to the next provider, which silently changes the audio quality
+        of a published video.
+        """
         if not self._client_id:
             logger.debug("Jamendo client_id not configured, skipping")
             return []
@@ -74,18 +86,77 @@ class JamendoProvider(BaseAudioProvider):
             logger.warning("Jamendo circuit breaker is open, skipping")
             return []
 
-        # Pick from configured queries if available, otherwise use the passed query
-        if self._search_queries:
-            query = random.choice(self._search_queries)  # noqa: S311
-            logger.info("Jamendo query (random): '%s'", query)
+        for attempt in range(1, JAMENDO_EMPTY_RETRIES + 2):
+            # Re-drawn per attempt. The emptiness is not query-specific, so a
+            # different query is a second sample rather than a second guess.
+            attempt_query = query
+            if self._search_queries:
+                attempt_query = random.choice(self._search_queries)  # noqa: S311
+                logger.info("Jamendo query (random): '%s'", attempt_query)
+
+            tracks = await self._search_once(
+                attempt_query,
+                min_duration,
+                max_duration,
+                max_results,
+                session,
+            )
+            if tracks is None:
+                # A real failure: HTTP error, API error, or transport. Already
+                # logged and recorded against the circuit breaker.
+                return []
+            if tracks:
+                return tracks
+
+            logger.info(
+                "Jamendo returned no tracks for '%s' (attempt %d/%d)",
+                attempt_query,
+                attempt,
+                JAMENDO_EMPTY_RETRIES + 1,
+            )
+
+        # WARNING, not INFO: a configured primary provider yielding nothing
+        # means the chain falls through to a provider that may only offer
+        # preview-quality audio, and that downgrade should be greppable.
+        logger.warning(
+            "Jamendo yielded no tracks after %d attempts; the chain will fall "
+            "through to the next provider, which may downgrade audio quality",
+            JAMENDO_EMPTY_RETRIES + 1,
+        )
+        return []
+
+    async def _search_once(
+        self,
+        query: str,
+        min_duration: float,
+        max_duration: float,
+        max_results: int,
+        session: aiohttp.ClientSession,
+    ) -> list[AudioTrack] | None:
+        """One search request.
+
+        Returns the tracks, an empty list when the API answered with none, or
+        `None` when the request itself failed -- which the caller must not
+        retry, because the circuit breaker has already recorded it.
+        """
+        # `search` returns before calling this when the id is unset, so the
+        # narrowing is real; it just does not survive the split.
+        client_id = self._client_id
+        if not client_id:
+            return None
 
         # Convert space-separated query to + delimited for tags/fuzzytags
         tag_query = query.replace(" ", "+")
 
         params: dict[str, str] = {
-            "client_id": self._client_id,
+            "client_id": client_id,
             "format": "json",
-            "duration_between": f"{int(min_duration)}_{int(max_duration)}",
+            # `durationbetween`, no underscore. The API ignores unknown
+            # parameters rather than rejecting them, so the underscored
+            # spelling this used to send simply never filtered: an otherwise
+            # identical query returned tracks up to 28 minutes long, and every
+            # one of 20 results sat outside the requested window.
+            "durationbetween": f"{int(min_duration)}_{int(max_duration)}",
             "vocalinstrumental": "instrumental",
             "order": "popularity_month_desc",
             "limit": str(min(max_results, JAMENDO_MAX_RESULTS)),
@@ -115,7 +186,7 @@ class JamendoProvider(BaseAudioProvider):
                         body[:200],
                     )
                     jamendo_circuit_breaker.record_failure(Exception("API error"))
-                    return []
+                    return None
 
                 data = await resp.json()
 
@@ -125,14 +196,14 @@ class JamendoProvider(BaseAudioProvider):
                     error_msg = data.get("headers", {}).get("error_message", "")
                     logger.warning("Jamendo API error: %s", error_msg)
                     jamendo_circuit_breaker.record_failure(Exception(error_msg))
-                    return []
+                    return None
 
                 jamendo_circuit_breaker.record_success()
 
         except (TimeoutError, aiohttp.ClientError) as exc:
             logger.warning("Jamendo search failed: %s", exc)
             jamendo_circuit_breaker.record_failure(Exception("API error"))
-            return []
+            return None
 
         results = data.get("results", [])
         logger.info("Jamendo search: %d tracks (query='%s')", len(results), query)
