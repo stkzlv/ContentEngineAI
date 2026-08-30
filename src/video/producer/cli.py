@@ -466,13 +466,18 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--subtitle-format",
         choices=["srt", "ass"],
-        help="Subtitle format: srt (default) or ass (with animations).",
+        help=(
+            "Subtitle format: srt or ass (with animations). The pycaps engine "
+            "ignores it, and the bundled YAML selects pycaps, so pair this "
+            "with --subtitle-engine ffmpeg to have it apply."
+        ),
     )
     parser.add_argument(
         "--subtitle-engine",
         choices=["ffmpeg", "pycaps"],
         help=(
-            "Subtitle rendering engine. 'ffmpeg' (default) uses SRT/ASS "
+            "Subtitle rendering engine. The bundled YAML selects pycaps. "
+            "'ffmpeg' uses SRT/ASS "
             "burned via libass. 'pycaps' runs the pycaps library as a "
             "post-assembly step for animated TikTok-style captions. See "
             "docs/pycaps-subtitles.md for install."

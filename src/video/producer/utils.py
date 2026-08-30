@@ -85,7 +85,7 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     )
 
     log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
-    logger.info(f"Logging configured - Level: {log_level_name}, File: {log_file}")
+    logger.debug(f"Logging configured - Level: {log_level_name}, File: {log_file}")
     return log_file
 
 

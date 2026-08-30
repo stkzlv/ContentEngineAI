@@ -165,6 +165,7 @@ def setup_debug_logging(
     debug_mode: bool = False,
     verbose: bool = False,
     component_name: str = "ContentEngineAI",
+    mark_run: bool = True,
 ) -> None:
     """Configure standardized logging with console and file handlers.
 
@@ -178,6 +179,9 @@ def setup_debug_logging(
         Enable verbose console formatting (default: False)
     component_name : str, optional
         Name of the component for logging messages (default: "ContentEngineAI")
+    mark_run : bool, optional
+        Write an INFO run marker (default: True). Pass False when configuring
+        logging at import rather than at the start of a run.
 
     Notes
     -----
@@ -185,6 +189,9 @@ def setup_debug_logging(
     - File output always uses detailed format with function names and line numbers
     - Log file is appended to and rotated at LOG_MAX_BYTES, so importing a
       module that configures logging cannot destroy an earlier run's log
+    - A run marker is written at INFO unless `mark_run` is False. Pass False
+      when configuring logging at import rather than at the start of a run,
+      or the marker records the import and misleads whoever reads it
     - Third-party loggers (numba, httpx, google, etc.) are suppressed to WARNING
 
     """
@@ -253,13 +260,19 @@ def setup_debug_logging(
         logging.getLogger("websocket").setLevel(logging.CRITICAL)
 
     # Run boundary, at INFO on purpose. The file is appended to, so without a
-    # marker every run visible at the default level a reader greps the log --
-    # which is how the docs say to verify a render -- can match the previous
-    # run's line instead of this one's. The batch logs its own banner; the
-    # producer, scraper and publisher have none, so it belongs here where every
-    # entry point reaches it.
+    # marker visible at the default level a reader greping the log -- which is
+    # how the docs say to verify a render -- can match the previous run's line
+    # instead of this one's.
+    #
+    # Gated because configuring logging is not the same event as starting a
+    # run. The scraper configures it at module import, so every producer,
+    # publisher and batch invocation imports it -- and so does `--help` --
+    # which wrote a marker claiming a scrape had begun, with no completion
+    # line after it. That is worse than no marker: it is a boundary an
+    # operator would trust.
     logger = logging.getLogger(component_name)
-    logger.info("=== %s run starting ===", component_name)
+    if mark_run:
+        logger.info("=== %s run starting ===", component_name)
     logger.debug(
         f"Logging initialized: level={logging.getLevelName(log_level)}, "
         f"log_file={log_file}, verbose={verbose}"

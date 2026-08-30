@@ -237,7 +237,8 @@ Examples:
         "--subtitle-engine",
         choices=["ffmpeg", "pycaps"],
         help=(
-            "Subtitle rendering engine. 'ffmpeg' (default) = SRT/ASS via "
+            "Subtitle rendering engine. The bundled YAML selects pycaps. "
+            "'ffmpeg' = SRT/ASS via "
             "libass. 'pycaps' = animated captions burned post-assembly. "
             "Install the optional group first: "
             "`poetry install --with pycaps`."

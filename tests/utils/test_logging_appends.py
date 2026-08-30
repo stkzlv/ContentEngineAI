@@ -145,3 +145,69 @@ class TestEachRunIsFindable:
         contents = log_file.read_text(encoding="utf-8")
         assert contents.count("Probe run starting") == 2
         assert contents.index("first") < contents.rindex("Probe run starting")
+
+
+class TestTheMarkerMeansARunStarted:
+    """Configuring logging is not the same event as starting a run.
+
+    The scraper configures logging at module import, so importing it -- which
+    every producer, publisher and batch invocation does transitively, and so
+    does `--help` -- wrote a marker claiming a scrape had begun, with no
+    completion line after it. That is worse than no marker: it is a boundary
+    an operator would trust while reading the runbook.
+    """
+
+    def test_it_can_be_suppressed(self, tmp_path: Path):
+        log_file = tmp_path / "run.log"
+
+        setup_debug_logging(log_file, component_name="Probe", mark_run=False)
+
+        assert "run starting" not in log_file.read_text(encoding="utf-8")
+
+    def test_suppressing_it_still_configures_logging(self, tmp_path: Path):
+        """The suppression must not turn the call into a no-op."""
+        log_file = tmp_path / "run.log"
+
+        setup_debug_logging(log_file, component_name="Probe", mark_run=False)
+        logging.getLogger("probe").warning("a line")
+
+        assert "a line" in log_file.read_text(encoding="utf-8")
+
+    def test_the_scraper_suppresses_it_at_import(self):
+        """Read from the source: the defect was a call site, not the helper.
+
+        Driving it would need the module re-imported, which the suite cannot
+        do without disturbing the root handlers every other test shares.
+        """
+        import ast
+
+        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        module_level = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and getattr(node.value.func, "id", None) == "setup_debug_logging"
+        ]
+        assert len(module_level) == 1, "the import-time call moved or multiplied"
+
+        passed = {
+            keyword.arg: keyword.value
+            for keyword in module_level[0].value.keywords
+            if isinstance(keyword.value, ast.Constant)
+        }
+        assert passed.get("mark_run") is not None, "mark_run is not passed at all"
+        assert passed["mark_run"].value is False, (
+            "importing the scraper writes a run marker, so every producer, "
+            "publisher and batch invocation logs a scrape that never happened"
+        )
+
+    def test_the_scraper_marks_its_own_run(self):
+        """Suppressing at import is only correct if the run marks itself."""
+        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+
+        assert "=== AmazonScraper run starting ===" in source, (
+            "the import-time marker was suppressed and nothing replaced it, "
+            "so a real scrape now has no boundary at all"
+        )
