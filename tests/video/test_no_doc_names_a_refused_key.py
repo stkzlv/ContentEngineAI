@@ -10,16 +10,17 @@ raises on the first offending profile, so following any of them aborts every
 render, not only the one the reader was editing.
 
 The sweep is derived from the legacy maps rather than from a list of files, so
-it cannot go stale when a key is added or renamed. It covers the two families
-that have no legal spelling anywhere -- globally they are `pycaps.<field>` and
-`safe_zone.<field>`, so an occurrence is wrong wherever it appears. The flat
-`subtitle_*` family is deliberately excluded: those names ARE the global
-spelling (`subtitle_settings.subtitle_engine`), so a hit there says nothing
-about whether the surrounding sentence is about a profile. That is a real gap
--- two of the four rounds' findings were in that family (`subtitle_margin`,
-`subtitle_randomize_fonts`) and this would not have caught either. Closing it
-needs the sentence's subject, not its tokens; the two families here are the
-part that can be decided from the token alone.
+it cannot go stale when a key is added or renamed. It covers every name in
+them except `subtitle_engine` and `subtitle_format`, which are the only two
+that are also real global keys and so say nothing about whether the sentence
+around them is about a profile. Everything else is refused at profile level
+and has no global spelling either -- globally they are `margin`,
+`randomize_fonts`, `pycaps.template_name`, `safe_zone.min_x` -- so an
+occurrence is wrong wherever it appears.
+
+Excluding the whole flat family instead would have left three of the five
+sites above uncovered, since only `config/subtitles.yaml`'s two were in the
+`pycaps_*` and `safe_zone_*` families.
 """
 
 from __future__ import annotations
@@ -30,17 +31,34 @@ from pathlib import Path
 import pytest
 
 from src.video.config.visual_models import (
+    _LEGACY_FLAT_TO_NESTED,
     _LEGACY_PYCAPS_FIELDS,
     _LEGACY_SAFE_ZONE_FIELDS,
 )
 
 SEARCHED = ("docs", "config")
-ALSO = (Path("CLAUDE.md"), Path("README.md"))
+ALSO = (Path("CLAUDE.md"), Path("GEMINI.md"), Path("README.md"))
+
+# The only two legacy names that are also a real global key, so a hit on one
+# says nothing about whether the sentence is about a profile. Every other
+# name in the three maps is refused at profile level and does not exist
+# globally either -- globally they are `margin`, `randomize_fonts`,
+# `pycaps.template_name`, `safe_zone.min_x` -- so an occurrence is wrong
+# wherever it appears.
+GLOBAL_TOO = {"subtitle_engine", "subtitle_format"}
 
 # A line may name a refused key when it is saying that the key is refused, and
 # `pycaps_template` is additionally the md5 salt for template selection
 # (`pycaps_engine/renderer.py`), which is a literal in the source, not a key.
-ALLOWED = re.compile(r"refused|rejected|legacy|:pycaps_template", re.IGNORECASE)
+#
+# Deliberately not `legacy`: that word exempts the lines most likely to be
+# wrong. `docs/requirements.md` used to read "Legacy flat per-profile keys
+# (...) still load with a deprecation warning", which was false the moment
+# this branch landed and which a bare `legacy` alternative waves through.
+# The exemption has to key on the refusal, not on the topic.
+ALLOWED = re.compile(
+    r"refused|rejected|no longer|not accepted|:pycaps_template", re.IGNORECASE
+)
 
 
 def files() -> list[Path]:
@@ -52,7 +70,14 @@ def files() -> list[Path]:
 
 
 def offenders() -> list[str]:
-    keys = sorted(set(_LEGACY_SAFE_ZONE_FIELDS) | set(_LEGACY_PYCAPS_FIELDS))
+    keys = sorted(
+        (
+            set(_LEGACY_SAFE_ZONE_FIELDS)
+            | set(_LEGACY_PYCAPS_FIELDS)
+            | set(_LEGACY_FLAT_TO_NESTED)
+        )
+        - GLOBAL_TOO
+    )
     # The glob spellings too: `subtitle_safe_zone_* fields` named the family
     # without naming a member, and is wrong for exactly the same reason.
     globs = [r"subtitle_safe_zone_\*", r"pycaps_\*"]
@@ -70,6 +95,9 @@ def offenders() -> list[str]:
 def test_the_sweep_looks_at_something():
     """Every assertion below is vacuous if the file walk finds nothing."""
     assert len(files()) > 10
+    assert (
+        Path("config/subtitles.yaml") in files()
+    ), "no YAML is being swept, so the guard would go green if config/ moved"
     assert set(_LEGACY_SAFE_ZONE_FIELDS) and set(_LEGACY_PYCAPS_FIELDS)
 
 
@@ -82,7 +110,9 @@ def test_no_shipped_prose_names_a_key_that_aborts_the_load():
     )
 
 
-@pytest.mark.parametrize("key", ["pycaps_renderer", "subtitle_safe_zone_max_y"])
+@pytest.mark.parametrize(
+    "key", ["pycaps_renderer", "subtitle_safe_zone_max_y", "subtitle_margin"]
+)
 def test_the_sweep_would_catch_a_new_one(key, tmp_path, monkeypatch):
     """The guard is only worth having if it fires."""
     doc = tmp_path / "docs" / "made-up.md"
