@@ -1033,8 +1033,12 @@ async def step_create_voiceover(ctx: PipelineContext):
         # Trim leading/trailing silence from voiceover
         # Whisper normalizes timestamps to start at first speech
         audio_proc = ctx.config.audio_processing
+        # Bound before the branch: the duration read below needs it on every
+        # path, and `silence_removal_enabled: false` -- or no `audio_processing`
+        # section at all -- otherwise raised UnboundLocalError here, after the
+        # script and the TTS synthesis had already been paid for.
+        ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
         if audio_proc and audio_proc.silence_removal_enabled:
-            ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
             trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
 
             try:

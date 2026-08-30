@@ -11,11 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `gather_visuals` raised `UnboundLocalError` on any profile that draws no stock media, failing the whole render before the script or the voiceover. `stock_queries_issued` was declared inside `if profile_needs_stock_media(...)` while `save_visuals_info` reads it on every path.
+- `create_voiceover` raised `UnboundLocalError` when `audio_processing.silence_removal_enabled` was false, or the section absent. `ffmpeg_path` was bound inside that branch while the duration read below needs it on every path, so a documented toggle crashed the render after the script and the TTS had been paid for.
 
 ### Notes
-- Four of the eleven bundled profiles take that arm, so a `--random-profile` run had a real chance of losing the product outright. Found by the post-release end-to-end batch, which drew `product_video_primary`; the suite never drove the step for a stock-free profile.
-- The previous fix for this same symptom hoisted the name out of the inner preloaded/fetch branch and left it inside the outer one, and the comment above it said the trap was handled. It was, one level down.
-- The guard is dataflow over the step's AST rather than a comment: any name read on the straight-line path but bound only inside a conditional one. Two things it has to get right, and both were wrong on the first attempt -- the step's whole body sits in one `async with`, so a walk that does not flatten unconditional wrappers compares nothing and reports every function clean; and comprehension targets have their own scope, so counting them accused `item` and `p` of the defect.
+- The first one is not an edge case. Ten of the eleven bundled profiles take that arm, including all nine a `--random-profile` run can draw, so every fresh render failed at `gather_visuals` from v0.82.0 to v0.88.0. Found by the post-release end-to-end batch; the suite never drove the step, and its short-circuit on an existing `gathered_visuals.json` hid it on re-runs.
+- The previous fix for this same symptom hoisted the name out of the inner preloaded/fetch branch, left it inside the outer one, and wrote a comment saying the trap was handled. It was, one level down.
+- The guard is CPython's own definite-assignment analysis rather than a reimplementation: the compiler emits `LOAD_FAST_CHECK` exactly where it cannot prove a local is bound, so reading the opcodes is exact by construction and does not need maintaining as the syntax grows. It covers every function in the module, which is how the second bug was found.
+- A hand-rolled AST walk was written first and discarded. It reported names on legitimate code in thirteen of twenty-four real functions, and was blind to bindings in `try` bodies, `except` handlers, `match` cases and `with ... as` -- each a place this bug can hide. Two of its blind spots were only visible because the real step's body sits inside an `async with`, which the walk did not descend into, so it passed against the reverted fix.
+- Two names in `step_assemble_video` are allowlisted as compiler conservatism: they are read after an `async with` closes, and the compiler must assume the context manager could have suppressed. It cannot -- `measure_step` re-raises and its `finally` has no `return`. A test asserts each allowlisted name is still reported, so the list cannot outlive its reason.
 
 ## [0.88.0] - 2026-08-30
 
