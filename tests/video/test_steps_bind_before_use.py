@@ -7,7 +7,8 @@ This bug class has bitten the project at least four times: twice in
 - `stock_queries_issued` was declared inside `if profile_needs_stock_media(...)`
   while `save_visuals_info` reads it on every path. Ten of the eleven bundled
   profiles take that arm -- all nine a `--random-profile` run can draw -- so
-  every fresh render failed at `gather_visuals` from v0.82.0 to v0.88.0.
+  every fresh product render failed at `gather_visuals` from v0.82.0 to
+  v0.88.0. Topic renders ran on `slideshow_stock`, which took the other arm.
 - `ffmpeg_path` was bound inside `if audio_proc and ...silence_removal_enabled`
   while the duration read below needs it on every path, so setting that
   documented toggle to false, or omitting the `audio_processing:` section,
@@ -18,13 +19,20 @@ reimplementing it: the compiler emits `LOAD_FAST_CHECK` where it cannot prove
 a plain local is bound. It needs no maintenance as the syntax grows, and it
 found the second bug above.
 
-It is not total, and two gaps were measured rather than assumed. A name a
-nested function closes over becomes a cell variable and is read with
+It is not total, and both gaps were measured rather than assumed.
+
+A name a nested function closes over becomes a cell variable and is read with
 `LOAD_DEREF`, so a conditionally bound name captured by an inner `def` is
-missed though it raises `NameError`. A comprehension's iteration variable read
-after the comprehension is compiled with `LOAD_FAST_AND_CLEAR` and a plain
-`LOAD_FAST`, and is missed the same way. Neither shape exists in this module
-today -- its only function with cell variables binds them unconditionally.
+missed although it raises `NameError`.
+
+A comprehension's iteration variable read after the comprehension is narrower
+than it looks: that read compiles to `LOAD_GLOBAL`, so it is missed -- but
+only while the name is bound nowhere else in the function, since a real local
+of the same spelling turns the read into `LOAD_FAST_CHECK` and it is caught.
+Being a global lookup, it also fails only when no module-level name shares the
+spelling; one that does makes it succeed silently instead of raising.
+
+Tests assert this module carries neither shape.
 
 A hand-rolled AST walk was tried first and discarded. It reported names on
 legitimate code across the producer package (a name bound in both arms of an
@@ -35,6 +43,7 @@ conditional `match` binding, by over-reporting every `match`.
 
 from __future__ import annotations
 
+import ast
 import dis
 from pathlib import Path
 from types import CodeType
@@ -177,8 +186,9 @@ class TestTheMeasuredGaps:
 
     @pytest.mark.parametrize("source", [CLOSURE, COMPREHENSION])
     def test_the_gap_is_where_it_is_documented(self, source):
-        """A cell variable is read with LOAD_DEREF, an inlined comprehension
-        target with a plain LOAD_FAST. Neither emits the opcode this scans for.
+        """A cell variable is read with LOAD_DEREF, a comprehension target
+        read after the comprehension with LOAD_GLOBAL. Neither emits the
+        opcode this scans for.
         """
         assert not unproven_locals(source)
 
@@ -193,12 +203,56 @@ class TestTheMeasuredGaps:
         with pytest.raises(NameError):
             target(argument)
 
-    def test_this_module_has_no_such_shape(self):
-        """The gap is acceptable only while the module stays clear of it."""
-        module = compile(STEPS.read_text(encoding="utf-8"), str(STEPS), "exec")
-        with_cells = [code.co_name for code in code_objects(module) if code.co_cellvars]
+    def test_no_cell_variable_is_bound_inside_a_branch(self):
+        """The property the closure gap rests on, not the name that has it.
 
-        assert with_cells == ["_check_existing_metadata"], (
-            f"{with_cells} close over names, which the opcode scan cannot see; "
-            "check each binds unconditionally or widen the guard"
+        Asserting only that `_check_existing_metadata` is the one function with
+        cell variables pins the wrong thing: moving its binding under a
+        condition leaves the name unchanged, keeps the opcode scan silent --
+        every cell read is `LOAD_DEREF` -- and ships a crash.
+        """
+        source = STEPS.read_text(encoding="utf-8")
+        closing_over = {
+            code.co_name: set(code.co_cellvars)
+            for code in code_objects(compile(source, str(STEPS), "exec"))
+            if code.co_cellvars
+        }
+        assert closing_over, "no cell variables at all; the check asserts nothing"
+
+        conditional: dict[str, set[str]] = {}
+        for node in ast.walk(ast.parse(source)):
+            if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
+                continue
+            if node.name not in closing_over:
+                continue
+            top_level = {
+                target.id
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign | ast.AnnAssign | ast.AugAssign)
+                for target in ast.walk(stmt)
+                if isinstance(target, ast.Name) and isinstance(target.ctx, ast.Store)
+            }
+            if missing := closing_over[node.name] - top_level:
+                conditional[node.name] = missing
+
+        assert not conditional, (
+            f"{conditional} are closed over by a nested scope but not bound at "
+            "the function's top level, which the opcode scan cannot see"
+        )
+
+    def test_no_comprehension_target_is_read_afterwards(self):
+        """The other gap, asserted absent rather than merely described."""
+        leaked: dict[str, set[str]] = {}
+        for code in code_objects(
+            compile(STEPS.read_text(encoding="utf-8"), str(STEPS), "exec")
+        ):
+            opcodes = list(dis.get_instructions(code))
+            cleared = {i.argval for i in opcodes if i.opname == "LOAD_FAST_AND_CLEAR"}
+            as_global = {i.argval for i in opcodes if i.opname == "LOAD_GLOBAL"}
+            if cleared & as_global:
+                leaked[code.co_name] = cleared & as_global
+
+        assert not leaked, (
+            f"{leaked} read a comprehension target after the comprehension, "
+            "which the opcode scan cannot see"
         )
