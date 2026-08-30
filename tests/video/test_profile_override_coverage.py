@@ -98,15 +98,14 @@ class TestEveryMappedTargetIsReal:
 
 
 # Targets with a reference in the source that is not a live read, recorded so
-# the reader check below stops reporting them as covered. Both appear only
-# inside `AudioBuilder.build_audio_filters_with_video_audio`, which has no
-# caller -- the assembler calls `build_audio_filters`, whose signature takes
-# no video-audio arguments. Four profiles configure them and get silence.
-# Tracked as a GitHub issue with the `follow-up` label; this set only shrinks.
-KNOWN_DEAD_TARGETS = {
-    "video_audio_handling",
-    "video_original_volume",
-}
+# the reader check below stops reporting them as covered. Empty: the two that
+# were here, `video_audio_handling` and `video_original_volume`, appeared only
+# inside `AudioBuilder.build_audio_filters_with_video_audio`, which had no
+# caller, and were removed with it rather than wired up.
+#
+# The set only shrinks. A new dead target is a defect to fix, not an entry to
+# add, and `test_the_known_dead_set_only_shrinks` is what keeps it that way.
+KNOWN_DEAD_TARGETS: set[str] = set()
 
 
 class TestEveryMappedTargetHasAReader:

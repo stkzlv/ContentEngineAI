@@ -768,8 +768,6 @@ video_profiles:
     # Video assembly configuration
     video_assembly_mode: "sequential"          # Play all videos in sequence
     video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop (10% threshold)
-    video_audio_handling: "mixed"              # Include video audio at reduced volume
-    video_original_volume: -30.0               # Video audio at -30dB (background level)
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -828,7 +826,6 @@ video_profiles:
     # Video assembly configuration
     video_assembly_mode: "single_best"         # Use longest video, loop to fill
     video_aspect_mode: "crop-to-fit"           # Crop to fill frame (good for looping)
-    video_audio_handling: "remove"             # Strip video audio (cleaner for loops)
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -887,8 +884,6 @@ video_profiles:
     # Video assembly configuration
     video_assembly_mode: "mixed_media"         # Interleave videos and images
     video_aspect_mode: "letterbox"             # Preserve aspect ratio with padding
-    video_audio_handling: "mixed"              # Include video audio at reduced volume
-    video_original_volume: -35.0               # Video audio at -35dB (more subtle)
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -947,8 +942,6 @@ video_profiles:
     # Video assembly configuration
     video_assembly_mode: "video_first_fallback"  # All videos first, then images
     video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop
-    video_audio_handling: "mixed"              # Include video audio at reduced volume
-    video_original_volume: -30.0               # Video audio at -30dB
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings

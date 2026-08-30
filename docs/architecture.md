@@ -335,16 +335,10 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 
 #### Audio Handling
 
-**Remove Mode** (`video_audio_handling: "remove"`)
-- Strips all original audio from product videos
-- Final mix: voiceover + background music only
-- **Best for**: Clean professional sound or videos with poor/distracting audio
-
-**Mixed Mode** (`video_audio_handling: "mixed"`)
-- Preserves original video audio at reduced volume (default: -30dB)
-- Final mix: voiceover + background music + video audio (ambient)
-- Volume configurable via `video_original_volume` (-60 to 0 dB)
-- **Best for**: Including ambient product sounds (unboxing, demos, ASMR)
+Product video audio is not carried into the render. The narration is the
+message, and the source audio on a marketing or stock clip is a licensed music
+bed or a second voice, which is a platform audio-match risk with no audible
+benefit under a voiceover.
 
 **FFmpeg Integration:**
 - **Complex Filters**: Dynamic filter graph construction

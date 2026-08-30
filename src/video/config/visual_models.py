@@ -320,16 +320,6 @@ class VideoSettings(BaseModel):
         "letterbox",
         description="Aspect ratio handling (letterbox/crop-to-fit/smart-scale)",
     )
-    video_audio_handling: Literal["remove", "mixed"] = Field(
-        "remove",
-        description="Audio handling (remove original audio or mix with voiceover)",
-    )
-    video_original_volume: float = Field(
-        -20.0,
-        ge=-60.0,
-        le=0.0,
-        description="Original video volume adjustment in dB (range: -60 to 0)",
-    )
     # The profile-level spelling of `transition_duration_sec`. Kept as the
     # name profiles use in YAML, but the merge maps it onto that field, which
     # is the one the assembler reads. Nothing reads this one directly.
@@ -536,15 +526,6 @@ class VideoProfile(BaseModel):
     ) = Field(None, description="Override video assembly strategy mode")
     video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
         Field(None, description="Override aspect ratio handling mode")
-    )
-    video_audio_handling: Literal["remove", "mixed"] | None = Field(
-        None, description="Override video audio handling (remove or mix)"
-    )
-    video_original_volume: float | None = Field(
-        None,
-        ge=-60.0,
-        le=0.0,
-        description="Override video audio volume in dB (-60 to 0)",
     )
     video_transition_duration: float | None = Field(
         None, description="Override video transition duration in seconds"
