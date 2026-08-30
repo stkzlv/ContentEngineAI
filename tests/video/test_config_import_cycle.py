@@ -15,7 +15,9 @@ accumulated in `outputs/` with nothing to remove it.
 The eager call had a second cost. It read five cwd-relative YAML files at
 import time, so merely importing any submodule of this package could fail on a
 machine with an unrelated video-config error, or from any directory but the
-repo root. That is a real failure this project has already hit: loading an
+repo root. Two unrelated modules in the chain still read a YAML of their own
+at import (`performance.yaml`, `scraper.yaml`); both tolerate absence, so the
+import survives. That is a real failure this project has already hit: loading an
 unrelated typed config from here broke scraper construction outright.
 """
 
@@ -35,6 +37,7 @@ VIDEO_CONFIG_FILES = (
     "video_production.yaml",
     "subtitles.yaml",
     "ai_services.yaml",
+    "core.yaml",
 )
 
 
@@ -81,11 +84,11 @@ class TestTheSingletonIsLazy:
     def test_importing_the_package_reads_no_video_config(self):
         """The eager load is what made an unrelated config error fatal here.
 
-        Scoped to the files the singleton loads. Two other modules in the
-        import chain read a YAML of their own at import time
-        (`performance.yaml`, `scraper.yaml`); those are separate and untouched
-        by this change, so asserting on them would be asserting on something
-        else's behaviour.
+        Scoped to four of the five files the singleton loads.
+        `performance.yaml` is the fifth and is deliberately excluded: an
+        unrelated module in the import chain reads it at import time on its
+        own account, as does `scraper.yaml`, so neither can be asserted
+        absent here without asserting on something else's behaviour.
         """
         result = run_python(
             "import builtins\n"
@@ -179,3 +182,39 @@ class TestTheToolRuns:
         )
 
         assert result.returncode == 0, f"{tool} --help failed:\n{result.stderr}"
+
+
+class TestTheSingletonIsStillTypeChecked:
+    """A module `__getattr__` returns `Any`, which turns off mypy here.
+
+    Without a `TYPE_CHECKING` declaration, `config` is `Any` at all nine
+    import sites and mypy stops reporting `attr-defined` on anything read from
+    it -- so a typo'd attribute passes CI and raises at render time. That is a
+    CI gate the eager assignment used to provide for free, and losing it is
+    invisible: the suite stays green and `mypy .` reports success.
+    """
+
+    def test_a_typo_on_the_singleton_is_still_an_error(self, tmp_path):
+        probe = tmp_path / "probe.py"
+        probe.write_text(
+            "from src.video.config import config\n"
+            "reveal_type(config)\n"
+            "x = config.no_such_attribute_at_all\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-m", "mypy", "--no-error-summary", str(probe)],
+            capture_output=True,
+            text=True,
+            cwd=str(REPO_ROOT),
+        )
+
+        assert "attr-defined" in result.stdout, (
+            "mypy no longer type-checks the config singleton, so a typo'd "
+            f"attribute reaches production: {result.stdout or result.stderr}"
+        )
+        assert "VideoConfig" in result.stdout, (
+            "`config` is not typed as VideoConfig; the TYPE_CHECKING "
+            f"declaration is missing or wrong: {result.stdout}"
+        )
