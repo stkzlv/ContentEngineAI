@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.2] - 2026-08-30
+
+### Fixed
+- `make clean-outputs` runs. `tools/cleanup_outputs.py` imports `src.video.config_adapter` as its first project import, and the `src.video.config` package called that adapter's loader at import time -- so importing the adapter first hit a partially-initialised module and died. The tool had never worked, which is why nothing ever removed the 19 MB of coverage HTML that had accumulated under `outputs/`. Closes #314.
+
+### Changed
+- The `src.video.config.config` singleton resolves on first access instead of at import. Reading it, and `load_video_config_modular`, is unchanged for every caller.
+
+### Notes
+- Laziness is what breaks the cycle: the loader import moves inside the accessor, so neither end has to be imported first. It also stops the package reading three cwd-relative YAML files merely to be imported, which is what made an unrelated video-config error, or a working directory other than the repo root, fatal to every importer -- including the scraper, which does not use the video config at all.
+- `load_video_config_modular` is served by the same accessor. It was re-exported as a side effect of the import this replaces, and twenty tests spell it that way.
+- The new tests run in a subprocess. The cycle is an import-time property, and by the time a test executes, this process already holds both ends resolved.
+- They also run `--help` on every script in `tools/`. Those are outside the suite's import graph, so nothing would otherwise notice one of them acquiring a broken import -- which is exactly how this stayed broken.
+
 ## [0.85.1] - 2026-08-30
 
 ### Fixed

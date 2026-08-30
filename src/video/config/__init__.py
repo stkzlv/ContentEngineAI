@@ -5,6 +5,8 @@ All classes are re-exported from this module to maintain backward compatibility
 with existing imports like: from src.video.config import VideoConfig
 """
 
+from typing import Any
+
 # Re-export all constants
 # Re-export audio models
 from src.video.config.audio_models import (  # noqa: F401
@@ -75,15 +77,44 @@ from src.video.config.visual_models import (  # noqa: F401
     VideoSettings,
 )
 
-# Initialize global config singleton for backward compatibility
-# Use load_video_config_modular to properly instantiate VideoConfig Pydantic model
-from src.video.config_adapter import load_video_config_modular
+# Global config singleton, resolved on first access rather than at import.
+#
+# Two reasons it cannot be eager. It closes an import cycle: the loader lives
+# in `src.video.config_adapter`, which imports `VideoConfig` back out of this
+# package, so importing the adapter first fails with a partially-initialised
+# module -- which is why `tools/cleanup_outputs.py` had never run. And it read
+# five cwd-relative YAML files at import time, so merely importing any
+# submodule of this package could fail on a machine with an unrelated config
+# error, or from any directory but the repo root.
+#
+# PEP 562: `from src.video.config import config` still works unchanged.
+_config: "VideoConfig | None" = None
 
-config: VideoConfig = load_video_config_modular()
+
+def __getattr__(name: str) -> Any:
+    """Resolve the `config` singleton and the loader lazily.
+
+    `load_video_config_modular` was re-exported as a side effect of the
+    module-level import this replaces, and callers rely on that spelling, so
+    it is served here rather than dropped.
+    """
+    if name in ("config", "load_video_config_modular"):
+        from src.video.config_adapter import load_video_config_modular
+
+        if name == "load_video_config_modular":
+            return load_video_config_modular
+
+        global _config
+        if _config is None:
+            _config = load_video_config_modular()
+        return _config
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
-    # Global config singleton
-    "config",
+    # Global config singleton, resolved by `__getattr__` above rather than
+    # being a module attribute, which is what F405 is reacting to.
+    "config",  # noqa: F405
     # Constants (exported via *)
     # Audio models
     "AudioProcessingSettings",
