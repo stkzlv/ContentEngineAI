@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.87.0] - 2026-08-30
+
+### Changed
+- Every bundled profile in `config/video_production.yaml` uses the nested `subtitle_settings:` block. Closes #93.
+
+### Removed
+- `VideoProfile`'s legacy-key migration shim. A flat `subtitle_*`, `pycaps_*` or `two_part_subtitles` key on a profile is now refused, with the nested field to move it to named in the error.
+
+### Notes
+- The migration was done programmatically, with `ruamel` so the file's comments survived -- they document every knob, and losing them would have cost more than the migration gained. Equivalence was checked by capturing the merged settings for all eleven profiles before and after: zero differences.
+- `extra="forbid"` already refuses every one of these keys, so the explicit rejecter exists purely for the message: it names the nested field to move each key to and lists them all at once, rather than reporting `Extra inputs are not permitted` and leaving the reader to work out that `subtitle_anchor` is now `subtitle_settings.anchor`. Migrating a profile is one config-load cycle rather than one per key.
+- `extra="forbid"` would not have caught all of them anyway: `two_part_subtitles` and the `pycaps_*` keys are declared fields in some shapes.
+- The suite's warning count drops from 590 to 13. Every profile load was emitting a `DeprecationWarning` naming its migrated keys, which is noise that hides real warnings.
+- `subtitle_format` is settable per profile, added in 0.86.5, but in the nested spelling only. It goes through the same refusal as every other subtitle key, which names `subtitle_settings.subtitle_format` in the error.
+
 ## [0.86.5] - 2026-08-30
 
 ### Added

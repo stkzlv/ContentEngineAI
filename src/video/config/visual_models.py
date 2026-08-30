@@ -605,66 +605,43 @@ class VideoProfile(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _migrate_legacy_subtitle_keys(cls, data: Any) -> Any:
-        """Translate legacy flat subtitle_*/pycaps_*/two_part_subtitles_* keys
-        into the nested ``subtitle_settings`` block at load time.
+    def _reject_legacy_subtitle_keys(cls, data: Any) -> Any:
+        """Refuse legacy flat subtitle keys, naming the nested field to use.
 
-        Kept for one release so external profile YAML doesn't break. Logs
-        a DeprecationWarning naming each migrated key. Remove after the
-        documented migration window.
+        These were migrated silently for one release with a
+        `DeprecationWarning`; the bundled profiles are now nested and the
+        window is closed. Refused here rather than left to `extra="forbid"`,
+        which reports `Extra inputs are not permitted` and leaves the reader
+        to work out that `subtitle_anchor` is now `subtitle_settings.anchor`.
+        Two of these keys -- `two_part_subtitles` and `pycaps_*` -- are not
+        even unknown to Pydantic in every shape, so `extra="forbid"` would not
+        catch them consistently.
         """
         if not isinstance(data, dict):
             return data
 
-        nested = dict(data.get("subtitle_settings") or {})
-        legacy_seen: list[str] = []
-
-        for legacy_key, target_field in _LEGACY_FLAT_TO_NESTED.items():
-            if legacy_key in data and data[legacy_key] is not None:
-                nested.setdefault(target_field, data[legacy_key])
-                legacy_seen.append(legacy_key)
-
-        safe_zone_block = dict(nested.get("safe_zone") or {})
+        renames: dict[str, str] = {}
+        for legacy_key, target in _LEGACY_FLAT_TO_NESTED.items():
+            if legacy_key in data:
+                renames[legacy_key] = f"subtitle_settings.{target}"
         for sz_key in _LEGACY_SAFE_ZONE_FIELDS:
-            if sz_key in data and data[sz_key] is not None:
-                # subtitle_safe_zone_min_x -> min_x
+            if sz_key in data:
                 short = sz_key.removeprefix("subtitle_safe_zone_")
-                safe_zone_block.setdefault(short, data[sz_key])
-                legacy_seen.append(sz_key)
-        if safe_zone_block:
-            nested["safe_zone"] = safe_zone_block
+                renames[sz_key] = f"subtitle_settings.safe_zone.{short}"
+        for pc_key, target in _LEGACY_PYCAPS_FIELDS.items():
+            if pc_key in data:
+                renames[pc_key] = f"subtitle_settings.pycaps.{target}"
+        if isinstance(data.get("two_part_subtitles"), dict):
+            renames["two_part_subtitles"] = "subtitle_settings.two_part_subtitles"
 
-        pycaps_block = dict(nested.get("pycaps") or {})
-        for pc_key, target_field in _LEGACY_PYCAPS_FIELDS.items():
-            if pc_key in data and data[pc_key] is not None:
-                pycaps_block.setdefault(target_field, data[pc_key])
-                legacy_seen.append(pc_key)
-        if pycaps_block:
-            nested["pycaps"] = pycaps_block
-
-        if "two_part_subtitles" in data and isinstance(
-            data["two_part_subtitles"], dict
-        ):
-            existing = nested.get("two_part_subtitles") or {}
-            nested["two_part_subtitles"] = {
-                **data["two_part_subtitles"],
-                **existing,
-            }
-            legacy_seen.append("two_part_subtitles")
-
-        if legacy_seen:
-            warnings.warn(
-                "VideoProfile: legacy flat subtitle keys are deprecated; "
-                "migrate to a nested 'subtitle_settings' block. Migrated "
-                f"this run: {sorted(set(legacy_seen))}",
-                DeprecationWarning,
-                stacklevel=2,
+        if renames:
+            moves = "\n".join(
+                f"  {old} -> {new}" for old, new in sorted(renames.items())
             )
-            for key in set(legacy_seen):
-                data.pop(key, None)
-
-        if nested:
-            data["subtitle_settings"] = nested
+            raise ValueError(
+                "VideoProfile: flat subtitle keys were replaced by a nested "
+                "'subtitle_settings' block. Move these:\n" + moves
+            )
 
         return data
 

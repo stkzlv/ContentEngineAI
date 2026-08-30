@@ -213,9 +213,9 @@ video_settings:
   # configs land in a follow-up. Set to an empty list to disable rotation
   # entirely (selector returns the default "mid_zoom_title_card").
   cold_open_variant_pool:
-    - mid_zoom_title_card
-    - static_title_card
-    - pre_motion_only
+  - mid_zoom_title_card
+  - static_title_card
+  - pre_motion_only
 
   # System resource requirements
   # Used by: config_validator.py to verify system can handle video production
@@ -255,9 +255,9 @@ audio_settings:
   # Used when all API providers fail or are unavailable
   # Supports MP3, WAV, AAC formats - randomly selected from list
   background_music_paths:
-    - "static/background-music-calm-soft-334182.mp3"
-    - "static/background-music-happy-333014.mp3"
-    - "static/background-music-upbeat-energetic-333016.mp3"
+  - "static/background-music-calm-soft-334182.mp3"
+  - "static/background-music-happy-333014.mp3"
+  - "static/background-music-upbeat-energetic-333016.mp3"
 
   # ============================================================================
   # AUDIO PROVIDER CHAIN
@@ -266,25 +266,25 @@ audio_settings:
   # If all providers fail, falls back to local background_music_paths above.
   # Each provider needs its API key set in .env (see env var names below).
   audio_providers:
-    - name: "jamendo"
-      enabled: true
-      settings:
-        client_id_env_var: "JAMENDO_CLIENT_ID"
-        api_timeout_sec: 15
-        download_timeout_sec: 60
+  - name: "jamendo"
+    enabled: true
+    settings:
+      client_id_env_var: "JAMENDO_CLIENT_ID"
+      api_timeout_sec: 15
+      download_timeout_sec: 60
         # Search mode: "fuzzytags" (OR match, more results), "tags" (AND match,
         # stricter), "search" (free text across names/artists/tags)
-        search_mode: "fuzzytags"
+      search_mode: "fuzzytags"
         # One query is picked randomly per product for variety.
         # Use + to combine tags (fuzzytags=OR, tags=AND).
-        search_queries:
-          - "ambient chill"
-          - "soft background"
-          - "calm lofi"
-          - "minimal electronic"
-          - "gentle acoustic"
-    - name: "freesound"
-      enabled: true
+      search_queries:
+      - "ambient chill"
+      - "soft background"
+      - "calm lofi"
+      - "minimal electronic"
+      - "gentle acoustic"
+  - name: "freesound"
+    enabled: true
 
   # ============================================================================
   # FREESOUND CONFIGURATION (Creative Commons Music API)
@@ -433,10 +433,10 @@ media_settings:
   # Tips: Use broad, generic terms; avoid product-specific words
   # Example searches: "product showcase technology", "modern lifestyle happy customer"
   stock_media_keywords:
-    - "product showcase"
-    - "modern lifestyle"
-    - "technology"
-    - "happy customer"
+  - "product showcase"
+  - "modern lifestyle"
+  - "technology"
+  - "happy customer"
 
   # Stock video duration constraints (seconds)
   # Filters search results to clips within this range
@@ -589,24 +589,25 @@ video_profiles:
     image_top_position_percent: 0.15              # Position image lower (15% from top)
 
     # Subtitle positioning overrides
-    subtitle_anchor: "below_content"               # Position below visual content
-    subtitle_margin: 0.05                          # Small margin (5%)
-    subtitle_content_aware: true                   # Auto-adjust based on visual content
-    subtitle_horizontal_alignment: "center"        # Center horizontally
+    subtitle_settings:
+      anchor: "below_content"                      # Position below visual content
+      margin: 0.05                                 # Small margin (5%)
+      content_aware: true                          # Auto-adjust based on visual content
+      horizontal_alignment: "center"               # Center horizontally
 
     # Subtitle style overrides
-    subtitle_style_preset: "bold"
-    subtitle_font_size_scale: 1.0                  # Normal font size
-    subtitle_randomize_fonts: false
-    subtitle_randomize_colors: false
-    subtitle_randomize_effects: false              # Differs from the global, which randomizes
+      style_preset: "bold"
+      font_size_scale: 1.0                         # Normal font size
+      randomize_fonts: false
+      randomize_colors: false
+      randomize_effects: false                     # Differs from the global, which randomizes
 
     # Text formatting overrides — aligned with docs/subtitle-best-practices.md
-    subtitle_max_line_length: 38                   # Max characters per line
-    subtitle_max_words_per_line: 3                 # 3 words per line (was 2)
-    subtitle_max_subtitle_width_fraction: 0.80     # Up from 0.67 (80% of frame)
-    subtitle_max_duration: 2.5                     # Down from 4.5 (best practice)
-    subtitle_min_duration: 0.6                     # Up from 0.4 (flashing floor)
+      max_line_length: 38                          # Max characters per line
+      max_words_per_line: 3                        # 3 words per line (was 2)
+      max_subtitle_width_fraction: 0.80            # Up from 0.67 (80% of frame)
+      max_duration: 2.5                            # Down from 4.5 (best practice)
+      min_duration: 0.6                            # Up from 0.4 (flashing floor)
 
   # Slideshow with images profile (variant 2)
   slideshow_images2:
@@ -622,24 +623,25 @@ video_profiles:
     image_top_position_percent: 0.15
 
     # Subtitle positioning overrides
-    subtitle_anchor: "below_content"           # top, center, bottom, above_content, below_content
-    subtitle_margin: 0.05                      # Fraction of frame height (0.0-0.5)
-    subtitle_content_aware: true               # Auto-adjust based on visual content
-    subtitle_horizontal_alignment: "center"    # left, center, right
+    subtitle_settings:
+      anchor: "below_content"                  # top, center, bottom, above_content, below_content
+      margin: 0.05                             # Fraction of frame height (0.0-0.5)
+      content_aware: true                      # Auto-adjust based on visual content
+      horizontal_alignment: "center"           # left, center, right
 
     # Subtitle style overrides
-    subtitle_style_preset: "bold"              # minimal, modern, bold, animated, random
-    subtitle_font_size_scale: 0.8              # Font size multiplier (0.5-2.0)
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: false
+      style_preset: "bold"                     # minimal, modern, bold, animated, random
+      font_size_scale: 0.8                     # Font size multiplier (0.5-2.0)
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: false
 
     # Text formatting overrides — aligned with docs/subtitle-best-practices.md
-    subtitle_max_line_length: 30               # Was 24 (too tight, single-word lines)
-    subtitle_max_words_per_line: 3             # Was 2 — 3 is the sweet spot
-    subtitle_max_subtitle_width_fraction: 0.80 # Was 0.85 — match recipe
-    subtitle_max_duration: 2.5                 # Was 4.0 — best practice
-    subtitle_min_duration: 0.6                 # Was 0.5 — flashing floor
+      max_line_length: 30                      # Was 24 (too tight, single-word lines)
+      max_words_per_line: 3                    # Was 2 — 3 is the sweet spot
+      max_subtitle_width_fraction: 0.80        # Was 0.85 — match recipe
+      max_duration: 2.5                        # Was 4.0 — best practice
+      min_duration: 0.6                        # Was 0.5 — flashing floor
 
     # Manual selection overrides (bypass randomization, optional)
     # subtitle_selected_font: "Montserrat"     # Force a specific font
@@ -659,43 +661,44 @@ video_profiles:
     image_top_position_percent: 0.12
 
     # Two-part subtitle system configuration
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.04
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false   # Display ONLY during CTA moments
-        randomize_effects: false
-        prefix_replace: "Product: "  # "https://" → "Product: "
-      lower_line:
-        enabled: true
-        anchor: "bottom"
-        margin: 0.04
-
-    # Subtitle styling (applies to both lines; format is global)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
+    subtitle_settings:
+      content_aware: true
+      horizontal_alignment: "center"
 
     # Lower line styling (voiceover subtitles)
-    subtitle_style_preset: "modern"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
+      style_preset: "modern"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
 
     # Text formatting — aligned with docs/subtitle-best-practices.md
-    subtitle_max_line_length: 30
-    subtitle_max_words_per_line: 3           # Was 2
-    subtitle_max_subtitle_width_fraction: 0.80
-    subtitle_max_duration: 2.5               # Was 4.0
-    subtitle_min_duration: 0.6               # Was 0.5
+      max_line_length: 30
+      max_words_per_line: 3                  # Was 2
+      max_subtitle_width_fraction: 0.80
+      max_duration: 2.5                      # Was 4.0
+      min_duration: 0.6                      # Was 0.5
 
   # Slideshow with images profile (variant 4 - CTA-synchronized dual subtitles)
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.04
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false # Display ONLY during CTA moments
+          randomize_effects: false
+          prefix_replace: "Product: " # "https://" → "Product: "
+        lower_line:
+          enabled: true
+          anchor: "bottom"
+          margin: 0.04
+
+    # Subtitle styling (applies to both lines; format is global)
   slideshow_images4:
     description: "Slideshow with CTA-synchronized dual subtitles - upper URL appears only during call-to-action moments."
     use_scraped_images: true
@@ -709,42 +712,24 @@ video_profiles:
     image_top_position_percent: 0.20       # Position images in upper-middle area
 
     # Two-part subtitle system configuration
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.03   # Gap above image (3% = ~58px)
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false   # Display ONLY during CTA moments
-        randomize_effects: false
-        prefix_replace: ""         # Keep full URL visible
-      lower_line:
-        enabled: true
-        anchor: "below_content"
-        margin: 0.04
-
-    # Subtitle styling (applies to both lines; format is global)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
-    subtitle_margin: 0.04                    # Small gap below images (4% of frame = ~77px spacing)
+    subtitle_settings:
+      content_aware: true
+      horizontal_alignment: "center"
+      margin: 0.04                           # Small gap below images (4% of frame = ~77px spacing)
 
     # Lower line styling (voiceover subtitles)
-    subtitle_style_preset: "modern"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
+      style_preset: "modern"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
 
     # Text formatting — aligned with docs/subtitle-best-practices.md
-    subtitle_max_line_length: 30
-    subtitle_max_words_per_line: 3           # Was 2
-    subtitle_max_subtitle_width_fraction: 0.80
-    subtitle_max_duration: 2.5               # Was 4.0
-    subtitle_min_duration: 0.6               # Was 0.5
+      max_line_length: 30
+      max_words_per_line: 3                  # Was 2
+      max_subtitle_width_fraction: 0.80
+      max_duration: 2.5                      # Was 4.0
+      min_duration: 0.6                      # Was 0.5
 
   # ========================================================================
   # VIDEO ASSEMBLY PROFILES
@@ -753,6 +738,25 @@ video_profiles:
   # All profiles use product videos as primary content with configurable fallback
 
   # Sequential video assembly - play all videos end-to-end
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.03 # Gap above image (3% = ~58px)
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false # Display ONLY during CTA moments
+          randomize_effects: false
+          prefix_replace: ""       # Keep full URL visible
+        lower_line:
+          enabled: true
+          anchor: "below_content"
+          margin: 0.04
+
+    # Subtitle styling (applies to both lines; format is global)
   product_video_sequential:
     description: "Concatenates all product videos sequentially with crossfade transitions. Best for showcasing multiple product angles/demos."
     use_scraped_images: true                   # Use images as fallback
@@ -780,38 +784,39 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.04
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false
-        randomize_effects: false
-        prefix_replace: ""
-      lower_line:
-        enabled: true
-        anchor: "below_content"
-        margin: 0.04
-
-    # Subtitle configuration (format is global)
-    subtitle_anchor: "below_content"
-    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
-    subtitle_style_preset: "bold"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
-    subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.04                           # Gap below content (4% = ~77px spacing from image bottom)
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "bold"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
+      max_line_length: 38
+      max_words_per_line: 3                  # 3 is the best-practice sweet spot
 
   # Single best video - loop longest video to fill duration
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.04
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false
+          randomize_effects: false
+          prefix_replace: ""
+        lower_line:
+          enabled: true
+          anchor: "below_content"
+          margin: 0.04
+
+    # Subtitle configuration (format is global)
   product_video_single:
     description: "Selects and loops the longest product video to match voiceover duration. Ideal for single-angle product demos."
     use_scraped_images: true                   # Use images as fallback
@@ -838,38 +843,39 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.04
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false
-        randomize_effects: false
-        prefix_replace: ""
-      lower_line:
-        enabled: true
-        anchor: "below_content"
-        margin: 0.04
-
-    # Subtitle configuration (format is global)
-    subtitle_anchor: "below_content"
-    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
-    subtitle_style_preset: "bold"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
-    subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.04                           # Gap below content (4% = ~77px spacing from image bottom)
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "bold"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
+      max_line_length: 38
+      max_words_per_line: 3                  # 3 is the best-practice sweet spot
 
   # Mixed media - interleave videos and images throughout
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.04
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false
+          randomize_effects: false
+          prefix_replace: ""
+        lower_line:
+          enabled: true
+          anchor: "below_content"
+          margin: 0.04
+
+    # Subtitle configuration (format is global)
   product_video_mixed:
     description: "Interleaves product videos and images throughout timeline. Creates dynamic visual variety."
     use_scraped_images: true                   # Primary content: mix of videos and images
@@ -897,38 +903,39 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.04
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false
-        randomize_effects: false
-        prefix_replace: ""
-      lower_line:
-        enabled: true
-        anchor: "below_content"
-        margin: 0.04
-
-    # Subtitle configuration (format is global)
-    subtitle_anchor: "below_content"
-    subtitle_margin: 0.04                    # Gap below content (4% = ~77px spacing from image bottom)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
-    subtitle_style_preset: "bold"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
-    subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.04                           # Gap below content (4% = ~77px spacing from image bottom)
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "bold"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
+      max_line_length: 38
+      max_words_per_line: 3                  # 3 is the best-practice sweet spot
 
   # Video-first fallback - prioritize all videos, then images
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.04
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false
+          randomize_effects: false
+          prefix_replace: ""
+        lower_line:
+          enabled: true
+          anchor: "below_content"
+          margin: 0.04
+
+    # Subtitle configuration (format is global)
   product_video_primary:
     description: "Plays all product videos first, then fills remaining time with images. Ensures videos are always shown."
     use_scraped_images: true                   # Use images to fill remaining duration
@@ -956,36 +963,18 @@ video_profiles:
     video_content_height_percent: 1.0
 
     # Two-part subtitle system (CTA-synchronized)
-    two_part_subtitles:
-      enabled: true
-      upper_line:
-        enabled: true
-        source_field: "shortened_affiliate_link"
-        custom_url: ""  # Set via SUBTITLE_BUSINESS_URL env var
-        anchor: "above_content"
-        margin: 0.04
-        font_size_scale: 0.7
-        style_preset: "minimal"
-        use_full_duration: false
-        randomize_effects: false
-        prefix_replace: ""
-      lower_line:
-        enabled: true
-        anchor: "below_content"
-        margin: 0.05
-
-    # Subtitle configuration (format is global)
-    subtitle_anchor: "below_content"
-    subtitle_margin: 0.03                    # Position subtitles below content with small gap (3% = 58px)
-    subtitle_content_aware: true
-    subtitle_horizontal_alignment: "center"
-    subtitle_style_preset: "bold"
-    subtitle_font_size_scale: 1.0
-    subtitle_randomize_fonts: true
-    subtitle_randomize_colors: true
-    subtitle_randomize_effects: true
-    subtitle_max_line_length: 38
-    subtitle_max_words_per_line: 3           # 3 is the best-practice sweet spot
+    subtitle_settings:
+      anchor: "below_content"
+      margin: 0.03                           # Position subtitles below content with small gap (3% = 58px)
+      content_aware: true
+      horizontal_alignment: "center"
+      style_preset: "bold"
+      font_size_scale: 1.0
+      randomize_fonts: true
+      randomize_colors: true
+      randomize_effects: true
+      max_line_length: 38
+      max_words_per_line: 3                  # 3 is the best-practice sweet spot
 
 # ============================================================================
 # CTA DETECTION SETTINGS
@@ -997,6 +986,25 @@ video_profiles:
 # - min_cta_duration: Minimum total duration for CTA windows (< this = use full duration)
 # - fallback_duration: Large fallback duration when CTA detection unavailable
 # - Keywords and detection thresholds are defined in cta_detector.py
+      two_part_subtitles:
+        enabled: true
+        upper_line:
+          enabled: true
+          source_field: "shortened_affiliate_link"
+          custom_url: "" # Set via SUBTITLE_BUSINESS_URL env var
+          anchor: "above_content"
+          margin: 0.04
+          font_size_scale: 0.7
+          style_preset: "minimal"
+          use_full_duration: false
+          randomize_effects: false
+          prefix_replace: ""
+        lower_line:
+          enabled: true
+          anchor: "below_content"
+          margin: 0.05
+
+    # Subtitle configuration (format is global)
 cta_detection:
   # Minimum total duration (seconds) for detected CTA windows
   # If total CTA duration < this value, fall back to full video duration
@@ -1015,21 +1023,21 @@ cta_detection:
 
   # CTA keyword detection settings
   keywords:
-    - "link"
-    - "bio"
-    - "check out"
-    - "visit"
-    - "follow"
-    - "share"
-    - "like"
-    - "subscribe"
-    - "click"
-    - "tap"
-    - "swipe"
-    - "purchase"
-    - "buy"
-    - "shop"
-    - "get"
+  - "link"
+  - "bio"
+  - "check out"
+  - "visit"
+  - "follow"
+  - "share"
+  - "like"
+  - "subscribe"
+  - "click"
+  - "tap"
+  - "swipe"
+  - "purchase"
+  - "buy"
+  - "shop"
+  - "get"
 
   # Whether keyword matching is case-sensitive
   case_sensitive: false
@@ -1181,11 +1189,11 @@ batch:
   # Note: This is only used when --random-profile is enabled.
   # When using --batch-profile, this setting is ignored.
   profile_pool:
-    - slideshow_images1
-    - slideshow_images2
-    - slideshow_images3
-    - slideshow_images4
-    - product_video_sequential
-    - product_video_single
-    - product_video_mixed
-    - product_video_primary
+  - slideshow_images1
+  - slideshow_images2
+  - slideshow_images3
+  - slideshow_images4
+  - product_video_sequential
+  - product_video_single
+  - product_video_mixed
+  - product_video_primary

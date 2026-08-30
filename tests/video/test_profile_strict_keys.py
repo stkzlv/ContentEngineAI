@@ -40,16 +40,48 @@ class TestUnknownKeysFail:
 
 @pytest.mark.unit
 class TestLegacyKeysStillAccepted:
-    """The migration validator runs first and removes what it migrates.
+    """The flat keys were migrated for one release; that window is closed.
 
-    Strictness must not break the flat keys the bundled profiles still use, or
-    every profile fails to load.
+    The bundled profiles are nested now, so the shim's only remaining job was
+    to accept config nobody ships. It is replaced by an error that names the
+    nested field to move each key to.
     """
 
-    def test_a_migrated_flat_key_is_accepted(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            profile = VideoProfile(**_profile(subtitle_anchor="below_content"))
+    def test_a_flat_key_is_refused_with_its_replacement_named(self):
+        """`extra="forbid"` alone would say only "Extra inputs are not
+        permitted", leaving the reader to work out that `subtitle_anchor` is
+        now `subtitle_settings.anchor`.
+        """
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(**_profile(subtitle_anchor="below_content"))
+
+        message = str(excinfo.value)
+        assert "subtitle_anchor -> subtitle_settings.anchor" in message
+
+    def test_every_offending_key_is_listed_at_once(self):
+        """One key at a time would mean one config-load cycle per key."""
+        with pytest.raises(ValidationError) as excinfo:
+            VideoProfile(
+                **_profile(
+                    subtitle_anchor="below_content",
+                    subtitle_safe_zone_min_y=0.1,
+                    pycaps_template="hype",
+                )
+            )
+
+        message = str(excinfo.value)
+        assert "subtitle_anchor -> subtitle_settings.anchor" in message
+        assert (
+            "subtitle_safe_zone_min_y -> subtitle_settings.safe_zone.min_y" in message
+        )
+        assert "pycaps_template -> subtitle_settings.pycaps.template_name" in message
+
+    def test_a_nested_profile_still_loads(self):
+        """The shape the bundled profiles now use."""
+        profile = VideoProfile(
+            **_profile(subtitle_settings={"anchor": "below_content"})
+        )
+
         assert profile.subtitle_settings is not None
         assert profile.subtitle_settings.anchor == "below_content"
 
