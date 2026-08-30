@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.1] - 2026-08-30
+
+### Fixed
+- The Jamendo duration filter applies. The search sent `duration_between`; the v3.0 parameter is `durationbetween`, no underscore, and the API ignores unknown parameters rather than rejecting them -- so the request succeeded and the window never constrained anything. Measured against the live API on an otherwise identical query, the underscored spelling returned 20 of 20 results outside a requested 10-60s window, up to 1682 seconds. Closes #191.
+- A single empty Jamendo response no longer drops the provider for the render. The API intermittently answers a working query with zero results, roughly one call in three for identical input; an empty list was read as "no tracks" and the chain fell through to the next provider.
+
+### Notes
+- Only the empty-but-successful case is retried. An HTTP or API error has already been recorded against the circuit breaker, and retrying it would record the same failure several times over and open the breaker early.
+- The query is re-drawn from the configured pool per attempt. The emptiness is not query-specific, so a different query is a second sample rather than a second guess.
+- Giving up now logs at WARNING rather than INFO. The next provider may only offer preview-quality audio, so an intermittent Jamendo miss quietly changes the audio of a published video -- that downgrade should be greppable in `outputs/logs/`.
+
 ## [0.86.0] - 2026-08-30
 
 ### Added
