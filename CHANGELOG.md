@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.89.1] - 2026-08-30
+
+### Fixed
+- A profile's `video_aspect_mode`, `video_assembly_mode` and `first_frame_pre_motion` were ignored on every render. `VisualFilterBuilder` bound `video_settings` to `self.config.video_settings`, so each of those reads took the global value. Three bundled profiles override the first two and one overrides the third.
+
+### Notes
+- `product_video_single` asks to crop to fill the frame and letterboxed instead, so a 16:9 source rendered as 61% picture and 39% black bars. Measured before and after on the same product: 61% -> 100% frame fill, and the log's `Visual assembly mode` line changes from `sequential` to the `single_best` the profile asked for.
+- Nothing caught it, and the reasons are worth recording. The profile-override audit passed on all four of its conditions, including "something outside the config package reads the target" -- `visual_builder.py` does read `video_aspect_mode`, at the site reading the wrong object, and a substring scan cannot tell those apart. `VisualFilterBuilder` had no unit test and `apply_aspect_ratio_mode` was never called from one; the function was correct in isolation, only the wiring was wrong. And the end-to-end runs could not have caught it, because a letterboxed video is well-formed: right dimensions, right codecs, captions, disclosure, 8/8 steps, no warning. Every gate downstream of the substitution checks well-formedness, and the substitution produces something well-formed.
+- The new test asks the question the audit cannot: does the value a profile requested reach the thing that acts on it, asserted against the rendered filter string where `crop` and `pad` differ visibly. It covers the three fields a bundled profile currently overrides; a fourth field read from a stale binding elsewhere would still pass.
+- The remaining `self.config.video_settings` read is renamed `global_settings`. Neither field it reads is declared on `VideoProfile`, so the global is correct there -- and two similarly-named bindings to different objects is what hid this for as long as it did.
+
 ## [0.89.0] - 2026-08-30
 
 ### Added

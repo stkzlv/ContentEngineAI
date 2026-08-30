@@ -375,7 +375,21 @@ class VisualFilterBuilder:
                      image_positioning_overridden)
 
         """
-        video_settings = self.config.video_settings
+        # Profile-merged, not global. Bound to `self.config.video_settings`,
+        # every profile-overridable field read below silently took the global
+        # value: `video_aspect_mode` and `video_assembly_mode` on three
+        # bundled profiles each, and `first_frame_pre_motion` on one. The
+        # merged object is the same `VideoSettings` type with the profile
+        # folded in, so it carries every field the global does.
+        #
+        # The nearby `vs` binding a hundred lines down did this correctly for
+        # three positioning fields, which is why the aspect mode reading the
+        # global three lines later was easy to miss.
+        video_settings = (
+            self.profile_settings.video_settings
+            if self.profile_settings
+            else self.config.video_settings
+        )
         video_files = [path for path in visual_inputs if self.inspector.is_video(path)]
         image_files = [
             path for path in visual_inputs if not self.inspector.is_video(path)
@@ -451,10 +465,13 @@ class VisualFilterBuilder:
             )
 
             if has_video_positioning:
-                # Override with image-optimized positioning from config
-                vs = self.config.video_settings
-                fallback_top = vs.fallback_image_top_percent
-                fallback_width = vs.fallback_image_width_percent
+                # Deliberately global: neither fallback is declared on
+                # VideoProfile, so there is nothing to merge. Named to say so
+                # -- a second binding whose name did not distinguish it from
+                # the merged one is what hid the aspect-mode bug above.
+                global_settings = self.config.video_settings
+                fallback_top = global_settings.fallback_image_top_percent
+                fallback_width = global_settings.fallback_image_width_percent
                 video_settings_dict["image_top_position_percent"] = fallback_top
                 video_settings_dict["image_width_percent"] = fallback_width
                 image_positioning_overridden = True
@@ -512,14 +529,9 @@ class VisualFilterBuilder:
             # Apply aspect ratio handling for videos
             if is_video_item:
                 # Get video positioning from profile or global settings
-                vs = (
-                    self.profile_settings.video_settings
-                    if self.profile_settings
-                    else self.config.video_settings
-                )
-                video_top_percent = vs.video_top_position_percent
-                video_height_percent = vs.video_content_height_percent
-                video_valign = vs.video_vertical_align
+                video_top_percent = video_settings.video_top_position_percent
+                video_height_percent = video_settings.video_content_height_percent
+                video_valign = video_settings.video_vertical_align
                 logger.debug(
                     f"[VIDEO POS] top={video_top_percent:.2%}, "
                     f"height={video_height_percent:.2%}, align={video_valign}"
