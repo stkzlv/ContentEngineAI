@@ -13,16 +13,24 @@ This bug class has bitten the project at least four times: twice in
   documented toggle to false, or omitting the `audio_processing:` section,
   crashed `create_voiceover` after the script and the TTS had been paid for.
 
-The check is CPython's own definite-assignment analysis, not a reimplementation
-of it. The compiler emits `LOAD_FAST_CHECK` exactly where it cannot prove a
-local is bound, and plain `LOAD_FAST` where it can, so reading the opcodes is
-exact by construction and needs no maintenance as the syntax grows.
+The check reads CPython's own definite-assignment analysis rather than
+reimplementing it: the compiler emits `LOAD_FAST_CHECK` where it cannot prove
+a plain local is bound. It needs no maintenance as the syntax grows, and it
+found the second bug above.
 
-A hand-rolled AST walk was tried first and is not adequate. It reported names
-on legitimate code in thirteen of twenty-four real functions (a name bound in
-both arms of an `if/else`, a walrus in an `if` test, a `global` declaration),
-and it was blind to bindings in `try` bodies, `except` handlers, `match` cases
-and `with ... as` -- each of which is a real place this bug can hide.
+It is not total, and two gaps were measured rather than assumed. A name a
+nested function closes over becomes a cell variable and is read with
+`LOAD_DEREF`, so a conditionally bound name captured by an inner `def` is
+missed though it raises `NameError`. A comprehension's iteration variable read
+after the comprehension is compiled with `LOAD_FAST_AND_CLEAR` and a plain
+`LOAD_FAST`, and is missed the same way. Neither shape exists in this module
+today -- its only function with cell variables binds them unconditionally.
+
+A hand-rolled AST walk was tried first and discarded. It reported names on
+legitimate code across the producer package (a name bound in both arms of an
+`if/else`, a walrus in an `if` test, a `global` declaration), and was blind to
+bindings in `try` bodies, `except` handlers and `with ... as`. It did catch a
+conditional `match` binding, by over-reporting every `match`.
 """
 
 from __future__ import annotations
@@ -98,9 +106,15 @@ class TestTheCheckWorks:
             "    match ctx.kind:\n        case 1:\n            x = 1\n    use(x)\n",
         ],
     )
-    def test_it_sees_shapes_an_ast_walk_missed(self, body):
-        """`try`, `with ... as` and `match` all bind, and all hid this bug."""
-        assert unproven_locals("def f(ctx, p, E, y=None):\n" + body)
+    def test_it_sees_every_binding_form(self, body):
+        """`try`, `with ... as` and `match` all bind, and all hide this bug.
+
+        The first two were measured blind to the discarded AST walk; `match`
+        it caught, by over-reporting every `match`. All three are here because
+        the guard has to be right about the form, not because the old one was
+        wrong about each.
+        """
+        assert unproven_locals("def f(ctx, p, E, y=None):\n" + body) == {("f", "x")}
 
     def test_it_does_not_fire_on_a_plain_function(self):
         assert not unproven_locals("def f(a):\n    b = a + 1\n    return b\n")
@@ -137,7 +151,54 @@ class TestEveryStepBindsWhatItReads:
         """
         reported = unproven_locals(STEPS.read_text(encoding="utf-8"), str(STEPS))
 
-        assert CONSERVATIVE <= reported, (
+        assert reported >= CONSERVATIVE, (
             f"{sorted(CONSERVATIVE - reported)} are allowlisted but no longer "
             "reported; remove them"
+        )
+
+
+class TestTheMeasuredGaps:
+    """The two shapes the opcode read does not see, pinned so they stay known.
+
+    Recorded as tests rather than prose because a docstring claiming a gap is
+    the same kind of thing as the comment that claimed this bug class was
+    handled -- and that comment was wrong.
+    """
+
+    CLOSURE = (
+        "def step(ctx):\n"
+        "    if ctx.needs:\n"
+        "        queries = []\n"
+        "    def save():\n"
+        "        return queries\n"
+        "    return save()\n"
+    )
+    COMPREHENSION = "def f(ys):\n    [x for x in ys]\n    return x\n"
+
+    @pytest.mark.parametrize("source", [CLOSURE, COMPREHENSION])
+    def test_the_gap_is_where_it_is_documented(self, source):
+        """A cell variable is read with LOAD_DEREF, an inlined comprehension
+        target with a plain LOAD_FAST. Neither emits the opcode this scans for.
+        """
+        assert not unproven_locals(source)
+
+    @pytest.mark.parametrize("source", [CLOSURE, COMPREHENSION])
+    def test_the_gap_is_a_real_crash(self, source):
+        """So the entry above records a limitation, not a harmless shape."""
+        namespace: dict = {}
+        exec(compile(source, "<probe>", "exec"), namespace)  # noqa: S102
+        target = namespace.get("step") or namespace["f"]
+        argument = type("C", (), {"needs": False})() if "step" in namespace else []
+
+        with pytest.raises(NameError):
+            target(argument)
+
+    def test_this_module_has_no_such_shape(self):
+        """The gap is acceptable only while the module stays clear of it."""
+        module = compile(STEPS.read_text(encoding="utf-8"), str(STEPS), "exec")
+        with_cells = [code.co_name for code in code_objects(module) if code.co_cellvars]
+
+        assert with_cells == ["_check_existing_metadata"], (
+            f"{with_cells} close over names, which the opcode scan cannot see; "
+            "check each binds unconditionally or widen the guard"
         )
