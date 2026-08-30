@@ -60,6 +60,17 @@ class TestFailFastReachesTheLoader:
 
         assert args.fail_fast is True
 
+    def test_the_flag_can_be_forced_off(self):
+        """`store_true` with `default=None` produces True or unset, never
+        False, which leaves a user who configured `fail_fast: true` no way to
+        ask for continue-on-error on one run. The paired form restores it.
+        """
+        from src.scraper.amazon.scraper import build_argument_parser
+
+        args = build_argument_parser().parse_args(["--no-fail-fast"])
+
+        assert args.fail_fast is False
+
     def test_the_configured_value_wins_when_the_flag_is_omitted(self):
         """The behaviour the fix exists for, through the real loader."""
         from src.scraper.amazon import config as scraper_config
@@ -94,16 +105,39 @@ class TestFailFastReachesTheLoader:
 class TestNoCleanupIsNotNoConfig:
     """`--no-cleanup` must say "off", not "nothing supplied"."""
 
-    def test_a_none_config_still_means_cleanup_is_on(self):
+    @pytest.mark.asyncio
+    async def test_a_none_config_still_means_cleanup_is_on(self, tmp_path):
         """Pinned, because it is why `None` cannot express the flag.
 
-        Changing this to default off would silently stop cleaning up for every
-        caller that passes nothing, which is most of them.
+        Making `None` mean off would silently stop cleaning up for every caller
+        that passes nothing, which is most of them -- so the premise has to be
+        observed, not asserted about the function object.
         """
         from src.publisher.schedule import ScheduleManager
 
-        assert ScheduleManager.auto_schedule.__defaults__ is not None
-        assert CleanupConfig().enabled is True
+        built: list = []
+
+        class _Manager:
+            def __init__(self, *args, **kwargs):
+                built.append(args)
+
+        manager = ScheduleManager(config=_enabled_schedule())
+
+        with patch("src.publisher.cleanup.CleanupManager", _Manager):
+            await manager.auto_schedule(
+                videos=[],
+                platforms=[],
+                publisher=AsyncMock(),
+                cleanup_config=None,
+                outputs_dir=tmp_path,
+            )
+
+        assert built, (
+            "`None` no longer means 'not supplied, clean up by default'. If "
+            "that is deliberate, `--no-cleanup` can go back to passing None "
+            "-- but every caller that passes nothing has just stopped "
+            "cleaning up too."
+        )
 
     @pytest.mark.asyncio
     async def test_a_disabled_config_creates_no_cleanup_manager(self, tmp_path):

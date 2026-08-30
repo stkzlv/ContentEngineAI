@@ -1352,13 +1352,18 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--fail-fast",
-        action="store_true",
-        # `default=None`, not argparse's False. The loader resolves this with
-        # `cli_fail_fast if cli_fail_fast is not None`, so an omitted flag
-        # arriving as False is indistinguishable from one passed deliberately,
-        # and `batch.fail_fast` in the YAML could never win. Same collision as
-        # the chunked-keywords defect: a not-supplied sentinel colliding with
-        # a supplied value.
+        # `BooleanOptionalAction` with `default=None`, not `store_true`. The
+        # loader resolves this with `cli_fail_fast if cli_fail_fast is not
+        # None`, so an omitted `store_true` flag arriving as False was
+        # indistinguishable from one passed deliberately, and
+        # `batch.fail_fast` in the YAML could never win. Same collision as the
+        # chunked-keywords defect: a not-supplied sentinel meeting a supplied
+        # value.
+        #
+        # The paired form matters once the default is None: `store_true` can
+        # then only produce True or "unset", leaving a user who configured
+        # `fail_fast: true` no way to ask for continue-on-error for one run.
+        action=argparse.BooleanOptionalAction,
         default=None,
         help=(
             "Stop batch processing on first failure "
