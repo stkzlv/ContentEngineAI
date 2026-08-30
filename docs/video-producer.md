@@ -200,10 +200,11 @@ video_profiles:
 
 Unknown keys are rejected at config load, so a typo here fails immediately
 rather than being dropped and leaving the profile to render with the global
-value. Subtitle settings go in the nested `subtitle_settings` block; the flat
-`subtitle_*` keys still load but warn.
+value. Subtitle settings go in the nested `subtitle_settings` block. The flat
+`subtitle_*` keys are refused, with the nested field to move each one to named
+in the error.
 
-`subtitle_format` is settable per profile, in either spelling. The subtitle
+`subtitle_format` is settable per profile, in the nested spelling only. The subtitle
 file's extension follows the merged value, so the file the generator writes and
 the path the assembler reads always agree. `--subtitle-format` still wins over
 both.
