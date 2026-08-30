@@ -21,6 +21,8 @@ asked for reach the thing that acts on it.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from src.video.config import config
@@ -185,44 +187,100 @@ class TestNoOverridableFieldIsReadFromTheGlobal:
             )
 
         method_for_aliases = self.method_node()
-        # Locals bound to the global object. Following these is the whole
-        # point: the first version of this check matched the attribute chain
-        # only, so renaming the local reintroduced the defect with the test
-        # green -- which is exactly how the bug shipped in the first place.
-        aliases = {
-            target.id
-            for node in ast.walk(method_for_aliases)
-            if isinstance(node, ast.Assign) and is_global_chain(node.value)
-            for target in node.targets
-            if isinstance(target, ast.Name)
-        } | {
-            node.target.id
-            for node in ast.walk(method_for_aliases)
-            if isinstance(node, ast.AnnAssign)
-            and node.value is not None
-            and is_global_chain(node.value)
-            and isinstance(node.target, ast.Name)
-        }
+
+        def bound_from(predicate) -> set[str]:
+            """Local names assigned from a value matching `predicate`."""
+            names = set()
+            for node in ast.walk(method_for_aliases):
+                if isinstance(node, ast.Assign) and predicate(node.value):
+                    names |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+                elif (
+                    isinstance(node, ast.AnnAssign)
+                    and node.value is not None
+                    and predicate(node.value)
+                    and isinstance(node.target, ast.Name)
+                ):
+                    names.add(node.target.id)
+            return names
+
+        def is_self_config(node) -> bool:
+            return (
+                isinstance(node, ast.Attribute)
+                and node.attr == "config"
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+            )
+
+        # Two hops, not one. `cfg = self.config` then `cfg.video_settings.x`
+        # evades a check that only follows names bound to the settings object
+        # itself, and that shape passed the first version of this guard.
+        config_aliases = bound_from(is_self_config)
+
+        def is_global_object(node) -> bool:
+            """`self.config.video_settings`, or any alias reaching it."""
+            return is_global_chain(node) or (
+                isinstance(node, ast.Attribute)
+                and node.attr == "video_settings"
+                and isinstance(node.value, ast.Name)
+                and node.value.id in config_aliases
+            )
+
+        settings_aliases = bound_from(is_global_object)
 
         def is_global_settings(node) -> bool:
-            """The chain, or any local aliased to it."""
-            return is_global_chain(node) or (
-                isinstance(node, ast.Name) and node.id in aliases
+            return is_global_object(node) or (
+                isinstance(node, ast.Name) and node.id in settings_aliases
             )
 
         method = self.method_node()
 
-        # A global read that is an operand of a comparison is deliberate: the
-        # `image_positioning_overridden` branch asks whether the profile
-        # differs from the global, which requires reading both. A global read
-        # used as a value is the defect.
-        compared = {
-            id(inner)
-            for node in ast.walk(method)
-            if isinstance(node, ast.Compare)
-            for operand in [node.left, *node.comparators]
-            for inner in ast.walk(operand)
-        }
+        # The profile side is aliased too -- the real comparison reads
+        # `vs_model.x`, where `vs_model = self.profile_settings.video_settings`.
+        profile_aliases = bound_from(
+            lambda value: "profile_settings" in ast.dump(value)
+        )
+
+        def is_profile_object(node) -> bool:
+            return "profile_settings" in ast.dump(node) or (
+                isinstance(node, ast.Name) and node.id in profile_aliases
+            )
+
+        def reads_profile(node, field: str) -> bool:
+            """Any read of `field` off the profile, directly or via an alias."""
+            return any(
+                isinstance(inner, ast.Attribute)
+                and inner.attr == field
+                and is_profile_object(inner.value)
+                for inner in ast.walk(node)
+            )
+
+        def exempt_comparisons(method_node) -> set[int]:
+            """Global reads paired against the same field off the profile.
+
+            The `image_positioning_overridden` branch legitimately reads both
+            sides to ask whether the profile differs. Exempting every operand
+            of every comparison is far too broad -- it lets a global read hide
+            inside any `if a != b`, which is a defect the first version of
+            this exemption swallowed.
+            """
+            exempt = set()
+            for node in ast.walk(method_node):
+                if not isinstance(node, ast.Compare):
+                    continue
+                operands = [node.left, *node.comparators]
+                for operand in operands:
+                    for inner in ast.walk(operand):
+                        if not (
+                            isinstance(inner, ast.Attribute)
+                            and inner.attr in self.overridable_targets()
+                        ):
+                            continue
+                        others = [o for o in operands if o is not operand]
+                        if any(reads_profile(o, inner.attr) for o in others):
+                            exempt.add(id(inner))
+            return exempt
+
+        compared = exempt_comparisons(method)
 
         targets = self.overridable_targets()
         offenders = {
@@ -234,7 +292,111 @@ class TestNoOverridableFieldIsReadFromTheGlobal:
             and id(node) not in compared
         }
 
+        # `getattr(self.config.video_settings, "field")` is an attribute read
+        # that no Attribute node describes, so it slipped through untouched.
+        offenders |= {
+            str(node.args[1].value)
+            for node in ast.walk(method)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) >= 2
+            and is_global_settings(node.args[0])
+            and isinstance(node.args[1], ast.Constant)
+            and node.args[1].value in targets
+        }
+
         assert not offenders, (
             f"{sorted(offenders)} are read from the global config inside "
             f"{self.METHOD}, so a profile overriding them is ignored"
         )
+
+
+class TestBothTransitionConsumersAgree:
+    """The caption boundaries and the crossfade offsets share one value.
+
+    `visual_builder` lays out `xfade` offsets from `transition_duration_sec`
+    and `subtitle_builder._calculate_segment_times` computes the boundaries
+    the content-aware captions are placed against from the same field. When
+    the assembler moved to the profile-merged value and the subtitle builder
+    did not, the two drifted by `i x dT` at segment `i` -- and every
+    content-aware caption is placed against those boundaries, the main
+    narration line included, not only the upper URL line.
+
+    Asserted as the invariant rather than as two separate reads, because the
+    defect is precisely that the two disagree. Reverting the subtitle-builder
+    hunk leaves the rest of the suite green.
+    """
+
+    TRANSITION = 1.25  # deliberately unlike the 0.5 global
+
+    def profile_with_transition(self):
+        """A merged settings object whose transition differs from the global."""
+        base = merged("product_video_single")
+        video = base.video_settings.model_copy(
+            update={"transition_duration_sec": self.TRANSITION}
+        )
+        return base.model_copy(update={"video_settings": video})
+
+    def subtitle_builder(self, profile_settings):
+        from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
+
+        return SubtitleGraphBuilder(
+            config=config,
+            profile_settings=profile_settings,
+            product_id="B0TEST001",
+        )
+
+    def test_the_global_is_not_the_profile_value(self):
+        """Vacuous if the two happen to coincide."""
+        assert config.video_settings.transition_duration_sec != self.TRANSITION
+
+    def test_segment_times_use_the_profile_transition(self):
+        settings = self.profile_with_transition()
+        builder = self.subtitle_builder(settings)
+        timed = [(Path("a.mp4"), 10.0, True), (Path("b.mp4"), 10.0, True)]
+
+        boundaries = builder._calculate_segment_times(timed)
+
+        # Segment 0 is unaffected; segment 1 loses one transition.
+        assert boundaries[0] == pytest.approx(10.0)
+        assert boundaries[1] == pytest.approx(20.0 - self.TRANSITION), (
+            "the caption boundaries use the global transition while the "
+            "assembler lays out crossfades from the profile value, so every "
+            "content-aware reposition after the first visual drifts"
+        )
+
+    def test_it_falls_back_to_the_global_without_a_profile(self):
+        """The fallback must not become the only path that works."""
+        builder = self.subtitle_builder(None)
+        timed = [(Path("a.mp4"), 10.0, True), (Path("b.mp4"), 10.0, True)]
+
+        boundaries = builder._calculate_segment_times(timed)
+
+        assert boundaries[1] == pytest.approx(
+            20.0 - config.video_settings.transition_duration_sec
+        )
+
+    def test_both_builders_resolve_the_same_value(self):
+        """The invariant itself, read from each consumer's own resolution."""
+        from unittest.mock import MagicMock
+
+        from src.video.assembler.visual_builder import VisualFilterBuilder
+
+        settings = self.profile_with_transition()
+        assembler = VisualFilterBuilder(
+            media_inspector=MagicMock(),
+            config=config,
+            strategy_factory=None,
+            profile_settings=settings,
+        )
+        captions = self.subtitle_builder(settings)
+
+        assert assembler.profile_settings is not None
+        assembler_value = (
+            assembler.profile_settings.video_settings.transition_duration_sec
+        )
+        timed = [(Path("a.mp4"), 10.0, True), (Path("b.mp4"), 10.0, True)]
+        caption_value = 20.0 - captions._calculate_segment_times(timed)[1]
+
+        assert caption_value == pytest.approx(assembler_value)
