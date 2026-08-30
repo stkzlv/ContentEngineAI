@@ -6,6 +6,7 @@ to prevent accidental credential exposure in logs.
 """
 
 import logging
+import logging.handlers
 import re
 import sys
 from collections.abc import Mapping
@@ -151,11 +152,20 @@ class SecretMaskingFilter(logging.Filter):
         )
 
 
+# A run appends, so the file is a history rather than only the last run. Left
+# unbounded that grows forever, which is what the previous overwrite-per-run
+# avoided; rotation keeps the bound without making a run destructive. Ten
+# megabytes is roughly a hundred debug runs at the sizes these produce.
+LOG_MAX_BYTES = 10 * 1024 * 1024
+LOG_BACKUP_COUNT = 3
+
+
 def setup_debug_logging(
     log_file: Path,
     debug_mode: bool = False,
     verbose: bool = False,
     component_name: str = "ContentEngineAI",
+    mark_run: bool = True,
 ) -> None:
     """Configure standardized logging with console and file handlers.
 
@@ -169,12 +179,19 @@ def setup_debug_logging(
         Enable verbose console formatting (default: False)
     component_name : str, optional
         Name of the component for logging messages (default: "ContentEngineAI")
+    mark_run : bool, optional
+        Write an INFO run marker (default: True). Pass False when configuring
+        logging at import rather than at the start of a run.
 
     Notes
     -----
     - Console output uses simplified format by default, detailed format when verbose
     - File output always uses detailed format with function names and line numbers
-    - Log file is overwritten on each run (mode='w')
+    - Log file is appended to and rotated at LOG_MAX_BYTES, so importing a
+      module that configures logging cannot destroy an earlier run's log
+    - A run marker is written at INFO unless `mark_run` is False. Pass False
+      when configuring logging at import rather than at the start of a run,
+      or the marker records the import and misleads whoever reads it
     - Third-party loggers (numba, httpx, google, etc.) are suppressed to WARNING
 
     """
@@ -197,10 +214,15 @@ def setup_debug_logging(
     console_handler.setFormatter(console_formatter)
     console_handler.setLevel(log_level)
 
-    # File handler configuration (overwrite mode)
-    file_handler = logging.FileHandler(
+    # Appending, not overwriting. `mode="w"` truncated the file when the
+    # handler was constructed, so anything that merely imported a module which
+    # configures logging destroyed the previous run's log before writing a
+    # line -- which is how a scraper log was lost to a tool that only meant to
+    # read the source. Rotation keeps the size bound the overwrite provided.
+    file_handler = logging.handlers.RotatingFileHandler(
         log_file,
-        mode="w",  # Overwrite file on each run
+        maxBytes=LOG_MAX_BYTES,
+        backupCount=LOG_BACKUP_COUNT,
         encoding="utf-8",
     )
     file_formatter = logging.Formatter(
@@ -237,8 +259,20 @@ def setup_debug_logging(
         # Keep websocket quiet even in debug mode (cleanup messages are noise)
         logging.getLogger("websocket").setLevel(logging.CRITICAL)
 
-    # Log initialization message
+    # Run boundary, at INFO on purpose. The file is appended to, so without a
+    # marker visible at the default level a reader greping the log -- which is
+    # how the docs say to verify a render -- can match the previous run's line
+    # instead of this one's.
+    #
+    # Gated because configuring logging is not the same event as starting a
+    # run. The scraper configures it at module import, so every producer,
+    # publisher and batch invocation imports it -- and so does `--help` --
+    # which wrote a marker claiming a scrape had begun, with no completion
+    # line after it. That is worse than no marker: it is a boundary an
+    # operator would trust.
     logger = logging.getLogger(component_name)
+    if mark_run:
+        logger.info("=== %s run starting ===", component_name)
     logger.debug(
         f"Logging initialized: level={logging.getLevelName(log_level)}, "
         f"log_file={log_file}, verbose={verbose}"

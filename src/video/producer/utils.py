@@ -72,7 +72,8 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     log_dir = config.general_video_producer_log_dir_path
     ensure_dirs_exist(log_dir)
 
-    # Use fixed log filename that gets overwritten on each run
+    # Fixed filename; the handler appends and rotates (see LOG_MAX_BYTES),
+    # so this holds a history and each run opens with a marker line.
     log_file = log_dir / "producer.log"
 
     # Use centralized logging setup
@@ -84,7 +85,7 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     )
 
     log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
-    logger.info(f"Logging configured - Level: {log_level_name}, File: {log_file}")
+    logger.debug(f"Logging configured - Level: {log_level_name}, File: {log_file}")
     return log_file
 
 

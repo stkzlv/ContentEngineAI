@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-08-30
+
+### Added
+- `--subtitle-format` on the global batch, matching the producer's flag and its `srt`/`ass` choices. The batch had no way to ask for a format, so a batch run took the global value whatever the operator wanted.
+
+### Fixed
+- Configuring logging no longer truncates the previous run's log. `setup_debug_logging` built its file handler with `mode="w"`, which truncates when the handler is constructed, so anything that merely imported a module configuring logging destroyed the log before writing a line. That is not hypothetical: a tool reading the source emptied `outputs/logs/scraper.log` without running the scraper, because an editable install resolved the import to the working tree.
+
+### Notes
+- The flag is the Module/Batch Alignment Rule applied: the producer CLI and `global_batch` re-implement the same logic rather than one calling the other, so `--subtitle-engine` and the three pycaps flags were on both while `--subtitle-format` was on the producer alone. Its three hops -- the parser, the config resolution, the dotted override handed to the producer -- are pinned separately, because a partial wiring parses and stores the value and then does nothing with it.
+- The log handler now rotates rather than only appending. Appending alone would grow the file forever, which is what overwriting per run was buying; rotation keeps that bound without making a run destructive.
+- Appending also closes a corruption hazard. Several writers share a log -- the scraper configures logging at module import, so every parallel test worker opens it, and the scheduled analytics sweep writes the publisher log an operator's `make publish` also writes. Without `O_APPEND` each holds its own offset, so a second writer can overwrite the first's records or leave a sparse hole. Stated as a mechanism rather than an observed event: two separate attempts to evidence it from a local log turned out to be measuring something else, so the claim here is what the file mode makes possible, not what a particular file shows.
+- Every run now opens with an `INFO` marker naming the component. The file is a history rather than one run, and the documented way to verify a render is to grep the log for a completion line -- without a boundary visible at the default level, that grep can match the previous run. The batch and the producer already logged such a line; the scraper and the publisher did not. The marker records an invoked run, not a completed one: an invocation that exits early still writes it, followed by its own error.
+- The marker is gated on `mark_run`, because configuring logging is not the same event as starting a run. The scraper configures it at module import, so every producer, publisher and batch invocation reaches that call -- and so does `--help` -- and an ungated marker announced a scrape that never ran, with no completion line after it. That is worse than no marker: it is a boundary an operator would trust. The scraper passes `mark_run=False` at import and marks its own run after argument parsing, so `--help` writes none.
+
 ## [0.88.1] - 2026-08-30
 
 ### Fixed

@@ -56,6 +56,10 @@ setup_debug_logging(
     debug_mode=False,
     verbose=False,
     component_name="AmazonScraper",
+    # This runs at import, not at the start of a scrape -- every producer,
+    # publisher and batch invocation reaches it, and so does `--help`.
+    # `main()` writes the marker once a scrape is actually starting.
+    mark_run=False,
 )
 
 # Suppress websocket errors (before any browser imports)
@@ -1509,6 +1513,14 @@ def main():
 
     args = parser.parse_args()
 
+    # Written here rather than by `setup_debug_logging`, which this module
+    # calls at import and so reaches every producer, publisher and batch
+    # invocation. This marks an invoked run, not a completed scrape -- a
+    # missing `--input-file` or no inputs at all still returns below, after
+    # the marker and followed by its own error. `--help` and an argparse
+    # error exit inside `parse_args` above and write nothing.
+    logging.getLogger("AmazonScraper").info("=== AmazonScraper run starting ===")
+
     # --input-file: read product IDs/URLs from file and merge with --product-ids
     if args.input_file:
         input_path = Path(args.input_file)
@@ -1642,6 +1654,7 @@ def main():
             debug_mode=True,
             verbose=args.verbose,
             component_name="AmazonScraper",
+            mark_run=False,  # already marked above; this is the same run
         )
 
     # Apply websocket filter to suppress cleanup messages

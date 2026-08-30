@@ -104,7 +104,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 | Argument | Description | Example |
 |----------|-------------|---------|
 | `--subtitle-engine` | Rendering engine: `ffmpeg` or `pycaps` (bundled YAML default is `pycaps`) | `--subtitle-engine ffmpeg` |
-| `--subtitle-format` | Format: `srt` (default) or `ass` (ffmpeg engine only) | `--subtitle-format ass` |
+| `--subtitle-format` | Format: `srt` or `ass`. The pycaps engine ignores it, and the bundled YAML selects pycaps | `--subtitle-format ass` |
 | `--preset` | Style preset (ffmpeg engine only) | `--preset animated` |
 | `--subtitle-anchor` | Vertical position | `--subtitle-anchor bottom` |
 | `--subtitle-margin` | Margin as frame fraction (0.0-0.5) | `--subtitle-margin 0.05` |
@@ -203,10 +203,10 @@ value. Subtitle settings go in the nested `subtitle_settings` block. The flat
 `subtitle_*` keys are refused, with the nested field to move each one to named
 in the error.
 
-`subtitle_format` is settable per profile, in the nested spelling only. The subtitle
+`subtitle_format` is settable per profile, in the nested spelling only, and per run with `--subtitle-format` on both the producer and the global batch. The subtitle
 file's extension follows the merged value, so the file the generator writes and
 the path the assembler reads always agree. `--subtitle-format` still wins over
-both.
+the profile and the global value.
 
 ### Hook Overlay and Pre-Motion
 

@@ -225,10 +225,20 @@ Examples:
         ),
     )
     producer_group.add_argument(
+        "--subtitle-format",
+        choices=["srt", "ass"],
+        help=(
+            "Subtitle format: srt or ass (with animations). The pycaps engine "
+            "ignores it, and the bundled YAML default is pycaps, so pair this "
+            "with --subtitle-engine ffmpeg to have it apply."
+        ),
+    )
+    producer_group.add_argument(
         "--subtitle-engine",
         choices=["ffmpeg", "pycaps"],
         help=(
-            "Subtitle rendering engine. 'ffmpeg' (default) = SRT/ASS via "
+            "Subtitle rendering engine. The bundled YAML selects pycaps. "
+            "'ffmpeg' = SRT/ASS via "
             "libass. 'pycaps' = animated captions burned post-assembly. "
             "Install the optional group first: "
             "`poetry install --with pycaps`."
@@ -579,6 +589,8 @@ class GlobalPipelineOrchestrator:
             overrides["script_template"] = self.config.script_template
         if self.config.pillar:
             overrides["pillar"] = self.config.pillar
+        if self.config.subtitle_format:
+            overrides["subtitle_settings.subtitle_format"] = self.config.subtitle_format
         if self.config.subtitle_engine:
             overrides["subtitle_settings.subtitle_engine"] = self.config.subtitle_engine
         if self.config.pycaps_template:
