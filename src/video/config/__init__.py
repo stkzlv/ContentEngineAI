@@ -5,7 +5,7 @@ All classes are re-exported from this module to maintain backward compatibility
 with existing imports like: from src.video.config import VideoConfig
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 # Re-export all constants
 # Re-export audio models
@@ -88,6 +88,21 @@ from src.video.config.visual_models import (  # noqa: F401
 # error, or from any directory but the repo root.
 #
 # PEP 562: `from src.video.config import config` still works unchanged.
+#
+# The TYPE_CHECKING block below is not decoration. A module `__getattr__`
+# returns `Any`, so without it mypy sees `config` as `Any` at all nine import
+# sites and stops reporting `attr-defined` on anything read from it -- a
+# typo'd attribute would then pass CI and raise at render time. Declaring the
+# names here restores the checking the eager assignment used to give, and
+# costs nothing at runtime. The redundant `as` alias is what marks the
+# re-export explicit to mypy.
+if TYPE_CHECKING:
+    from src.video.config_adapter import (
+        load_video_config_modular as load_video_config_modular,
+    )
+
+    config: VideoConfig
+
 _config: "VideoConfig | None" = None
 
 
