@@ -13,6 +13,7 @@ import aiohttp
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.ai.platform_metadata.utilities import generate_with_llm
+from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
 
@@ -116,7 +117,9 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 return None
 
             # Generate using LLM helper
-            template_path = Path("src/ai/prompts/youtube_metadata.md")
+            template_path = prompt_path_for(
+                product, "src/ai/prompts/youtube_metadata.md"
+            )
             response = await generate_with_llm(
                 template_path,
                 product,
