@@ -45,8 +45,10 @@ subtitle_settings:
 
   # ---- PYCAPS ENGINE SUB-SETTINGS ----
   # Only consumed when subtitle_engine == "pycaps". Per-profile overrides
-  # in video_production.yaml (pycaps_template, pycaps_renderer, etc.)
-  # beat these globals, and CLI flags beat the profile layer.
+  # go under video_profiles.<name>.subtitle_settings.pycaps in
+  # video_production.yaml, using the field names below (template_name,
+  # renderer, ...). They beat these globals, and CLI flags beat the profile
+  # layer.
   #
   # All defaults here track the starter recipe in
   # docs/subtitle-best-practices.md section 9 (Starter recipe).
@@ -640,7 +642,8 @@ text_rendering:
   # A single cross-platform render clamps to this union, not one platform.
   # Instagram drives top+bottom after Meta's March 2026 Reels unification.
   # Values are fractions of frame dimensions. See docs/platform-safe-zones.md
-  # Per-profile overrides available via subtitle_safe_zone_* fields
+  # Per-profile overrides go under subtitle_settings.safe_zone (min_x,
+  # max_x, min_y, max_y) on the profile
   safe_zone:
     min_x: 0.056    # Left: 60px on 1080w
     max_x: 0.833    # Right: 900px on 1080w (TikTok buttons + Jan 2026 playlist)
