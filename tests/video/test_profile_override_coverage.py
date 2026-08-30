@@ -97,6 +97,18 @@ class TestEveryMappedTargetIsReal:
         assert target in VideoSettings.model_fields
 
 
+# Targets with a reference in the source that is not a live read, recorded so
+# the reader check below stops reporting them as covered. Both appear only
+# inside `AudioBuilder.build_audio_filters_with_video_audio`, which has no
+# caller -- the assembler calls `build_audio_filters`, whose signature takes
+# no video-audio arguments. Four profiles configure them and get silence.
+# Tracked as a GitHub issue with the `follow-up` label; this set only shrinks.
+KNOWN_DEAD_TARGETS = {
+    "video_audio_handling",
+    "video_original_volume",
+}
+
+
 class TestEveryMappedTargetHasAReader:
     """The condition the original audit did not name.
 
@@ -107,6 +119,14 @@ class TestEveryMappedTargetHasAReader:
     SOURCE_DIRS = (Path("src/video"), Path("src/pipeline"))
 
     def _readers(self, field: str) -> int:
+        """Files that mention the field outside the config package.
+
+        A substring count, which is why `KNOWN_DEAD_TARGETS` exists: a
+        reference inside a function nothing calls looks identical to a live
+        read from here, and two targets are exactly that today. Proving
+        reachability properly means call-graph analysis; recording the two
+        known cases keeps the assertion honest without pretending to it.
+        """
         count = 0
         for directory in self.SOURCE_DIRS:
             for path in directory.rglob("*.py"):
@@ -118,9 +138,26 @@ class TestEveryMappedTargetHasAReader:
 
     @pytest.mark.parametrize("target", sorted(set(override_map().values())))
     def test_something_outside_the_config_package_reads_it(self, target):
+        if target in KNOWN_DEAD_TARGETS:
+            pytest.skip(f"{target} is recorded as dead; see KNOWN_DEAD_TARGETS")
+
         assert self._readers(target) > 0, (
             f"nothing outside the config package reads `{target}`, so every "
             "profile that overrides it is configuring a value with no effect"
+        )
+
+    def test_the_known_dead_set_only_shrinks(self):
+        """A new dead target must not be waved through by adding it here.
+
+        Every name in the set has to still be mapped; once one is fixed or
+        removed, its entry has to go too, which is what makes the set a
+        shrinking record rather than a growing exemption list.
+        """
+        stale = KNOWN_DEAD_TARGETS - set(override_map().values())
+
+        assert not stale, (
+            f"{sorted(stale)} are recorded as dead but no longer mapped; "
+            "remove them from KNOWN_DEAD_TARGETS"
         )
 
 

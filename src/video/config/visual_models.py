@@ -342,7 +342,14 @@ class VideoSettings(BaseModel):
     # name profiles use in YAML, but the merge maps it onto that field, which
     # is the one the assembler reads. Nothing reads this one directly.
     video_transition_duration: float = Field(
-        0.5, description="Duration of transitions between video clips in seconds"
+        0.5,
+        description=(
+            "Duration of the crossfade between consecutive visuals, in "
+            "seconds. Named for video clips, but the assembler applies one "
+            "xfade across every consecutive pair regardless of media type, "
+            "and the same value also sets image segment durations and "
+            "subtitle segment boundaries."
+        ),
     )
     enable_format_normalization: bool = Field(
         True,

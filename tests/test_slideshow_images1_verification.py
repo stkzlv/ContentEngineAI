@@ -192,9 +192,6 @@ class ScreenshotAnalyzer:
                     "image_top_position_percent": (
                         self.config.video_settings.image_top_position_percent
                     ),
-                    "preserve_aspect_ratio": (
-                        self.config.video_settings.preserve_aspect_ratio
-                    ),
                     "pad_color": self.config.video_settings.pad_color,
                 }
 

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `preserve_aspect_ratio`, from `VideoSettings`, `VideoProfile`, the override map and `config/video_production.yaml`. Declared, overridable, set in the shipped config, and read by nothing.
 
 ### Notes
+- `video_transition_duration`'s description said "between video clips". There is one transition mechanism -- `visual_builder` applies a single `xfade` across every consecutive pair regardless of media type, and the same value sets image segment durations and subtitle segment boundaries. The narrow name never matched what the assembler did; the description now says so.
+- Two more mapped targets, `video_audio_handling` and `video_original_volume`, are recorded as known-dead rather than reported as covered. Their only reference is inside `build_audio_filters_with_video_audio`, which has no caller, so four profiles configure video-audio mixing and get silence. Filed separately; the reader check is a substring match and cannot tell an unreachable definition from a live read.
 - The audit is derived rather than written down. Tests read the override map out of the source and check it against the two models, so the answer does not go stale the next time a field is added.
 - Two of the original three conditions are enforced elsewhere now: `VideoProfile` sets `extra="forbid"`, so a profile naming an undeclared field fails at load instead of being dropped.
 - The condition the original framing missed is the one that found both defects: a field can satisfy all three and still go nowhere, because nothing reads the target. That check is what flagged `preserve_aspect_ratio`.
