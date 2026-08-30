@@ -75,12 +75,6 @@ video_settings:
   preset: "medium"
   crf: 23
 
-  # Preserve aspect ratio when resizing images/videos
-  # true = add letterboxing/pillarboxing to maintain original proportions
-  # false = stretch/squash to fill frame (not recommended)
-  # Used by: assembler.py when scaling media to fit frame
-  preserve_aspect_ratio: true
-
   # Image display duration in seconds (for slideshow profiles)
   # How long each product image is shown on screen
   # Used by: producer.py to calculate slideshow timing

@@ -738,12 +738,17 @@ class VideoConfig(BaseModel):
                 "image_vertical_align": "image_vertical_align",
                 "image_background_fill": "image_background_fill",
                 "image_background_blur_sigma": "image_background_blur_sigma",
-                "preserve_aspect_ratio": "preserve_aspect_ratio",
                 "video_assembly_mode": "video_assembly_mode",
                 "video_aspect_mode": "video_aspect_mode",
                 "video_audio_handling": "video_audio_handling",
                 "video_original_volume": "video_original_volume",
-                "video_transition_duration": "video_transition_duration",
+                # Mapped onto `transition_duration_sec`, which is the field
+                # the assembler actually reads (`visual_builder`, twice, and
+                # `subtitle_builder`). `video_transition_duration` has no
+                # reader anywhere -- so four bundled profiles were setting a
+                # crossfade duration that went nowhere. Both default to 0.5,
+                # which is why the values agreeing hid it.
+                "video_transition_duration": "transition_duration_sec",
                 "enable_format_normalization": "enable_format_normalization",
                 "video_cache_dir": "video_cache_dir",
                 "video_top_position_percent": "video_top_position_percent",

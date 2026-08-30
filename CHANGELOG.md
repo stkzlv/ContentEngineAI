@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.4] - 2026-08-30
+
+### Fixed
+- A profile's `video_transition_duration` reaches the assembler. It was mapped onto a field of the same name that nothing reads; the assembler reads `transition_duration_sec`. Four bundled profiles were setting a crossfade duration that went nowhere, and both fields default to 0.5, so the values agreeing is what hid it. Closes #111.
+
+### Removed
+- `preserve_aspect_ratio`, from `VideoSettings`, `VideoProfile`, the override map and `config/video_production.yaml`. Declared, overridable, set in the shipped config, and read by nothing.
+
+### Notes
+- The audit is derived rather than written down. Tests read the override map out of the source and check it against the two models, so the answer does not go stale the next time a field is added.
+- Two of the original three conditions are enforced elsewhere now: `VideoProfile` sets `extra="forbid"`, so a profile naming an undeclared field fails at load instead of being dropped.
+- The condition the original framing missed is the one that found both defects: a field can satisfy all three and still go nowhere, because nothing reads the target. That check is what flagged `preserve_aspect_ratio`.
+
 ## [0.86.3] - 2026-08-30
 
 ### Changed

@@ -288,7 +288,6 @@ class VideoSettings(BaseModel):
         25, description="Maximum images to use in dynamic image count mode"
     )
     verification_probe_timeout_sec: int = Field(30)
-    preserve_aspect_ratio: bool = Field(True)
     default_max_chars_per_line: int = Field(20)  # Configurable via YAML
     subtitle_box_border_width: int = Field(5)  # Configurable via YAML
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
@@ -339,6 +338,9 @@ class VideoSettings(BaseModel):
         le=0.0,
         description="Original video volume adjustment in dB (range: -60 to 0)",
     )
+    # The profile-level spelling of `transition_duration_sec`. Kept as the
+    # name profiles use in YAML, but the merge maps it onto that field, which
+    # is the one the assembler reads. Nothing reads this one directly.
     video_transition_duration: float = Field(
         0.5, description="Duration of transitions between video clips in seconds"
     )
@@ -527,10 +529,6 @@ class VideoProfile(BaseModel):
     image_vertical_align: Literal["top", "center"] | None = Field(
         None, description="Override global image vertical alignment (top or center)"
     )
-    preserve_aspect_ratio: bool | None = Field(
-        None, description="Override global aspect ratio preservation setting"
-    )
-
     # ---- PER-PROFILE VIDEO ASSEMBLY SETTINGS ----
     # Video assembly configuration overrides (Requirement 7, 10)
     video_assembly_mode: (
