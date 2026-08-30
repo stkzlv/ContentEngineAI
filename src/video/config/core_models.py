@@ -740,8 +740,6 @@ class VideoConfig(BaseModel):
                 "image_background_blur_sigma": "image_background_blur_sigma",
                 "video_assembly_mode": "video_assembly_mode",
                 "video_aspect_mode": "video_aspect_mode",
-                "video_audio_handling": "video_audio_handling",
-                "video_original_volume": "video_original_volume",
                 # Mapped onto `transition_duration_sec`, which is the field
                 # the assembler actually reads (`visual_builder`, twice, and
                 # `subtitle_builder`). `video_transition_duration` has no

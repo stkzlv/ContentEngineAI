@@ -195,7 +195,6 @@ video_profiles:
     description: "Sequential video clips"
     use_scraped_videos: true
     video_assembly_mode: "sequential"
-    video_audio_handling: "remove"
 ```
 
 Unknown keys are rejected at config load, so a typo here fails immediately

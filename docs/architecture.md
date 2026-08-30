@@ -269,7 +269,7 @@ dependencies = {
 - **`core.py`** - VideoAssembler orchestrator (~690 lines)
 - **`visual_builder.py`** - Visual filter chains (~590 lines)
 - **`subtitle_builder.py`** - Subtitle positioning (~850 lines)
-- **`audio_builder.py`** - Audio filter chains (~200 lines)
+- **`audio_builder.py`** - Audio filter chains (~130 lines)
 - **`video_strategies.py`** - Video mode strategies (~665 lines)
 - **`media_inspector.py`** - Media file inspection (~170 lines)
 - **`subtitle_utils.py`** - Subtitle parsing/styling (~280 lines)
@@ -278,10 +278,10 @@ dependencies = {
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
 - **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
-- **Audio Normalization**: Configurable video audio handling (remove/mixed)
+- **Audio Sources**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
-- **Audio Mixing**: Multi-track audio with volume control and ducking
+- **Audio Mixing**: Fixed-level multi-track mixing with per-track volume
 - **Verification**: Post-assembly quality checks
 
 #### Video Assembly Modes
@@ -335,16 +335,10 @@ Automatically chooses between letterbox and crop based on aspect ratio differenc
 
 #### Audio Handling
 
-**Remove Mode** (`video_audio_handling: "remove"`)
-- Strips all original audio from product videos
-- Final mix: voiceover + background music only
-- **Best for**: Clean professional sound or videos with poor/distracting audio
-
-**Mixed Mode** (`video_audio_handling: "mixed"`)
-- Preserves original video audio at reduced volume (default: -30dB)
-- Final mix: voiceover + background music + video audio (ambient)
-- Volume configurable via `video_original_volume` (-60 to 0 dB)
-- **Best for**: Including ambient product sounds (unboxing, demos, ASMR)
+Product video audio is not carried into the render. The narration is the
+message, and the source audio on a marketing or stock clip is a licensed music
+bed or a second voice, which is a platform audio-match risk with no audible
+benefit under a voiceover.
 
 **FFmpeg Integration:**
 - **Complex Filters**: Dynamic filter graph construction

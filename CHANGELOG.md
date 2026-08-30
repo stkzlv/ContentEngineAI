@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-08-30
+
+### Removed
+- **Breaking, config:** `video_audio_handling` and `video_original_volume`, and the uncalled `AudioFilterBuilder.build_audio_filters_with_video_audio` they fed. Source video audio is not carried into the render, which is what already happened. Closes #330.
+
+### Notes
+- The method was defined and never called: the assembler's only audio call site is `build_audio_filters`, whose signature takes no video-audio arguments. So three bundled profiles configured a mix and got silence, and `grep video_audio_handling src/` found a file that looked like a reader while every occurrence sat inside the unreachable method.
+- Wiring it up was the other option, and the profile comments assumed it ("Include video audio at reduced volume"). Three things argued the other way: it has never run in any release, so nothing regresses; at the configured -30/-35 dB it sat below the music bed at -24 dB under narration at +3 dB, so the benefit was inaudible; and both video sources are third-party, so mixing either into an upload is an audio-match risk on all three platforms, where a claim or a mute zeroes the video.
+- Removing the fields makes them loud. `VideoProfile` sets `extra="forbid"`, so a fork whose profile names one now aborts config load instead of having the value accepted into a merged setting nothing reads. That is the whole of the breakage, and it is why this is a minor rather than the patch the removed-code-had-no-caller framing would suggest.
+- `KNOWN_DEAD_TARGETS` in the profile-override audit is now empty, and the test asserts that rather than asserting it only shrinks. The old check required every recorded name to still be mapped, which passes for any name a future author would plausibly add -- a dead target is by definition a mapped one -- so the guard meant to stop the set growing could not.
+
 ## [0.87.0] - 2026-08-30
 
 ### Changed
