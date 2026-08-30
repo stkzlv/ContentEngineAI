@@ -141,3 +141,85 @@ class TestThePathFollowsTheProfile:
             video_config._get_subtitle_filename("subtitles.srt", "no_such_profile")
             == "subtitles.ass"
         )
+
+
+class TestTheCliOverrideReachesThePath:
+    """`--subtitle-format` resolves the same way for the path and the writer.
+
+    Threading the profile in closed the config-level disagreement and opened a
+    second one by the same shape: every runtime consumer merges *with*
+    `ctx.cli_overrides`, so a path merged without them parts company from the
+    written file the moment the flag is passed. The producer's `--subtitle-format`
+    is the only way to reach it, and the two failure modes are the same two.
+    """
+
+    OVERRIDE = {"subtitle_settings.subtitle_format": "ass"}
+
+    def test_the_flag_moves_the_path(self, video_config, monkeypatch):
+        """Global and profile both say `srt`; the flag says `ass`."""
+        profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "srt_profile", profile)
+
+        path = video_config.get_product_paths(
+            "B0TEST001", "srt_profile", self.OVERRIDE
+        )["subtitles"]
+
+        assert path.suffix == ".ass", (
+            "the path ignores `--subtitle-format ass` while the generator "
+            "honours it, so the step finds nothing at the recorded path and "
+            "ships a caption-less video"
+        )
+
+    def test_it_agrees_with_what_the_generator_is_told(self, video_config, monkeypatch):
+        """The invariant, against the same overrides the step merges with."""
+        profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "srt_profile", profile)
+
+        for override in ({"subtitle_settings.subtitle_format": "srt"}, self.OVERRIDE):
+            merged = video_config.get_profile_merged_settings("srt_profile", override)
+            path = video_config.get_product_paths("B0TEST001", "srt_profile", override)[
+                "subtitles"
+            ]
+
+            assert path.suffix == f".{merged.subtitle_settings.subtitle_format}"
+
+    def test_the_run_paths_carry_it(self, video_config, monkeypatch):
+        """`get_video_run_paths` is what the orchestrator actually calls."""
+        from src.video.producer.state import get_video_run_paths
+
+        profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "srt_profile", profile)
+
+        paths = get_video_run_paths(
+            video_config, "B0TEST001", "srt_profile", self.OVERRIDE
+        )
+
+        assert paths["subtitle_file"].suffix == ".ass"
+
+    def test_no_overrides_still_follows_the_profile(self, video_config, monkeypatch):
+        """The plumbing must not disturb the case with no flag passed."""
+        profile = profile_with(
+            video_config,
+            "slideshow_images1",
+            subtitle_settings={"subtitle_format": "srt"},
+        )
+        monkeypatch.setitem(video_config.video_profiles, "srt_profile", profile)
+
+        assert (
+            video_config.get_product_paths("B0TEST001", "srt_profile")[
+                "subtitles"
+            ].suffix
+            == ".srt"
+        )

@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_get_subtitle_filename` takes the profile optionally and falls back to the global value, so callers with no profile in hand are unchanged. An unknown profile falls back rather than raising: reporting a bad profile name is not this function's job, and the caller does it with a better message.
 - A test asserts the invariant for every bundled profile -- whatever format a profile resolves to, the file it writes to carries that extension -- rather than only the two failing cases.
 
+### Notes
+- The path resolution takes the CLI overrides too, not only the profile. Every runtime consumer of the written file resolves its format with `ctx.cli_overrides` applied, so a path resolved without them parts company from the file the moment `--subtitle-format` is passed -- the same two failure modes, reached by a different route, and reachable only because this release makes the profile-level key legal.
+
 ## [0.86.4] - 2026-08-30
 
 ### Fixed

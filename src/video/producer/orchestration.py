@@ -348,7 +348,7 @@ async def create_video_for_product(
     )
 
     step = ""
-    run_paths = get_video_run_paths(config, product_id, profile_name)
+    run_paths = get_video_run_paths(config, product_id, profile_name, cli_overrides)
     successful_run = False
     skipped_run = False
 

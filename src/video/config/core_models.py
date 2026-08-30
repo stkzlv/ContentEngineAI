@@ -903,7 +903,12 @@ class VideoConfig(BaseModel):
             base["safe_zone"] = self.text_rendering.safe_zone
         return base
 
-    def get_product_paths(self, product_id: str, profile_name: str) -> dict[str, Path]:
+    def get_product_paths(
+        self,
+        product_id: str,
+        profile_name: str,
+        cli_overrides: dict[str, Any] | None = None,
+    ) -> dict[str, Path]:
         """Generate all paths for a product using simplified product-oriented structure.
 
         Returns flat structure: outputs/{product_id}/
@@ -944,7 +949,7 @@ class VideoConfig(BaseModel):
             "description": temp_dir / files.description,
             "voiceover": temp_dir / files.voiceover,
             "subtitles": temp_dir
-            / self._get_subtitle_filename(files.subtitles, profile_name),
+            / self._get_subtitle_filename(files.subtitles, profile_name, cli_overrides),
             "attribution": temp_dir / files.attribution,
             # Debug/temp files (in temp directory)
             "pipeline_state": temp_dir / temp_files.pipeline_state,
@@ -971,7 +976,10 @@ class VideoConfig(BaseModel):
         }
 
     def _get_subtitle_filename(
-        self, default_filename: str, profile_name: str | None = None
+        self,
+        default_filename: str,
+        profile_name: str | None = None,
+        cli_overrides: dict[str, Any] | None = None,
     ) -> str:
         """Subtitle filename, with the extension the profile will actually use.
 
@@ -983,13 +991,19 @@ class VideoConfig(BaseModel):
         filter and aborts the render, while the mirror case finds no file at
         the expected path and ships a caption-less video with no error.
 
+        `cli_overrides` is merged in for the same reason. Every runtime
+        consumer of the written file resolves its format *with* the CLI
+        overrides applied, so a path resolved without them disagrees with the
+        file the moment `--subtitle-format` is passed -- which is the same
+        two failure modes again, reached by a different route.
+
         `profile_name` is optional so callers with no profile in hand (and
         the global-only paths) keep working on the global value.
         """
         subtitle_format = self.subtitle_settings.get("subtitle_format")
         if profile_name:
             try:
-                merged = self.get_profile_merged_settings(profile_name)
+                merged = self.get_profile_merged_settings(profile_name, cli_overrides)
                 subtitle_format = merged.subtitle_settings.subtitle_format
             except (KeyError, ValueError):
                 # An unknown or unloadable profile is not this function's
@@ -1033,10 +1047,13 @@ class VideoConfig(BaseModel):
 
     # Legacy method name for backward compatibility
     def get_video_project_paths(
-        self, product_id: str, profile_name: str
+        self,
+        product_id: str,
+        profile_name: str,
+        cli_overrides: dict[str, Any] | None = None,
     ) -> dict[str, Path]:
         """Legacy method - redirects to get_product_paths for backward compatibility."""
-        return self.get_product_paths(product_id, profile_name)
+        return self.get_product_paths(product_id, profile_name, cli_overrides)
 
     def cleanup_outputs_directory(self, dry_run: bool | None = None) -> dict[str, Any]:
         """Clean up unexpected files and directories in outputs directory.

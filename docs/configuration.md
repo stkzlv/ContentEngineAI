@@ -1783,9 +1783,7 @@ image_top_position_percent: 0.15     # Override global image position
 image_vertical_align: "top"          # Override global vertical alignment ("top" or "center")
 
 # Subtitle Settings — single nested block. Any field on the global
-# subtitle_settings can be overridden here except subtitle_format, which is
-# global-only because the subtitle file's extension is derived from it; unset
-# fields inherit from global.
+# subtitle_settings can be overridden here; unset fields inherit from global.
 subtitle_settings:
   anchor: "below_content"            # top, center, bottom, above_content, below_content
   margin: 0.08                       # Margin as fraction of frame height (0.0-0.5)
@@ -1813,7 +1811,7 @@ subtitle_settings:
 ```
 
 **Key Features:**
-- **Individual Customization**: Each profile can override any global setting except `subtitle_format`, which is global-only
+- **Individual Customization**: Each profile can override any global setting
 - **Selective Overrides**: Only specify settings you want to change
 - **Fallback System**: Unspecified settings use global defaults
 - **Type Safety**: All overrides validated by Pydantic models
