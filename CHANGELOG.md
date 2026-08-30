@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.3] - 2026-08-30
+
+### Changed
+- Records why a non-commercial TikTok render still sends `content_preview_confirmed` and `express_consent_given`. Closes #256.
+
+### Notes
+- The worry was that these two look like part of the commercial-content disclosure flow, so sending them alongside `commercial_content_type: none` might be rejected the way a missing disclosure option is. TikTok's Content Sharing Guidelines settle it: both are unconditional requirements of the Direct Post API, for every post -- express consent before any content is sent, and a preview of the to-be-posted content.
+- The rejection they are confused with fires only when the disclosure toggle is ON and neither option is chosen, which `none` plus `is_brand_organic_post: false` is the opposite of.
+- Clearing them would assert that consent was not obtained and no preview was shown, on a post whose API requires both.
+- Settled from the published requirements rather than by a live post, which is what the issue proposed. A test now pins that `for_render` changes exactly two fields, so a later tidy-up cannot quietly widen it.
+
 ## [0.86.2] - 2026-08-30
 
 ### Fixed

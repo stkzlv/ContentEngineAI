@@ -1292,6 +1292,19 @@ class TikTokContentSettings:
 
         `none` is used rather than omitting the settings: absence is
         indistinguishable from a payload that forgot them.
+
+        `content_preview_confirmed` and `express_consent_given` are
+        deliberately left alone. They look like part of the commercial-content
+        flow, and the worry was that sending them alongside "not commercial"
+        would be rejected the way a missing disclosure option is. It is not:
+        TikTok's Content Sharing Guidelines make both unconditional
+        requirements of the Direct Post API -- "API Clients must only start
+        sending content materials to TikTok after the user has expressly
+        consent to the upload", and "API Clients should display a preview of
+        the to-be-posted content" -- for every post, commercial or not. The
+        rejection they were confused with fires only when the disclosure
+        toggle is ON and neither option is chosen, which `none` plus
+        `is_brand_organic_post=False` is the opposite of.
         """
         if carries_affiliate_content:
             return self
