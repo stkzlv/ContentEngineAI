@@ -377,8 +377,16 @@ class TestBothTransitionConsumersAgree:
             20.0 - config.video_settings.transition_duration_sec
         )
 
-    def test_both_builders_resolve_the_same_value(self):
-        """The invariant itself, read from each consumer's own resolution."""
+    def test_the_caption_side_matches_the_assembler_fixture(self):
+        """One-sided on purpose, and named to say so.
+
+        The assembler value here is the object this test constructed, not the
+        result of running `build_visual_chain` -- so this pins the caption
+        side against a known transition, and does not re-check the assembler's
+        own resolution. That side is covered by the AST guard below, which
+        flags `transition_duration_sec` read off the global inside
+        `build_visual_chain`.
+        """
         from unittest.mock import MagicMock
 
         from src.video.assembler.visual_builder import VisualFilterBuilder
