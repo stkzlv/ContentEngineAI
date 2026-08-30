@@ -358,6 +358,13 @@ async def step_gather_visuals(ctx: PipelineContext):
                         if vid_path.is_file()
                     ]
         stock_media_fetched: list[Any] = []
+        # Declared beside `stock_media_fetched`, not inside the arm that fills
+        # it. `save_visuals_info` below reads it on every path, so a profile
+        # drawing no stock media -- `product_video_primary` and its siblings --
+        # reached it unbound and failed the whole render at `gather_visuals`.
+        # The previous fix hoisted it out of the inner preloaded/fetch branch
+        # but left it inside this one, which is the same trap one level up.
+        stock_queries_issued: list[list[str]] = []
         if profile_needs_stock_media(ctx.profile):
             fetcher = StockMediaFetcher(
                 ctx.config.stock_media_settings,
@@ -414,10 +421,6 @@ async def step_gather_visuals(ctx: PipelineContext):
             # supplied the phrases, because the preloader was primed from the
             # product before the script existed and holds results for a query
             # this render is no longer making.
-            # Declared before the branch: only the fetch arm builds queries,
-            # and the preloaded arm reaching a name bound inside the other one
-            # is the unbound-local trap this file has hit before.
-            stock_queries_issued: list[list[str]] = []
             preloaded_media = None
             if ctx.resource_preloader and not script_phrases:
                 preloaded_media = ctx.resource_preloader.get_preloaded_stock_media(
@@ -1030,8 +1033,12 @@ async def step_create_voiceover(ctx: PipelineContext):
         # Trim leading/trailing silence from voiceover
         # Whisper normalizes timestamps to start at first speech
         audio_proc = ctx.config.audio_processing
+        # Bound before the branch: the duration read below needs it on every
+        # path, and `silence_removal_enabled: false` -- or no `audio_processing`
+        # section at all -- otherwise raised UnboundLocalError here, after the
+        # script and the TTS synthesis had already been paid for.
+        ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
         if audio_proc and audio_proc.silence_removal_enabled:
-            ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
             trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
 
             try:
