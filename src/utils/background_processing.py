@@ -39,11 +39,17 @@ class BackgroundTask:
     start_time: float
     priority: int = 1  # Lower number = higher priority
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Stamped when the task finishes. Without it `duration` is elapsed time
+    # since the task started, recomputed on every read -- so the end-of-run
+    # summary reported the whole pipeline's wall clock for a task that had
+    # taken half a second, and every warmer looked as though it had finished
+    # at the instant the pipeline ended.
+    end_time: float | None = None
 
     @property
     def duration(self) -> float:
-        """Get the current duration of the task."""
-        return time.time() - self.start_time
+        """How long the task ran, or how long it has been running."""
+        return (self.end_time or time.time()) - self.start_time
 
     @property
     def is_completed(self) -> bool:
@@ -124,6 +130,9 @@ class BackgroundProcessor:
         """Handle task completion."""
         if task_id in self.active_tasks:
             bg_task = self.active_tasks.pop(task_id)
+            # Stamp before anything reads `duration`, including the log line
+            # below and the end-of-run summary.
+            bg_task.end_time = time.time()
             self.completed_tasks.append(bg_task)
 
             if bg_task.is_successful:
@@ -427,11 +436,23 @@ class TTSWarmer:
         # Get TTS providers from config
         tts_config = config.tts_config
 
-        # Check each provider individually
+        # Only providers the run can actually reach. `enabled` alone is not
+        # enough: a provider left configured but absent from `provider_order`
+        # is never tried, so warming it is pure cost. Coqui is the shipped
+        # case -- the dependency was dropped and `provider_order` omits it,
+        # but its config block is kept, so it was still being warmed on every
+        # render.
+        reachable = set(getattr(tts_config, "provider_order", []) or [])
         providers_to_check = [
-            ("coqui", tts_config.coqui),
-            ("google_cloud", tts_config.google_cloud),
+            (name, cfg)
+            for name, cfg in (
+                ("coqui", tts_config.coqui),
+                ("google_cloud", tts_config.google_cloud),
+            )
+            if name in reachable
         ]
+        if not providers_to_check:
+            logger.debug("No TTS provider in provider_order has a config block to warm")
 
         # Gemini uses same client as google_cloud, so warm it if any
         # voice profile uses gemini and we haven't already warmed google_cloud
