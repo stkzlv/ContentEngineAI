@@ -54,6 +54,27 @@ class AudioSettings(BaseModel):
     music_fade_in_duration: float = Field(2.0)
     music_fade_out_duration: float = Field(3.0)
 
+    # Voice-keyed ducking. `sidechaincompress` attenuates the music while
+    # narration plays and lets it back up in the gaps, instead of holding one
+    # level for the whole clip. Off by default: it changes the sound of every
+    # render, and `music_volume_db` alone is a working mix.
+    music_ducking_enabled: bool = Field(False)
+    music_ducking_threshold: float = Field(0.03, gt=0.0, le=1.0)
+    music_ducking_ratio: float = Field(8.0, ge=1.0, le=20.0)
+    music_ducking_attack_ms: float = Field(20.0, ge=0.01, le=2000.0)
+    music_ducking_release_ms: float = Field(300.0, ge=0.01, le=9000.0)
+
+    # Final loudness normalization (EBU R128). Platforms normalize on
+    # playback, so mastering near the target keeps the video level with the
+    # feed around it rather than being pushed up or down.
+    loudness_normalization_enabled: bool = Field(True)
+    loudness_target_lufs: float = Field(-14.0, ge=-70.0, le=-5.0)
+    loudness_true_peak_db: float = Field(-1.0, ge=-9.0, le=0.0)
+    loudness_range_lu: float = Field(7.0, ge=1.0, le=50.0)
+    # `loudnorm` emits at 192 kHz whatever it was given, so the graph has to
+    # resample or the encoder silently negotiates a rate nobody chose.
+    output_audio_sample_rate: int = Field(48000, ge=8000, le=192000)
+
 
 class GoogleCloudVoiceCriteria(BaseModel):
     language_code: str

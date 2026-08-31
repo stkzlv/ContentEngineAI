@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-08-31
+
+### Added
+- The finished audio mix is mastered to a loudness target with `loudnorm` (EBU R128), on by default. `loudness_target_lufs` (-14.0), `loudness_true_peak_db` (-1.0) and `loudness_range_lu` (7.0) configure it in `audio_settings`, and `loudness_normalization_enabled` turns it off. Closes #172.
+- Voice-keyed music ducking with `sidechaincompress`, behind `music_ducking_enabled` and off by default, with `music_ducking_threshold`, `_ratio`, `_attack_ms` and `_release_ms`. Closes #171.
+- `output_audio_sample_rate` (48000), applied after `loudnorm`.
+
+### Notes
+- Nothing normalized loudness before this: `amix` ran with `normalize=0` and the master level was whatever the fixed track gains summed to. Two real renders measured **-17.4 and -17.6 LUFS** integrated against a -14 target, with a true peak of **-0.1 dBFS**.
+- Those two figures together are the argument for R128 over a gain change. The mix was quiet on average *and* nearly touching full scale, so raising the level would clip and limiting alone would leave it quiet. Measured after: -14.0 LUFS with a true peak comfortably under the ceiling.
+- The pass is single-pass, so the correction is adaptive rather than exact. Two-pass needs the mixed audio measured as a file first, and it does not exist as one -- it is produced inside the assembler's filtergraph.
+- `loudnorm` emits at 192 kHz whatever it is handed, verified, so the chain resamples afterwards. Renders currently come out at 24 kHz (topic, from TTS) and 44.1 kHz (product); without the resample the encoder negotiates a rate nobody chose. This does change the output rate of every render to 48 kHz.
+- Normalization runs before `apad`, not after. The pad appends silence to reach the video duration, and the loudness of a render is a statement about the programme rather than about its padding.
+- Ducking is off by default because it changes the sound of every render, and because a duck is only half of what the guidance asks for: `sidechaincompress` attenuates and never boosts, so the music returns to `music_volume_db` in a gap rather than rising above it. Getting music that breathes in the gaps means raising the base level and letting the duck carry the separation.
+- The shipped duck is deliberately shallow. Measured depth against the four config fields, on a synthetic voice with a silent stretch: 3.5 dB at threshold 0.05 / ratio 6, **7.6 dB at the shipped 0.03 / 8**, 13.4 dB at 0.015 / 12, 17.0 dB at 0.01 / 15. `music_volume_db` already puts the music 27 dB under the voiceover, so a deep duck on top of that makes it inaudible rather than unobtrusive. The table is in the config so tuning is not guesswork.
+
 ## [0.90.0] - 2026-08-31
 
 ### Added

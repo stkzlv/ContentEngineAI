@@ -83,16 +83,24 @@ not absolute peak or LUFS targets. The "-3 to -6 dB peak" figure is the goal
 for the voiceover's peak level in the finished mix. A +3 dB mix offset and a
 -3 to -6 dB peak target don't conflict: the offset sets the voice above the
 music inside the mix, and the source voiceover level plus that offset is what
-lands near the peak target. There's no separate peak-normalization or
-loudness-target stage in the pipeline yet, so treat the table as the goal and
-the config gains as the lever.
+lands near the peak target. The mix then goes through a loudness-target stage
+(section 5), so these gains set the balance *between* the tracks while the
+master level is set there.
 
 **Ducking** (music level keyed to the presence of voice) keeps the gap clean:
-the music drops when narration plays and recovers in the gaps, instead of one
-fixed level for the whole clip. The assembler's audio builder
-(`src/video/assembler/audio_builder.py`) currently mixes music at the fixed
-`music_volume_db` with fade in/out, not a voice-keyed sidechain duck. A real
-sidechain duck (FFmpeg `sidechaincompress`) is a future improvement.
+the music drops when narration plays instead of holding one fixed level for
+the whole clip. The assembler's audio builder
+(`src/video/assembler/audio_builder.py`) mixes at the fixed `music_volume_db`
+by default and can duck with FFmpeg `sidechaincompress` when
+`music_ducking_enabled` is set.
+
+It is off by default, because it changes the sound of every render and the
+fixed-level mix works on its own. Note also what a duck cannot do: it
+attenuates, it never boosts, so the music returns to `music_volume_db` in a
+gap rather than rising above it. The "music in voice-free beats" row above
+needs a louder base level paired with a deeper duck, not the duck alone.
+Measured depths for the four config fields are in the `audio_settings` block
+of `config/video_production.yaml`.
 
 **`silence_min_duration_sec` is a trim knob, not a level knob.** Audio
 trimming and music ducking are separate concerns. The field maps to the ffmpeg
@@ -144,6 +152,21 @@ so the video isn't pushed up or down relative to the surrounding feed:
 - True peak below **-1 dBTP** to avoid clipping after platform transcoding.
 - Don't over-compress to chase loudness; the platforms attenuate it back down
   and the only audible result is a flatter, more fatiguing track.
+
+**Pipeline mapping.** The assembler applies `loudnorm` (EBU R128) to the
+finished mix, configured by `loudness_target_lufs`, `loudness_true_peak_db`
+and `loudness_range_lu` in `audio_settings`, and on by default.
+
+Before this existed, two real renders measured **-17.4 and -17.6 LUFS** with a
+true peak of **-0.1 dBFS**: quiet against the target and nearly touching full
+scale at the same time. That combination is why a fixed gain change is not the
+fix, since raising the level would clip and limiting alone would leave it
+quiet.
+
+The pass is single-pass, so the correction is adaptive rather than exact; a
+two-pass measurement would need the mixed audio as a file, and it only exists
+inside the filtergraph. Note that `loudnorm` outputs at 192 kHz whatever it is
+handed, so the chain resamples to `output_audio_sample_rate` afterwards.
 
 ## 6. Honest gaps in the evidence
 

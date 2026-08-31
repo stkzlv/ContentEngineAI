@@ -256,6 +256,45 @@ audio_settings:
   music_fade_in_duration: 2.0
   music_fade_out_duration: 3.0
 
+  # Voice-keyed ducking: the music drops while narration plays and recovers
+  # in the gaps, instead of holding music_volume_db for the whole clip.
+  # Off by default because it changes the sound of every render; the
+  # fixed-level mix above is a working mix on its own.
+  #
+  # Measured duck depth (music level during speech vs in a voice gap), on a
+  # synthetic voice with a silent stretch, attack 20 / release 300:
+  #   threshold 0.05, ratio 6   ->   3.5 dB
+  #   threshold 0.03, ratio 8   ->   7.6 dB   (the default below)
+  #   threshold 0.015, ratio 12 ->  13.4 dB
+  #   threshold 0.01, ratio 15  ->  17.0 dB
+  #
+  # The default is deliberately shallow. music_volume_db already puts the
+  # music 27 dB under the voiceover, so a deep duck on top of that makes the
+  # music inaudible rather than unobtrusive. If you want a pronounced duck,
+  # raise music_volume_db first and let the duck carry the separation; that
+  # is the pairing that gives music room to breathe in the gaps, which a
+  # duck alone cannot do (it attenuates, it never boosts above the base).
+  music_ducking_enabled: false
+  music_ducking_threshold: 0.03    # Voice level at which the duck engages
+  music_ducking_ratio: 8.0         # How hard the music is pushed down
+  music_ducking_attack_ms: 20.0    # Fast enough not to clip the first word
+  music_ducking_release_ms: 300.0  # Slow enough not to pump between words
+
+  # Final loudness normalization (EBU R128), applied to the finished mix.
+  # Each platform normalizes on playback, so mastering near the target keeps
+  # the video level with the feed around it. Measured before this existed,
+  # renders sat at about -17.5 LUFS with a true peak of -0.1 dBFS: quiet on
+  # average and nearly touching full scale at once.
+  # See docs/audio-best-practices.md section 5.
+  loudness_normalization_enabled: true
+  loudness_target_lufs: -14.0      # Cross-platform compromise, not a spec
+  loudness_true_peak_db: -1.0      # Headroom for platform transcoding
+  loudness_range_lu: 7.0           # Don't over-compress to chase loudness
+
+  # loudnorm emits at 192 kHz whatever it was given, so the graph resamples
+  # back. Without this the encoder negotiates a rate nobody chose.
+  output_audio_sample_rate: 48000
+
   # Background music file paths (local fallbacks)
   # Used when all API providers fail or are unavailable
   # Supports MP3, WAV, AAC formats - randomly selected from list
