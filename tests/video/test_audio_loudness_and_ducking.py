@@ -205,7 +205,7 @@ class TestTheMixIsMasteredToTheTarget:
         )
 
     def test_the_true_peak_stays_under_the_ceiling(self, tmp_path):
-        """Renders measured -0.1 dBFS before this, above the -1 dBTP guidance.
+        """Renders measured -0.1 and -0.2 dBFS, above the -1 dBTP guidance.
 
         The fixture is driven near full scale on purpose. With lavfi's stock
         sine level this test passed on unnormalised audio, because the mix

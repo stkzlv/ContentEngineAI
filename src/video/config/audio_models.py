@@ -79,6 +79,12 @@ class AudioSettings(BaseModel):
     # is the bug it shipped with -- switching normalization off then dropped
     # the rate control silently. (`loudnorm` emitting at 192 kHz whatever it
     # was given is what made a resample necessary at all.)
+    #
+    # The bound is the filter's, not the encoder's. AAC tops out at 96 kHz,
+    # so a higher value is resampled up by the graph and then quietly taken
+    # back down by the encoder -- verified: 192000 in, 96000 in the file.
+    # Left wide because `output_audio_codec` is configurable, but anything
+    # above 96000 is not what a stock render will deliver.
     output_audio_sample_rate: int = Field(48000, ge=8000, le=192000)
 
 

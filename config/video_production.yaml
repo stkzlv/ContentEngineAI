@@ -265,7 +265,9 @@ audio_settings:
   # threshold, so it has to be measured against real speech. Attenuation of
   # the music during narration -- the ducked music leg against the same leg
   # un-ducked, `volumedetect` mean over the same 4.0-6.0s window -- keyed by
-  # a real voiceover (peak -2.6 dBFS), attack 20 / release 300:
+  # a real voiceover (peak -2.6 dBFS), over background-music-calm-soft,
+  # attack 20 / release 300. The track matters, so it is named: the same
+  # settings read up to 1.5 dB deeper on the other two bundled tracks.
   #   threshold 0.25, ratio 2   ->   0.9 dB
   #   threshold 0.15, ratio 3   ->   2.9 dB
   #   threshold 0.1,  ratio 4   ->   5.3 dB   (the default below)
@@ -279,13 +281,15 @@ audio_settings:
   # method as well as the source:
   #
   #   - Measured on a synthetic tone sitting ~21 dB below real narration.
-  #     Depth scales with key level, so every row read low, by roughly 7-8
-  #     dB rather than by a constant ratio.
+  #     Depth scales with key level. That version read every row low by
+  #     roughly 7-8 dB -- an offset rather than a constant ratio, though it
+  #     also used the window method below, so the two errors compound.
   #   - Measured as music-during-speech against music-in-a-pause. That
   #     difference also contains the music's own level change between the
-  #     two windows, so it is track-dependent: the same setting read 6.8 to
-  #     9.8 dB across the three bundled tracks. Attenuation in a single
-  #     window is stable to about 0.3 dB across the same three.
+  #     two windows, so it varies with the music as well as the duck. Single
+  #     window attenuation still varies across tracks -- 5.3 / 5.6 / 6.4 dB
+  #     at the default -- but the variation is the music's own dynamics
+  #     rather than a different quantity being measured.
   #
   # The default is shallow on purpose. music_volume_db already puts the
   # music 27 dB under the voiceover, so a deep duck on top of that makes the

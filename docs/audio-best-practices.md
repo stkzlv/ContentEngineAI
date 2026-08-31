@@ -172,8 +172,8 @@ narration arrives above 0 dBTP, so the gain that would reach -14 LUFS linearly
 would breach `TP=-1.0`. `loudnorm` refuses linear normalization, falls back to
 dynamic mode and reports the shortfall as `target_offset` (measured: 1.19 LU).
 Feeding a second pass only the four `measured_*` values reports the same offset
-and produces a byte-identical file. ffmpeg's documented two-pass also feeds
-back `offset=<target_offset>`, and that does help: measured -15.2 to **-14.6
+and produces a byte-identical file. the loudnorm author's documented two-pass
+also feeds back `offset=<target_offset>`, and that does help: measured -15.2 to **-14.6
 LUFS**, about half the shortfall, true peak still -1.0. It is not taken here
 because two-pass needs the mixed audio as a file and that only exists inside
 the filtergraph. A constant tone lands on -14.0

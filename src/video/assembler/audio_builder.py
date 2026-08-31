@@ -161,7 +161,7 @@ class AudioFilterBuilder:
         # linear normalisation, falls back to dynamic mode, and reports the
         # gap it is leaving as `target_offset`. Feeding a second pass only the
         # four `measured_*` values reports the same offset and produces a
-        # byte-identical file -- but ffmpeg's documented two-pass also feeds
+        # byte-identical file -- but the loudnorm author's two-pass also feeds
         # back `offset=<target_offset>`, and that does move it: measured
         # -15.2 -> -14.6 LUFS with the true peak still at -1.0.
         #
