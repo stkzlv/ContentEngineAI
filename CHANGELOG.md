@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.90.0] - 2026-08-31
+
+### Added
+- `video_aspect_mode: blur-fill`: the letterbox placement, with the surround carrying a scaled and blurred copy of the same frame instead of black. `video_background_blur_sigma` sets the strength (default 20.0, the same value and range as the existing `image_background_blur_sigma`). Closes #335.
+
+### Changed
+- `smart-scale` now resolves to `blur-fill` rather than `letterbox` when a source is far from the target aspect, and `product_video_mixed` names `blur-fill` where it named `letterbox`. Together those cover the three bundled profiles that were letterboxing; `product_video_single` already filled the frame by cropping.
+
+### Notes
+- All four profiles that render video now fill the frame: two through `smart-scale`, one by naming `blur-fill`, and `product_video_single` by cropping as before. The `letterbox` default on `VideoSettings` is left alone, since the only profiles that reach it render no video; that mirrors `image_background_fill`, which defaults to `color` in the model while the bundled config selects `blur`.
+- A scraped product video is 1920x1080 into a 1080x1920 frame, so the picture occupied a 608px band and the other 68% of the frame was black. Measured on the rendered frame, not computed: 68.3% of rows fully black before, 0% after. `tests/video/test_blur_fill_aspect_mode.py` renders both modes through ffmpeg and asserts each figure, so the defect is reproduced rather than quoted.
+- `smart-scale` was not choosing anything here. The aspect difference for 16:9 into 9:16 is 2.16 against a tolerance of 0.10, so the tolerance would have to exceed 2.16 for any landscape clip to reach `crop-to-fit`. It resolved to `letterbox` unconditionally for the one source type the scraper actually returns, and only ever separated near-vertical sources from everything else.
+- Cropping was the other option and was rejected. 16:9 to 9:16 discards about 68% of the width, and product clips drift off-centre and carry manufacturer text spanning the full frame -- the measured render had a caption running edge to edge that a centre crop would have clipped at both ends. `blur-fill` keeps every pixel of the source.
+- `blur-fill` reports the same geometry as `letterbox`, because only the surround differs. That is what keeps caption and disclosure placement unchanged, so it is asserted directly rather than left to follow from the implementation.
+- The background is blurred at 1/6 scale and upscaled, which is why the mode is affordable. A gaussian at full 1080x1920 runs on every frame of every video segment and measured 15.8s of added encode time on a 30s clip; at 1/6 scale it is 5.3s, for a frame that is visually indistinguishable. The configured sigma stays in full-frame terms and is divided by the factor internally, so raising it in YAML raises the blur by the same proportion it always did. The upscale contributes a blur of its own, on the order of the factor, so values near the configured floor of 1.0 are not distinguishable from each other; the default is 20.0 and nothing bundled sits near the floor.
+- Whether filling the frame improves retention is an inference from platform convention, not a measurement here. The analytics store already segments by `content_format` and could segment this the same way.
+
 ## [0.89.2] - 2026-08-31
 
 ### Fixed

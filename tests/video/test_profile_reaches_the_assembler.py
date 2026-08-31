@@ -123,13 +123,26 @@ class TestTheAssemblerEmitsWhatTheProfileAsked:
             "video_aspect_mode is being ignored"
         )
         assert "pad=" not in chain
+        # `crop=` alone stopped separating the two modes when `blur-fill`
+        # arrived: it centre-crops its blurred background, so a blur-fill
+        # chain satisfies both assertions above. The absence of the blur is
+        # what makes this crop-to-fit rather than the other one.
+        assert "gblur" not in chain
 
     @pytest.mark.asyncio
-    async def test_a_letterboxing_profile_still_pads(self, tmp_path):
-        """The counterpart, so the test above cannot pass by emitting nothing."""
+    async def test_a_filling_profile_emits_the_blurred_surround(self, tmp_path):
+        """The counterpart, so the test above cannot pass by emitting nothing.
+
+        `product_video_mixed` named `letterbox` until the frame-filling mode
+        landed, and this asserted that it padded. No bundled profile
+        letterboxes now -- the three that did all fill the frame -- so the
+        counterpart asserts the treatment they were moved to.
+        """
         chain = await self.chain_for("product_video_mixed", tmp_path)
 
-        assert "pad=" in chain
+        assert "gblur" in chain
+        assert "overlay=" in chain
+        assert ":black" not in chain
 
 
 class TestNoOverridableFieldIsReadFromTheGlobal:

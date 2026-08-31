@@ -21,6 +21,11 @@ from src.video.config import VideoConfig
 logger = logging.getLogger(__name__)
 
 
+# How far the `blur-fill` background is downscaled before the gaussian runs.
+# The upscale afterwards does most of the blurring for free.
+_BLUR_DOWNSCALE = 6
+
+
 def _build_image_placement(
     *,
     index: int,
@@ -169,13 +174,20 @@ class VisualFilterBuilder:
         output_label: str | None = None,
         video_top_percent: float | None = None,
         target_content_height: int | None = None,
+        blur_sigma: float | None = None,
     ) -> tuple[str, str, VisualGeometry | None]:
         """Apply aspect ratio transformation based on configured mode.
 
         Generates FFmpeg filter strings for aspect ratio handling:
         - letterbox: Maintain aspect ratio with black padding (centered)
         - crop-to-fit: Scale to fill frame and crop edges (centered)
+        - blur-fill: Letterbox geometry, but the bars carry a scaled and
+          blurred copy of the same frame instead of black
         - smart-scale: Auto-select based on aspect ratio similarity
+
+        `blur-fill` reports the same geometry as `letterbox`: the content band
+        is placed identically and only what surrounds it differs, so subtitle
+        and disclosure placement are unaffected by the choice between them.
 
         Args:
         ----
@@ -188,6 +200,8 @@ class VisualFilterBuilder:
             output_label: Optional output label override
             video_top_percent: Optional vertical position override (0.0-1.0)
             target_content_height: Optional content height limit
+            blur_sigma: Blur strength for `blur-fill`; the caller passes the
+                profile-merged value, so the merge stays in one place
 
         Returns:
         -------
@@ -199,23 +213,32 @@ class VisualFilterBuilder:
         target_aspect = target_width / target_height
         video_aspect = video_width / video_height
 
-        # Smart-scale: auto-select mode based on aspect ratio similarity
+        # Smart-scale: auto-select mode based on aspect ratio similarity.
+        #
+        # The far branch is `blur-fill`, not `letterbox`. For a 16:9 source in
+        # a 9:16 frame the difference is 2.16 against a tolerance of 0.10, so
+        # no landscape clip can ever reach `crop-to-fit` and this resolved to
+        # `letterbox` unconditionally -- a 608px content band in a 1920px
+        # frame, 68% of it black. `blur-fill` keeps that geometry and every
+        # pixel of the source, and fills the bars instead of leaving them
+        # empty, so it dominates `letterbox` on the axis smart-scale is
+        # choosing along. `letterbox` remains reachable by naming it.
         if aspect_mode == "smart-scale":
             aspect_diff = abs(target_aspect - video_aspect) / target_aspect
             aspect_tolerance = self.config.aspect_ratio.get(
                 "smart_scale_tolerance", 0.10
             )
             aspect_mode = (
-                "crop-to-fit" if aspect_diff <= aspect_tolerance else "letterbox"
+                "crop-to-fit" if aspect_diff <= aspect_tolerance else "blur-fill"
             )
 
         # Use provided output_label or generate one from input_label
         if output_label is None:
             output_label = f"{input_label}_scaled"
 
-        # Letterbox mode: scale with aspect ratio, add black padding
+        # Letterbox and blur-fill: identical placement, different surround.
         geometry: VisualGeometry | None = None
-        if aspect_mode == "letterbox":
+        if aspect_mode in ("letterbox", "blur-fill"):
             # Determine scaling target height
             if target_content_height is not None:
                 scale_height = target_content_height
@@ -229,12 +252,51 @@ class VisualFilterBuilder:
             else:
                 pad_y = "(oh-ih)/2"
 
-            filter_string = (
-                f"{input_label}scale={target_width}:{scale_height}:"
-                f"force_original_aspect_ratio=decrease,"
-                f"pad={target_width}:{target_height}:"
-                f"(ow-iw)/2:{pad_y}:black"
-            )
+            if aspect_mode == "letterbox":
+                filter_string = (
+                    f"{input_label}scale={target_width}:{scale_height}:"
+                    f"force_original_aspect_ratio=decrease,"
+                    f"pad={target_width}:{target_height}:"
+                    f"(ow-iw)/2:{pad_y}:black"
+                )
+            else:
+                # Same placement, filled surroundings. The background copy is
+                # scaled to *cover* the whole frame and centre-cropped, so it
+                # reaches every edge whichever way the source is oriented --
+                # the treatment `_build_image_placement` already applies to
+                # images. The labels are namespaced by the caller's output
+                # label, which is unique per visual, so two segments in one
+                # filtergraph cannot collide.
+                tag = output_label.strip("[]")
+                overlay_y = "(H-h)/2" if video_top_percent is None else pad_y
+                sigma = 20.0 if blur_sigma is None else blur_sigma
+
+                # Blur small, then upscale. A gaussian at full 1080x1920 runs
+                # on every frame of every video segment and measured 15.8s of
+                # added encode time on a 30s clip against letterbox; blurring
+                # at 1/6 scale and letting the upscale carry the rest costs
+                # 5.3s for a frame that is visually indistinguishable.
+                #
+                # `sigma` stays in full-frame terms -- it is divided by the
+                # factor here rather than being reinterpreted -- so raising it
+                # in YAML raises the blur by the same proportion it always
+                # did. The upscale does contribute a blur of its own, on the
+                # order of the factor, so values near the configured floor of
+                # 1.0 are not distinguishable from each other. Nothing in the
+                # bundled config sits near that floor; the default is 20.0.
+                small_w = max(2, round(target_width / _BLUR_DOWNSCALE) // 2 * 2)
+                small_h = max(2, round(target_height / _BLUR_DOWNSCALE) // 2 * 2)
+                filter_string = (
+                    f"{input_label}split=2[{tag}_bg][{tag}_fg];"
+                    f"[{tag}_bg]scale={small_w}:{small_h}:"
+                    f"force_original_aspect_ratio=increase,"
+                    f"crop={small_w}:{small_h},"
+                    f"gblur=sigma={sigma / _BLUR_DOWNSCALE:.4f},"
+                    f"scale={target_width}:{target_height},setsar=1[{tag}_bgb];"
+                    f"[{tag}_fg]scale={target_width}:{scale_height}:"
+                    f"force_original_aspect_ratio=decrease,setsar=1[{tag}_fgs];"
+                    f"[{tag}_bgb][{tag}_fgs]overlay=(W-w)/2:{overlay_y}"
+                )
 
             # Compute actual scaled dimensions (force_original_aspect_ratio=decrease)
             # Scale to fit within target_width x scale_height while maintaining aspect
@@ -263,13 +325,14 @@ class VisualFilterBuilder:
 
             # Debug logging
             if target_content_height is not None:
+                label = aspect_mode.upper()
                 logger.debug(
-                    f"[LETTERBOX] Constrained video: scale to "
+                    f"[{label}] Constrained video: scale to "
                     f"{target_width}x{scale_height}, "
-                    f"pad to {target_width}x{target_height} at Y={pad_y}"
+                    f"place in {target_width}x{target_height} at Y={pad_y}"
                 )
                 logger.debug(
-                    f"[LETTERBOX] Actual geometry: {actual_w}x{actual_h} "
+                    f"[{label}] Actual geometry: {actual_w}x{actual_h} "
                     f"at ({actual_x}, {actual_y})"
                 )
 
@@ -290,7 +353,7 @@ class VisualFilterBuilder:
                 f"{input_label}scale={target_width}:{target_height}:"
                 f"force_original_aspect_ratio=decrease,"
                 f"pad={target_width}:{target_height}:"
-                f"(ow-iw)/2:(oh-ih)/2:black{output_label}"
+                f"(ow-iw)/2:(oh-ih)/2:black"
             )
 
         return filter_string, output_label, geometry
@@ -553,6 +616,7 @@ class VisualFilterBuilder:
                     output_label=f"[v{i}_scaled]",
                     video_top_percent=effective_top,
                     target_content_height=target_content_height,
+                    blur_sigma=video_settings.video_background_blur_sigma,
                 )
 
                 vf_string = (
