@@ -18,6 +18,7 @@ move every caption and the disclosure overlay with it.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from unittest.mock import MagicMock
@@ -132,6 +133,30 @@ class TestTheChainIsWellFormed:
         assert "[v1_scaled_bg]" in second
         assert not set(first.split(";")) & set(second.split(";"))
 
+    def test_a_generated_output_label_is_a_valid_label(self):
+        """No caller omits it today, but the blur-fill chain breaks if one does.
+
+        The default used to be `f"{input_label}_scaled"`, giving
+        `[0:v]_scaled`: brackets in the middle and a `:` FFmpeg reads as an
+        argument separator. Letterbox tolerated it because the only malformed
+        label was the one the caller appends; blur-fill builds four internal
+        labels from it, and ffmpeg rejected the result with "Trailing garbage
+        after a filter".
+        """
+        builder = _builder()
+        filter_string, label, _ = builder.apply_aspect_ratio_mode(
+            "[0:v]", "blur-fill", TARGET_W, TARGET_H, SOURCE_W, SOURCE_H
+        )
+
+        assert label == "[0_v_scaled]"
+        # The input label is the one place a `:` legitimately appears, and it
+        # appears once. Every label the function derives must be word-only.
+        labels = re.findall(r"\[([^\[\]]*)\]", filter_string)
+        assert labels.count("0:v") == 1
+        derived = [name for name in labels if name != "0:v"]
+        assert derived
+        assert all(re.fullmatch(r"\w+", name) for name in derived), derived
+
     def test_it_does_not_emit_its_own_output_label(self):
         """The caller appends it; emitting one here duplicates the label."""
         filter_string, label, _ = _apply("blur-fill", video_top_percent=None)
@@ -220,6 +245,54 @@ class TestTheFrameItActuallyProduces:
         fraction = self._black_row_fraction(self._render(tmp_path, "letterbox"))
 
         assert fraction > 0.6
+
+    def test_a_generated_label_still_renders(self, tmp_path):
+        """The chain built without an explicit `output_label` must parse."""
+        source = tmp_path / "source.mp4"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                f"testsrc2=size={SOURCE_W}x{SOURCE_H}:duration=1:rate=5",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                str(source),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        filter_string, label, _ = _builder().apply_aspect_ratio_mode(
+            "[0:v]", "blur-fill", TARGET_W, TARGET_H, SOURCE_W, SOURCE_H
+        )
+        frame = tmp_path / "defaulted.png"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                str(source),
+                "-filter_complex",
+                f"{filter_string}{label}",
+                "-map",
+                label,
+                "-frames:v",
+                "1",
+                str(frame),
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+        assert frame.exists()
 
     def test_blur_fill_wastes_none_of_it(self, tmp_path):
         fraction = self._black_row_fraction(self._render(tmp_path, "blur-fill"))

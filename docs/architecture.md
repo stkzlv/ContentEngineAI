@@ -277,7 +277,7 @@ dependencies = {
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
-- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, blur-fill, and smart-scale modes with actual geometry tracking
 - **Audio Sources**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
@@ -347,10 +347,11 @@ Automatically chooses between blur-fill and crop based on aspect ratio differenc
 - >10% difference → Use blur-fill (preserve content, fill the frame)
 ```
 
-The far branch cannot be reached by a landscape source in any other way: the
-aspect difference for 16:9 into 9:16 is 2.16 against a tolerance of 0.10, so
-the tolerance would have to exceed 2.16 for such a clip to crop. Naming
-`letterbox` explicitly is how a profile opts back into black bars.
+A landscape source always takes the far branch. The aspect difference for
+16:9 into 9:16 is 2.16 against a tolerance of 0.10, so the tolerance would
+have to exceed 2.16 for such a clip to crop; the near branch only ever
+separates near-vertical sources from everything else. Naming `letterbox`
+explicitly is how a profile opts back into black bars.
 
 #### Audio Handling
 

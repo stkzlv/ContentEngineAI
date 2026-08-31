@@ -21,6 +21,15 @@ from src.video.config import VideoConfig
 logger = logging.getLogger(__name__)
 
 
+def _label_body(label: str) -> str:
+    """The inner text of an FFmpeg stream label, safe to build new labels from.
+
+    Strips the brackets and replaces the `:` in a pad-style label such as
+    `[0:v]`, which FFmpeg would otherwise read as an argument separator.
+    """
+    return label.strip("[]").replace(":", "_")
+
+
 # How far the `blur-fill` background is downscaled before the gaussian runs.
 # The upscale afterwards does most of the blurring for free.
 _BLUR_DOWNSCALE = 6
@@ -192,7 +201,8 @@ class VisualFilterBuilder:
         Args:
         ----
             input_label: FFmpeg input label (e.g., "[v0]")
-            aspect_mode: Mode ("letterbox", "crop-to-fit", "smart-scale")
+            aspect_mode: Mode ("letterbox", "crop-to-fit", "blur-fill",
+                "smart-scale")
             target_width: Target output width in pixels
             target_height: Target output height in pixels (full frame)
             video_width: Source video width in pixels
@@ -232,9 +242,17 @@ class VisualFilterBuilder:
                 "crop-to-fit" if aspect_diff <= aspect_tolerance else "blur-fill"
             )
 
-        # Use provided output_label or generate one from input_label
+        # Use provided output_label or generate one from input_label.
+        #
+        # `_label_body` is what makes the generated one a valid label. The
+        # old default was `f"{input_label}_scaled"`, which yields
+        # `[0:v]_scaled` -- brackets in the middle, and a `:` that FFmpeg
+        # reads as an argument separator. Letterbox got away with it because
+        # the only malformed label was the one the caller appends, but
+        # blur-fill derives its internal labels from this one, so a default
+        # label produced a chain FFmpeg rejects outright.
         if output_label is None:
-            output_label = f"{input_label}_scaled"
+            output_label = f"[{_label_body(input_label)}_scaled]"
 
         # Letterbox and blur-fill: identical placement, different surround.
         geometry: VisualGeometry | None = None
@@ -267,7 +285,7 @@ class VisualFilterBuilder:
                 # images. The labels are namespaced by the caller's output
                 # label, which is unique per visual, so two segments in one
                 # filtergraph cannot collide.
-                tag = output_label.strip("[]")
+                tag = _label_body(output_label)
                 overlay_y = "(H-h)/2" if video_top_percent is None else pad_y
                 sigma = 20.0 if blur_sigma is None else blur_sigma
 
