@@ -2,8 +2,15 @@
 
 This module provides utilities for building FFmpeg audio filter chains with
 support for voiceover and background music. Source video audio is not carried
-into the render. Tracks are combined with fixed-level mixing (FFmpeg amix,
-normalize off), not sidechain ducking.
+into the render.
+
+Tracks are combined with fixed-level mixing (FFmpeg amix, normalize off).
+Voice-keyed ducking is available behind `music_ducking_enabled` and is off by
+default, so the fixed-level mix is what a stock config produces.
+
+The mix is then mastered to a loudness target with `loudnorm` (EBU R128),
+which is on by default: platforms normalize on playback, so a render that
+sits below the target is pushed up relative to the feed around it.
 """
 
 import logging
@@ -15,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class AudioFilterBuilder:
-    """Build FFmpeg audio filter chains with fixed-level mixing.
+    """Build FFmpeg audio filter chains for the voiceover and music mix.
 
     This class handles construction of complex audio filter graphs for FFmpeg,
     covering voiceover processing and background music with fades.
@@ -109,24 +116,94 @@ class AudioFilterBuilder:
             )
             audio_to_mix.append(proc_label)
 
-        final_audio_label = ""
+        # Duck the music under the narration, when both are present and the
+        # duck is enabled. `sidechaincompress` takes two inputs and emits one:
+        # the music, attenuated whenever the key input is loud. The voice has
+        # to be split first, because it is both the key and a track in the
+        # mix, and a stream cannot be consumed twice.
+        if (
+            audio_settings.music_ducking_enabled
+            and voiceover_input_idx is not None
+            and music_input_idx is not None
+        ):
+            audio_filters.append("[a_voice_proc]asplit=2[a_voice_mix][a_voice_key]")
+            audio_filters.append(
+                f"[a_music_proc][a_voice_key]sidechaincompress="
+                f"threshold={audio_settings.music_ducking_threshold}:"
+                f"ratio={audio_settings.music_ducking_ratio}:"
+                f"attack={audio_settings.music_ducking_attack_ms}:"
+                f"release={audio_settings.music_ducking_release_ms}"
+                f"[a_music_ducked]"
+            )
+            audio_to_mix = ["[a_voice_mix]", "[a_music_ducked]"]
+
+        if not audio_to_mix:
+            return audio_filters, ""
+
         if len(audio_to_mix) > 1:
             mixed_label = "[a_mixed]"
             audio_filters.append(
                 f"{''.join(audio_to_mix)}amix=inputs={len(audio_to_mix)}:"
                 f"duration={audio_settings.audio_mix_duration}:normalize=0{mixed_label}"
             )
-            # Add apad to extend audio to match video duration and prevent truncation
-            final_audio_label = "[a_final]"
+        else:
+            mixed_label = audio_to_mix[0]
+
+        # Master to the platform loudness target, before the pad rather than
+        # after it: `apad` appends silence to reach the video duration, and
+        # normalising is a statement about the programme, not about the
+        # padding.
+        #
+        # This lands about 1 LU short of the target on real narration, and
+        # the reason is the true-peak ceiling rather than the pass running
+        # once. Mixed narration arrives above 0 dBTP, so the gain that would
+        # reach the target linearly would breach `TP`; `loudnorm` refuses
+        # linear normalisation, falls back to dynamic mode, and reports the
+        # gap it is leaving as `target_offset`. Feeding a second pass only the
+        # four `measured_*` values reports the same offset and produces a
+        # byte-identical file -- but the loudnorm author's two-pass also feeds
+        # back `offset=<target_offset>`, and that does move it: measured
+        # -15.2 -> -14.6 LUFS with the true peak still at -1.0.
+        #
+        # So two-pass would help, by about half the shortfall. It is
+        # unavailable here for a different reason: it needs the mixed audio
+        # as a file to measure, and that only exists inside this filtergraph.
+        # Taking it would mean rendering the audio separately first.
+        #
+        if audio_settings.loudness_normalization_enabled:
+            normalized_label = "[a_norm]"
             audio_filters.append(
-                f"{mixed_label}apad=whole_dur={total_video_duration}{final_audio_label}"
+                f"{mixed_label}loudnorm="
+                f"I={audio_settings.loudness_target_lufs}:"
+                f"TP={audio_settings.loudness_true_peak_db}:"
+                f"LRA={audio_settings.loudness_range_lu}"
+                f"{normalized_label}"
             )
-        elif len(audio_to_mix) == 1:
-            # Single audio stream - still need to pad to match video duration
-            padded_label = "[a_final]"
-            audio_filters.append(
-                f"{audio_to_mix[0]}apad=whole_dur={total_video_duration}{padded_label}"
-            )
-            final_audio_label = padded_label
+            mixed_label = normalized_label
+
+        # Resample unconditionally, not as a tail of the loudnorm string.
+        # `loudnorm` emits at 192 kHz whatever it was handed, so the resample
+        # started life as a fix for that -- but `output_audio_sample_rate`
+        # names an output property, and hanging it off the normalisation
+        # branch meant switching normalisation off silently dropped the rate
+        # control with it, leaving the render at whatever the mix negotiated
+        # to. That was 24 kHz, the TTS rate, on the renders measured -- but
+        # it is the negotiator's choice, not the voiceover's property: with
+        # stereo music ffmpeg resamples the music down to the voice, and
+        # with mono music it resamples the voice up to the music instead.
+        # The delivered file can differ again: a pycaps burn re-mixes after
+        # this and re-rates the output.
+        rate_label = "[a_rate]"
+        audio_filters.append(
+            f"{mixed_label}aresample={audio_settings.output_audio_sample_rate}"
+            f"{rate_label}"
+        )
+        mixed_label = rate_label
+
+        # Pad to the video duration so the audio is not truncated.
+        final_audio_label = "[a_final]"
+        audio_filters.append(
+            f"{mixed_label}apad=whole_dur={total_video_duration}{final_audio_label}"
+        )
 
         return audio_filters, final_audio_label

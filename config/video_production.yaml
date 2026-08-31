@@ -256,6 +256,70 @@ audio_settings:
   music_fade_in_duration: 2.0
   music_fade_out_duration: 3.0
 
+  # Voice-keyed ducking: the music drops while narration plays and recovers
+  # in the gaps, instead of holding music_volume_db for the whole clip.
+  # Off by default because it changes the sound of every render; the
+  # fixed-level mix above is a working mix on its own.
+  #
+  # Duck depth is a function of how far the narration sits above the
+  # threshold, so it has to be measured against real speech. Attenuation of
+  # the music during narration -- the ducked music leg against the same leg
+  # un-ducked, `volumedetect` mean over the same 4.0-6.0s window -- keyed by
+  # a real voiceover (peak -2.6 dBFS), over background-music-calm-soft,
+  # attack 20 / release 300. The track matters, so it is named: the same
+  # settings read up to 1.5 dB deeper on the other two bundled tracks.
+  #   threshold 0.25, ratio 2   ->   0.9 dB
+  #   threshold 0.15, ratio 3   ->   2.9 dB
+  #   threshold 0.1,  ratio 4   ->   5.3 dB   (the default below)
+  #   threshold 0.05, ratio 6   ->  10.7 dB
+  #   threshold 0.03, ratio 8   ->  15.1 dB
+  #   threshold 0.015, ratio 12 ->  21.3 dB
+  #   threshold 0.01, ratio 15  ->  24.9 dB
+  #
+  # Two earlier versions of this table were wrong, both in the direction of
+  # flattering the shallow rows, so if you re-measure be careful of the
+  # method as well as the source:
+  #
+  #   - Measured on a synthetic tone sitting ~21 dB below real narration.
+  #     Depth scales with key level. That version read every row low by
+  #     roughly 7-8 dB -- an offset rather than a constant ratio, though it
+  #     also used the window method below, so the two errors compound.
+  #   - Measured as music-during-speech against music-in-a-pause. That
+  #     difference also contains the music's own level change between the
+  #     two windows, so it varies with the music as well as the duck. Single
+  #     window attenuation still varies across tracks -- 5.3 / 5.6 / 6.4 dB
+  #     at the default -- but the variation is the music's own dynamics
+  #     rather than a different quantity being measured.
+  #
+  # The default is shallow on purpose. music_volume_db already puts the
+  # music 27 dB under the voiceover, so a deep duck on top of that makes the
+  # music inaudible rather than unobtrusive. If you want a pronounced duck,
+  # raise music_volume_db first and let the duck carry the separation; that
+  # is the pairing that gives music room to breathe in the gaps, which a
+  # duck alone cannot do (it attenuates, it never boosts above the base).
+  music_ducking_enabled: false
+  music_ducking_threshold: 0.1     # Voice level at which the duck engages
+  music_ducking_ratio: 4.0         # How hard the music is pushed down
+  music_ducking_attack_ms: 20.0    # Fast enough not to clip the first word
+  music_ducking_release_ms: 300.0  # Slow enough not to pump between words
+
+  # Final loudness normalization (EBU R128), applied to the finished mix.
+  # Each platform normalizes on playback, so mastering near the target keeps
+  # the video level with the feed around it. Measured before this existed,
+  # renders sat at about -17.5 LUFS with true peaks of -0.1 and -0.2 dBFS:
+  # quiet on average and nearly touching full scale at once.
+  # See docs/audio-best-practices.md section 5.
+  loudness_normalization_enabled: true
+  loudness_target_lufs: -14.0      # Cross-platform compromise, not a spec
+  loudness_true_peak_db: -1.0      # Headroom for platform transcoding
+  loudness_range_lu: 7.0           # Don't over-compress to chase loudness
+
+  # Output sample rate for the render, applied whether or not the loudness
+  # pass above runs. It is a property of the output, not a loudnorm side
+  # effect -- though loudnorm emitting at 192 kHz whatever it was given is
+  # what made the resample necessary in the first place.
+  output_audio_sample_rate: 48000
+
   # Background music file paths (local fallbacks)
   # Used when all API providers fail or are unavailable
   # Supports MP3, WAV, AAC formats - randomly selected from list

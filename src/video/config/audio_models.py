@@ -54,6 +54,48 @@ class AudioSettings(BaseModel):
     music_fade_in_duration: float = Field(2.0)
     music_fade_out_duration: float = Field(3.0)
 
+    # Voice-keyed ducking. `sidechaincompress` attenuates the music while
+    # narration plays and lets it back up in the gaps, instead of holding one
+    # level for the whole clip. Off by default: it changes the sound of every
+    # render, and `music_volume_db` alone is a working mix.
+    music_ducking_enabled: bool = Field(False)
+    # Floor is `sidechaincompress`'s own lower bound. `gt=0.0` let a value
+    # below it pass config load and abort the render at final assembly,
+    # after the script, voiceover and subtitles had all been paid for.
+    music_ducking_threshold: float = Field(0.1, ge=0.000977, le=1.0)
+    music_ducking_ratio: float = Field(4.0, ge=1.0, le=20.0)
+    music_ducking_attack_ms: float = Field(20.0, ge=0.01, le=2000.0)
+    music_ducking_release_ms: float = Field(300.0, ge=0.01, le=9000.0)
+
+    # Final loudness normalization (EBU R128). Platforms normalize on
+    # playback, so mastering near the target keeps the video level with the
+    # feed around it rather than being pushed up or down.
+    loudness_normalization_enabled: bool = Field(True)
+    loudness_target_lufs: float = Field(-14.0, ge=-70.0, le=-5.0)
+    loudness_true_peak_db: float = Field(-1.0, ge=-9.0, le=0.0)
+    loudness_range_lu: float = Field(7.0, ge=1.0, le=50.0)
+    # Applied whether or not the loudness pass runs: this names a property of
+    # the output, not a `loudnorm` side effect. Coupling it to normalization
+    # is the bug it shipped with -- switching normalization off then dropped
+    # the rate control silently. (`loudnorm` emitting at 192 kHz whatever it
+    # was given is what made a resample necessary at all.)
+    #
+    # Two things stand between this and the delivered file, both silent.
+    #
+    # The bound is the filter's, not the encoder's. A rate the encoder does
+    # not support is re-negotiated to the nearest one it does; AAC's list is
+    # 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000,
+    # 11025, 8000, 7350. Verified: 192000 lands at 96000, 40000 at 44100.
+    # Left wide because `output_audio_codec` is configurable, so no bound
+    # here can be codec-aware.
+    #
+    # And on the pycaps engine -- the bundled default -- the burn re-mixes
+    # the audio after the assembler at `max()` of its clips' rates, so a
+    # value below the template's sound-effect rates is not what lands in the
+    # file. At the 48000 default nothing bundled exceeds it, so the shipped
+    # path does deliver 48 kHz.
+    output_audio_sample_rate: int = Field(48000, ge=8000, le=192000)
+
 
 class GoogleCloudVoiceCriteria(BaseModel):
     language_code: str
