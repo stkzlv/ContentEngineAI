@@ -80,11 +80,20 @@ class AudioSettings(BaseModel):
     # the rate control silently. (`loudnorm` emitting at 192 kHz whatever it
     # was given is what made a resample necessary at all.)
     #
-    # The bound is the filter's, not the encoder's. AAC tops out at 96 kHz,
-    # so a higher value is resampled up by the graph and then quietly taken
-    # back down by the encoder -- verified: 192000 in, 96000 in the file.
-    # Left wide because `output_audio_codec` is configurable, but anything
-    # above 96000 is not what a stock render will deliver.
+    # Two things stand between this and the delivered file, both silent.
+    #
+    # The bound is the filter's, not the encoder's. A rate the encoder does
+    # not support is re-negotiated to the nearest one it does; AAC's list is
+    # 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000,
+    # 11025, 8000, 7350. Verified: 192000 lands at 96000, 40000 at 44100.
+    # Left wide because `output_audio_codec` is configurable, so no bound
+    # here can be codec-aware.
+    #
+    # And on the pycaps engine -- the bundled default -- the burn re-mixes
+    # the audio after the assembler at `max()` of its clips' rates, so a
+    # value below the template's sound-effect rates is not what lands in the
+    # file. At the 48000 default nothing bundled exceeds it, so the shipped
+    # path does deliver 48 kHz.
     output_audio_sample_rate: int = Field(48000, ge=8000, le=192000)
 
 

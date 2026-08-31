@@ -186,8 +186,10 @@ class AudioFilterBuilder:
         # started life as a fix for that -- but `output_audio_sample_rate`
         # names an output property, and hanging it off the normalisation
         # branch meant switching normalisation off silently dropped the rate
-        # control with it, leaving the render at whatever the voiceover
-        # happened to be (24 kHz on a topic, 44.1 kHz on a product).
+        # control with it, leaving the render at whatever the mix negotiated
+        # to -- the TTS rate, 24 kHz, on a topic and a product alike. The
+        # delivered file can differ again: a pycaps burn re-mixes after this
+        # and re-rates the output.
         rate_label = "[a_rate]"
         audio_filters.append(
             f"{mixed_label}aresample={audio_settings.output_audio_sample_rate}"
