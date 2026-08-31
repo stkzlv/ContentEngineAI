@@ -175,7 +175,7 @@ High-level requirements for ContentEngineAI.
 ### Video Positioning
 - **Vertical alignment**: center (default) or top with offset (default 10%)
 - **Content height**: configurable portion of frame (default 75%)
-- **Aspect modes**: letterbox, crop-to-fit, smart-scale (auto-select when aspect ratios within 10%)
+- **Aspect modes**: letterbox, crop-to-fit, blur-fill, smart-scale (crop when aspect ratios within 10%, else blur-fill)
 - **Assembly modes**: sequential, single-best, mixed-media, video-first-fallback
 - **Audio handling**: source video audio is dropped; the mix is voiceover and background music
 - Match final duration to voiceover (±1 second tolerance)

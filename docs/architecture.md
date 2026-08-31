@@ -277,7 +277,7 @@ dependencies = {
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
-- **Aspect Ratio Handling**: Letterbox, crop-to-fit, and smart-scale modes with actual geometry tracking
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, blur-fill, and smart-scale modes with actual geometry tracking
 - **Audio Sources**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
@@ -326,12 +326,32 @@ Target:   9:16 vertical frame
 Result:   Video scaled to fill frame, edges cropped (centers crop region)
 ```
 
+**Blur-Fill Mode** (`video_aspect_mode: "blur-fill"`)
+```
+Original: 16:9 landscape video
+Target:   9:16 vertical frame
+Result:   Video placed as in letterbox, but the surround carries a scaled
+          and blurred copy of the same frame instead of black
+```
+
+Blur-fill reports the same geometry as letterbox, so caption and disclosure
+placement do not depend on which of the two is chosen. `video_background_blur_sigma`
+sets the strength. A 16:9 source in a 9:16 frame occupies a 608px band, so
+letterbox leaves 68% of the frame black; blur-fill keeps every pixel of the
+source and leaves none of the frame empty.
+
 **Smart-Scale Mode** (`video_aspect_mode: "smart-scale"`)
 ```
-Automatically chooses between letterbox and crop based on aspect ratio difference:
+Automatically chooses between blur-fill and crop based on aspect ratio difference:
 - ≤10% difference → Use crop-to-fit (minimal distortion)
-- >10% difference → Use letterbox (preserve content)
+- >10% difference → Use blur-fill (preserve content, fill the frame)
 ```
+
+A landscape source always takes the far branch. The aspect difference for
+16:9 into 9:16 is 2.16 against a tolerance of 0.10, so the tolerance would
+have to exceed 2.16 for such a clip to crop; the near branch only ever
+separates near-vertical sources from everything else. Naming `letterbox`
+explicitly is how a profile opts back into black bars.
 
 #### Audio Handling
 

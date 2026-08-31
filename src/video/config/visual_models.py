@@ -316,10 +316,17 @@ class VideoSettings(BaseModel):
         "sequential",
         description="Video assembly strategy mode",
     )
-    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] = Field(
+    video_aspect_mode: Literal[
+        "letterbox", "crop-to-fit", "smart-scale", "blur-fill"
+    ] = Field(
         "letterbox",
-        description="Aspect ratio handling (letterbox/crop-to-fit/smart-scale)",
+        description="Aspect handling: letterbox/crop-to-fit/blur-fill/smart-scale",
     )
+    # Blur strength for `video_aspect_mode: blur-fill`, matching the range and
+    # default of `image_background_blur_sigma`. The two are separate fields
+    # because a video's background is redrawn every frame while an image's is
+    # one still, so they are worth tuning apart even though they start equal.
+    video_background_blur_sigma: float = Field(20.0, ge=1.0, le=100.0)
     # The profile-level spelling of `transition_duration_sec`. Kept as the
     # name profiles use in YAML, but the merge maps it onto that field, which
     # is the one the assembler reads. Nothing reads this one directly.
@@ -524,8 +531,11 @@ class VideoProfile(BaseModel):
         Literal["sequential", "single_best", "mixed_media", "video_first_fallback"]
         | None
     ) = Field(None, description="Override video assembly strategy mode")
-    video_aspect_mode: Literal["letterbox", "crop-to-fit", "smart-scale"] | None = (
-        Field(None, description="Override aspect ratio handling mode")
+    video_aspect_mode: (
+        Literal["letterbox", "crop-to-fit", "smart-scale", "blur-fill"] | None
+    ) = Field(None, description="Override aspect ratio handling mode")
+    video_background_blur_sigma: float | None = Field(
+        None, ge=1.0, le=100.0, description="Blur strength for blur-fill mode"
     )
     video_transition_duration: float | None = Field(
         None, description="Override video transition duration in seconds"

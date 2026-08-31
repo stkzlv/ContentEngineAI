@@ -740,6 +740,7 @@ class VideoConfig(BaseModel):
                 "image_background_blur_sigma": "image_background_blur_sigma",
                 "video_assembly_mode": "video_assembly_mode",
                 "video_aspect_mode": "video_aspect_mode",
+                "video_background_blur_sigma": "video_background_blur_sigma",
                 # Mapped onto `transition_duration_sec`, which is the field
                 # the assembler actually reads (`visual_builder`, twice, and
                 # `subtitle_builder`). `video_transition_duration` has no

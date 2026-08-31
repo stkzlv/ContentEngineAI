@@ -130,9 +130,9 @@ video_settings:
 
   # Aspect ratio settings for video processing
   # Used by: visual_builder.py smart-scale mode decision making
-  # Pipeline Impact: Determines whether to letterbox or crop videos to fit frame
+  # Pipeline Impact: Determines whether to blur-fill or crop videos to fit frame
   smart_scale_tolerance: 0.10        # Tolerance threshold (10%) for aspect ratio matching
-                                     # If video aspect differs by <10%, crop-to-fit; else letterbox
+                                     # If video aspect differs by <10%, crop-to-fit; else blur-fill
 
   # Timing and delays for batch processing
   # Random delays between product videos to avoid detection as automated content
@@ -160,6 +160,11 @@ video_settings:
   # second asset. Set per profile to override.
   image_background_fill: "blur"
   image_background_blur_sigma: 20.0
+
+  # The same treatment for video, reached by `video_aspect_mode: blur-fill`.
+  # Separate from the image sigma because a video's background is redrawn
+  # every frame while an image's is one still.
+  video_background_blur_sigma: 20.0
 
   # Persistent on-frame disclosure overlay (FTC #ad, Spain #publi, etc.)
   # Burned into every render in a fixed corner. Required for affiliate
@@ -767,7 +772,7 @@ video_profiles:
 
     # Video assembly configuration
     video_assembly_mode: "sequential"          # Play all videos in sequence
-    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop (10% threshold)
+    video_aspect_mode: "smart-scale"           # Auto-choose blur-fill or crop (10% threshold)
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -883,7 +888,7 @@ video_profiles:
 
     # Video assembly configuration
     video_assembly_mode: "mixed_media"         # Interleave videos and images
-    video_aspect_mode: "letterbox"             # Preserve aspect ratio with padding
+    video_aspect_mode: "blur-fill"             # Preserve aspect ratio, blurred surround
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -941,7 +946,7 @@ video_profiles:
 
     # Video assembly configuration
     video_assembly_mode: "video_first_fallback"  # All videos first, then images
-    video_aspect_mode: "smart-scale"           # Auto-choose letterbox or crop
+    video_aspect_mode: "smart-scale"           # Auto-choose blur-fill or crop
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
@@ -1084,20 +1089,21 @@ format_normalization:
 # Used by: src/video/assembler.py _apply_smart_scale_mode() method (line 1718)
 #
 # Pipeline Impact:
-# - Determines when to crop vs letterbox content to match target aspect ratio
+# - Determines when to crop vs blur-fill content to match target aspect ratio
 # - Affects visual appearance and how much content is visible
 #
 # Visual Examples:
 # - tolerance=0.10: 16:9 video in 16:9 frame = crop (within 10%)
-# - tolerance=0.05: 4:3 video in 16:9 frame = letterbox (exceeds 5%)
+# - tolerance=0.05: 4:3 video in 16:9 frame = blur-fill (exceeds 5%)
 aspect_ratio:
   # Tolerance for aspect ratio similarity (fraction, not percentage)
   # If content aspect ratio is within this tolerance of target, use crop-to-fit
-  # Otherwise use letterbox to show full content with black bars
+  # Otherwise use blur-fill: full content, with the surround carrying a
+  # blurred copy of the same frame rather than black bars
   #
   # Examples:
   # - 0.10 = 10% tolerance (more aggressive cropping)
-  # - 0.05 = 5% tolerance (more conservative, prefers letterbox)
+  # - 0.05 = 5% tolerance (more conservative, prefers blur-fill)
   smart_scale_tolerance: 0.10
 
 # ============================================================================
