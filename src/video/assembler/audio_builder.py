@@ -154,9 +154,18 @@ class AudioFilterBuilder:
         # normalising is a statement about the programme, not about the
         # padding.
         #
-        # Single-pass, so the correction is adaptive rather than exact. Two
-        # passes would need the mixed audio measured first, and it does not
-        # exist as a file -- it is produced inside this filtergraph.
+        # This lands about 1 LU short of the target on real narration, and
+        # the reason is the true-peak ceiling rather than the pass running
+        # once. Mixed narration arrives above 0 dBTP, so the gain that would
+        # reach the target linearly would breach `TP`; `loudnorm` refuses
+        # linear normalisation, falls back to dynamic mode, and reports the
+        # gap it is leaving as `target_offset`. Feeding a second pass the
+        # measured values reports the same offset and produces a
+        # byte-identical file, so two-pass would not close it.
+        #
+        # Two-pass is unavailable here anyway: it needs the mixed audio as a
+        # file and that only exists inside this filtergraph. That is a real
+        # constraint, just not the reason for the shortfall.
         #
         if audio_settings.loudness_normalization_enabled:
             normalized_label = "[a_norm]"

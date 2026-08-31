@@ -200,8 +200,8 @@ video_settings:
   min_images_with_video: 2        # Minimum images when videos available
 
 audio_settings:
-  voiceover_volume_db: 0
-  music_volume_db: -20
+  voiceover_volume_db: 3.0
+  music_volume_db: -24.0
   music_fade_in_duration: 2.0
 
 video_profiles:
@@ -568,20 +568,41 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 
 ```yaml
 audio_settings:
-  # Volume controls (in decibels)
-  voiceover_volume_db: 0             # Voiceover volume adjustment
-  voiceover_volume_boost_db: 3       # Additional voiceover boost
-  music_volume_db: -20               # Background music volume
-  music_volume_boost_db: 0           # Additional music boost
-  music_min_volume_db: -30           # Minimum music volume
-  
-  # Mixing settings
-  audio_mix_duration: "longest"      # How to handle different audio lengths
-  
-  # Fade effects
-  music_fade_in_sec: 2               # Music fade-in duration
-  music_fade_out_sec: 3              # Music fade-out duration
+  # Per-track gain offsets applied at the mix (in decibels)
+  voiceover_volume_db: 3.0           # Voiceover gain
+  music_volume_db: -24.0             # Background music gain
+
+  # Mixing
+  audio_mix_duration: "first"        # Track whose length sets the mix length
+
+  # Fades
+  music_fade_in_duration: 2.0
+  music_fade_out_duration: 3.0
+
+  # Voice-keyed ducking, off by default. Depth is a function of how far the
+  # narration sits above the threshold; the bundled config carries a table
+  # of measured attenuations.
+  music_ducking_enabled: false
+  music_ducking_threshold: 0.1
+  music_ducking_ratio: 4.0
+  music_ducking_attack_ms: 20.0
+  music_ducking_release_ms: 300.0
+
+  # Final loudness normalization (EBU R128), on by default
+  loudness_normalization_enabled: true
+  loudness_target_lufs: -14.0
+  loudness_true_peak_db: -1.0
+  loudness_range_lu: 7.0
+
+  # Output rate, applied whether or not the loudness pass runs
+  output_audio_sample_rate: 48000
 ```
+
+Five keys this block used to list do not exist on `AudioSettings` and never
+did: `voiceover_volume_boost_db`, `music_volume_boost_db`, `music_min_volume_db`,
+`music_fade_in_sec` and `music_fade_out_sec`. The fade keys are spelled
+`music_fade_*_duration`, and `audio_mix_duration` ships as `"first"`, not
+`"longest"`.
 
 </details>
 

@@ -157,9 +157,9 @@ so the video isn't pushed up or down relative to the surrounding feed:
 finished mix, configured by `loudness_target_lufs`, `loudness_true_peak_db`
 and `loudness_range_lu` in `audio_settings`, and on by default.
 
-Before this existed, two real renders measured **-17.4 and -17.6 LUFS** with a
-true peak of **-0.1 dBFS**: quiet against the target and nearly touching full
-scale at the same time. That combination is why a fixed gain change is not the
+Before this existed, two real renders measured **-17.4 and -17.6 LUFS** with
+true peaks of **-0.1 and -0.2 dBFS**: quiet against the target and nearly
+touching full scale at the same time. That combination is why a fixed gain change is not the
 fix, since raising the level would clip and limiting alone would leave it
 quiet.
 

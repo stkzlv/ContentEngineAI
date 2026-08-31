@@ -350,10 +350,14 @@ class TestTheDuck:
         return out
 
     def test_music_is_quieter_under_narration_than_in_the_gap(self, tmp_path):
-        """Measured at 7.7 dB with the shipped defaults, on a real voiceover.
+        """The contract is that a duck happens, not that it is any depth.
 
-        Asserted loosely: the contract is that a duck happens, not that it is
-        any particular depth, and the depth is four config fields away.
+        Asserted loosely on purpose, since the depth is four config fields
+        away. The figure this fixture produces is not the one in the config
+        table and should not be read as it: this compares speech against a
+        pause on a synthetic voice and measures about 12 dB, where the table
+        reports attenuation in a single window on a real voiceover and gives
+        5.3 dB for the same settings.
         """
         ducked = self._ducked_music_only(tmp_path)
 
