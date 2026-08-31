@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.92.0] - 2026-08-31
+
+### Fixed
+- The batch searched six keywords however many were configured. `config/pipeline.yaml` carried its own list, every entry of it also in `config/scraper.yaml`'s fifty-four, and the batch reads the former -- so at `products_per_keyword: 1` a six-product run exhausted the pool exactly and returned the same products every time. `global_batch.keywords` is now empty and falls back to the scraper's pool, so there is one list to maintain. Closes #248.
+- An already-published product was scraped, downloaded and rendered before the publish phase dropped it. The batch now checks `publish_history.json` before the production phase and skips a product already recorded on every target platform.
+
+### Added
+- `--force` on the global batch, to render and publish a product already recorded as published. Matches the flag the `single` and `schedule` paths already carry.
+- `global_batch.keywords_per_run`, how many keywords one run searches. Defaults to what the run will actually consume (`max_products` / `products_per_keyword`).
+
+### Notes
+- The two halves only work together. Reading one pool is what makes rotating worth anything, since rotating a list the cap consumes whole changes nothing; and rotating is what makes the wider pool reachable, since the run stops at `max_products` and would otherwise always take the head of a fifty-four entry list.
+- The rotation is by date and stateless, like `topics_for_run`, and for the same reason: a cursor would have to survive `--clean` and be reconciled after a failed batch, where the date advances on its own.
+- Its stride is the slice width, not one. `topics_for_run` takes one of a handful, so stepping by one already hands back something new; ten of fifty-four stepping by one would repeat nine of yesterday's ten. Measured on the bundled pool: consecutive days share **no** keywords, and six days cover all 54.
+- A full-width slice is the trap this nearly shipped with. Taking the whole pool makes the start offset a multiple of the length, which is zero, so the rotation is the identity -- which is why the width is what the run consumes rather than the pool size, and why the rotation happens after `max_products` is known rather than where the list is read.
+- `publish_history.json` is the file that backs the guard, keyed `<asin>:<platform>`. `published_products.json` records what was produced rather than what went live and cannot answer this. A product published to some platforms but not all is kept, since the run still has somewhere to send it.
+- The scraper file is resolved as a sibling of the pipeline config being loaded, not as a fixed `config/scraper.yaml`. Pointing the batch at another config directory reads that directory's scraper file; the fixed path meant a fork or a test loading its own `pipeline.yaml` silently picked up this repo's keywords, which is how an existing test caught it.
+- Keywords named on the command line are not rotated. They were asked for by name, so a run searches exactly those.
+
 ## [0.91.0] - 2026-08-31
 
 ### Added

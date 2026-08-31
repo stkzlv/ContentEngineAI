@@ -354,6 +354,14 @@ Examples:
         help="Skip publishing phase (default: publish videos to social media)",
     )
     publisher_group.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Render and publish products already recorded as published. "
+            "By default the batch skips them before the render, not after."
+        ),
+    )
+    publisher_group.add_argument(
         "--platforms",
         nargs="+",
         choices=["youtube", "tiktok", "instagram"],
@@ -1503,6 +1511,8 @@ class GlobalPipelineOrchestrator:
                 len(ready_products),
             )
 
+        ready_products = self._drop_already_published(ready_products)
+
         # Log transition
         if ready_products:
             logger.info("%s product(s) ready for video production", len(ready_products))
@@ -1510,6 +1520,53 @@ class GlobalPipelineOrchestrator:
             logger.warning("No products ready for video production")
 
         return ready_products
+
+    def _drop_already_published(
+        self, products: list[tuple[Path, Any]]
+    ) -> list[tuple[Path, Any]]:
+        """Drop products already recorded as published on every platform.
+
+        The duplicate guard used to sit at publish time only, so a product the
+        batch re-scraped was scraped, downloaded, rendered, and then dropped by
+        the publisher -- the whole render cost paid for output nobody sees.
+        Measured on two real runs, roughly half the batch's wall time went on
+        products already published.
+
+        `publish_history.json` is the file that backs the guard, keyed by
+        `<asin>:<platform>`; `published_products.json` records what was
+        produced rather than what went live and cannot answer this. A product
+        published to some platforms but not all is kept, since the run still
+        has somewhere to send it.
+
+        Skipped entirely when `--force` is set, which is the flag that already
+        means "publish it again" on the single and schedule paths.
+        """
+        from src.publisher.tracking import is_already_published
+
+        if getattr(self.config, "force", False) or not products:
+            return products
+
+        # Same spelling and same default as the two other platform reads in
+        # this module (#126 tracks folding all three into the loaded config).
+        platforms = self.config.platforms or ["youtube", "tiktok", "instagram"]
+        kept, skipped = [], []
+        for path, data in products:
+            asin = getattr(data, "asin", None)
+            if asin and all(
+                is_already_published(asin, platform, self.config.outputs_dir)
+                for platform in platforms
+            ):
+                skipped.append(asin)
+            else:
+                kept.append((path, data))
+
+        if skipped:
+            logger.info(
+                "Skipping %s already-published product(s) before render: %s",
+                len(skipped),
+                ", ".join(skipped),
+            )
+        return kept
 
     async def _execute_production_phase(
         self, products: list[tuple[Path, ProductData]]

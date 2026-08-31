@@ -305,7 +305,7 @@ The two runbooks below are worked instances of this: the smoke test exercises th
 
 Before a release, or after a refactor that touched the scraper, producer, or publisher surfaces, it's worth running the full pipeline end-to-end against a single product and stopping between phases to eyeball the outputs. This is slower than `make batch-lowpri` in one shot, but catches regressions the automated suite doesn't: Whisper transcript drift, subtitle positioning on a new product, publish-side SDK changes.
 
-The three `*-lowpri` make targets map one-to-one to the batch phases. Pick a keyword at random from `global_batch.keywords` in `config/pipeline.yaml`. Different product categories stress different code paths (image count, video availability, description length). Then:
+The three `*-lowpri` make targets map one-to-one to the batch phases. Pick a keyword at random from `batch.keywords` in `config/scraper.yaml`, which is the pool a batch run draws from (`global_batch.keywords` is empty and falls back to it). Different product categories stress different code paths (image count, video availability, description length). Then:
 
 ```bash
 # 1. Scrape

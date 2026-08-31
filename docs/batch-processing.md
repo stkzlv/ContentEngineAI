@@ -275,9 +275,23 @@ End-to-end automation combining scraping, video production, and publishing in a 
 The global batch pipeline orchestrates four phases:
 
 1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords). A topic run has no listing behind it, so this phase prepares the topic records instead of scraping.
-2. **Handoff Phase** - Discover scraped products and filter by media availability
+2. **Handoff Phase** - Discover scraped products, filter by media availability, and drop any already recorded as published on every target platform (`--force` renders them anyway)
 3. **Production Phase** - Generate videos using configured profile settings
 4. **Publishing Phase** - Upload and publish videos to social media platforms (optional)
+
+### Where a run's keywords come from
+
+`global_batch.keywords` in `config/pipeline.yaml` is empty by default, so the
+batch draws `batch.keywords` from `config/scraper.yaml`. One pool, one place to
+edit. Set the batch key only to override that pool for batch runs; a pillar
+named there wins over the scraper's for the same keyword.
+
+A run does not search the whole pool. It searches `keywords_per_run`, which
+defaults to what the run will actually consume (`max_products` divided by
+`products_per_keyword`), taken in rotation by date. Consecutive days are
+disjoint, so a daily cadence works through the pool instead of re-serving the
+head of the list. Keywords passed with `--keywords` are used exactly as given
+and are not rotated.
 
 ### Usage Examples
 
@@ -338,8 +352,9 @@ of the repeatable run, put the topics in `config/pipeline.yaml`:
 
 ```yaml
 global_batch:
-  keywords:
-    value: ["portable charger"]
+  # Left empty, so the batch draws `batch.keywords` from config/scraper.yaml.
+  # Set it here only to override that pool for batch runs.
+  keywords: {}
   topics:
     - title: "Why your wifi keeps dropping"
       description: "Router placement, channel congestion, 2.4 vs 5GHz bands."

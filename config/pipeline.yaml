@@ -18,16 +18,23 @@ global_batch:
   # Keywords to search for products, grouped by content pillar.
   # Dict shape attaches the pillar to each scraped product automatically.
   # A flat list is also accepted (no pillar attached).
-  keywords:
-    value:
-      - "portable charger"
-      - "car charger"
-      - "LED Strip Lights"
-    novelty:
-      - "smart ring"
-      - "mini projector"
-    utility:
-      - "wallet finder"
+  #
+  # Left empty on purpose: the batch then draws the scraper's pool from
+  # `config/scraper.yaml::batch.keywords`, so there is one list to maintain.
+  # This key used to carry six keywords, every one of them also in that file,
+  # which meant the batch searched six of the fifty-four configured next door
+  # -- and at `products_per_keyword: 1` a six-product run exhausted the pool
+  # exactly and returned the same products every time. Set this to override
+  # the scraper's pool for batch runs only; a pillar named here wins over the
+  # scraper's for the same keyword.
+  keywords: {}
+
+  # How many keywords one run searches, taken in rotation from the pool by
+  # date so consecutive days are disjoint. Defaults to what the run will
+  # actually consume (`max_products` / `products_per_keyword`), which is the
+  # width that makes the rotation land on fresh keywords rather than
+  # re-serving the head of the list.
+  # keywords_per_run: 10
 
   # Topics to render without scraping. A topic has no listing, so it produces
   # a video from a title and a description instead of from product data.
