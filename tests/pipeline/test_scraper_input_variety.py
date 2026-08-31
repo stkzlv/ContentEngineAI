@@ -738,12 +738,18 @@ class TestTheDropReachesTheVerdict:
 
         summary = await pipeline.run_pipeline()
 
-        handed_to_publish = [pid for _, pid in publish.call_args.args[0]]
-        assert published not in handed_to_publish, (
+        handed_to_publish = publish.call_args.args[0]
+        assert [pid for _, pid in handed_to_publish] == [fresh], (
             "a resume handed an already-published product to the publish "
-            "phase, which has no guard of its own, so it posts a duplicate"
+            "phase, which has no guard of its own"
         )
-        assert handed_to_publish == [fresh]
+        # The path, not just the id. Asserting ids alone let the resolver be
+        # reverted to composing `outputs/<id>/video.mp4` -- a name nothing
+        # writes, which fails every product at `upload_media` -- with the
+        # whole suite still green.
+        assert handed_to_publish == [
+            (tmp_path / fresh / f"video_{fresh}_slideshow_images1.mp4", fresh)
+        ]
         assert summary.production.already_published == 1
 
     @pytest.mark.asyncio
@@ -880,3 +886,69 @@ class TestTheDryRunPlanMatchesTheRun:
 
     def test_a_force_run_does_not(self):
         assert "already published" not in self._plan(force=True)
+
+
+@pytest.mark.unit
+class TestTheResumePicksTheSameCutAsThePublisher:
+    """A product rendered twice has two files; the resume must not guess.
+
+    `sole_render_for_product` falls back to the alphabetically first render
+    when it is given no profiles and no platform, which is what the first
+    version of the resume fix did. Every other caller routes it, so a resumed
+    publish would have sent a different cut from the one the publish phase
+    would have chosen for the same product.
+    """
+
+    def test_the_routed_profile_wins_over_the_alphabetical_first(self, tmp_path):
+        from src.publisher.video_selector import sole_render_for_product
+
+        asin = "B0TWOCUTS0"
+        product_dir = tmp_path / asin
+        product_dir.mkdir()
+        # "a_profile" sorts first; the publisher routes youtube to "z_profile".
+        for profile in ("a_profile", "z_profile"):
+            (product_dir / f"video_{asin}_{profile}.mp4").write_bytes(b"")
+
+        unrouted = sole_render_for_product(product_dir)
+        routed = sole_render_for_product(
+            product_dir, {"youtube": "z_profile"}, "youtube"
+        )
+
+        assert unrouted is not None and "a_profile" in unrouted.name
+        assert routed is not None and "z_profile" in routed.name
+        assert unrouted != routed, (
+            "this fixture no longer distinguishes routed from unrouted, so "
+            "the assertion below proves nothing"
+        )
+
+    def test_the_resume_passes_the_publisher_routing(self, tmp_path, monkeypatch):
+        """Reads the call, since the two agree on a single-render directory.
+
+        A directory with one render resolves the same either way, so a test
+        driving `run_pipeline` on the usual fixture cannot tell whether the
+        routing was passed.
+        """
+        import inspect
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        source = inspect.getsource(GlobalPipelineOrchestrator.run_pipeline)
+        start = source.index("sole_render_for_product(")
+        # Balance the parens rather than cutting at the first `)`, which sits
+        # inside `self._publisher_profiles()` and truncated the call.
+        depth, end = 0, start
+        for offset, char in enumerate(source[start:], start):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0:
+                    end = offset + 1
+                    break
+        call = source[start:end]
+
+        assert "_publisher_profiles()" in call, (
+            "the resume resolves a render without the publisher's profile "
+            "routing, so it can send a different cut than the publish phase"
+        )
+        assert "platforms_for_resume" in call

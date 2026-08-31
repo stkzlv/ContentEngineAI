@@ -536,7 +536,7 @@ poetry run python -m src.pipeline.global_batch \
 
 A run that names its inputs removes only those, and a run carrying both kinds removes both: `--product-ids B0X --topic "Y"` removes `B0X` and the topic's directory. Keywords name nothing -- which products they produce is not known until the search runs -- so a run carrying any keyword, including a no-flag run reading them from the config, removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
 
-**Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
+**Note**: Publishing options (`--skip-publish`, `--force`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 
 **Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling

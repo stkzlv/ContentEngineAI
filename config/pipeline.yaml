@@ -9,7 +9,10 @@
 
 global_batch:
   # ---- Input Configuration ----
-  # Specify products to process (at least one of product_ids or keywords required)
+  # Where a run's inputs come from. None of these keys is required: with all
+  # of them empty a run still draws keywords from the scraper's pool (see
+  # `keywords` below) and topics from `topics`. Adding a keyword here does
+  # not extend that pool, it replaces it.
 
   # Product IDs (ASINs) to scrape and produce videos for
   # Example: ["B0ABC123", "B0DEF456", "B0GHI789"]

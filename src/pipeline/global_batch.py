@@ -1081,12 +1081,32 @@ class GlobalPipelineOrchestrator:
                 # that reaches publishing without passing through production.
                 from src.publisher.video_selector import sole_render_for_product
 
+                # Routed the way the publisher routes it, not by taking the
+                # alphabetically first file. A product rendered under two
+                # profiles has two files in its directory, and the bare
+                # resolver would hand the resumed publish a different cut
+                # from the one the publish phase would have chosen.
+                #
+                # Parity with the other discoverers is the goal here, not
+                # replaying the interrupted run: the state records product
+                # ids and not paths, so which cut *that* run produced is not
+                # recoverable. `schedule` and the immediate batch accept any
+                # one render per product by the same rule, so a resume now
+                # answers the question the same way they do.
+                platforms_for_resume = [
+                    platform.lower()
+                    for platform in (self.config.platforms or self._default_platforms())
+                ]
                 dropped_ids = set(getattr(self, "_skipped_as_published", []))
                 produced_videos = []
                 for pid in self.state.production_completed_products:
                     if pid in dropped_ids:
                         continue
-                    render = sole_render_for_product(self.config.outputs_dir / pid)
+                    render = sole_render_for_product(
+                        self.config.outputs_dir / pid,
+                        self._publisher_profiles(),
+                        platforms_for_resume[0] if platforms_for_resume else "",
+                    )
                     if render is None:
                         logger.warning(
                             "Resume: no render found for %s, skipping publish", pid
@@ -1651,6 +1671,25 @@ class GlobalPipelineOrchestrator:
             )
         self._skipped_as_published = skipped
         return kept
+
+    def _publisher_profiles(self) -> dict[str, str] | None:
+        """Per-platform render profiles, as the publish phase would read them.
+
+        Only used to resolve which cut of a product a resumed publish sends,
+        so it has to answer the same question `BatchPublisher` asks.
+        """
+        import yaml
+
+        config_path = Path("config/publisher.yaml")
+        if not config_path.exists():
+            return None
+        try:
+            with open(config_path, encoding="utf-8") as handle:
+                publisher_config = yaml.safe_load(handle) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        profiles = publisher_config.get("profiles")
+        return profiles if isinstance(profiles, dict) else None
 
     def _default_platforms(self) -> list[str]:
         """The platforms a publish would target, absent a CLI override.
