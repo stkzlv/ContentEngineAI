@@ -1526,11 +1526,13 @@ class GlobalPipelineOrchestrator:
     ) -> list[tuple[Path, Any]]:
         """Drop products already recorded as published on every platform.
 
-        The duplicate guard used to sit at publish time only, so a product the
-        batch re-scraped was scraped, downloaded, rendered, and then dropped by
-        the publisher -- the whole render cost paid for output nobody sees.
-        Measured on two real runs, roughly half the batch's wall time went on
-        products already published.
+        The batch had no duplicate guard at all. `single` and `schedule` skip
+        an already-published product; the batch's publish phase did not, so a
+        re-scraped product was rendered and then published a second time --
+        a duplicate Zernio post, with the tracking row overwritten by the new
+        `post_id` while the older post stayed live. So this stops the
+        duplicate as well as the render, which is why it is on by default and
+        why `--force` exists to get the old behaviour back.
 
         `publish_history.json` is the file that backs the guard, keyed by
         `<asin>:<platform>`; `published_products.json` records what was
@@ -1539,22 +1541,41 @@ class GlobalPipelineOrchestrator:
         has somewhere to send it.
 
         Skipped entirely when `--force` is set, which is the flag that already
-        means "publish it again" on the single and schedule paths.
+        means "publish it again" on the single and schedule paths, and when
+        `--skip-publish` is set, where there is no duplicate to prevent and
+        re-rendering a published product is the point of the run.
+
+        Topics are never dropped. A topic's id is a pure function of its
+        title, so once published it would be skipped on every later run and
+        the tutorial arm would stop producing silently -- the bundled config
+        ships two topics at one per run, so that lands on day three.
         """
         from src.publisher.tracking import is_already_published
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
-        if getattr(self.config, "force", False) or not products:
+        if (
+            getattr(self.config, "force", False)
+            or getattr(self.config, "skip_publish", False)
+            or not products
+        ):
             return products
 
-        # Same spelling and same default as the two other platform reads in
-        # this module (#126 tracks folding all three into the loaded config).
-        platforms = self.config.platforms or ["youtube", "tiktok", "instagram"]
+        # The list the publish phase will actually target, read the same way
+        # it reads it. A hardcoded triple demanded tiktok of an install whose
+        # `default_platforms` omits it, so a product complete for that install
+        # was re-rendered and re-published (#126 tracks folding the three
+        # inline reads in this module into the loaded config).
+        platforms = self.config.platforms or self._default_platforms()
         kept, skipped = [], []
         for path, data in products:
             asin = getattr(data, "asin", None)
-            if asin and all(
-                is_already_published(asin, platform, self.config.outputs_dir)
-                for platform in platforms
+            if (
+                asin
+                and not asin.startswith(TOPIC_ID_PREFIX)
+                and all(
+                    is_already_published(asin, platform, self.config.outputs_dir)
+                    for platform in platforms
+                )
             ):
                 skipped.append(asin)
             else:
@@ -1566,7 +1587,30 @@ class GlobalPipelineOrchestrator:
                 len(skipped),
                 ", ".join(skipped),
             )
+        self._skipped_as_published = skipped
         return kept
+
+    def _default_platforms(self) -> list[str]:
+        """The platforms a publish would target, absent a CLI override.
+
+        Reads `publisher.yaml` first and falls back to the literal, which is
+        what `print_plan` and `_execute_publishing_phase` already do. The
+        duplicate guard has to ask the same question they do, or it decides
+        completeness against platforms this install never publishes to.
+        """
+        import yaml
+
+        config_path = Path("config/publisher.yaml")
+        if config_path.exists():
+            try:
+                with open(config_path, encoding="utf-8") as handle:
+                    publisher_config = yaml.safe_load(handle) or {}
+            except (OSError, yaml.YAMLError):
+                publisher_config = {}
+            configured = publisher_config.get("default_platforms")
+            if configured:
+                return list(configured)
+        return ["youtube", "tiktok", "instagram"]
 
     async def _execute_production_phase(
         self, products: list[tuple[Path, ProductData]]
@@ -1807,6 +1851,11 @@ class GlobalPipelineOrchestrator:
             duration,
         )
 
+        # Carried from the handoff drop so the summary says why a run that
+        # rendered nothing rendered nothing. Without it the verdict is
+        # "PIPELINE FAILED ... 0 failed, 0 skipped", which contradicts itself
+        # and exits 1 on a correct result.
+        already_published = getattr(self, "_skipped_as_published", [])
         summary = ProductionPhaseSummary(
             total_attempted=total_products,
             successful=successful,
@@ -1816,6 +1865,8 @@ class GlobalPipelineOrchestrator:
             skipped_products=skipped_products,
             profile_distribution=profile_distribution,
             duration_sec=duration,
+            already_published=len(already_published),
+            already_published_products=list(already_published),
         )
 
         return summary, produced_videos

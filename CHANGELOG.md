@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The batch searched six keywords however many were configured. `config/pipeline.yaml` carried its own list, every entry of it also in `config/scraper.yaml`'s fifty-four, and the batch reads the former -- so at `products_per_keyword: 1` a six-product run exhausted the pool exactly and returned the same products every time. `global_batch.keywords` is now empty and falls back to the scraper's pool, so there is one list to maintain. Closes #248.
-- An already-published product was scraped, downloaded and rendered before the publish phase dropped it. The batch now checks `publish_history.json` before the production phase and skips a product already recorded on every target platform.
+- The batch published duplicates. `single` and `schedule` skip an already-published product; the batch's publish phase had no such guard, so a re-scraped product was rendered and posted a second time, with the tracking row overwritten by the new `post_id` while the older post stayed live. The batch now checks `publish_history.json` before the production phase, which stops the duplicate post as well as the wasted render.
 
 ### Added
+- A `nothing new` run outcome, exiting 0. A run whose products were all already published produced nothing, but nothing was asked for that does not exist -- it used to report `PIPELINE FAILED ... 0 failed, 0 skipped`, contradicting itself, and exit 1. The rotation makes it a normal outcome, since it walks the pool in under a week and the same keywords then return the same published top results.
 - `--force` on the global batch, to render and publish a product already recorded as published. Matches the flag the `single` and `schedule` paths already carry.
 - `global_batch.keywords_per_run`, how many keywords one run searches. Defaults to what the run will actually consume (`max_products` / `products_per_keyword`).
 
@@ -24,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A full-width slice is the trap this nearly shipped with. Taking the whole pool makes the start offset a multiple of the length, which is zero, so the rotation is the identity -- which is why the width is what the run consumes rather than the pool size, and why the rotation happens after `max_products` is known rather than where the list is read.
 - `publish_history.json` is the file that backs the guard, keyed `<asin>:<platform>`. `published_products.json` records what was produced rather than what went live and cannot answer this. A product published to some platforms but not all is kept, since the run still has somewhere to send it.
 - The scraper file is resolved as a sibling of the pipeline config being loaded, not as a fixed `config/scraper.yaml`. Pointing the batch at another config directory reads that directory's scraper file; the fixed path meant a fork or a test loading its own `pipeline.yaml` silently picked up this repo's keywords, which is how an existing test caught it.
+- Topics are never dropped by the guard. A topic's id is a pure function of its title and the batch records its publishes under it, so treating a topic like a product would have skipped it on every run after the first -- silently, with no failure and no skip. The bundled config ships two topics at one per run, so the tutorial arm would have stopped producing on day three.
+- The guard is also skipped on a `--skip-publish` run, where there is no duplicate to prevent and re-rendering a published product is usually the point.
+- Its platform list comes from `publisher.yaml` rather than a hardcoded triple, because it has to ask the same question the publish phase asks. A hardcoded list demanded TikTok of an install whose `default_platforms` omits it, so a product complete for that install was re-rendered and re-published.
+- `keywords_per_run` is validated like `topics_per_run`: a non-integer or negative value is refused by name, and `0` means no keyword search rather than falling through to the default.
+- Setting `global_batch.keywords` *replaces* the scraper's pool rather than adding to it. An earlier note here promised a per-keyword pillar override, which does not exist: the fallback only fires when the batch key is empty, so a single entry there narrows every run to that one keyword.
+- The standalone scraper has the same head-of-list behaviour and is deliberately unchanged, since it is invoked by hand where a date-dependent result would be surprising. Tracked as a follow-up rather than left as silent drift.
 - Keywords named on the command line are not rotated. They were asked for by name, so a run searches exactly those.
 
 ## [0.91.0] - 2026-08-31

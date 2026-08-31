@@ -187,6 +187,10 @@ class TestAlreadyPublishedProductsAreNotRendered:
         pipeline.config.outputs_dir = tmp_path
         pipeline.config.platforms = platforms
         pipeline.config.force = force
+        # Every flag the filter reads has to be set explicitly: an unset
+        # attribute on a MagicMock is truthy, so leaving `skip_publish` alone
+        # short-circuits the guard and every assertion below passes vacuously.
+        pipeline.config.skip_publish = False
         return pipeline
 
     @staticmethod
@@ -258,16 +262,82 @@ class TestAlreadyPublishedProductsAreNotRendered:
 
         assert len(kept) == 1
 
+    def test_a_published_topic_is_still_rendered(self, tmp_path):
+        """The silent one, and the reason it is silent.
+
+        A topic's id is `topic_product_id(title)`, a pure function of the
+        title, and the batch records its publishes under exactly that. So a
+        guard that treats a topic like a product drops it on every run after
+        the first -- permanently, with no failure and no skip. The bundled
+        config ships two topics at one per run, so the tutorial arm would
+        have stopped producing on day three.
+
+        The test this replaces passed a record with `asin = None`, a shape no
+        topic ever has, so it asserted nothing about topics at all.
+        """
+        from src.video.producer.topic_input import topic_product_id
+
+        topic_id = topic_product_id("Why your wifi keeps dropping")
+        self._history(
+            tmp_path,
+            {
+                f"{topic_id}:youtube": {"post_id": "1"},
+                f"{topic_id}:tiktok": {"post_id": "2"},
+                f"{topic_id}:instagram": {"post_id": "3"},
+            },
+        )
+        pipeline = self._pipeline(tmp_path)
+        data = MagicMock()
+        data.asin = topic_id
+
+        kept = pipeline._drop_already_published([(Path(f"outputs/{topic_id}"), data)])
+
+        assert len(kept) == 1, "a published topic was dropped and never renders again"
+
     def test_a_record_with_no_asin_is_kept(self, tmp_path):
-        """A topic carries no ASIN and cannot be looked up."""
         self._history(tmp_path, {})
         pipeline = self._pipeline(tmp_path)
         data = MagicMock()
         data.asin = None
 
-        kept = pipeline._drop_already_published([(Path("outputs/topic-x"), data)])
+        kept = pipeline._drop_already_published([(Path("outputs/x"), data)])
 
         assert len(kept) == 1
+
+    def test_a_skip_publish_run_renders_everything(self, tmp_path):
+        """Nothing to duplicate, and re-rendering is the point of such a run."""
+        self._history(
+            tmp_path,
+            {
+                "B0GGG:youtube": {"post_id": "1"},
+                "B0GGG:tiktok": {"post_id": "2"},
+                "B0GGG:instagram": {"post_id": "3"},
+            },
+        )
+        pipeline = self._pipeline(tmp_path)
+        pipeline.config.skip_publish = True
+
+        kept = pipeline._drop_already_published([self._product("B0GGG")])
+
+        assert len(kept) == 1
+
+    def test_the_platform_list_comes_from_publisher_config(self, tmp_path):
+        """The guard must ask what the publish phase will actually target.
+
+        A hardcoded triple demanded tiktok of an install whose
+        `default_platforms` omits it, so a product complete for that install
+        was re-rendered and re-published as a duplicate.
+        """
+        pipeline = self._pipeline(tmp_path)
+
+        platforms = pipeline._default_platforms()
+
+        import yaml
+
+        with open("config/publisher.yaml", encoding="utf-8") as handle:
+            configured = (yaml.safe_load(handle) or {}).get("default_platforms")
+
+        assert platforms == (configured or ["youtube", "tiktok", "instagram"])
 
     def test_no_history_file_keeps_everything(self, tmp_path):
         pipeline = self._pipeline(tmp_path)
@@ -297,3 +367,168 @@ class TestTheForceFlagExists:
         config = load_global_batch_config(argparse.Namespace())
 
         assert config.force is False
+
+
+@pytest.mark.unit
+class TestARunThatFindsNothingNewIsNotAFailure:
+    """A dropped product is not a lost one.
+
+    The drop happens after the scraping summary is built, so the products
+    never reach `total_attempted` and `end_to_end_success` is zero. Without a
+    distinct outcome the run reported `PIPELINE FAILED ... 0 failed, 0
+    skipped` and exited 1 -- a contradiction, on a correct result, that would
+    page whoever watches the cron. The rotation makes it a normal outcome: it
+    walks the whole pool in under a week, so from the second week the same
+    keywords return the same already-published top results.
+    """
+
+    @staticmethod
+    def _summary(production, failures=0):
+        from src.pipeline.config import PipelineSummary, ScrapingPhaseSummary
+
+        scraping = ScrapingPhaseSummary(10, 10, 0, ["B0X"], [], {}, 1.0)
+        return PipelineSummary(
+            scraping=scraping,
+            production=production,
+            publishing=None,
+            end_to_end_success=production.successful,
+            partial_success=10,
+            total_failures=failures,
+            total_duration_sec=1.0,
+        )
+
+    @staticmethod
+    def _production(**kwargs):
+        from src.pipeline.config import ProductionPhaseSummary
+
+        base: dict = {
+            "total_attempted": 0,
+            "successful": 0,
+            "failed": 0,
+            "skipped": 0,
+            "failed_products": [],
+            "skipped_products": [],
+            "profile_distribution": None,
+            "duration_sec": 0.0,
+        }
+        base.update(kwargs)
+        return ProductionPhaseSummary(**base)
+
+    def test_everything_already_published_exits_zero(self):
+        summary = self._summary(
+            self._production(already_published=3, already_published_products=["a"])
+        )
+
+        assert summary.outcome() == "nothing new"
+        assert summary.exit_code() == 0
+
+    def test_strict_does_not_fail_it_either(self):
+        """`strict` catches a product asked for that does not exist.
+
+        Nothing was asked for here, so there is nothing for it to catch.
+        """
+        summary = self._summary(
+            self._production(already_published=3, already_published_products=["a"])
+        )
+
+        assert summary.exit_code(strict=True) == 0
+
+    def test_a_genuinely_empty_run_still_fails(self):
+        """The verdict this must not weaken."""
+        summary = self._summary(self._production())
+
+        assert summary.outcome() == "failed"
+        assert summary.exit_code() == 1
+
+    def test_a_real_failure_alongside_drops_still_fails(self):
+        summary = self._summary(
+            self._production(
+                total_attempted=1,
+                failed=1,
+                failed_products=["X"],
+                already_published=2,
+                already_published_products=["a", "b"],
+            ),
+            failures=1,
+        )
+
+        assert summary.outcome() == "failed"
+        assert summary.exit_code() == 1
+
+    def test_a_partial_run_with_drops_is_still_lost(self):
+        summary = self._summary(
+            self._production(
+                total_attempted=2,
+                successful=1,
+                skipped=1,
+                skipped_products=["Y"],
+                already_published=1,
+                already_published_products=["a"],
+            )
+        )
+
+        assert summary.outcome() == "lost"
+        assert summary.exit_code() == 0
+        assert summary.exit_code(strict=True) == 1
+
+    def test_the_summary_names_them(self):
+        """A run that rendered nothing has to say why."""
+        summary = self._summary(
+            self._production(already_published=1, already_published_products=["B0ZZZ"])
+        )
+
+        assert "B0ZZZ" in summary.format()
+
+
+@pytest.mark.unit
+class TestKeywordsPerRunIsValidated:
+    """Its sibling `topics_per_run` is; this was not.
+
+    A string raised a bare TypeError naming no key, a negative silently
+    searched nothing, and `0` fell through to the default and searched ten --
+    the opposite of what `topics_per_run: 0` means in the same file.
+    """
+
+    @staticmethod
+    def _configs(tmp_path, value):
+        import yaml
+
+        (tmp_path / "scraper.yaml").write_text(
+            yaml.safe_dump({"batch": {"keywords": {"value": ["a", "b", "c"]}}}),
+            encoding="utf-8",
+        )
+        block: dict = {}
+        if value is not None:
+            block["keywords_per_run"] = value
+        (tmp_path / "pipeline.yaml").write_text(
+            yaml.safe_dump({"global_batch": block}), encoding="utf-8"
+        )
+        return str(tmp_path / "pipeline.yaml")
+
+    @pytest.mark.parametrize("value", ["10", 3.5, [1]])
+    def test_a_non_integer_is_refused_by_name(self, tmp_path, value):
+        path = self._configs(tmp_path, value)
+
+        with pytest.raises(ValueError, match="keywords_per_run"):
+            load_global_batch_config(argparse.Namespace(), path)
+
+    def test_a_negative_is_refused_by_name(self, tmp_path):
+        path = self._configs(tmp_path, -1)
+
+        with pytest.raises(ValueError, match="keywords_per_run"):
+            load_global_batch_config(argparse.Namespace(), path)
+
+    def test_zero_means_no_keyword_search(self, tmp_path):
+        """`topics_per_run: 0` means no topics, so this must match."""
+        path = self._configs(tmp_path, 0)
+
+        config = load_global_batch_config(argparse.Namespace(), path)
+
+        assert config.keywords == []
+
+    def test_absent_falls_back_to_what_the_run_consumes(self, tmp_path):
+        path = self._configs(tmp_path, None)
+
+        config = load_global_batch_config(argparse.Namespace(), path)
+
+        assert config.keywords

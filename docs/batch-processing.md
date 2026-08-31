@@ -283,8 +283,8 @@ The global batch pipeline orchestrates four phases:
 
 `global_batch.keywords` in `config/pipeline.yaml` is empty by default, so the
 batch draws `batch.keywords` from `config/scraper.yaml`. One pool, one place to
-edit. Set the batch key only to override that pool for batch runs; a pillar
-named there wins over the scraper's for the same keyword.
+edit. Setting the batch key *replaces* that pool for batch runs rather than
+adding to it, so a single entry there narrows every batch run to one keyword.
 
 A run does not search the whole pool. It searches `keywords_per_run`, which
 defaults to what the run will actually consume (`max_products` divided by

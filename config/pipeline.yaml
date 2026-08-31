@@ -24,9 +24,10 @@ global_batch:
   # This key used to carry six keywords, every one of them also in that file,
   # which meant the batch searched six of the fifty-four configured next door
   # -- and at `products_per_keyword: 1` a six-product run exhausted the pool
-  # exactly and returned the same products every time. Set this to override
-  # the scraper's pool for batch runs only; a pillar named here wins over the
-  # scraper's for the same keyword.
+  # exactly and returned the same products every time. Setting this replaces
+  # the scraper's pool for batch runs -- it does not add to it or re-pillar
+  # one keyword of it, so a single entry here narrows every batch run to that
+  # one keyword.
   keywords: {}
 
   # How many keywords one run searches, taken in rotation from the pool by

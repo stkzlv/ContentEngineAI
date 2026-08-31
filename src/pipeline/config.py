@@ -474,6 +474,12 @@ class ProductionPhaseSummary:
     skipped_products: list[str]
     profile_distribution: dict[str, int] | None
     duration_sec: float
+    # Products dropped before the render because they are already published
+    # everywhere this run would publish. Not a loss and not a skip: nothing
+    # was asked for that does not exist. Defaulted so the summaries built
+    # elsewhere in the module keep working.
+    already_published: int = 0
+    already_published_products: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -555,6 +561,18 @@ class PipelineSummary:
         completed successfully.
         """
         if self.end_to_end_success == 0:
+            # A run that produced nothing because there was nothing new to
+            # produce has done what was asked. Reporting it as a failure
+            # pages whoever watches the cron for a correct result, and the
+            # rotation makes it a normal outcome: it walks the whole keyword
+            # pool in under a week, so from the second week the same
+            # keywords return the same already-published top results.
+            if (
+                self.production.already_published > 0
+                and self.total_failures == 0
+                and self.total_skipped() == 0
+            ):
+                return "nothing new"
             return "failed"
         if self.total_failures > 0 or self.total_skipped() > 0:
             return "lost"
@@ -576,7 +594,10 @@ class PipelineSummary:
         the flag exists to break.
         """
         if self.end_to_end_success == 0:
-            return 1
+            # "nothing new" is not a failure: see `outcome`. Under `strict`
+            # it stays 0 too, because strict exists to catch a product that
+            # was asked for and does not exist, and nothing was asked for.
+            return 0 if self.outcome() == "nothing new" else 1
         if strict and self.outcome() == "lost":
             return 1
         return 0
@@ -624,6 +645,12 @@ class PipelineSummary:
                 f"  Skipped: {self.production.skipped}",
             ]
         )
+
+        if self.production.already_published:
+            lines.append(
+                f"  Already Published (not re-rendered): "
+                f"{', '.join(self.production.already_published_products)}"
+            )
 
         if self.production.skipped_products:
             lines.append(
@@ -952,8 +979,12 @@ def load_global_batch_config(
         yaml_keywords, scraper_pillars = _scraper_keyword_pool(
             Path(config_path).parent / "scraper.yaml"
         )
-        # The batch's own map wins where both name a keyword, so a pillar set
-        # here still overrides; everything else comes from the scraper file.
+        # `keyword_pillar_map` is empty here by construction -- the reader
+        # returns no pillars when it returns no keywords, which is the branch
+        # condition -- so this takes the scraper's map wholesale. Written as a
+        # merge rather than an assignment only to keep the precedence
+        # explicit if that ever stops being true. Setting the batch key
+        # *replaces* the pool; it does not re-pillar one keyword of it.
         keyword_pillar_map = {**scraper_pillars, **keyword_pillar_map}
 
     # How many configured topics a no-flag run includes. CLI topics ignore it:
@@ -1005,9 +1036,27 @@ def load_global_batch_config(
     # disjoint; rotating by the whole pool would be no rotation at all, since
     # a start offset of a multiple of the length is zero.
     if rotate_keywords and keywords:
-        per_run = yaml_config.get("keywords_per_run") or math.ceil(
-            max_products / max(1, products_per_keyword)
-        )
+        # Validated like `topics_per_run` above, and for the same reasons.
+        # Read with a sentinel rather than `or`, so that 0 means "search no
+        # keywords" here as it means "render no topics" there, instead of
+        # falling through to the default and silently searching ten.
+        configured_per_run = yaml_config.get("keywords_per_run")
+        if configured_per_run is None:
+            per_run = math.ceil(max_products / max(1, products_per_keyword))
+        elif isinstance(configured_per_run, bool) or not isinstance(
+            configured_per_run, int
+        ):
+            raise ValueError(
+                f"global_batch.keywords_per_run must be an integer, got "
+                f"{configured_per_run!r}"
+            )
+        elif configured_per_run < 0:
+            raise ValueError(
+                f"global_batch.keywords_per_run must not be negative, got "
+                f"{configured_per_run!r}"
+            )
+        else:
+            per_run = configured_per_run
         keywords = keywords_for_run(keywords, per_run)
 
     # Scraper filters (SearchParameters)
