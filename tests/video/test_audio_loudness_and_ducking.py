@@ -18,6 +18,7 @@ of "music breathes in the gaps" and the config comment says so.
 
 from __future__ import annotations
 
+import itertools
 import re
 import shutil
 import subprocess
@@ -43,6 +44,14 @@ def _run(args: list[str]) -> None:
 
 
 def _tone(path: Path, freq: int, gain_db: float, duration: float = 12.0) -> Path:
+    """A sine at `gain_db` relative to full scale.
+
+    lavfi's `sine` is about 18 dB below full scale before any gain, so the
+    `+18dB` here is what makes `gain_db` mean what it says. Without it a
+    fixture asking for -3 dB produced a -21 dBFS peak, and the true-peak test
+    below passed against unnormalised audio -- it was measuring a signal that
+    was never near the ceiling it claims to defend.
+    """
     _run(
         [
             "ffmpeg",
@@ -54,7 +63,7 @@ def _tone(path: Path, freq: int, gain_db: float, duration: float = 12.0) -> Path
             "-i",
             f"sine=frequency={freq}:duration={duration}:sample_rate=44100",
             "-af",
-            f"volume={gain_db}dB",
+            f"volume=18dB,volume={gain_db}dB",
             str(path),
         ]
     )
@@ -190,7 +199,12 @@ class TestTheMixIsMasteredToTheTarget:
         )
 
     def test_the_true_peak_stays_under_the_ceiling(self, tmp_path):
-        """Renders measured -0.1 dBFS before this, above the -1 dBTP guidance."""
+        """Renders measured -0.1 dBFS before this, above the -1 dBTP guidance.
+
+        The fixture is driven near full scale on purpose. With lavfi's stock
+        sine level this test passed on unnormalised audio, because the mix
+        peaked at -18 dBFS and was never near the ceiling.
+        """
         config = _config()
         voice = _tone(tmp_path / "voice.wav", 200, -3)
         music = _tone(tmp_path / "music.wav", 600, -3)
@@ -253,6 +267,40 @@ class TestTheMixIsMasteredToTheTarget:
 
         assert not any("loudnorm" in f for f in filters)
 
+    def test_the_rate_still_applies_with_normalisation_off(self, tmp_path):
+        """`output_audio_sample_rate` names an output property.
+
+        It was emitted as a tail of the loudnorm filter, so switching
+        normalisation off silently dropped the rate control with it and left
+        the render at whatever the voiceover happened to be.
+        """
+        config = _config()
+        config.audio_settings.loudness_normalization_enabled = False
+        voice = _tone(tmp_path / "voice.wav", 200, -18)
+        music = _tone(tmp_path / "music.wav", 600, -12)
+        filters, label = AudioFilterBuilder(config).build_audio_filters(0, 1, 12.0)
+        rendered = _render(tmp_path, voice, music, filters, label)
+
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=sample_rate",
+                "-of",
+                "csv=p=0",
+                str(rendered),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        assert probe.stdout.strip() == str(
+            config.audio_settings.output_audio_sample_rate
+        )
+
 
 @pytest.mark.integration
 class TestTheDuck:
@@ -269,7 +317,11 @@ class TestTheDuck:
         # Take the music leg alone, so the measured level is the duck and not
         # the narration sitting on top of it. The split's other output has to
         # go somewhere or the graph will not bind.
-        isolated = [f for f in filters if "amix" not in f and "apad" not in f]
+        #
+        # Everything before the mix, rather than a blocklist of filter names:
+        # a blocklist dropped `amix` while keeping the `aresample` that reads
+        # its output, leaving a dangling label.
+        isolated = list(itertools.takewhile(lambda f: "amix" not in f, filters))
         isolated.append("[a_voice_mix]anullsink")
         out = tmp_path / "music_ducked.wav"
         _run(

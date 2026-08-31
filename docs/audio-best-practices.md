@@ -166,7 +166,9 @@ quiet.
 The pass is single-pass, so the correction is adaptive rather than exact; a
 two-pass measurement would need the mixed audio as a file, and it only exists
 inside the filtergraph. Note that `loudnorm` outputs at 192 kHz whatever it is
-handed, so the chain resamples to `output_audio_sample_rate` afterwards.
+handed, so the chain resamples to `output_audio_sample_rate` afterwards. That
+resample is applied whether or not normalization is enabled, since the field
+names an output property rather than a `loudnorm` side effect.
 
 ## 6. Honest gaps in the evidence
 

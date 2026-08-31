@@ -158,20 +158,30 @@ class AudioFilterBuilder:
         # passes would need the mixed audio measured first, and it does not
         # exist as a file -- it is produced inside this filtergraph.
         #
-        # The `aresample` is not optional. `loudnorm` emits at 192 kHz
-        # whatever it was handed, so without it the encoder negotiates a rate
-        # nobody chose.
         if audio_settings.loudness_normalization_enabled:
             normalized_label = "[a_norm]"
             audio_filters.append(
                 f"{mixed_label}loudnorm="
                 f"I={audio_settings.loudness_target_lufs}:"
                 f"TP={audio_settings.loudness_true_peak_db}:"
-                f"LRA={audio_settings.loudness_range_lu},"
-                f"aresample={audio_settings.output_audio_sample_rate}"
+                f"LRA={audio_settings.loudness_range_lu}"
                 f"{normalized_label}"
             )
             mixed_label = normalized_label
+
+        # Resample unconditionally, not as a tail of the loudnorm string.
+        # `loudnorm` emits at 192 kHz whatever it was handed, so the resample
+        # started life as a fix for that -- but `output_audio_sample_rate`
+        # names an output property, and hanging it off the normalisation
+        # branch meant switching normalisation off silently dropped the rate
+        # control with it, leaving the render at whatever the voiceover
+        # happened to be (24 kHz on a topic, 44.1 kHz on a product).
+        rate_label = "[a_rate]"
+        audio_filters.append(
+            f"{mixed_label}aresample={audio_settings.output_audio_sample_rate}"
+            f"{rate_label}"
+        )
+        mixed_label = rate_label
 
         # Pad to the video duration so the audio is not truncated.
         final_audio_label = "[a_final]"

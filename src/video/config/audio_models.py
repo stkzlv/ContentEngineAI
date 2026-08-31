@@ -59,7 +59,10 @@ class AudioSettings(BaseModel):
     # level for the whole clip. Off by default: it changes the sound of every
     # render, and `music_volume_db` alone is a working mix.
     music_ducking_enabled: bool = Field(False)
-    music_ducking_threshold: float = Field(0.03, gt=0.0, le=1.0)
+    # Floor is `sidechaincompress`'s own lower bound. `gt=0.0` let a value
+    # below it pass config load and abort the render at final assembly,
+    # after the script, voiceover and subtitles had all been paid for.
+    music_ducking_threshold: float = Field(0.03, ge=0.000977, le=1.0)
     music_ducking_ratio: float = Field(8.0, ge=1.0, le=20.0)
     music_ducking_attack_ms: float = Field(20.0, ge=0.01, le=2000.0)
     music_ducking_release_ms: float = Field(300.0, ge=0.01, le=9000.0)
