@@ -291,7 +291,8 @@ defaults to what the run will actually consume (`max_products` divided by
 `products_per_keyword`), taken in rotation by date. Consecutive days are
 disjoint while that number is at most half the pool -- which the bundled 10
 of 54 is -- so a daily cadence works through the pool instead of re-serving
-the head of the list. Past half the pool consecutive days must overlap. Keywords passed with `--keywords` are used exactly as given
+the head of the list. Past half the pool consecutive days must overlap.
+Keywords passed with `--keywords` are used exactly as given
 and are not rotated.
 
 ### Usage Examples
@@ -730,7 +731,8 @@ The last row is not a loss: nothing was asked for that does not exist, so
 `--strict` leaves it at 0 too. Its condition is narrower than row three's,
 which it would otherwise contradict: anything genuinely lost alongside the
 already-published products -- a keyword that returned nothing, a product
-rejected for insufficient media -- puts the run back on row three at exit 1. It is a normal outcome once the keyword
+rejected for insufficient media -- puts the run back on row three at exit 1. It
+is a normal outcome once the keyword
 rotation has walked the pool, since the same keywords then return the same
 already-published top results.
 

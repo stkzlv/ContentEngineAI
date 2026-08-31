@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.92.0] - 2026-08-31
 
 ### Added
-- A `nothing new` run outcome, exiting 0. A run whose products were all already published, and which lost nothing else, produced nothing -- but nothing was asked for that does not exist -- it used to report `PIPELINE FAILED ... 0 failed, 0 skipped`, contradicting itself, and exit 1. The rotation makes it a normal outcome, since it walks the pool in under a week and the same keywords then return the same published top results.
+- A `nothing new` run outcome, exiting 0. A run whose products were all already published, and which lost nothing else, produced nothing, but nothing was asked for that does not exist -- it used to report `PIPELINE FAILED ... 0 failed, 0 skipped`, contradicting itself, and exit 1. The rotation makes it a normal outcome, since it walks the pool in under a week and the same keywords then return the same published top results.
 - `--force` on the global batch, to render and publish a product already recorded as published. Matches the flag the `single` and `schedule` paths already carry.
 - `global_batch.keywords_per_run`, how many keywords one run searches. Defaults to what the run will actually consume (`max_products` / `products_per_keyword`).
 
