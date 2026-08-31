@@ -1097,7 +1097,8 @@ class GlobalPipelineOrchestrator:
                     platform.lower()
                     for platform in (self.config.platforms or self._default_platforms())
                 ]
-                dropped_ids = set(getattr(self, "_skipped_as_published", []))
+                dropped = getattr(self, "_skipped_as_published", [])
+                dropped_ids = set(dropped)
                 produced_videos = []
                 for pid in self.state.production_completed_products:
                     if pid in dropped_ids:
@@ -1113,11 +1114,17 @@ class GlobalPipelineOrchestrator:
                         )
                         continue
                     produced_videos.append((render, pid))
-                if dropped_ids:
+                if dropped:
                     # The cached summary predates the drop, so it reports
                     # zero and contradicts the log line above it.
-                    production_summary.already_published = len(dropped_ids)
-                    production_summary.already_published_products = sorted(dropped_ids)
+                    #
+                    # Count and list both come from `dropped`, not from the
+                    # set: the other two routes list in discovery order, and
+                    # taking the count from the set while listing from
+                    # elsewhere lets the two disagree if a product ever
+                    # appears twice.
+                    production_summary.already_published = len(dropped)
+                    production_summary.already_published_products = list(dropped)
             else:
                 logger.info("=" * 80)
                 logger.info("VIDEO PRODUCTION PHASE")

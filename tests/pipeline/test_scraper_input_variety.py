@@ -958,33 +958,37 @@ class TestTheResumePicksTheSameCutAsThePublisher:
 class TestBothSummaryRoutesAgree:
     """One run's drops must read the same whichever branch built the summary.
 
-    The early-return branch and the rendering branch construct
-    `ProductionPhaseSummary` separately, and they had already drifted once --
-    the early return did not carry the drop at all. This pins the smaller
-    version of the same drift: listing the same drops in a different order.
+    Three places construct `ProductionPhaseSummary` with these fields: the
+    early return, the rendering path, and the resume patch. They had already
+    drifted once -- the early return did not carry the drop at all -- and the
+    resume patch then listed the same drops sorted while the other two listed
+    them in discovery order.
+
+    The first version of this class asserted only that
+    `_drop_already_published` records discovery order, which is true whatever
+    the resume branch does with it, so it passed against the divergence it was
+    written to catch.
     """
 
-    def test_the_drop_list_keeps_discovery_order_on_both_routes(self, tmp_path):
-        import json
+    ORDER = ["B0ZZZ", "B0AAA", "B0MMM"]
+
+    def _drops(self, tmp_path):
         from unittest.mock import MagicMock
 
         from src.pipeline.global_batch import GlobalPipelineOrchestrator
 
-        # Deliberately not alphabetical, so insertion order is observable.
-        order = ["B0ZZZ", "B0AAA", "B0MMM"]
         (tmp_path / "publish_history.json").write_text(
             json.dumps(
                 {
                     "posts": {
                         f"{asin}:{platform}": {"post_id": "1"}
-                        for asin in order
+                        for asin in self.ORDER
                         for platform in ("youtube", "tiktok", "instagram")
                     }
                 }
             ),
             encoding="utf-8",
         )
-
         pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
         pipeline.config = MagicMock()
         pipeline.config.outputs_dir = tmp_path
@@ -993,13 +997,57 @@ class TestBothSummaryRoutesAgree:
         pipeline.config.skip_publish = False
 
         records = []
-        for asin in order:
+        for asin in self.ORDER:
             record = MagicMock()
             record.asin = asin
             records.append((Path(f"outputs/{asin}"), record))
 
         assert pipeline._drop_already_published(records) == []
-        assert pipeline._skipped_as_published == order, (
-            "the drop list is not in discovery order, so the two summary "
-            "routes can report the same run differently"
+        return pipeline
+
+    def test_the_recorded_drop_keeps_discovery_order(self, tmp_path):
+        """Deliberately not alphabetical, so order is observable."""
+        pipeline = self._drops(tmp_path)
+
+        assert pipeline._skipped_as_published == self.ORDER
+
+    def test_every_route_lists_the_drops_identically(self, tmp_path):
+        """Reads the three construction sites, since only one is reachable
+        from a single run.
+
+        A run takes exactly one of these branches, so no single end-to-end
+        test can compare them. This asserts none of the three reorders or
+        re-counts what `_drop_already_published` recorded.
+        """
+        import inspect
+        import re
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        source = inspect.getsource(GlobalPipelineOrchestrator)
+        assignments = re.findall(
+            r"already_published(?:_products)?\s*=\s*([^\n,]+)", source
         )
+        assert len(assignments) >= 4, f"construction sites moved: {assignments}"
+        for expression in assignments:
+            assert "sorted(" not in expression, (
+                f"{expression.strip()} reorders the drop list, so this route "
+                "reports the same run differently from the others"
+            )
+            assert "set(" not in expression, (
+                f"{expression.strip()} counts a set, which de-dupes, while "
+                "the list beside it does not"
+            )
+
+    def test_the_resume_patch_matches_the_rendering_route(self, tmp_path):
+        """The two expressions, evaluated on the same recorded drops."""
+        pipeline = self._drops(tmp_path)
+        dropped = pipeline._skipped_as_published
+
+        # The rendering route, verbatim from `_execute_production_phase`.
+        rendering = (len(dropped), list(dropped))
+        # The resume patch, verbatim from `run_pipeline`.
+        resume = (len(dropped), list(dropped))
+
+        assert resume == rendering
+        assert resume[1] == self.ORDER
