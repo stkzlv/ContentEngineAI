@@ -809,10 +809,11 @@ class GlobalPipelineOrchestrator:
         print("PHASE 2: HANDOFF")
         print(f"{section}")
         print("  Action: Discover scraped products with sufficient media")
-        print(
-            "  Filter: Skip products already published on every target "
-            "platform (--force overrides; topics are exempt)"
-        )
+        if not (self.config.skip_publish or getattr(self.config, "force", False)):
+            print(
+                "  Filter: Skip products already published on every target "
+                "platform (topics are exempt)"
+            )
         print("  Validation: Check data.json exists and has images/videos")
         print()
 
@@ -1062,11 +1063,27 @@ class GlobalPipelineOrchestrator:
                     f"{production_summary.failed} failed"
                 )
                 logger.info(msg)
-                # Reconstruct produced_videos from state
+                # Reconstruct produced_videos from state, minus anything the
+                # handoff guard just dropped.
+                #
+                # The guard runs on a resume -- handoff is never skipped --
+                # but this branch rebuilds the publish list from the *saved*
+                # run, which still names the products the guard removed. So a
+                # resume logged "Skipping 1 already-published product" and
+                # then published it anyway: the duplicate live post this
+                # exists to prevent, on the one path that reaches publishing
+                # without passing through production.
+                dropped_ids = set(getattr(self, "_skipped_as_published", []))
                 produced_videos = [
                     (self.config.outputs_dir / pid / "video.mp4", pid)
                     for pid in self.state.production_completed_products
+                    if pid not in dropped_ids
                 ]
+                if dropped_ids:
+                    # The cached summary predates the drop, so it reports
+                    # zero and contradicts the log line above it.
+                    production_summary.already_published = len(dropped_ids)
+                    production_summary.already_published_products = sorted(dropped_ids)
             else:
                 logger.info("=" * 80)
                 logger.info("VIDEO PRODUCTION PHASE")
@@ -1564,6 +1581,14 @@ class GlobalPipelineOrchestrator:
         title, so once published it would be skipped on every later run and
         the tutorial arm would stop producing silently -- the bundled config
         ships two topics at one per run, so that lands on day three.
+
+        This assumes `default_platforms` names platforms the install actually
+        has accounts for. The publish phase only records a platform it could
+        publish to, so a platform listed here with no connected account never
+        accumulates a tracking key, `all(...)` is never satisfied, and the
+        guard quietly never fires. That install has a louder problem -- every
+        such publish is already counted a failure -- but it is worth knowing
+        that this goes silent rather than half-firing.
         """
         from src.publisher.tracking import is_already_published
         from src.video.producer.topic_input import TOPIC_ID_PREFIX

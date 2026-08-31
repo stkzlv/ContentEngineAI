@@ -31,7 +31,9 @@ global_batch:
   keywords: {}
 
   # How many keywords one run searches, taken in rotation from the pool by
-  # date so consecutive days are disjoint. Defaults to what the run will
+  # date. Consecutive days are disjoint while this is at most half the pool;
+  # past that they must overlap, and measurably do (30 of 54 shares six with
+  # the next day, 40 shares twenty-six). Defaults to what the run will
   # actually consume (`max_products` / `products_per_keyword`), which is the
   # width that makes the rotation land on fresh keywords rather than
   # re-serving the head of the list.

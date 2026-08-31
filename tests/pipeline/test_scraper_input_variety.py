@@ -644,3 +644,185 @@ class TestTheDropReachesTheVerdict:
         assert summary.outcome() == "nothing new"
         assert summary.exit_code() == 0
         assert summary.exit_code(strict=True) == 0
+
+    @pytest.mark.asyncio
+    async def test_a_resume_does_not_republish_a_dropped_product(
+        self, tmp_path, monkeypatch
+    ):
+        """The one path that reaches publishing without passing production.
+
+        A resume rebuilds the publish list from the saved run, which still
+        names the products the guard just dropped -- so the run logged
+        "Skipping 1 already-published product" and then published it anyway,
+        which is the duplicate live post this whole change exists to stop.
+        """
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.pipeline.config import (
+            PipelinePhase,
+            PipelineState,
+            ScrapingPhaseSummary,
+        )
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        published, fresh = "B0PUBLISHED", "B0FRESH0001"
+        for asin in (published, fresh):
+            (tmp_path / asin).mkdir()
+        (tmp_path / "publish_history.json").write_text(
+            json.dumps(
+                {
+                    "posts": {
+                        f"{published}:{p}": {"post_id": "1"}
+                        for p in ("youtube", "tiktok", "instagram")
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        pipeline.config = MagicMock()
+        pipeline.config.outputs_dir = tmp_path
+        pipeline.config.platforms = None
+        pipeline.config.force = False
+        pipeline.config.skip_publish = False
+        pipeline.config.process_all_products = True
+        pipeline.config.topics = []
+        pipeline.config.keywords = ["anything"]
+        pipeline.config.strict = False
+        pipeline.config.resume = True
+
+        pipeline.state = PipelineState.create_new(pipeline.config)
+        pipeline.state.mark_phase_complete(PipelinePhase.PRODUCTION)
+        pipeline.state.production_completed_products = [published, fresh]
+        pipeline.state.production_summary = {
+            "total_attempted": 2,
+            "successful": 2,
+            "failed": 0,
+            "skipped": 0,
+            "failed_products": [],
+            "skipped_products": [],
+            "profile_distribution": None,
+            "duration_sec": 1.0,
+        }
+        pipeline._save_state = MagicMock()  # type: ignore[method-assign]
+
+        records = []
+        for asin in (published, fresh):
+            record = MagicMock()
+            record.asin = asin
+            records.append((tmp_path / asin, record))
+
+        monkeypatch.setattr(
+            "src.video.producer.cli.discover_products_for_batch",
+            lambda *a, **k: records,
+        )
+        pipeline._execute_scraping_phase = AsyncMock(  # type: ignore[method-assign]
+            return_value=ScrapingPhaseSummary(2, 2, 0, [published, fresh], [], {}, 1.0)
+        )
+        pipeline._notify_webhook = AsyncMock()  # type: ignore[method-assign]
+        from src.pipeline.config import PublishingPhaseSummary
+
+        publish = AsyncMock(
+            return_value=PublishingPhaseSummary(1, 1, 0, 0, [], [], {}, [], 1.0)
+        )
+        pipeline._execute_publishing_phase = publish  # type: ignore[method-assign]
+
+        summary = await pipeline.run_pipeline()
+
+        handed_to_publish = [pid for _, pid in publish.call_args.args[0]]
+        assert published not in handed_to_publish, (
+            "a resume handed an already-published product to the publish "
+            "phase, which has no guard of its own, so it posts a duplicate"
+        )
+        assert handed_to_publish == [fresh]
+        assert summary.production.already_published == 1
+
+    @pytest.mark.asyncio
+    async def test_a_mixed_run_reports_both_the_render_and_the_drop(
+        self, tmp_path, monkeypatch
+    ):
+        """The other carry, which a mutation showed nothing was asserting.
+
+        One product dropped and one rendered takes the *rendering* branch, so
+        the count comes from `_execute_production_phase`'s summary rather
+        than the early return. Deleting that pair of arguments left the whole
+        suite green, which is the same gap the early-return carry had.
+        """
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.pipeline.config import ScrapingPhaseSummary
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        published, fresh = "B0PUBLISHED", "B0FRESH0001"
+        for asin in (published, fresh):
+            (tmp_path / asin).mkdir()
+        (tmp_path / "publish_history.json").write_text(
+            json.dumps(
+                {
+                    "posts": {
+                        f"{published}:{p}": {"post_id": "1"}
+                        for p in ("youtube", "tiktok", "instagram")
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        pipeline.config = MagicMock()
+        pipeline.config.outputs_dir = tmp_path
+        pipeline.config.platforms = None
+        pipeline.config.force = False
+        # Not `--skip-publish`: that short-circuits the guard.
+        pipeline.config.skip_publish = False
+        pipeline.config.process_all_products = True
+        pipeline.config.topics = []
+        pipeline.config.keywords = ["anything"]
+        pipeline.config.strict = False
+        pipeline.config.resume = False
+        pipeline.config.random_profile = False
+        pipeline.config.profile = "slideshow_images1"
+        pipeline.config.profile_pool = ["slideshow_images1"]
+        pipeline.config.topic_profile_pool = []
+        pipeline.config.fail_fast = False
+        pipeline.config.pillar = None
+
+        records = []
+        for asin in (published, fresh):
+            record = MagicMock()
+            record.asin = asin
+            records.append((tmp_path / asin, record))
+
+        monkeypatch.setattr(
+            "src.video.producer.cli.discover_products_for_batch",
+            lambda *a, **k: records,
+        )
+        from src.pipeline.config import PipelineState
+
+        pipeline.state = PipelineState.create_new(pipeline.config)
+        pipeline._save_state = MagicMock()  # type: ignore[method-assign]
+        pipeline._execute_scraping_phase = AsyncMock(  # type: ignore[method-assign]
+            return_value=ScrapingPhaseSummary(2, 2, 0, [published, fresh], [], {}, 1.0)
+        )
+        pipeline._notify_webhook = AsyncMock()  # type: ignore[method-assign]
+        # Only the render is stubbed. `_execute_production_phase` itself runs,
+        # so the carry under test is the production code's, not the test's --
+        # stubbing the whole phase would assert a copy of the line it is
+        # supposed to be proving.
+        monkeypatch.setattr(
+            "src.video.producer.orchestration.create_video_for_product",
+            AsyncMock(return_value=tmp_path / fresh / "video.mp4"),
+        )
+
+        from src.pipeline.config import PublishingPhaseSummary
+
+        pipeline._execute_publishing_phase = AsyncMock(  # type: ignore[method-assign]
+            return_value=PublishingPhaseSummary(1, 1, 0, 0, [], [], {}, [], 1.0)
+        )
+
+        summary = await pipeline.run_pipeline()
+
+        assert summary.production.already_published == 1
+        assert summary.production.already_published_products == [published]
+        assert summary.production.total_attempted == 1

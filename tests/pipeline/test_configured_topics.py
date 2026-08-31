@@ -1,7 +1,8 @@
 """A run with no input flags must be able to produce both content formats.
 
-`config/pipeline.yaml::global_batch.keywords` gives a zero-argument batch its
-inputs, and every configured keyword is a physical product. There was no
+A zero-argument batch draws its keyword inputs from
+`config/scraper.yaml::batch.keywords`, through the fallback for an empty
+`global_batch.keywords`, and every configured keyword is a physical product. There was no
 equivalent for topics, so a topic could only enter a run by being typed on that
 day's command line -- which meant the repeatable path, the one a scheduled run
 uses, produced product renders and nothing else, and the tutorial arm could not

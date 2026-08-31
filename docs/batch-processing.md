@@ -289,8 +289,9 @@ adding to it, so a single entry there narrows every batch run to one keyword.
 A run does not search the whole pool. It searches `keywords_per_run`, which
 defaults to what the run will actually consume (`max_products` divided by
 `products_per_keyword`), taken in rotation by date. Consecutive days are
-disjoint, so a daily cadence works through the pool instead of re-serving the
-head of the list. Keywords passed with `--keywords` are used exactly as given
+disjoint while that number is at most half the pool -- which the bundled 10
+of 54 is -- so a daily cadence works through the pool instead of re-serving
+the head of the list. Past half the pool consecutive days must overlap. Keywords passed with `--keywords` are used exactly as given
 and are not rotated.
 
 ### Usage Examples
@@ -720,6 +721,12 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 | Every product completed end-to-end | 0 | `PIPELINE COMPLETED SUCCESSFULLY` |
 | Some products completed, some were lost | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH LOSSES` |
 | No product completed end-to-end | 1 | `PIPELINE FAILED` |
+| Every product was already published | 0 (0 with `--strict`) | `PIPELINE COMPLETED SUCCESSFULLY` |
+
+The last row is not a loss: nothing was asked for that does not exist, so
+`--strict` leaves it at 0 too. It is a normal outcome once the keyword
+rotation has walked the pool, since the same keywords then return the same
+already-published top results.
 
 "Lost" covers both a product whose step failed and one reported skipped for
 insufficient media.
