@@ -247,10 +247,11 @@ class VisualFilterBuilder:
         # `_label_body` is what makes the generated one a valid label. The
         # old default was `f"{input_label}_scaled"`, which yields
         # `[0:v]_scaled` -- brackets in the middle, and a `:` that FFmpeg
-        # reads as an argument separator. Letterbox got away with it because
-        # the only malformed label was the one the caller appends, but
-        # blur-fill derives its internal labels from this one, so a default
-        # label produced a chain FFmpeg rejects outright.
+        # reads as an argument separator. Every mode returns that label and
+        # the caller appends it, so every mode was rejected the same way
+        # (`Trailing garbage after a filter`); blur-fill additionally derived
+        # four internal labels from it. No production caller omits the
+        # argument, which is why nothing had hit it.
         if output_label is None:
             output_label = f"[{_label_body(input_label)}_scaled]"
 

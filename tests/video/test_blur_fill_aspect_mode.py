@@ -138,10 +138,10 @@ class TestTheChainIsWellFormed:
 
         The default used to be `f"{input_label}_scaled"`, giving
         `[0:v]_scaled`: brackets in the middle and a `:` FFmpeg reads as an
-        argument separator. Letterbox tolerated it because the only malformed
-        label was the one the caller appends; blur-fill builds four internal
-        labels from it, and ffmpeg rejected the result with "Trailing garbage
-        after a filter".
+        argument separator. Every mode returns that label and the caller
+        appends it, so every mode was rejected with "Trailing garbage after a
+        filter" -- letterbox included, measured at exit 234. blur-fill
+        additionally builds four internal labels from it.
         """
         builder = _builder()
         filter_string, label, _ = builder.apply_aspect_ratio_mode(
