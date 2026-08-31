@@ -23,9 +23,19 @@ Spoken script:
 - Cover different moments of the script. If it names a problem and then a fix,
   one phrase for the problem and one for the fix beats three phrases for the
   same object.
-- Name the object, and where it is or who is holding it. A bare category name
-  returns a catalogue page; the same object with a place or a pair of hands
-  returns a scene.
+- Spend the words on the subject. `hand`, `person`, `someone`, `holding` and
+  `using` appear in a large share of the library's captions, so they narrow
+  nothing while taking two of the words you have. Name a person only when what
+  they are doing is the subject, not to give the object company.
+- If the object's name has more than one common meaning, add the word that
+  picks the right one. That is what stops a category search returning a
+  catalogue page -- being specific about which thing, not attaching a human to
+  a vague one.
+- Do not make a substance, a measurement or a settings screen the thing the
+  phrase is about. A library is indexed by what a photographer would call the
+  object in front of the lens, so a phrase whose subject is a quantity or a
+  material matches whatever else shares those words. Such a word is fine as a
+  qualifier on a real object; it just cannot be the object.
 - Only things the script actually mentions or implies. Do not introduce a
   product, a brand, or a setting the narration never refers to.
 - Plain nouns, no hashtags, no camera jargon ("bokeh", "macro", "4k"), no
@@ -33,17 +43,22 @@ Spoken script:
 
 ## Shape
 
-Each phrase names a thing and where it is, or who is handling it:
+Each phrase names a thing, qualified until only that thing comes back:
 
-    <object> <preposition> <place>        e.g. object on a surface
-    <body part> <verb-ing> <object>       e.g. hand doing something to it
-    <person> <verb-ing> <object>          e.g. someone using it
+    <qualifier> <qualifier> <object>      what kind, then what it is
+    <object> <qualifier> <qualifier>      either order, whichever reads
 
-Every phrase needs both halves: the object, and the place or the person.
-An object on its own is the category search the rules above rule out.
+The qualifiers are how a phrase reaches the length above. Reaching it by naming
+a body part or a person instead is the failure the rules describe: it fills the
+words without saying anything about the shot. If you cannot think of a second
+qualifier, a place or an action the narration actually describes will do -- but
+it is the last resort, not the shape.
 
-Fill those from the script in front of you. The objects come from the
-narration and nowhere else.
+A phrase shorter than the length above is thrown away before it is searched,
+and the render falls back to one generic search for the whole video. Two words
+is not a short phrase, it is a discarded one.
+
+Take the objects from the script in front of you and nowhere else.
 
 Bad, and why:
 
@@ -51,6 +66,12 @@ Bad, and why:
 - "beautiful modern smartphone product shot" - hype plus jargon, and it asks
   for the product photography this video does not have.
 - "phone" - a category, not a shot. Every result looks like a catalogue page.
+- Any phrase that attaches a hand or a person to an object that could stand on
+  its own. Those words are in a large share of the library's captions, so they
+  match everything and leave too few words to say what the shot is of. A person
+  belongs in the phrase when what they are doing is the shot.
+- Any phrase naming a substance, a measurement or a settings screen rather than
+  a thing that can be photographed. The library has no picture of a quantity.
 - Any phrase naming an object this script never mentions. A phrase that would
   suit a different video is the failure this task has, not a stylistic slip:
   the viewer watches it while hearing something else.
