@@ -18,7 +18,10 @@ def _summary(
 
     return PipelineSummary(
         scraping=MagicMock(),
-        production=MagicMock(skipped=skipped),
+        # `already_published` has to be a real int: `outcome` compares it, and
+        # a bare MagicMock raises rather than reading as zero. A run with no
+        # drops is the case every assertion in this file is about.
+        production=MagicMock(skipped=skipped, already_published=0),
         publishing=MagicMock(skipped=publish_skipped) if publish_skipped else None,
         end_to_end_success=succeeded,
         partial_success=0,

@@ -354,6 +354,14 @@ Examples:
         help="Skip publishing phase (default: publish videos to social media)",
     )
     publisher_group.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Render and publish products already recorded as published. "
+            "By default the batch skips them before the render, not after."
+        ),
+    )
+    publisher_group.add_argument(
         "--platforms",
         nargs="+",
         choices=["youtube", "tiktok", "instagram"],
@@ -801,6 +809,11 @@ class GlobalPipelineOrchestrator:
         print("PHASE 2: HANDOFF")
         print(f"{section}")
         print("  Action: Discover scraped products with sufficient media")
+        if not (self.config.skip_publish or getattr(self.config, "force", False)):
+            print(
+                "  Filter: Skip products already published on every target "
+                "platform (topics are exempt)"
+            )
         print("  Validation: Check data.json exists and has images/videos")
         print()
 
@@ -1011,7 +1024,16 @@ class GlobalPipelineOrchestrator:
         # Check if any products are ready
         if not ready_products:
             logger.warning("No products with sufficient media for video production")
-            # Return early with empty production summary
+            # Return early with empty production summary.
+            #
+            # The drop count has to be carried here as well as into the
+            # rendering path, and this is the branch that matters: when the
+            # guard drops *every* product there is nothing to render, so the
+            # `nothing new` outcome fired only on runs that were never the
+            # problem. Getting this wrong left the headline symptom -- a
+            # correct run reporting PIPELINE FAILED and exiting 1 -- in place
+            # while three documents said it was fixed.
+            dropped = getattr(self, "_skipped_as_published", [])
             production_summary = ProductionPhaseSummary(
                 total_attempted=0,
                 successful=0,
@@ -1021,6 +1043,8 @@ class GlobalPipelineOrchestrator:
                 skipped_products=[],
                 profile_distribution=None,
                 duration_sec=0.0,
+                already_published=len(dropped),
+                already_published_products=list(dropped),
             )
             produced_videos: list[tuple[Path, str]] = []
         else:
@@ -1039,11 +1063,68 @@ class GlobalPipelineOrchestrator:
                     f"{production_summary.failed} failed"
                 )
                 logger.info(msg)
-                # Reconstruct produced_videos from state
-                produced_videos = [
-                    (self.config.outputs_dir / pid / "video.mp4", pid)
-                    for pid in self.state.production_completed_products
+                # Reconstruct produced_videos from state, minus anything the
+                # handoff guard just dropped.
+                #
+                # The path is resolved rather than composed. This built
+                # `outputs/<id>/video.mp4`, a name nothing writes -- renders
+                # are `video_<id>_<profile>.mp4` -- so every product on a
+                # resumed publish failed at `upload_media` before reaching
+                # the scheduler. `sole_render_for_product` is the resolver
+                # `single`, `schedule` and the immediate batch already share,
+                # so a resume now picks the same cut they would.
+                #
+                # The guard runs on a resume (handoff is never skipped), but
+                # this branch rebuilds the publish list from the *saved* run,
+                # which still names the products the guard removed. Filtering
+                # here is what keeps a dropped product out of the one path
+                # that reaches publishing without passing through production.
+                from src.publisher.video_selector import sole_render_for_product
+
+                # Routed the way the publisher routes it, not by taking the
+                # alphabetically first file. A product rendered under two
+                # profiles has two files in its directory, and the bare
+                # resolver would hand the resumed publish a different cut
+                # from the one the publish phase would have chosen.
+                #
+                # Parity with the other discoverers is the goal here, not
+                # replaying the interrupted run: the state records product
+                # ids and not paths, so which cut *that* run produced is not
+                # recoverable. `schedule` and the immediate batch accept any
+                # one render per product by the same rule, so a resume now
+                # answers the question the same way they do.
+                platforms_for_resume = [
+                    platform.lower()
+                    for platform in (self.config.platforms or self._default_platforms())
                 ]
+                dropped = getattr(self, "_skipped_as_published", [])
+                dropped_ids = set(dropped)
+                produced_videos = []
+                for pid in self.state.production_completed_products:
+                    if pid in dropped_ids:
+                        continue
+                    render = sole_render_for_product(
+                        self.config.outputs_dir / pid,
+                        self._publisher_profiles(),
+                        platforms_for_resume[0] if platforms_for_resume else "",
+                    )
+                    if render is None:
+                        logger.warning(
+                            "Resume: no render found for %s, skipping publish", pid
+                        )
+                        continue
+                    produced_videos.append((render, pid))
+                if dropped:
+                    # The cached summary predates the drop, so it reports
+                    # zero and contradicts the log line above it.
+                    #
+                    # Count and list both come from `dropped`, not from the
+                    # set: the other two routes list in discovery order, and
+                    # taking the count from the set while listing from
+                    # elsewhere lets the two disagree if a product ever
+                    # appears twice.
+                    production_summary.already_published = len(dropped)
+                    production_summary.already_published_products = list(dropped)
             else:
                 logger.info("=" * 80)
                 logger.info("VIDEO PRODUCTION PHASE")
@@ -1503,6 +1584,8 @@ class GlobalPipelineOrchestrator:
                 len(ready_products),
             )
 
+        ready_products = self._drop_already_published(ready_products)
+
         # Log transition
         if ready_products:
             logger.info("%s product(s) ready for video production", len(ready_products))
@@ -1510,6 +1593,132 @@ class GlobalPipelineOrchestrator:
             logger.warning("No products ready for video production")
 
         return ready_products
+
+    def _drop_already_published(
+        self, products: list[tuple[Path, Any]]
+    ) -> list[tuple[Path, Any]]:
+        """Drop products already recorded as published on every platform.
+
+        The batch had no duplicate guard at all. `single` and `schedule` skip
+        an already-published product; the batch's publish phase did not, so a
+        re-scraped product was rendered and then published a second time --
+        a duplicate Zernio post, with the tracking row overwritten by the new
+        `post_id` while the older post stayed live. So this stops the
+        duplicate as well as the render, which is why it is on by default and
+        why `--force` exists to get the old behaviour back.
+
+        `publish_history.json` is the file that backs the guard, keyed by
+        `<asin>:<platform>`; `published_products.json` records what was
+        produced rather than what went live and cannot answer this. A product
+        published to some platforms but not all is kept, since the run still
+        has somewhere to send it.
+
+        Skipped entirely when `--force` is set, which is the flag that already
+        means "publish it again" on the single and schedule paths, and when
+        `--skip-publish` is set, where there is no duplicate to prevent and
+        re-rendering a published product is the point of the run.
+
+        Topics are never dropped. A topic's id is a pure function of its
+        title, so once published it would be skipped on every later run and
+        the tutorial arm would stop producing silently -- the bundled config
+        ships two topics at one per run, so that lands on day three.
+
+        This assumes `default_platforms` names platforms the install actually
+        has accounts for. The publish phase only records a platform it could
+        publish to, so a platform listed here with no connected account never
+        accumulates a tracking key, `all(...)` is never satisfied, and the
+        guard quietly never fires. That install has a louder problem -- every
+        such publish is already counted a failure -- but it is worth knowing
+        that this goes silent rather than half-firing.
+        """
+        from src.publisher.tracking import is_already_published
+        from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+        if (
+            getattr(self.config, "force", False)
+            or getattr(self.config, "skip_publish", False)
+            or not products
+        ):
+            return products
+
+        # The list the publish phase will actually target, read the same way
+        # it reads it. A hardcoded triple demanded tiktok of an install whose
+        # `default_platforms` omits it, so a product complete for that install
+        # was re-rendered and re-published (#126 tracks folding the three
+        # inline reads in this module into the loaded config).
+        # Lowercased: `record_publish` always writes `Platform(...).value`,
+        # and `is_already_published` does an exact key match. Config
+        # validation accepts mixed case and keeps the original spelling, so
+        # `platforms: [YouTube]` would look up a key nothing ever writes and
+        # silently keep every product.
+        platforms = [
+            platform.lower()
+            for platform in (self.config.platforms or self._default_platforms())
+        ]
+        kept, skipped = [], []
+        for path, data in products:
+            asin = getattr(data, "asin", None)
+            if (
+                asin
+                and not asin.startswith(TOPIC_ID_PREFIX)
+                and all(
+                    is_already_published(asin, platform, self.config.outputs_dir)
+                    for platform in platforms
+                )
+            ):
+                skipped.append(asin)
+            else:
+                kept.append((path, data))
+
+        if skipped:
+            logger.info(
+                "Skipping %s already-published product(s) before render: %s",
+                len(skipped),
+                ", ".join(skipped),
+            )
+        self._skipped_as_published = skipped
+        return kept
+
+    def _publisher_profiles(self) -> dict[str, str] | None:
+        """Per-platform render profiles, as the publish phase would read them.
+
+        Only used to resolve which cut of a product a resumed publish sends,
+        so it has to answer the same question `BatchPublisher` asks.
+        """
+        import yaml
+
+        config_path = Path("config/publisher.yaml")
+        if not config_path.exists():
+            return None
+        try:
+            with open(config_path, encoding="utf-8") as handle:
+                publisher_config = yaml.safe_load(handle) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        profiles = publisher_config.get("profiles")
+        return profiles if isinstance(profiles, dict) else None
+
+    def _default_platforms(self) -> list[str]:
+        """The platforms a publish would target, absent a CLI override.
+
+        Reads `publisher.yaml` first and falls back to the literal, which is
+        what `print_plan` and `_execute_publishing_phase` already do. The
+        duplicate guard has to ask the same question they do, or it decides
+        completeness against platforms this install never publishes to.
+        """
+        import yaml
+
+        config_path = Path("config/publisher.yaml")
+        if config_path.exists():
+            try:
+                with open(config_path, encoding="utf-8") as handle:
+                    publisher_config = yaml.safe_load(handle) or {}
+            except (OSError, yaml.YAMLError):
+                publisher_config = {}
+            configured = publisher_config.get("default_platforms")
+            if configured:
+                return list(configured)
+        return ["youtube", "tiktok", "instagram"]
 
     async def _execute_production_phase(
         self, products: list[tuple[Path, ProductData]]
@@ -1750,6 +1959,11 @@ class GlobalPipelineOrchestrator:
             duration,
         )
 
+        # Carried from the handoff drop so the summary says why a run that
+        # rendered nothing rendered nothing. Without it the verdict is
+        # "PIPELINE FAILED ... 0 failed, 0 skipped", which contradicts itself
+        # and exits 1 on a correct result.
+        already_published = getattr(self, "_skipped_as_published", [])
         summary = ProductionPhaseSummary(
             total_attempted=total_products,
             successful=successful,
@@ -1759,6 +1973,8 @@ class GlobalPipelineOrchestrator:
             skipped_products=skipped_products,
             profile_distribution=profile_distribution,
             duration_sec=duration,
+            already_published=len(already_published),
+            already_published_products=list(already_published),
         )
 
         return summary, produced_videos

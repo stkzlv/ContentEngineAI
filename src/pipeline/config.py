@@ -26,6 +26,7 @@ Configuration Precedence:
 import argparse
 import json
 import logging
+import math
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
@@ -381,6 +382,10 @@ class GlobalBatchConfig:
 
     # Publishing configuration
     skip_publish: bool = False
+    # Render a product `publish_history.json` already records as published on
+    # every target platform. Off by default: the batch used to pay the whole
+    # render for such a product and let the publish phase drop it.
+    force: bool = False
     platforms: list[str] | None = None
     schedule_time: str | None = None
     fail_fast_publish: bool = False
@@ -469,6 +474,12 @@ class ProductionPhaseSummary:
     skipped_products: list[str]
     profile_distribution: dict[str, int] | None
     duration_sec: float
+    # Products dropped before the render because they are already published
+    # everywhere this run would publish. Not a loss and not a skip: nothing
+    # was asked for that does not exist. Defaulted so the summaries built
+    # elsewhere in the module keep working.
+    already_published: int = 0
+    already_published_products: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -542,7 +553,8 @@ class PipelineSummary:
         return skipped
 
     def outcome(self) -> str:
-        """What the run did: ``"failed"``, ``"lost"`` or ``"succeeded"``.
+        """What the run did: ``"failed"``, ``"lost"``, ``"nothing new"`` or
+        ``"succeeded"``.
 
         Derived here so the end-of-run verdict and the exit code cannot
         disagree. They were computed separately once, and a run that lost
@@ -550,6 +562,18 @@ class PipelineSummary:
         completed successfully.
         """
         if self.end_to_end_success == 0:
+            # A run that produced nothing because there was nothing new to
+            # produce has done what was asked. Reporting it as a failure
+            # pages whoever watches the cron for a correct result, and the
+            # rotation makes it a normal outcome: it walks the whole keyword
+            # pool in under a week, so from the second week the same
+            # keywords return the same already-published top results.
+            if (
+                self.production.already_published > 0
+                and self.total_failures == 0
+                and self.total_skipped() == 0
+            ):
+                return "nothing new"
             return "failed"
         if self.total_failures > 0 or self.total_skipped() > 0:
             return "lost"
@@ -571,7 +595,10 @@ class PipelineSummary:
         the flag exists to break.
         """
         if self.end_to_end_success == 0:
-            return 1
+            # "nothing new" is not a failure: see `outcome`. Under `strict`
+            # it stays 0 too, because strict exists to catch a product that
+            # was asked for and does not exist, and nothing was asked for.
+            return 0 if self.outcome() == "nothing new" else 1
         if strict and self.outcome() == "lost":
             return 1
         return 0
@@ -619,6 +646,12 @@ class PipelineSummary:
                 f"  Skipped: {self.production.skipped}",
             ]
         )
+
+        if self.production.already_published:
+            lines.append(
+                f"  Already Published (not re-rendered): "
+                f"{', '.join(self.production.already_published_products)}"
+            )
 
         if self.production.skipped_products:
             lines.append(
@@ -740,6 +773,14 @@ class PipelineSummary:
                 "skipped_products": self.production.skipped_products,
                 "profile_distribution": self.production.profile_distribution,
                 "duration_sec": round(self.production.duration_sec, 2),
+                # Named here too, or the JSON and the text summary of one run
+                # disagree about what is knowable: a wrapper would see four
+                # attempted with no failures and no skips, and nothing saying
+                # where the other six went.
+                "already_published": self.production.already_published,
+                "already_published_products": (
+                    self.production.already_published_products
+                ),
             },
             "publishing": None,
             "end_to_end": {
@@ -812,6 +853,69 @@ def topics_for_run(
     return [configured[(start + i) % len(configured)] for i in range(count)]
 
 
+def _scraper_keyword_pool(
+    scraper_config_path: str | Path = "config/scraper.yaml",
+) -> tuple[list[str], dict[str, str]]:
+    """The scraper's `batch.keywords`, read through the shared reader.
+
+    Not an import of the scraper's config loader: that builds a whole
+    `BatchConfig` and pulls in the scraper package for what is one key. The
+    reader is the same one both loaders already use, so the two files cannot
+    disagree about the dict-of-pillars shape.
+
+    Callers pass the sibling of the pipeline config being loaded rather than
+    letting this default fire, so pointing the batch at another config
+    directory reads that directory's scraper file. Reading the repo's copy
+    regardless would mean a test or a fork loading its own pipeline.yaml
+    silently picked up keywords from somewhere else.
+
+    A missing or unreadable file yields an empty pool, which leaves the batch
+    exactly where it was before this fallback existed.
+    """
+    path = Path(scraper_config_path)
+    if not path.exists():
+        return [], {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            raw = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("Could not read %s for keywords: %s", scraper_config_path, exc)
+        return [], {}
+    return read_keyword_pillars((raw.get("batch") or {}).get("keywords", []) or [])
+
+
+def keywords_for_run(
+    configured: list[str], count: int, day_ordinal: int | None = None
+) -> list[str]:
+    """Pick which configured keywords this run searches.
+
+    The batch stops at `max_products`, so a run only ever reaches the first
+    few keywords of the list it is given. Taking them from the top every time
+    made the effective catalogue as wide as the cap rather than as wide as the
+    pool: two runs an hour apart returned the same products, several of them
+    already published.
+
+    Rotated by date, like `topics_for_run`, and stateless for the same reason
+    -- a cursor would have to survive `--clean` and be reconciled after a
+    failed batch, where the date advances on its own.
+
+    The stride is `count`, not 1. `topics_for_run` takes one of a handful, so
+    stepping by one already hands back something new; a run taking ten of
+    fifty-four that stepped by one would repeat nine of yesterday's ten.
+    Stepping by the slice width makes consecutive days disjoint until the pool
+    wraps.
+    """
+    if count <= 0 or not configured:
+        return []
+
+    if day_ordinal is None:
+        day_ordinal = date.today().toordinal()
+
+    count = min(count, len(configured))
+    start = (day_ordinal * count) % len(configured)
+    return [configured[(start + i) % len(configured)] for i in range(count)]
+
+
 def load_global_batch_config(
     cli_args: argparse.Namespace, config_path: str = "config/pipeline.yaml"
 ) -> GlobalBatchConfig:
@@ -871,6 +975,27 @@ def load_global_batch_config(
         yaml_config.get("keywords", []) or []
     )
 
+    # An empty `global_batch.keywords` falls back to the scraper's pool rather
+    # than meaning "no keywords". The two files each carried their own list,
+    # and the batch's was a six-entry subset of the scraper's fifty-four, so
+    # the batch searched six however many were configured next door -- and at
+    # `products_per_keyword: 1` a six-product run exhausted it exactly, which
+    # is why two runs an hour apart returned the same already-published
+    # products. Reading one pool is also what makes the rotation below worth
+    # anything: rotating a list the cap already consumes whole changes
+    # nothing.
+    if not yaml_keywords:
+        yaml_keywords, scraper_pillars = _scraper_keyword_pool(
+            Path(config_path).parent / "scraper.yaml"
+        )
+        # `keyword_pillar_map` is empty here by construction -- the reader
+        # returns no pillars when it returns no keywords, which is the branch
+        # condition -- so this takes the scraper's map wholesale. Written as a
+        # merge rather than an assignment only to keep the precedence
+        # explicit if that ever stops being true. Setting the batch key
+        # *replaces* the pool; it does not re-pillar one keyword of it.
+        keyword_pillar_map = {**scraper_pillars, **keyword_pillar_map}
+
     # How many configured topics a no-flag run includes. CLI topics ignore it:
     # a topic named on the command line was asked for explicitly.
     topics_per_run = yaml_config.get("topics_per_run", 1)
@@ -880,6 +1005,28 @@ def load_global_batch_config(
             f"{topics_per_run!r}"
         )
 
+    # Only the configured pool rotates. Keywords typed on the command line
+    # were asked for by name, so a run must search exactly those.
+    rotate_keywords = False
+    # Validated here rather than beside its use, so a bad value is refused on
+    # every run. Inside the rotation branch it was skipped whenever the CLI
+    # supplied inputs, so a quoted `keywords_per_run: "10"` loaded fine on a
+    # hand-run `--product-ids` batch and then killed the next scheduled one.
+    configured_per_run = yaml_config.get("keywords_per_run")
+    if configured_per_run is not None:
+        if isinstance(configured_per_run, bool) or not isinstance(
+            configured_per_run, int
+        ):
+            raise ValueError(
+                f"global_batch.keywords_per_run must be an integer, got "
+                f"{configured_per_run!r}"
+            )
+        if configured_per_run < 0:
+            raise ValueError(
+                f"global_batch.keywords_per_run must not be negative, got "
+                f"{configured_per_run!r}"
+            )
+
     if cli_has_inputs:
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
@@ -887,6 +1034,7 @@ def load_global_batch_config(
     else:
         product_ids = yaml_config.get("product_ids", []) or []
         keywords = yaml_keywords
+        rotate_keywords = True
         # Without this the tutorial arm could only enter a run by being typed
         # on that day's command line, so the repeatable path -- the one a
         # scheduled run uses -- produced product renders and nothing else.
@@ -908,6 +1056,24 @@ def load_global_batch_config(
         or yaml_config.get("products_per_keyword")
         or 1
     )
+
+    # Rotate here rather than where the list is read, because the slice width
+    # is what the run will actually consume: the batch stops at
+    # `max_products`, so at one product per keyword it reaches that many
+    # keywords and no more. Rotating by that width makes consecutive days
+    # disjoint; rotating by the whole pool would be no rotation at all, since
+    # a start offset of a multiple of the length is zero.
+    if rotate_keywords and keywords:
+        # Read with a sentinel rather than `or`, so that 0 means "search no
+        # keywords" here as it means "render no topics" for `topics_per_run`,
+        # instead of falling through to the default and silently searching
+        # ten. The value itself is validated above, unconditionally.
+        per_run = (
+            math.ceil(max_products / max(1, products_per_keyword))
+            if configured_per_run is None
+            else configured_per_run
+        )
+        keywords = keywords_for_run(keywords, per_run)
 
     # Scraper filters (SearchParameters)
     yaml_filters = yaml_config.get("scraper_filters", {})
@@ -1029,6 +1195,7 @@ def load_global_batch_config(
         outputs_dir=outputs_dir,
         debug=debug,
         skip_publish=skip_publish,
+        force=getattr(cli_args, "force", False),
         platforms=platforms,
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,

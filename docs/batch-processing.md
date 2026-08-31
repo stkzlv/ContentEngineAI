@@ -275,9 +275,25 @@ End-to-end automation combining scraping, video production, and publishing in a 
 The global batch pipeline orchestrates four phases:
 
 1. **Scraping Phase** - Acquire product data from specified sources (product IDs, keywords). A topic run has no listing behind it, so this phase prepares the topic records instead of scraping.
-2. **Handoff Phase** - Discover scraped products and filter by media availability
+2. **Handoff Phase** - Discover scraped products, filter by media availability, and drop any already recorded as published on every target platform (`--force` renders them anyway)
 3. **Production Phase** - Generate videos using configured profile settings
 4. **Publishing Phase** - Upload and publish videos to social media platforms (optional)
+
+### Where a run's keywords come from
+
+`global_batch.keywords` in `config/pipeline.yaml` is empty by default, so the
+batch draws `batch.keywords` from `config/scraper.yaml`. One pool, one place to
+edit. Setting the batch key *replaces* that pool for batch runs rather than
+adding to it, so a single entry there narrows every batch run to one keyword.
+
+A run does not search the whole pool. It searches `keywords_per_run`, which
+defaults to what the run will actually consume (`max_products` divided by
+`products_per_keyword`), taken in rotation by date. Consecutive days are
+disjoint while that number is at most half the pool -- which the bundled 10
+of 54 is -- so a daily cadence works through the pool instead of re-serving
+the head of the list. Past half the pool consecutive days must overlap.
+Keywords passed with `--keywords` are used exactly as given
+and are not rotated.
 
 ### Usage Examples
 
@@ -338,8 +354,9 @@ of the repeatable run, put the topics in `config/pipeline.yaml`:
 
 ```yaml
 global_batch:
-  keywords:
-    value: ["portable charger"]
+  # Left empty, so the batch draws `batch.keywords` from config/scraper.yaml.
+  # Set it here only to override that pool for batch runs.
+  keywords: {}
   topics:
     - title: "Why your wifi keeps dropping"
       description: "Router placement, channel congestion, 2.4 vs 5GHz bands."
@@ -465,8 +482,11 @@ global_batch:
   product_ids:
     - B0BTYCRJSS
     - B0D6GZF3T4
-  keywords:
-    - "wireless earbuds"
+  # Empty draws the pool from config/scraper.yaml::batch.keywords. A
+  # non-empty value REPLACES that pool for batch runs, so one entry here
+  # narrows every run to one keyword.
+  keywords: {}
+  # keywords_per_run: 10  # default: max_products / products_per_keyword
 
   # Product Limits (Two-Tier System)
   max_products: 10        # Global cap across all keywords
@@ -517,7 +537,7 @@ poetry run python -m src.pipeline.global_batch \
 
 A run that names its inputs removes only those, and a run carrying both kinds removes both: `--product-ids B0X --topic "Y"` removes `B0X` and the topic's directory. Keywords name nothing -- which products they produce is not known until the search runs -- so a run carrying any keyword, including a no-flag run reading them from the config, removes every run directory under outputs/, ASIN-shaped and `topic-*` alike. Directories that are not run outputs (logs/, coverage/) are preserved.
 
-**Note**: Publishing options (`--skip-publish`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
+**Note**: Publishing options (`--skip-publish`, `--force`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 
 **Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling
@@ -705,6 +725,16 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 | Every product completed end-to-end | 0 | `PIPELINE COMPLETED SUCCESSFULLY` |
 | Some products completed, some were lost | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH LOSSES` |
 | No product completed end-to-end | 1 | `PIPELINE FAILED` |
+| Every product was already published, nothing else lost | 0 (0 with `--strict`) | `PIPELINE COMPLETED SUCCESSFULLY` |
+
+The last row is not a loss: nothing was asked for that does not exist, so
+`--strict` leaves it at 0 too. Its condition is narrower than row three's,
+which it would otherwise contradict: anything genuinely lost alongside the
+already-published products -- a keyword that returned nothing, a product
+rejected for insufficient media -- puts the run back on row three at exit 1. It
+is a normal outcome once the keyword
+rotation has walked the pool, since the same keywords then return the same
+already-published top results.
 
 "Lost" covers both a product whose step failed and one reported skipped for
 insufficient media.
