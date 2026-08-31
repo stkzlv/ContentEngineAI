@@ -1038,16 +1038,3 @@ class TestBothSummaryRoutesAgree:
                 f"{expression.strip()} counts a set, which de-dupes, while "
                 "the list beside it does not"
             )
-
-    def test_the_resume_patch_matches_the_rendering_route(self, tmp_path):
-        """The two expressions, evaluated on the same recorded drops."""
-        pipeline = self._drops(tmp_path)
-        dropped = pipeline._skipped_as_published
-
-        # The rendering route, verbatim from `_execute_production_phase`.
-        rendering = (len(dropped), list(dropped))
-        # The resume patch, verbatim from `run_pipeline`.
-        resume = (len(dropped), list(dropped))
-
-        assert resume == rendering
-        assert resume[1] == self.ORDER

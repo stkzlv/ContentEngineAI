@@ -724,10 +724,13 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 | Every product completed end-to-end | 0 | `PIPELINE COMPLETED SUCCESSFULLY` |
 | Some products completed, some were lost | 0 (1 with `--strict`) | `PIPELINE COMPLETED WITH LOSSES` |
 | No product completed end-to-end | 1 | `PIPELINE FAILED` |
-| Every product was already published | 0 (0 with `--strict`) | `PIPELINE COMPLETED SUCCESSFULLY` |
+| Every product was already published, nothing else lost | 0 (0 with `--strict`) | `PIPELINE COMPLETED SUCCESSFULLY` |
 
 The last row is not a loss: nothing was asked for that does not exist, so
-`--strict` leaves it at 0 too. It is a normal outcome once the keyword
+`--strict` leaves it at 0 too. Its condition is narrower than row three's,
+which it would otherwise contradict: anything genuinely lost alongside the
+already-published products -- a keyword that returned nothing, a product
+rejected for insufficient media -- puts the run back on row three at exit 1. It is a normal outcome once the keyword
 rotation has walked the pool, since the same keywords then return the same
 already-published top results.
 
