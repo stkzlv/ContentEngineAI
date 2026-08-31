@@ -31,10 +31,11 @@ Spoken script:
   picks the right one. That is what stops a category search returning a
   catalogue page -- being specific about which thing, not attaching a human to
   a vague one.
-- Name what is visible in the photograph, not the substance it is made of or
-  the feature it demonstrates. A library is indexed by what a photographer
-  would call the object in front of the lens, so a phrase naming a material,
-  a measurement or a settings screen matches whatever else shares those words.
+- Do not make a substance, a measurement or a settings screen the thing the
+  phrase is about. A library is indexed by what a photographer would call the
+  object in front of the lens, so a phrase whose subject is a quantity or a
+  material matches whatever else shares those words. Such a word is fine as a
+  qualifier on a real object; it just cannot be the object.
 - Only things the script actually mentions or implies. Do not introduce a
   product, a brand, or a setting the narration never refers to.
 - Plain nouns, no hashtags, no camera jargon ("bokeh", "macro", "4k"), no
@@ -65,9 +66,10 @@ Bad, and why:
 - "beautiful modern smartphone product shot" - hype plus jargon, and it asks
   for the product photography this video does not have.
 - "phone" - a category, not a shot. Every result looks like a catalogue page.
-- Any phrase whose first words are a generic body part or person. Those words
-  are in a large share of the library's captions, so they match everything and
-  leave too few words to say what the shot is of.
+- Any phrase that attaches a hand or a person to an object that could stand on
+  its own. Those words are in a large share of the library's captions, so they
+  match everything and leave too few words to say what the shot is of. A person
+  belongs in the phrase when what they are doing is the shot.
 - Any phrase naming a substance, a measurement or a settings screen rather than
   a thing that can be photographed. The library has no picture of a quantity.
 - Any phrase naming an object this script never mentions. A phrase that would

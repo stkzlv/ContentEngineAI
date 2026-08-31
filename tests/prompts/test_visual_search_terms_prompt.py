@@ -23,18 +23,6 @@ PROMPT = Path("src/ai/prompts/visual_search_terms.md")
 # The exact phrases that came back copied. Asserting their absence rather than
 # the absence of an "Examples" heading, because the failure was the phrases
 # being available, not the section being titled.
-# The reformulations that motivated the rule change. Each is correct for the
-# video it was measured on and wrong for any other, so they are exactly what a
-# future editor would reach for as an illustration -- which is the failure this
-# file already exists to prevent.
-REFORMULATIONS = [
-    "canned air duster",
-    "laptop cooling fan",
-    "laptop repair screwdriver",
-    "phone battery health screen",
-    "compressed air keyboard cleaning",
-]
-
 COPIED_PHRASES = [
     "hand holding smartphone at night",
     "phone charging on bedside table",
@@ -46,6 +34,19 @@ COPIED_PHRASES = [
     # made it exactly as copyable and put a phone in a bedroom on the page of
     # a prompt that a wifi script also reads.
     "hand holding smartphone in bed",
+]
+
+
+# The reformulations that motivated the rule change. Each is correct for the
+# video it was measured on and wrong for any other, so they are exactly what a
+# future editor would reach for as an illustration -- which is the failure this
+# file already exists to prevent.
+REFORMULATIONS = [
+    "canned air duster",
+    "laptop cooling fan",
+    "laptop repair screwdriver",
+    "phone battery health screen",
+    "compressed air keyboard cleaning",
 ]
 
 
@@ -239,13 +240,37 @@ def test_the_generic_human_words_are_named_as_the_problem(prompt):
         assert word in prompt
 
 
-def test_a_qualified_phrase_survives_the_sanitizer(prompt):
-    """The shape the prompt now teaches must reach the floor.
+def test_the_taught_template_reaches_the_floor(prompt):
+    """Read from the prompt, not from a list beside it.
 
-    A rule that produces two-word phrases would be worse than the one it
-    replaced: the sanitizer drops them and the render falls back to a single
-    generic search, which looks like the feature being switched off.
+    An earlier version of this test fed a hardcoded list to the sanitizer and
+    ignored the `prompt` fixture entirely, so it stayed green when the Shape
+    block was mutated to a two-word template -- the one change it existed to
+    catch. A test that names the prompt in its signature and never reads it is
+    the failure this file keeps finding in the prompt itself.
+
+    A template under the floor is not a weaker prompt, it is a silent one: the
+    sanitizer drops every phrase, and with none left `steps.py` falls back to a
+    single generic search for the whole video.
     """
+    import re
+
+    from src.ai.script_generator import MIN_PHRASE_WORDS
+
+    templates = [line for line in prompt.splitlines() if line.startswith("    <")]
+    assert templates, "no shape template found; the block moved or was removed"
+
+    for line in templates:
+        slots = re.findall(r"<[^>]+>", line)
+        assert len(slots) >= MIN_PHRASE_WORDS, (
+            f"template {line.strip()!r} teaches {len(slots)} words, below the "
+            f"sanitizer floor of {MIN_PHRASE_WORDS}; every phrase in this shape "
+            "is dropped before it is searched"
+        )
+
+
+def test_a_qualified_phrase_survives_the_sanitizer():
+    """The second half: a phrase in that shape actually passes the filter."""
     from src.ai.script_generator import sanitize_visual_search_phrases
 
     survived = sanitize_visual_search_phrases(
