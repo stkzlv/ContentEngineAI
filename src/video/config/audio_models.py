@@ -74,8 +74,11 @@ class AudioSettings(BaseModel):
     loudness_target_lufs: float = Field(-14.0, ge=-70.0, le=-5.0)
     loudness_true_peak_db: float = Field(-1.0, ge=-9.0, le=0.0)
     loudness_range_lu: float = Field(7.0, ge=1.0, le=50.0)
-    # `loudnorm` emits at 192 kHz whatever it was given, so the graph has to
-    # resample or the encoder silently negotiates a rate nobody chose.
+    # Applied whether or not the loudness pass runs: this names a property of
+    # the output, not a `loudnorm` side effect. Coupling it to normalization
+    # is the bug it shipped with -- switching normalization off then dropped
+    # the rate control silently. (`loudnorm` emitting at 192 kHz whatever it
+    # was given is what made a resample necessary at all.)
     output_audio_sample_rate: int = Field(48000, ge=8000, le=192000)
 
 

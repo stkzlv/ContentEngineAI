@@ -163,13 +163,23 @@ scale at the same time. That combination is why a fixed gain change is not the
 fix, since raising the level would clip and limiting alone would leave it
 quiet.
 
-The pass is single-pass, so the correction is adaptive rather than exact; a
-two-pass measurement would need the mixed audio as a file, and it only exists
-inside the filtergraph. Measured on real renders, that costs about 1 LU: the
-same product comes out at **-14.9 LUFS** on the ffmpeg subtitle engine and
-**-15.1** on pycaps, both peaking at **-0.8 dBFS** against a requested -1.0.
-A constant tone through the same chain lands on -14.0 exactly, so don't read
-a synthetic measurement as what a render will produce. Note that `loudnorm` outputs at 192 kHz whatever it is
+Real renders land about 1 LU short of the target: the same product comes out
+at **-14.9 LUFS** on the ffmpeg subtitle engine and **-15.1** on pycaps, both
+peaking at **-0.8 dBFS** against a requested -1.0.
+
+The cause is the true-peak ceiling, not the pass being single-pass. Mixed
+narration arrives above 0 dBTP, so the gain that would reach -14 LUFS linearly
+would breach `TP=-1.0`. `loudnorm` refuses linear normalization, falls back to
+dynamic mode and reports the shortfall as `target_offset` (measured: 1.19 LU).
+Feeding a second pass the measured values reports the same offset and produces
+the same file, so two-pass does not close it. A constant tone lands on -14.0
+exactly because its crest factor never brings the ceiling into play, which is
+why a synthetic measurement should not be read as what a render will produce.
+
+The 0.2 dB by which the delivered file exceeds the ceiling is the AAC encode:
+`loudnorm` reports `output_tp: -1.00` and the graph's WAV output measures
+-1.0 dBFS. To stay under -1 dBTP in the delivered file, lower
+`loudness_true_peak_db`. Note that `loudnorm` outputs at 192 kHz whatever it is
 handed, so the chain resamples to `output_audio_sample_rate` afterwards. That
 resample is applied whether or not normalization is enabled, since the field
 names an output property rather than a `loudnorm` side effect.

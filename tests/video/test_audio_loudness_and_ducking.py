@@ -74,6 +74,12 @@ def _voice_with_a_gap(path: Path) -> Path:
     """Narration that stops between t=4 and t=8.
 
     A duck needs a voice-free stretch to release into.
+
+    Driven near full scale, like `_tone`, because duck depth is a function of
+    how far the key sits above the threshold. This fixture originally used
+    lavfi's stock sine level and so sat about 21 dB below real narration,
+    which made every measured depth roughly half of what the same settings
+    give on a real voiceover.
     """
     _run(
         [
@@ -86,7 +92,7 @@ def _voice_with_a_gap(path: Path) -> Path:
             "-i",
             "sine=frequency=200:duration=12:sample_rate=44100",
             "-af",
-            "volume=-6dB,volume=enable='between(t,4,8)':volume=0.0001",
+            "volume=18dB,volume=-6dB,volume=enable='between(t,4,8)':volume=0.0001",
             str(path),
         ]
     )
@@ -344,7 +350,7 @@ class TestTheDuck:
         return out
 
     def test_music_is_quieter_under_narration_than_in_the_gap(self, tmp_path):
-        """Measured at 7.6 dB with the shipped defaults.
+        """Measured at 7.7 dB with the shipped defaults, on a real voiceover.
 
         Asserted loosely: the contract is that a duck happens, not that it is
         any particular depth, and the depth is four config fields away.
