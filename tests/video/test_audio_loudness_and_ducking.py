@@ -278,7 +278,8 @@ class TestTheMixIsMasteredToTheTarget:
 
         It was emitted as a tail of the loudnorm filter, so switching
         normalisation off silently dropped the rate control with it and left
-        the render at whatever the mix negotiated to, which is the TTS rate.
+        the render at whatever the mix negotiated to, which was the TTS rate
+        on the renders measured.
         """
         config = _config()
         config.audio_settings.loudness_normalization_enabled = False

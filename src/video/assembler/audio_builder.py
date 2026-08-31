@@ -187,9 +187,12 @@ class AudioFilterBuilder:
         # names an output property, and hanging it off the normalisation
         # branch meant switching normalisation off silently dropped the rate
         # control with it, leaving the render at whatever the mix negotiated
-        # to -- the TTS rate, 24 kHz, on a topic and a product alike. The
-        # delivered file can differ again: a pycaps burn re-mixes after this
-        # and re-rates the output.
+        # to. That was 24 kHz, the TTS rate, on the renders measured -- but
+        # it is the negotiator's choice, not the voiceover's property: with
+        # stereo music ffmpeg resamples the music down to the voice, and
+        # with mono music it resamples the voice up to the music instead.
+        # The delivered file can differ again: a pycaps burn re-mixes after
+        # this and re-rates the output.
         rate_label = "[a_rate]"
         audio_filters.append(
             f"{mixed_label}aresample={audio_settings.output_audio_sample_rate}"
