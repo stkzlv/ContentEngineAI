@@ -257,7 +257,12 @@ def test_the_taught_template_reaches_the_floor(prompt):
 
     from src.ai.script_generator import MIN_PHRASE_WORDS
 
-    templates = [line for line in prompt.splitlines() if line.startswith("    <")]
+    # Sliced out of the Shape section rather than matched on a literal indent.
+    # Collecting by prefix passes silently when one template line is reindented
+    # and the other is not: the surviving line keeps the list non-empty and the
+    # short one is never counted.
+    section = prompt.split("## Shape", 1)[-1].split("Bad, and why", 1)[0]
+    templates = [line for line in section.splitlines() if re.search(r"<[^>]+>", line)]
     assert templates, "no shape template found; the block moved or was removed"
 
     for line in templates:
