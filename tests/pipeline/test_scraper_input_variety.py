@@ -652,9 +652,14 @@ class TestTheDropReachesTheVerdict:
         """The one path that reaches publishing without passing production.
 
         A resume rebuilds the publish list from the saved run, which still
-        names the products the guard just dropped -- so the run logged
-        "Skipping 1 already-published product" and then published it anyway,
-        which is the duplicate live post this whole change exists to stop.
+        names the products the guard just dropped, so it logged "Skipping 1
+        already-published product" and then handed it to publishing anyway.
+
+        That was not producing a duplicate post, which an earlier version of
+        this docstring claimed: the reconstruction composed
+        `outputs/<id>/video.mp4`, a name nothing writes, so every product on
+        a resumed publish failed at `upload_media` first. The path now
+        resolves the render properly, which is what makes the filter matter.
         """
         from unittest.mock import AsyncMock, MagicMock
 
@@ -668,6 +673,9 @@ class TestTheDropReachesTheVerdict:
         published, fresh = "B0PUBLISHED", "B0FRESH0001"
         for asin in (published, fresh):
             (tmp_path / asin).mkdir()
+            # A real render name. The resume path resolves the file rather
+            # than composing `video.mp4`, which nothing writes.
+            (tmp_path / asin / f"video_{asin}_slideshow_images1.mp4").write_bytes(b"")
         (tmp_path / "publish_history.json").write_text(
             json.dumps(
                 {
@@ -826,3 +834,49 @@ class TestTheDropReachesTheVerdict:
         assert summary.production.already_published == 1
         assert summary.production.already_published_products == [published]
         assert summary.production.total_attempted == 1
+
+
+@pytest.mark.unit
+class TestTheDryRunPlanMatchesTheRun:
+    """The plan must not promise a filter the run will not apply."""
+
+    @staticmethod
+    def _plan(**flags):
+        import contextlib
+        import io
+        from contextlib import redirect_stdout
+        from unittest.mock import MagicMock
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        pipeline.config = MagicMock()
+        pipeline.config.skip_publish = flags.get("skip_publish", False)
+        pipeline.config.force = flags.get("force", False)
+        pipeline.config.product_ids = ["B0AAAAAAAA"]
+        pipeline.config.keywords = []
+        pipeline.config.topics = []
+        pipeline.config.platforms = None
+        pipeline.config.outputs_dir = Path("outputs")
+
+        buffer = io.StringIO()
+        # The plan reads config this fixture does not fill, and the handoff
+        # lines print before anything that can raise. Suppressing is what
+        # keeps the fixture small -- but the call has to be the real method,
+        # or the suppression hides a typo and every assertion here passes on
+        # an empty buffer.
+        with contextlib.suppress(Exception), redirect_stdout(buffer):
+            pipeline.display_execution_plan(MagicMock())
+        output = buffer.getvalue()
+        assert "PHASE 2: HANDOFF" in output, "the plan never reached the handoff block"
+        return output
+
+    def test_a_normal_run_announces_the_filter(self):
+        assert "already published" in self._plan()
+
+    def test_a_skip_publish_run_does_not(self):
+        """The guard returns early on `--skip-publish`, so promising it lies."""
+        assert "already published" not in self._plan(skip_publish=True)
+
+    def test_a_force_run_does_not(self):
+        assert "already published" not in self._plan(force=True)

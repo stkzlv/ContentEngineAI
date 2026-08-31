@@ -1066,19 +1066,33 @@ class GlobalPipelineOrchestrator:
                 # Reconstruct produced_videos from state, minus anything the
                 # handoff guard just dropped.
                 #
-                # The guard runs on a resume -- handoff is never skipped --
-                # but this branch rebuilds the publish list from the *saved*
-                # run, which still names the products the guard removed. So a
-                # resume logged "Skipping 1 already-published product" and
-                # then published it anyway: the duplicate live post this
-                # exists to prevent, on the one path that reaches publishing
-                # without passing through production.
+                # The path is resolved rather than composed. This built
+                # `outputs/<id>/video.mp4`, a name nothing writes -- renders
+                # are `video_<id>_<profile>.mp4` -- so every product on a
+                # resumed publish failed at `upload_media` before reaching
+                # the scheduler. `sole_render_for_product` is the resolver
+                # `single`, `schedule` and the immediate batch already share,
+                # so a resume now picks the same cut they would.
+                #
+                # The guard runs on a resume (handoff is never skipped), but
+                # this branch rebuilds the publish list from the *saved* run,
+                # which still names the products the guard removed. Filtering
+                # here is what keeps a dropped product out of the one path
+                # that reaches publishing without passing through production.
+                from src.publisher.video_selector import sole_render_for_product
+
                 dropped_ids = set(getattr(self, "_skipped_as_published", []))
-                produced_videos = [
-                    (self.config.outputs_dir / pid / "video.mp4", pid)
-                    for pid in self.state.production_completed_products
-                    if pid not in dropped_ids
-                ]
+                produced_videos = []
+                for pid in self.state.production_completed_products:
+                    if pid in dropped_ids:
+                        continue
+                    render = sole_render_for_product(self.config.outputs_dir / pid)
+                    if render is None:
+                        logger.warning(
+                            "Resume: no render found for %s, skipping publish", pid
+                        )
+                        continue
+                    produced_videos.append((render, pid))
                 if dropped_ids:
                     # The cached summary predates the drop, so it reports
                     # zero and contradicts the log line above it.

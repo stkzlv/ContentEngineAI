@@ -297,7 +297,7 @@ Match the change to the check:
 
 Resource and environment rules apply to every row: heavy scrape/produce/batch runs go through the `*-lowpri` make targets (cgroup memory cap), and on a Wayland box any producer run is wrapped in `xvfb-run -a` (the bundled pycaps CSS renderer hangs without an X display). One heavy job at a time.
 
-Trust the artifact over the exit code. The global batch exits non-zero when no product completes end-to-end *and* something was lost; a run whose products were all already published completes none and still exits 0, reporting outcome `nothing new`. A partial failure exits 0 unless `--strict` is passed. Confirm success by grepping the phase-summary log lines (`Scraping phase complete:`, `Production phase complete:`, `Publishing phase complete:`), not `$?`.
+Trust the artifact over the exit code. The global batch exits non-zero when no product completes end-to-end *and* something was lost; a run whose products were all already published completes none and still exits 0, logging `PIPELINE COMPLETED SUCCESSFULLY` with an `Already Published (not re-rendered):` line naming them. A partial failure exits 0 unless `--strict` is passed. Confirm success by grepping the phase-summary log lines (`Scraping phase complete:`, `Production phase complete:`, `Publishing phase complete:`), not `$?`.
 
 The two runbooks below are worked instances of this: the smoke test exercises the full scrape -> produce -> publish chain, and the publish-option runbook exercises every publishing path.
 

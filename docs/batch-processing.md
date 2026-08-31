@@ -481,8 +481,11 @@ global_batch:
   product_ids:
     - B0BTYCRJSS
     - B0D6GZF3T4
-  keywords:
-    - "wireless earbuds"
+  # Empty draws the pool from config/scraper.yaml::batch.keywords. A
+  # non-empty value REPLACES that pool for batch runs, so one entry here
+  # narrows every run to one keyword.
+  keywords: {}
+  # keywords_per_run: 10  # default: max_products / products_per_keyword
 
   # Product Limits (Two-Tier System)
   max_products: 10        # Global cap across all keywords
