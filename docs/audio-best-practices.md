@@ -165,7 +165,11 @@ quiet.
 
 The pass is single-pass, so the correction is adaptive rather than exact; a
 two-pass measurement would need the mixed audio as a file, and it only exists
-inside the filtergraph. Note that `loudnorm` outputs at 192 kHz whatever it is
+inside the filtergraph. Measured on real renders, that costs about 1 LU: the
+same product comes out at **-14.9 LUFS** on the ffmpeg subtitle engine and
+**-15.1** on pycaps, both peaking at **-0.8 dBFS** against a requested -1.0.
+A constant tone through the same chain lands on -14.0 exactly, so don't read
+a synthetic measurement as what a render will produce. Note that `loudnorm` outputs at 192 kHz whatever it is
 handed, so the chain resamples to `output_audio_sample_rate` afterwards. That
 resample is applied whether or not normalization is enabled, since the field
 names an output property rather than a `loudnorm` side effect.
