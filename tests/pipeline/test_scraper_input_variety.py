@@ -952,3 +952,54 @@ class TestTheResumePicksTheSameCutAsThePublisher:
             "routing, so it can send a different cut than the publish phase"
         )
         assert "platforms_for_resume" in call
+
+
+@pytest.mark.unit
+class TestBothSummaryRoutesAgree:
+    """One run's drops must read the same whichever branch built the summary.
+
+    The early-return branch and the rendering branch construct
+    `ProductionPhaseSummary` separately, and they had already drifted once --
+    the early return did not carry the drop at all. This pins the smaller
+    version of the same drift: listing the same drops in a different order.
+    """
+
+    def test_the_drop_list_keeps_discovery_order_on_both_routes(self, tmp_path):
+        import json
+        from unittest.mock import MagicMock
+
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        # Deliberately not alphabetical, so insertion order is observable.
+        order = ["B0ZZZ", "B0AAA", "B0MMM"]
+        (tmp_path / "publish_history.json").write_text(
+            json.dumps(
+                {
+                    "posts": {
+                        f"{asin}:{platform}": {"post_id": "1"}
+                        for asin in order
+                        for platform in ("youtube", "tiktok", "instagram")
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        pipeline.config = MagicMock()
+        pipeline.config.outputs_dir = tmp_path
+        pipeline.config.platforms = None
+        pipeline.config.force = False
+        pipeline.config.skip_publish = False
+
+        records = []
+        for asin in order:
+            record = MagicMock()
+            record.asin = asin
+            records.append((Path(f"outputs/{asin}"), record))
+
+        assert pipeline._drop_already_published(records) == []
+        assert pipeline._skipped_as_published == order, (
+            "the drop list is not in discovery order, so the two summary "
+            "routes can report the same run differently"
+        )
