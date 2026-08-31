@@ -23,6 +23,18 @@ PROMPT = Path("src/ai/prompts/visual_search_terms.md")
 # The exact phrases that came back copied. Asserting their absence rather than
 # the absence of an "Examples" heading, because the failure was the phrases
 # being available, not the section being titled.
+# The reformulations that motivated the rule change. Each is correct for the
+# video it was measured on and wrong for any other, so they are exactly what a
+# future editor would reach for as an illustration -- which is the failure this
+# file already exists to prevent.
+REFORMULATIONS = [
+    "canned air duster",
+    "laptop cooling fan",
+    "laptop repair screwdriver",
+    "phone battery health screen",
+    "compressed air keyboard cleaning",
+]
+
 COPIED_PHRASES = [
     "hand holding smartphone at night",
     "phone charging on bedside table",
@@ -88,11 +100,27 @@ def test_the_shape_is_still_taught(prompt):
     """Deleting the examples alone made the phrases bare categories.
 
     Three of ten runs came back with `wifi router` and nothing else, which the
-    prompt's own rules call a catalogue search. The template and the
-    both-halves rule are what recovered the shape.
+    prompt's own rules call a catalogue search -- and which the sanitizer then
+    discards for being under the floor, leaving the render one generic search
+    for the whole video. A template is what recovered the shape.
+
+    The template no longer reaches the floor by attaching a person. That was
+    measured to be the cause of a different failure: `hand holding compressed
+    air` returns a hand holding a hotdog, because `hand` and `holding` are in
+    a large share of the library's captions and consume two of the words. The
+    length is now reached with qualifiers, which say something about the shot.
     """
     assert "<object>" in prompt
-    assert "Every phrase needs both halves" in prompt
+    assert "<qualifier>" in prompt
+
+    # The mandate that produced the diluted phrases, asserted absent. A prompt
+    # test that keeps asserting the old contract is what blocks the fix.
+    assert "Every phrase needs both halves" not in prompt
+    assert "<body part> <verb-ing> <object>" not in prompt
+
+    # The floor still has to be taught, or the bare-category regression above
+    # returns by a different route.
+    assert "thrown away before it is searched" in prompt
 
 
 def test_the_floor_is_not_restated_in_the_prompt(prompt):
@@ -192,3 +220,36 @@ def test_the_call_site_supplies_the_floor():
         "visual-search prompt names it, so rendering raises and the render "
         "falls back to searching on the topic title alone"
     )
+
+
+@pytest.mark.parametrize("phrase", REFORMULATIONS)
+def test_no_reformulation_became_a_worked_example(prompt, phrase):
+    """The rules are stated abstractly; the evidence for them is not in here.
+
+    These phrases are why the rule changed, and they belong in the changelog
+    and the issue. In the prompt they would be copied, the way the previous
+    good-example block was copied verbatim into a video about something else.
+    """
+    assert phrase not in prompt
+
+
+def test_the_generic_human_words_are_named_as_the_problem(prompt):
+    """The rule has to say which words dilute, or it is only a preference."""
+    for word in ("hand", "person", "holding"):
+        assert word in prompt
+
+
+def test_a_qualified_phrase_survives_the_sanitizer(prompt):
+    """The shape the prompt now teaches must reach the floor.
+
+    A rule that produces two-word phrases would be worse than the one it
+    replaced: the sanitizer drops them and the render falls back to a single
+    generic search, which looks like the feature being switched off.
+    """
+    from src.ai.script_generator import sanitize_visual_search_phrases
+
+    survived = sanitize_visual_search_phrases(
+        "\n".join(REFORMULATIONS), max_phrases=len(REFORMULATIONS), max_words=5
+    )
+
+    assert survived == REFORMULATIONS, f"the sanitizer dropped some: {survived}"
