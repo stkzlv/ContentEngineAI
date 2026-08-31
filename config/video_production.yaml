@@ -264,8 +264,8 @@ audio_settings:
   # Duck depth is a function of how far the narration sits above the
   # threshold, so it has to be measured against real speech. Attenuation of
   # the music during narration -- the ducked music leg against the same leg
-  # un-ducked, in the same window -- on a real voiceover (peak -2.6 dBFS),
-  # attack 20 / release 300:
+  # un-ducked, `volumedetect` mean over the same 4.0-6.0s window -- keyed by
+  # a real voiceover (peak -2.6 dBFS), attack 20 / release 300:
   #   threshold 0.25, ratio 2   ->   0.9 dB
   #   threshold 0.15, ratio 3   ->   2.9 dB
   #   threshold 0.1,  ratio 4   ->   5.3 dB   (the default below)
@@ -279,13 +279,13 @@ audio_settings:
   # method as well as the source:
   #
   #   - Measured on a synthetic tone sitting ~21 dB below real narration.
-  #     Depth scales with key level, so every row read low, by roughly 8-10
+  #     Depth scales with key level, so every row read low, by roughly 7-8
   #     dB rather than by a constant ratio.
   #   - Measured as music-during-speech against music-in-a-pause. That
   #     difference also contains the music's own level change between the
   #     two windows, so it is track-dependent: the same setting read 6.8 to
-  #     9.8 dB across the four bundled tracks. Attenuation in a single
-  #     window is stable to about 0.3 dB across the same four.
+  #     9.8 dB across the three bundled tracks. Attenuation in a single
+  #     window is stable to about 0.3 dB across the same three.
   #
   # The default is shallow on purpose. music_volume_db already puts the
   # music 27 dB under the voiceover, so a deep duck on top of that makes the
@@ -302,8 +302,8 @@ audio_settings:
   # Final loudness normalization (EBU R128), applied to the finished mix.
   # Each platform normalizes on playback, so mastering near the target keeps
   # the video level with the feed around it. Measured before this existed,
-  # renders sat at about -17.5 LUFS with a true peak of -0.1 dBFS: quiet on
-  # average and nearly touching full scale at once.
+  # renders sat at about -17.5 LUFS with true peaks of -0.1 and -0.2 dBFS:
+  # quiet on average and nearly touching full scale at once.
   # See docs/audio-best-practices.md section 5.
   loudness_normalization_enabled: true
   loudness_target_lufs: -14.0      # Cross-platform compromise, not a spec

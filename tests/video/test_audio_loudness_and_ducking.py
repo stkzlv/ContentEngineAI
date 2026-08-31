@@ -3,7 +3,7 @@
 Before this, nothing in the pipeline normalized loudness: `amix` ran with
 `normalize=0` and the master level was whatever the fixed voiceover and music
 gains happened to sum to. Two real renders measured -17.4 and -17.6 LUFS
-integrated against a -14 target, with a true peak of -0.1 dBFS.
+integrated against a -14 target, with true peaks of -0.1 and -0.2 dBFS.
 
 That pairing is the reason a fixed gain adjustment is the wrong fix: the mix
 was quiet on average *and* nearly touching full scale, so raising the level

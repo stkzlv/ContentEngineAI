@@ -159,13 +159,16 @@ class AudioFilterBuilder:
         # once. Mixed narration arrives above 0 dBTP, so the gain that would
         # reach the target linearly would breach `TP`; `loudnorm` refuses
         # linear normalisation, falls back to dynamic mode, and reports the
-        # gap it is leaving as `target_offset`. Feeding a second pass the
-        # measured values reports the same offset and produces a
-        # byte-identical file, so two-pass would not close it.
+        # gap it is leaving as `target_offset`. Feeding a second pass only the
+        # four `measured_*` values reports the same offset and produces a
+        # byte-identical file -- but ffmpeg's documented two-pass also feeds
+        # back `offset=<target_offset>`, and that does move it: measured
+        # -15.2 -> -14.6 LUFS with the true peak still at -1.0.
         #
-        # Two-pass is unavailable here anyway: it needs the mixed audio as a
-        # file and that only exists inside this filtergraph. That is a real
-        # constraint, just not the reason for the shortfall.
+        # So two-pass would help, by about half the shortfall. It is
+        # unavailable here for a different reason: it needs the mixed audio
+        # as a file to measure, and that only exists inside this filtergraph.
+        # Taking it would mean rendering the audio separately first.
         #
         if audio_settings.loudness_normalization_enabled:
             normalized_label = "[a_norm]"
