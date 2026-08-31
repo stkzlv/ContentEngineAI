@@ -809,6 +809,10 @@ class GlobalPipelineOrchestrator:
         print("PHASE 2: HANDOFF")
         print(f"{section}")
         print("  Action: Discover scraped products with sufficient media")
+        print(
+            "  Filter: Skip products already published on every target "
+            "platform (--force overrides; topics are exempt)"
+        )
         print("  Validation: Check data.json exists and has images/videos")
         print()
 
@@ -1019,7 +1023,16 @@ class GlobalPipelineOrchestrator:
         # Check if any products are ready
         if not ready_products:
             logger.warning("No products with sufficient media for video production")
-            # Return early with empty production summary
+            # Return early with empty production summary.
+            #
+            # The drop count has to be carried here as well as into the
+            # rendering path, and this is the branch that matters: when the
+            # guard drops *every* product there is nothing to render, so the
+            # `nothing new` outcome fired only on runs that were never the
+            # problem. Getting this wrong left the headline symptom -- a
+            # correct run reporting PIPELINE FAILED and exiting 1 -- in place
+            # while three documents said it was fixed.
+            dropped = getattr(self, "_skipped_as_published", [])
             production_summary = ProductionPhaseSummary(
                 total_attempted=0,
                 successful=0,
@@ -1029,6 +1042,8 @@ class GlobalPipelineOrchestrator:
                 skipped_products=[],
                 profile_distribution=None,
                 duration_sec=0.0,
+                already_published=len(dropped),
+                already_published_products=list(dropped),
             )
             produced_videos: list[tuple[Path, str]] = []
         else:
@@ -1565,7 +1580,15 @@ class GlobalPipelineOrchestrator:
         # `default_platforms` omits it, so a product complete for that install
         # was re-rendered and re-published (#126 tracks folding the three
         # inline reads in this module into the loaded config).
-        platforms = self.config.platforms or self._default_platforms()
+        # Lowercased: `record_publish` always writes `Platform(...).value`,
+        # and `is_already_published` does an exact key match. Config
+        # validation accepts mixed case and keeps the original spelling, so
+        # `platforms: [YouTube]` would look up a key nothing ever writes and
+        # silently keep every product.
+        platforms = [
+            platform.lower()
+            for platform in (self.config.platforms or self._default_platforms())
+        ]
         kept, skipped = [], []
         for path, data in products:
             asin = getattr(data, "asin", None)

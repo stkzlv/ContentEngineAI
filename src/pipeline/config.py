@@ -553,7 +553,8 @@ class PipelineSummary:
         return skipped
 
     def outcome(self) -> str:
-        """What the run did: ``"failed"``, ``"lost"`` or ``"succeeded"``.
+        """What the run did: ``"failed"``, ``"lost"``, ``"nothing new"`` or
+        ``"succeeded"``.
 
         Derived here so the end-of-run verdict and the exit code cannot
         disagree. They were computed separately once, and a run that lost
@@ -772,6 +773,14 @@ class PipelineSummary:
                 "skipped_products": self.production.skipped_products,
                 "profile_distribution": self.production.profile_distribution,
                 "duration_sec": round(self.production.duration_sec, 2),
+                # Named here too, or the JSON and the text summary of one run
+                # disagree about what is knowable: a wrapper would see four
+                # attempted with no failures and no skips, and nothing saying
+                # where the other six went.
+                "already_published": self.production.already_published,
+                "already_published_products": (
+                    self.production.already_published_products
+                ),
             },
             "publishing": None,
             "end_to_end": {
@@ -999,6 +1008,25 @@ def load_global_batch_config(
     # Only the configured pool rotates. Keywords typed on the command line
     # were asked for by name, so a run must search exactly those.
     rotate_keywords = False
+    # Validated here rather than beside its use, so a bad value is refused on
+    # every run. Inside the rotation branch it was skipped whenever the CLI
+    # supplied inputs, so a quoted `keywords_per_run: "10"` loaded fine on a
+    # hand-run `--product-ids` batch and then killed the next scheduled one.
+    configured_per_run = yaml_config.get("keywords_per_run")
+    if configured_per_run is not None:
+        if isinstance(configured_per_run, bool) or not isinstance(
+            configured_per_run, int
+        ):
+            raise ValueError(
+                f"global_batch.keywords_per_run must be an integer, got "
+                f"{configured_per_run!r}"
+            )
+        if configured_per_run < 0:
+            raise ValueError(
+                f"global_batch.keywords_per_run must not be negative, got "
+                f"{configured_per_run!r}"
+            )
+
     if cli_has_inputs:
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
@@ -1036,27 +1064,15 @@ def load_global_batch_config(
     # disjoint; rotating by the whole pool would be no rotation at all, since
     # a start offset of a multiple of the length is zero.
     if rotate_keywords and keywords:
-        # Validated like `topics_per_run` above, and for the same reasons.
         # Read with a sentinel rather than `or`, so that 0 means "search no
-        # keywords" here as it means "render no topics" there, instead of
-        # falling through to the default and silently searching ten.
-        configured_per_run = yaml_config.get("keywords_per_run")
-        if configured_per_run is None:
-            per_run = math.ceil(max_products / max(1, products_per_keyword))
-        elif isinstance(configured_per_run, bool) or not isinstance(
-            configured_per_run, int
-        ):
-            raise ValueError(
-                f"global_batch.keywords_per_run must be an integer, got "
-                f"{configured_per_run!r}"
-            )
-        elif configured_per_run < 0:
-            raise ValueError(
-                f"global_batch.keywords_per_run must not be negative, got "
-                f"{configured_per_run!r}"
-            )
-        else:
-            per_run = configured_per_run
+        # keywords" here as it means "render no topics" for `topics_per_run`,
+        # instead of falling through to the default and silently searching
+        # ten. The value itself is validated above, unconditionally.
+        per_run = (
+            math.ceil(max_products / max(1, products_per_keyword))
+            if configured_per_run is None
+            else configured_per_run
+        )
         keywords = keywords_for_run(keywords, per_run)
 
     # Scraper filters (SearchParameters)

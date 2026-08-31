@@ -321,23 +321,52 @@ class TestAlreadyPublishedProductsAreNotRendered:
 
         assert len(kept) == 1
 
-    def test_the_platform_list_comes_from_publisher_config(self, tmp_path):
+    def test_a_narrowed_publisher_config_changes_the_decision(
+        self, tmp_path, monkeypatch
+    ):
         """The guard must ask what the publish phase will actually target.
 
-        A hardcoded triple demanded tiktok of an install whose
-        `default_platforms` omits it, so a product complete for that install
-        was re-rendered and re-published as a duplicate.
+        Asserted through the decision, not through the returned list. The
+        bundled `default_platforms` *is* the hardcoded triple, so comparing
+        against it passes against the implementation this replaced -- the
+        same shape of vacuous test as the `asin = None` one above.
         """
-        pipeline = self._pipeline(tmp_path)
-
-        platforms = pipeline._default_platforms()
-
         import yaml
 
-        with open("config/publisher.yaml", encoding="utf-8") as handle:
-            configured = (yaml.safe_load(handle) or {}).get("default_platforms")
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "publisher.yaml").write_text(
+            yaml.safe_dump({"default_platforms": ["youtube", "instagram"]}),
+            encoding="utf-8",
+        )
+        self._history(
+            tmp_path,
+            {
+                "B0HHH:youtube": {"post_id": "1"},
+                "B0HHH:instagram": {"post_id": "2"},
+            },
+        )
+        pipeline = self._pipeline(tmp_path)
+        monkeypatch.chdir(tmp_path)
 
-        assert platforms == (configured or ["youtube", "tiktok", "instagram"])
+        kept = pipeline._drop_already_published([self._product("B0HHH")])
+
+        assert kept == [], (
+            "the product is published everywhere this install targets, so it "
+            "must not be rendered; a hardcoded triple would demand tiktok"
+        )
+
+    def test_platform_names_are_matched_case_insensitively(self, tmp_path):
+        """`record_publish` writes lowercase; config validation does not.
+
+        A `platforms: [YouTube]` install would look up a key nothing ever
+        writes, keep every product, and publish duplicates.
+        """
+        self._history(tmp_path, {"B0III:youtube": {"post_id": "1"}})
+        pipeline = self._pipeline(tmp_path, platforms=["YouTube"])
+
+        kept = pipeline._drop_already_published([self._product("B0III")])
+
+        assert kept == []
 
     def test_no_history_file_keeps_everything(self, tmp_path):
         pipeline = self._pipeline(tmp_path)
@@ -532,3 +561,86 @@ class TestKeywordsPerRunIsValidated:
         config = load_global_batch_config(argparse.Namespace(), path)
 
         assert config.keywords
+
+
+@pytest.mark.unit
+class TestTheDropReachesTheVerdict:
+    """Driven through `run_pipeline`, because the wiring was the defect.
+
+    The `nothing new` outcome was added, tested, and documented in three
+    places while never firing in the case it exists for. When the guard drops
+    *every* product there is nothing to render, so `run_pipeline` takes the
+    early-return branch, and that summary did not carry the drop count -- so
+    the run still reported `PIPELINE FAILED ... 0 failed, 0 skipped` and
+    exited 1.
+
+    Every test written for it built `ProductionPhaseSummary` by hand and
+    called `outcome()` directly, so all of them passed against the broken
+    wiring. This one asserts the verdict the operator actually sees.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_run_whose_products_are_all_published_exits_zero(
+        self, tmp_path, monkeypatch
+    ):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.pipeline.config import ScrapingPhaseSummary
+        from src.pipeline.global_batch import GlobalPipelineOrchestrator
+
+        asin = "B0PUBLISHED"
+        product_dir = tmp_path / asin
+        product_dir.mkdir()
+        (tmp_path / "publish_history.json").write_text(
+            json.dumps(
+                {
+                    "posts": {
+                        f"{asin}:youtube": {"post_id": "1"},
+                        f"{asin}:tiktok": {"post_id": "2"},
+                        f"{asin}:instagram": {"post_id": "3"},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        pipeline = GlobalPipelineOrchestrator.__new__(GlobalPipelineOrchestrator)
+        pipeline.config = MagicMock()
+        pipeline.config.outputs_dir = tmp_path
+        pipeline.config.platforms = None
+        pipeline.config.force = False
+        # Not `--skip-publish`: that short-circuits the guard, which would
+        # disable the very thing under test.
+        pipeline.config.skip_publish = False
+        pipeline.config.process_all_products = True
+        pipeline.config.topics = []
+        pipeline.config.keywords = ["anything"]
+        pipeline.config.strict = False
+        pipeline.config.resume = False
+
+        from src.pipeline.config import PipelineState
+
+        pipeline.state = PipelineState.create_new(pipeline.config)
+        pipeline._save_state = MagicMock()  # type: ignore[method-assign]
+
+        record = MagicMock()
+        record.asin = asin
+
+        monkeypatch.setattr(
+            "src.video.producer.cli.discover_products_for_batch",
+            lambda *a, **k: [(product_dir, record)],
+        )
+        pipeline._execute_scraping_phase = AsyncMock(  # type: ignore[method-assign]
+            return_value=ScrapingPhaseSummary(1, 1, 0, [asin], [], {}, 1.0)
+        )
+        pipeline._notify_webhook = AsyncMock()  # type: ignore[method-assign]
+        pipeline._execute_publishing_phase = AsyncMock(  # type: ignore[method-assign]
+            return_value=None
+        )
+
+        summary = await pipeline.run_pipeline()
+
+        assert summary.production.already_published == 1
+        assert summary.outcome() == "nothing new"
+        assert summary.exit_code() == 0
+        assert summary.exit_code(strict=True) == 0
