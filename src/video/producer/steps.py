@@ -1550,11 +1550,12 @@ def _handle_pycaps_burn_failure(
     burn-step failure must not silently ship a caption-less video reported as
     success.
 
-    Two of the three burn failures land here because a fallback is impossible,
+    Two of the four burn failures land here because a fallback is impossible,
     not because it is unwanted: a missing transcript leaves nothing to build
     captions from, and a missing assembled video leaves nothing to burn them
-    onto. The third -- a pycaps render failure -- has both, and
-    ``_burn_with_ffmpeg_fallback`` handles it before this is reached.
+    onto. The other two -- a pycaps render failure, and pycaps having gone
+    missing since the run that recorded the engine -- have both, and
+    ``_burn_with_ffmpeg_fallback`` handles them before this is reached.
 
     Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
     can't accidentally continue past a skipped burn.
@@ -1706,6 +1707,23 @@ def _already_burned(marker_path: Path | None, final_video_path: Path) -> bool:
     except (OSError, json.JSONDecodeError):
         return False
     return bool(recorded) and recorded == _video_fingerprint(final_video_path)
+
+
+def _clear_pycaps_metadata(ctx: PipelineContext) -> None:
+    """Drop metadata describing a pycaps burn that no longer applies.
+
+    The fallback returns before the metadata block, so a `pycaps_metadata.json`
+    left by an earlier successful burn survived a re-assembly and was then
+    re-recorded as this run's artifact -- naming a template that was never
+    applied. Same reasoning as recording the engine on the burn marker.
+    """
+    metadata_path = ctx.run_paths.get("pycaps_metadata_file")
+    if metadata_path is not None:
+        try:
+            metadata_path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("Could not clear stale pycaps metadata: %s", exc)
+    ctx.state.pop("pycaps_metadata", None)
 
 
 def _recorded_burn_engine(marker_path: Path | None) -> str:
@@ -1865,18 +1883,30 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
         # is itself disabled without PYCAPS_OPENAI_API_KEY, so AI rules just
         # no-op (matches today's behavior).
         gemini_adapter = _build_gemini_adapter_for_pycaps(ctx, pycaps_settings)
-        if gemini_adapter is not None:
-            from pycaps.ai import LlmProvider
-
-            LlmProvider.set(gemini_adapter)
-            logger.info(
-                "pycaps AI word tagging enabled (model=%s, on_error=%s)",
-                pycaps_settings.llm_model,
-                pycaps_settings.ai_tagging_on_error,
-            )
 
         renderer = PycapsRenderer()
         try:
+            # Inside the `try`, because this import is a second way for
+            # pycaps to be missing and it used to sit outside. The bundled
+            # config enables AI tagging and every production run carries the
+            # Gemini key, so on the resume this branch exists for -- an
+            # environment rebuilt without the optional group -- the step died
+            # here with ModuleNotFoundError before reaching the handler that
+            # was supposed to degrade. The test missed it by patching
+            # `render` rather than blocking the import.
+            if gemini_adapter is not None:
+                try:
+                    from pycaps.ai import LlmProvider
+                except ImportError as exc:
+                    raise PycapsUnavailableError(str(exc)) from exc
+
+                LlmProvider.set(gemini_adapter)
+                logger.info(
+                    "pycaps AI word tagging enabled (model=%s, on_error=%s)",
+                    pycaps_settings.llm_model,
+                    pycaps_settings.ai_tagging_on_error,
+                )
+
             result = await asyncio.to_thread(
                 renderer.render,
                 final_video_path,
@@ -1912,6 +1942,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                     _record_burn(
                         burn_marker, final_video_path, engine="ffmpeg_fallback"
                     )
+                    _clear_pycaps_metadata(ctx)
                     return
             if pycaps_settings.fallback_policy in ("raise", "fallback_ffmpeg"):
                 raise PipelineError(msg) from e
@@ -1938,6 +1969,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                     _record_burn(
                         burn_marker, final_video_path, engine="ffmpeg_fallback"
                     )
+                    _clear_pycaps_metadata(ctx)
                     return
                 # Fall through: a failed fallback must not ship a
                 # caption-less video reported as success.

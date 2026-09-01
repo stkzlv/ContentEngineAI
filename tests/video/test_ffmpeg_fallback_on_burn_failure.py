@@ -188,11 +188,21 @@ class TestTheFallbackProducesACaptionedVideo:
         assert probe.stdout.strip() == "aac"
 
     @pytest.mark.asyncio
-    async def test_the_pixels_actually_change(self, tmp_path, settings, video_config):
-        """Proves captions were drawn, not merely that ffmpeg exited 0.
+    async def test_the_file_is_replaced_by_the_burn(
+        self, tmp_path, settings, video_config
+    ):
+        """The output is a new encode of the input, in place.
 
-        An `ass` filter pointed at a file it cannot read still exits 0 and
-        produces a video, so a passing burn is not evidence of a caption.
+        Deliberately not claiming this proves a caption was drawn: the burn
+        re-encodes, so the frames differ whether or not libass rendered
+        anything, and an ASS whose only line is positioned off-frame passes
+        it too. What guards the caption is the `Dialogue:` check on the
+        generated file, covered in
+        `TestACaptionFreeSubtitleFileIsRefused`.
+
+        The earlier version of this docstring justified itself with "an `ass`
+        filter pointed at a file it cannot read still exits 0", which is
+        false -- that exits 234 and writes nothing.
         """
         transcript = _transcript(tmp_path / "transcript.json")
         video = _video(tmp_path / "video.mp4")
@@ -226,7 +236,7 @@ class TestTheFallbackProducesACaptionedVideo:
         before = frame(original, tmp_path / "before.png").read_bytes()
         after = frame(video, tmp_path / "after.png").read_bytes()
 
-        assert before != after, "no caption was drawn onto the frame"
+        assert before != after, "the burn did not re-encode the file in place"
 
 
 @pytest.mark.integration
@@ -457,9 +467,16 @@ class TestTheStepReachesTheFallback:
         Both preconditions for degrading hold -- transcript and assembled
         video are on disk -- so aborting would fail a render one FFmpeg pass
         from finished.
+
+        The import is *blocked*, not the renderer patched. Patching
+        `PycapsRenderer.render` left `from pycaps.ai import LlmProvider`
+        reachable, and the bundled config enables AI tagging, so the real
+        scenario died with `ModuleNotFoundError` before the handler ran while
+        this test passed.
         """
+        import sys
+
         from src.video.producer import steps
-        from src.video.pycaps_engine.renderer import PycapsUnavailableError
 
         ctx, video = self._ctx_for_step(
             tmp_path, video_config, "fallback_ffmpeg", monkeypatch
@@ -467,14 +484,16 @@ class TestTheStepReachesTheFallback:
         original = tmp_path / "original.mp4"
         shutil.copy(video, original)
 
-        import src.video.pycaps_engine.renderer as renderer_module
+        class _Blocker:
+            def find_spec(self, name, path=None, target=None):
+                if name == "pycaps" or name.startswith("pycaps."):
+                    raise ModuleNotFoundError(f"No module named {name!r}")
+                return None
 
-        def _gone(self, *a, **k):
-            raise PycapsUnavailableError("No module named 'pycaps'")
-
-        monkeypatch.setattr(
-            renderer_module.PycapsRenderer, "render", _gone, raising=False
-        )
+        blocker = _Blocker()
+        monkeypatch.setattr(sys, "meta_path", [blocker, *sys.meta_path])
+        for name in [n for n in sys.modules if n.startswith("pycaps")]:
+            monkeypatch.delitem(sys.modules, name, raising=False)
 
         await steps.step_burn_pycaps_subtitles(ctx)
 
