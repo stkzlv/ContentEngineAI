@@ -160,11 +160,13 @@ video_settings:
   # second asset. Set per profile to override.
   image_background_fill: "blur"
   image_background_blur_sigma: 20.0
+  image_background_blur_darken: 0.6
 
   # The same treatment for video, reached by `video_aspect_mode: blur-fill`.
   # Separate from the image sigma because a video's background is redrawn
   # every frame while an image's is one still.
   video_background_blur_sigma: 20.0
+  video_background_blur_darken: 0.6
 
   # Persistent on-frame disclosure overlay (FTC #ad, Spain #publi, etc.)
   # Burned into every render in a fixed corner. Required for affiliate
