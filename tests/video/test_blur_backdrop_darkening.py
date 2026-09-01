@@ -103,7 +103,7 @@ class TestItRendersAndActuallyDarkens:
     """
 
     @staticmethod
-    def _band_mean(path, tmp_path):
+    def _band_mean(path):
         """Mean luma of a band that is backdrop, not content.
 
         The sharp copy occupies rows 555..1365 at this geometry, so a band
@@ -193,8 +193,8 @@ class TestItRendersAndActuallyDarkens:
         self._render(_placement(), src, with_darken)
         self._render(_placement(blur_darken=1.0), src, without)
 
-        after = self._band_mean(with_darken, tmp_path)
-        before = self._band_mean(without, tmp_path)
+        after = self._band_mean(with_darken)
+        before = self._band_mean(without)
 
         assert after < before, f"backdrop not darkened: {before:.1f} -> {after:.1f}"
         # 0.6 of a ~195 backdrop lands near 117, which is 4.6:1 against
@@ -404,10 +404,23 @@ class TestAnAlphaSourceIsNotCorrupted:
 
     The other render test in this module cannot see this: it uses a flat
     colour, and stripes in a uniform field leave the mean unchanged.
+
+    Two limits on what this guards. The defect was reproduced on ffmpeg
+    8.0.1 and may not exist on the version CI installs, and it does not
+    appear at `-filter_threads 1`, so on a single-core runner this passes
+    either way. It is a real guard on a developer box and possibly an inert
+    one in CI; the emitted-chain assertions above are what hold there.
     """
 
     @staticmethod
     def _rgba_source(tmp_path):
+        """1200x800 is load-bearing, not arbitrary.
+
+        The corruption is buffer-alignment dependent as well as
+        alpha-dependent: at height 1000, widths 900, 1000 and 2000 corrupt
+        while 800, 960, 1024, 1500 and 3000 do not. A tidier fixture size
+        would make this test pass while exercising nothing.
+        """
         src = tmp_path / "rgba.png"
         subprocess.run(
             [

@@ -326,6 +326,13 @@ class VisualFilterBuilder:
                 # the captions sit on, and a bright one leaves the black
                 # stroke doing all the separating.
                 darken = 0.6 if blur_darken is None else blur_darken
+                # Must stay after `gblur`. That filter accepts only planar
+                # formats, so negotiation converts before `colorlevels` runs,
+                # which is what keeps the video chain clear of the packed-RGBA
+                # striping the image chain guards against with a leading
+                # `format=`. Moving this ahead of the blur for speed would
+                # reintroduce it.
+                #
                 # Applied at 1/6 scale and returned to YUV before the upscale,
                 # for the same reason the blur is: `colorlevels` is RGB-only,
                 # and running it at full frame measured 21s -> 139s of filter
