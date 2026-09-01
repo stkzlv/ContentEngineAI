@@ -737,15 +737,19 @@ class TestTheStepReachesTheFallback:
         Widening the gate to `if True:` passed the whole suite. It would
         make `raise` degrade instead of aborting, and `warn_and_skip` burn
         captions onto a video its own contract says it keeps untouched.
-        Nothing saw it because no test reaching this block asserted the
-        video or the marker under a policy other than `fallback_ffmpeg`.
-        One warn_and_skip test does get here on a real fallback
-        (`test_every_burn_failure_clears_stale_pycaps_metadata[_drop_pycaps]`)
-        and the widened gate burned its video too -- it checks only the
-        metadata clear, so it stayed green.
+        Two tests already reached this block under another policy and
+        neither could see it, for different reasons.
+        `test_pycaps_vanishing_aborts_when_the_fallback_cannot_save_it`
+        asserts the video and the marker, but stubs the fallback to fail,
+        so a widened gate enters the block and still lands on the abort.
+        `test_every_burn_failure_clears_stale_pycaps_metadata[_drop_pycaps]`
+        runs the real fallback, so the widened gate burned its video --
+        but it asserts only the metadata clear. Asserting the video on a
+        stubbed fallback would not have closed this; the real fallback
+        below is what makes the assertions bite.
 
-        The fallback is left real here for that reason: a stubbed failure
-        is what hid the gap.
+        Hence a real fallback here, and assertions on both the video and
+        the marker: the gap needed one test with both.
         """
         from src.video.producer import steps
         from src.video.producer.context import PipelineError
