@@ -737,8 +737,9 @@ class TestTheStepReachesTheFallback:
         Widening the gate to `if True:` passed the whole suite. It would
         make `raise` degrade instead of aborting, and `warn_and_skip` burn
         captions onto a video its own contract says it keeps untouched.
-        Two tests already reached this block under another policy and
-        neither could see it, for different reasons.
+        Under that widened gate two tests reach this block on another
+        policy -- today's gate lets neither in -- and neither could see
+        it, for different reasons.
         `test_pycaps_vanishing_aborts_when_the_fallback_cannot_save_it`
         asserts the video and the marker, but stubs the fallback to fail,
         so a widened gate enters the block and still lands on the abort.
