@@ -10,6 +10,13 @@ input, so on an `--input-file` run every input after the media-poor one went
 unscraped while the loop spun. The documented behaviour in `CLAUDE.md` already
 said page retry applies to keyword searches only, and the global batch gates it
 that way; this path did not.
+
+The batch side of that gate is covered behaviourally by
+`tests/pipeline/test_global_batch_integration.py`, in
+`test_pipeline_skips_retry_for_asin_inputs` and
+`test_pipeline_retries_next_page_on_validation_failure`. A test here asserting
+that `global_batch` still mentions the two predicates was green with the batch
+gate inverted and with it deleted, so it is not repeated.
 """
 
 from __future__ import annotations
@@ -134,25 +141,6 @@ def test_the_gate_is_off_when_media_counting_is_off(monkeypatch):
     s.scrape_products_unified("https://www.amazon.com/dp/B0B2Z8J1MJ")
 
     assert seen.get("filter_validated") is False
-
-
-def test_the_batch_path_gates_on_the_same_predicates():
-    """Module/Batch Alignment: the two paths must agree on what a keyword is.
-
-    `global_batch` derives `is_keyword` from these same two predicates. If one
-    path grew a third input shape and the other did not, a URL would paginate
-    on one entry point and not the other.
-    """
-    import inspect
-
-    from src.pipeline import global_batch
-
-    source = inspect.getsource(global_batch)
-
-    assert "_is_asin(" in source and "_is_url(" in source, (
-        "the batch stopped gating page retry on the input-mode predicates; "
-        "the standalone scraper still does"
-    )
 
 
 def test_a_shortened_url_is_recognised_without_a_network_call():

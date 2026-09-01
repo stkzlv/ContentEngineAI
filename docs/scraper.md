@@ -112,6 +112,8 @@ To compensate for rejected products, the scraper fetches more raw results than t
 
 For example, if `products_per_keyword: 3`, the scraper fetches ~9 products per page (3x multiplier, capped at 15), validates each, and loops through pages until 3 valid products are found or the safety limits are hit.
 
+This applies to keyword searches only. A URL or an ASIN names one product, so every later page would re-resolve the same listing; those inputs are scraped in a single pass and reported as failed if they do not pass validation.
+
 ### Config precedence
 
 CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword`; `scrapers.amazon.max_products` is 1 in the bundled `config/scraper.yaml`, with a code default of 5 when unset).
