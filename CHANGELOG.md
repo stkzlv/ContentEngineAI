@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The global batch already gated this the same way, and `CLAUDE.md` already documented the gate as applying to both. Only the standalone path was missing it, which is the drift the Module/Batch Alignment Rule exists to catch.
 - The gate reuses `_scrape_single_pass` with `filter_validated=True` rather than the unfiltered call that serves `count_products_with_media: false`. Reusing the unfiltered one would return the media-poor product as a success, which is worse than the loop.
 - No new exit path. A run whose only input yields nothing already exits 1 on `0 products scraped`; it now reaches that in one page rather than seven.
-- The two paths bound their loops with different keys. `max_retry_pages` is the batch's and is the only one in `config/scraper.yaml`; the standalone loop reads `max_pages` and `max_scrape_attempts`, whose defaults live in code.
+- The two paths bound their loops with different keys. `max_retry_pages` is the batch's; the standalone loop reads `max_pages` and `max_scrape_attempts`. Only `max_pages` is absent from the bundled `config/scraper.yaml`, and it is still honoured from there if added.
 
 ## [0.93.0] - 2026-09-01
 

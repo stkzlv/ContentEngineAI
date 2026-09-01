@@ -5,18 +5,22 @@ validated product. That is right for a keyword, where page 2 holds different
 products. A URL or an ASIN names one product, so the next page re-resolves the
 same one and the loop runs to `max_pages` on a listing that will never pass.
 
-The cost is not the wasted pages. `scrape_products_unified` is called per
-input, so on an `--input-file` run every input after the media-poor one went
-unscraped while the loop spun. The documented behaviour in `CLAUDE.md` already
-said page retry applies to keyword searches only, and the global batch gates it
-that way; this path did not.
+`scrape_products_unified` is called per input, so a media-poor entry cost all
+seven of `max_pages` browser sessions re-fetching the same listing before the
+loop gave up and returned empty. Nothing was dropped: the run recorded the
+failure and moved on. The documented behaviour in `CLAUDE.md` already said page
+retry applies to keyword searches only, and the global batch gates it that way;
+this path did not.
 
 The batch side of that gate is covered behaviourally by
 `tests/pipeline/test_global_batch_integration.py`, in
-`test_pipeline_skips_retry_for_asin_inputs` and
+`test_pipeline_skips_retry_for_asin_inputs`,
+`test_pipeline_skips_retry_for_url_inputs` and
 `test_pipeline_retries_next_page_on_validation_failure`. A test here asserting
-that `global_batch` still mentions the two predicates was green with the batch
-gate inverted and with it deleted, so it is not repeated.
+that `global_batch` still mentions the two predicates stayed green with the
+batch gate inverted, so it is not repeated. Dropping only the `_is_url` half
+did defeat those tests until the URL case above was added, since the ASIN one
+mocks `_is_url` to False.
 """
 
 from __future__ import annotations
