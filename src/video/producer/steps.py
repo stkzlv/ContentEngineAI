@@ -1560,8 +1560,9 @@ def _handle_pycaps_burn_failure(
     fallback block is deliberate, so a fallback that returns False cannot
     ship a caption-less video as a completed burn. Pycaps having gone
     missing is the one that never reaches here: it resolves the policy
-    inline, raising under ``raise`` and ``fallback_ffmpeg`` and keeping the
-    caption-less video under ``warn_and_skip``.
+    inline -- raising under ``raise``, burning the captions with FFmpeg
+    under ``fallback_ffmpeg`` and raising only if that fails, and keeping
+    the caption-less video under ``warn_and_skip``.
 
     Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
     can't accidentally continue past a skipped burn.
@@ -1693,7 +1694,7 @@ async def _burn_with_ffmpeg_fallback(
 
     burned.replace(final_video_path)
     logger.info(
-        "Burned captions with FFmpeg after the pycaps render failed: %s",
+        "Burned captions with FFmpeg after the pycaps burn failed: %s",
         final_video_path.name,
     )
     return True
