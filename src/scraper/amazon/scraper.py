@@ -343,7 +343,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         while len(validated_products) < target_count:
             if total_raw_scraped >= max_attempts:
                 self.logger.warning(
-                    "Reached max scrape attempts (%d raw products). "
+                    "Reached max scrape attempts (%d validated products). "
                     "Stopping with %d/%d validated.",
                     max_attempts,
                     len(validated_products),
@@ -383,13 +383,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
-                # No validated products from this page. Try the next page
-                # unless the browser returned nothing at all (exhausted results).
-                # We detect exhausted results by checking if raw products were
-                # found: _scrape_single_pass calls _validate_and_convert_products
-                # which logs rejections. If we're on page 1 and got 0, the search
-                # itself may have returned products that all failed validation.
-                # Move to next page to find better candidates.
+                # No validated products from this page, so try the next one.
+                # Exhaustion is not detected: `_scrape_single_pass` returns an
+                # empty list both for a page of products that all failed
+                # validation and for a page that held none, and the two are
+                # indistinguishable here. Either way the loop advances until
+                # `max_pages`, which is what makes the gate above worth having
+                # for an input that can only ever resolve to one product.
                 self.logger.info(
                     "No validated products on page %d, trying next page...",
                     current_page,
