@@ -10,7 +10,7 @@ That is the case a default install actually hits, which is why it is worth
 degrading rather than failing: the transcript and the assembled video both
 exist at that point, so captions are still reachable.
 
-Two of the three burn failures deliberately do not degrade. A missing
+Two of the four burn failures deliberately do not degrade. A missing
 transcript leaves nothing to build captions from and a missing assembled
 video leaves nothing to burn them onto, so those still abort under `raise`
 and `fallback_ffmpeg` alike.
@@ -92,6 +92,9 @@ def _ctx(video_config):
     ctx = MagicMock()
     ctx.product.asin = "B0TESTTEST"
     ctx.config = video_config
+    # A real float: the generator holds the last cue to this, and an unset
+    # MagicMock attribute makes it emit no lines at all.
+    ctx.voiceover_duration = 2.0
     return ctx
 
 
@@ -362,7 +365,7 @@ class TestTheStepReachesTheFallback:
 
     The tests above exercise `_burn_with_ffmpeg_fallback` directly, so they
     pass whether or not the step ever calls it. Reverting the wiring left all
-    twelve of them green -- the same gap that has bitten this repo before,
+    ten of them green -- the same gap that has bitten this repo before,
     where the function is correct and nothing reaches it.
     """
 
@@ -389,6 +392,7 @@ class TestTheStepReachesTheFallback:
         ctx = MagicMock()
         ctx.product.asin = "B0TESTTEST"
         ctx.config = video_config
+        ctx.voiceover_duration = 2.0
         ctx.profile_name = "slideshow_images1"
         ctx.cli_overrides = {}
         ctx.state = {"subtitle_engine_resolved": "pycaps"}
@@ -396,6 +400,7 @@ class TestTheStepReachesTheFallback:
             "whisper_transcript_file": transcript,
             "final_video_output": video,
             "pycaps_burn_marker_file": tmp_path / "burn.json",
+            "pycaps_metadata_file": tmp_path / "pycaps_metadata.json",
             "run_root": tmp_path,
             "temp_dir": tmp_path,
         }
@@ -500,3 +505,51 @@ class TestTheStepReachesTheFallback:
         assert (
             video.read_bytes() != original.read_bytes()
         ), "pycaps vanishing mid-run aborted instead of degrading"
+
+    @pytest.mark.asyncio
+    async def test_a_fallback_clears_stale_pycaps_metadata(
+        self, tmp_path, video_config, monkeypatch
+    ):
+        """Metadata from an earlier pycaps burn must not survive a fallback.
+
+        `pycaps_metadata.json` is not rerun-blocking, so a file written by a
+        successful burn survives a re-assembly and is recorded as the next
+        run's artifact -- naming a template that was never applied. Both
+        `_clear_pycaps_metadata` calls could be deleted with a green suite
+        before this existed, because the fixture omitted the path and the
+        helper was a no-op in every test.
+        """
+        import json
+
+        from src.video.producer import steps
+
+        ctx, _ = self._ctx_for_step(
+            tmp_path, video_config, "fallback_ffmpeg", monkeypatch
+        )
+        metadata = ctx.run_paths["pycaps_metadata_file"]
+        metadata.write_text(
+            json.dumps({"engine": "pycaps", "template": "hype"}), encoding="utf-8"
+        )
+        ctx.state["pycaps_metadata"] = {"engine": "pycaps"}
+
+        import src.video.pycaps_engine.renderer as renderer_module
+
+        failed = MagicMock(
+            success=False,
+            error="Timeout 30000ms exceeded",
+            template_used="hype",
+            renderer_used="css",
+        )
+        monkeypatch.setattr(
+            renderer_module.PycapsRenderer,
+            "render",
+            lambda self, *a, **k: failed,
+            raising=False,
+        )
+
+        await steps.step_burn_pycaps_subtitles(ctx)
+
+        assert (
+            not metadata.exists()
+        ), "a fallback burn left metadata naming a template it never applied"
+        assert "pycaps_metadata" not in ctx.state

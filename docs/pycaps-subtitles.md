@@ -345,6 +345,11 @@ Three policies, configured via `subtitle_settings.pycaps.fallback_policy`:
   video with a separate FFmpeg pass, built from the Whisper transcript the
   burn step already required. Nothing is re-transcribed.
 
+  The same applies when pycaps itself has gone missing since the run that
+  recorded the engine, which a resume reaches because it trusts that
+  recorded decision by design. Both cases leave a transcript and an
+  assembled video on disk, which is what makes them recoverable.
+
   The other two burn failures still abort, because neither can degrade: a
   missing transcript leaves nothing to build captions from, and a missing
   assembled video leaves nothing to burn them onto. A fallback that itself
