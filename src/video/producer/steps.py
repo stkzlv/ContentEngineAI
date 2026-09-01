@@ -1582,7 +1582,7 @@ async def _burn_with_ffmpeg_fallback(
     subtitle_settings: Any,
     visual_bounds: Any = None,
 ) -> bool:
-    """Burn captions with FFmpeg after a pycaps render failure.
+    """Burn captions with FFmpeg after a pycaps burn failure.
 
     `fallback_ffmpeg` used to abort here, which made the policy's name a
     promise it kept only for the pycaps-*unavailable* case. A render failure
