@@ -459,6 +459,17 @@ class TestTheStepReachesTheFallback:
         assert (
             video.read_bytes() != original.read_bytes()
         ), "the video was not re-burned"
+        # The marker has to say which burn drew the captions, or a later
+        # `--step burn_pycaps_subtitles` reports FFmpeg captions as pycaps
+        # ones and skips. Deleting `engine=` left the suite green.
+        marker = json.loads(
+            ctx.run_paths["pycaps_burn_marker_file"].read_text(encoding="utf-8")
+        )
+        assert marker["engine"] == "ffmpeg_fallback"
+        # And the last cue is held to the narration, not cut at the final
+        # word: without `voiceover_duration` this ends at 0:00:01.50.
+        subtitle = next(video.parent.glob("*_fallback.ass"))
+        assert "0:00:02.00" in subtitle.read_text(encoding="utf-8")
 
     @pytest.mark.asyncio
     async def test_pycaps_vanishing_mid_run_also_degrades(

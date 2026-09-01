@@ -5,7 +5,7 @@ under `fallback_ffmpeg`, so subtitle-less videos shipped silently. Failures
 now route through `_handle_pycaps_burn_failure`, where only `warn_and_skip`
 keeps the caption-less video and `raise` and `fallback_ffmpeg` both abort.
 
-Two of the four burn failures reach that helper. A missing transcript leaves
+Two of the four burn failures always reach that helper, and a third reaches it when its fallback fails. A missing transcript leaves
 nothing to build captions from and a missing assembled video leaves nothing
 to burn them onto, so neither can degrade. The other two -- a pycaps render
 failure, and pycaps having vanished since the run that recorded the engine --
@@ -34,8 +34,9 @@ def test_warn_and_skip_keeps_caption_less_video(caplog):
 def test_an_undegradable_failure_aborts(policy):
     """Both policies abort the failures that cannot fall back.
 
-    A render failure no longer reaches this helper under `fallback_ffmpeg`;
-    it burns with FFmpeg instead. What still reaches it is a missing
+    A render failure reaches this helper under `fallback_ffmpeg` only when the
+    FFmpeg burn itself fails; normally it degrades instead. That fall-through
+    is deliberate, so do not read it as dead code. What still reaches it is a missing
     transcript or a missing assembled video, which is what `MSG` now is.
     """
     with pytest.raises(PipelineError, match="transcript is missing"):

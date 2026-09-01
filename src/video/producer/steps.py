@@ -1838,6 +1838,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"Pycaps mode requested but whisper transcript is missing at "
                 f"{transcript_path}. Did generate_subtitles run in pycaps mode?"
             )
+            _clear_pycaps_metadata(ctx)
             return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         if not final_video_path.exists():
@@ -1845,6 +1846,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"Assembled video not found at {final_video_path}, cannot "
                 f"burn pycaps captions."
             )
+            _clear_pycaps_metadata(ctx)
             return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         burn_marker = ctx.run_paths.get("pycaps_burn_marker_file")
@@ -1969,7 +1971,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
             # One of the two burn failures that can degrade rather than
             # abort: the transcript and the assembled video both exist here,
             # which the missing-transcript and missing-video sites lack. The
-            # other is pycaps having gone missing, handled below.
+            # other is pycaps having gone missing, handled above.
             # Cleared before branching on policy: any burn that did not run
             # leaves a stale pycaps_metadata.json naming a template that was
             # never applied, and warn_and_skip reaches that state too.
