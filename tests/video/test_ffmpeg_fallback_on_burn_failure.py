@@ -498,8 +498,6 @@ class TestTheStepReachesTheFallback:
         scenario died with `ModuleNotFoundError` before the handler ran while
         this test passed.
         """
-        import sys
-
         from src.video.producer import steps
 
         # A key, so AI tagging is on and the blocked import this test
@@ -517,6 +515,23 @@ class TestTheStepReachesTheFallback:
         shutil.copy(video, original)
 
         self._drop_pycaps(ctx, video, tmp_path, monkeypatch)
+
+        # The route has to be asserted, not just selected. `enable_ai_tagging`
+        # is config, so flipping it off would skip the import above and let
+        # `render` raise the same error -- leaving the wrapper this test
+        # exists for unguarded, silently. Reaching the renderer is the
+        # failure, and `AssertionError` is not caught by the handler.
+        import src.video.pycaps_engine.renderer as renderer_module
+
+        def _unreachable(self, *a, **k):
+            raise AssertionError(
+                "the burn step reached the pycaps renderer; the `pycaps.ai` "
+                "import this test guards was never taken"
+            )
+
+        monkeypatch.setattr(
+            renderer_module.PycapsRenderer, "render", _unreachable, raising=False
+        )
 
         await steps.step_burn_pycaps_subtitles(ctx)
 

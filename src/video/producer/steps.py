@@ -1553,9 +1553,11 @@ def _handle_pycaps_burn_failure(
     Two of the four burn failures land here because a fallback is impossible,
     not because it is unwanted: a missing transcript leaves nothing to build
     captions from, and a missing assembled video leaves nothing to burn them
-    onto. The other two -- a pycaps render failure, and pycaps having gone
-    missing since the run that recorded the engine -- have both, and
-    ``_burn_with_ffmpeg_fallback`` handles them before this is reached.
+    onto. The other two have both. A render failure still reaches here under
+    every policy unless its FFmpeg fallback succeeds -- the fall-through
+    below the fallback is deliberate, so a fallback that returns False cannot
+    ship a caption-less video as a completed burn. Pycaps having gone missing
+    is the one that does not: it raises inline instead.
 
     Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
     can't accidentally continue past a skipped burn.
