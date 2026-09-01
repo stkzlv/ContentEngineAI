@@ -530,9 +530,9 @@ Security-critical updates can trigger an immediate patch release without waiting
 
 ## Duplicates Are Acceptable
 
-**A duplicate that the operator asked for is not a defect here.** A `--force` republish that creates a second live Zernio post, a knowing re-render that goes out again, and an ASIN carrying more than one lnk.bio link are all expected outcomes. Take the action that was asked for, note the duplicate afterwards if it is informative, and don't stop to ask whether it is wanted or offer to clean it up.
+**A duplicate this project's normal operation produces is not a defect here.** A `--force` republish that creates a second live Zernio post, a knowing re-render that goes out again, and an ASIN carrying more than one lnk.bio link are all expected outcomes. Take the action that was asked for, note the duplicate afterwards if it is informative, and don't stop to ask whether it is wanted or offer to clean it up.
 
-This is a tolerance, not a licence to remove the guards. `_drop_already_published`, `is_already_published` and the link-in-bio duplicate check stay on by default, and a guard that silently stops working is still a defect worth raising: the batch's handoff filter is the only thing standing between an unattended run and re-publishing every tracked product on every pass.
+This is a tolerance, not a licence to remove the guards. `_drop_already_published` and `is_already_published` stay on unless `--force` asks otherwise, the link-in-bio check is unconditional, and a guard that silently stops working is still a defect worth raising: the handoff filter is the batch's only guard against a second post for a product that run re-scraped. It is not the whole publish history that is at stake, because the handoff covers the current run's scrape unless `process_all_products` is set, and cleanup has removed the directories of most products that already went out.
 
 The bio's multi-link ASINs are that distinction in practice. `LinkInBioManager.update` does check, by scanning `list_links()` for the product id, but `/lnk/list` returns one un-paginated page of 50 against a bio several times that size, so a link older than the window is invisible and gets added again. The check is doing its job within the window it can see; the duplicates past it are accepted rather than evidence the check is wrong.
 
