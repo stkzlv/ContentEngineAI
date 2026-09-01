@@ -509,6 +509,25 @@ class TestTheStepReachesTheFallback:
         original = tmp_path / "original.mp4"
         shutil.copy(video, original)
 
+        # Cleared before the degrade, not after it: moving the call below
+        # this block let a successful degrade return with an earlier burn's
+        # metadata intact, and the whole suite stayed green.
+        metadata = ctx.run_paths["pycaps_metadata_file"]
+        metadata.write_text(
+            json.dumps({"engine": "pycaps", "template": "hype"}), encoding="utf-8"
+        )
+        ctx.state["pycaps_metadata"] = {"engine": "pycaps"}
+
+        # Captured before patching, so the spy can re-enter the real helper.
+        real_fallback = steps._burn_with_ffmpeg_fallback
+        seen = {}
+
+        async def _spy(ctx_, transcript, final, settings, bounds=None, **kw):
+            seen["bounds"] = bounds
+            return await real_fallback(ctx_, transcript, final, settings, bounds, **kw)
+
+        monkeypatch.setattr(steps, "_burn_with_ffmpeg_fallback", _spy)
+
         self._drop_pycaps(ctx, video, tmp_path, monkeypatch)
 
         # The route has to be asserted, not just selected. `enable_ai_tagging`
@@ -539,6 +558,11 @@ class TestTheStepReachesTheFallback:
             ctx.run_paths["pycaps_burn_marker_file"].read_text(encoding="utf-8")
         )
         assert marker["engine"] == "ffmpeg_fallback"
+        assert not metadata.exists()
+        assert "pycaps_metadata" not in ctx.state
+        # Dropping the argument is a silent default, not a TypeError, and
+        # sends a `below_content` anchor to the safe-zone floor instead.
+        assert seen["bounds"] is not None
 
     @pytest.mark.asyncio
     async def test_a_fallback_clears_stale_pycaps_metadata(
@@ -702,3 +726,45 @@ class TestTheStepReachesTheFallback:
         # No marker, or a resume reads the uncaptioned video as burned.
         assert not ctx.run_paths["pycaps_burn_marker_file"].exists()
         assert video.read_bytes() == original.read_bytes()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("policy", ["raise", "warn_and_skip"])
+    async def test_only_fallback_ffmpeg_degrades_when_pycaps_is_gone(
+        self, policy, tmp_path, video_config, monkeypatch
+    ):
+        """The other two policies must not quietly acquire the degrade.
+
+        Widening the gate to `if True:` passed the whole suite. It would
+        make `raise` degrade instead of aborting, and `warn_and_skip` burn
+        captions onto a video its own contract says it keeps untouched.
+        Nothing saw it because the only tests reaching this block either
+        used `fallback_ffmpeg` or forced the fallback to fail, so the
+        degrade never succeeded under another policy.
+
+        The fallback is left real here for that reason: a stubbed failure
+        is what hid the gap.
+        """
+        from src.video.producer import steps
+        from src.video.producer.context import PipelineError
+
+        ctx, video = self._ctx_for_step(
+            tmp_path,
+            video_config,
+            policy,
+            monkeypatch,
+            secrets={"GEMINI_API_KEY": "test-key"},
+        )
+        original = tmp_path / "original.mp4"
+        shutil.copy(video, original)
+        self._drop_pycaps(ctx, video, tmp_path, monkeypatch)
+
+        if policy == "raise":
+            with pytest.raises(PipelineError):
+                await steps.step_burn_pycaps_subtitles(ctx)
+        else:
+            await steps.step_burn_pycaps_subtitles(ctx)
+
+        assert (
+            video.read_bytes() == original.read_bytes()
+        ), f"{policy} burned captions the gate should have reserved for fallback_ffmpeg"
+        assert not ctx.run_paths["pycaps_burn_marker_file"].exists()
