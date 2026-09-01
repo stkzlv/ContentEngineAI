@@ -294,6 +294,65 @@ class TestTheVideoChainIsDarkenedToo:
         assert "romax=0.31" in chain, "the video chain did not read its own field"
         assert "0.22" not in chain, "the video chain read the image field"
 
+    @pytest.mark.asyncio
+    async def test_both_image_call_sites_read_the_image_field(self, tmp_path):
+        """There are two, and only one was reachable by the earlier test.
+
+        `first_frame_pre_motion` sends the first image segment down a Ken
+        Burns branch with its own `_build_image_placement` call, and the rest
+        down another. Swapping the field on the pre-motion one alone left the
+        suite green: the coverage audit greps for the name somewhere in the
+        module, so one of two sites is invisible to it.
+        """
+        from unittest.mock import AsyncMock
+
+        from src.video.assembler.visual_builder import VisualFilterBuilder
+        from src.video.config import config as video_config
+
+        images = []
+        for n in range(2):
+            img = tmp_path / f"shot{n}.jpg"
+            img.write_bytes(b"")
+            images.append(img)
+
+        inspector = MagicMock()
+        inspector.is_video.return_value = False
+        inspector.get_media_dimensions = AsyncMock(return_value=(1200, 800))
+        inspector.get_media_duration = AsyncMock(return_value=5.0)
+
+        strategy = MagicMock()
+        strategy.assemble = AsyncMock(
+            return_value=([(images[0], 5.0, False), (images[1], 5.0, False)], "stub")
+        )
+        strategy_factory = MagicMock()
+        strategy_factory.get_strategy.return_value = strategy
+
+        settings = video_config.get_profile_merged_settings("slideshow_images1")
+        settings.video_settings.image_background_fill = "blur"
+        settings.video_settings.first_frame_pre_motion = True
+        settings.video_settings.image_background_blur_darken = 0.22
+        settings.video_settings.video_background_blur_darken = 0.31
+
+        builder = VisualFilterBuilder(
+            media_inspector=inspector,
+            config=video_config,
+            strategy_factory=strategy_factory,
+            profile_settings=settings,
+        )
+        parts, *_ = await builder.build_visual_chain(
+            visual_inputs=images,
+            total_video_duration=10.0,
+            is_relative_mode=False,
+            video_settings_dict=settings.video_settings.model_dump(),
+        )
+        chain = "\n".join(parts)
+
+        assert chain.count("romax=0.22") == 2, (
+            "both image segments should carry the image field; the pre-motion "
+            "branch has its own call site"
+        )
+        assert "0.31" not in chain, "an image segment read the video field"
+
     def test_the_darkening_precedes_the_upscale(self):
         """`colorlevels` is RGB-only.
 
@@ -329,3 +388,113 @@ class TestTheImageChainAlsoSkipsTheNoOp:
         scale_at = chain.index(f"scale={TARGET_W}:{TARGET_H}")
 
         assert darken_at < scale_at
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+class TestAnAlphaSourceIsNotCorrupted:
+    """`colorlevels` on packed RGBA produces stripes and still exits 0.
+
+    Moving the filter to the head of the backdrop branch put it on the raw
+    decoded frame. Before the move `gblur` ran first and negotiated a planar
+    format, so the filter never saw packed RGBA. A PNG with alpha reaches
+    here from both the scraper (`steps.py` globs `images/*.png`) and the
+    stock provider (Pexels `src.original` keeps the uploader's format), and
+    `image_background_fill: blur` is the shipped default.
+
+    The other render test in this module cannot see this: it uses a flat
+    colour, and stripes in a uniform field leave the mean unchanged.
+    """
+
+    @staticmethod
+    def _rgba_source(tmp_path):
+        src = tmp_path / "rgba.png"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "gradients=s=1200x800:n=3:d=1",
+                "-frames:v",
+                "1",
+                "-pix_fmt",
+                "rgba",
+                "-y",
+                str(src),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return src
+
+    @staticmethod
+    def _render_vf(vf, src, dest):
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                str(src),
+                "-vf",
+                vf,
+                "-frames:v",
+                "1",
+                "-y",
+                str(dest),
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    @staticmethod
+    def _maxdiff(a, b):
+        out = subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                str(a),
+                "-i",
+                str(b),
+                "-lavfi",
+                "blend=all_mode=difference,format=gray",
+                "-f",
+                "rawvideo",
+                "-",
+            ],
+            capture_output=True,
+            check=True,
+        ).stdout
+        return max(out)
+
+    def test_the_backdrop_matches_the_pre_move_placement(self, tmp_path):
+        """The reference is the placement that shipped before the speedup.
+
+        Asserting the render merely succeeds passes against the striped
+        output, because ffmpeg exits 0 on it.
+        """
+        src = self._rgba_source(tmp_path)
+        chain = _placement()
+        backdrop = next(seg for seg in chain.split(";") if seg.endswith("[bgb_0]"))
+        vf = backdrop.split("]", 1)[1].rsplit("[bgb_0]", 1)[0].rstrip(",")
+
+        # The same work with colorlevels after the blur, which is where it sat
+        # before the RGB round trip at frame size made it expensive.
+        reference_vf = (
+            "scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,gblur=sigma=20.0,"
+            "colorlevels=romax=0.6:gomax=0.6:bomax=0.6,format=yuv420p"
+        )
+
+        got = tmp_path / "got.png"
+        want = tmp_path / "want.png"
+        self._render_vf(vf + ",format=yuv420p", src, got)
+        self._render_vf(reference_vf, src, want)
+
+        # 84 without the leading format conversion, 3 with it.
+        assert self._maxdiff(got, want) < 16

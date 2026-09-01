@@ -85,7 +85,13 @@ def _build_image_placement(
     # and followed straight back to YUV. Leaving it after the crop measured
     # 15s -> 38s of filter CPU on a 5s clip, because the whole backdrop then
     # runs at frame size in RGB and converts back before the overlay.
+    # The leading `format=` is load-bearing, not tidiness. `colorlevels` on a
+    # packed RGBA frame produces striped garbage on ffmpeg 8.0.1 and still
+    # exits 0, and a PNG with alpha reaches here through both the scraper and
+    # the stock provider. Measured against the pre-move placement on an RGBA
+    # gradient: maxdiff 84 without it, 3 with it.
     darken = (
+        f"format={pix_fmt},"
         f"colorlevels=romax={blur_darken}:gomax={blur_darken}:"
         f"bomax={blur_darken},format={pix_fmt},"
         if blur_darken < 1.0
