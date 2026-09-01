@@ -342,8 +342,11 @@ source and leaves none of the frame empty.
 
 The backdrop is then darkened by `video_background_blur_darken`, and the image
 path by `image_background_blur_darken` (both default 0.6, 1.0 to disable).
-Captions sit on that surround, and a bright shot puts white text near 2.5:1
-where `docs/subtitle-best-practices.md` asks for 4.5:1. The multiplier applies
+Captions sit on that surround. The base style is white fill with a black
+stroke, and the 21:1 `docs/subtitle-best-practices.md` quotes is the fill
+against that stroke, so captions stay legible over anything; what a bright
+shot costs is the margin, with white fill at 2.5:1 against a measured 165/255
+backdrop. The multiplier applies
 to the blurred copy only; the content band is composited on top afterwards and
 is untouched. `colorlevels` scales rather than subtracts, so a dark backdrop
 keeps its detail where `eq=brightness` would flatten it to black.

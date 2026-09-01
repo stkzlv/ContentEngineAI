@@ -63,11 +63,15 @@ def _build_image_placement(
     source is oriented.
 
     The blurred copy is then darkened by `blur_darken`, because it is what the
-    captions sit on. Measured on a real render, the caption band ran 102-165
-    of 255, so white text over the light end was 2.5:1 against the 4.5:1 WCAG
-    AA floor `docs/subtitle-best-practices.md` requires. `colorlevels` scales
-    rather than subtracts, which matters: `eq=brightness` took a dark backdrop
-    to solid black in testing and lost the surround entirely.
+    captions sit on. `docs/subtitle-best-practices.md` puts the base style at
+    white fill with a black stroke, and the 21:1 it quotes is the fill against
+    that stroke, which is what keeps captions legible over anything. What a
+    bright backdrop costs is the margin around it: measured on a real render
+    the band ran 102-165 of 255, and white fill against the light end is
+    2.5:1, so the stroke is doing all the separating on its own.
+
+    `colorlevels` scales rather than subtracts, which matters: `eq=brightness`
+    took a dark backdrop to solid black in testing and lost the surround.
     """
     if background_fill != "blur":
         return (
@@ -77,13 +81,22 @@ def _build_image_placement(
             f"format={pix_fmt}{out_label}"
         )
 
+    # `colorlevels` is RGB-only, so it is placed on the source-resolution copy
+    # and followed straight back to YUV. Leaving it after the crop measured
+    # 15s -> 38s of filter CPU on a 5s clip, because the whole backdrop then
+    # runs at frame size in RGB and converts back before the overlay.
+    darken = (
+        f"colorlevels=romax={blur_darken}:gomax={blur_darken}:"
+        f"bomax={blur_darken},format={pix_fmt},"
+        if blur_darken < 1.0
+        else ""
+    )
     return (
         f"[{index}:v]split=2[bg_{index}][fg_{index}];"
-        f"[bg_{index}]scale={width}:{height}:"
+        f"[bg_{index}]{darken}scale={width}:{height}:"
         f"force_original_aspect_ratio=increase,"
         f"crop={width}:{height},gblur=sigma={blur_sigma},"
-        f"colorlevels=romax={blur_darken}:gomax={blur_darken}:"
-        f"bomax={blur_darken},setsar=1[bgb_{index}];"
+        f"setsar=1[bgb_{index}];"
         f"[fg_{index}]{vf_scale},setsar=1[fgs_{index}];"
         f"[bgb_{index}][fgs_{index}]overlay=(W-w)/2:{target_y},"
         f"format={pix_fmt}{out_label}"
@@ -303,10 +316,21 @@ class VisualFilterBuilder:
                 tag = _label_body(output_label)
                 overlay_y = "(H-h)/2" if video_top_percent is None else pad_y
                 sigma = 20.0 if blur_sigma is None else blur_sigma
-                # Same reasoning as the image chain: the backdrop is what the
-                # captions sit on, and a bright one puts white text under the
-                # WCAG AA floor the subtitle doc requires.
+                # Same reasoning as the image chain: the backdrop is what
+                # the captions sit on, and a bright one leaves the black
+                # stroke doing all the separating.
                 darken = 0.6 if blur_darken is None else blur_darken
+                # Applied at 1/6 scale and returned to YUV before the upscale,
+                # for the same reason the blur is: `colorlevels` is RGB-only,
+                # and running it at full frame measured 21s -> 139s of filter
+                # CPU on a 30s clip. Omitted entirely at 1.0, so the
+                # documented opt-out costs nothing.
+                darken_clause = (
+                    f"colorlevels=romax={darken}:gomax={darken}:bomax={darken},"
+                    "format=yuv420p,"
+                    if darken < 1.0
+                    else ""
+                )
 
                 # Blur small, then upscale. A gaussian at full 1080x1920 runs
                 # on every frame of every video segment and measured 15.8s of
@@ -329,8 +353,8 @@ class VisualFilterBuilder:
                     f"force_original_aspect_ratio=increase,"
                     f"crop={small_w}:{small_h},"
                     f"gblur=sigma={sigma / _BLUR_DOWNSCALE:.4f},"
+                    f"{darken_clause}"
                     f"scale={target_width}:{target_height},"
-                    f"colorlevels=romax={darken}:gomax={darken}:bomax={darken},"
                     f"setsar=1[{tag}_bgb];"
                     f"[{tag}_fg]scale={target_width}:{scale_height}:"
                     f"force_original_aspect_ratio=decrease,setsar=1[{tag}_fgs];"

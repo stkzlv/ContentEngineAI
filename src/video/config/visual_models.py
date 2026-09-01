@@ -296,10 +296,10 @@ class VideoSettings(BaseModel):
     # backdrop reads as texture rather than as a second, competing image.
     image_background_blur_sigma: float = Field(20.0, ge=1.0, le=100.0)
     # Multiplier applied to the blurred backdrop only, never to the content.
-    # A stock frame's blurred copy can be near-white, and white captions over
-    # it measured 2.5:1 against the 4.5:1 WCAG AA floor that
-    # docs/subtitle-best-practices.md requires. 0.6 clears AA on every frame
-    # measured for issue #344. 1.0 disables the darkening.
+    # A stock frame's blurred copy can be near-white, leaving the caption's
+    # black stroke to do all the separating: white fill against a measured
+    # 165/255 surround is 2.5:1. 0.6 restores the margin on every frame
+    # measured for issue #344. 1.0 emits no filter at all.
     image_background_blur_darken: float = Field(0.6, ge=0.1, le=1.0)
     disclosure_overlay: DisclosureSettings = Field(
         default_factory=DisclosureSettings  # type: ignore[arg-type]

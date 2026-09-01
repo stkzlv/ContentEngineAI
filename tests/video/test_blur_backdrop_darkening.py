@@ -3,9 +3,9 @@
 `blur-fill` replaced the letterbox bars with a blurred copy of the source, so
 the caption band stopped being solid black and started varying with the shot.
 Measured on a real `product_video_primary` render (issue #344), the band ran
-102-165 of 255 across three frames, and white caption text over the light end
-is 2.5:1 against the 4.5:1 WCAG AA floor `docs/subtitle-best-practices.md`
-requires.
+102-165 of 255 across three frames. The base caption style is white fill with
+a black stroke and stays legible over anything; what a bright backdrop costs
+is the margin, with the fill at 2.5:1 against the light end.
 
 `colorlevels` scales rather than subtracts, which is why it is not
 `eq=brightness`. Measured on synthetic frames: a 39/255 backdrop goes to 0
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -200,3 +201,131 @@ class TestItRendersAndActuallyDarkens:
         # white text. The bound is loose enough to survive a codec rounding
         # difference and tight enough that a no-op filter fails it.
         assert after < 130
+
+
+def _video_chain(**kw):
+    """The video half of blur-fill, which `_build_image_placement` does not cover."""
+    from unittest.mock import MagicMock
+
+    from src.video.assembler.visual_builder import VisualFilterBuilder
+
+    builder = VisualFilterBuilder.__new__(VisualFilterBuilder)
+    builder.config = MagicMock()
+    builder.config.aspect_ratio = {"smart_scale_tolerance": 0.10}
+    args = {"blur_sigma": 20.0, "blur_darken": 0.6, "video_top_percent": None}
+    args.update(kw)
+    filter_string, _, _ = builder.apply_aspect_ratio_mode(
+        "[0:v]",
+        "blur-fill",
+        TARGET_W,
+        TARGET_H,
+        1920,
+        1080,
+        output_label="[v0_scaled]",
+        target_content_height=TARGET_H,
+        **args,
+    )
+    return filter_string
+
+
+class TestTheVideoChainIsDarkenedToo:
+    """The other half of blur-fill, and the half nothing guarded.
+
+    Deleting the darkening from the video chain left the whole suite green,
+    because every test above drives `_build_image_placement`. A scraped
+    product clip goes through this path, not that one.
+    """
+
+    def test_the_backdrop_is_darkened(self):
+        assert "colorlevels=romax=0.6:gomax=0.6:bomax=0.6" in _video_chain()
+
+    def test_the_factor_is_the_one_passed_in(self):
+        chain = _video_chain(blur_darken=0.35)
+
+        assert "romax=0.35:gomax=0.35:bomax=0.35" in chain
+
+    @pytest.mark.asyncio
+    async def test_it_reads_its_own_field_and_not_the_image_one(self, tmp_path):
+        """Drives `build_visual_chain`, where the two fields are read.
+
+        Passing `blur_darken=` straight to `apply_aspect_ratio_mode` tests
+        the builder and skips the call site, so swapping the two fields
+        there stayed green. This renders a landscape clip through the real
+        chain with the two set apart, so only the video one may appear.
+        """
+        from unittest.mock import AsyncMock
+
+        from src.video.assembler.visual_builder import VisualFilterBuilder
+        from src.video.config import config as video_config
+
+        source = tmp_path / "clip.mp4"
+        source.write_bytes(b"")
+
+        inspector = MagicMock()
+        inspector.is_video.return_value = True
+        inspector.get_media_dimensions = AsyncMock(return_value=(1920, 1080))
+        inspector.get_video_dimensions = AsyncMock(return_value=(1920, 1080))
+        inspector.get_media_duration = AsyncMock(return_value=20.0)
+
+        strategy = MagicMock()
+        strategy.assemble = AsyncMock(return_value=([(source, 20.0, True)], "stub"))
+        strategy_factory = MagicMock()
+        strategy_factory.get_strategy.return_value = strategy
+
+        settings = video_config.get_profile_merged_settings("product_video_primary")
+        settings.video_settings.video_aspect_mode = "blur-fill"
+        settings.video_settings.video_background_blur_darken = 0.31
+        settings.video_settings.image_background_blur_darken = 0.22
+
+        builder = VisualFilterBuilder(
+            media_inspector=inspector,
+            config=video_config,
+            strategy_factory=strategy_factory,
+            profile_settings=settings,
+        )
+        parts, *_ = await builder.build_visual_chain(
+            visual_inputs=[source],
+            total_video_duration=20.0,
+            is_relative_mode=False,
+            video_settings_dict=settings.video_settings.model_dump(),
+        )
+        chain = "\n".join(parts)
+
+        assert "romax=0.31" in chain, "the video chain did not read its own field"
+        assert "0.22" not in chain, "the video chain read the image field"
+
+    def test_the_darkening_precedes_the_upscale(self):
+        """`colorlevels` is RGB-only.
+
+        Left after `scale` it runs the whole backdrop at frame size in RGB
+        and converts back before the overlay. Measured on one interleaved
+        run of a 5s clip, that placement cost about 2.4x the filter time of
+        this one.
+        """
+        chain = _video_chain()
+        darken_at = chain.index("colorlevels=")
+        upscale_at = chain.index(f"scale={TARGET_W}:{TARGET_H}")
+
+        assert darken_at < upscale_at
+        assert "format=yuv420p" in chain[darken_at:upscale_at]
+
+    def test_one_point_zero_emits_no_filter(self):
+        """The documented opt-out must cost nothing.
+
+        A `colorlevels` at 1.0 is a visual no-op but still forces the RGB
+        round trip, so an operator opting out paid the whole price.
+        """
+        assert "colorlevels" not in _video_chain(blur_darken=1.0)
+
+
+class TestTheImageChainAlsoSkipsTheNoOp:
+    def test_one_point_zero_emits_no_filter(self):
+        assert "colorlevels" not in _placement(blur_darken=1.0)
+
+    def test_the_darkening_precedes_the_scale(self):
+        """Source resolution, not frame resolution, for the same RGB reason."""
+        chain = _placement()
+        darken_at = chain.index("colorlevels=")
+        scale_at = chain.index(f"scale={TARGET_W}:{TARGET_H}")
+
+        assert darken_at < scale_at

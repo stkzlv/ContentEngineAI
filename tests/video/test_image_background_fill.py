@@ -60,9 +60,9 @@ class TestTheFilterShape:
 
         assert chain == (
             "[0:v]split=2[bg_0][fg_0];"
-            "[bg_0]scale=1080:1920:force_original_aspect_ratio=increase,"
-            "crop=1080:1920,gblur=sigma=20.0,"
-            "colorlevels=romax=0.6:gomax=0.6:bomax=0.6,setsar=1[bgb_0];"
+            "[bg_0]colorlevels=romax=0.6:gomax=0.6:bomax=0.6,format=yuv420p,"
+            "scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,gblur=sigma=20.0,setsar=1[bgb_0];"
             "[fg_0]scale=1080:810,setsar=1[fgs_0];"
             "[bgb_0][fgs_0]overlay=(W-w)/2:555,format=yuv420p[v_temp_0]"
         )
