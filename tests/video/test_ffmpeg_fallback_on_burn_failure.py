@@ -737,9 +737,12 @@ class TestTheStepReachesTheFallback:
         Widening the gate to `if True:` passed the whole suite. It would
         make `raise` degrade instead of aborting, and `warn_and_skip` burn
         captions onto a video its own contract says it keeps untouched.
-        Nothing saw it because the only tests reaching this block either
-        used `fallback_ffmpeg` or forced the fallback to fail, so the
-        degrade never succeeded under another policy.
+        Nothing saw it because no test reaching this block asserted the
+        video or the marker under a policy other than `fallback_ffmpeg`.
+        One warn_and_skip test does get here on a real fallback
+        (`test_every_burn_failure_clears_stale_pycaps_metadata[_drop_pycaps]`)
+        and the widened gate burned its video too -- it checks only the
+        metadata clear, so it stayed green.
 
         The fallback is left real here for that reason: a stubbed failure
         is what hid the gap.
