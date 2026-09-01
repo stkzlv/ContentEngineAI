@@ -229,6 +229,49 @@ class TestTheFallbackProducesACaptionedVideo:
         assert before != after, "no caption was drawn onto the frame"
 
 
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+class TestACaptionFreeSubtitleFileIsRefused:
+    """The case `result.success` cannot see, and the burn cannot either.
+
+    A valid ASS with no `Dialogue:` lines burns cleanly and exits 0, drawing
+    nothing. Comparing frames before and after does not catch it: the burn
+    re-encodes, so a second lossy generation changes the pixels on its own.
+    That is why the earlier version of this file's "pixels actually change"
+    test passed against a caption-free burn, and why the guard is a check on
+    the file rather than an inference from the exit code.
+    """
+
+    @pytest.mark.asyncio
+    async def test_an_ass_with_no_dialogue_lines_returns_false(
+        self, tmp_path, settings, video_config, monkeypatch
+    ):
+        from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
+
+        transcript = _transcript(tmp_path / "transcript.json")
+        video = _video(tmp_path / "video.mp4")
+
+        def _empty(self, timings, output_path, **kwargs):
+            output_path.write_text(
+                "[Script Info]\nScriptType: v4.00+\n\n"
+                "[V4+ Styles]\nFormat: Name\nStyle: Default\n\n"
+                "[Events]\nFormat: Layer, Start, End, Text\n",
+                encoding="utf-8",
+            )
+            return MagicMock(success=True)
+
+        monkeypatch.setattr(UnifiedSubtitleGenerator, "generate_from_timings", _empty)
+
+        result = await _burn_with_ffmpeg_fallback(
+            _ctx(video_config), transcript, video, settings
+        )
+
+        assert result is False, (
+            "a subtitle file with no lines burned cleanly and was reported as "
+            "a successful caption burn"
+        )
+
+
 @pytest.mark.unit
 class TestItRefusesRatherThanShippingSilently:
     """A failed fallback must let the caller abort, not report success."""
@@ -300,32 +343,6 @@ class TestItRefusesRatherThanShippingSilently:
             is False
         )
         assert not (tmp_path / "v_ffmpeg_burn.mp4").exists()
-
-
-@pytest.mark.unit
-class TestTheOtherTwoFailuresStillAbort:
-    """Only the render failure can degrade; the other two have nothing to use."""
-
-    def test_the_handler_still_raises_for_fallback_ffmpeg(self):
-        from src.video.producer.context import PipelineError
-        from src.video.producer.steps import _handle_pycaps_burn_failure
-
-        with pytest.raises(PipelineError):
-            _handle_pycaps_burn_failure("fallback_ffmpeg", "no transcript")
-
-    def test_raise_still_raises(self):
-        from src.video.producer.context import PipelineError
-        from src.video.producer.steps import _handle_pycaps_burn_failure
-
-        with pytest.raises(PipelineError):
-            _handle_pycaps_burn_failure("raise", "boom")
-
-    def test_warn_and_skip_still_keeps_the_video(self):
-        from src.video.producer.steps import _handle_pycaps_burn_failure
-
-        # Returns None; the point is that it does not raise, which is what
-        # keeps the caption-less video on this policy.
-        _handle_pycaps_burn_failure("warn_and_skip", "boom")
 
 
 @pytest.mark.integration
@@ -402,9 +419,9 @@ class TestTheStepReachesTheFallback:
         # would re-enter the spy.
         real_fallback = steps._burn_with_ffmpeg_fallback
 
-        async def _spy(ctx_, transcript, final, settings):
+        async def _spy(*args, **kwargs):
             called["ran"] = True
-            return await real_fallback(ctx_, transcript, final, settings)
+            return await real_fallback(*args, **kwargs)
 
         monkeypatch.setattr(steps, "_burn_with_ffmpeg_fallback", _spy)
 
@@ -427,3 +444,40 @@ class TestTheStepReachesTheFallback:
         assert (
             video.read_bytes() != original.read_bytes()
         ), "the video was not re-burned"
+
+    @pytest.mark.asyncio
+    async def test_pycaps_vanishing_mid_run_also_degrades(
+        self, tmp_path, video_config, monkeypatch
+    ):
+        """The fourth burn failure, reachable only on a resume.
+
+        A run records `subtitle_engine_resolved: pycaps` and is interrupted;
+        the environment is rebuilt without the optional group; the resume
+        trusts that state key by design and reaches a renderer that is gone.
+        Both preconditions for degrading hold -- transcript and assembled
+        video are on disk -- so aborting would fail a render one FFmpeg pass
+        from finished.
+        """
+        from src.video.producer import steps
+        from src.video.pycaps_engine.renderer import PycapsUnavailableError
+
+        ctx, video = self._ctx_for_step(
+            tmp_path, video_config, "fallback_ffmpeg", monkeypatch
+        )
+        original = tmp_path / "original.mp4"
+        shutil.copy(video, original)
+
+        import src.video.pycaps_engine.renderer as renderer_module
+
+        def _gone(self, *a, **k):
+            raise PycapsUnavailableError("No module named 'pycaps'")
+
+        monkeypatch.setattr(
+            renderer_module.PycapsRenderer, "render", _gone, raising=False
+        )
+
+        await steps.step_burn_pycaps_subtitles(ctx)
+
+        assert (
+            video.read_bytes() != original.read_bytes()
+        ), "pycaps vanishing mid-run aborted instead of degrading"

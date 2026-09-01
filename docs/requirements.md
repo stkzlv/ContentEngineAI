@@ -224,7 +224,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - 10+ built-in templates: word-focus, hype, minimalist, vibrant, explosive, etc.
 - Deterministic template selection per product from a configurable pool
 - CSS renderer (Playwright + Chromium, default) or Pictex renderer (browserless Skia)
-- Fallback policy (3 options): a burn failure aborts under both `raise` and `fallback_ffmpeg`; only `warn_and_skip` keeps a caption-less video. `fallback_ffmpeg` degrades to the FFmpeg engine when pycaps is unavailable (caught before assembly)
+- Fallback policy (3 options): under `raise` any burn failure aborts; only `warn_and_skip` keeps a caption-less video. `fallback_ffmpeg` degrades to the FFmpeg engine when pycaps is unavailable (caught before assembly), and burns captions with FFmpeg after assembly when the burn itself fails with a transcript and a video on disk; a missing transcript or video still aborts
 - Render speed: ~0.7x realtime on CSS path, ~420 MB peak RSS
 
 ### Cold-Open Style
