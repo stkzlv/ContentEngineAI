@@ -295,6 +295,12 @@ class VideoSettings(BaseModel):
     # Blur strength for `image_background_fill: blur`. High enough that the
     # backdrop reads as texture rather than as a second, competing image.
     image_background_blur_sigma: float = Field(20.0, ge=1.0, le=100.0)
+    # Multiplier applied to the blurred backdrop only, never to the content.
+    # A stock frame's blurred copy can be near-white, and white captions over
+    # it measured 2.5:1 against the 4.5:1 WCAG AA floor that
+    # docs/subtitle-best-practices.md requires. 0.6 clears AA on every frame
+    # measured for issue #344. 1.0 disables the darkening.
+    image_background_blur_darken: float = Field(0.6, ge=0.1, le=1.0)
     disclosure_overlay: DisclosureSettings = Field(
         default_factory=DisclosureSettings  # type: ignore[arg-type]
     )
@@ -327,6 +333,10 @@ class VideoSettings(BaseModel):
     # because a video's background is redrawn every frame while an image's is
     # one still, so they are worth tuning apart even though they start equal.
     video_background_blur_sigma: float = Field(20.0, ge=1.0, le=100.0)
+    # Sibling of `image_background_blur_darken`, kept separate for the same
+    # reason the sigma fields are: a video backdrop and an image backdrop are
+    # tuned independently.
+    video_background_blur_darken: float = Field(0.6, ge=0.1, le=1.0)
     # The profile-level spelling of `transition_duration_sec`. Kept as the
     # name profiles use in YAML, but the merge maps it onto that field, which
     # is the one the assembler reads. Nothing reads this one directly.
@@ -515,6 +525,12 @@ class VideoProfile(BaseModel):
     )
     image_background_blur_sigma: float | None = Field(
         None, ge=1.0, le=100.0, description="Blur strength for image_background_fill"
+    )
+    image_background_blur_darken: float | None = Field(
+        None, ge=0.1, le=1.0, description="Darkening multiplier for the image backdrop"
+    )
+    video_background_blur_darken: float | None = Field(
+        None, ge=0.1, le=1.0, description="Darkening multiplier for the video backdrop"
     )
     image_width_percent: float | None = Field(
         None, description="Override global image width as percentage of frame (0.0-1.0)"

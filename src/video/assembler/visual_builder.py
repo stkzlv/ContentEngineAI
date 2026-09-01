@@ -46,6 +46,7 @@ def _build_image_placement(
     pix_fmt: str,
     background_fill: str,
     blur_sigma: float,
+    blur_darken: float,
     out_label: str,
 ) -> str:
     """Put a scaled image on the frame, and decide what surrounds it.
@@ -60,6 +61,13 @@ def _build_image_placement(
     is scaled to *cover* rather than fit (`force_original_aspect_ratio=
     increase` then a centre crop), so it reaches the edges whichever way the
     source is oriented.
+
+    The blurred copy is then darkened by `blur_darken`, because it is what the
+    captions sit on. Measured on a real render, the caption band ran 102-165
+    of 255, so white text over the light end was 2.5:1 against the 4.5:1 WCAG
+    AA floor `docs/subtitle-best-practices.md` requires. `colorlevels` scales
+    rather than subtracts, which matters: `eq=brightness` took a dark backdrop
+    to solid black in testing and lost the surround entirely.
     """
     if background_fill != "blur":
         return (
@@ -73,7 +81,9 @@ def _build_image_placement(
         f"[{index}:v]split=2[bg_{index}][fg_{index}];"
         f"[bg_{index}]scale={width}:{height}:"
         f"force_original_aspect_ratio=increase,"
-        f"crop={width}:{height},gblur=sigma={blur_sigma},setsar=1[bgb_{index}];"
+        f"crop={width}:{height},gblur=sigma={blur_sigma},"
+        f"colorlevels=romax={blur_darken}:gomax={blur_darken}:"
+        f"bomax={blur_darken},setsar=1[bgb_{index}];"
         f"[fg_{index}]{vf_scale},setsar=1[fgs_{index}];"
         f"[bgb_{index}][fgs_{index}]overlay=(W-w)/2:{target_y},"
         f"format={pix_fmt}{out_label}"
@@ -184,6 +194,7 @@ class VisualFilterBuilder:
         video_top_percent: float | None = None,
         target_content_height: int | None = None,
         blur_sigma: float | None = None,
+        blur_darken: float | None = None,
     ) -> tuple[str, str, VisualGeometry | None]:
         """Apply aspect ratio transformation based on configured mode.
 
@@ -212,6 +223,9 @@ class VisualFilterBuilder:
             target_content_height: Optional content height limit
             blur_sigma: Blur strength for `blur-fill`; the caller passes the
                 profile-merged value, so the merge stays in one place
+            blur_darken: Multiplier applied to the blurred backdrop only, so
+                captions keep their contrast when the surround is a bright
+                shot rather than the black bars `letterbox` left
 
         Returns:
         -------
@@ -289,6 +303,10 @@ class VisualFilterBuilder:
                 tag = _label_body(output_label)
                 overlay_y = "(H-h)/2" if video_top_percent is None else pad_y
                 sigma = 20.0 if blur_sigma is None else blur_sigma
+                # Same reasoning as the image chain: the backdrop is what the
+                # captions sit on, and a bright one puts white text under the
+                # WCAG AA floor the subtitle doc requires.
+                darken = 0.6 if blur_darken is None else blur_darken
 
                 # Blur small, then upscale. A gaussian at full 1080x1920 runs
                 # on every frame of every video segment and measured 15.8s of
@@ -311,7 +329,9 @@ class VisualFilterBuilder:
                     f"force_original_aspect_ratio=increase,"
                     f"crop={small_w}:{small_h},"
                     f"gblur=sigma={sigma / _BLUR_DOWNSCALE:.4f},"
-                    f"scale={target_width}:{target_height},setsar=1[{tag}_bgb];"
+                    f"scale={target_width}:{target_height},"
+                    f"colorlevels=romax={darken}:gomax={darken}:bomax={darken},"
+                    f"setsar=1[{tag}_bgb];"
                     f"[{tag}_fg]scale={target_width}:{scale_height}:"
                     f"force_original_aspect_ratio=decrease,setsar=1[{tag}_fgs];"
                     f"[{tag}_bgb][{tag}_fgs]overlay=(W-w)/2:{overlay_y}"
@@ -636,6 +656,7 @@ class VisualFilterBuilder:
                     video_top_percent=effective_top,
                     target_content_height=target_content_height,
                     blur_sigma=video_settings.video_background_blur_sigma,
+                    blur_darken=video_settings.video_background_blur_darken,
                 )
 
                 vf_string = (
@@ -760,6 +781,9 @@ class VisualFilterBuilder:
                         blur_sigma=video_settings_dict.get(
                             "image_background_blur_sigma", 20.0
                         ),
+                        blur_darken=video_settings_dict.get(
+                            "image_background_blur_darken", 0.6
+                        ),
                         out_label=f"[v_temp_{i}]",
                     )
                     vf_string = (
@@ -782,6 +806,9 @@ class VisualFilterBuilder:
                         ),
                         blur_sigma=video_settings_dict.get(
                             "image_background_blur_sigma", 20.0
+                        ),
+                        blur_darken=video_settings_dict.get(
+                            "image_background_blur_darken", 0.6
                         ),
                         out_label=f"[v_temp_{i}]",
                     )

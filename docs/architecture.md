@@ -340,6 +340,14 @@ sets the strength. A 16:9 source in a 9:16 frame occupies a 608px band, so
 letterbox leaves 68% of the frame black; blur-fill keeps every pixel of the
 source and leaves none of the frame empty.
 
+The backdrop is then darkened by `video_background_blur_darken`, and the image
+path by `image_background_blur_darken` (both default 0.6, 1.0 to disable).
+Captions sit on that surround, and a bright shot puts white text near 2.5:1
+where `docs/subtitle-best-practices.md` asks for 4.5:1. The multiplier applies
+to the blurred copy only; the content band is composited on top afterwards and
+is untouched. `colorlevels` scales rather than subtracts, so a dark backdrop
+keeps its detail where `eq=brightness` would flatten it to black.
+
 **Smart-Scale Mode** (`video_aspect_mode: "smart-scale"`)
 ```
 Automatically chooses between blur-fill and crop based on aspect ratio difference:

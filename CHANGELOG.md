@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-09-01
+
+### Added
+- `image_background_blur_darken` and `video_background_blur_darken` (both 0.6, 1.0 disables), which darken the blurred `blur-fill` backdrop. Closes #344.
+
+### Notes
+- Captions sit on that backdrop. Before `blur-fill` the lower frame was solid black, so contrast was fixed; now it varies with the shot. Measured on a real `product_video_primary` render, the caption band ran 102-165 of 255 across three frames, and white text over the light end is 2.5:1 against the 4.5:1 WCAG AA floor `docs/subtitle-best-practices.md` states. At 0.6 those three frames become 7.4:1, 10.8:1 and 6.0:1.
+- Measured end to end through FFmpeg on a light synthetic source: the backdrop band goes 194.6 to 117.0, or 1.8:1 to 4.6:1. It is an improvement on every backdrop, not a guarantee: a near-white shot still lands around 3:1 after darkening, and the caption stroke remains what carries the floor.
+- `colorlevels` rather than `eq=brightness`, because the second subtracts. Measured on synthetic frames, a 39/255 backdrop goes to solid black under `eq=brightness=-0.25` and to 23 under `colorlevels` at comparable weight on a bright frame, so the scaling form keeps a dark surround visible.
+- Applied to the backdrop branch only, before the content is composited. Moving it after the overlay would dim the product photo along with its surround.
+- The issue asked for contrast "no worse than under letterbox". That is unreachable while the frame is filled, since letterbox is pure black at 21:1. The bar used instead is the WCAG AA floor the project's own subtitle doc requires.
+
 ## [0.93.2] - 2026-09-01
 
 ### Changed
