@@ -113,7 +113,7 @@ comments in that file for the active values shipped to users.
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
 | `vertical_align_offset` | float \| null | null | Manual override for the derived offset. Range: -1.0 to 1.0. |
-| `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable or the burn fails. `fallback_ffmpeg` = switch to FFmpeg when pycaps is *unavailable*; a runtime burn failure still aborts. `warn_and_skip` = no subtitles (not recommended). |
+| `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable or the burn fails. `fallback_ffmpeg` = switch to FFmpeg when pycaps is *unavailable*, and burn captions with FFmpeg when a pycaps render fails; a missing transcript or assembled video still aborts. `warn_and_skip` = no subtitles (not recommended). |
 | `enable_ai_tagging` | bool | `false` | Opt into AI word tagging via Gemini. See [AI word tagging](#ai-word-tagging). |
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
 | `ai_tagging_on_error` | `skip` \| `raise` | `skip` | Per-call AI failure handling. `skip` swallows the error and drops the tag for that segment; `raise` propagates to `fallback_policy`. |
@@ -332,15 +332,23 @@ Three policies, configured via `subtitle_settings.pycaps.fallback_policy`:
 
 - `raise` (default): abort the pipeline if pycaps is unavailable or the burn
   fails. Prevents silently producing videos without subtitles.
-- `fallback_ffmpeg`: if pycaps isn't installed, fall back to the FFmpeg
-  subtitle engine for that run. The availability check runs early in
-  `step_generate_subtitles`, before committing to the pycaps-only code path.
-  Good for environments where pycaps may not always be installed. This only
-  covers the unavailable case. If pycaps is installed but the burn fails at
-  runtime (missing transcript, missing assembled video, or a render failure
-  such as the CSS renderer with no display), there is no FFmpeg burn left to
-  fall back to — the assembler already ran without captions — so the run
-  aborts rather than ship a caption-less video.
+- `fallback_ffmpeg`: fall back to FFmpeg captions rather than aborting, in
+  two distinct situations.
+
+  If pycaps isn't installed, the run switches to the FFmpeg subtitle engine
+  outright. That check runs early in `step_generate_subtitles`, before
+  committing to the pycaps-only code path, so the assembler burns the
+  captions itself. This is what forks without `--with pycaps` hit.
+
+  If pycaps is installed but its *render* fails — the CSS renderer with no
+  display being the common case — the captions are burned onto the assembled
+  video with a separate FFmpeg pass, built from the Whisper transcript the
+  burn step already required. Nothing is re-transcribed.
+
+  The other two burn failures still abort, because neither can degrade: a
+  missing transcript leaves nothing to build captions from, and a missing
+  assembled video leaves nothing to burn them onto. A fallback that itself
+  fails also aborts rather than ship a caption-less video.
 - `warn_and_skip`: log a warning and keep the video without subtitles. Not
   recommended for production since it silently produces subtitleless output.
 

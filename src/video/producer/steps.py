@@ -1543,17 +1543,18 @@ def _handle_pycaps_burn_failure(
     fallback_policy: Literal["raise", "fallback_ffmpeg", "warn_and_skip"],
     msg: str,
 ) -> None:
-    """Resolve any pycaps burn-step failure per ``fallback_policy``.
+    """Resolve a pycaps burn-step failure that cannot degrade to FFmpeg.
 
-    Covers every failure in ``step_burn_pycaps_subtitles`` that leaves the video
-    without captions: a missing transcript, a missing assembled video, or a
-    runtime render failure. ``warn_and_skip`` logs and returns, so the caller
-    keeps the caption-less video. ``raise`` and ``fallback_ffmpeg`` both raise
-    ``PipelineError``: a burn-step failure must not silently ship a caption-less
-    video reported as success. ``fallback_ffmpeg`` only re-routes to the ffmpeg
-    subtitle engine when pycaps is *unavailable* (handled earlier in
-    ``step_generate_subtitles``), not after the assembler has already run
-    without captions, so there is nothing to fall back to here.
+    ``warn_and_skip`` logs and returns, so the caller keeps the caption-less
+    video. ``raise`` and ``fallback_ffmpeg`` both raise ``PipelineError``: a
+    burn-step failure must not silently ship a caption-less video reported as
+    success.
+
+    Two of the three burn failures land here because a fallback is impossible,
+    not because it is unwanted: a missing transcript leaves nothing to build
+    captions from, and a missing assembled video leaves nothing to burn them
+    onto. The third -- a pycaps render failure -- has both, and
+    ``_burn_with_ffmpeg_fallback`` handles it before this is reached.
 
     Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
     can't accidentally continue past a skipped burn.
@@ -1564,6 +1565,102 @@ def _handle_pycaps_burn_failure(
         )
         return
     raise PipelineError(msg)
+
+
+async def _burn_with_ffmpeg_fallback(
+    ctx: PipelineContext,
+    transcript_path: Path,
+    final_video_path: Path,
+    subtitle_settings: Any,
+) -> bool:
+    """Burn captions with FFmpeg after a pycaps render failure.
+
+    `fallback_ffmpeg` used to abort here, which made the policy's name a
+    promise it kept only for the pycaps-*unavailable* case. A render failure
+    is the one a default install actually hits: pycaps installs fine and then
+    the CSS renderer cannot rasterize without a display.
+
+    Nothing is re-transcribed. The Whisper transcript this step already
+    requires is the same dict `generate_subtitles_with_whisper` produced, so
+    its word timings go straight to the subtitle generator. Re-running STT
+    would cost minutes and could time out on the same box that just failed
+    the burn.
+
+    Returns True when the video now carries captions. A False return leaves
+    the caller to fail loudly rather than ship a caption-less video: this is
+    a best-effort improvement on aborting, not a second thing that can hide.
+    """
+    import json
+
+    from src.video.stt_functions import _extract_word_timings
+    from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator
+
+    try:
+        whisper_result = json.loads(transcript_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("FFmpeg fallback: could not read transcript: %s", exc)
+        return False
+
+    timings = _extract_word_timings(whisper_result)
+    if not timings:
+        logger.warning("FFmpeg fallback: transcript carries no word timings.")
+        return False
+
+    # `.ass` regardless of the configured subtitle_format: this burns through
+    # the `ass` filter, and SRT text in a file the filter is told is ASS
+    # aborts the render.
+    subtitle_path = final_video_path.parent / f"{final_video_path.stem}_fallback.ass"
+    # Constructed the way the FFmpeg engine constructs it, so the fallback's
+    # captions are styled like the ones this profile would have produced had
+    # it selected that engine, rather than like some third thing.
+    frame_size = getattr(ctx.config.video_settings, "resolution", (1080, 1920))
+    generator = UnifiedSubtitleGenerator(
+        subtitle_settings,
+        frame_size,
+        ctx.product.asin,
+        video_config=ctx.config,
+    )
+    result = generator.generate_from_timings(timings, subtitle_path, format_type="ass")
+    if not result.success or not subtitle_path.exists():
+        logger.warning("FFmpeg fallback: subtitle generation failed.")
+        return False
+
+    burned = final_video_path.with_name(f"{final_video_path.stem}_ffmpeg_burn.mp4")
+    escaped = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
+    command = [
+        "ffmpeg",
+        "-y",
+        "-v",
+        "error",
+        "-i",
+        str(final_video_path),
+        "-vf",
+        f"ass='{escaped}'",
+        "-c:a",
+        "copy",
+        str(burned),
+    ]
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await process.communicate()
+    if process.returncode != 0 or not burned.exists():
+        logger.warning(
+            "FFmpeg fallback burn failed (exit %s): %s",
+            process.returncode,
+            stderr.decode(errors="replace")[-400:],
+        )
+        burned.unlink(missing_ok=True)
+        return False
+
+    burned.replace(final_video_path)
+    logger.info(
+        "Burned captions with FFmpeg after the pycaps render failed: %s",
+        final_video_path.name,
+    )
+    return True
 
 
 def _video_fingerprint(path: Path) -> str:
@@ -1753,6 +1850,18 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                 f"pycaps render failed: {result.error}. "
                 f"template={result.template_used}, renderer={result.renderer_used}"
             )
+            # The one burn failure that can degrade rather than abort: the
+            # transcript and the assembled video both exist here, which is
+            # what the other two sites lack.
+            if pycaps_settings.fallback_policy == "fallback_ffmpeg":
+                logger.warning("%s Falling back to an FFmpeg caption burn.", msg)
+                if await _burn_with_ffmpeg_fallback(
+                    ctx, transcript_path, final_video_path, subtitle_settings
+                ):
+                    _record_burn(burn_marker, final_video_path)
+                    return
+                # Fall through: a failed fallback must not ship a
+                # caption-less video reported as success.
             return _handle_pycaps_burn_failure(pycaps_settings.fallback_policy, msg)
 
         # Swap the burned output over the original final video atomically.

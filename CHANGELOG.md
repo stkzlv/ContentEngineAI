@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.93.0] - 2026-09-01
+
+### Added
+- `pycaps.fallback_policy: fallback_ffmpeg` now degrades to an FFmpeg caption burn when a pycaps *render* fails, instead of aborting the run. Closes #166.
+
+### Notes
+- The policy's name promised something it delivered only for the pycaps-*unavailable* case, which `step_generate_subtitles` catches before the assembler runs. A render failure happens after it, and every policy except `warn_and_skip` aborted there -- which is the case a default install actually hits, since pycaps installs cleanly and the CSS renderer then cannot rasterize without a display.
+- Nothing is re-transcribed. The Whisper transcript the burn step already requires is the same dict `generate_subtitles_with_whisper` produced, so its word timings go straight to the subtitle generator. Re-running STT would cost minutes and could time out on the same box that just failed the burn.
+- Only one of the three burn failures can degrade, and the other two still abort under both `raise` and `fallback_ffmpeg`: a missing transcript leaves nothing to build captions from, and a missing assembled video leaves nothing to burn them onto.
+- A failed fallback returns False and the caller fails loudly. This is a best-effort improvement on aborting, not a second place a caption-less video can hide.
+- The captions are built with the same generator and settings the FFmpeg engine uses, so they are styled like the ones the profile would have produced had it selected that engine rather than like a third thing. The file is written as `.ass` regardless of the configured `subtitle_format`, because the burn goes through the `ass` filter and SRT text in a file the filter is told is ASS aborts the render.
+- `tests/video/test_ffmpeg_fallback_on_burn_failure.py` compares frames before and after: an `ass` filter pointed at a file it cannot read still exits 0 and produces a video, so a successful burn is not by itself evidence of a caption.
+
 ## [0.92.0] - 2026-08-31
 
 ### Added
