@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A failed fallback returns False and the caller fails loudly. This is a best-effort improvement on aborting, not a second place a caption-less video can hide.
 - The captions are built with the same generator and settings the FFmpeg engine uses, so they are styled like the ones the profile would have produced had it selected that engine rather than like a third thing. The file is written as `.ass` regardless of the configured `subtitle_format`, because the burn goes through the `ass` filter and SRT text in a file the filter is told is ASS aborts the render.
 - A successful FFmpeg run is not by itself evidence of a caption, so the fallback checks the subtitle file it generated. A valid ASS with no `Dialogue:` lines burns cleanly, exits 0, and draws nothing, and `result.success` cannot see that. (An *unreadable* ASS is the loud case: ffmpeg exits 234 and writes no file.)
+- `pycaps_burned.json` records which burn drew the captions. The marker used to mean "pycaps captions are on this file", which a fallback burn makes false, so a later `--step burn_pycaps_subtitles` would have reported FFmpeg captions as pycaps ones and skipped.
+- `pycaps_metadata.json` is removed on every exit that skipped the burn. It is not rerun-blocking, so a file left by an earlier successful burn survived and was recorded as the next run's artifact, naming a template that render never applied.
 
 ## [0.92.0] - 2026-08-31
 

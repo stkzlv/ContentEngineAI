@@ -5,14 +5,16 @@ under `fallback_ffmpeg`, so subtitle-less videos shipped silently. Failures
 now route through `_handle_pycaps_burn_failure`, where only `warn_and_skip`
 keeps the caption-less video and `raise` and `fallback_ffmpeg` both abort.
 
-Two of the four burn failures always reach that helper, and a third reaches it when its fallback fails. A missing transcript leaves
-nothing to build captions from and a missing assembled video leaves nothing
-to burn them onto, so neither can degrade. The other two -- a pycaps render
-failure, and pycaps having vanished since the run that recorded the engine --
-have both on disk and burn captions with FFmpeg instead; those are covered in
-`test_ffmpeg_fallback_on_burn_failure.py`, which is why the message below is
-a missing-transcript one rather than the render-failure message this file
-used to carry.
+Two of the four burn failures always reach that helper, and under
+`fallback_ffmpeg` a third reaches it when its fallback fails. A missing
+transcript leaves nothing to build captions from and a missing assembled
+video leaves nothing to burn them onto, so neither can degrade. The other
+two -- a pycaps render failure, and pycaps having vanished since the run
+that recorded the engine -- have both on disk and burn captions with
+FFmpeg instead; those are covered in
+`test_ffmpeg_fallback_on_burn_failure.py`, which is why the message below
+is a missing-transcript one rather than the render-failure message this
+file used to carry.
 """
 
 import pytest

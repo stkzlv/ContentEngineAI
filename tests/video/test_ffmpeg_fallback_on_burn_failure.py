@@ -564,3 +564,67 @@ class TestTheStepReachesTheFallback:
             not metadata.exists()
         ), "a fallback burn left metadata naming a template it never applied"
         assert "pycaps_metadata" not in ctx.state
+
+    @staticmethod
+    def _drop_transcript(ctx, video, tmp_path, monkeypatch):
+        ctx.run_paths["whisper_transcript_file"] = tmp_path / "never-written.json"
+
+    @staticmethod
+    def _drop_video(ctx, video, tmp_path, monkeypatch):
+        video.unlink()
+
+    @staticmethod
+    def _drop_pycaps(ctx, video, tmp_path, monkeypatch):
+        import sys
+
+        class _Blocker:
+            def find_spec(self, name, path=None, target=None):
+                if name == "pycaps" or name.startswith("pycaps."):
+                    raise ModuleNotFoundError(f"No module named {name!r}")
+                return None
+
+        monkeypatch.setattr(sys, "meta_path", [_Blocker(), *sys.meta_path])
+        for name in [n for n in sys.modules if n.startswith("pycaps")]:
+            monkeypatch.delitem(sys.modules, name, raising=False)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "bail_out",
+        ["_drop_transcript", "_drop_video", "_drop_pycaps"],
+    )
+    async def test_every_non_burn_exit_clears_stale_pycaps_metadata(
+        self, bail_out, tmp_path, video_config, monkeypatch
+    ):
+        """No exit that skipped the burn may leave the previous burn's record.
+
+        `pycaps_metadata.json` is not rerun-blocking, so a file written by an
+        earlier successful burn survives and `state.py` records it as *this*
+        run's `burn_pycaps_subtitles` artifact -- naming a template that was
+        never applied to this render. The render-failure exit is covered
+        above; these are the other three, and all three `_clear_pycaps_metadata`
+        calls could be deleted with a green suite before this existed.
+
+        `warn_and_skip` on every case, so the step returns rather than
+        raising and the assertions can read the state it left behind.
+        """
+        import json
+
+        from src.video.producer import steps
+
+        ctx, video = self._ctx_for_step(
+            tmp_path, video_config, "warn_and_skip", monkeypatch
+        )
+        metadata = ctx.run_paths["pycaps_metadata_file"]
+        metadata.write_text(
+            json.dumps({"engine": "pycaps", "template": "hype"}), encoding="utf-8"
+        )
+        ctx.state["pycaps_metadata"] = {"engine": "pycaps"}
+
+        getattr(self, bail_out)(ctx, video, tmp_path, monkeypatch)
+
+        await steps.step_burn_pycaps_subtitles(ctx)
+
+        assert (
+            not metadata.exists()
+        ), "an exit that never burned left metadata naming an unapplied template"
+        assert "pycaps_metadata" not in ctx.state
