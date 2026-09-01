@@ -528,6 +528,16 @@ Security-critical updates can trigger an immediate patch release without waiting
 - **`PLATFORM_LIMITS` rows in `src/publisher/models.py` must reflect each platform's hard cap, not prompt-side soft targets.** YouTube row is 5000 (description hard cap), Instagram is 2200 (caption hard cap), TikTok is 2200 (caption hard cap). If a row matches the prompt's "optimal" target instead (e.g. 150 for TikTok), every caption that exceeds the soft target trips a false-positive validation WARN at publish time. The publisher loader logs and proceeds today, but #109's open policy decision could turn validation failures into blockers — at which point a too-tight row would brick every publish. Soft targets belong in the prompt config (`caption_length_optimal`, `caption_length_seo`), where they shape LLM output but don't gate the publisher.
 - **Vercel Blob is a staging area, not permanent storage**: videos >4 MB upload to the user's Blob store (`LATE_VERCEL_TOKEN`) via the SDK's `upload_large`; Zernio fetches the blob URL when the scheduled post goes live, after which the blob is dead weight. `blob_retention` in `config/publisher.yaml` (age + total-size policy) trims the store once after each publish run on all three publish paths; `src/publisher/blob_retention.py` holds the logic. Blobs referenced by posts that aren't fully `published` are never deleted (`LatePublisher.get_unpublished_media_urls()` — the normalized `list_posts` drops mediaItems, so it reads the raw paginated SDK response). Retention failures only WARN; without it the 1 GB free tier fills in months and Vercel pauses store access, breaking every >4 MB upload.
 
+## Duplicates Are Acceptable
+
+**Duplicate posts and duplicate link-in-bio entries are not defects here.** A
+`--force` republish that creates a second Zernio post, a re-render that goes
+out again, and an ASIN carrying two or three lnk.bio links are all expected
+outcomes, not something to prevent, escalate, or clean up. Take the action that
+was asked for and note the duplicate afterwards if it is informative. Don't
+stop to ask whether a duplicate is wanted, and don't propose fixing the code
+paths that allow them unless someone asks for that specifically.
+
 ## Link-in-Bio Module Notes
 
 - **CLI flags**: `--link-in-bio` and `--no-link-in-bio` override `link_in_bio.enabled` config for single publish
