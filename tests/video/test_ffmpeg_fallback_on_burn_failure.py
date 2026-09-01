@@ -531,6 +531,14 @@ class TestTheStepReachesTheFallback:
         assert (
             video.read_bytes() != original.read_bytes()
         ), "pycaps vanishing mid-run aborted instead of degrading"
+        # The same assertion its render-failure twin carries. Without it,
+        # dropping `engine=` here leaves the marker claiming pycaps drew
+        # captions FFmpeg drew, and a later `--step burn_pycaps_subtitles`
+        # reports the wrong engine -- 152 tests stayed green on that.
+        marker = json.loads(
+            ctx.run_paths["pycaps_burn_marker_file"].read_text(encoding="utf-8")
+        )
+        assert marker["engine"] == "ffmpeg_fallback"
 
     @pytest.mark.asyncio
     async def test_a_fallback_clears_stale_pycaps_metadata(
