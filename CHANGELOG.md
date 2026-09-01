@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `pycaps.fallback_policy: fallback_ffmpeg` now degrades to an FFmpeg caption burn when a pycaps *render* fails, instead of aborting the run. Closes #166.
 
+### Fixed
+- A burn failure left the previous burn's `pycaps_metadata.json` in place. The file is not rerun-blocking, so one written by an earlier successful burn survived and was recorded as the next run's `burn_pycaps_subtitles` artifact, naming a template that render never applied. Every burn failure now clears it. The two exits that skip the burn without failing keep it: a non-pycaps run never attempted one, and its record belongs to another profile of the same product, since the file is product-level and the render is not.
+
 ### Notes
 - The policy's name promised something it delivered only for the pycaps-*unavailable* case, which `step_generate_subtitles` catches before the assembler runs. A render failure happens after it, and every policy except `warn_and_skip` aborted there -- which is the case a default install actually hits, since pycaps installs cleanly and the CSS renderer then cannot rasterize without a display.
 - Nothing is re-transcribed. The Whisper transcript the burn step already requires is the same dict `generate_subtitles_with_whisper` produced, so its word timings go straight to the subtitle generator. Re-running STT would cost minutes and could time out on the same box that just failed the burn.
@@ -20,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The captions are built with the same generator and settings the FFmpeg engine uses, so they are styled like the ones the profile would have produced had it selected that engine rather than like a third thing. The file is written as `.ass` regardless of the configured `subtitle_format`, because the burn goes through the `ass` filter and SRT text in a file the filter is told is ASS aborts the render.
 - A successful FFmpeg run is not by itself evidence of a caption, so the fallback checks the subtitle file it generated. A valid ASS with no `Dialogue:` lines burns cleanly, exits 0, and draws nothing, and `result.success` cannot see that. (An *unreadable* ASS is the loud case: ffmpeg exits 234 and writes no file.)
 - `pycaps_burned.json` records which burn drew the captions. The marker used to mean "pycaps captions are on this file", which a fallback burn makes false, so a later `--step burn_pycaps_subtitles` would have reported FFmpeg captions as pycaps ones and skipped.
-- `pycaps_metadata.json` is removed on every exit that skipped the burn. It is not rerun-blocking, so a file left by an earlier successful burn survived and was recorded as the next run's artifact, naming a template that render never applied.
 
 ## [0.92.0] - 2026-08-31
 

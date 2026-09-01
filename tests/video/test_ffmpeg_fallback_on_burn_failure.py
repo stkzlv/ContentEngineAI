@@ -370,7 +370,7 @@ class TestTheStepReachesTheFallback:
     """
 
     @staticmethod
-    def _ctx_for_step(tmp_path, video_config, policy, monkeypatch):
+    def _ctx_for_step(tmp_path, video_config, policy, monkeypatch, secrets=None):
         from unittest.mock import MagicMock
 
         transcript = _transcript(tmp_path / "transcript.json")
@@ -395,6 +395,14 @@ class TestTheStepReachesTheFallback:
         ctx.voiceover_duration = 2.0
         ctx.profile_name = "slideshow_images1"
         ctx.cli_overrides = {}
+        # Empty by default, which turns AI tagging off. A MagicMock
+        # returns a truthy key, so the step built a Gemini adapter and
+        # imported `pycaps.ai` before reaching the renderer -- on a box
+        # without the optional group (which is what CI installs) that
+        # raised, and every render-failure test silently exercised the
+        # pycaps-unavailable branch instead. The feature this module
+        # covers was unguarded by the gate that approves it.
+        ctx.secrets = {} if secrets is None else secrets
         ctx.state = {"subtitle_engine_resolved": "pycaps"}
         ctx.run_paths = {
             "whisper_transcript_file": transcript,
@@ -494,22 +502,21 @@ class TestTheStepReachesTheFallback:
 
         from src.video.producer import steps
 
+        # A key, so AI tagging is on and the blocked import this test
+        # exists for is the one that raises. With no key the step reaches
+        # `renderer.render`, which raises the same error by another route
+        # and leaves the `pycaps.ai` import untested.
         ctx, video = self._ctx_for_step(
-            tmp_path, video_config, "fallback_ffmpeg", monkeypatch
+            tmp_path,
+            video_config,
+            "fallback_ffmpeg",
+            monkeypatch,
+            secrets={"GEMINI_API_KEY": "test-key"},
         )
         original = tmp_path / "original.mp4"
         shutil.copy(video, original)
 
-        class _Blocker:
-            def find_spec(self, name, path=None, target=None):
-                if name == "pycaps" or name.startswith("pycaps."):
-                    raise ModuleNotFoundError(f"No module named {name!r}")
-                return None
-
-        blocker = _Blocker()
-        monkeypatch.setattr(sys, "meta_path", [blocker, *sys.meta_path])
-        for name in [n for n in sys.modules if n.startswith("pycaps")]:
-            monkeypatch.delitem(sys.modules, name, raising=False)
+        self._drop_pycaps(ctx, video, tmp_path, monkeypatch)
 
         await steps.step_burn_pycaps_subtitles(ctx)
 
@@ -592,10 +599,10 @@ class TestTheStepReachesTheFallback:
         "bail_out",
         ["_drop_transcript", "_drop_video", "_drop_pycaps"],
     )
-    async def test_every_non_burn_exit_clears_stale_pycaps_metadata(
+    async def test_every_burn_failure_clears_stale_pycaps_metadata(
         self, bail_out, tmp_path, video_config, monkeypatch
     ):
-        """No exit that skipped the burn may leave the previous burn's record.
+        """No burn *failure* may leave the previous burn's record behind.
 
         `pycaps_metadata.json` is not rerun-blocking, so a file written by an
         earlier successful burn survives and `state.py` records it as *this*
@@ -603,6 +610,13 @@ class TestTheStepReachesTheFallback:
         never applied to this render. The render-failure exit is covered
         above; these are the other three, and all three `_clear_pycaps_metadata`
         calls could be deleted with a green suite before this existed.
+
+        Four of the step's six burn-skipping exits clear. The two that do not
+        are not failures: `engine != "pycaps"` did not attempt a burn and is
+        reached by renders of *other* profiles of the same product, whose
+        record it would destroy (the file is product-level, the render is
+        not); and `_already_burned` leaves a record that genuinely describes
+        the burn on that file.
 
         `warn_and_skip` on every case, so the step returns rather than
         raising and the assertions can read the state it left behind.
