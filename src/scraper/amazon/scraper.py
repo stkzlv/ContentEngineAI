@@ -315,9 +315,11 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         Paginates through search result pages when products on the current
         page fail validation. Stops when the target is reached or `max_pages`
-        is passed. `max_scrape_attempts` also stops it, but its counter only
-        advances on a page that yielded validated products, so it bounds a
-        long successful run rather than a listing that never validates.
+        is passed. `max_scrape_attempts` also stops it, but `total_raw_scraped`
+        counts validated products rather than raw ones (it and
+        `validated_products` grow by the same `batch`), so that guard fires
+        only when the limit is below `target_count` and never bounds a
+        listing that fails validation.
         """
         validated_products: list[ProductData] = []
         total_raw_scraped = 0
