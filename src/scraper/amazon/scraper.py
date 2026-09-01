@@ -276,6 +276,19 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             # If count_products_with_media is enabled, loop until target is reached
             if count_products_with_media:
+                # Pagination is for keyword searches only. A URL or an ASIN
+                # names one product, so the next page re-resolves the same one:
+                # a listing that fails media validation sent the loop to
+                # max_pages, and on an --input-file run every input after it
+                # went unscraped. The global batch already gates this the same
+                # way (`is_keyword` in _execute_scraping_phase).
+                if self._is_asin(keyword) or self._is_url(keyword):
+                    return self._scrape_single_pass(
+                        keyword,
+                        search_params,
+                        products_limit,
+                        filter_validated=True,
+                    )
                 return self._scrape_until_validated_count_reached(
                     keyword, search_params, products_limit
                 )

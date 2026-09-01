@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.93.1] - 2026-09-01
+
+### Fixed
+- The standalone scraper paginated on a URL or ASIN input that failed media validation, instead of reporting it and moving on. Page retry exists to find products on later search pages, which a keyword has and a URL does not: the next page re-resolves the same listing, so the loop ran to `max_pages` on a product that would never pass. `scrape_products_unified` is called per input, so on an `--input-file` run every entry after the media-poor one went unscraped. Closes #107.
+
+### Notes
+- The global batch already gated this the same way, and `CLAUDE.md` already documented the gate as applying to both. Only the standalone path was missing it, which is the drift the Module/Batch Alignment Rule exists to catch.
+- The gate reuses `_scrape_single_pass` with `filter_validated=True` rather than the unfiltered call that serves `count_products_with_media: false`. Reusing the unfiltered one would return the media-poor product as a success, which is worse than the loop.
+- No new exit path. A run whose only input yields nothing already exits 1 on `0 products scraped`; it now reaches that in one page rather than seven.
+
 ## [0.93.0] - 2026-09-01
 
 ### Added
