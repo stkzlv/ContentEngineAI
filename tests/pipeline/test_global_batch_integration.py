@@ -863,3 +863,53 @@ async def test_pipeline_skips_retry_for_asin_inputs(
         # Should NOT retry - only 1 call to scrape_batch_browser
         assert mock_scraper.scrape_batch_browser.call_count == 1
         assert summary.scraping.failed == 1
+
+
+@pytest.mark.asyncio
+async def test_pipeline_skips_retry_for_url_inputs(
+    temp_outputs_dir, mock_product_data_factory, mock_video_config
+):
+    """The other half of the gate, which the ASIN case above cannot reach.
+
+    `is_keyword` is built from both predicates, and that test mocks
+    `_is_url` to False, so dropping the `_is_url` half of the gate left the
+    whole suite green while a URL input paginated through `max_retry_pages`
+    re-resolving the same listing.
+    """
+    config = GlobalBatchConfig(
+        product_ids=["https://amzn.to/4pvapDs"],
+        keywords=[],
+        max_products=10,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        fail_fast=False,
+        outputs_dir=temp_outputs_dir,
+        debug=False,
+    )
+
+    with (
+        patch(
+            "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
+        ) as mock_scraper_class,
+        patch(
+            "src.pipeline.global_batch.load_video_config_modular"
+        ) as mock_load_config,
+    ):
+        mock_load_config.return_value = mock_video_config
+
+        mock_scraper = Mock()
+        mock_scraper_class.return_value = mock_scraper
+        mock_scraper_class.return_value.amazon_config = {}
+
+        mock_scraper.scrape_batch_browser.return_value = [
+            {"input": "https://amzn.to/4pvapDs", "products": [{"fake": True}]},
+        ]
+        mock_scraper._is_asin.return_value = False
+        mock_scraper._is_url.return_value = True
+        mock_scraper.process_raw_products.return_value = []  # validation fails
+
+        orchestrator = GlobalPipelineOrchestrator(config)
+        summary = await orchestrator.run_pipeline()
+
+        assert mock_scraper.scrape_batch_browser.call_count == 1
+        assert summary.scraping.failed == 1

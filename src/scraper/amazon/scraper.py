@@ -276,6 +276,22 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             # If count_products_with_media is enabled, loop until target is reached
             if count_products_with_media:
+                # Pagination is for keyword searches only. A URL or an ASIN
+                # names one product, so every later page re-resolves the same
+                # one: a listing that fails media validation spent all of
+                # `max_pages` browser sessions re-fetching it before returning
+                # empty. The run continued to the next input, so nothing was
+                # lost; what it cost was seven sessions per bad entry and the
+                # delay that put on the rest of an --input-file batch. The
+                # global batch gates this the same way (`is_keyword` in
+                # _execute_scraping_phase).
+                if self._is_asin(keyword) or self._is_url(keyword):
+                    return self._scrape_single_pass(
+                        keyword,
+                        search_params,
+                        products_limit,
+                        filter_validated=True,
+                    )
                 return self._scrape_until_validated_count_reached(
                     keyword, search_params, products_limit
                 )
@@ -298,8 +314,13 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Loop scraping until target_count validated products are collected.
 
         Paginates through search result pages when products on the current
-        page fail validation. Stops when target is reached, search results
-        are exhausted, or max_scrape_attempts raw products have been examined.
+        page fail validation. Stops when the target is reached or `max_pages`
+        is passed. `max_scrape_attempts` also stops it, but `total_raw_scraped`
+        counts validated products rather than raw ones (it and
+        `validated_products` grow by the same `batch`), so that guard binds
+        only when the limit is below `target_count` and never bounds a
+        listing that fails validation. It is checked before each page, so a
+        page that yields more than the remaining limit overshoots it.
         """
         validated_products: list[ProductData] = []
         total_raw_scraped = 0
@@ -323,8 +344,8 @@ class BotasaurusAmazonScraper(BaseScraper):
         while len(validated_products) < target_count:
             if total_raw_scraped >= max_attempts:
                 self.logger.warning(
-                    "Reached max scrape attempts (%d raw products). "
-                    "Stopping with %d/%d validated.",
+                    "Reached max scrape attempts (limit: %d validated "
+                    "products). Stopping with %d/%d validated.",
                     max_attempts,
                     len(validated_products),
                     target_count,
@@ -363,13 +384,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
-                # No validated products from this page. Try the next page
-                # unless the browser returned nothing at all (exhausted results).
-                # We detect exhausted results by checking if raw products were
-                # found: _scrape_single_pass calls _validate_and_convert_products
-                # which logs rejections. If we're on page 1 and got 0, the search
-                # itself may have returned products that all failed validation.
-                # Move to next page to find better candidates.
+                # No validated products from this page, so try the next one.
+                # Exhaustion is not detected: `_scrape_single_pass` returns an
+                # empty list both for a page of products that all failed
+                # validation and for a page that held none, and the two are
+                # indistinguishable here. Either way the loop advances until
+                # `max_pages`, which is what makes the gate above worth having
+                # for an input that can only ever resolve to one product.
                 self.logger.info(
                     "No validated products on page %d, trying next page...",
                     current_page,
