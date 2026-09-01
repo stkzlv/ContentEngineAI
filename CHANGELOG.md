@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Recorded that duplicates are acceptable. A `--force` republish creating a second live post, a knowing re-render that goes out again, and an ASIN carrying more than one lnk.bio link are expected outcomes rather than defects, and are not to be prevented, escalated or cleaned up. The guards stay on: `_drop_already_published` unless `--force` or `--skip-publish`, `is_already_published` unless `--force`, and the link-in-bio check unconditionally, so a guard that silently stops working is still a defect. The bio's multi-link ASINs come from `/lnk/list` returning one un-paginated page of 50 against a much larger bio, which makes an older link invisible to a check that is otherwise working.
+
 ## [0.93.1] - 2026-09-01
 
 ### Fixed
