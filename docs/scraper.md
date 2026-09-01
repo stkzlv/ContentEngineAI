@@ -108,7 +108,8 @@ To compensate for rejected products, the scraper fetches more raw results than t
 | `prefetch_multiplier` | `global_settings.batch_processing.prefetch_multiplier` | `3` | Fetch 3x the target per page |
 | `max_batch_size` | `global_settings.batch_processing.max_batch_size` | `15` | Cap on products fetched per page |
 | `max_pages` | `global_settings.batch_processing.max_pages` | `7` | Max search result pages to scan |
-| `max_scrape_attempts` | `global_settings.batch_processing.max_scrape_attempts` | `50` | Hard stop on raw products examined |
+| `max_scrape_attempts` | `global_settings.batch_processing.max_scrape_attempts` | `50` | Hard stop, counted on pages that yielded validated products |
+| `max_retry_pages` | `global_settings.batch_processing.max_retry_pages` | `5` | Max extra pages the global batch scans (batch only) |
 
 For example, if `products_per_keyword: 3`, the scraper fetches ~9 products per page (3x multiplier, capped at 15), validates each, and loops through pages until 3 valid products are found or the safety limits are hit.
 

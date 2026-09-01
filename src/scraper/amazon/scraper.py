@@ -314,8 +314,10 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Loop scraping until target_count validated products are collected.
 
         Paginates through search result pages when products on the current
-        page fail validation. Stops when target is reached, search results
-        are exhausted, or max_scrape_attempts raw products have been examined.
+        page fail validation. Stops when the target is reached or `max_pages`
+        is passed. `max_scrape_attempts` also stops it, but its counter only
+        advances on a page that yielded validated products, so it bounds a
+        long successful run rather than a listing that never validates.
         """
         validated_products: list[ProductData] = []
         total_raw_scraped = 0
