@@ -530,13 +530,11 @@ Security-critical updates can trigger an immediate patch release without waiting
 
 ## Duplicates Are Acceptable
 
-**Duplicate posts and duplicate link-in-bio entries are not defects here.** A
-`--force` republish that creates a second Zernio post, a re-render that goes
-out again, and an ASIN carrying two or three lnk.bio links are all expected
-outcomes, not something to prevent, escalate, or clean up. Take the action that
-was asked for and note the duplicate afterwards if it is informative. Don't
-stop to ask whether a duplicate is wanted, and don't propose fixing the code
-paths that allow them unless someone asks for that specifically.
+**A duplicate that the operator asked for is not a defect here.** A `--force` republish that creates a second live Zernio post, a knowing re-render that goes out again, and an ASIN carrying more than one lnk.bio link are all expected outcomes. Take the action that was asked for, note the duplicate afterwards if it is informative, and don't stop to ask whether it is wanted or offer to clean it up.
+
+This is a tolerance, not a licence to remove the guards. `_drop_already_published`, `is_already_published` and the link-in-bio duplicate check stay on by default, and a guard that silently stops working is still a defect worth raising: the batch's handoff filter is the only thing standing between an unattended run and re-publishing every tracked product on every pass.
+
+The bio's multi-link ASINs are that distinction in practice. `LinkInBioManager.update` does check, by scanning `list_links()` for the product id, but `/lnk/list` returns one un-paginated page of 50 against a bio several times that size, so a link older than the window is invisible and gets added again. The check is doing its job within the window it can see; the duplicates past it are accepted rather than evidence the check is wrong.
 
 ## Link-in-Bio Module Notes
 
