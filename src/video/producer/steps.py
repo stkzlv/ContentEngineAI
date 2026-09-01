@@ -1550,14 +1550,18 @@ def _handle_pycaps_burn_failure(
     burn-step failure must not silently ship a caption-less video reported as
     success.
 
-    Two of the four burn failures land here because a fallback is impossible,
-    not because it is unwanted: a missing transcript leaves nothing to build
-    captions from, and a missing assembled video leaves nothing to burn them
-    onto. The other two have both. A render failure still reaches here under
-    every policy unless its FFmpeg fallback succeeds -- the fall-through
-    below the fallback is deliberate, so a fallback that returns False cannot
-    ship a caption-less video as a completed burn. Pycaps having gone missing
-    is the one that does not: it raises inline instead.
+    Two of the four burn failures land here *because a fallback is
+    impossible*, not because it is unwanted: a missing transcript leaves
+    nothing to build captions from, and a missing assembled video leaves
+    nothing to burn them onto. The other two have both.
+
+    Of those two, a render failure still reaches here under every policy
+    unless its FFmpeg fallback succeeds -- the fall-through below the
+    fallback block is deliberate, so a fallback that returns False cannot
+    ship a caption-less video as a completed burn. Pycaps having gone
+    missing is the one that never reaches here: it resolves the policy
+    inline, raising under ``raise`` and ``fallback_ffmpeg`` and keeping the
+    caption-less video under ``warn_and_skip``.
 
     Call sites use ``return _handle_pycaps_burn_failure(...)`` so the caller
     can't accidentally continue past a skipped burn.

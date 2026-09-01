@@ -433,10 +433,6 @@ class TestTheStepReachesTheFallback:
             template_used="word-focus",
             renderer_used="css",
         )
-        monkeypatch.setattr(
-            steps, "_run_pycaps_render", MagicMock(return_value=failed), raising=False
-        )
-
         called = {}
         # Captured before patching: calling through the module attribute
         # would re-enter the spy.
@@ -456,7 +452,6 @@ class TestTheStepReachesTheFallback:
             renderer_module.PycapsRenderer,
             "render",
             lambda self, *a, **k: failed,
-            raising=False,
         )
 
         await steps.step_burn_pycaps_subtitles(ctx)
@@ -529,9 +524,7 @@ class TestTheStepReachesTheFallback:
                 "import this test guards was never taken"
             )
 
-        monkeypatch.setattr(
-            renderer_module.PycapsRenderer, "render", _unreachable, raising=False
-        )
+        monkeypatch.setattr(renderer_module.PycapsRenderer, "render", _unreachable)
 
         await steps.step_burn_pycaps_subtitles(ctx)
 
@@ -577,7 +570,6 @@ class TestTheStepReachesTheFallback:
             renderer_module.PycapsRenderer,
             "render",
             lambda self, *a, **k: failed,
-            raising=False,
         )
 
         await steps.step_burn_pycaps_subtitles(ctx)
