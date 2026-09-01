@@ -649,3 +649,48 @@ class TestTheStepReachesTheFallback:
             not metadata.exists()
         ), "an exit that never burned left metadata naming an unapplied template"
         assert "pycaps_metadata" not in ctx.state
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("policy", ["raise", "fallback_ffmpeg"])
+    async def test_pycaps_vanishing_aborts_when_the_fallback_cannot_save_it(
+        self, policy, tmp_path, video_config, monkeypatch
+    ):
+        """The strict policies must abort, not report an uncaptioned burn.
+
+        The pycaps-missing handler resolves all three policies inline rather
+        than through `_handle_pycaps_burn_failure`, and only two of its cells
+        were pinned: the successful `fallback_ffmpeg` degrade, and
+        `warn_and_skip` via the metadata test. Narrowing the abort condition
+        to `== "fallback_ffmpeg"` -- which makes a `raise` run log a warning
+        and return a caption-less video reported as a completed burn, the
+        defect this module exists to prevent -- left 150 tests green.
+
+        `fallback_ffmpeg` is included with the fallback forced to fail,
+        because it shares the same abort and reaching it means the degrade
+        was already attempted and lost.
+        """
+        from src.video.producer import steps
+        from src.video.producer.context import PipelineError
+
+        ctx, video = self._ctx_for_step(
+            tmp_path,
+            video_config,
+            policy,
+            monkeypatch,
+            secrets={"GEMINI_API_KEY": "test-key"},
+        )
+        original = tmp_path / "original.mp4"
+        shutil.copy(video, original)
+
+        async def _fallback_fails(*args, **kwargs):
+            return False
+
+        monkeypatch.setattr(steps, "_burn_with_ffmpeg_fallback", _fallback_fails)
+        self._drop_pycaps(ctx, video, tmp_path, monkeypatch)
+
+        with pytest.raises(PipelineError):
+            await steps.step_burn_pycaps_subtitles(ctx)
+
+        # No marker, or a resume reads the uncaptioned video as burned.
+        assert not ctx.run_paths["pycaps_burn_marker_file"].exists()
+        assert video.read_bytes() == original.read_bytes()

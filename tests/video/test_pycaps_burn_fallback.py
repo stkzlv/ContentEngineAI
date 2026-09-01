@@ -11,8 +11,9 @@ video leaves nothing to burn them onto, so neither can degrade. A third,
 a pycaps render failure, reaches it under every policy unless its FFmpeg
 fallback succeeds. The fourth -- pycaps having vanished since the run
 that recorded the engine -- degrades the same way and reaches the same
-outcome under every policy. It differs only in mechanism: it resolves
-the policy inline rather than through the helper. Both degrading cases are covered in
+outcome under every policy. It resolves the policy inline rather than
+through the helper, so it logs the skip in its own words and chains the
+raised error onto the import that failed. Both degrading cases are covered in
 `test_ffmpeg_fallback_on_burn_failure.py`, which is why the message
 below is a missing-transcript one rather than the render-failure message
 this file used to carry.
