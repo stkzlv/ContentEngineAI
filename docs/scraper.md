@@ -108,7 +108,7 @@ To compensate for rejected products, the scraper fetches more raw results than t
 | `prefetch_multiplier` | `global_settings.batch_processing.prefetch_multiplier` | `3` | Fetch 3x the target per page |
 | `max_batch_size` | `global_settings.batch_processing.max_batch_size` | `15` | Cap on products fetched per page |
 | `max_pages` | `global_settings.batch_processing.max_pages` | `7` | Max search result pages to scan |
-| `max_scrape_attempts` | `global_settings.batch_processing.max_scrape_attempts` | `50` | Caps validated products per keyword. The counter is the validated count, so it fires only when set below the target and never limits pages fetched |
+| `max_scrape_attempts` | `global_settings.batch_processing.max_scrape_attempts` | `50` | Stops the loop once this many validated products are collected, checked before each page. It binds only when set below the target, a single page can overshoot it, and it stays at 0 while nothing validates, where `max_pages` is the only stop |
 | `max_retry_pages` | `global_settings.batch_processing.max_retry_pages` | `5` | Highest result page the global batch retries to. It runs pages 2..N, so the default scans four extra pages and any value below 2 disables retry (batch only) |
 
 For example, if `products_per_keyword: 3`, the scraper fetches ~9 products per page (3x multiplier, capped at 15), validates each, and loops through pages until 3 valid products are found or `max_pages` is passed. Every row above describes that loop except `max_retry_pages`, which is the global batch's own.

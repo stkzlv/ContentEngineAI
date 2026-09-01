@@ -317,9 +317,10 @@ class BotasaurusAmazonScraper(BaseScraper):
         page fail validation. Stops when the target is reached or `max_pages`
         is passed. `max_scrape_attempts` also stops it, but `total_raw_scraped`
         counts validated products rather than raw ones (it and
-        `validated_products` grow by the same `batch`), so that guard fires
+        `validated_products` grow by the same `batch`), so that guard binds
         only when the limit is below `target_count` and never bounds a
-        listing that fails validation.
+        listing that fails validation. It is checked before each page, so a
+        page that yields more than the remaining limit overshoots it.
         """
         validated_products: list[ProductData] = []
         total_raw_scraped = 0
@@ -343,8 +344,8 @@ class BotasaurusAmazonScraper(BaseScraper):
         while len(validated_products) < target_count:
             if total_raw_scraped >= max_attempts:
                 self.logger.warning(
-                    "Reached max scrape attempts (%d validated products). "
-                    "Stopping with %d/%d validated.",
+                    "Reached max scrape attempts (limit: %d validated "
+                    "products). Stopping with %d/%d validated.",
                     max_attempts,
                     len(validated_products),
                     target_count,
