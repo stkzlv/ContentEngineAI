@@ -1803,6 +1803,11 @@ image_width_percent: 0.85            # Override global image width
 image_top_position_percent: 0.15     # Override global image position
 image_vertical_align: "top"          # Override global vertical alignment ("top" or "center")
 
+# Video Settings (same shape, for profiles that draw scraped or stock video)
+video_top_position_percent: 0.10     # Content's top edge as a fraction of frame height
+video_content_height_percent: 0.75   # Band height reserved for the content
+video_vertical_align: "top"          # "top" places the content's top edge at the percent; "center" ignores it
+
 # Subtitle Settings — single nested block. Any field on the global
 # subtitle_settings can be overridden here; unset fields inherit from global.
 subtitle_settings:
