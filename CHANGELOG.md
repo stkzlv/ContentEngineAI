@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.1] - 2026-09-02
+
+### Fixed
+- A no-flag standalone scrape searched the head of the configured keyword list every run. `BatchController._process_keywords` walks the pool from index 0 and stops at `max_products`, so repeated invocations returned the same products. The configured pool is now rotated by date, as the global batch has been since 0.92.0. Closes #347.
+
+### Notes
+- Only the configured pool rotates. `--keywords` is what the operator typed and stays reproducible, since a date-dependent result is surprising in a tool used interactively to reproduce a problem.
+- The decision is made where the pool is read, not in `load_batch_config`. The CLI assigns the pool to `args.keywords` before the loader sees it, so by then a typed keyword and a configured one are indistinguishable.
+- `keywords_for_run` moved from `src/pipeline/config.py` to `src/scraper/base/keyword_pillars.py`, which both config loaders already go through. The standalone scraper does not import the pipeline package, so leaving it there would have meant a second copy and the drift this issue records.
+- The slice width is what the run consumes, `max_products` over `products_per_keyword`, not the pool size. A full-width slice makes the start offset a multiple of the length, which is zero, so the rotation would be the identity.
+
 ## [0.94.0] - 2026-09-01
 
 ### Added

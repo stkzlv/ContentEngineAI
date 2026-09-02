@@ -16,6 +16,7 @@ Both shapes are accepted. A flat list is the pre-pillar config and attaches no
 pillar.
 """
 
+from datetime import date
 from typing import Any
 
 
@@ -57,3 +58,35 @@ def read_keyword_pillars(raw: Any) -> tuple[list[str], dict[str, str]]:
 def pillar_for(keyword: Any, pillars: dict[str, str]) -> str | None:
     """Look a keyword up in a map built by `read_keyword_pillars`."""
     return pillars.get(normalize_keyword(keyword))
+
+
+def keywords_for_run(
+    configured: list[str], count: int, day_ordinal: int | None = None
+) -> list[str]:
+    """Pick which configured keywords this run searches.
+
+    The batch stops at `max_products`, so a run only ever reaches the first
+    few keywords of the list it is given. Taking them from the top every time
+    made the effective catalogue as wide as the cap rather than as wide as the
+    pool: two runs an hour apart returned the same products, several of them
+    already published.
+
+    Rotated by date, like `topics_for_run`, and stateless for the same reason
+    -- a cursor would have to survive `--clean` and be reconciled after a
+    failed batch, where the date advances on its own.
+
+    The stride is `count`, not 1. `topics_for_run` takes one of a handful, so
+    stepping by one already hands back something new; a run taking ten of
+    fifty-four that stepped by one would repeat nine of yesterday's ten.
+    Stepping by the slice width makes consecutive days disjoint until the pool
+    wraps.
+    """
+    if count <= 0 or not configured:
+        return []
+
+    if day_ordinal is None:
+        day_ordinal = date.today().toordinal()
+
+    count = min(count, len(configured))
+    start = (day_ordinal * count) % len(configured)
+    return [configured[(start + i) % len(configured)] for i in range(count)]

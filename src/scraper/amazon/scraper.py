@@ -20,7 +20,11 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.scraper.base.keyword_pillars import pillar_for, read_keyword_pillars
+from src.scraper.base.keyword_pillars import (
+    keywords_for_run,
+    pillar_for,
+    read_keyword_pillars,
+)
 
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
@@ -1588,6 +1592,36 @@ def main():
                 batch_keywords, _ = read_keyword_pillars(
                     batch_config.get("keywords", [])
                 )
+
+                # Rotate the configured pool by date, as the global batch
+                # does. Only this branch rotates: `--keywords` is what the
+                # operator typed and stays reproducible, and by the time
+                # `load_batch_config` sees the list it cannot tell the two
+                # apart, because the no-flag path assigns the pool to
+                # `args.keywords` a few lines below.
+                #
+                # The width is what the run consumes, not the pool size. A
+                # full-width slice makes the start offset a multiple of the
+                # length, which is zero, so the rotation would be the
+                # identity -- the trap the batch nearly shipped with.
+                if batch_keywords:
+                    pool_max_products = args.max_products or (
+                        config.get("scrapers", {})
+                        .get("amazon", {})
+                        .get("max_products", 10)
+                    )
+                    per_keyword = args.products_per_keyword or batch_config.get(
+                        "products_per_keyword", 2
+                    )
+                    per_run = max(1, -(-pool_max_products // max(1, per_keyword)))
+                    rotated = keywords_for_run(batch_keywords, per_run)
+                    logger.debug(
+                        "Rotated configured keywords: %d of %d for today (%s)",
+                        len(rotated),
+                        len(batch_keywords),
+                        ", ".join(rotated),
+                    )
+                    batch_keywords = rotated
 
                 # Use batch config if available
                 if batch_product_ids or batch_keywords:

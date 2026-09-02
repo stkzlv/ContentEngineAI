@@ -37,7 +37,7 @@ from typing import Any
 import yaml
 
 from src.scraper.amazon.models import SearchParameters
-from src.scraper.base.keyword_pillars import read_keyword_pillars
+from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pillars
 from src.video.config import VideoConfig
 from src.video.producer.topic_input import (
     TopicSpec,
@@ -882,38 +882,6 @@ def _scraper_keyword_pool(
         logger.warning("Could not read %s for keywords: %s", scraper_config_path, exc)
         return [], {}
     return read_keyword_pillars((raw.get("batch") or {}).get("keywords", []) or [])
-
-
-def keywords_for_run(
-    configured: list[str], count: int, day_ordinal: int | None = None
-) -> list[str]:
-    """Pick which configured keywords this run searches.
-
-    The batch stops at `max_products`, so a run only ever reaches the first
-    few keywords of the list it is given. Taking them from the top every time
-    made the effective catalogue as wide as the cap rather than as wide as the
-    pool: two runs an hour apart returned the same products, several of them
-    already published.
-
-    Rotated by date, like `topics_for_run`, and stateless for the same reason
-    -- a cursor would have to survive `--clean` and be reconciled after a
-    failed batch, where the date advances on its own.
-
-    The stride is `count`, not 1. `topics_for_run` takes one of a handful, so
-    stepping by one already hands back something new; a run taking ten of
-    fifty-four that stepped by one would repeat nine of yesterday's ten.
-    Stepping by the slice width makes consecutive days disjoint until the pool
-    wraps.
-    """
-    if count <= 0 or not configured:
-        return []
-
-    if day_ordinal is None:
-        day_ordinal = date.today().toordinal()
-
-    count = min(count, len(configured))
-    start = (day_ordinal * count) % len(configured)
-    return [configured[(start + i) % len(configured)] for i in range(count)]
 
 
 def load_global_batch_config(
