@@ -2546,6 +2546,25 @@ class GlobalPipelineOrchestrator:
             if isinstance(publisher, LatePublisher):
                 await run_blob_retention(publisher, retention_policy)
 
+        # Sweep a trailing window for silently-failed legs (non-blocking).
+        # Not gated on `successful`: the value is in previous runs' posts.
+        # No dry-run guard: main() exits on dry_run before any phase runs.
+        from src.publisher.late.client import LatePublisher
+        from src.publisher.models import DeliverySweepConfig
+        from src.publisher.partial_post_sweep import run_delivery_sweep
+
+        ds_section = publisher_config.get("delivery_sweep", {})
+        try:
+            sweep_config = (
+                DeliverySweepConfig(**ds_section)
+                if ds_section
+                else DeliverySweepConfig()
+            )
+        except (ValueError, TypeError):
+            sweep_config = DeliverySweepConfig()
+        if isinstance(publisher, LatePublisher):
+            await run_delivery_sweep(publisher, sweep_config)
+
         # Generate summary
         duration = time.time() - phase_start
         logger.info(

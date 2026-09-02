@@ -1730,6 +1730,20 @@ blob_retention:
 
 ---
 
+## 🔎 Delivery Sweep
+
+Zernio reports a post accepted into its scheduler, not delivered. A platform leg that fails at publish time leaves the post `partial` with no alert, and the fix, `posts.retry(post_id)`, only works while Zernio still holds the upload on its CDN. The sweep behind `verify-delivery` therefore also runs on every publish run (`single` once it has a publisher, `schedule` in both modes, and the global batch): it reads the live per-platform status of the most recent `limit` posts and logs a WARNING per failing leg with the post ID, platform and error category, plus the call that fixes it (`posts.retry`, or `posts.update` first when the rejection was the payload, such as the TikTok disclosure error).
+
+The post the run just created is still pending and is not judged; the value is in the previous runs' posts, which have fired since. A sweep failure logs a warning and never affects the publish that was already accepted.
+
+```yaml
+delivery_sweep:
+  enabled: true
+  limit: 25    # recent posts to inspect
+```
+
+---
+
 ## 📋 Published Products Registry
 
 The publisher maintains a persistent registry of all published products in both JSON and CSV formats. Entries are automatically added after each successful publish (single or batch).
@@ -2049,7 +2063,7 @@ instagram container error: ERROR
 
 3. **If retry fails again**, the video likely violates a Reels spec (aspect ratio, duration, codec, frame rate). Re-render and re-upload.
 
-**Finding these posts**: run `verify-delivery` to sweep recent posts for incomplete delivery. It WARNs on every post whose top status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix. Run it after a batch goes live, the same way `verify-comments` sweeps first comments.
+**Finding these posts**: run `verify-delivery` to sweep recent posts for incomplete delivery. It WARNs on every post whose top status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix. The same sweep runs automatically on every publish run (see Delivery Sweep above), so a manual run is for a wider window, or for a `single` on a product that is already published everywhere, which returns before it builds a publisher. Run it after a batch goes live, the same way `verify-comments` sweeps first comments.
 ```bash
 python -m src.publisher.late verify-delivery --limit 25
 ```

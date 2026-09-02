@@ -42,7 +42,10 @@ from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
-from src.publisher.partial_post_sweep import sweep_partial_posts
+from src.publisher.partial_post_sweep import (
+    run_delivery_sweep,
+    sweep_partial_posts,
+)
 from src.publisher.product_registry import (
     add_to_registry,
     load_registry,
@@ -682,6 +685,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                     outputs_dir,
                     replace(config.link_in_bio_config, enabled=True),
                 )
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
             return
 
         # Publish (unified or platform-specific mode)
@@ -763,6 +767,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         # Trim the Vercel Blob upload store (non-blocking)
         await run_blob_retention(publisher, config.blob_retention_config)
+
+        # Sweep recent posts for silently-failed legs (non-blocking)
+        await run_delivery_sweep(publisher, config.delivery_sweep_config)
 
     except Exception as e:
         logger.error("Failed to publish video: %s", e, exc_info=args.debug)
@@ -880,6 +887,12 @@ async def cmd_schedule_auto(
 
         # Scheduled mode: scan, filter, and assign calendar slots
         unpublished_videos = _scan_and_filter_videos(args, config)
+
+        # Sweep before the early return: a run with nothing new to schedule
+        # is the day earlier posts fire, which is what the sweep is for.
+        if not args.dry_run:
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+
         if not unpublished_videos:
             return
 
@@ -918,6 +931,12 @@ async def cmd_schedule_auto(
         if summary.get("conflicts_resolved", 0) > 0:
             logger.info("Conflicts auto-resolved: %d", summary["conflicts_resolved"])
         logger.info("---")
+
+        if not args.dry_run and summary["scheduled"] > 0:
+            # Blob retention was documented on every publish path but ran
+            # only on `single` and the immediate batch. The delivery sweep
+            # for this path ran above, before the empty-scan return.
+            await run_blob_retention(publisher, config.blob_retention_config)
 
         if args.dry_run:
             logger.info(
@@ -1092,6 +1111,9 @@ async def _run_immediate_batch(
     # Trim the Vercel Blob upload store (non-blocking)
     if summary.successful > 0:
         await run_blob_retention(publisher, config.blob_retention_config)
+
+    # Sweep recent posts for silently-failed legs (non-blocking)
+    await run_delivery_sweep(publisher, config.delivery_sweep_config)
 
     if summary.failed > 0:
         sys.exit(1)
