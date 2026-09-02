@@ -1730,6 +1730,20 @@ blob_retention:
 
 ---
 
+## 🔎 Delivery Sweep
+
+Zernio reports a post accepted into its scheduler, not delivered. A platform leg that fails at publish time leaves the post `partial` with no alert, and the fix, `posts.retry(post_id)`, only works while Zernio still holds the upload on its CDN. The sweep behind `verify-delivery` therefore also runs after every publish run (`single`, `schedule` in both modes, and the global batch): it reads the live per-platform status of the most recent `limit` posts and logs a WARNING per failing leg with the post ID, platform and error category, plus the call that fixes it (`posts.retry`, or `posts.update` first when the rejection was the payload, such as the TikTok disclosure error).
+
+The post the run just created is still pending and is not judged; the value is in the previous runs' posts, which have fired since. A sweep failure logs a warning and never affects the publish that was already accepted.
+
+```yaml
+delivery_sweep:
+  enabled: true
+  limit: 25    # recent posts to inspect
+```
+
+---
+
 ## 📋 Published Products Registry
 
 The publisher maintains a persistent registry of all published products in both JSON and CSV formats. Entries are automatically added after each successful publish (single or batch).

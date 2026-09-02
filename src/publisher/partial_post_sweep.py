@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.publisher.late.client import LatePublisher
+    from src.publisher.models import DeliverySweepConfig
 
 logger = logging.getLogger(__name__)
 
@@ -90,3 +91,60 @@ async def sweep_partial_posts(
             )
         )
     return results
+
+
+# Rejections a bare retry resubmits unchanged; the payload has to change first.
+_NEEDS_PAYLOAD_CHANGE = ("commercial content disclosure", "description is invalid")
+
+
+def _hint(post: PartialPost) -> str:
+    """What fixes this post, from what the legs report."""
+    messages = " ".join((leg.error_message or "").lower() for leg in post.failed_legs)
+    if any(marker in messages for marker in _NEEDS_PAYLOAD_CHANGE):
+        return f"posts.update({post.post_id!r}, ...) then posts.retry({post.post_id!r})"
+    return f"posts.retry({post.post_id!r})"
+
+
+async def run_delivery_sweep(
+    publisher: LatePublisher, config: DeliverySweepConfig | None
+) -> None:
+    """Sweep a trailing window of posts after a publish run and WARN per miss.
+
+    Never raises: the publish that Zernio already accepted must not be
+    reported failed because a status read failed afterwards. Runs on every
+    publish path, including one that published nothing, because its value is
+    in the previous runs' posts, which have fired since; the post this run
+    created is still pending and cannot be judged.
+    """
+    if config is None or not config.enabled:
+        logger.debug("Delivery sweep disabled - skipping")
+        return
+    try:
+        results = await sweep_partial_posts(publisher, config.limit)
+    except Exception as exc:  # noqa: BLE001 - a hook must not fail the publish
+        logger.warning("Delivery sweep failed: %s", exc)
+        return
+    for post in results:
+        legs = (
+            ", ".join(
+                f"{leg.platform} ({leg.error_category or leg.status})"
+                for leg in post.failed_legs
+            )
+            if post.failed_legs
+            else "no per-leg detail"
+        )
+        logger.warning(
+            "Delivery incomplete: post %s status=%s failing: %s; fix: %s",
+            post.post_id,
+            post.top_status,
+            legs,
+            _hint(post),
+        )
+        for leg in post.failed_legs:
+            if leg.error_message:
+                logger.warning("  %s error: %s", leg.platform, leg.error_message)
+    logger.info(
+        "Delivery sweep: %d of the last %d post(s) with failed/partial delivery",
+        len(results),
+        config.limit,
+    )

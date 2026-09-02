@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.96.0] - 2026-09-02
+
+### Added
+- The delivery sweep behind `verify-delivery` now runs after every publish run: `single`, `schedule` in both modes, and the global batch. It reads the live per-platform status of the most recent `delivery_sweep.limit` posts and logs a WARNING per failing leg with the post ID, platform, error category and the call that fixes it (`posts.retry`, or `posts.update` first when the rejection was the payload). A sweep failure logs and never affects the publish Zernio already accepted. Configured under `delivery_sweep` in `config/publisher.yaml`; on by default. Closes #201.
+
+### Fixed
+- Blob retention ran on `single` and on the immediate batch but not on the scheduled branch of `schedule`, though the docs listed it on every publish path. It runs there now, after a run that scheduled something.
+
+### Notes
+- The sweep is not gated on whether this run published anything. The post it just created is still pending and cannot be judged; the value is in the previous runs' posts, which have fired since.
+- The test asserts the call at each of the four sites by walking the AST, because a shared hook is not evidence that a path calls it.
+
 ## [0.95.0] - 2026-09-02
 
 ### Added

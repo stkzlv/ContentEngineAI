@@ -42,7 +42,10 @@ from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
-from src.publisher.partial_post_sweep import sweep_partial_posts
+from src.publisher.partial_post_sweep import (
+    run_delivery_sweep,
+    sweep_partial_posts,
+)
 from src.publisher.product_registry import (
     add_to_registry,
     load_registry,
@@ -764,6 +767,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         # Trim the Vercel Blob upload store (non-blocking)
         await run_blob_retention(publisher, config.blob_retention_config)
 
+        # Sweep recent posts for silently-failed legs (non-blocking)
+        await run_delivery_sweep(publisher, config.delivery_sweep_config)
+
     except Exception as e:
         logger.error("Failed to publish video: %s", e, exc_info=args.debug)
         sys.exit(1)
@@ -918,6 +924,14 @@ async def cmd_schedule_auto(
         if summary.get("conflicts_resolved", 0) > 0:
             logger.info("Conflicts auto-resolved: %d", summary["conflicts_resolved"])
         logger.info("---")
+
+        if not args.dry_run:
+            # The same post-publish hooks the other paths run. This branch
+            # had none: blob retention was documented on every publish path
+            # but ran only on `single` and the immediate batch.
+            if summary["scheduled"] > 0:
+                await run_blob_retention(publisher, config.blob_retention_config)
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
 
         if args.dry_run:
             logger.info(
@@ -1092,6 +1106,9 @@ async def _run_immediate_batch(
     # Trim the Vercel Blob upload store (non-blocking)
     if summary.successful > 0:
         await run_blob_retention(publisher, config.blob_retention_config)
+
+    # Sweep recent posts for silently-failed legs (non-blocking)
+    await run_delivery_sweep(publisher, config.delivery_sweep_config)
 
     if summary.failed > 0:
         sys.exit(1)
