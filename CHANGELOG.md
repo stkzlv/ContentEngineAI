@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-09-02
+
+### Added
+- `subtitle_settings.pycaps.force_sentence_case`: keep the transcript's casing on pycaps captions. `word-focus` and `line-focus` ship `text-transform: uppercase`, which the subtitle best-practices rule on sentence case rejects; the renderer now appends `.word { text-transform: none; }` after the template's own CSS, so the template stays as shipped and no project-local fork is needed. The bundled config turns it on; the model default is off. Closes #100.
+
+### Notes
+- The override is appended after the renderer is wired, on purpose. `with_custom_subtitle_renderer` replaces the renderer object, and appended CSS lives on that object, so CSS added before the pictex swap is discarded with the CSS renderer. The test drives `_build_pipeline` and asserts the order.
+- `explosive`, the other bundled pool entry, does not uppercase, so the override is a no-op there.
+
 ## [0.94.2] - 2026-09-02
 
 ### Fixed

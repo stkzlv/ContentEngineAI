@@ -307,6 +307,18 @@ class PycapsSettings(BaseModel):
             "production-safe option."
         ),
     )
+    force_sentence_case: bool = Field(
+        False,
+        description=(
+            "Append `.word { text-transform: none; }` to the template's CSS so "
+            "captions keep the transcript's casing. `word-focus` and "
+            "`line-focus` ship `text-transform: uppercase`, which "
+            "docs/subtitle-best-practices.md rule 6 rejects: mixed case reads "
+            "faster because ascenders and descenders carry word shape. The "
+            "bundled config turns this on; the model default is off so a "
+            "programmatic build renders the template as shipped."
+        ),
+    )
     max_width_ratio: float = Field(
         0.80,
         ge=0.0,
