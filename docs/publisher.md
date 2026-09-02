@@ -2063,7 +2063,7 @@ instagram container error: ERROR
 
 3. **If retry fails again**, the video likely violates a Reels spec (aspect ratio, duration, codec, frame rate). Re-render and re-upload.
 
-**Finding these posts**: run `verify-delivery` to sweep recent posts for incomplete delivery. It WARNs on every post whose top status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix. Run it after a batch goes live, the same way `verify-comments` sweeps first comments.
+**Finding these posts**: run `verify-delivery` to sweep recent posts for incomplete delivery. It WARNs on every post whose top status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix. The same sweep runs automatically after every publish (see Delivery Sweep above), so a manual run is for a wider window or a day with no publish. Run it after a batch goes live, the same way `verify-comments` sweeps first comments.
 ```bash
 python -m src.publisher.late verify-delivery --limit 25
 ```

@@ -86,14 +86,35 @@ class TestTheHook:
         assert "posts.update('p2'" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_it_inspects_the_configured_window(self):
+    async def test_it_inspects_only_the_configured_window(self):
+        """A partial post inside the window is read; one past it is not.
+
+        All-published fixtures cannot tell a sliced list from a whole one,
+        because nothing is read either way.
+        """
         posts = [{"id": f"p{i}", "status": "published"} for i in range(40)]
-        client = _client(posts, {})
+        posts[0] = {"id": "p0", "status": "partial"}
+        posts[7] = {"id": "p7", "status": "partial"}
+        leg = [{"platform": "tiktok", "status": "failed"}]
+        client = _client(posts, {"p0": leg, "p7": leg})
 
         await run_delivery_sweep(client, DeliverySweepConfig(limit=7))
 
-        client.list_posts.assert_awaited_once()
-        client.get_post_platforms.assert_not_awaited()
+        client.get_post_platforms.assert_awaited_once_with("p0")
+
+    @pytest.mark.asyncio
+    async def test_a_stale_top_status_is_not_told_to_retry(self, caplog):
+        """Seen live: `partial` at the top while every leg reads published."""
+        client = _client(
+            [{"id": "stale", "status": "partial"}],
+            {"stale": [{"platform": "youtube", "status": "published"}]},
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await run_delivery_sweep(client, DeliverySweepConfig())
+
+        assert "posts.retry" not in caplog.text
+        assert "posts.get('stale')" in caplog.text
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("config", [None, DeliverySweepConfig(enabled=False)])
@@ -167,6 +188,24 @@ class TestTheConfig:
 
         assert config.delivery_sweep_config.enabled is True
         assert config.delivery_sweep_config.limit == 25
+
+    def test_non_default_values_arrive(self, tmp_path):
+        """The bundled values equal the defaults, so only this catches a
+        dropped parse.
+        """
+        from src.publisher.config import load_publisher_config
+
+        yaml = tmp_path / "publisher.yaml"
+        yaml.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "delivery_sweep:\n  enabled: false\n  limit: 3\n"
+        )
+
+        config = load_publisher_config(str(yaml))
+
+        assert config.delivery_sweep_config == DeliverySweepConfig(
+            enabled=False, limit=3
+        )
 
     def test_a_missing_section_falls_back_to_the_defaults(self, tmp_path):
         from src.publisher.config import load_publisher_config

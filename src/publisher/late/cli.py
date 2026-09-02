@@ -685,6 +685,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                     outputs_dir,
                     replace(config.link_in_bio_config, enabled=True),
                 )
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
             return
 
         # Publish (unified or platform-specific mode)
@@ -886,6 +887,12 @@ async def cmd_schedule_auto(
 
         # Scheduled mode: scan, filter, and assign calendar slots
         unpublished_videos = _scan_and_filter_videos(args, config)
+
+        # Sweep before the early return: a run with nothing new to schedule
+        # is the day earlier posts fire, which is what the sweep is for.
+        if not args.dry_run:
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+
         if not unpublished_videos:
             return
 
@@ -925,13 +932,11 @@ async def cmd_schedule_auto(
             logger.info("Conflicts auto-resolved: %d", summary["conflicts_resolved"])
         logger.info("---")
 
-        if not args.dry_run:
-            # The same post-publish hooks the other paths run. This branch
-            # had none: blob retention was documented on every publish path
-            # but ran only on `single` and the immediate batch.
-            if summary["scheduled"] > 0:
-                await run_blob_retention(publisher, config.blob_retention_config)
-            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+        if not args.dry_run and summary["scheduled"] > 0:
+            # Blob retention was documented on every publish path but ran
+            # only on `single` and the immediate batch. The delivery sweep
+            # for this path ran above, before the empty-scan return.
+            await run_blob_retention(publisher, config.blob_retention_config)
 
         if args.dry_run:
             logger.info(

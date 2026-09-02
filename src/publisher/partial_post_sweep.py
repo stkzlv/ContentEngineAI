@@ -98,7 +98,17 @@ _NEEDS_PAYLOAD_CHANGE = ("commercial content disclosure", "description is invali
 
 
 def _hint(post: PartialPost) -> str:
-    """What fixes this post, from what the legs report."""
+    """What fixes this post, from what the legs report.
+
+    A top status of ``partial`` with no failed leg is a stale top status
+    (seen live on two posts whose legs all read ``published``); there is
+    nothing to retry, so the hint says to read the post rather than name
+    ``posts.retry`` for a call that would do nothing.
+    """
+    if not post.failed_legs:
+        return (
+            f"no failed leg; top status may be stale, check posts.get({post.post_id!r})"
+        )
     messages = " ".join((leg.error_message or "").lower() for leg in post.failed_legs)
     if any(marker in messages for marker in _NEEDS_PAYLOAD_CHANGE):
         return f"posts.update({post.post_id!r}, ...) then posts.retry({post.post_id!r})"

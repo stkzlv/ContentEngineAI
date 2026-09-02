@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blob retention ran on `single` and on the immediate batch but not on the scheduled branch of `schedule`, though the docs listed it on every publish path. It runs there now, after a run that scheduled something.
 
 ### Notes
-- The sweep is not gated on whether this run published anything. The post it just created is still pending and cannot be judged; the value is in the previous runs' posts, which have fired since.
+- The sweep is not gated on a successful publish, and on `schedule` it runs even when there is nothing to schedule: a cron run on a day with no new renders is the day earlier posts fire. The post a run just created is still pending and cannot be judged; the value is in the previous runs' posts. The global batch skips its publishing phase entirely when nothing was produced, and sweeps nothing then.
 - The test asserts the call at each of the four sites by walking the AST, because a shared hook is not evidence that a path calls it.
 
 ## [0.95.0] - 2026-09-02
