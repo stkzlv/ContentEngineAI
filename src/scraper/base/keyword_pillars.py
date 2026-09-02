@@ -90,3 +90,38 @@ def keywords_for_run(
     count = min(count, len(configured))
     start = (day_ordinal * count) % len(configured)
     return [configured[(start + i) % len(configured)] for i in range(count)]
+
+
+def rotate_keyword_pool(
+    configured: list[str], stride: int, day_ordinal: int | None = None
+) -> list[str]:
+    """Reorder the pool by date, keeping every keyword in it.
+
+    The standalone scraper's keyword loop stops once `max_products` is
+    collected, so it only ever reaches the first few entries, and taking them
+    in config order returned the same products every run.
+
+    This rotates rather than slices, which `keywords_for_run` does for the
+    batch. The difference is what the caller does with the remainder. The
+    batch hands its list to a phase that searches all of it, so a slice is
+    the whole selection. The standalone hands its list to a loop that stops
+    early and treats the rest as fallback, so slicing to the expected
+    consumption removes the fallback: on the bundled config, where
+    `max_products` and `products_per_keyword` are both 1, a slice is one
+    keyword and a barren one fails the entire run instead of moving to the
+    next. A single-entry list also drops the run onto the non-batch arm,
+    which does not honour `--products-per-keyword`.
+
+    `stride` is how far the starting point moves per day, so consecutive
+    runs reach different keywords rather than re-treading the same head.
+    """
+    if not configured:
+        return []
+    if stride <= 0:
+        return list(configured)
+
+    if day_ordinal is None:
+        day_ordinal = date.today().toordinal()
+
+    start = (day_ordinal * stride) % len(configured)
+    return list(configured[start:]) + list(configured[:start])

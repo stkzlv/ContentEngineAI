@@ -21,9 +21,9 @@ from tenacity import (
 )
 
 from src.scraper.base.keyword_pillars import (
-    keywords_for_run,
     pillar_for,
     read_keyword_pillars,
+    rotate_keyword_pool,
 )
 
 from ...utils.logging_setup import setup_debug_logging
@@ -1523,6 +1523,41 @@ def build_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _rotate_pool_for_today(
+    pool: list[str],
+    args: argparse.Namespace,
+    config: dict[str, Any],
+    batch_config: dict[str, Any],
+) -> list[str]:
+    """Reorder a configured keyword pool so runs do not re-tread its head.
+
+    Only reached when the operator named no keywords. `--keywords` is what
+    they typed and stays in the order given, since a date-dependent result is
+    surprising in a tool used to reproduce a problem. The distinction has to
+    be made here rather than in `load_batch_config`, because the caller
+    assigns the pool to `args.keywords` before the loader sees it and the two
+    become indistinguishable.
+
+    The stride is what one run consumes, so consecutive days reach different
+    keywords. It is a stride and not a slice width: the pool stays whole, and
+    the entries past the stride remain as fallback for a barren search.
+    """
+    max_products = args.max_products or (
+        config.get("scrapers", {}).get("amazon", {}).get("max_products", 10)
+    )
+    per_keyword = args.products_per_keyword or batch_config.get(
+        "products_per_keyword", 2
+    )
+    stride = max(1, -(-max_products // max(1, per_keyword)))
+    rotated = rotate_keyword_pool(pool, stride)
+    logger.info(
+        "Rotated %d configured keywords for today; starting at %s",
+        len(rotated),
+        rotated[0] if rotated else "(none)",
+    )
+    return rotated
+
+
 def main():
     """Command-line interface for the Botasaurus Amazon scraper"""
     # Load .env BEFORE anything reads env vars. Without this, AMAZON_ASSOCIATE_TAG
@@ -1605,23 +1640,9 @@ def main():
                 # length, which is zero, so the rotation would be the
                 # identity -- the trap the batch nearly shipped with.
                 if batch_keywords:
-                    pool_max_products = args.max_products or (
-                        config.get("scrapers", {})
-                        .get("amazon", {})
-                        .get("max_products", 10)
+                    batch_keywords = _rotate_pool_for_today(
+                        batch_keywords, args, config, batch_config
                     )
-                    per_keyword = args.products_per_keyword or batch_config.get(
-                        "products_per_keyword", 2
-                    )
-                    per_run = max(1, -(-pool_max_products // max(1, per_keyword)))
-                    rotated = keywords_for_run(batch_keywords, per_run)
-                    logger.debug(
-                        "Rotated configured keywords: %d of %d for today (%s)",
-                        len(rotated),
-                        len(batch_keywords),
-                        ", ".join(rotated),
-                    )
-                    batch_keywords = rotated
 
                 # Use batch config if available
                 if batch_product_ids or batch_keywords:
@@ -1652,7 +1673,9 @@ def main():
                     config_keywords = amazon_config.get("keywords", [])
 
                     if config_keywords:
-                        args.keywords = config_keywords
+                        args.keywords = _rotate_pool_for_today(
+                            config_keywords, args, config, batch_config
+                        )
                         logger.debug(
                             "Using keywords from config file: %s",
                             ", ".join(config_keywords),

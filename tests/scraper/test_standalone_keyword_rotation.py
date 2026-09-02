@@ -18,51 +18,58 @@ then a typed keyword and a configured one are indistinguishable.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
-from src.scraper.base.keyword_pillars import keywords_for_run
+from src.scraper.base.keyword_pillars import rotate_keyword_pool
 
 POOL = [f"kw{i:02d}" for i in range(54)]
 
 
 class TestTheRotationItself:
-    def test_consecutive_days_share_nothing(self):
-        """The stride is the slice width, not one.
+    def test_the_pool_stays_whole(self):
+        """A rotation, not a slice.
 
-        Stepping by one would repeat all but one of yesterday's keywords,
-        which is the shape that made the batch's rotation nearly useless.
+        Slicing to what the run consumes removes the fallback the keyword
+        loop depends on: on the bundled config that width is 1, so a barren
+        keyword failed the whole run instead of moving to the next.
         """
-        day = 700_000
-        a = keywords_for_run(POOL, 10, day_ordinal=day)
-        b = keywords_for_run(POOL, 10, day_ordinal=day + 1)
+        got = rotate_keyword_pool(POOL, 5, day_ordinal=700_000)
+
+        assert sorted(got) == sorted(POOL)
+        assert len(got) == len(POOL)
+
+    def test_consecutive_days_start_somewhere_else(self):
+        a = rotate_keyword_pool(POOL, 5, day_ordinal=700_000)
+        b = rotate_keyword_pool(POOL, 5, day_ordinal=700_001)
+
+        assert a[0] != b[0]
+
+    def test_what_a_run_reaches_does_not_repeat_next_day(self):
+        """The stride is what one run consumes, so the reached heads differ.
+
+        A stride of one would move the start by a single keyword and repeat
+        all but one of yesterday's, which is the shape that made the batch's
+        rotation nearly useless.
+        """
+        stride = 5
+        a = rotate_keyword_pool(POOL, stride, day_ordinal=700_000)[:stride]
+        b = rotate_keyword_pool(POOL, stride, day_ordinal=700_001)[:stride]
 
         assert set(a).isdisjoint(b)
 
-    def test_a_full_width_slice_would_be_the_identity(self):
-        """Why the width is what the run consumes, not the pool size.
+    def test_the_order_within_a_day_is_stable(self):
+        assert rotate_keyword_pool(POOL, 5, day_ordinal=700_000) == (
+            rotate_keyword_pool(POOL, 5, day_ordinal=700_000)
+        )
 
-        At `count == len(pool)` the start offset is a multiple of the length,
-        so it is zero on every day. This is documented as a property rather
-        than guarded against, because the caller choosing the width is what
-        keeps it from happening.
-        """
-        for day in (700_000, 700_001, 700_002):
-            assert keywords_for_run(POOL, len(POOL), day_ordinal=day) == POOL
+    def test_an_empty_pool_stays_empty(self):
+        assert rotate_keyword_pool([], 5, day_ordinal=700_000) == []
 
-    def test_the_pool_is_covered_before_it_repeats(self):
-        day = 700_000
-        seen: set[str] = set()
-        for offset in range(6):
-            seen.update(keywords_for_run(POOL, 10, day_ordinal=day + offset))
-
-        assert seen == set(POOL)
-
-    def test_it_never_returns_more_than_the_pool_holds(self):
-        assert keywords_for_run(["a", "b"], 10, day_ordinal=700_000) == ["a", "b"]
-
-    @pytest.mark.parametrize("count", [0, -1])
-    def test_a_non_positive_width_selects_nothing(self, count):
-        assert keywords_for_run(POOL, count, day_ordinal=700_000) == []
+    @pytest.mark.parametrize("stride", [0, -1])
+    def test_a_non_positive_stride_leaves_the_order_alone(self, stride):
+        assert rotate_keyword_pool(POOL, stride, day_ordinal=700_000) == POOL
 
 
 class TestBothPathsShareOneImplementation:
@@ -93,15 +100,16 @@ class TestBothPathsShareOneImplementation:
 
         source = inspect.getsource(scraper_module)
 
-        assert "def keywords_for_run(" not in source
-        assert "keywords_for_run" in source
+        assert "def rotate_keyword_pool(" not in source
+        assert "rotate_keyword_pool" in source
 
-    def test_both_import_it_from_keyword_pillars(self):
+    def test_both_read_their_rotation_from_keyword_pillars(self):
         from src.pipeline.config import keywords_for_run as batch_one
-        from src.scraper.amazon.scraper import keywords_for_run as standalone_one
+        from src.scraper.amazon.scraper import rotate_keyword_pool as standalone_one
+        from src.scraper.base import keyword_pillars
 
-        assert batch_one is keywords_for_run
-        assert standalone_one is keywords_for_run
+        assert batch_one is keyword_pillars.keywords_for_run
+        assert standalone_one is keyword_pillars.rotate_keyword_pool
 
 
 class TestTheCliRotatesOnlyTheConfiguredPool:
@@ -113,7 +121,9 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
     """
 
     @staticmethod
-    def _keywords_reaching_the_batch(argv, pool):
+    def _keywords_reaching_the_batch(
+        argv, pool, max_products=10, products_per_keyword=2
+    ):
         """Run `main()` and return the keyword list it handed downstream."""
         import contextlib
         import sys
@@ -128,8 +138,11 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
             raise SystemExit(0)
 
         yaml_config = {
-            "batch": {"keywords": {"value": list(pool)}, "products_per_keyword": 2},
-            "scrapers": {"amazon": {"max_products": 10}},
+            "batch": {
+                "keywords": {"value": list(pool)},
+                "products_per_keyword": products_per_keyword,
+            },
+            "scrapers": {"amazon": {"max_products": max_products}},
         }
 
         with (
@@ -145,18 +158,67 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
             scraper_module.main()
         return seen.get("cli_keywords")
 
-    def test_a_no_flag_run_gets_a_slice_not_the_whole_pool(self):
+    def test_a_no_flag_run_reorders_the_pool_without_shortening_it(self):
         got = self._keywords_reaching_the_batch([], POOL)
 
         assert got is not None, "main() never reached load_batch_config"
-        assert len(got) < len(POOL), (
-            "the whole 54-keyword pool reached the batch; the run stops at "
-            "max_products, so only the head would ever be searched"
+        assert sorted(got) == sorted(POOL), "the pool lost or gained entries"
+        assert got != POOL, "the pool reached the batch in config order"
+
+    def test_the_starting_keyword_moves_with_the_date(self):
+        """The assertion the first version of this test was missing.
+
+        It only checked that the list was shorter than the pool, which a
+        fixed head slice satisfies -- the exact behaviour #347 was filed
+        about.
+        """
+        import datetime
+
+        def _frozen_at(ordinal):
+            class _Date(datetime.date):
+                @classmethod
+                def today(cls):
+                    return datetime.date.fromordinal(ordinal)
+
+            return _Date
+
+        seen = []
+        for ordinal in (700_000, 700_001):
+            with patch("src.scraper.base.keyword_pillars.date", _frozen_at(ordinal)):
+                seen.append(self._keywords_reaching_the_batch([], POOL)[0])
+
+        assert seen[0] != seen[1], f"same starting keyword on both days: {seen}"
+
+    def test_the_bundled_config_still_takes_the_batch_arm(self):
+        """max_products and products_per_keyword are both 1 in the shipped file.
+
+        Slicing to what a run consumes gave one keyword there, which flips
+        `is_batch_mode` false and routes the run to the single-keyword arm.
+        That arm has no next keyword, so a barren search failed the whole
+        run, and it does not honour --products-per-keyword either.
+        """
+        got = self._keywords_reaching_the_batch(
+            [], POOL, max_products=1, products_per_keyword=1
         )
-        assert set(got) <= set(POOL)
+
+        assert got is not None, (
+            "main() never reached load_batch_config: the run fell onto the "
+            "single-keyword arm, losing the rest of the pool as fallback"
+        )
+        assert len(got) == len(POOL)
+
+    def test_products_per_keyword_survives_a_no_flag_run(self):
+        got = self._keywords_reaching_the_batch(
+            ["--products-per-keyword", "3"],
+            POOL,
+            max_products=1,
+            products_per_keyword=1,
+        )
+
+        assert got is not None and len(got) > 1
 
     def test_typed_keywords_are_passed_through_untouched(self):
-        """`--keywords` is reproducible; only the pool rotates."""
+        """`--keywords` is reproducible; only the configured pool rotates."""
         typed = ["wireless earbuds", "smart plug", "portable ssd"]
 
         got = self._keywords_reaching_the_batch(["--keywords", *typed], POOL)
