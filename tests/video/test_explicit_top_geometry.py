@@ -1,7 +1,7 @@
 """The geometry reported for an explicit top is where the content lands.
 
-`apply_aspect_ratio_mode` returns a `VisualGeometry` that captions and the
-disclosure overlay are placed from. With `video_top_percent` set, the filter
+`apply_aspect_ratio_mode` returns a `VisualGeometry` that the FFmpeg engine's
+content-aware captions are placed from. With `video_top_percent` set, the filter
 puts the content's top row at `int(target_height * percent)`: both `pad`'s y
 and `overlay`'s y are that literal. The geometry used to add a centring term
 inside the band, so for a 1920x1080 source in a 1080x1920 frame at 0.25 the
@@ -68,6 +68,7 @@ class TestTheArithmetic:
         assert geometry.rendered_y == (TARGET_H - geometry.rendered_h) // 2
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 class TestTheFrameItActuallyProduces:
     """Issue #343's acceptance bar: the content band's first row on a frame."""

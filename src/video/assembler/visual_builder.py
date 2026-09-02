@@ -390,8 +390,9 @@ class VisualFilterBuilder:
                 # expression. The geometry used to add
                 # `(scale_height - actual_h) // 2` here, centring the content
                 # inside the band on paper while the frame had it flush with
-                # the band's top, so captions placed from this landed 400px
-                # too low whenever a profile set `video_vertical_align: top`.
+                # the band's top, so the FFmpeg engine's content-aware
+                # captions landed `(band - actual_h) // 2` too low whenever a
+                # profile set `video_vertical_align: top`.
                 # The caller's config-based fallback and the image path both
                 # read the percent as the top edge too.
                 actual_y = y_offset
