@@ -312,6 +312,18 @@ blob_retention:
   # this (free tier is 1024 MB; leave headroom for a publishing burst)
   max_total_mb: 500
 
+# Delivery sweep after every publish run. The scheduler reports a post
+# accepted, not delivered: a leg that fails at publish time leaves the post
+# `partial` with no alert, and the fix (posts.retry) expires once the CDN
+# copy is gone. The sweep reads the live per-platform status of a trailing
+# window of posts and WARNs per failing leg. It never fails a publish; it
+# only reports. The post this run just created is still pending and is not
+# judged; the value is in the previous runs' posts, which have fired since.
+delivery_sweep:
+  enabled: true
+  # How many recent posts to inspect (one status read per incomplete post)
+  limit: 25
+
 link_in_bio:
   # Enable/disable link-in-bio updates after publishing
   enabled: true

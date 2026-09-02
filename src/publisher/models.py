@@ -590,6 +590,9 @@ class PublisherConfig:
     blob_retention_config: "BlobRetentionConfig" = field(
         default_factory=lambda: BlobRetentionConfig()
     )
+    delivery_sweep_config: "DeliverySweepConfig" = field(
+        default_factory=lambda: DeliverySweepConfig()
+    )
     affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
         default_factory=lambda: AffiliateDisclosureConfig()
     )
@@ -1392,3 +1395,25 @@ class BlobRetentionConfig:
     enabled: bool = False
     max_age_days: int = 30
     max_total_mb: int = 500
+
+
+@dataclass
+class DeliverySweepConfig:
+    """Sweep recent posts for silently-failed platform legs after a publish.
+
+    The scheduler reports a post accepted, not delivered. A leg that fails at
+    publish time leaves the post ``partial`` with no alert, and the recovery
+    (``posts.retry``) expires once the CDN copy is gone. Sweeping a trailing
+    window after every publish run catches the previous runs' posts, which
+    have since fired; the post just created is still pending and cannot be
+    judged yet.
+
+    Attributes
+    ----------
+        enabled: Run the sweep after publish runs
+        limit: How many recent posts to inspect
+
+    """
+
+    enabled: bool = True
+    limit: int = 25

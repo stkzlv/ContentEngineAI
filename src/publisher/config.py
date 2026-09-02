@@ -21,6 +21,7 @@ from src.publisher.models import (
     AnalyticsConfig,
     BlobRetentionConfig,
     CleanupConfig,
+    DeliverySweepConfig,
     FirstCommentConfig,
     LinkInBioConfig,
     Platform,
@@ -346,6 +347,22 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             result["blob_retention_config"] = BlobRetentionConfig()
     else:
         result["blob_retention_config"] = BlobRetentionConfig()
+
+    # Parse delivery_sweep config
+    delivery_sweep_section = result.get("delivery_sweep", {})
+    if delivery_sweep_section:
+        try:
+            result["delivery_sweep_config"] = DeliverySweepConfig(
+                **delivery_sweep_section
+            )
+            logger.debug("Parsed delivery_sweep config: %s", delivery_sweep_section)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse delivery_sweep config: %s, using defaults", e
+            )
+            result["delivery_sweep_config"] = DeliverySweepConfig()
+    else:
+        result["delivery_sweep_config"] = DeliverySweepConfig()
 
     # Parse affiliate_disclosure config
     affiliate_disclosure_section = result.get("affiliate_disclosure", {})
