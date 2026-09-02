@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.96.1] - 2026-09-02
 
 ### Changed
-- `xvfb-run` is no longer described as required for the pycaps CSS renderer. Re-measured on Playwright 1.58.0, the burn succeeds with no display reachable by the process (33s at 466 MB peak) and runs no faster under Xvfb (37s at the same peak). The wrapper stays on the command examples and in the troubleshooting entry as the fix for the `Page.screenshot` timeout on older builds, with the measurement recorded so a reader can tell which case they are in. Closes #349.
+- `xvfb-run` is no longer described as required for the pycaps CSS renderer. Re-measured on Playwright 1.58.0, the burn succeeds with no display reachable by the process (33s at 466 MB peak) and runs no faster under Xvfb (37s at the same peak). The wrapper stays on the command examples and in the troubleshooting entry as the fix for the `Page.screenshot` timeout if it appears, with the measurement recorded so a reader can tell which case they are in. Closes #349.
 
 ### Notes
-- Which Playwright or Chromium change removed the hang is not established; the docs say so rather than guess. The scraper's own Xvfb use is unrelated and unchanged.
+- What removed the hang is not established, and the docs say so rather than guess. `poetry.lock` has pinned Playwright 1.58.0 since before the hang was recorded, so the version is not the variable; the browser binaries were reinstalled on 2026-07-30, after the entry was written, and are the unconfirmed candidate. The scraper's own Xvfb use is unrelated and unchanged.
 
 ## [0.95.0] - 2026-09-02
 

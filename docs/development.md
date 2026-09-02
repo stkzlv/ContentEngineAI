@@ -27,8 +27,8 @@ poetry run playwright install chromium   # CSS renderer (default). Skip for pict
 
 On Ubuntu 26.04 prefix the chromium install with
 `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64` (no 26.04 build yet), and
-keep `xvfb-run -a` at hand for CSS-renderer runs on older Playwright builds
-(1.58.0 needs no display; see `docs/troubleshooting.md`). See
+keep `xvfb-run -a` at hand for CSS-renderer runs in case the screenshot
+timeout appears (it no longer reproduces; see `docs/troubleshooting.md`). See
 [docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full reference.
 
 ## Code Quality Standards

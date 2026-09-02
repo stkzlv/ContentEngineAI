@@ -60,8 +60,8 @@ See [Installation](docs/installation.md) for complete setup instructions.
   `subtitle_engine: pycaps`, so step 1b is what makes the shipped default work.
   Without it a run falls back to FFmpeg captions and warns once; that is a
   supported configuration, just not the one the config describes. The renderer
-  runs without a display on Playwright 1.58.0; if its per-word screenshots time
-  out on an older build, wrap the producer in `xvfb-run -a`. See
+  runs without a display as of 2026-09-02; if its per-word screenshots time
+  out, wrap the producer in `xvfb-run -a`. See
   [Subtitles](docs/pycaps-subtitles.md) and
   [Troubleshooting](docs/troubleshooting.md).
 - **Publishing needs an account before `--platforms` does anything.** Set

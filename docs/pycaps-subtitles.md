@@ -47,8 +47,8 @@ PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 poetry run playwright install 
 
 At render time the producer sets that override itself, so runs don't need
 the prefix. See `docs/troubleshooting.md` for the full writeup, including the
-`xvfb-run` wrapper that fixes the CSS renderer's screenshot timeout on older
-Playwright builds; on 1.58.0 the renderer runs with no display at all.
+`xvfb-run` wrapper that fixes the CSS renderer's screenshot timeout if it
+appears; as of 2026-09-02 the renderer runs with no display at all.
 
 The pycaps library is pinned to a validated git commit in `pyproject.toml`.
 Upstream is alpha (0.2.1), so we lock to a specific SHA and bump it deliberately.
@@ -201,10 +201,10 @@ per-word keyframe animations, `@font-face` loading.
 - Peak RSS: ~400-500 MB per render (process ceiling, varies with template)
 - Speed: ~0.7x realtime on a 30s portrait clip (benchmark winner)
 - Template coverage: all 10+ built-in templates work.
-- Runs with no display on Playwright 1.58.0 (measured: 33s at 466 MB peak
-  with no display reachable, 37s at the same peak under Xvfb). On older
-  builds the per-word screenshots hung without an X display
-  (`Page.screenshot` timeout); `xvfb-run -a` is the fix if that comes back.
+- Runs with no display (measured 2026-09-02: 33s at 466 MB peak with no
+  display reachable, 37s at the same peak under Xvfb). When first recorded
+  the per-word screenshots hung without an X display (`Page.screenshot`
+  timeout); `xvfb-run -a` is the fix if that comes back.
   `pictex` never needed a display, but see the warning under `pictex` before
   reaching for it: it is not a usable substitute for published work.
 
