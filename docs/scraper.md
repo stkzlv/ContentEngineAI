@@ -97,6 +97,17 @@ When you run the scraper without `--keywords` or `--product-ids`, it falls back 
 2. If both empty, fall back to `scrapers.amazon.keywords` (single-product mode)
 3. If that's also empty, error out
 
+A configured pool is not searched in config order. The keyword loop stops once
+`max_products` is collected, so it only ever reaches the first few entries, and
+taking them from the top returned the same products every run. The pool is
+rotated by date instead: every keyword stays in the list, so a barren search
+still moves on to the next one, but the starting point advances each day by
+what one run consumes (`max_products` over `products_per_keyword`), so
+consecutive days reach different keywords. This is a reorder rather than the
+slice the global batch takes, because the standalone loop relies on the
+remainder as fallback. Keywords passed with `--keywords` are used exactly as
+given and are not rotated.
+
 ### Media validation filtering
 
 When `count_products_with_media: true` (default), only products with enough images/videos count toward the limit. Products that fail media validation are discarded and don't count.
