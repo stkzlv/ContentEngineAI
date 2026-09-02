@@ -109,6 +109,7 @@ comments in that file for the active values shipped to users.
 | `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty or single-entry, which is also what `--pycaps-template NAME` triggers (the flag clears the pool). |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
 | `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
+| `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [subtitle-best-practices.md](subtitle-best-practices.md) rule 6 rejects. Bundled YAML ships `true`. |
 | `max_width_ratio` | float | 0.85 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
@@ -162,6 +163,10 @@ poetry run pycaps render --input my.mp4 --template hype --transcript my.json
 
 Drop custom templates under `pycaps-templates/` in your project dir and
 reference them by path.
+
+A casing change does not need a fork: `force_sentence_case` appends
+`.word { text-transform: none; }` after the template's own CSS, so a template
+that uppercases renders the transcript's casing while staying as shipped.
 
 ## Content-aware positioning
 

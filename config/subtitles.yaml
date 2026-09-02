@@ -84,6 +84,14 @@ subtitle_settings:
     #       Upstream defect, tracked in issue #174.
     renderer: "css"
 
+    # Keep the transcript's casing. word-focus and line-focus ship
+    # `text-transform: uppercase`; docs/subtitle-best-practices.md rule 6
+    # wants sentence case, because ascenders and descenders carry word
+    # shape and mixed case reads faster. Appends `.word { text-transform:
+    # none; }` after the template's own CSS. Set false to render a template
+    # as shipped.
+    force_sentence_case: true
+
     # Max caption width as a fraction of frame width. This is the
     # user-facing knob; the actual value passed to pycaps is clamped
     # to the platform safe zone at render time so captions never

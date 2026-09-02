@@ -156,6 +156,34 @@ def _safe_zone_max_width(safe_zone: Any) -> float | None:
     return max(0.1, limit)  # floor at 10% to avoid degenerate layouts
 
 
+_SENTENCE_CASE_CSS = ".word { text-transform: none; }"
+
+
+def _force_sentence_case(builder: Any) -> None:
+    """Keep the transcript's casing whatever the template says.
+
+    `word-focus` and `line-focus` ship `.word { text-transform: uppercase; }`.
+    Appending a later rule at the same specificity wins the cascade, so the
+    template's own stylesheet is left as shipped and the override travels
+    with the config rather than with a project-local fork of the template.
+
+    Has to run after the renderer is wired: `with_custom_subtitle_renderer`
+    replaces the renderer object, and appended CSS lives on that object, so
+    CSS appended before the pictex swap is discarded with the CSS renderer.
+    Both bundled renderers accept `append_css`. Tolerates the builder method
+    being absent so a pycaps upgrade that renames it degrades to the
+    template's casing rather than raising.
+    """
+    add = getattr(builder, "add_css_content", None)
+    if add is None:
+        logger.warning(
+            "pycaps builder has no add_css_content; captions keep the "
+            "template's casing"
+        )
+        return
+    add(_SENTENCE_CASE_CSS)
+
+
 def _drop_punctuation_stripping(builder: Any) -> None:
     """Stop a template deleting the decimal point out of a number.
 
@@ -485,4 +513,6 @@ class PycapsRenderer:
             builder.with_custom_subtitle_renderer(custom_renderer)
         # CSS renderer is the library default, no explicit wiring needed.
 
+        if settings.force_sentence_case:
+            _force_sentence_case(builder)
         return builder, custom_renderer

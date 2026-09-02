@@ -64,6 +64,7 @@ subtitle_settings:
   pycaps:
     template_pool: ["explosive", "word-focus"]
     renderer: "css"
+    force_sentence_case: true           # override a template's text-transform: uppercase
     fallback_policy: "fallback_ffmpeg"  # forks without --with pycaps land here
 ```
 
