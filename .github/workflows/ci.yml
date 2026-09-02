@@ -28,21 +28,21 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .venv
-        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-pycaps
 
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
-        poetry install --no-interaction
+        poetry install --no-interaction --with pycaps
 
     - name: Install project
       if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
-        poetry install --no-interaction
+        poetry install --no-interaction --with pycaps
 
     - name: Run linting
       run: |
@@ -82,21 +82,21 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .venv
-        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}-pycaps
 
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
-        poetry install --no-interaction
+        poetry install --no-interaction --with pycaps
 
     - name: Install project
       if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
-        poetry install --no-interaction
+        poetry install --no-interaction --with pycaps
 
     - name: Install Playwright browsers
       run: poetry run playwright install
