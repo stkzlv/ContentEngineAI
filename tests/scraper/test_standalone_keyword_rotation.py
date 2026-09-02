@@ -26,6 +26,23 @@ from src.scraper.base.keyword_pillars import rotate_keyword_pool
 
 POOL = [f"kw{i:02d}" for i in range(54)]
 
+# 700000 * 5 % 54 == 44, so the default start is not the identity. The
+# harness pins the date: run against `date.today()`, the reorder test is the
+# identity whenever `ordinal % 54 == 0`, which is 2026-10-19 and every 54th
+# day after, and would turn CI red with no code change.
+DAY = 700_000
+
+
+def _frozen_at(ordinal):
+    import datetime
+
+    class _Date(datetime.date):
+        @classmethod
+        def today(cls):
+            return datetime.date.fromordinal(ordinal)
+
+    return _Date
+
 
 class TestTheRotationItself:
     def test_the_pool_stays_whole(self):
@@ -121,13 +138,23 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
     """
 
     @staticmethod
-    def _keywords_reaching_the_batch(
-        argv, pool, max_products=10, products_per_keyword=2
+    def _run(
+        argv,
+        pool,
+        max_products=10,
+        products_per_keyword=2,
+        day=DAY,
+        route="batch",
     ):
-        """Run `main()` and return the keyword list it handed downstream."""
+        """Run `main()` and return what it handed to `load_batch_config`.
+
+        `route` selects which config key carries the pool: `batch` for
+        `batch.keywords`, `fallback` for `scrapers.amazon.keywords`, which the
+        CLI reads only when the batch block is empty.
+        """
         import contextlib
         import sys
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
 
         from src.scraper.amazon import scraper as scraper_module
 
@@ -137,18 +164,19 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
             seen.update(kwargs)
             raise SystemExit(0)
 
-        yaml_config = {
-            "batch": {
-                "keywords": {"value": list(pool)},
-                "products_per_keyword": products_per_keyword,
-            },
-            "scrapers": {"amazon": {"max_products": max_products}},
-        }
+        amazon = {"max_products": max_products}
+        batch = {"products_per_keyword": products_per_keyword}
+        if route == "batch":
+            batch["keywords"] = {"value": list(pool)}
+        else:
+            amazon["keywords"] = list(pool)
+        yaml_config = {"batch": batch, "scrapers": {"amazon": amazon}}
 
         with (
             patch.object(sys, "argv", ["scraper", *argv]),
             patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
             patch.object(scraper_module.yaml, "safe_load", return_value=yaml_config),
+            patch("src.scraper.base.keyword_pillars.date", _frozen_at(day)),
             patch(
                 "src.scraper.amazon.config.load_batch_config",
                 side_effect=_capture,
@@ -156,7 +184,10 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
             contextlib.suppress(SystemExit),
         ):
             scraper_module.main()
-        return seen.get("cli_keywords")
+        return seen
+
+    def _keywords_reaching_the_batch(self, *args, **kwargs):
+        return self._run(*args, **kwargs).get("cli_keywords")
 
     def test_a_no_flag_run_reorders_the_pool_without_shortening_it(self):
         got = self._keywords_reaching_the_batch([], POOL)
@@ -172,22 +203,34 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
         fixed head slice satisfies -- the exact behaviour #347 was filed
         about.
         """
-        import datetime
+        a = self._keywords_reaching_the_batch([], POOL, day=DAY)
+        b = self._keywords_reaching_the_batch([], POOL, day=DAY + 1)
 
-        def _frozen_at(ordinal):
-            class _Date(datetime.date):
-                @classmethod
-                def today(cls):
-                    return datetime.date.fromordinal(ordinal)
+        assert a[0] != b[0], f"same starting keyword on both days: {a[0]}"
 
-            return _Date
+    def test_the_stride_is_what_a_run_consumes(self):
+        """A stride of one satisfies the date test above; this pins the size.
 
-        seen = []
-        for ordinal in (700_000, 700_001):
-            with patch("src.scraper.base.keyword_pillars.date", _frozen_at(ordinal)):
-                seen.append(self._keywords_reaching_the_batch([], POOL)[0])
+        With 10/2 the run consumes five keywords, so the five reached on day
+        N must be disjoint from the five reached on day N+1. A stride of one
+        would overlap on four of them.
+        """
+        a = self._keywords_reaching_the_batch([], POOL, day=DAY)[:5]
+        b = self._keywords_reaching_the_batch([], POOL, day=DAY + 1)[:5]
 
-        assert seen[0] != seen[1], f"same starting keyword on both days: {seen}"
+        assert set(a).isdisjoint(b), f"days overlap: {sorted(set(a) & set(b))}"
+
+    def test_the_single_product_fallback_route_rotates_too(self):
+        """`scrapers.amazon.keywords`, read only when the batch block is empty.
+
+        The previous version rotated one of the two config-read routes; this
+        is the other, and nothing exercised it.
+        """
+        a = self._keywords_reaching_the_batch([], POOL, day=DAY, route="fallback")
+        b = self._keywords_reaching_the_batch([], POOL, day=DAY + 1, route="fallback")
+
+        assert sorted(a) == sorted(POOL)
+        assert a[0] != b[0]
 
     def test_the_bundled_config_still_takes_the_batch_arm(self):
         """max_products and products_per_keyword are both 1 in the shipped file.
@@ -208,14 +251,15 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
         assert len(got) == len(POOL)
 
     def test_products_per_keyword_survives_a_no_flag_run(self):
-        got = self._keywords_reaching_the_batch(
+        seen = self._run(
             ["--products-per-keyword", "3"],
             POOL,
             max_products=1,
             products_per_keyword=1,
         )
 
-        assert got is not None and len(got) > 1
+        assert seen.get("cli_keywords") is not None
+        assert seen.get("cli_products_per_keyword") == 3
 
     def test_typed_keywords_are_passed_through_untouched(self):
         """`--keywords` is reproducible; only the configured pool rotates."""

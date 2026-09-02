@@ -1635,10 +1635,10 @@ def main():
                 # apart, because the no-flag path assigns the pool to
                 # `args.keywords` a few lines below.
                 #
-                # The width is what the run consumes, not the pool size. A
-                # full-width slice makes the start offset a multiple of the
-                # length, which is zero, so the rotation would be the
-                # identity -- the trap the batch nearly shipped with.
+                # The stride is what the run consumes. A stride equal to the
+                # pool length makes the start offset a multiple of the length,
+                # which is zero, so the rotation would be the identity -- the
+                # trap the batch nearly shipped with.
                 if batch_keywords:
                     batch_keywords = _rotate_pool_for_today(
                         batch_keywords, args, config, batch_config

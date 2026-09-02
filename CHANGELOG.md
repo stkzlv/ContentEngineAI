@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The decision is made where the pool is read, not in `load_batch_config`. The CLI assigns the pool to `args.keywords` before the loader sees it, so by then a typed keyword and a configured one are indistinguishable.
 - A reorder, not the slice the global batch takes. The batch hands its list to a phase that searches all of it, so a slice is the whole selection. The standalone hands its list to a loop that stops at `max_products` and treats the rest as fallback, and the bundled config sets both `max_products` and `products_per_keyword` to 1: a slice there is one keyword, a barren one fails the run instead of moving on, and a single-entry list drops the run onto the arm that ignores `--products-per-keyword`. `rotate_keyword_pool` keeps every keyword and moves the starting point by what one run consumes.
 - Both rotations live in `src/scraper/base/keyword_pillars.py`, which both config loaders already go through; `keywords_for_run` moved there from `src/pipeline/config.py`. The standalone scraper does not import the pipeline package, so leaving it there would have meant a second copy and the drift this issue records.
-- The slice width is what the run consumes, `max_products` over `products_per_keyword`, not the pool size. A full-width slice makes the start offset a multiple of the length, which is zero, so the rotation would be the identity.
+- The stride is what the run consumes, `max_products` over `products_per_keyword`, so consecutive days reach different keywords. A stride equal to the pool length would make the start offset a multiple of the length, which is zero, so the rotation would be the identity.
 
 ## [0.94.0] - 2026-09-01
 
