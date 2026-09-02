@@ -1,8 +1,9 @@
 """Integration tests for the pycaps subtitle engine.
 
 These tests run the real ``PycapsRenderer`` against a small fixture video +
-transcript. They are skipped automatically when ``pycaps`` is not installed,
-so they stay out of the default CI path. Locally:
+transcript. They skip on an install without the ``pycaps`` group; CI installs
+it (``poetry install --with pycaps`` in ``.github/workflows/ci.yml``), so they
+run on every push there, through the ``pictex`` renderer. Locally:
 
 .. code-block:: bash
 

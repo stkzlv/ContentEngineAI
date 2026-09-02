@@ -388,8 +388,9 @@ poetry install --with pycaps
 poetry run pytest tests/video/test_pycaps_integration.py -v
 ```
 
-It's marked `integration` and skipped automatically when pycaps isn't
-installed, so it stays out of the default CI lane.
+It's marked `integration` and skips on an install without the pycaps group.
+CI installs the group, so it runs on every push there, through the `pictex`
+renderer; no test renders through the CSS renderer in CI.
 
 ## Benchmarks (reference)
 
