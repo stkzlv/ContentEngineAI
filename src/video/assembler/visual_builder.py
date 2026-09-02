@@ -385,9 +385,17 @@ class VisualFilterBuilder:
             # Compute actual position within padded frame
             actual_x = (target_width - actual_w) // 2
             if video_top_percent is not None:
-                # Content area starts at y_offset, video centered within scale_height
-                content_offset = (scale_height - actual_h) // 2
-                actual_y = y_offset + content_offset
+                # The filter puts the content's top row at y_offset: `pad_y`
+                # and `overlay_y` above are that literal, not a centring
+                # expression. The geometry used to add
+                # `(scale_height - actual_h) // 2` here, centring the content
+                # inside the band on paper while the frame had it flush with
+                # the band's top, so the FFmpeg engine's content-aware
+                # captions landed `(band - actual_h) // 2` too low whenever a
+                # profile set `video_vertical_align: top`.
+                # The caller's config-based fallback and the image path both
+                # read the percent as the top edge too.
+                actual_y = y_offset
             else:
                 # Centered in full frame
                 actual_y = (target_height - actual_h) // 2

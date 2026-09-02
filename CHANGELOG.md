@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.2] - 2026-09-02
+
+### Fixed
+- The geometry reported for a video placed with an explicit top did not match the frame. With `video_vertical_align: top`, the filter puts the content's top row at `video_top_position_percent` of the frame, but `VisualGeometry.rendered_y` added a centring term inside the band, so the FFmpeg engine's content-aware captions (the upper line and the above- and below-content anchors) were positioned against a band the content was not in. The geometry now reports the row the filter uses. Closes #343.
+
+### Notes
+- Every bundled video profile centres, and the centred branch was correct, which is why nothing showed. The image path, the caller's config-based fallback geometry, the profile field's description and the architecture reference ("vertical video start position") all read the percent as the top edge, so the geometry changed rather than the filter. Blur-fill still reports letterbox's geometry.
+- The test measures the rendered frame, not the arithmetic: the first row of the content band has to equal `rendered_y`. Asserting the number alone would also pass if the filter were changed to centre and the geometry left as it was.
+
 ## [0.94.1] - 2026-09-02
 
 ### Fixed
