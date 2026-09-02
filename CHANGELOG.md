@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.96.2] - 2026-09-02
 
 ### Changed
-- CI installs the optional `pycaps` dependency group, so the tests gated on `pytest.importorskip("pycaps")` run there rather than being skipped, including the ones that render through the CSS renderer on the runner's Chromium. The venv cache key carries a `-pycaps` suffix so a cached venv from before the change is not reused without the group. A default `poetry install` still omits the group, and the FFmpeg fallback for that install is unchanged.
+- CI installs the optional `pycaps` dependency group, so the tests gated on `pytest.importorskip("pycaps")` run there rather than being skipped, including the ones that render through the CSS renderer on the runner's Chromium. The venv cache key carries a `-pycaps` suffix so a cached venv from before the change is not reused without the group. The test job also installs `libegl1` and `libgl1`, which skia-python, behind the `pictex` renderer, links and the runner does not ship. A default `poetry install` still omits the group, and the FFmpeg fallback for that install is unchanged.
 
 ## [0.96.1] - 2026-09-02
 
