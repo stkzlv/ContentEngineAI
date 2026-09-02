@@ -334,8 +334,8 @@ Result:   Video placed as in letterbox, but the surround carries a scaled
           and blurred copy of the same frame instead of black
 ```
 
-Blur-fill reports the same geometry as letterbox, so caption and disclosure
-placement do not depend on which of the two is chosen. `video_background_blur_sigma`
+Blur-fill reports the same geometry as letterbox, so caption placement does
+not depend on which of the two is chosen. `video_background_blur_sigma`
 sets the strength. A 16:9 source in a 9:16 frame occupies a 608px band, so
 letterbox leaves 68% of the frame black; blur-fill keeps every pixel of the
 source and leaves none of the frame empty.
