@@ -59,9 +59,10 @@ See [Installation](docs/installation.md) for complete setup instructions.
 - **Animated captions need the optional `pycaps` group.** The bundled config sets
   `subtitle_engine: pycaps`, so step 1b is what makes the shipped default work.
   Without it a run falls back to FFmpeg captions and warns once; that is a
-  supported configuration, just not the one the config describes. On Wayland or
-  a headless box the renderer also needs a virtual display, so wrap the producer
-  in `xvfb-run -a`. See [Subtitles](docs/pycaps-subtitles.md) and
+  supported configuration, just not the one the config describes. The renderer
+  runs without a display as of 2026-09-02; if its per-word screenshots time
+  out, wrap the producer in `xvfb-run -a`. See
+  [Subtitles](docs/pycaps-subtitles.md) and
   [Troubleshooting](docs/troubleshooting.md).
 - **Publishing needs an account before `--platforms` does anything.** Set
   `LATE_API_KEY` in `.env` and connect YouTube, TikTok or Instagram in the

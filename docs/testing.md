@@ -295,7 +295,7 @@ Match the change to the check:
 | Pipeline / batch orchestration (`src/pipeline/`) | full `make batch-lowpri` | phase-summary log lines and exit behavior on both the standalone and batch paths |
 | Pure refactor (no behavior change) | `make test` + `make lint`, plus one targeted smoke on the touched path | output unchanged vs before |
 
-Resource and environment rules apply to every row: heavy scrape/produce/batch runs go through the `*-lowpri` make targets (cgroup memory cap), and on a Wayland box any producer run is wrapped in `xvfb-run -a` (the bundled pycaps CSS renderer hangs without an X display). One heavy job at a time.
+Resource and environment rules apply to every row: heavy scrape/produce/batch runs go through the `*-lowpri` make targets (cgroup memory cap), and `xvfb-run -a` stays on the producer examples as the fallback for the pycaps CSS renderer's screenshot timeout if it appears (it no longer reproduces as of 2026-09-02). One heavy job at a time.
 
 Trust the artifact over the exit code. The global batch exits non-zero when no product completes end-to-end. The one exception is a run whose products were all already published *and* which lost nothing else: it completes none and still exits 0, logging `PIPELINE COMPLETED SUCCESSFULLY` with an `Already Published (not re-rendered):` line naming them. Anything genuinely lost alongside them -- a keyword that returned nothing, a product rejected for insufficient media -- puts the run back at exit 1. A partial failure exits 0 unless `--strict` is passed. Confirm success by grepping the phase-summary log lines (`Scraping phase complete:`, `Production phase complete:`, `Publishing phase complete:`), not `$?`.
 
