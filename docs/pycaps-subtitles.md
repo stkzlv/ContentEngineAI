@@ -222,7 +222,8 @@ Chrome, just without the browser shell).
 - Install: `html2pic` + `skia-python` wheels (already in the pycaps group).
 - Peak RSS: similar to css, with a slower startup curve on small clips.
 - Speed: roughly on par with css in steady state.
-- Needs no X display, which is its one genuine advantage over `css`.
+- Needs no X display. That was its one genuine advantage over `css`; since
+  2026-09-02 `css` runs without one too, so it no longer differentiates.
 
 **Why the spacing breaks.** Both bundled templates space words with CSS
 padding on the word element (`word-focus` uses `padding: 4px 4px`,
