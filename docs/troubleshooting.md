@@ -194,9 +194,11 @@ Once Playwright 1.61+ is on PyPI, bump it and drop the override (the renderer he
 
 **Error:** the `css` renderer launches Chromium and lays out captions, then fails per word with `Page.screenshot: Timeout 30000ms exceeded`. Under the bundled `fallback_policy: fallback_ffmpeg` the run completes: the captions are burned onto the assembled video with a separate FFmpeg pass, built from the Whisper transcript the burn step already required. Under `raise` it aborts rather than ship a caption-less video, and `warn_and_skip` keeps the caption-less file. Installing a virtual display is still worth doing if you want the animated captions the profile asked for; the fallback gives static ones.
 
-**Cause:** headless Chromium can't rasterize a frame for the screenshot when there's no usable X display, which happens on Wayland sessions (and bare headless boxes). Page navigation and layout work, so launch succeeds, but every `page.screenshot` blocks until timeout. Confirmed independent of Chrome version (the bundled 145 build and a system Chrome 149 both hang) and of the platform override above.
+**Cause:** on the Playwright builds this was recorded against, headless Chromium could not rasterize a frame for the screenshot without a usable X display, which is the state of a Wayland session and of a bare headless box. Page navigation and layout worked, so launch succeeded, but every `page.screenshot` blocked until timeout, independent of the Chrome build (bundled 145 and system 149 both hung) and of the platform override above.
 
-**Fix:** give Chromium a virtual display by wrapping the producer in `xvfb-run` (this is the same reason the scraper runs its browser under Xvfb):
+**It no longer reproduces on Playwright 1.58.0.** Re-measured on 2026-09-02: the same burn succeeds with `DISPLAY`, `WAYLAND_DISPLAY` and `XDG_SESSION_TYPE` unset and an empty `XDG_RUNTIME_DIR`, so no display server is reachable by the process, in 33s at 466 MB peak; under `xvfb-run -a` it takes 37s at the same peak. Which Playwright or Chromium change removed the hang is not established, so the fix below stays documented for an older install.
+
+**Fix, if the timeout appears:** give Chromium a virtual display by wrapping the producer in `xvfb-run` (this is the same reason the scraper runs its browser under Xvfb):
 
 ```bash
 xvfb-run -a make produce-lowpri ARGS="outputs/<ASIN>/data.json slideshow_images1 --pycaps-renderer css --debug"
@@ -204,7 +206,7 @@ xvfb-run -a make produce-lowpri ARGS="outputs/<ASIN>/data.json slideshow_images1
 xvfb-run -a poetry run python -m src.video.producer outputs/<ASIN>/data.json slideshow_images1 --pycaps-renderer css --debug
 ```
 
-`xvfb-run` ships in the `xvfb` apt package. The `pictex` renderer is browserless and needs none of this, but it is preview-only and not a substitute here: it renders words with no gaps between them (issue #174). Install `xvfb` and keep the `css` renderer for anything you publish.
+`xvfb-run` ships in the `xvfb` apt package. The `pictex` renderer is browserless and never needed this, but it is preview-only and not a substitute: it renders words with no gaps between them (issue #174). Keep the `css` renderer for anything you publish.
 
 ## API and Authentication Issues
 
