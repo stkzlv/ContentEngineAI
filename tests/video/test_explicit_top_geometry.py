@@ -7,8 +7,8 @@ and `overlay`'s y are that literal. The geometry used to add a centring term
 inside the band, so for a 1920x1080 source in a 1080x1920 frame at 0.25 the
 frame had the content at row 480 and the geometry said 1136.
 
-The centred branch was never wrong, and every bundled profile centres, which
-is why nothing showed. A fork setting `video_vertical_align: top` got captions
+The centred branch was never wrong, and every bundled video profile centres,
+which is why nothing showed. A fork setting `video_vertical_align: top` got captions
 positioned against a band the content was not in (#343).
 
 The rendered frame decides, not the arithmetic. A unit assertion that the
