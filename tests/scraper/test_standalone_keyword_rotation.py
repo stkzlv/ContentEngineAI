@@ -215,10 +215,16 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
         N must be disjoint from the five reached on day N+1. A stride of one
         would overlap on four of them.
         """
-        a = self._keywords_reaching_the_batch([], POOL, day=DAY)[:5]
-        b = self._keywords_reaching_the_batch([], POOL, day=DAY + 1)[:5]
+        a = self._keywords_reaching_the_batch([], POOL, day=DAY)
+        b = self._keywords_reaching_the_batch([], POOL, day=DAY + 1)
 
-        assert set(a).isdisjoint(b), f"days overlap: {sorted(set(a) & set(b))}"
+        assert set(a[:5]).isdisjoint(
+            b[:5]
+        ), f"days overlap: {sorted(set(a[:5]) & set(b[:5]))}"
+        # Disjointness is a lower bound: any shift of 5..49 satisfies it, so a
+        # stride of max_products or max_products * products_per_keyword would
+        # pass. Tomorrow's head must be exactly what today would reach next.
+        assert b[:5] == a[5:10], "the stride is not what one run consumes"
 
     def test_the_single_product_fallback_route_rotates_too(self):
         """`scrapers.amazon.keywords`, read only when the batch block is empty.
