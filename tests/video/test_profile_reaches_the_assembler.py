@@ -75,7 +75,7 @@ class TestTheAssemblerEmitsWhatTheProfileAsked:
     and reads the emitted filter.
     """
 
-    async def chain_for(self, profile_name: str, tmp_path):
+    async def chain_for(self, profile_name: str, tmp_path, overrides=None):
         from unittest.mock import AsyncMock, MagicMock
 
         from src.video.assembler.visual_builder import VisualFilterBuilder
@@ -98,7 +98,7 @@ class TestTheAssemblerEmitsWhatTheProfileAsked:
         strategy_factory = MagicMock()
         strategy_factory.get_strategy.return_value = strategy
 
-        settings = merged(profile_name)
+        settings = config.get_profile_merged_settings(profile_name, overrides)
         builder = VisualFilterBuilder(
             media_inspector=inspector,
             config=config,
@@ -114,12 +114,24 @@ class TestTheAssemblerEmitsWhatTheProfileAsked:
         return "\n".join(filter_parts)
 
     @pytest.mark.asyncio
-    async def test_a_cropping_profile_emits_a_crop(self, tmp_path):
-        """`product_video_single` sets crop-to-fit and was letterboxing."""
-        chain = await self.chain_for("product_video_single", tmp_path)
+    async def test_a_crop_request_emits_a_crop(self, tmp_path):
+        """The defect: a profile asking to crop letterboxed instead.
+
+        `product_video_single` was the bundled cropper and is no longer one,
+        because a 16:9 clip cropped to 9:16 loses the sides. The request now
+        arrives as a CLI override, which merges through the same function the
+        profile does, so the value still reaches the filter from config rather
+        than being handed to the builder as a literal -- the weaker shape this
+        file's docstring records as having proved nothing.
+        """
+        chain = await self.chain_for(
+            "product_video_single",
+            tmp_path,
+            overrides={"video_settings.video_aspect_mode": "crop-to-fit"},
+        )
 
         assert "crop=" in chain, (
-            "the profile asks to crop and the assembler padded, so its "
+            "the merged settings ask to crop and the assembler padded, so "
             "video_aspect_mode is being ignored"
         )
         assert "pad=" not in chain
@@ -128,6 +140,23 @@ class TestTheAssemblerEmitsWhatTheProfileAsked:
         # chain satisfies both assertions above. The absence of the blur is
         # what makes this crop-to-fit rather than the other one.
         assert "gblur" not in chain
+
+    @pytest.mark.asyncio
+    async def test_the_single_video_profile_keeps_the_whole_frame(self, tmp_path):
+        """#360: it cropped, so a landscape clip lost both sides.
+
+        Under `crop-to-fit` a 1920x1080 clip in a 1080x1920 frame keeps the
+        centre 31% of its width, cutting the product and the source's own
+        on-screen text off each edge. `smart-scale` crops only within the
+        tolerance, so a landscape clip takes the blur-fill branch, which also
+        reports the geometry the content-aware captions are placed from.
+        """
+        chain = await self.chain_for("product_video_single", tmp_path)
+
+        assert (
+            "gblur" in chain
+        ), "a 16:9 clip is being cropped into 9:16, which drops its sides"
+        assert ":black" not in chain
 
     @pytest.mark.asyncio
     async def test_a_filling_profile_emits_the_blurred_surround(self, tmp_path):

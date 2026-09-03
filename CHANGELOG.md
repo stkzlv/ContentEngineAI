@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.96.3] - 2026-09-03
+
+### Fixed
+- `product_video_single` cropped landscape product clips to fill the frame, so a 16:9 source kept the centre 31% of its width and lost the product and the source's own on-screen text off both edges. The profile now uses `smart-scale`, matching the two siblings already on it: a source already close to 9:16 is still cropped, and everything else takes the blur-fill branch. The tolerance is a window around the target aspect rather than around square, so a 1:1 clip blur-fills too. Closes #360.
+
+### Notes
+- Blur-fill also reports the geometry the FFmpeg engine's content-aware captions are placed from, which `crop-to-fit` does not, so captions on this profile move from over the content to below it.
+- The test that pinned the old value asserted that a profile's `video_aspect_mode` reaches the filter, a plumbing defect that once made every profile letterbox. That assertion is kept by driving the crop request through a CLI override, which merges through the same function, rather than through a bundled profile that no longer crops.
+
 ## [0.96.2] - 2026-09-02
 
 ### Changed
