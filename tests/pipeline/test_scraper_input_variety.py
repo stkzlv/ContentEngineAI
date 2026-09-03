@@ -330,14 +330,15 @@ class TestAlreadyPublishedProductsAreNotRendered:
         bundled `default_platforms` *is* the hardcoded triple, so comparing
         against it passes against the implementation this replaced -- the
         same shape of vacuous test as the `asin = None` one above.
-        """
-        import yaml
 
-        (tmp_path / "config").mkdir()
-        (tmp_path / "config" / "publisher.yaml").write_text(
-            yaml.safe_dump({"default_platforms": ["youtube", "instagram"]}),
-            encoding="utf-8",
-        )
+        Driven through the loaded config rather than a file in the working
+        directory: the batch resolves `publisher.yaml` from an absolute path
+        now, so a `chdir` no longer changes what it reads.
+        """
+        from unittest.mock import patch
+
+        from src.publisher.models import Platform, PublisherConfig
+
         self._history(
             tmp_path,
             {
@@ -346,9 +347,16 @@ class TestAlreadyPublishedProductsAreNotRendered:
             },
         )
         pipeline = self._pipeline(tmp_path)
-        monkeypatch.chdir(tmp_path)
+        narrowed = PublisherConfig(
+            provider="late",
+            api_key="sk_live_" + "0" * 48,
+            default_platforms=[Platform.YOUTUBE, Platform.INSTAGRAM],
+        )
 
-        kept = pipeline._drop_already_published([self._product("B0HHH")])
+        with patch(
+            "src.pipeline.global_batch._publisher_settings", return_value=narrowed
+        ):
+            kept = pipeline._drop_already_published([self._product("B0HHH")])
 
         assert kept == [], (
             "the product is published everywhere this install targets, so it "

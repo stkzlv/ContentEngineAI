@@ -104,11 +104,14 @@ class TestSettleDelays:
 
         assert manager._settle_delays() == []
 
-    def test_a_rejected_neighbouring_key_would_discard_the_section(self, tmp_path):
-        """The amplifier itself, pinned so a future raise is thought about.
+    def test_a_rejected_neighbouring_key_keeps_the_destructive_flags(self, tmp_path):
+        """`keep_published_days: -1` still raises; it no longer deletes files.
 
-        `keep_published_days: -1` still raises, and this shows what that costs:
-        every other cleanup key in the file reverts to its default.
+        The section used to revert wholesale, and a bare `CleanupConfig()`
+        turns cleanup ON. So one rejected value discarded an operator's
+        `enabled: false` and their `archive_before_delete: true` together,
+        and the run removed the product directories unarchived. The two keys
+        that decide whether files are destroyed now survive.
         """
         import yaml
 
@@ -130,9 +133,15 @@ class TestSettleDelays:
         with patch.dict("os.environ", {"LATE_API_KEY": "test-api-key-1234"}, True):
             config = load_publisher_config(path)
 
-        assert config.cleanup_config.enabled is True, (
-            "one rejected key reverted `enabled: false`; this is why the "
-            "settle fields validate in `_settle_delays` instead"
+        assert config.cleanup_config.enabled is False, (
+            "a rejected sibling reverted `enabled: false`, so the run deleted "
+            "product directories on an install that had cleanup off"
+        )
+        assert config.cleanup_config.archive_before_delete is True
+        # The rejected key itself still falls back, which is the point of
+        # rejecting it.
+        assert config.cleanup_config.keep_published_days == (
+            CleanupConfig().keep_published_days
         )
 
 
