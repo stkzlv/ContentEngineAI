@@ -337,6 +337,12 @@ named as a dead query and skipped, because no wait fixes it. Both are reported
 separately at the end of the run, so a keyword that needs replacing is not
 confused with one that needed a longer gap.
 
+Waiting is capped for the run as a whole by `throttle_max_total_wait_sec`, not
+only per input. Per-input budgets do not compose: five blocked inputs at
+fifteen minutes each is over an hour of an unattended run asleep, and by the
+second one exhausting its budget with nothing having succeeded the answer is
+already known.
+
 Consecutive inputs are also paced by `inter_input_delay_sec` on the happy
 path. Back-to-back searches are the pattern that draws the block, and the
 pause costs seconds against a scrape measured in tens of them.
@@ -352,11 +358,17 @@ If it still happens:
    `config/scraper.yaml`.
 3. Try a VPN if your IP is blocked.
 
+Raising the ceiling alone does nothing unless `throttle_max_attempts` is high
+enough to reach it. The waits are 60, 120, 240, 480, then 960 capped to the
+ceiling, so the shipped 6 attempts is the first count that gets there.
+
 One case the classification gets wrong, deliberately: a rate limit that begins
-partway through a run and blocks only the tail. Its first tail input is waited
-on and then named a dead query. That costs the label, not the run, because
-every later input is throttled too and the summary reports a run that mostly
-failed rather than one bad keyword.
+partway through a run, after something has already succeeded. Every input
+after it is waited on and then named a dead query, not just the first. The
+verdict is wrong for all of them, so what the summary shows is most of the run
+listed as dead queries rather than one bad keyword. It is misattributed but
+not mistaken about which inputs were lost or how many. Reading it correctly
+would need a probe request the scrape does not otherwise make.
 
 ### Missing Media
 1. Check connection speed.

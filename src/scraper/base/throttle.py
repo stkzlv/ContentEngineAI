@@ -27,11 +27,13 @@ the failure counts too, and `dead_query_after` is the guard instead: the
 default of 3 means two backoffs have already elapsed, several minutes, before
 anything is called dead.
 
-The residual case is a rate limit that begins partway through a run and blocks
-only the tail. Its first tail input is waited on and then called dead. What it
-costs is the label, not the run: every later input is throttled too, so the
-summary reports a run that mostly failed rather than one dead keyword, which
-is the reading an operator needs.
+The residual case is a rate limit that begins partway through a run, after
+something has already succeeded. Every input after it is waited on for its
+full budget and then called dead. The verdict is wrong for all of them, and
+the summary names them all, so what an operator sees is most of the run listed
+as dead queries rather than one bad keyword -- misattributed, but not mistaken
+about which inputs were lost or about the scale of it. A cheaper reading is
+not available without a probe request the scrape does not otherwise make.
 
 The tracker holds no browser and sleeps for nobody. It answers what to do and
 for how long; the caller waits. Both scraping paths use it -- the standalone
@@ -95,7 +97,23 @@ class ThrottleSettings:
 
     backoff_base_sec: float = 60.0
     backoff_max_sec: float = 600.0
-    max_attempts: int = 5
+    max_attempts: int = 6
+    """Error pages for one input before the run gives up on it.
+
+    6, not 5, so the ceiling is reachable: the waits are 60, 120, 240, 480
+    and then 960 capped to `backoff_max_sec`. At 5 the longest wait taken was
+    480s and raising `backoff_max_sec` changed nothing, which made the
+    documented remedy for a persistent block a no-op.
+    """
+    max_total_wait_sec: float = 3600.0
+    """Total backoff one run may spend before it stops waiting at all.
+
+    Per-input budgets do not compose. Five inputs at fifteen minutes each is
+    seventy-five minutes of an unattended run sleeping, and by the second
+    exhaustion with nothing having succeeded the answer is already known.
+    Once this is spent, every further error page ends its input at once.
+    """
+
     dead_query_after: int = 3
     """Error pages for one input, in a run where something else got through.
 
@@ -119,6 +137,8 @@ class ThrottleSettings:
             raise ValueError("max_attempts must be at least 1")
         if self.dead_query_after < 1:
             raise ValueError("dead_query_after must be at least 1")
+        if self.max_total_wait_sec < 0:
+            raise ValueError("max_total_wait_sec must be non-negative")
 
     @classmethod
     def from_config(cls, raw: dict[str, Any] | None) -> ThrottleSettings:
@@ -132,10 +152,22 @@ class ThrottleSettings:
             return cls()
         try:
             delay = raw.get("inter_input_delay_sec")
+            if delay is not None and (
+                not isinstance(delay, list | tuple) or len(delay) != 2
+            ):
+                # Raised rather than quietly defaulted, so it lands in the
+                # handler below with everything else. A scalar here is the
+                # likely mistake, since the three settings beside it are
+                # scalars, and silently keeping the operator's other
+                # overrides while dropping this one is the half-applied
+                # state this method promises not to produce.
+                raise ValueError(
+                    "inter_input_delay_sec must be a [min, max] pair, " f"got {delay!r}"
+                )
             return cls(
                 inter_input_delay_sec=(
                     (float(delay[0]), float(delay[1]))
-                    if isinstance(delay, list | tuple) and len(delay) == 2
+                    if delay is not None
                     else cls.inter_input_delay_sec
                 ),
                 backoff_base_sec=float(
@@ -146,6 +178,9 @@ class ThrottleSettings:
                 ),
                 max_attempts=int(raw.get("throttle_max_attempts", cls.max_attempts)),
                 dead_query_after=int(raw.get("dead_query_after", cls.dead_query_after)),
+                max_total_wait_sec=float(
+                    raw.get("throttle_max_total_wait_sec", cls.max_total_wait_sec)
+                ),
             )
         except (TypeError, ValueError) as exc:
             logger.warning(
@@ -174,6 +209,7 @@ class ThrottleTracker:
     _succeeded: list[str] = field(default_factory=list, init=False)
     _dead: list[str] = field(default_factory=list, init=False)
     _throttled: list[str] = field(default_factory=list, init=False)
+    _waited_sec: float = field(default=0.0, init=False)
 
     # -- outcomes -----------------------------------------------------------
 
@@ -221,15 +257,20 @@ class ThrottleTracker:
             )
             return Verdict.DEAD_QUERY
 
-        if state.error_pages >= self.settings.max_attempts:
+        if (
+            state.error_pages >= self.settings.max_attempts
+            or self._waited_sec >= self.settings.max_total_wait_sec
+        ):
             if input_label not in self._throttled:
                 self._throttled.append(input_label)
             logger.warning(
                 "Giving up on %r after %d error pages. Nothing else has "
                 "succeeded either, so this reads as a rate limit that "
-                "outlasted the retry budget rather than a bad query.",
+                "outlasted the retry budget rather than a bad query. "
+                "%.0fs of this run was spent waiting.",
                 input_label,
                 state.error_pages,
+                self._waited_sec,
             )
             return Verdict.EXHAUSTED
 
@@ -250,7 +291,17 @@ class ThrottleTracker:
         seen = self._states.get(input_label, _InputState()).error_pages
         exponent = max(0, seen - 1)
         raw = self.settings.backoff_base_sec * (2.0**exponent)
-        return min(raw, self.settings.backoff_max_sec)
+        wait = min(raw, self.settings.backoff_max_sec)
+        # Charged here rather than by the caller, so a caller that forgets to
+        # report its sleep cannot spend the run's budget invisibly. Every
+        # caller sleeps for exactly what this returns.
+        self._waited_sec += wait
+        return wait
+
+    @property
+    def total_wait_sec(self) -> float:
+        """Backoff this run has committed to so far."""
+        return self._waited_sec
 
     def inter_input_delay_sec(self) -> float:
         """A jittered pause to put between two consecutive inputs."""
@@ -260,27 +311,41 @@ class ThrottleTracker:
     # -- reporting ----------------------------------------------------------
 
     @property
-    def dead_queries(self) -> list[str]:
-        """Inputs the run has evidence against, in the order they were named."""
-        return list(self._dead)
+    def throttled_inputs(self) -> list[str]:
+        """Inputs that hit an error page and were neither ruled dead nor got through.
+
+        Both exclusions are load-bearing. An input that later succeeded was
+        throttled and the wait worked, which is the mechanism doing its job.
+        An input that was ruled dead reached this list first, through the
+        `RETRY` verdicts it collected on the way, and reporting it under both
+        headings told the operator to replace a keyword and, in the next
+        line, that the same keyword only needed a longer gap.
+        """
+        return [
+            label
+            for label in self._throttled
+            if label not in self._succeeded and label not in self._dead
+        ]
 
     @property
-    def throttled_inputs(self) -> list[str]:
-        """Inputs that hit an error page without being ruled dead.
+    def dead_queries(self) -> list[str]:
+        """Inputs the run has evidence against, in the order they were named.
 
-        An input that later succeeded is dropped: it was throttled and the
-        wait worked, which is the mechanism doing its job rather than a
-        problem to report.
+        An input that later got through is dropped. The batch's page-retry
+        loop reuses one tracker across pages, so a keyword that delivered
+        products on page one and then met the error page on page four would
+        otherwise be reported as dead when it plainly is not.
         """
-        return [label for label in self._throttled if label not in self._succeeded]
+        return [label for label in self._dead if label not in self._succeeded]
 
     def summary_lines(self) -> list[str]:
         """Lines for the end-of-run summary, empty when nothing went wrong."""
         lines = []
-        if self._dead:
+        dead = self.dead_queries
+        if dead:
             lines.append(
                 "Dead queries (returned Amazon's error page while other "
-                f"inputs succeeded): {', '.join(self._dead)}"
+                f"inputs succeeded): {', '.join(dead)}"
             )
         stuck = self.throttled_inputs
         if stuck:

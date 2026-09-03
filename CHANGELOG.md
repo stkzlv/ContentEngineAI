@@ -11,11 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The scraper tells Amazon's rate limit apart from a query that never works. Both return the same error page, so both were logged with the same line and given the same three retries at most ten seconds apart. The block was measured clearing after several minutes, so every retry landed inside it. A run now reads the difference from what its other inputs did: a rate limit blocks the connection, so nothing else gets through either. A throttled input is waited on, doubling from one minute to ten; an input that keeps failing in a run where something else got through is named a dead query and skipped, since no wait fixes it. Both are reported separately at the end of the run. Closes #203.
-- `global_settings.rate_limiting` gains `inter_input_delay_sec`, `throttle_backoff_base_sec`, `throttle_backoff_max_sec`, `throttle_max_attempts` and `dead_query_after`. Consecutive inputs are paced on the happy path too, because back-to-back searches are what draws the block.
+- `global_settings.rate_limiting` gains `inter_input_delay_sec`, `throttle_backoff_base_sec`, `throttle_backoff_max_sec`, `throttle_max_attempts`, `throttle_max_total_wait_sec` and `dead_query_after`. Consecutive inputs are paced on the happy path too, on both scraping paths, because back-to-back searches are what draws the block.
+
+### Fixed
+- Amazon's error page was only detected under `--debug`, and the bundled config ships debug off. On a normal run it produced an empty result and no error, so a throttled search was indistinguishable from a keyword with no matches and no retry was ever attempted. One of the two checks was also in the keyword-search branch alone, so a scrape by ASIN or by URL never reached it in either mode. The check now runs after every navigation, in every arm.
+- A search that met the error page was swallowed by the keyword arm's navigation handler, which catches everything and returns an empty list. The page had loaded; it just was not the search results.
 
 ### Notes
 - A batch of several products now completes without external sleeps, which is what the workaround had been.
-- One case is deliberately misread: a rate limit beginning partway through a run and blocking only the tail names its first tail input a dead query. That costs the label, not the run, since every later input is throttled too and the summary says so.
+- Waiting is capped for the run as a whole, not only per input. Five blocked inputs at fifteen minutes each is over an hour of an unattended run asleep, and by the second exhaustion with nothing having succeeded the answer is already known.
+- One case is deliberately misread: a rate limit beginning partway through a run, after something has already succeeded, gets every later input named a dead query rather than only the first. The summary is then wrong about why most of the run failed, though not about which inputs were lost. Reading it correctly would need a probe request the scrape does not otherwise make.
 - Both scraping paths share the decision. The standalone scraper and the batch's single-session loop re-implement each other, and only the standalone one had any retry at all.
 
 ## [0.97.0] - 2026-09-03

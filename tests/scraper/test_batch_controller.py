@@ -19,7 +19,11 @@ from src.scraper.amazon.models import (
     SearchParameters,
 )
 from src.scraper.base import Platform
-from src.scraper.base.throttle import ThrottleTracker
+from src.scraper.base.throttle import ThrottleSettings, ThrottleTracker
+
+# The pacing delay between inputs is real time. These tests drive many
+# inputs and none of them is measuring the pause.
+_NO_PACING = ThrottleSettings(inter_input_delay_sec=(0.0, 0.0))
 
 pytestmark = pytest.mark.unit
 
@@ -32,7 +36,7 @@ def mock_scraper():
     # A bare Mock returns a Mock for `throttle`, and the summary joins its
     # verdict lists into a log line. The mock has to match the contract, not
     # merely have the attribute.
-    scraper.throttle = ThrottleTracker()
+    scraper.throttle = ThrottleTracker(settings=_NO_PACING)
     return scraper
 
 
@@ -1421,7 +1425,7 @@ class TestLostKeywordsAreRecorded:
         from src.scraper.amazon.models import BatchConfig, SearchParameters
 
         scraper = MagicMock()
-        scraper.throttle = ThrottleTracker()
+        scraper.throttle = ThrottleTracker(settings=_NO_PACING)
         config = BatchConfig(
             product_ids=[],
             keywords=keywords,

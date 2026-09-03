@@ -51,6 +51,27 @@ if "127.0.0.1" not in _NO_PROXY_VALUE:
 logger = logging.getLogger(__name__)
 
 
+def raise_if_error_page(driver: Driver) -> None:
+    """Raise when Amazon served its error page instead of content.
+
+    Called on every navigation, in every arm, in every mode. Both checks this
+    replaces sat inside `if DEBUG_MODE:` blocks, and the bundled config ships
+    `debug_mode: false`, so on a normal run the error page produced an empty
+    result and no exception at all -- which the batch loop then recorded as a
+    success, making a throttled input into evidence that the connection works.
+    One of them was also in the keyword-search branch only, so a scrape by
+    ASIN or by URL never reached it even with `--debug`.
+    """
+    try:
+        title = driver.title
+    except Exception as exc:  # noqa: BLE001 - a driver that cannot be read
+        logger.debug("Could not read the page title: %s", exc)
+        return
+
+    if title and AMAZON_ERROR_PAGE_TITLE in title:
+        raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+
+
 def scrape_amazon_products_browser_impl(
     driver: Driver, data: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -85,6 +106,7 @@ def scrape_amazon_products_browser_impl(
         # Direct URL navigation — follow redirects (e.g. shortened URLs → Amazon)
         logger.info("Navigating to URL: %s", keyword)
         driver.google_get(keyword, bypass_cloudflare=True)
+        raise_if_error_page(driver)
         driver.short_random_sleep()
 
         # Extract ASIN from the final (redirected) URL
@@ -134,6 +156,7 @@ def scrape_amazon_products_browser_impl(
 
         # Use google_get for organic navigation
         driver.google_get(product_url, bypass_cloudflare=True)
+        raise_if_error_page(driver)
 
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
@@ -269,6 +292,12 @@ def scrape_amazon_products_browser_impl(
             logger.debug("[DEBUG] Traceback: %s", traceback.format_exc())
             return []
 
+        # Outside the handler above, which swallows everything and returns an
+        # empty list. An error page is not a navigation failure -- the page
+        # loaded fine, it just is not the search results -- and swallowing it
+        # is what made a throttled input look like a keyword with no matches.
+        raise_if_error_page(driver)
+
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
             try:
@@ -303,16 +332,6 @@ def scrape_amazon_products_browser_impl(
                 logger.debug("[DEBUG] Current URL: %s", current_url)
                 logger.debug("[DEBUG] Page title: %s", page_title)
 
-                # Check for Amazon error pages
-                if page_title and AMAZON_ERROR_PAGE_TITLE in driver.title:
-                    logger.warning(
-                        "[DEBUG] Detected Amazon error page - triggering retry"
-                    )
-                    raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
-
-            except RuntimeError:
-                # Re-raise the error page detection
-                raise
             except Exception as e:
                 logger.warning("[DEBUG] Could not get page info: %s", e)
 
@@ -1089,6 +1108,7 @@ def scrape_single_product(
     # Use google_get for organic navigation
     original_url = product_info["url"]
     driver.google_get(original_url, bypass_cloudflare=True)
+    raise_if_error_page(driver)
 
     # Mute all videos globally to prevent audio during scraping
     with contextlib.suppress(Exception):
@@ -1122,17 +1142,6 @@ def scrape_single_product(
             page_title = driver.title
             logger.info("[DEBUG] Page title: %s", page_title)
 
-            # Check for Amazon error pages
-            if page_title and AMAZON_ERROR_PAGE_TITLE in page_title:
-                logger.warning(
-                    "[DEBUG] Detected Amazon error page in product page - "
-                    "triggering retry"
-                )
-                raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
-
-        except RuntimeError:
-            # Re-raise the error page detection
-            raise
         except Exception as e:
             logger.info("[DEBUG] Page title: Unable to get (%s)", e)
 

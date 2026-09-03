@@ -397,6 +397,19 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
+                if keyword in self.throttle.dead_queries:
+                    # Amazon is answering this query with its error page in a
+                    # run where other inputs got through. Every later page
+                    # re-resolves the same query, costs a fresh Chrome
+                    # session, and gets the same verdict, so paginating buys
+                    # nothing. Same reasoning as the URL gate above: an input
+                    # that cannot work does not get seven attempts at it.
+                    self.logger.warning(
+                        "Stopping pagination for %r: named a dead query, so "
+                        "later pages would repeat the same failure.",
+                        keyword,
+                    )
+                    break
                 # No validated products from this page, so try the next one.
                 # Exhaustion is not detected: `_scrape_single_pass` returns an
                 # empty list both for a page of products that all failed

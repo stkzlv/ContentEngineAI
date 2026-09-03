@@ -76,6 +76,25 @@ class TestAThrottleIsWaitedOut:
 
         assert tracker.backoff_sec("usb hub") == 200.0
 
+    def test_the_shipped_budget_can_reach_the_shipped_ceiling(self) -> None:
+        """Otherwise the documented remedy for a block does nothing.
+
+        Raising `throttle_backoff_max_sec` after a persistent block is what
+        the troubleshooting section tells an operator to do. With too few
+        attempts the schedule never gets near the ceiling and the change is
+        byte-identical.
+        """
+        settings = ThrottleSettings()
+        tracker = ThrottleTracker(settings=settings)
+
+        waits = []
+        while tracker.record_error_page("usb hub") is Verdict.RETRY:
+            waits.append(tracker.backoff_sec("usb hub"))
+
+        assert (
+            max(waits) == settings.backoff_max_sec
+        ), f"waits {waits} never reach the {settings.backoff_max_sec}s ceiling"
+
     def test_the_budget_runs_out(self) -> None:
         tracker = _tracker(max_attempts=3)
 
@@ -130,14 +149,18 @@ class TestADeadQueryIsSkipped:
         assert tracker.dead_queries == []
 
     def test_a_success_by_the_same_input_is_not_evidence_against_it(self) -> None:
-        """It has to be a *different* input; otherwise a recovery condemns it."""
+        """It has to be a *different* input.
+
+        Asserted on the predicate rather than through `record_error_page`,
+        which also resets the input's own count on success and would pass
+        either way -- two properties, and only one of them is this one.
+        """
         tracker = _tracker(dead_query_after=2, max_attempts=6)
 
-        tracker.record_error_page("wifi extender")
         tracker.record_success("wifi extender")
 
-        assert tracker.record_error_page("wifi extender") is Verdict.RETRY
-        assert tracker.dead_queries == []
+        assert not tracker._another_input_got_through("wifi extender")
+        assert tracker._another_input_got_through("usb hub")
 
     def test_one_failure_alongside_a_success_is_not_enough(self) -> None:
         """A single coincidence should not condemn a keyword."""
@@ -158,21 +181,74 @@ class TestADeadQueryIsSkipped:
 
         assert verdict is Verdict.DEAD_QUERY
 
-    def test_the_two_are_named_separately_in_the_summary(self) -> None:
-        tracker = _tracker(dead_query_after=2, max_attempts=2)
+    def test_no_input_appears_under_both_headings(self) -> None:
+        """A dead input reached the throttled list through its own retries.
 
+        Reporting it twice told the operator to replace a keyword and, in the
+        next line, that the same keyword only needed a longer gap.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=6)
+
+        # Exhausted before anything succeeded: throttled, not dead.
+        for _ in range(6):
+            tracker.record_error_page("laptop stand")
+        tracker.record_success("usb hub")
+        # Now that something has got through, this one is ruled dead.
         tracker.record_error_page("wifi extender")
+        tracker.record_error_page("wifi extender")
+
+        dead, stuck = tracker.summary_lines()
+
+        assert "wifi extender" in dead and "laptop stand" not in dead
+        assert "laptop stand" in stuck and "wifi extender" not in stuck
+        assert set(tracker.dead_queries) & set(tracker.throttled_inputs) == set()
+
+    def test_an_input_that_later_got_through_is_not_reported_dead(self) -> None:
+        """The batch reuses one tracker across pages of the same keyword.
+
+        A keyword that delivered products on page one and met the error page
+        on page four is not dead, whatever the later pages did.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=6)
+
         tracker.record_success("usb hub")
         tracker.record_error_page("wifi extender")
-        tracker.record_error_page("laptop stand")
-        tracker.record_error_page("laptop stand")
+        tracker.record_error_page("wifi extender")
+        assert tracker.dead_queries == ["wifi extender"]
 
-        lines = "\n".join(tracker.summary_lines())
+        tracker.record_success("wifi extender")
 
-        assert "wifi extender" in lines
-        assert "Dead queries" in lines
-        assert "laptop stand" in lines
-        assert "Rate-limited" in lines
+        assert tracker.dead_queries == []
+        assert tracker.summary_lines() == []
+
+    def test_a_recovery_does_not_condemn_the_next_failure(self) -> None:
+        """`record_success` clearing the input's own count is load-bearing.
+
+        Without it a keyword that recovered mid-run and met the error page
+        once afterwards would be ruled dead on that single failure.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=6)
+
+        tracker.record_success("usb hub")
+        tracker.record_error_page("wifi extender")
+        tracker.record_success("wifi extender")
+
+        assert tracker.record_error_page("wifi extender") is Verdict.RETRY
+
+    def test_every_tail_input_is_named_once_a_block_starts(self) -> None:
+        """The misread the docs admit to, pinned so the prose stays true.
+
+        A rate limit beginning after something succeeded makes every later
+        input reach the dead-query rule, not only the first.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=6)
+
+        tracker.record_success("usb hub")
+        for label in ("wifi extender", "laptop stand", "hdmi cable"):
+            tracker.record_error_page(label)
+            tracker.record_error_page(label)
+
+        assert tracker.dead_queries == ["wifi extender", "laptop stand", "hdmi cable"]
 
 
 class TestSettingsComeFromConfig:
@@ -196,11 +272,23 @@ class TestSettingsComeFromConfig:
         assert settings.max_attempts == 6
         assert settings.dead_query_after == 3
 
-    def test_a_malformed_value_falls_back_to_the_whole_defaults(self) -> None:
-        """Half-applying is worse: the run would not say which half it kept."""
-        settings = ThrottleSettings.from_config(
-            {"throttle_backoff_base_sec": "soon", "throttle_max_attempts": 6}
-        )
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            {"throttle_backoff_base_sec": "soon"},
+            {"inter_input_delay_sec": 10},
+            {"inter_input_delay_sec": [1.0, 2.0, 3.0]},
+            {"inter_input_delay_sec": "fast"},
+        ],
+    )
+    def test_a_malformed_value_falls_back_to_the_whole_defaults(self, bad) -> None:
+        """Half-applying is worse: the run would not say which half it kept.
+
+        `inter_input_delay_sec: 10` is the likely mistake, since the three
+        settings beside it are scalars. It used to fall back on its own while
+        every other override stuck, silently.
+        """
+        settings = ThrottleSettings.from_config({"throttle_max_attempts": 9, **bad})
 
         assert settings == ThrottleSettings()
 
@@ -454,3 +542,125 @@ class TestTheStandalonePathActsOnTheVerdict:
         )
 
         assert scraper.throttle._another_input_got_through("wifi extender")
+
+
+class TestTheRunHasAWaitBudget:
+    """Per-input budgets do not compose.
+
+    Five inputs at fifteen minutes each is seventy-five minutes of an
+    unattended run sleeping, and by the second exhaustion with nothing having
+    succeeded the answer is already known.
+    """
+
+    def test_a_fully_blocked_run_stops_waiting(self) -> None:
+        from src.scraper.amazon import browser_functions
+
+        waits: list[float] = []
+
+        def impl(driver, item):
+            raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(browser_functions, "scrape_amazon_products_browser_impl", impl)
+            browser_functions.scrape_batch_items(
+                driver=object(),
+                items=[{"keyword": c} for c in "abcde"],
+                tracker=_tracker(max_total_wait_sec=1800.0),
+                sleep=waits.append,
+            )
+
+        assert sum(waits) <= 1800.0 + max(
+            waits
+        ), f"the run committed {sum(waits) / 60:.0f} minutes of sleeping"
+
+    def test_the_budget_is_charged_by_the_tracker(self) -> None:
+        """A caller that forgets to report its sleep cannot spend it unseen."""
+        tracker = _tracker(backoff_base_sec=60.0, max_attempts=6)
+
+        tracker.record_error_page("usb hub")
+        tracker.backoff_sec("usb hub")
+        tracker.record_error_page("usb hub")
+        tracker.backoff_sec("usb hub")
+
+        assert tracker.total_wait_sec == 180.0
+
+    def test_an_input_ends_once_the_budget_is_gone(self) -> None:
+        tracker = _tracker(
+            backoff_base_sec=60.0, max_attempts=99, max_total_wait_sec=100.0
+        )
+
+        assert tracker.record_error_page("usb hub") is Verdict.RETRY
+        tracker.backoff_sec("usb hub")
+        assert tracker.record_error_page("usb hub") is Verdict.RETRY
+        tracker.backoff_sec("usb hub")
+
+        assert tracker.record_error_page("usb hub") is Verdict.EXHAUSTED
+
+
+class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
+    """The checks used to sit inside `if DEBUG_MODE:` blocks.
+
+    The bundled config ships `debug_mode: false`, so on a normal run Amazon's
+    error page produced an empty result and no exception at all -- which the
+    batch loop then recorded as a success, turning a throttled input into
+    evidence that the connection works. One of the two was also in the
+    keyword-search branch only, so a scrape by ASIN or by URL never reached it
+    even with `--debug`.
+    """
+
+    class _Driver:
+        title = f"Amazon.com: {AMAZON_ERROR_PAGE_MESSAGE.split(': ')[1]}"
+        current_url = "https://www.amazon.com/errors/validateCaptcha"
+
+        def google_get(self, *args, **kwargs):
+            return None
+
+        def short_random_sleep(self):
+            return None
+
+        def run_js(self, *args, **kwargs):
+            return None
+
+    def test_the_helper_raises_on_the_error_page(self) -> None:
+        from src.scraper.amazon.browser_functions import raise_if_error_page
+
+        with pytest.raises(RuntimeError, match="Amazon error page"):
+            raise_if_error_page(self._Driver())
+
+    def test_a_normal_page_passes(self) -> None:
+        from src.scraper.amazon.browser_functions import raise_if_error_page
+
+        driver = self._Driver()
+        driver.title = "Amazon.com: usb hub"
+
+        raise_if_error_page(driver)
+
+    def test_an_unreadable_title_is_not_an_error_page(self) -> None:
+        """A driver that cannot be read is a different failure entirely."""
+        from src.scraper.amazon.browser_functions import raise_if_error_page
+
+        class _Broken:
+            @property
+            def title(self):
+                raise RuntimeError("session closed")
+
+        raise_if_error_page(_Broken())
+
+    @pytest.mark.parametrize(
+        ("arm", "item"),
+        [
+            ("keyword", {"keyword": "usb hub"}),
+            ("asin", {"keyword": "B0TEST0001", "is_asin": True}),
+            ("url", {"keyword": "https://a.co/d/xyz", "is_url": True}),
+        ],
+    )
+    @pytest.mark.parametrize("debug", [False, True])
+    def test_every_arm_raises_in_every_mode(self, arm, item, debug) -> None:
+        from src.scraper.amazon import browser_functions
+
+        # `debug_mode` on the item is the only switch; the impl reads it into
+        # a local. That is what made the old checks unreachable by default.
+        with pytest.raises(RuntimeError, match="Amazon error page"):
+            browser_functions.scrape_amazon_products_browser_impl(
+                self._Driver(), {**item, "debug_mode": debug}
+            )

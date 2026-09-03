@@ -90,9 +90,19 @@ global_settings:
     # minutes apart, so the ceiling sits above that; a schedule topping out
     # in seconds retries inside the block every time and loses the input.
     # Affects: whether a throttled run recovers on its own or is lost
+    # Waits are 60, 120, 240, 480, then 960 capped to the ceiling. Raising
+    # the ceiling alone does nothing unless the attempt count is high enough
+    # to reach it: at 5 attempts the longest wait taken is 480s.
     throttle_backoff_base_sec: 60
     throttle_backoff_max_sec: 600
-    throttle_max_attempts: 5
+    throttle_max_attempts: 6
+
+    # Total backoff one run may spend before it stops waiting at all.
+    # Per-input budgets do not compose: five inputs at fifteen minutes each
+    # is over an hour of an unattended run asleep, and by the second input
+    # exhausting its budget with nothing having succeeded the answer is
+    # already known.
+    throttle_max_total_wait_sec: 3600
 
     # Error pages for one input, in a run where some other input got through,
     # before that input is called dead rather than throttled. 3 rather than 1

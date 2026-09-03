@@ -113,6 +113,14 @@ class BatchController:
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
+            # Pace consecutive inputs, as the batch pipeline's single-session
+            # loop does. Back-to-back searches are the pattern that draws
+            # Amazon's block, and this arm launches a fresh browser per input,
+            # so without it the standalone CLI is the faster way to get
+            # throttled.
+            if i > 1:
+                time.sleep(self.scraper.throttle.inter_input_delay_sec())
+
             # URLs are passed through directly; ASINs are validated
             is_url = product_id.startswith(("http://", "https://"))
             if not is_url and not validate_asin_format(product_id):
@@ -241,6 +249,14 @@ class BatchController:
         )
 
         for i, keyword in enumerate(self.config.keywords, 1):
+            # Pace consecutive inputs, as the batch pipeline's single-session
+            # loop does. Back-to-back searches are the pattern that draws
+            # Amazon's block, and this arm launches a fresh browser per input,
+            # so without it the standalone CLI is the faster way to get
+            # throttled.
+            if i > 1:
+                time.sleep(self.scraper.throttle.inter_input_delay_sec())
+
             self.logger.info(
                 "[%d/%d] Searching keyword: %s", i, len(self.config.keywords), keyword
             )
