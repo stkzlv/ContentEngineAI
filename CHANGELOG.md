@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 - Claims that cannot be kept true were deleted rather than corrected, per the issue: module counts, per-file line counts, an exhaustive source tree that had drifted 31 modules behind, and a settings section documenting keys that exist in neither `src/` nor `config/`.
 - Section references from config comments now name the heading rather than its number, which shifts whenever a section is inserted.
-- Seven findings are config or code defects rather than documentation, so the docs now describe what the code does rather than what the config file intends: `api_settings` and `optimization_settings` are flat models fed nested YAML, so `config/performance.yaml`'s values for them are inert, and the six `create_*` debug switches are declared on no model and are dropped at load. Both are recorded on #125.
+- Seven findings are config or code defects rather than documentation, so the docs now describe what the code does rather than what the config file intends: `api_settings` is a flat model fed nested YAML, so `config/performance.yaml`'s values for it are inert, and `optimization_settings` is set in no config file and loads as `None`, and the six `create_*` debug switches are declared on no model and are dropped at load. Both are recorded on #125.
 
 ## [0.96.3] - 2026-09-03
 

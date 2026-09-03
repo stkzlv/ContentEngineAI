@@ -891,8 +891,7 @@ platform_metadata:
     description_length_max: 5000
     hashtag_count_min: 3
     hashtag_count_max: 5
-    include_shorts_tag: true              # Append #Shorts
-    seo_keywords: true
+    include_shorts_tag: true              # Prepends #Shorts to the hashtags
 
   # TikTok Configuration
   tiktok:
@@ -900,18 +899,15 @@ platform_metadata:
     caption_length_max: 2200              # Hard limit
     hashtag_count_min: 3
     hashtag_count_max: 5
-    seo_focused: true
     # The tags to avoid, as a list. A bool here fails validation.
     avoid_generic_tags: ["foryoupage", "fyp", "viral", "foryou"]
 
   # Instagram Reels Configuration
   instagram:
-    caption_style: "seo"                  # Options: "short" (3-5 words) or "seo" (100-200 chars)
-    caption_length_short: 5               # For short style (word count)
-    caption_length_seo: 200               # For SEO style (character count)
+    caption_style: "seo"                  # Options: "short" or "seo"
+    caption_length_seo: 200               # Character budget for the SEO style
     hashtag_count_min: 15
     hashtag_count_max: 30
-    emoji_enabled: true
     emoji_enabled: true                   # Allow emojis in captions
 ```
 

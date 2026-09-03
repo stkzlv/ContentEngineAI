@@ -13,8 +13,8 @@ A citation whose first segment is a directory of this repository is checked as
 a whole path, so a module named under the wrong package is caught even though
 its basename exists. Anything else is judged by basename: a dependency's path
 in a traceback, or a bare name. That leaves bare names weakly checked, since
-six basenames here also exist in site-packages, and it cannot decide a claim
-about what a file *contains* -- `base/config.py` exists but holds neither of
+several basenames here also exist in site-packages, and it cannot decide a
+claim about what a file *contains* -- `base/config.py` exists but holds neither of
 the two names the contributor guide once sourced from it. Both stay review
 concerns.
 

@@ -168,7 +168,6 @@ For detailed architecture information, see [Architecture](docs/architecture.md).
 
 #### **Adding New E-Commerce Platform Example:**
 ```python
-from src.scraper.base.models import BaseScraper, BaseProductData
 from src.scraper.base.models import (
     BaseProductData,
     BaseScraper,
