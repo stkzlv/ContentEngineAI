@@ -35,6 +35,22 @@ llm_settings:
   # Request timeout in seconds
   timeout_seconds: 60
 
+  # Gemini only. 0 disables the model's internal reasoning pass; remove the
+  # key to leave the model's own default in place.
+  #
+  # The flash tier spends around a thousand thinking tokens on a task whose
+  # visible output is sixteen, which is where the fortyfold gap between the
+  # lite and flash tiers comes from -- not the headline rate. Nothing this
+  # pipeline asks for is a reasoning problem: a script of about a hundred and
+  # twenty words, a caption, a handful of stock-search phrases. The lite
+  # models configured below do no thinking anyway, so this changes nothing
+  # today; it is what keeps a switch to a flash model from silently costing
+  # forty times more.
+  #
+  # Disabling thinking does not guarantee the model omits a preamble, so the
+  # per-generator sanitisers still apply.
+  thinking_budget: 0
+
   # Retry configuration for LLM API calls
   retry_attempts: 5
   retry_min_wait_sec: 2
