@@ -2127,6 +2127,13 @@ def main():
                 )
             else:
                 logger.info("Products: 0 scraped")
+            # The batch arm reports these through BatchSummary; this one
+            # builds no summary object, so it reads the tracker directly.
+            # Without it the single-keyword run -- which is what the runbook
+            # and the end-to-end cases use -- printed no verdict at all,
+            # while the docs said both were reported at the end of the run.
+            for line in scraper.throttle.summary_lines():
+                logger.warning("%s", line)
             logger.info("---")
 
         if products_scraped == 0:

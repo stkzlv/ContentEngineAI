@@ -971,11 +971,12 @@ def _build_browser_config(debug_mode=False):
     # `--debug`. Naming the type here is the only way out, and it removes
     # those unwaited retries too: the caller's backoff is the retry.
     current_config["must_raise_exceptions"] = [AmazonErrorPageError]
-    # `must_raise_exceptions` is the one branch of that handler which writes
-    # `error_logs/<timestamp>/` -- an Amazon page and a screenshot -- into the
-    # process working directory before re-raising, and nothing prunes them
-    # across runs. A rate-limited batch of ten keywords would leave sixty.
-    # `downloader.py` disables it for the same reason.
+    # The error-page branch writes `error_logs/<timestamp>/` -- an Amazon page
+    # and a screenshot -- into the process working directory before
+    # re-raising. Botasaurus keeps the newest ten, so this is not unbounded;
+    # what it costs is a directory of artifacts for a page the run has already
+    # classified, written where the operator is working. `downloader.py`
+    # disables it for the same reason.
     current_config["create_error_logs"] = False
 
     return current_config
