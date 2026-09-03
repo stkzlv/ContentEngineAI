@@ -277,9 +277,14 @@ subtitle_settings:
     ai_tagging_on_error: skip       # default — degrade silently per call
     ai_tag_prompt_override: >-      # what to highlight; see below
       the most concrete, information-dense words: prices, numbers, product
-      nouns, outcome verbs and factual superlatives. Never articles,
-      prepositions, auxiliaries or absolute praise words
+      nouns, outcome verbs and factual superlatives. Never articles (a, the),
+      prepositions (from, to, with), auxiliaries (can, also, just) or
+      absolute praise words (amazing, incredible)
 ```
+
+The `enable_ai_tagging` Pydantic default is `false`, but the bundled `config/subtitles.yaml` ships `true`, so on the shipped config they are not separate flips. Installing pycaps and
+turning AI tagging on are deliberately separate flips so a default install
+behaves predictably.
 
 ### What gets tagged
 
@@ -295,9 +300,12 @@ template defines, so no template fork is needed. The bundled config ships a
 recipe naming what to tag and, more usefully, what never to. A template with
 no AI rule, such as `word-focus`, is unaffected.
 
-The `enable_ai_tagging` Pydantic default is `false`, but the bundled `config/subtitles.yaml` ships `true`, so on the shipped config they are not separate flips. Installing pycaps and
-turning AI tagging on are deliberately separate flips so a default install
-behaves predictably.
+**The recipe is an audio decision on `explosive`.** That template gates a
+`ding` sound effect on the `highlighted` tag, so the number of tagged words is
+the number of dings. Measured on one 30s script across five runs, the stock
+instruction tagged one to five spans and the recipe ten to seventeen. Lower
+the coverage the recipe asks for, or drop the override on that template, if
+that is too busy.
 
 ### Built-in templates with AI rules
 
@@ -315,9 +323,9 @@ no AI rules — they ignore the adapter even when it's wired.
 ### Cost and latency
 
 Gemini Flash is cheap (about $0.30 per 1M input tokens at the time of
-writing) and fast. Pycaps' tagger calls the LLM once per caption segment,
-so a 30-second video at typical pacing makes 5-10 calls and adds 1-3
-seconds to wall time. The render summary log line includes an `ai_calls=N`
+writing) and fast. The tagger sends the whole transcript in one call per
+render, not one per segment, so the cost is a single short prompt whatever
+the video's length. The render summary log line includes an `ai_calls=N`
 counter:
 
 ```

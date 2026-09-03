@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - The override replaces the instruction on every AI rule a template defines, rather than one named tag: a template may declare several, and leaving the others on the stock instruction would tag filler under a different class. A template with no AI rule, such as `word-focus`, is unaffected.
+- On `explosive` the recipe is an audio decision as well: that template gates a `ding` sound effect on the `highlighted` tag, so the number of tagged words is the number of dings. Measured on one 30s script across five runs, the stock instruction tagged one to five spans and the recipe ten to seventeen. The recipe text matches the one prescribed in the subtitle best practices; lower its coverage if that is too busy.
 - No template fork and no `Llm` subclass, which the issue was unsure about. A template's AI rules reach pycaps as a `{tag: instruction}` map that the tagger renders into its prompt, so the instruction is the whole lever.
 
 ## [0.96.4] - 2026-09-03
