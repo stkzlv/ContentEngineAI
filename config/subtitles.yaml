@@ -131,6 +131,18 @@ subtitle_settings:
     # ignore this flag.
     enable_ai_tagging: true
 
+    # What the AI tagger should highlight. Replaces the instruction the
+    # template ships for every one of its AI rules. The stock prompts ask for
+    # "the most important phrase", and Gemini answers with filler like `also`,
+    # `can` and `from`, which docs/subtitle-best-practices.md, "AI-driven
+    # highlighting", says not to tag. Comment this out to use the template's
+    # own instruction.
+    ai_tag_prompt_override: >-
+      the most concrete, information-dense words: prices, numbers, product
+      nouns, outcome verbs and factual superlatives. Never articles,
+      prepositions, auxiliaries or absolute praise words. Around 15% of the
+      words, and never a whole sentence
+
     # Gemini model used by the adapter. Default gemini-2.5-flash is cheap
     # and fast; switch to gemini-2.5-pro for higher-quality tagging at
     # higher cost/latency.

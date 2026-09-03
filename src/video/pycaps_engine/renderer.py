@@ -184,6 +184,37 @@ def _force_sentence_case(builder: Any) -> None:
     add(_SENTENCE_CASE_CSS)
 
 
+def _override_ai_tag_prompt(builder: Any, instruction: str) -> None:
+    """Replace the instruction every AI tagging rule carries.
+
+    A template's AI rules reach pycaps as `SemanticTagger._ai_rules`, a
+    `{Tag: instruction}` map built from the template's `tagger_rules`, and the
+    tagger renders each entry into one line of the prompt it sends. So the
+    instruction is the whole lever: there is nothing to subclass and no
+    template to fork, which is what the issue was unsure about.
+
+    `explosive`, the bundled pool's AI template, ships "the most important
+    phrase or word in all the script", and Gemini answers that with `also`,
+    `can` and `from` -- the auxiliary and preposition bucket the subtitle
+    best-practices explicitly exclude.
+
+    Rewrites every rule rather than one named tag: a template may define
+    several, and leaving the others on the stock instruction would tag filler
+    under a different class. Tolerates the attributes being absent so a pycaps
+    upgrade that renames them degrades to the template's own prompts rather
+    than raising.
+    """
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    tagger = getattr(pipeline, "_semantic_tagger", None)
+    rules = getattr(tagger, "_ai_rules", None)
+    if not rules:
+        logger.debug("template defines no AI tagging rule; prompt override unused")
+        return
+    for tag in list(rules):
+        rules[tag] = instruction
+    logger.debug("overrode the AI tagging prompt for %d rule(s)", len(rules))
+
+
 def _drop_punctuation_stripping(builder: Any) -> None:
     """Stop a template deleting the decimal point out of a number.
 
@@ -515,4 +546,6 @@ class PycapsRenderer:
 
         if settings.force_sentence_case:
             _force_sentence_case(builder)
+        if settings.ai_tag_prompt_override:
+            _override_ai_tag_prompt(builder, settings.ai_tag_prompt_override)
         return builder, custom_renderer

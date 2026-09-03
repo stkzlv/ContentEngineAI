@@ -382,6 +382,18 @@ class PycapsSettings(BaseModel):
             "at higher cost/latency."
         ),
     )
+    ai_tag_prompt_override: str | None = Field(
+        None,
+        description=(
+            "Replaces the instruction each AI tagging rule carries, for every "
+            "rule the template defines. The stock prompts ask for 'the most "
+            "important phrase' and Gemini answers with filler like `also`, "
+            "`can` and `from`, which docs/subtitle-best-practices.md says not "
+            "to highlight. Set to a recipe naming what to tag. `None` leaves "
+            "the template's own instruction alone. Ignored by a template with "
+            "no AI rule, such as `word-focus`."
+        ),
+    )
     ai_tagging_on_error: Literal["raise", "skip"] = Field(
         "skip",
         description=(
