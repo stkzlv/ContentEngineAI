@@ -35,10 +35,6 @@ from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 logger = logging.getLogger(__name__)
 
 
-# Anchored on the package rather than the working directory. A relative
-# default made every caller outside the repository root fall through to the
-# dataclass defaults in silence, which is how the batch ended up defaulting
-# `immediate_publish` to True against a shipped `false`.
 class ConfigUnreadableError(ValueError):
     """The config file exists and could not be read or parsed.
 
@@ -63,6 +59,10 @@ class MissingApiKeyError(ValueError):
     """
 
 
+# Anchored on the package rather than the working directory. A relative
+# default made every caller outside the repository root fall through to the
+# dataclass defaults in silence, which is how the batch ended up defaulting
+# `immediate_publish` to True against a shipped `false`.
 DEFAULT_PUBLISHER_CONFIG_PATH = (
     Path(__file__).resolve().parents[2] / "config" / "publisher.yaml"
 )
@@ -90,10 +90,13 @@ def load_publisher_config(
 
     Raises:
     ------
-        FileNotFoundError: If config file doesn't exist and no env/CLI
-            overrides provided
-        ValueError: If required fields missing (provider, api_key)
-        ValidationError: If config validation fails
+        ConfigUnreadableError: If the file exists and cannot be parsed, or
+            parses to something other than a mapping. An absent file is not
+            an error; everything then comes from the environment.
+        MissingApiKeyError: If no usable provider credential was supplied.
+            A `ValueError`, so existing handlers keep working, and named
+            apart so a caller needing only the settings can retry.
+        ValueError: If any other required field is missing or refused.
 
     Example:
     -------

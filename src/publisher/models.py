@@ -538,8 +538,9 @@ def _as_platform(value: "Platform | str") -> "Platform":
     """Return `value` as a Platform, naming the field when it is not one.
 
     An unknown name is refused rather than dropped. The environment-variable
-    path warns and discards, which means publishing to fewer platforms than
-    the operator configured without saying so.
+    path warns and drops the *whole* override, falling back to the YAML list,
+    so an operator narrowing the platforms from the environment gets every
+    platform the file names instead -- including the ones they were removing.
     """
     if isinstance(value, Platform):
         return value
@@ -1237,11 +1238,12 @@ class CleanupConfig:
             raise ValueError("keep_published_days must be non-negative")
 
         # Neither settle field raises. The cleanup section is parsed inside a
-        # `except (ValueError, TypeError)` that falls back to a whole default
-        # `CleanupConfig`, so one rejected key discards the operator's
-        # `enabled: false`, `archive_before_delete: true` and
-        # `keep_published_days` along with it -- turning a typo in a wait into
-        # immediate unarchived deletion on an install that had cleanup off.
+        # `except (ValueError, TypeError)` that falls back to a default
+        # `CleanupConfig`. `enabled` and `archive_before_delete` now survive
+        # that fallback, so a typo in a wait no longer deletes anything on an
+        # install that had cleanup off -- but every other key in the section
+        # is still lost, `keep_published_days` included, so an operator's
+        # grace period would become "delete now".
         # A non-positive value in either field means "do not wait", which is
         # the reading `settle_timeout_sec: 0` already has, and
         # `_settle_delays` enforces it.

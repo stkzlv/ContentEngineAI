@@ -2652,6 +2652,15 @@ async def main():
         logger.info("Validating configuration...")
         validate_global_batch_config(config, video_config)
 
+        # Read the publisher config here rather than at first use, so an
+        # unreadable one stops the run before anything is paid for. Resolution
+        # is lazy and the first reader depends on the flags: without
+        # `--platforms` it is the handoff filter, after the scrape; with it,
+        # or with `--force`, nothing touches the file until the publishing
+        # phase and every render is already spent.
+        if not config.skip_publish:
+            _publisher_settings()
+
         # Same pre-flight the producer runs: a profile this batch may select
         # drawing every visual from the stock provider, with no key set, is a
         # whole run failing per product on a message that names neither.

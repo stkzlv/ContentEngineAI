@@ -132,10 +132,19 @@ class TestABadConfigIsNotSwallowed:
 
         assert keys, "no create_publisher call passes an api_key"
         for value in keys:
-            assert isinstance(value, ast.Name), (
-                "api_key is built inline; it must be the environment variable "
-                "the run already validated"
+            expression = ast.unparse(value)
+            # The placeholder is itself a bare Name, so requiring a Name was
+            # no guard at all: it accepted the exact wiring it exists to
+            # refuse, while rejecting a correct `os.environ[...]` read.
+            assert "_NO_CREDENTIAL" not in expression, (
+                f"create_publisher(api_key={expression}) sends the settings-"
+                "read placeholder to the provider"
             )
+        source = BATCH.read_text()
+        assert 'os.getenv("LATE_API_KEY")' in source, (
+            "the credential no longer comes from the environment the run "
+            "already validated"
+        )
 
     def test_a_malformed_slot_names_the_field(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
