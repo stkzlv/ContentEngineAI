@@ -341,8 +341,10 @@ Waiting is capped for the run as a whole by `throttle_max_total_wait_sec`, not
 only per input. Per-input budgets do not compose: five blocked inputs at
 fifteen minutes each is over an hour of an unattended run asleep, and by the
 second one exhausting its budget with nothing having succeeded the answer is
-already known. A success resets the budget, since it ends the stretch of
-fruitless waiting the cap exists to bound.
+already known. It is compared against what the next retry would cost, so it is
+a ceiling rather than a tripwire, and a success does not reset it: resetting
+reads fairer and stops it capping anything, since a run broken up by
+occasional successes would get a fresh allowance after each one.
 
 Consecutive inputs are also paced by `inter_input_delay_sec` on the happy
 path. Back-to-back searches are the pattern that draws the block, and the

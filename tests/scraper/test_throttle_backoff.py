@@ -16,6 +16,7 @@ import pytest
 
 from src.scraper.base.throttle import (
     AMAZON_ERROR_PAGE_MESSAGE,
+    AmazonErrorPageError,
     ThrottleSettings,
     ThrottleTracker,
     Verdict,
@@ -562,18 +563,24 @@ class TestTheRunHasAWaitBudget:
         def impl(driver, item):
             raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
 
+        tracker = _tracker(max_total_wait_sec=1800.0)
+
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(browser_functions, "scrape_amazon_products_browser_impl", impl)
             browser_functions.scrape_batch_items(
                 driver=object(),
                 items=[{"keyword": c} for c in "abcde"],
-                tracker=_tracker(max_total_wait_sec=1800.0),
+                tracker=tracker,
                 sleep=waits.append,
             )
 
-        assert sum(waits) <= 1800.0 + max(
-            waits
-        ), f"the run committed {sum(waits) / 60:.0f} minutes of sleeping"
+        # The cap governs backoff. The inter-input pacing is seconds and is
+        # deliberately outside it, so this reads the tracker rather than the
+        # sleep log, which holds both.
+        assert (
+            tracker.total_wait_sec <= 1800.0
+        ), f"the run committed {tracker.total_wait_sec / 60:.0f} minutes"
+        assert sum(waits) < 1800.0 + 5 * 5, "pacing should be seconds, not minutes"
 
     def test_the_budget_is_charged_by_the_tracker(self) -> None:
         """A caller that forgets to report its sleep cannot spend it unseen."""
@@ -593,10 +600,26 @@ class TestTheRunHasAWaitBudget:
 
         assert tracker.record_error_page("usb hub") is Verdict.RETRY
         tracker.backoff_sec("usb hub")
-        assert tracker.record_error_page("usb hub") is Verdict.RETRY
-        tracker.backoff_sec("usb hub")
 
+        # The next wait would be 120s against 40s of headroom, so the input
+        # ends here rather than overshooting the cap and stopping afterwards.
         assert tracker.record_error_page("usb hub") is Verdict.EXHAUSTED
+        assert tracker.total_wait_sec <= 100.0
+
+    def test_the_cap_is_a_ceiling_not_a_tripwire(self) -> None:
+        """Checked against what the retry would cost, not what was spent.
+
+        Checking after the fact let an input already mid-schedule overshoot
+        by its whole remaining schedule.
+        """
+        tracker = _tracker(
+            backoff_base_sec=60.0, max_attempts=99, max_total_wait_sec=150.0
+        )
+
+        while tracker.record_error_page("usb hub") is Verdict.RETRY:
+            tracker.backoff_sec("usb hub")
+
+        assert tracker.total_wait_sec <= 150.0
 
 
 class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
@@ -668,6 +691,18 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
             )
 
 
+class _StubDriver:
+    """Enough of a Botasaurus driver for the decorator's own bookkeeping."""
+
+    config = None
+
+    def close(self):
+        return None
+
+    def quit(self):
+        return None
+
+
 class TestTheStandaloneWrapperLetsTheErrorPageOut:
     """The swallow sat one level above the check.
 
@@ -681,19 +716,25 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
 
     @staticmethod
     def _inner(monkeypatch, impl):
-        """The wrapper's body, without Botasaurus starting a browser."""
+        """The real decorator, with a stub driver instead of Chrome."""
         from src.scraper.amazon import browser_functions
 
+        # The REAL decorator, with a stub driver factory. A pass-through
+        # double is worthless here: Botasaurus catches everything the
+        # decorated function raises, re-runs the whole task `max_retry` times
+        # and returns None, so a double that propagates asserts the opposite
+        # of what production does. The escape is `must_raise_exceptions`,
+        # which only the real decorator honours.
         monkeypatch.setattr(
             browser_functions, "scrape_amazon_products_browser_impl", impl
         )
-        # Botasaurus's decorator supplies the driver and leaves the caller
-        # passing `data` alone; the pass-through has to do the same or the
-        # test drives a different signature from production.
+        config = browser_functions._build_browser_config(False)
+        config["create_driver"] = lambda *a, **kw: _StubDriver()
+        config["parallel"] = 1
         monkeypatch.setattr(
             browser_functions,
-            "browser",
-            lambda **kwargs: (lambda fn: lambda data: fn(object(), data)),
+            "_build_browser_config",
+            lambda debug_mode=False: config,
         )
         return browser_functions.create_dynamic_browser_function(False)
 
@@ -701,12 +742,36 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def impl(driver, data):
+            raise AmazonErrorPageError(AMAZON_ERROR_PAGE_MESSAGE)
+
+        func = self._inner(monkeypatch, impl)
+
+        with pytest.raises(AmazonErrorPageError):
+            func({"keyword": "usb hub"})
+
+    def test_the_message_alone_is_not_enough(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The decorator matches by class, so the type is load-bearing.
+
+        `is_error_page_failure` matches on the message, which is right for
+        the caller. It is not what gets the exception past Botasaurus, so a
+        site that raises a bare RuntimeError with the same text is swallowed
+        and retried four times into a live block.
+        """
+        calls: list[int] = []
+
+        def impl(driver, data):
+            calls.append(1)
             raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
 
         func = self._inner(monkeypatch, impl)
 
-        with pytest.raises(RuntimeError, match="Amazon error page"):
-            func({"keyword": "usb hub"})
+        assert func({"keyword": "usb hub"}) is None
+        assert len(calls) > 1, "swallowed and retried, as the type exists to avoid"
+        assert issubclass(
+            AmazonErrorPageError, RuntimeError
+        ), "the caller catches RuntimeError; the type must stay a subclass"
 
     def test_every_other_failure_is_still_swallowed(
         self, monkeypatch: pytest.MonkeyPatch
@@ -727,7 +792,7 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
         def impl(driver, data):
-            raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+            raise AmazonErrorPageError(AMAZON_ERROR_PAGE_MESSAGE)
 
         func = self._inner(monkeypatch, impl)
 
@@ -763,6 +828,22 @@ class TestAnInputThatSucceededThenStuckIsStillReported:
         assert tracker.throttled_inputs == ["usb hub"]
         assert "usb hub" in "\n".join(tracker.summary_lines())
 
+    def test_a_keyword_that_delivered_is_never_called_a_dead_query(self) -> None:
+        """The batch's page-retry loop only runs after page one delivered.
+
+        So reading the most recent outcome here named the keyword that had
+        just produced products, and told the operator to replace it.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=9)
+
+        tracker.record_success("other keyword")
+        tracker.record_success("usb hub")
+        for _ in range(3):
+            tracker.record_error_page("usb hub")
+
+        assert tracker.dead_queries == []
+        assert tracker.throttled_inputs == ["usb hub"]
+
     def test_a_recovery_after_the_failures_clears_it_again(self) -> None:
         tracker = _tracker(max_attempts=3)
 
@@ -773,20 +854,39 @@ class TestAnInputThatSucceededThenStuckIsStillReported:
 
         assert tracker.summary_lines() == []
 
-    def test_a_success_restores_the_run_budget(self) -> None:
-        """Otherwise a later transient failure is dropped with no wait.
+    def test_a_success_does_not_restore_the_run_budget(self) -> None:
+        """Resetting it reads fairer and stops the cap capping anything.
 
-        And then labelled as never having recovered, which is false for it.
+        Measured on the shipped settings, a run where one input in five still
+        got through spent eight hours asleep against a configured one. An
+        operator who sets a bound wants a bound.
         """
         tracker = _tracker(backoff_base_sec=60.0, max_attempts=9)
 
         tracker.record_error_page("usb hub")
         tracker.backoff_sec("usb hub")
-        assert tracker.total_wait_sec > 0
 
         tracker.record_success("usb hub")
 
-        assert tracker.total_wait_sec == 0.0
+        assert tracker.total_wait_sec == 60.0
+
+    def test_a_mixed_run_stays_inside_the_budget(self) -> None:
+        """The shape the reset made unbounded: blocks broken by successes."""
+        tracker = _tracker(
+            backoff_base_sec=60.0, max_attempts=9, max_total_wait_sec=300.0
+        )
+
+        for i in range(40):
+            label = f"input-{i}"
+            while tracker.record_error_page(label) is Verdict.RETRY:
+                tracker.backoff_sec(label)
+            if i % 5 == 0:
+                tracker.record_success(f"other-{i}")
+
+        assert tracker.total_wait_sec <= 300.0, (
+            f"the run committed {tracker.total_wait_sec / 60:.0f} minutes "
+            "against a five-minute cap"
+        )
 
 
 class TestAMalformedRateLimitingBlock:

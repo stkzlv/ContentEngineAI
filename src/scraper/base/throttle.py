@@ -59,6 +59,16 @@ AMAZON_ERROR_PAGE_TITLE = "Sorry! Something went wrong!"
 AMAZON_ERROR_PAGE_MESSAGE = f"Amazon error page detected: {AMAZON_ERROR_PAGE_TITLE}"
 
 
+class AmazonErrorPageError(RuntimeError):
+    """Amazon served its error page instead of content.
+
+    A type rather than a message match, because Botasaurus's `@browser`
+    decorator has to be told by class which exceptions to let out. Left as a
+    `RuntimeError` subclass so the existing `except RuntimeError` handlers on
+    both scraping paths keep catching it.
+    """
+
+
 def is_error_page_failure(error: BaseException | str) -> bool:
     """Whether this failure is Amazon's error page rather than anything else.
 
@@ -247,12 +257,12 @@ class ThrottleTracker:
         self._states[input_label] = _InputState(recovered=True)
         if input_label not in self._succeeded:
             self._succeeded.append(input_label)
-        # A success ends the stretch of fruitless waiting the run budget
-        # exists to bound, and proves the connection works. Without this, a
-        # run that waited out an early block and recovered would drop the
-        # next transient error page with no wait at all, and then report the
-        # input as never having recovered.
-        self._waited_sec = 0.0
+        # The run budget is deliberately NOT reset here. Resetting it reads
+        # fairer -- a success proves the connection works, so why hold the
+        # earlier waiting against the next input -- but it stops the cap
+        # capping anything: measured on the shipped settings, a run where one
+        # input in five still got through spent eight hours asleep against a
+        # configured one. An operator who sets a bound wants a bound.
 
     def _another_input_got_through(self, input_label: str) -> bool:
         """Whether anything other than this input succeeded in this run.
@@ -291,20 +301,28 @@ class ThrottleTracker:
             )
             return Verdict.DEAD_QUERY
 
+        # The budget is compared against what this retry *would* cost, not
+        # against what has already been spent. Checking after the fact let an
+        # input already mid-schedule overshoot by its whole remaining
+        # schedule -- 420s past a 300s cap in one measured run -- so the
+        # documented ceiling was not a ceiling.
+        would_spend = self._waited_sec + self._wait_for(state.error_pages)
         if (
             state.error_pages >= self.settings.max_attempts
-            or self._waited_sec >= self.settings.max_total_wait_sec
+            or would_spend > self.settings.max_total_wait_sec
         ):
             if input_label not in self._throttled:
                 self._throttled.append(input_label)
             logger.warning(
-                "Giving up on %r after %d error pages. Nothing else has "
-                "succeeded either, so this reads as a rate limit that "
-                "outlasted the retry budget rather than a bad query. "
-                "%.0fs of this run was spent waiting.",
+                "Giving up on %r after %d error pages and %.0fs of waiting "
+                "in this run (%s). Nothing else has succeeded either, so "
+                "this reads as a rate limit rather than a bad query.",
                 input_label,
                 state.error_pages,
                 self._waited_sec,
+                "the run's wait budget cannot cover another retry"
+                if would_spend > self.settings.max_total_wait_sec
+                else "this input's own retries are spent",
             )
             return Verdict.EXHAUSTED
 
@@ -322,15 +340,18 @@ class ThrottleTracker:
         after several minutes, so a schedule that tops out in seconds returns
         to a still-blocked Amazon and burns the budget without waiting.
         """
-        seen = self._states.get(input_label, _InputState()).error_pages
-        exponent = max(0, seen - 1)
-        raw = self.settings.backoff_base_sec * (2.0**exponent)
-        wait = min(raw, self.settings.backoff_max_sec)
+        wait = self._wait_for(self._states.get(input_label, _InputState()).error_pages)
         # Charged here rather than by the caller, so a caller that forgets to
         # report its sleep cannot spend the run's budget invisibly. Every
         # caller sleeps for exactly what this returns.
         self._waited_sec += wait
         return wait
+
+    def _wait_for(self, error_pages: int) -> float:
+        """The wait an input on its `error_pages`-th failure would take."""
+        exponent = max(0, error_pages - 1)
+        raw = self.settings.backoff_base_sec * (2.0**exponent)
+        return min(raw, self.settings.backoff_max_sec)
 
     @property
     def total_wait_sec(self) -> float:
@@ -348,34 +369,38 @@ class ThrottleTracker:
     def throttled_inputs(self) -> list[str]:
         """Inputs that hit an error page and were neither ruled dead nor got through.
 
-        Both exclusions are load-bearing. An input that later succeeded was
-        throttled and the wait worked, which is the mechanism doing its job.
-        An input that was ruled dead reached this list first, through the
-        `RETRY` verdicts it collected on the way, and reporting it under both
-        headings told the operator to replace a keyword and, in the next
-        line, that the same keyword only needed a longer gap.
+        Both exclusions are load-bearing. An input whose most recent outcome
+        was a success was throttled and the wait worked, which is the
+        mechanism doing its job. An input that was ruled dead reached this
+        list first, through the `RETRY` verdicts it collected on the way, and
+        reporting it under both headings told the operator to replace a
+        keyword and, in the next line, that the same keyword only needed a
+        longer gap.
+
+        The dead exclusion tests the *filtered* list, not the raw one. A
+        keyword that was ruled dead and then delivered belongs here if it is
+        stuck again, and testing the raw list dropped it from both.
         """
+        dead = set(self.dead_queries)
         return [
             label
             for label in self._throttled
             if not self._states.get(label, _InputState()).recovered
-            and label not in self._dead
+            and label not in dead
         ]
 
     @property
     def dead_queries(self) -> list[str]:
         """Inputs the run has evidence against, in the order they were named.
 
-        An input that later got through is dropped. The batch's page-retry
-        loop reuses one tracker across pages, so a keyword that delivered
-        products on page one and then met the error page on page four would
-        otherwise be reported as dead when it plainly is not.
+        Filtered on having *ever* succeeded, not on the most recent outcome:
+        an input that produced products in this run is not a dead query,
+        whatever its later pages did. The batch's page-retry loop reuses one
+        tracker across pages and only runs after page one delivered, so
+        reading the recent outcome here named the keyword that had just
+        worked.
         """
-        return [
-            label
-            for label in self._dead
-            if not self._states.get(label, _InputState()).recovered
-        ]
+        return [label for label in self._dead if label not in self._succeeded]
 
     def summary_lines(self) -> list[str]:
         """Lines for the end-of-run summary, empty when nothing went wrong.

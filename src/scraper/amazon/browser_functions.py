@@ -20,6 +20,7 @@ from ..base.display import resolve_debug_display
 from ..base.throttle import (
     AMAZON_ERROR_PAGE_MESSAGE,
     AMAZON_ERROR_PAGE_TITLE,
+    AmazonErrorPageError,
     ThrottleTracker,
     Verdict,
     is_error_page_failure,
@@ -69,7 +70,7 @@ def raise_if_error_page(driver: Driver) -> None:
         return
 
     if title and AMAZON_ERROR_PAGE_TITLE in title:
-        raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+        raise AmazonErrorPageError(AMAZON_ERROR_PAGE_MESSAGE)
 
 
 def scrape_amazon_products_browser_impl(
@@ -961,6 +962,15 @@ def _build_browser_config(debug_mode=False):
         os.environ.get("XAUTHORITY", "<unset>"),
     )
     logger.debug("Browser chrome args: %s", " ".join(chrome_args))
+
+    # Botasaurus catches everything the decorated function raises, re-runs the
+    # whole task `max_retry` times and then returns None. So re-raising inside
+    # the function reaches nothing: the caller saw no exception, recorded the
+    # throttled input as a success, and paid for four more Chrome launches
+    # into a live block on the way. Naming the type here is the only way out,
+    # and it also removes those four unwaited retries -- the caller's backoff
+    # is the retry.
+    current_config["must_raise_exceptions"] = [AmazonErrorPageError]
 
     return current_config
 
