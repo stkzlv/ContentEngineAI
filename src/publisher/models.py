@@ -534,6 +534,24 @@ class AccountConfig:
         }
 
 
+def _as_platform(value: "Platform | str") -> "Platform":
+    """Return `value` as a Platform, naming the field when it is not one.
+
+    An unknown name is refused rather than dropped. The environment-variable
+    path warns and discards, which means publishing to fewer platforms than
+    the operator configured without saying so.
+    """
+    if isinstance(value, Platform):
+        return value
+    try:
+        return Platform(str(value).lower())
+    except ValueError as exc:
+        known = ", ".join(p.value for p in Platform)
+        raise ValueError(
+            f"unknown platform {value!r}; expected one of: {known}"
+        ) from exc
+
+
 @dataclass
 class PublisherConfig:
     """Configuration for publisher behavior and credentials.
@@ -571,6 +589,7 @@ class PublisherConfig:
     active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
     immediate_publish: bool = False
+    schedule_time: str | None = None
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
     timeout: float = 120.0
@@ -639,6 +658,18 @@ class PublisherConfig:
         # Set default platforms if empty
         if not self.default_platforms:
             self.default_platforms = list(DEFAULT_PLATFORMS)
+
+        # The loader hands YAML through to the dataclass unconverted, so these
+        # two arrive as plain strings while the annotations say Platform. That
+        # is not cosmetic: `to_dict` and every caller reading `.value` off a
+        # platform raised AttributeError on any config loaded from the shipped
+        # file, and mypy could not see it because it believes the annotation.
+        # Coerce here rather than in the loader, so a config built directly in
+        # Python is the same shape as one read from disk.
+        self.default_platforms = [_as_platform(p) for p in self.default_platforms]
+        self.privacy_settings = {
+            _as_platform(p): v for p, v in self.privacy_settings.items()
+        }
 
     def get_account(self, name: str | None = None) -> AccountConfig | None:
         """Get account configuration by name.

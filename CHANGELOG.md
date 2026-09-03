@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.97.1] - 2026-09-03
+
+### Fixed
+- The global batch read `config/publisher.yaml` itself, from a path relative to the working directory, at four call sites. A run started from anywhere but the repository root found no file and fell back to hardcoded values, one of which was wrong: `immediate_publish` defaulted to true against a shipped `false`, so the run published on the spot instead of scheduling. It now reads one typed config resolved from the package, as the publisher CLI already did. Closes #126.
+- `default_platforms` and the keys of `privacy_settings` arrived from YAML as plain strings while both are declared as platform enums. Nothing converted them, so `PublisherConfig.to_dict()` raised on any config loaded from the shipped file, and the type checker could not see it because it believes the annotation. They are converted where the object is built, and an unknown platform name is now refused at load instead of being dropped.
+
+### Notes
+- Each publisher section used to be parsed again at the batch's own call site, which is how `tiktok_settings` went missing there for several releases while the single-product path had it. Removing the parsing removes the way that happens.
+- `config/pipeline.yaml` was likewise reopened to read the webhook block after the config had already been loaded; the loaded config carries it now.
+
 ## [0.97.0] - 2026-09-03
 
 ### Added

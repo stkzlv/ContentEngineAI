@@ -34,6 +34,14 @@ from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
 
+# Anchored on the package rather than the working directory. A relative
+# default made every caller outside the repository root fall through to the
+# dataclass defaults in silence, which is how the batch ended up defaulting
+# `immediate_publish` to True against a shipped `false`.
+DEFAULT_PUBLISHER_CONFIG_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "publisher.yaml"
+)
+
 
 def load_publisher_config(
     config_path: Path | str | None = None,
@@ -76,7 +84,7 @@ def load_publisher_config(
     """
     # Determine config file path
     if config_path is None:
-        config_path = Path("config/publisher.yaml")
+        config_path = DEFAULT_PUBLISHER_CONFIG_PATH
     elif isinstance(config_path, str):
         config_path = Path(config_path)
 

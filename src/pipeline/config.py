@@ -412,6 +412,10 @@ class GlobalBatchConfig:
 
     # Dry-run configuration
     dry_run: bool = False
+    # The `global_batch` slice the webhook notifier is built from. Carried on
+    # the config so `main()` reads one loaded object rather than reopening
+    # `config/pipeline.yaml` with a relative path.
+    webhook_yaml: dict[str, Any] = field(default_factory=dict)
 
     # Clean outputs before run
     clean: bool = False
@@ -884,8 +888,13 @@ def _scraper_keyword_pool(
     return read_keyword_pillars((raw.get("batch") or {}).get("keywords", []) or [])
 
 
+DEFAULT_PIPELINE_CONFIG_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml"
+)
+
+
 def load_global_batch_config(
-    cli_args: argparse.Namespace, config_path: str = "config/pipeline.yaml"
+    cli_args: argparse.Namespace, config_path: str | Path | None = None
 ) -> GlobalBatchConfig:
     """Load global batch configuration with 3-tier precedence.
 
@@ -907,6 +916,8 @@ def load_global_batch_config(
 
     """
     # Load YAML configuration if file exists
+    if config_path is None:
+        config_path = DEFAULT_PIPELINE_CONFIG_PATH
     yaml_config: dict[str, Any] = {}
     yaml_path = Path(config_path)
 
@@ -1178,6 +1189,7 @@ def load_global_batch_config(
         pycaps_renderer=pycaps_renderer,
         resume=resume,
         dry_run=dry_run,
+        webhook_yaml=yaml_config,
         clean=clean,
         output_format=output_format,
     )
