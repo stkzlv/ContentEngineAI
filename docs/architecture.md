@@ -277,7 +277,7 @@ dependencies = {
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
 - **Video Assembly Modes**: Four configurable strategies for video-first content
-- **Aspect Ratio Handling**: Letterbox, crop-to-fit, blur-fill, and smart-scale modes with actual geometry tracking
+- **Aspect Ratio Handling**: Letterbox, crop-to-fit, blur-fill, and smart-scale modes; letterbox and blur-fill report actual geometry, crop-to-fit does not
 - **Audio Sources**: Voiceover and background music only; source video audio is dropped
 - **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
 - **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
@@ -325,6 +325,14 @@ Original: 16:9 landscape video
 Target:   9:16 vertical frame
 Result:   Video scaled to fill frame, edges cropped (centers crop region)
 ```
+
+No bundled profile uses this mode on scraped product video: a 16:9 clip keeps
+the centre 31% of its width, which cuts the product and the source's own
+on-screen text off both edges. It also returns no geometry, so the caller
+falls back to a full-frame band and content-aware captions sit over the
+content rather than below it. Use it for footage that is already close to the
+target aspect, or reach it through `smart-scale`, which crops only within the
+tolerance.
 
 **Blur-Fill Mode** (`video_aspect_mode: "blur-fill"`)
 ```

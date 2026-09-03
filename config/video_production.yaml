@@ -896,7 +896,11 @@ video_profiles:
 
     # Video assembly configuration
     video_assembly_mode: "single_best"         # Use longest video, loop to fill
-    video_aspect_mode: "crop-to-fit"           # Crop to fill frame (good for looping)
+    # A 16:9 product clip cropped to 9:16 keeps the centre 31% of its width,
+    # which cuts the product and the source's own on-screen text off both
+    # edges. smart-scale crops only a near-square clip and blur-fills the
+    # rest, and blur-fill reports the geometry the captions are placed from.
+    video_aspect_mode: "smart-scale"           # Crop only within the tolerance
     enable_format_normalization: true          # Normalize to H.264/30fps/yuv420p
 
     # Transition settings
