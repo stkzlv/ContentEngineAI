@@ -118,6 +118,7 @@ comments in that file for the active values shipped to users.
 | `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable or the burn fails. `fallback_ffmpeg` = switch to FFmpeg when pycaps is *unavailable*, and burn captions with FFmpeg when a pycaps render fails; a missing transcript or assembled video still aborts. `warn_and_skip` = no subtitles (not recommended). |
 | `enable_ai_tagging` | bool | `false` | Opt into AI word tagging via Gemini. See [AI word tagging](#ai-word-tagging). |
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
+| `ai_tag_prompt_override` | str \| null | null | Replaces the instruction every AI rule in the template carries. `null` keeps the template's own. Bundled YAML ships a recipe. |
 | `ai_tagging_on_error` | `skip` \| `raise` | `skip` | Per-call AI failure handling. `skip` swallows the error and drops the tag for that segment; `raise` propagates to `fallback_policy`. |
 
 ### CLI override dotted keys
@@ -274,11 +275,37 @@ subtitle_settings:
     template_name: neo-minimal      # built-in, ships an `ai` rule out of the box
     llm_model: gemini-2.5-flash     # default
     ai_tagging_on_error: skip       # default — degrade silently per call
+    ai_tag_prompt_override: >-      # what to highlight; see below
+      the most concrete, information-dense words: prices, numbers, product
+      nouns, outcome verbs and factual superlatives. Never articles (a, the),
+      prepositions (from, to, with), auxiliaries (can, also, just) or
+      absolute praise words (amazing, incredible)
 ```
 
 The `enable_ai_tagging` Pydantic default is `false`, but the bundled `config/subtitles.yaml` ships `true`, so on the shipped config they are not separate flips. Installing pycaps and
 turning AI tagging on are deliberately separate flips so a default install
 behaves predictably.
+
+### What gets tagged
+
+The built-in templates ship a broad instruction: `explosive` asks for "the
+most important phrase or word in all the script", `neo-minimal` for "most
+relevant and impactful phrases". Gemini answers those with filler --
+`also`, `can`, `all`, `from` -- which
+[subtitle best practices](subtitle-best-practices.md), "AI-driven
+highlighting", says not to emphasise.
+
+`ai_tag_prompt_override` replaces that instruction for every AI rule the
+template defines, so no template fork is needed. The bundled config ships a
+recipe naming what to tag and, more usefully, what never to. A template with
+no AI rule, such as `word-focus`, is unaffected.
+
+**The recipe is an audio decision on `explosive`.** That template gates a
+`ding` sound effect on the `highlighted` tag, so the number of tagged words is
+the number of dings. Measured on one 30s script across five runs, the stock
+instruction tagged one to five spans and the recipe ten to seventeen. Lower
+the coverage the recipe asks for, or drop the override on that template, if
+that is too busy.
 
 ### Built-in templates with AI rules
 
@@ -296,9 +323,9 @@ no AI rules — they ignore the adapter even when it's wired.
 ### Cost and latency
 
 Gemini Flash is cheap (about $0.30 per 1M input tokens at the time of
-writing) and fast. Pycaps' tagger calls the LLM once per caption segment,
-so a 30-second video at typical pacing makes 5-10 calls and adds 1-3
-seconds to wall time. The render summary log line includes an `ai_calls=N`
+writing) and fast. The tagger sends the whole transcript in one call per
+render, not one per segment, so the cost is a single short prompt whatever
+the video's length. The render summary log line includes an `ai_calls=N`
 counter:
 
 ```
