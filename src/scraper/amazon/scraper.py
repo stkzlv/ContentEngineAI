@@ -399,7 +399,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             if not batch:
                 if (
                     keyword in self.throttle.dead_queries
-                    or keyword in self.throttle.throttled_inputs
+                    or keyword in self.throttle.exhausted_inputs
                 ):
                     # Amazon is answering this query with its error page in a
                     # run where other inputs got through. Every later page

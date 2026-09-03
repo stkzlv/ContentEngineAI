@@ -243,6 +243,7 @@ class ThrottleTracker:
     _succeeded: list[str] = field(default_factory=list, init=False)
     _dead: list[str] = field(default_factory=list, init=False)
     _throttled: list[str] = field(default_factory=list, init=False)
+    _exhausted: list[str] = field(default_factory=list, init=False)
     _waited_sec: float = field(default=0.0, init=False)
 
     # -- outcomes -----------------------------------------------------------
@@ -327,16 +328,26 @@ class ThrottleTracker:
         ):
             if input_label not in self._throttled:
                 self._throttled.append(input_label)
+            if input_label not in self._exhausted:
+                self._exhausted.append(input_label)
+            # The trailing "nothing else got through" claim was unconditional
+            # and is now reachable in states where things did: an input that
+            # succeeded itself can no longer be ruled dead, so it runs to
+            # here instead. That claim is what an operator uses to decide
+            # between replacing the keyword and widening the gap.
             logger.warning(
                 "Giving up on %r after %d error pages and %.0fs of waiting "
-                "in this run (%s). Nothing else has succeeded either, so "
-                "this reads as a rate limit rather than a bad query.",
+                "in this run (%s).%s",
                 input_label,
                 state.error_pages,
                 self._waited_sec,
                 "the run's wait budget cannot cover another retry"
                 if would_spend > self.settings.max_total_wait_sec
                 else "this input's own retries are spent",
+                ""
+                if self._succeeded
+                else " Nothing else has succeeded either, so this reads as a"
+                " rate limit rather than a bad query.",
             )
             return Verdict.EXHAUSTED
 
@@ -415,6 +426,17 @@ class ThrottleTracker:
         worked.
         """
         return [label for label in self._dead if label not in self._succeeded]
+
+    @property
+    def exhausted_inputs(self) -> list[str]:
+        """Inputs the tracker has stopped waiting for, in order.
+
+        The give-up signal, distinct from `throttled_inputs`, which is a
+        summary list an input joins on its *first* `RETRY`. A caller reading
+        the summary list to decide whether to stop trying ends the input on
+        its first failure with its whole budget unspent.
+        """
+        return list(self._exhausted)
 
     def summary_lines(self) -> list[str]:
         """Lines for the end-of-run summary, empty when nothing went wrong.

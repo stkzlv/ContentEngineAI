@@ -332,8 +332,10 @@ either; a dead query is specific to itself and its neighbours keep working.
 The run acts on that. An input whose neighbours are also failing is treated as
 throttled: it waits, doubling from `throttle_backoff_base_sec` up to
 `throttle_backoff_max_sec`, and retries the same input. An input that has
-failed `dead_query_after` times in a run where something else got through is
-named as a dead query and skipped, because no wait fixes it. Both are reported
+failed `dead_query_after` times in a run where something else got through,
+and has never itself returned products, is named as a dead query and skipped,
+because no wait fixes it. A keyword that delivered earlier in the run is never
+called dead, whatever its later pages do. Both are reported
 separately at the end of the run, so a keyword that needs replacing is not
 confused with one that needed a longer gap.
 

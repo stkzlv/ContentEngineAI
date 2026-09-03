@@ -674,6 +674,15 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
 
         raise_if_error_page(_Broken())
 
+    def test_the_module_level_single_product_helper_checks_too(self) -> None:
+        """No caller today, but it is the fourth navigation in the module."""
+        from src.scraper.amazon.browser_functions import scrape_single_product
+
+        with pytest.raises(AmazonErrorPageError):
+            scrape_single_product(
+                self._Driver(), {"asin": "B0TEST0001", "url": "https://a.co/x"}
+            )
+
     @pytest.mark.parametrize(
         ("arm", "item"),
         [
@@ -1008,6 +1017,67 @@ class TestAnEmptyResultIsNotEvidence:
         )
 
         assert scraper.throttle._another_input_got_through("wifi extender")
+
+
+class TestThePaginationGate:
+    """The standalone loop must stop only once the throttle has given up.
+
+    Gating on `throttled_inputs` ended a keyword on its first failure with
+    its whole budget unspent: an input joins that list on its first `RETRY`,
+    and only a non-empty result clears it, so one error page followed by a
+    swallowed empty page left it there permanently.
+    """
+
+    @staticmethod
+    def _scraper(pages_returning, **settings):
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.debug_mode = False
+        scraper.logger = logging.getLogger("test")
+        scraper.throttle = _tracker(**settings)
+        scraper.amazon_config = {}
+        scraper.config = {"global_settings": {}}
+        scraper.global_settings = {}
+        scraper._pages_seen = []
+
+        def single_pass(keyword, search_params, batch_size, **kwargs):
+            scraper._pages_seen.append(kwargs.get("page"))
+            return pages_returning(kwargs.get("page"))
+
+        # Assigned on the instance rather than patched on the class, so the
+        # two tests cannot leak into each other. mypy objects to replacing a
+        # method this way, which is the point of the test.
+        scraper._scrape_single_pass = single_pass  # type: ignore[method-assign,assignment]
+        return scraper
+
+    def test_a_retryable_input_keeps_paginating(self) -> None:
+        """One error page and a wait is not a reason to stop."""
+        scraper = self._scraper(lambda page: [], max_attempts=6)
+        scraper.throttle.record_error_page("usb hub")
+
+        scraper._scrape_until_validated_count_reached("usb hub", None, 3)
+
+        assert (
+            len(scraper._pages_seen) > 1
+        ), "the loop stopped on an input the throttle had not given up on"
+
+    def test_an_exhausted_input_stops(self) -> None:
+        scraper = self._scraper(lambda page: [], max_attempts=1)
+        assert scraper.throttle.record_error_page("usb hub") is Verdict.EXHAUSTED
+
+        scraper._scrape_until_validated_count_reached("usb hub", None, 3)
+
+        assert scraper._pages_seen == [1]
+
+    def test_a_dead_query_stops(self) -> None:
+        scraper = self._scraper(lambda page: [], dead_query_after=1, max_attempts=6)
+        scraper.throttle.record_success("other keyword")
+        assert scraper.throttle.record_error_page("usb hub") is Verdict.DEAD_QUERY
+
+        scraper._scrape_until_validated_count_reached("usb hub", None, 3)
+
+        assert scraper._pages_seen == [1]
 
 
 class TestAMalformedRateLimitingBlock:
