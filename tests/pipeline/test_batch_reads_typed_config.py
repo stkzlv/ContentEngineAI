@@ -109,17 +109,33 @@ class TestABadConfigIsNotSwallowed:
         assert [p.value for p in settings.default_platforms] == ["youtube"]
         assert settings.immediate_publish is True
 
-    def test_the_placeholder_credential_is_never_a_real_key(self) -> None:
-        """It exists so the dataclass will construct, and for nothing else."""
-        from src.pipeline import global_batch
+    def test_every_publisher_takes_its_key_from_the_environment(self) -> None:
+        """The placeholder exists so the dataclass will construct.
 
-        source = BATCH.read_text()
-        marker = global_batch._NO_CREDENTIAL
+        Asserted at the call sites, not by slicing the source text. An earlier
+        version split on the placeholder literal and inspected the one
+        character that followed it, which no substring could ever match; it
+        passed while `create_publisher` was handed the placeholder.
+        """
+        import ast
 
-        assert (
-            source.count(marker) == 1
-        ), "the placeholder is referenced somewhere other than the fallback"
-        assert "api_key" not in source.split(marker)[1].split("\n")[0]
+        tree = ast.parse(BATCH.read_text())
+        keys = [
+            keyword.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "create_publisher"
+            for keyword in node.keywords
+            if keyword.arg == "api_key"
+        ]
+
+        assert keys, "no create_publisher call passes an api_key"
+        for value in keys:
+            assert isinstance(value, ast.Name), (
+                "api_key is built inline; it must be the environment variable "
+                "the run already validated"
+            )
 
     def test_a_malformed_slot_names_the_field(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -144,6 +160,110 @@ class TestABadConfigIsNotSwallowed:
             "a slot the loader cannot read is dropped with a warning, not "
             "raised as a KeyError out of the handler meant to catch it"
         )
+
+
+@pytest.mark.unit
+class TestAnUnreadableFileIsNotAnAbsentOne:
+    """A parse failure used to become an empty mapping, then defaults.
+
+    The defaults publish immediately, to the default platforms, with cleanup
+    on. So one mis-indented line in `publisher.yaml` took a whole batch live
+    on the spot and deleted the product directories afterwards.
+    """
+
+    def test_a_syntax_error_reaches_the_caller(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.pipeline import global_batch
+        from src.publisher import config as publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text("late:\n  api_key_env_var: LATE_API_KEY\n bad: indent\n")
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+        monkeypatch.setattr(publisher_config, "DEFAULT_PUBLISHER_CONFIG_PATH", path)
+        global_batch._publisher_settings.cache_clear()
+
+        with pytest.raises(publisher_config.ConfigUnreadableError):
+            global_batch._publisher_settings()
+
+    def test_a_document_that_is_not_a_mapping_reaches_the_caller(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.publisher import config as publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text("- youtube\n- tiktok\n")
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+
+        with pytest.raises(publisher_config.ConfigUnreadableError):
+            publisher_config.load_publisher_config(path)
+
+    def test_an_absent_file_is_still_fine(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The supported state: everything from the environment."""
+        from src.publisher.config import load_publisher_config
+
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+
+        config = load_publisher_config(tmp_path / "nothing-here.yaml")
+
+        assert config.provider
+
+
+@pytest.mark.unit
+class TestOneBadSlotDoesNotDiscardTheSchedule:
+    """An empty slot list with `enabled: true` publishes immediately.
+
+    So a single typo in one slot used to turn a scheduled batch into a live
+    one, while the warning said only that slots could not be parsed.
+    """
+
+    @staticmethod
+    def _config(tmp_path: Path, slots: str) -> Path:
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "recurring_schedule:\n  enabled: true\n  slots:\n" + slots
+        )
+        return path
+
+    def test_the_good_slots_survive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.publisher.config import load_publisher_config
+
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+        path = self._config(
+            tmp_path,
+            "    - day_of_week: monday\n      time: '10:00:00'\n"
+            "    - day: tuesday\n      time: '10:00:00'\n"
+            "    - day_of_week: wednesday\n      time: '10:00:00'\n",
+        )
+
+        config = load_publisher_config(path)
+
+        assert [s.day_of_week for s in config.schedule_config.slots] == [
+            "monday",
+            "wednesday",
+        ]
+
+    def test_a_slot_that_is_not_a_mapping_is_skipped(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`.get` on a string raises AttributeError, past the old handler."""
+        from src.publisher.config import load_publisher_config
+
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+        path = self._config(
+            tmp_path,
+            "    - monday 10:00\n"
+            "    - day_of_week: friday\n      time: '10:00:00'\n",
+        )
+
+        config = load_publisher_config(path)
+
+        assert [s.day_of_week for s in config.schedule_config.slots] == ["friday"]
 
 
 @pytest.mark.unit

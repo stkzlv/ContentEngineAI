@@ -39,6 +39,16 @@ logger = logging.getLogger(__name__)
 # default made every caller outside the repository root fall through to the
 # dataclass defaults in silence, which is how the batch ended up defaulting
 # `immediate_publish` to True against a shipped `false`.
+class ConfigUnreadableError(ValueError):
+    """The config file exists and could not be read or parsed.
+
+    Distinct from an absent file, which is a supported state and yields an
+    empty mapping. A parse failure used to yield the same empty mapping, and
+    the defaults applied on top of it publish immediately -- so one
+    mis-indented line published a batch on the spot rather than scheduling it.
+    """
+
+
 class MissingApiKeyError(ValueError):
     """No usable provider credential was supplied.
 
@@ -149,12 +159,11 @@ def load_publisher_config(
 def parse_tiktok_settings(section: Any) -> TikTokContentSettings:
     """Build TikTok content settings from a raw `publisher.yaml` section.
 
-    Two entry points build their own publisher from the same YAML: the
-    publisher CLI, which loads it through `load_publisher_config`, and the
-    global batch, which reads the file inline (#126). Both call this so the
-    same config cannot produce two different payloads -- which is what #255
-    was: the batch passed no settings at all and silently used the dataclass
-    defaults, so a configured opt-out applied on one path and not the other.
+    The loader's parser for the section, and the only one. The batch used to
+    read `publisher.yaml` itself and had no parse for this block at all, so a
+    configured opt-out applied on the CLI path and silently did not on the
+    batch (#255); it now reads the same loaded config, which is what #126
+    changed.
 
     A section with an unknown key falls back to defaults with a warning rather
     than raising, because a publish run that has already rendered a video
@@ -193,18 +202,20 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
         with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
             if not isinstance(config, dict):
-                logger.warning(
-                    "Invalid YAML structure in %s, using empty config", config_path
+                raise ConfigUnreadableError(
+                    f"{config_path} is not a mapping, got " f"{type(config).__name__}"
                 )
-                return {}
             logger.debug("Loaded YAML config from %s", config_path)
             return config
     except yaml.YAMLError as e:
-        logger.error("Error parsing YAML file %s: %s", config_path, e)
-        return {}
+        # A file that exists and cannot be parsed is not an absent file.
+        # Returning {} here sent the caller to `_apply_defaults`, whose
+        # `immediate_publish` is True -- so one mis-indented line published
+        # a whole batch on the spot, to the default platforms, with cleanup
+        # on and every disclosure at its dataclass value.
+        raise ConfigUnreadableError(f"Could not parse {config_path}: {e}") from e
     except OSError as e:
-        logger.error("Error loading config file %s: %s", config_path, e)
-        return {}
+        raise ConfigUnreadableError(f"Could not read {config_path}: {e}") from e
 
 
 def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -242,25 +253,36 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
     # Parse slots if present
     slots_data = recurring_schedule.get("slots", [])
     if slots_data and isinstance(slots_data, list):
-        try:
-            slots = []
-            for slot_dict in slots_data:
-                default_tz = recurring_schedule.get("timezone", "UTC")
-                # `.get` rather than `[...]`: a KeyError escapes the handler
-                # below, so a slot written `day:` instead of `day_of_week:`
-                # aborted the caller with a bare KeyError. RecurringSlot
+        slots = []
+        for index, slot_dict in enumerate(slots_data, 1):
+            default_tz = recurring_schedule.get("timezone", "UTC")
+            try:
+                # Per slot, not around the loop. One typo used to discard
+                # every slot, and an empty list with `enabled: true` is read
+                # downstream as "publish immediately" -- so a single bad
+                # character turned a scheduled batch into a live one.
+                #
+                # `.get` rather than `[...]`: a KeyError escapes this handler,
+                # which catches only ValueError and TypeError. RecurringSlot
                 # refuses None with a message naming the field.
-                slot = RecurringSlot(
-                    day_of_week=slot_dict.get("day_of_week"),
-                    time=slot_dict.get("time"),
-                    timezone=slot_dict.get("timezone", default_tz),
+                slots.append(
+                    RecurringSlot(
+                        day_of_week=slot_dict.get("day_of_week"),
+                        time=slot_dict.get("time"),
+                        timezone=slot_dict.get("timezone", default_tz),
+                    )
                 )
-                slots.append(slot)
-            schedule_config_dict["slots"] = slots
-            logger.debug("Parsed %d recurring slots from config", len(slots))
-        except (ValueError, TypeError) as e:
-            logger.warning("Failed to parse recurring slots: %s, using empty slots", e)
-            schedule_config_dict["slots"] = []
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(
+                    "Skipping recurring slot %d of %d: %s",
+                    index,
+                    len(slots_data),
+                    e,
+                )
+        schedule_config_dict["slots"] = slots
+        logger.debug(
+            "Parsed %d of %d recurring slots from config", len(slots), len(slots_data)
+        )
 
     # From schedule_validation section
     if "min_post_spacing_hours" in schedule_validation:
@@ -325,8 +347,27 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             result["cleanup_config"] = CleanupConfig(**cleanup_config_dict)
             logger.debug("Parsed cleanup config: %s", cleanup_config_dict)
         except (ValueError, TypeError) as e:
-            logger.warning("Failed to parse cleanup config: %s, using defaults", e)
-            result["cleanup_config"] = CleanupConfig()
+            # Rebuilt from the two keys that decide whether files are
+            # destroyed, not from a bare default. A bare default turns
+            # cleanup ON, so refusing an unrelated sibling value used to
+            # delete the product directories of an install that had set
+            # `enabled: false` -- and unarchived, since the archive flag went
+            # with it.
+            safe = {
+                key: cleanup_config_dict[key]
+                for key in ("enabled", "archive_before_delete")
+                if isinstance(cleanup_config_dict.get(key), bool)
+            }
+            logger.warning(
+                "Failed to parse cleanup config: %s. Falling back to "
+                "defaults, keeping %s.",
+                e,
+                safe or "nothing",
+            )
+            try:
+                result["cleanup_config"] = CleanupConfig(**safe)
+            except (ValueError, TypeError):
+                result["cleanup_config"] = CleanupConfig()
     else:
         result["cleanup_config"] = CleanupConfig()
 

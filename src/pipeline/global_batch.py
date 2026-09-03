@@ -1728,10 +1728,11 @@ class GlobalPipelineOrchestrator:
     def _default_platforms(self) -> list[str]:
         """The platforms a publish would target, absent a CLI override.
 
-        Reads `publisher.yaml` first and falls back to the literal, which is
-        what `print_plan` and `_execute_publishing_phase` already do. The
-        duplicate guard has to ask the same question they do, or it decides
-        completeness against platforms this install never publishes to.
+        Reads the loaded config, as the plan printout and the publishing
+        phase do. The duplicate guard has to ask the same question they do, or
+        it decides completeness against platforms this install never publishes
+        to. The literal fallback lives in `PublisherConfig.__post_init__` now,
+        so there is only one of it.
         """
         return [p.value for p in _publisher_settings().default_platforms]
 
@@ -2065,7 +2066,6 @@ class GlobalPipelineOrchestrator:
 
             if not immediate_publish and recurring_enabled:
                 # Use recurring schedule to find next available slot
-                from src.publisher.models import RecurringSlot
                 from src.publisher.schedule import ScheduleManager
 
                 logger.info("Auto-scheduling: preparing slot context...")

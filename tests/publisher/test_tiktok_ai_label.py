@@ -93,8 +93,13 @@ class TestBothPathsHonourTheConfiguredSettings:
         )
 
         section = {"video_made_with_ai": False}
-        # The publisher CLI reaches its settings through the loader; the batch
-        # reads publisher.yaml inline and calls the parser directly.
+        # Both paths now reach the section through the loader, so this asserts
+        # that the loader's wrapper does not diverge from the parser it calls
+        # -- not that two entry points agree, which they cannot help doing.
+        # The batch's use of the loaded config is pinned in
+        # tests/pipeline/test_batch_reads_typed_config.py, at the call site,
+        # because a shared parser was never the guard: the defect was a call
+        # site that called no parser.
         cli_settings = _parse_schedule_and_cleanup_config(
             {"tiktok_settings": dict(section)}
         )["tiktok_settings"]
