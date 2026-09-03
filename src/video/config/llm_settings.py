@@ -151,7 +151,9 @@ class LLMSettings(BaseModel):
     # Applied to the script path as well, deliberately. It is the longest
     # output here and still not a reasoning task, and leaving it out would
     # mean a future switch to a flash model quietly costing forty times more
-    # on the one call that runs on every render.
+    # on the one call that runs on every render. That protection holds on the
+    # 2.5 flash tier only; the 3.x flash models ignore the budget and their
+    # lowest thinking level still bills.
     thinking_budget: int | None = Field(None)
     # Retry settings (used by tenacity in generators)
     retry_attempts: int = Field(3)

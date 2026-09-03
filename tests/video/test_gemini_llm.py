@@ -68,8 +68,10 @@ def test_send_message_round_trip(monkeypatch: pytest.MonkeyPatch):
 
     assert result == "tagged"
     fake_genai.Client.assert_called_once_with(api_key="k")
+    # `config` is always passed and is None when no thinking budget is set,
+    # so a model without the control is not handed an empty block.
     client.models.generate_content.assert_called_once_with(
-        model="gemini-2.5-flash", contents="the most impactful word"
+        model="gemini-2.5-flash", contents="the most impactful word", config=None
     )
     assert adapter.call_count == 1
 
@@ -81,7 +83,7 @@ def test_send_message_uses_explicit_model_arg(monkeypatch: pytest.MonkeyPatch):
     adapter.send_message("hi", model="gemini-2.5-pro")
 
     client.models.generate_content.assert_called_once_with(
-        model="gemini-2.5-pro", contents="hi"
+        model="gemini-2.5-pro", contents="hi", config=None
     )
 
 

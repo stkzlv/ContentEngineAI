@@ -117,3 +117,72 @@ class TestTheShippedConfigDisablesIt:
         block.pop("fallback_provider", None)
 
         assert LLMSettings(**block).thinking_budget == 0
+
+
+class TestTheTaggerCallIsCoveredToo:
+    """The pycaps AI word-tagger is the one flash-tier call the pipeline makes.
+
+    `subtitle_settings.pycaps.llm_model` ships as `gemini-2.5-flash`, not a
+    lite model, and `send_message` passed no config at all -- measured at 556
+    thinking tokens to tag a handful of words, on every render drawing a
+    template with an AI rule. So the setting was a no-op everywhere it was
+    free and absent where it cost something.
+    """
+
+    def test_a_budget_reaches_the_request(self) -> None:
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash", thinking_budget=0)
+        config = llm._request_config()
+
+        assert config is not None
+        assert config.thinking_config.thinking_budget == 0
+
+    def test_no_budget_sends_no_block(self) -> None:
+        """A model without the control must not be handed an empty block."""
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash")
+
+        assert llm._request_config() is None
+
+    def test_the_config_reaches_generate_content(self) -> None:
+        from unittest.mock import MagicMock
+
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash", thinking_budget=0)
+        client = MagicMock()
+        client.models.generate_content.return_value.text = "word"
+        llm._client = client
+
+        llm.send_message("tag something")
+
+        sent = client.models.generate_content.call_args.kwargs["config"]
+        assert sent.thinking_config.thinking_budget == 0
+
+    def test_the_builder_passes_the_configured_budget(self) -> None:
+        """Wired from the same `llm_settings` value, not a second default."""
+        import ast
+        from pathlib import Path
+
+        repo = Path(__file__).resolve().parents[2]
+        source = (repo / "src" / "video" / "producer" / "steps.py").read_text()
+        tree = ast.parse(source)
+
+        builder = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_build_gemini_adapter_for_pycaps"
+        )
+        call = next(
+            node
+            for node in ast.walk(builder)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "GeminiLlm"
+        )
+        budget = next(kw.value for kw in call.keywords if kw.arg == "thinking_budget")
+
+        assert ast.unparse(budget) == "ctx.config.llm_settings.thinking_budget"

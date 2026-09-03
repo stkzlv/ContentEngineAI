@@ -49,6 +49,12 @@ class GeminiLlm(_LlmBase):
         on_error: ``"skip"`` swallows API errors and returns an empty string
             (pycaps' tagger then drops the tag for that segment).
             ``"raise"`` re-raises so the caller's fallback policy decides.
+        thinking_budget: Tokens the model may spend reasoning; ``0`` disables
+            it, ``None`` leaves the model's own default. This is the only
+            flash-tier call the pipeline makes -- `llm_model` ships as
+            `gemini-2.5-flash`, not a lite model -- so it is the one place
+            where the default costs anything: measured at several hundred
+            thinking tokens to tag a handful of words.
 
     """
 
@@ -57,12 +63,32 @@ class GeminiLlm(_LlmBase):
         api_key: str | None,
         model: str = "gemini-2.5-flash",
         on_error: Literal["raise", "skip"] = "skip",
+        thinking_budget: int | None = None,
     ) -> None:
         self._api_key = api_key
         self._model = model
         self._on_error = on_error
+        self._thinking_budget = thinking_budget
         self._client: Client | None = None
         self._call_count = 0
+
+    def _request_config(self) -> Any:
+        """The generation config, or ``None`` to send none at all.
+
+        Omitted entirely when no budget is set, so a model that does not
+        support the control is not handed an empty block. Sending
+        ``ThinkingConfig(thinking_budget=None)`` is not the same thing: the
+        field is what the SDK serialises.
+        """
+        if self._thinking_budget is None:
+            return None
+        from google import genai
+
+        return genai.types.GenerateContentConfig(
+            thinking_config=genai.types.ThinkingConfig(
+                thinking_budget=self._thinking_budget
+            )
+        )
 
     @property
     def call_count(self) -> int:
@@ -84,7 +110,9 @@ class GeminiLlm(_LlmBase):
         self._call_count += 1
         try:
             resp: Any = client.models.generate_content(
-                model=target_model, contents=prompt
+                model=target_model,
+                contents=prompt,
+                config=self._request_config(),
             )
         except Exception as e:  # noqa: BLE001 - downstream library raises a wide tree
             if self._on_error == "raise":

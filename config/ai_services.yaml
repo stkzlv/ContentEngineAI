@@ -45,7 +45,11 @@ llm_settings:
   # twenty words, a caption, a handful of stock-search phrases. The lite
   # models configured below do no thinking anyway, so this changes nothing
   # today; it is what keeps a switch to a flash model from silently costing
-  # forty times more.
+  # forty times more -- but only on the 2.5 flash tier, where the knob works
+  # (measured: 388 thinking tokens without it, none with it). The 3.x flash
+  # models ignore it: `thinking_level: low` is their floor and still bills.
+  # Switching `models:` above to a 3.x flash model is a cost decision this
+  # setting cannot soften.
   #
   # Disabling thinking does not guarantee the model omits a preamble, so the
   # per-generator sanitisers still apply.
