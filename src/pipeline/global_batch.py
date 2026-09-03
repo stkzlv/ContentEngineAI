@@ -1457,17 +1457,8 @@ class GlobalPipelineOrchestrator:
             duration,
         )
 
-        if scraper.throttle.dead_queries:
-            logger.warning(
-                "Dead queries (Amazon's error page while other inputs "
-                "succeeded): %s",
-                ", ".join(scraper.throttle.dead_queries),
-            )
-        if scraper.throttle.throttled_inputs:
-            logger.warning(
-                "Rate-limited and not recovered within the retry budget: %s",
-                ", ".join(scraper.throttle.throttled_inputs),
-            )
+        for line in scraper.throttle.summary_lines():
+            logger.warning("%s", line)
 
         return ScrapingPhaseSummary(
             total_attempted=total_inputs,

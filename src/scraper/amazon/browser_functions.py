@@ -983,6 +983,15 @@ def create_dynamic_browser_function(debug_mode=False):
 
             return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
+            if is_error_page_failure(e):
+                # Reaches the caller, which is the only place that can tell a
+                # rate limit from a dead query and decide how long to wait.
+                # Swallowing it here returned an empty page indistinguishable
+                # from a keyword with no matches, so the standalone path had
+                # none of the backoff its own retry loop implements -- and
+                # recorded the throttled input as a success, making it
+                # evidence that the connection works.
+                raise
             if DEBUG_MODE:
                 logger.error("[DEBUG] Browser function error: %s", e)
                 import traceback

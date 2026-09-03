@@ -28,8 +28,8 @@ default of 3 means two backoffs have already elapsed, several minutes, before
 anything is called dead.
 
 The residual case is a rate limit that begins partway through a run, after
-something has already succeeded. Every input after it is waited on for its
-full budget and then called dead. The verdict is wrong for all of them, and
+something has already succeeded. Every input after it is waited on for
+two backoffs and then called dead. The verdict is wrong for all of them, and
 the summary names them all, so what an operator sees is most of the run listed
 as dead queries rather than one bad keyword -- misattributed, but not mistaken
 about which inputs were lost or about the scale of it. A cheaper reading is
@@ -141,14 +141,27 @@ class ThrottleSettings:
             raise ValueError("max_total_wait_sec must be non-negative")
 
     @classmethod
-    def from_config(cls, raw: dict[str, Any] | None) -> ThrottleSettings:
+    def from_config(cls, raw: object) -> ThrottleSettings:
         """Build from the `rate_limiting` block, falling back per field.
 
         A malformed value is reported and the whole block is discarded rather
         than half-applied: a run that silently kept two of four settings is
         harder to diagnose than one that says it is using the defaults.
+
+        Takes `object`, not `dict | None`, because the argument comes from a
+        YAML file and an annotation the loader does not enforce is the shape
+        that lets a checker prove the guard below unreachable. A block written
+        as a list -- the same "this is the delay pair" mistake the code
+        anticipates one level down -- used to raise `AttributeError` out of
+        the scraper's constructor.
         """
         if not raw:
+            return cls()
+        if not isinstance(raw, dict):
+            logger.warning(
+                "rate_limiting must be a mapping, got %s; using defaults",
+                type(raw).__name__,
+            )
             return cls()
         try:
             delay = raw.get("inter_input_delay_sec")
@@ -194,6 +207,17 @@ class _InputState:
     error_pages: int = 0
     """Error pages seen for this input in this run."""
 
+    recovered: bool = False
+    """Whether this input's most recent outcome was a success.
+
+    Distinct from having ever succeeded. The latter is evidence about the
+    connection and stays true for the rest of the run; this is what the
+    summary reports on, and a keyword that delivered on page one and was then
+    blocked from page two onward has to appear there. Reading the historical
+    set for both hid it entirely -- twenty-five minutes of waiting, reported
+    nowhere.
+    """
+
 
 @dataclass
 class ThrottleTracker:
@@ -220,9 +244,15 @@ class ThrottleTracker:
         throttled and recovered should not carry them into a later decision
         about the same input.
         """
-        self._states[input_label] = _InputState()
+        self._states[input_label] = _InputState(recovered=True)
         if input_label not in self._succeeded:
             self._succeeded.append(input_label)
+        # A success ends the stretch of fruitless waiting the run budget
+        # exists to bound, and proves the connection works. Without this, a
+        # run that waited out an early block and recovered would drop the
+        # next transient error page with no wait at all, and then report the
+        # input as never having recovered.
+        self._waited_sec = 0.0
 
     def _another_input_got_through(self, input_label: str) -> bool:
         """Whether anything other than this input succeeded in this run.
@@ -242,6 +272,10 @@ class ThrottleTracker:
         """
         state = self._states.setdefault(input_label, _InputState())
         state.error_pages += 1
+        # The input's most recent outcome is now a failure. Leaving this set
+        # from an earlier success is what hid a keyword that delivered on
+        # page one and was blocked from page two onward.
+        state.recovered = False
 
         if state.error_pages >= self.settings.dead_query_after and (
             self._another_input_got_through(input_label)
@@ -324,7 +358,8 @@ class ThrottleTracker:
         return [
             label
             for label in self._throttled
-            if label not in self._succeeded and label not in self._dead
+            if not self._states.get(label, _InputState()).recovered
+            and label not in self._dead
         ]
 
     @property
@@ -336,21 +371,39 @@ class ThrottleTracker:
         products on page one and then met the error page on page four would
         otherwise be reported as dead when it plainly is not.
         """
-        return [label for label in self._dead if label not in self._succeeded]
+        return [
+            label
+            for label in self._dead
+            if not self._states.get(label, _InputState()).recovered
+        ]
 
     def summary_lines(self) -> list[str]:
-        """Lines for the end-of-run summary, empty when nothing went wrong."""
-        lines = []
-        dead = self.dead_queries
-        if dead:
-            lines.append(
-                "Dead queries (returned Amazon's error page while other "
-                f"inputs succeeded): {', '.join(dead)}"
-            )
-        stuck = self.throttled_inputs
-        if stuck:
-            lines.append(
-                "Rate-limited and not recovered within the retry budget: "
-                f"{', '.join(stuck)}"
-            )
-        return lines
+        """Lines for the end-of-run summary, empty when nothing went wrong.
+
+        The one place this wording lives. Both summaries and the batch's own
+        phase logging print it; three hand-rolled copies had already drifted
+        apart in punctuation before anything read this.
+        """
+        return summary_lines_for(self.dead_queries, self.throttled_inputs)
+
+
+def summary_lines_for(
+    dead_queries: list[str], throttled_inputs: list[str]
+) -> list[str]:
+    """The same two lines from stored verdicts rather than from a live run.
+
+    The batch carries the lists through its phase summary and into saved
+    state, so a resumed run has the verdicts but no tracker to ask.
+    """
+    lines = []
+    if dead_queries:
+        lines.append(
+            "Dead queries (Amazon's error page while other inputs succeeded): "
+            f"{', '.join(dead_queries)}"
+        )
+    if throttled_inputs:
+        lines.append(
+            "Rate-limited and not recovered within the retry budget: "
+            f"{', '.join(throttled_inputs)}"
+        )
+    return lines

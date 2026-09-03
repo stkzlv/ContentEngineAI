@@ -315,6 +315,7 @@ class TestSettingsComeFromConfig:
             "throttle_backoff_base_sec",
             "throttle_backoff_max_sec",
             "throttle_max_attempts",
+            "throttle_max_total_wait_sec",
             "dead_query_after",
         ):
             assert key in block, f"{key} is missing from the shipped config"
@@ -326,6 +327,7 @@ class TestSettingsComeFromConfig:
             backoff_base_sec=block["throttle_backoff_base_sec"],
             backoff_max_sec=block["throttle_backoff_max_sec"],
             max_attempts=block["throttle_max_attempts"],
+            max_total_wait_sec=block["throttle_max_total_wait_sec"],
             dead_query_after=block["dead_query_after"],
         )
 
@@ -664,3 +666,174 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
             browser_functions.scrape_amazon_products_browser_impl(
                 self._Driver(), {**item, "debug_mode": debug}
             )
+
+
+class TestTheStandaloneWrapperLetsTheErrorPageOut:
+    """The swallow sat one level above the check.
+
+    `create_dynamic_browser_function` wraps the impl in `except Exception:
+    return []`, so the standalone path saw an empty page indistinguishable
+    from a keyword with no matches -- and `_scrape_with_retry` then recorded
+    the throttled input as a success, making it evidence that the connection
+    works. None of the backoff, the verdicts or the pagination break could
+    fire there.
+    """
+
+    @staticmethod
+    def _inner(monkeypatch, impl):
+        """The wrapper's body, without Botasaurus starting a browser."""
+        from src.scraper.amazon import browser_functions
+
+        monkeypatch.setattr(
+            browser_functions, "scrape_amazon_products_browser_impl", impl
+        )
+        # Botasaurus's decorator supplies the driver and leaves the caller
+        # passing `data` alone; the pass-through has to do the same or the
+        # test drives a different signature from production.
+        monkeypatch.setattr(
+            browser_functions,
+            "browser",
+            lambda **kwargs: (lambda fn: lambda data: fn(object(), data)),
+        )
+        return browser_functions.create_dynamic_browser_function(False)
+
+    def test_the_error_page_reaches_the_caller(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def impl(driver, data):
+            raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+
+        func = self._inner(monkeypatch, impl)
+
+        with pytest.raises(RuntimeError, match="Amazon error page"):
+            func({"keyword": "usb hub"})
+
+    def test_every_other_failure_is_still_swallowed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One page failing must not lose the rest of the run."""
+
+        def impl(driver, data):
+            raise RuntimeError("no such element")
+
+        func = self._inner(monkeypatch, impl)
+
+        assert func({"keyword": "usb hub"}) == []
+
+    def test_a_throttled_input_is_not_recorded_as_a_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The worst consequence: it became evidence the connection works."""
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        def impl(driver, data):
+            raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
+
+        func = self._inner(monkeypatch, impl)
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.debug_mode = False
+        scraper.logger = __import__("logging").getLogger("test")
+        scraper.throttle = _tracker(max_attempts=2)
+
+        with pytest.raises(RuntimeError, match="Amazon error page"):
+            scraper._scrape_with_retry(
+                func, {"keyword": "wifi extender"}, sleep=lambda _: None
+            )
+
+        assert not scraper.throttle._another_input_got_through("usb hub")
+        assert scraper.throttle.throttled_inputs == ["wifi extender"]
+
+
+class TestAnInputThatSucceededThenStuckIsStillReported:
+    """Both lists filtered on "ever succeeded", which erased it.
+
+    The batch's page-retry loop reuses one tracker, so a keyword that
+    delivered on page one and met the error page from page two onward waited
+    out its whole budget and appeared in no summary line at all.
+    """
+
+    def test_it_appears_in_the_throttled_line(self) -> None:
+        tracker = _tracker(max_attempts=3)
+
+        tracker.record_success("usb hub")
+        verdicts = [tracker.record_error_page("usb hub") for _ in range(3)]
+
+        assert verdicts[-1] is Verdict.EXHAUSTED
+        assert tracker.throttled_inputs == ["usb hub"]
+        assert "usb hub" in "\n".join(tracker.summary_lines())
+
+    def test_a_recovery_after_the_failures_clears_it_again(self) -> None:
+        tracker = _tracker(max_attempts=3)
+
+        tracker.record_success("usb hub")
+        for _ in range(3):
+            tracker.record_error_page("usb hub")
+        tracker.record_success("usb hub")
+
+        assert tracker.summary_lines() == []
+
+    def test_a_success_restores_the_run_budget(self) -> None:
+        """Otherwise a later transient failure is dropped with no wait.
+
+        And then labelled as never having recovered, which is false for it.
+        """
+        tracker = _tracker(backoff_base_sec=60.0, max_attempts=9)
+
+        tracker.record_error_page("usb hub")
+        tracker.backoff_sec("usb hub")
+        assert tracker.total_wait_sec > 0
+
+        tracker.record_success("usb hub")
+
+        assert tracker.total_wait_sec == 0.0
+
+
+class TestAMalformedRateLimitingBlock:
+    @pytest.mark.parametrize("raw", [[2.0, 5.0], "fast", 10])
+    def test_a_non_mapping_block_does_not_raise(self, raw) -> None:
+        """It used to kill the scraper's constructor with AttributeError."""
+        assert ThrottleSettings.from_config(raw) == ThrottleSettings()
+
+
+class TestTheStandalonePathIsPacedToo:
+    """Module/Batch Alignment: this arm launches a fresh browser per input."""
+
+    @staticmethod
+    def _controller(monkeypatch, keywords):
+        from unittest.mock import Mock
+
+        from src.scraper.amazon.batch_controller import BatchController
+        from src.scraper.amazon.models import BatchConfig, SearchParameters
+
+        waits: list[float] = []
+        monkeypatch.setattr(
+            "src.scraper.amazon.batch_controller.time.sleep", waits.append
+        )
+
+        scraper = Mock()
+        scraper.logger = __import__("logging").getLogger("test")
+        scraper.throttle = _tracker(inter_input_delay_sec=(3.0, 3.0))
+        scraper.scrape_products_unified.return_value = []
+        scraper.pillar_for_keyword.return_value = None
+
+        config = BatchConfig(
+            product_ids=[],
+            keywords=keywords,
+            fail_fast=False,
+            search_params=SearchParameters(),
+            max_products=10,
+            products_per_keyword=1,
+        )
+        return BatchController(scraper, config), waits
+
+    def test_one_pause_between_keywords_and_none_before_the_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        controller, waits = self._controller(
+            monkeypatch, ["usb hub", "wifi extender", "hdmi cable"]
+        )
+
+        controller._process_keywords()
+
+        assert waits == [3.0, 3.0]

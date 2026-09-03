@@ -636,6 +636,19 @@ class PipelineSummary:
                 f"  Failed Products: {', '.join(self.scraping.failed_products)}"
             )
 
+        # Why an input was lost, when the reason was Amazon's error page. The
+        # scraping phase logs these as it goes, but a resumed run rebuilds the
+        # summary from saved state and never enters that phase, so without
+        # them here the verdicts are carried, merged and never shown.
+        from src.scraper.base.throttle import summary_lines_for
+
+        lines.extend(
+            f"  {line}"
+            for line in summary_lines_for(
+                self.scraping.dead_queries, self.scraping.throttled_inputs
+            )
+        )
+
         lines.extend(
             [
                 "",

@@ -15,12 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Amazon's error page was only detected under `--debug`, and the bundled config ships debug off. On a normal run it produced an empty result and no error, so a throttled search was indistinguishable from a keyword with no matches and no retry was ever attempted. One of the two checks was also in the keyword-search branch alone, so a scrape by ASIN or by URL never reached it in either mode. The check now runs after every navigation, in every arm.
-- A search that met the error page was swallowed by the keyword arm's navigation handler, which catches everything and returns an empty list. The page had loaded; it just was not the search results.
+- Three separate places swallowed the error page after it was detected: the keyword arm's navigation handler, the standalone scraper's browser wrapper, and both summary filters. The page had loaded; it just was not the search results.
+- An input that succeeded and then got stuck was reported nowhere. Both summary lists filtered on having ever succeeded, so a keyword that delivered on page one and met the error page from page two onward waited out its whole budget in silence. They now read the input's most recent outcome.
+- The batch carried the two verdict lists through its phase summary without ever printing them, so a resumed run stored the dead queries and showed none of them.
+- A `rate_limiting` block written as a list rather than a mapping killed the scraper at startup with `AttributeError` instead of falling back to the defaults.
 
 ### Notes
 - A batch of several products now completes without external sleeps, which is what the workaround had been.
-- Waiting is capped for the run as a whole, not only per input. Five blocked inputs at fifteen minutes each is over an hour of an unattended run asleep, and by the second exhaustion with nothing having succeeded the answer is already known.
-- One case is deliberately misread: a rate limit beginning partway through a run, after something has already succeeded, gets every later input named a dead query rather than only the first. The summary is then wrong about why most of the run failed, though not about which inputs were lost. Reading it correctly would need a probe request the scrape does not otherwise make.
+- Waiting is capped for the run as a whole, not only per input. Five blocked inputs at fifteen minutes each is over an hour of an unattended run asleep, and by the second exhaustion with nothing having succeeded the answer is already known. A success resets the budget, since it ends the stretch of fruitless waiting the cap exists to bound.
+- One case is deliberately misread: a rate limit beginning partway through a run, after something has already succeeded, gets every later input named a dead query after two backoffs rather than only the first. The summary is then wrong about why most of the run failed, though not about which inputs were lost. Reading it correctly would need a probe request the scrape does not otherwise make.
 - Both scraping paths share the decision. The standalone scraper and the batch's single-session loop re-implement each other, and only the standalone one had any retry at all.
 
 ## [0.97.0] - 2026-09-03

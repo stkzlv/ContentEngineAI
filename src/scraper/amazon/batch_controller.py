@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .scraper import BotasaurusAmazonScraper
 
+from ..base.throttle import summary_lines_for
 from .config import get_batch_logging_config
 from .models import BatchConfig, BatchSummary, ProductData, ProductResult
 from .utils import validate_asin_format
@@ -485,17 +486,8 @@ class BatchController:
         # things. A dead query keeps returning the error page however long
         # the run waits, so the keyword has to be replaced; a throttled input
         # would have worked with a longer gap.
-        if summary.dead_queries:
-            self.logger.warning(
-                "Dead queries (Amazon's error page while other inputs "
-                "succeeded): %s",
-                ", ".join(summary.dead_queries),
-            )
-        if summary.throttled_inputs:
-            self.logger.warning(
-                "Rate-limited and not recovered within the retry budget: %s",
-                ", ".join(summary.throttled_inputs),
-            )
+        for line in summary_lines_for(summary.dead_queries, summary.throttled_inputs):
+            self.logger.warning("%s", line)
 
         self.logger.info("\nMedia Collection Statistics:")
         for key, value in summary.media_stats.items():
