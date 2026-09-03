@@ -18,7 +18,7 @@ poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_im
 ### Topic Video (no scraped product)
 
 Renders from a subject rather than a listing, using a profile that sources every
-visual from stock. Output lands in `outputs/topic-<slug>/`.
+visual from stock. Output lands in `outputs/topic-<slug>-<digest>/`.
 
 ```bash
 # One topic
@@ -56,7 +56,7 @@ poetry run python -m src.video.producer --batch --random-profile --debug
 
 # Random from specific pool
 poetry run python -m src.video.producer --batch --random-profile \
-  --profile-pool slideshow_images1 video_sequential mixed_media --debug
+  --profile-pool slideshow_images1 product_video_sequential product_video_mixed --debug
 ```
 
 ## CLI Reference
@@ -133,7 +133,7 @@ for install and config details.
 
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `--subtitle-style-preset` | Style preset (minimal, modern, bold, animated, random) | `--subtitle-style-preset bold` |
+| `--preset` | Style preset (minimal, modern, bold, animated, random) | `--preset bold` |
 | `--font-size-scale` | Font size multiplier (0.5-2.0) | `--font-size-scale 1.2` |
 | `--subtitle-alignment` | Horizontal alignment | `--subtitle-alignment center` |
 | `--max-line-length` | Max characters per line | `--max-line-length 25` |
@@ -191,7 +191,7 @@ video_profiles:
     first_frame_pre_motion: true   # Ken Burns settle-zoom on segment 0
     pre_motion_peak_zoom: 1.10
 
-  video_sequential:
+  product_video_sequential:
     description: "Sequential video clips"
     use_scraped_videos: true
     video_assembly_mode: "sequential"
@@ -210,7 +210,7 @@ the profile and the global value.
 
 ### Hook Overlay and Pre-Motion
 
-Three visual-layer knobs live on `video_settings` and the per-profile partial override:
+Three visual-layer knobs live on `video_settings`. Only `first_frame_pre_motion` and `pre_motion_peak_zoom` are also per-profile: `VideoProfile` is `extra="forbid"` and declares neither `hook_overlay` nor `cold_open_variant_pool`, so writing either under a profile aborts the config load.
 
 - `first_frame_pre_motion` / `pre_motion_peak_zoom` — when enabled, the first image segment starts at `pre_motion_peak_zoom` and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. Default off on the existing 30-45s profiles, on for `slideshow_short_20s`.
 - `hook_overlay` — burns a short headline as centre-upper static drawtext on the first `duration_sec` seconds (default 1.5), at `size_factor` times narration size, with no per-word reveal. The text is an authored headline generated separately from the spoken script, so the hook doesn't repeat the first caption line; when no headline is available it falls back to the script's first sentence. Long text wraps to at most `max_lines` lines, each held within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone can't fit. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top. The headline lands in `pipeline_state.json::hook_headline`. A topic render uses a
@@ -272,7 +272,7 @@ Control how scraped videos are assembled into the final output.
 video_assembly_mode: "sequential"
 
 # Or via profile selection
-poetry run python -m src.video.producer data.json video_sequential
+poetry run python -m src.video.producer data.json product_video_sequential
 ```
 
 **Note**: If `use_scraped_videos: false`, assembly mode is ignored and only images are used.
@@ -310,8 +310,8 @@ poetry run python -m src.video.producer data.json profile \
 | Preset | Description | Effects |
 |--------|-------------|---------|
 | `minimal` | Clean, no animations | None |
-| `modern` | Subtle styling | Fade only |
-| `bold` | Strong visual presence | Glow, fade |
+| `modern` | Subtle styling | Karaoke |
+| `bold` | Strong visual presence | Fade |
 | `animated` | Strongest of the presets | Karaoke |
 | `random` | Random effect per video | Varies |
 
@@ -358,7 +358,7 @@ The producer runs through these steps in order:
 3. **generate_description** - Create platform metadata
 4. **create_voiceover** - Generate speech via TTS
 5. **generate_subtitles** - Create synchronized subtitles
-6. **download_music** - Fetch background music (Freesound)
+6. **download_music** - Fetch background music (Jamendo, then Freesound, then local files)
 7. **assemble_video** - Combine all elements into final video
 8. **burn_pycaps_subtitles** - Burn animated captions onto the assembled
    video, when the resolved subtitle engine is pycaps
@@ -454,7 +454,7 @@ Enable detailed logging for troubleshooting:
 poetry run python -m src.video.producer data.json profile --debug
 ```
 
-Logs are written to `logs/producer.log`.
+Logs are written to `outputs/logs/producer.log`.
 
 ### Clean Run
 

@@ -82,7 +82,7 @@ High-level requirements for ContentEngineAI.
 - Corrupt history entries skipped gracefully on load
 
 #### Threshold Warnings
-- Configurable per-step timing threshold (default 5s) and memory ceiling (default 1000MB)
+- Configurable per-step timing threshold (default 180s) and memory ceiling (default 3000MB)
 - Warnings logged after pipeline completion for any step exceeding thresholds
 
 #### Reporting
@@ -96,8 +96,8 @@ High-level requirements for ContentEngineAI.
 - **History retention**: max runs to keep (default 100)
 - **Cleanup interval**: how often to check retention limit (default every 10 saves)
 - **Memory sampling interval**: peak memory polling frequency (default 0.1s)
-- **Timing threshold**: warn if a step exceeds this duration (default 5s)
-- **Memory threshold**: warn if peak memory exceeds this value (default 1000MB)
+- **Timing threshold**: warn if a step exceeds this duration (default 180s)
+- **Memory threshold**: warn if peak memory exceeds this value (default 3000MB)
 - **Report defaults**: summary limit (50), detailed limit (20), trends window (30 days), recent window (10 runs)
 
 ---
@@ -201,7 +201,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Pycaps default position: a deliberate lower-third (~75% of frame), which sits below the 2026 safe-zone bottom (65%) to avoid colliding with centered product imagery. Template's own alignment preserved unless explicitly overridden.
 
 **Text formatting (best-practice aligned):**
-- **Font**: bold sans-serif weight 700+ (Montserrat Black default)
+- **Font**: bold sans-serif weight 700+ (the shipped pool entry is Montserrat Bold, 700)
 - **Font size**: 7.5% of frame height (~144px on 1920)
 - **Color**: white fill, opaque black outline (3-4px), no background box
 - **Max 3 words per line**, max 2 lines, max 80% frame width
@@ -392,7 +392,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Profile Randomization
 - Random profile selection per product from configured pool
-- When no pool is configured, the fallback is all profiles except `base` (the inheritance template, not a render target); `base` is still usable via an explicit profile choice
+- When no pool is configured, the fallback is all profiles except `base` and `slideshow_stock`; both remain usable via an explicit profile choice
 - Deterministic seeding for reproducibility
 - Profile compatibility checking with skip on mismatch
 
@@ -433,7 +433,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Optional hashtag migration: move Instagram hashtags from caption to first comment
 - Non-blocking: missing data or affiliate link silently skipped (warning logged)
 - Works in both unified and platform-specific publishing modes (each platform gets its own comment via per-platform data)
-- Disabled by default, toggled via config
+- Off by the dataclass default, but the bundled config enables it with templates, so a stock install posts them
 - Delivery is verifiable after a post goes live: the platform inbox is queried for the account owner's own comment, since the scheduling API reports the post published without confirming the comment posted. A sweep over recent published posts warns on any YouTube or Instagram post missing its first comment.
 
 ### Duplicate Publish Protection
@@ -456,7 +456,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Provider-agnostic: swappable between Lnk.Bio, Linktree, Beacons, etc.
 - Configurable max links with automatic oldest-link rotation
 - Non-blocking: failures never affect video publishing
-- Disabled by default, toggled via config
+- Enabled by default; `--no-link-in-bio` skips it for one run
 
 ### Affiliate Program Literal Phrase
 - Render the configured affiliate program identification phrase in the caption body of every published post when enabled

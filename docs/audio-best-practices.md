@@ -72,8 +72,9 @@ Mix targets converge across audio-for-video guidance:
 
 **Pipeline mapping.** Levels live in `audio_settings` in
 `config/video_production.yaml`: `music_volume_db` (default -24.0) and
-`voiceover_volume_db` (default 3.0). The -24.0 music level sits at the top of
-the "music under voice" band above. Fades are `music_fade_in_duration` /
+`voiceover_volume_db` (default 3.0). The -24.0 music level sits just above the
+"music under voice" band stated above, and the pair gives a 27 dB separation.
+Fades are `music_fade_in_duration` /
 `music_fade_out_duration`.
 
 These two numbers are not the same measure as the target levels in the table.

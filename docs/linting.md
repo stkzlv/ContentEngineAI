@@ -89,7 +89,7 @@ Ruff is configured in `pyproject.toml` with the following rules:
 - **N**: pep8-naming (naming conventions) - pragmatic settings
 
 **Disabled Rules:**
-- `F401`: Unused imports (handled by isort)
+- `F401`: Unused imports. In the ignore list, and the isort rules only sort imports rather than removing unused ones, so nothing currently flags them
 - Most docstring rules (D100-D415) for development efficiency
 - Naming convention rules (N802, N803, N806)
 - Security rules S101, S603, S607 for common development patterns
@@ -130,7 +130,7 @@ MyPy is configured for development efficiency while maintaining type safety:
 **Bandit:**
 - Scans for common security issues
 - Excludes test directories
-- Skips assert_used (B101) and paramiko_calls (B601)
+- Skips B101, B311, B404, B601, B603 and B607
 
 **Safety:**
 - Checks dependencies for known vulnerabilities
@@ -275,7 +275,7 @@ The optimized linting system provides significant performance benefits:
 
 - **~60% faster execution** through parallel tool execution
 - **Smart scheduling** prevents tool conflicts
-- **Early failure detection** stops on critical errors
+- **Failures are recorded and the run continues**; every tool is attempted
 - **Incremental feedback** shows progress in real-time
 - **Timeout protection** prevents hanging processes
 
@@ -283,7 +283,7 @@ The optimized linting system provides significant performance benefits:
 
 1. **Sequential Phase**: Ruff linting → Ruff formatting (if fixing)
 2. **Parallel Phase**: MyPy, Bandit, Vulture, Safety (concurrent)
-3. **Final Phase**: Pytest (after all linting passes)
+3. **Final Phase**: Pytest, which runs whether or not the linting phases passed
 
 ## Best Practices
 
@@ -345,7 +345,7 @@ The optimized linting system provides significant performance benefits:
 - `.pre-commit-config.yaml`: Pre-commit hooks configuration
 - `Makefile`: Convenient commands for development
 - `tools/lint.py`: **Optimized custom linting script** with parallel execution
-- `reports/`: Directory for generated linting reports (created automatically)
+- `outputs/reports/`: Directory for generated linting reports (created automatically)
 
 ## Contributing
 
@@ -360,8 +360,13 @@ When contributing to the project:
 
 ### CI/CD Integration:
 
+CI does not run `tools/lint.py`. The lint job runs `ruff check .`,
+`ruff format --check .` and `mypy .` directly; bandit, vulture and safety run
+in the weekly security workflow. Note that CI runs `mypy .` while
+`make type-check` runs `mypy src/`, which checks fewer files.
+
 ```bash
-# For CI environments
+# Locally, for a combined report
 python tools/lint.py --skip-env-check --output ci-report.json
 
 # For detailed analysis

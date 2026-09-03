@@ -100,7 +100,9 @@ which ffmpeg    # macOS/Linux
 where ffmpeg    # Windows
 
 # Temporary fix - specify full path in config
-# config/video_production.yaml:
+# config/performance.yaml, which is where ffmpeg_settings lives. The five
+# config files are merged with a shallow update, so defining the same
+# top-level key in a second file replaces the whole block.
 ffmpeg_settings:
   executable_path: "/usr/local/bin/ffmpeg"  # Your actual path
 ```
@@ -284,9 +286,8 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
    - Pexels has rate limits (200 requests/hour for free tier)
    - Reduce concurrent downloads in config:
    ```yaml
-   stock_media_settings:
-     pexels:
-       concurrent_downloads: 1  # Reduce from default 3
+   api_settings:
+     stock_media_concurrent_downloads: 1  # Reduce from default 5
    ```
 
 ### Freesound API Issues
@@ -341,7 +342,7 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
 2. **Timeout Issues:**
    ```yaml
    llm_settings:
-     timeout_seconds: 60  # Increase from default 30
+     timeout_seconds: 90  # Increase from the default 60
      retry_attempts: 5    # Increase retries
    ```
 
@@ -369,10 +370,9 @@ for voice in voices.voices[:5]:
 1. **Voice Selection Issues:**
    ```yaml
    tts_config:
-     google_cloud_tts:
-       voice_name: "en-US-Wavenet-D"  # Use specific voice
-       # OR
-       voice_name_pattern: "Standard" # Use Standard instead of Wavenet
+     google_cloud:
+       voice_selection_criteria:
+         - { language_code: "en-US", name_contains: "Wavenet" }
    ```
 
 2. **Fall back to Coqui TTS.** It is not a project dependency, so it has to be
@@ -428,8 +428,8 @@ for voice in voices.voices[:5]:
 1. **Provider Issues:**
    ```yaml
    whisper_settings:
-     model_size: "small"  # Try larger model if "base" fails
-     device: "cpu"        # Force CPU if GPU issues
+     model_size: "medium"  # Try a larger model; the default is already "small"
+     model_device: "cpu"  # Force CPU if GPU issues
    
    google_cloud_stt_settings:
      enabled: true        # Enable as fallback
@@ -481,9 +481,11 @@ for voice in voices.voices[:5]:
 
 2. **FFmpeg Filter Issues:**
    ```yaml
-   ffmpeg_settings:
-     enable_zoompan: false    # Disable complex effects
-     save_command: true       # Save command for debugging
+   # Zoom/pan is the profile-level `first_frame_pre_motion`. There is no
+   # ffmpeg_settings flag for it, and none for saving the command.
+   video_profiles:
+     slideshow_short_20s:
+       first_frame_pre_motion: false
    ```
 
 3. **Resolution/Format Issues:**
@@ -605,15 +607,20 @@ make perf-report
 **Solutions:**
 1. **Reduce Concurrency:**
    ```yaml
-   max_concurrent_downloads: 3      # Reduce from default 5
-   stock_media_concurrent_downloads: 2  # Reduce concurrent downloads
+   scraper_timing:
+     max_concurrent_downloads: 3        # Reduce from default 5
+   api_settings:
+     stock_media_concurrent_downloads: 2
    ```
 
 2. **Disable Expensive Features:**
    ```yaml
-   ffmpeg_settings:
-     enable_zoompan: false         # Disable zoom/pan effects
-   
+   # Zoom/pan is the profile-level `first_frame_pre_motion`, not an
+   # ffmpeg_settings flag.
+   video_profiles:
+     slideshow_short_20s:
+       first_frame_pre_motion: false
+
    subtitle_settings:
      enabled: false                # Skip subtitles temporarily
    ```
@@ -633,11 +640,8 @@ make perf-report
 
 **Solutions:**
 1. **Reduce Memory Usage:**
-   ```yaml
-   memory_settings:
-     max_memory_usage_mb: 1024     # Limit memory usage
-     mmap_threshold_mb: 10         # Use memory mapping for larger files
-   ```
+   There is no memory-cap setting to tune. The cap is the `make *-lowpri`
+   cgroup, which is what keeps a render from taking the session down with it.
 
 2. **Process Fewer Items:**
    ```bash
@@ -837,20 +841,20 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 
 ### CAPTCHA Detection
 
-**Error:** `CAPTCHA detected on SERP/detail page`
+**Error:** `Bot detection triggered!`
 
 **Solutions:**
 1. **Reduce Request Frequency:**
    ```yaml
    # In config/scraper.yaml
    global_settings:
-     delay_range: [3, 6]     # Increase delays between requests
-     retries: 1              # Reduce retry attempts
+     retry_config:
+       default_max_retries: 5   # More attempts before giving up
    ```
 
 2. **Use Different User Agents:**
    - The scraper rotates user agents automatically
-   - Ensure `user_agents` list in config has variety
+   - The browser already randomises its user agent; there is no `user_agents` list to tune
 
 3. **Clear Browser Data:**
    ```bash
@@ -872,7 +876,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    --min-rating 4
    
    # Valid sort options
-   --sort price-asc-rank  # Check available options with --help
+   --sort price-low  # Choices: relevance, price-low, price-high, rating, newest, featured
    ```
 
 2. **Test Basic Search First:**
@@ -888,7 +892,7 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
 
 ### Selector Failures
 
-**Error:** `All configured selectors failed for essential key`
+**Symptom:** a scrape returns zero products with no error page
 
 **Solutions:**
 1. **Enable Debug Mode:**
@@ -923,14 +927,95 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    ```yaml
    # In config/scraper.yaml
    global_settings:
-     timeouts:
-       download: 120  # Increase download timeout
+     download_config:
+       video_download_timeout: 120  # Increase download timeout
    ```
 
 3. **Reduce Concurrency:**
    ```yaml
    global_settings:
-     download_concurrency: 5  # Reduce from default 10
+     download_config:
+       concurrent_image_downloads: 3   # Default 5
+       concurrent_video_downloads: 2   # Default 3
+   ```
+
+<!-- Moved here from architecture.md: this is scraper-side video
+extraction, not architecture. The YAML keys below are children of
+`global_settings` in config/scraper.yaml. -->
+
+### Video Extraction and Download
+
+**Problem**: Videos not detected on product page
+
+**Solutions**:
+1. Enable debug mode to see extraction attempts:
+   ```bash
+   poetry run python -m src.scraper.amazon.scraper --keywords "ASIN" --debug
+   ```
+2. Check if product page actually has videos (not all products have video content)
+3. Review logs for JavaScript parsing errors or ASIN matching issues
+4. Verify network connectivity to Amazon CDN
+
+**Problem**: Video downloads timing out
+
+**Solutions**:
+1. Increase timeout in `config/scraper.yaml`:
+   ```yaml
+   global_settings:
+     download_config:
+       video_download_timeout: 600  # Increase to 10 minutes
+   ```
+2. Check network speed and stability
+3. Verify retry settings are enabled:
+   ```yaml
+   global_settings:
+     download_config:
+       retry_video_downloads: 2
+   ```
+
+**Problem**: FFprobe metadata extraction failing
+
+**Solutions**:
+1. Verify FFmpeg/FFprobe installation:
+   ```bash
+   ffprobe -version
+   ```
+2. Check video file integrity:
+   ```bash
+   ffprobe -v error outputs/{ASIN}/videos/video_0.mp4
+   ```
+3. Disable metadata extraction if FFprobe unavailable:
+   ```yaml
+   global_settings:
+     video_config:
+       enable_metadata_extraction: false
+   ```
+
+**Problem**: Low-quality videos being downloaded
+
+**Solutions**:
+1. Increase quality thresholds:
+   ```yaml
+   global_settings:
+     video_config:
+       min_dimension: 1280  # Require 720p minimum
+       min_duration: 5.0    # Require longer videos
+   ```
+2. Review validation logs to see why videos passed filtering
+3. Check if higher quality versions available on product page
+
+**Problem**: Video processing errors causing product failures
+
+**Solutions**:
+1. Check error logs for specific failure reasons
+2. Verify graceful degradation is working (product should succeed without videos)
+3. Review retry logic configuration:
+   ```yaml
+   global_settings:
+     retry_config:
+       default_max_retries: 3
+       base_delay: 1.0
+       backoff_factor: 2.0
    ```
 
 ### Browser Issues
@@ -947,9 +1032,10 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    - Ensure sufficient RAM (4GB+ recommended)
    - Close other browsers and applications
 
-3. **Enable Headless Mode:**
+3. **Drop `--debug`:**
    ```bash
-   # Remove --debug to run headless (uses less resources)
+   # Less logging and no fixed window, but still headful: the scraper never
+   # runs true headless, because that mode is detectable. See below.
    poetry run python -m src.scraper.amazon.scraper --keywords "test"
    ```
 
@@ -1053,19 +1139,25 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 |------|----------|---------|---------------|
 | **Producer Log** | `outputs/logs/producer.log` | Producer execution log | `--debug` flag |
 | **Scraper Log** | `outputs/logs/scraper.log` | Scraper execution log | `--debug` or `--verbose` flag |
-| **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | `create_ffmpeg_command_logs: true` |
-| **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports: true` |
-| **Pipeline Metadata** | `outputs/{product_id}/temp/metadata.json` | Pipeline state and execution tracking | `create_pipeline_metadata: true` |
-| **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `create_performance_metrics: true` |
-| **Whisper Raw Output** | `outputs/{product_id}/temp/whisper_result_raw.json` | Raw STT transcription output | `create_whisper_debug_files: true` |
-| **Whisper vs Script** | `outputs/{product_id}/temp/whisper_vs_script.txt` | Transcription vs script comparison | `create_whisper_debug_files: true` |
-| **Whisper Word List** | `outputs/{product_id}/temp/whisper_word_list.json` | Word-level timing data | `create_whisper_debug_files: true` |
-| **Gathered Visuals** | `outputs/{product_id}/temp/gathered_visuals.json` | Visual asset selection metadata | `create_temp_files: true` |
-| **Music Choice** | `outputs/{product_id}/temp/music_choice.json` | Audio selection metadata | `create_temp_files: true` |
+| **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | `create_ffmpeg_command_logs` |
+| **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports`, in `config/scraper.yaml` |
+| **Pipeline State** | `outputs/{product_id}/temp/pipeline_state.json` | Step completion and recorded artifacts | `create_pipeline_metadata` |
+| **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `create_performance_metrics` |
+| **Whisper Raw Output** | `outputs/{product_id}/temp/<audio-stem>_whisper_result_raw.json` | Raw STT transcription output | `create_whisper_debug_files` |
+| **Whisper vs Script** | `outputs/{product_id}/temp/<audio-stem>_whisper_vs_script.txt` | Transcription vs script comparison | `create_whisper_debug_files` |
+| **Whisper Word List** | `outputs/{product_id}/temp/<audio-stem>_whisper_word_list.json` | Word-level timing data | `create_whisper_debug_files` |
+| **Gathered Visuals** | `outputs/{product_id}/temp/gathered_visuals.json` | Visual asset selection metadata | always written |
+| **Music Choice** | `outputs/{product_id}/temp/music_choice.json` | Audio selection metadata | always written, when a provider returned a track |
 
 ### Debug Settings Configuration
 
-Edit `config/performance.yaml` to control debug file generation:
+Edit `config/performance.yaml` to control debug file generation.
+
+**These switches do not currently work.** `DebugSettings` declares none of
+the `create_*` names, and the model ignores unknown keys, so each consumer
+falls back to its `getattr(..., True)` default and the files are written
+whatever the file says. `create_media_validation_reports` is the exception:
+it is read, from `config/scraper.yaml` rather than from here.
 
 ```yaml
 debug_settings:

@@ -116,11 +116,14 @@ export PATH="$HOME/.local/bin:$PATH"
 ### 3. Install Dependencies
 
 ```bash
-# Install Python dependencies
-poetry install
+# Install Python dependencies. The bundled config selects the pycaps
+# caption engine, which lives in an optional group; without it a render
+# falls back to FFmpeg captions and warns once.
+poetry install --with pycaps
 
-# Install Playwright browsers for web scraping
-poetry run playwright install
+# Install the browser the pycaps CSS renderer uses. The scraper does not
+# use Playwright; it drives Botasaurus.
+poetry run playwright install chromium
 ```
 
 > **Note:** If `poetry install` fails building `openai-whisper` with `No module named 'pkg_resources'`, your virtualenv's setuptools is too new (≥81). See [Troubleshooting → openai-whisper Fails to Build](troubleshooting.md#openai-whisper-fails-to-build-no-module-named-pkg_resources).
@@ -166,16 +169,20 @@ For LLM script and description generation:
 For stock images and videos:
 - Register at [Pexels API](https://www.pexels.com/api/)
 - Get your API key
-- Replace `your_pexels_api_key_here` in `.env`
+- Set `PEXELS_API_KEY` in `.env` (it ships empty)
 
-#### 3. Freesound API Key (Required)
-For background music:
+#### 3. Freesound API Key
+For background music. The provider chain is Jamendo first, then Freesound,
+then local files, so this is the fallback rather than the primary:
 - Create account at [Freesound](https://freesound.org/)
 - Register new app at [API Apps](https://freesound.org/home/app_new/)
-- Replace `your_freesound_api_key_here` in `.env`
+- Set `FREESOUND_API_KEY` in `.env` (it ships empty)
 
-#### 4. Google Cloud Credentials (Optional)
-For Google Cloud TTS and Speech-to-Text:
+#### 4. Google Cloud Credentials (Required for voiceover)
+The bundled config lists `google_cloud` as the only TTS provider, and Coqui is
+no longer a dependency, so without these every render loses its voiceover. The
+shipped `default_voice_profile` is a Gemini voice, which additionally needs the
+Vertex AI API and the `Vertex AI User` role:
 
 1. **Create Google Cloud Project:**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -184,15 +191,16 @@ For Google Cloud TTS and Speech-to-Text:
 2. **Enable APIs:**
    - Enable Text-to-Speech API
    - Enable Speech-to-Text API
+   - Enable Vertex AI API (for the Gemini voices)
 
 3. **Create Service Account:**
    - Go to IAM & Admin > Service Accounts
    - Create new service account
-   - Assign roles: Text-to-Speech Admin, Speech-to-Text Admin
+   - Assign roles: Text-to-Speech Admin, Speech-to-Text Admin, Vertex AI User
    - Download JSON key file
 
 4. **Update .env file:**
-   - Replace `/path/to/your/google-credentials.json` with the absolute path to your downloaded JSON key file
+   - Set `GOOGLE_APPLICATION_CREDENTIALS` to the absolute path of the downloaded JSON key file
 
 ### Optional: Freesound OAuth2 Setup
 

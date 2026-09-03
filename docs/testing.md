@@ -17,7 +17,6 @@ poetry run pytest tests/test_video_config.py -v
 # Run by category
 poetry run pytest -m unit          # Unit tests only
 poetry run pytest -m integration   # Integration tests only
-poetry run pytest -m e2e           # End-to-end tests only
 ```
 
 ## Test Categories
@@ -185,12 +184,12 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: enforced by the CI `--cov-fail-under` gate; run `make test-cov` for the current number
+- **Overall minimum**: enforced by `--cov-fail-under=50` in `pyproject.toml`'s pytest `addopts`; run `make test-cov` for the current number
 
 **Generate coverage report:**
 ```bash
 make test-cov
-# Opens HTML report in browser: outputs/coverage/index.html
+# Writes the HTML report to outputs/coverage/index.html
 ```
 
 </details>
@@ -325,7 +324,7 @@ make publish-lowpri ARGS="single B0ASIN123 --debug" \
 
 ### What to check between phases
 
-After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, and an affiliate link (the full `?tag=` Amazon URL; the bundled `config/url_shortener.yaml` ships `provider: bare`, so there's no shortened link unless Picsee is enabled). Count the images under `outputs/<ASIN>/images/`; fewer than 3 and the producer will reject the product (media validation floor). If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
+After **scrape**: open `outputs/<ASIN>/data.json` and confirm the product has a title, a price, and an affiliate link (the full `?tag=` Amazon URL; the bundled `config/url_shortener.yaml` ships `provider: bare`, so there's no shortened link unless Picsee is enabled). Count the images under `outputs/<ASIN>/images/`. Three is the combined media floor, but a product with no video needs five images, which is the case for the slideshow profiles used below. If the scrape returns a product short on images, stop there. Running produce on insufficient media wastes about five minutes.
 
 After **produce**: `ffprobe` the output video.
 
@@ -338,7 +337,7 @@ ffprobe -v error \
 
 Codec should be `h264 + aac`, resolution `1080×1920`, duration within a second of the voiceover length. The producer log calls out any warnings worth a closer look: `Duration mismatch`, `Subtitle content similarity to script is low`, threshold breaches for a particular step.
 
-After **publish**: the Late SDK returns a post ID and a per-platform status map. All three platforms (TikTok, YouTube, Instagram) should show `scheduled`. The publisher cleanup step removes the product directory once Zernio confirms the scheduled state, so `outputs/<ASIN>/` disappears when this phase finishes cleanly.
+After **publish**: the Late SDK returns a post ID and a per-platform status map. The post-level status should read `scheduled`; each platform leg reads `pending` until it fires. A leg is never `scheduled`. The publisher cleanup step removes the product directory once Zernio confirms the scheduled state, so `outputs/<ASIN>/` disappears when this phase finishes cleanly.
 
 ### Why not just `make batch-lowpri`
 
@@ -386,7 +385,6 @@ Live state comes from Zernio. The authoritative read is the post status, not the
 Tests run automatically on:
 - **Pull requests** to main branch
 - **Commits** to main branch
-- **Scheduled** nightly builds
 
 CI pipeline includes:
 - ✅ All test categories (unit, integration, e2e)
@@ -429,7 +427,7 @@ poetry run pytest -n auto
 
 **Current Statistics:**
 - **Total Tests**: run `poetry run pytest --collect-only -q | tail -1` for the current count
-- **Coverage**: enforced by the CI `--cov-fail-under` gate; see the CI config for the current threshold
+- **Coverage**: enforced by `--cov-fail-under=50` in `pyproject.toml`'s pytest `addopts`, not by a CI flag
 
 ## Quick Reference
 

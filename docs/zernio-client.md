@@ -91,7 +91,7 @@ for post in posts:
     print(post["id"], post["status"], post["scheduledFor"])
 ```
 
-`list_posts()` returns a minimal normalized dict: `id`, `status`, `scheduledFor`, `platforms` (platform names only). It is safe to use through the empty `platformPostUrl` SDK bug.
+`list_posts()` returns a minimal normalized dict: `id`, `status`, `scheduledFor`, `platforms`, where each leg carries `platform`, `account_id` and `publishedAt`. That last one is what `analytics.publish_time()` clocks day-N from. It is safe to use through the empty `platformPostUrl` SDK bug.
 
 ### Get a single post
 

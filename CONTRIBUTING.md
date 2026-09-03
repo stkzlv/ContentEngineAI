@@ -144,8 +144,8 @@ make test          # Run all tests with coverage
 - `src/video/assembler/`: FFmpeg-based video assembly (modular package)
 - `src/ai/script_generator.py`: LLM-powered script generation
 - `src/scraper/`: **Multi-platform e-commerce scraping architecture**
-  - `src/scraper/base/`: Platform-agnostic foundation (6 modules)
-  - `src/scraper/amazon/`: Amazon implementation (12 specialized modules)
+  - `src/scraper/base/`: Platform-agnostic foundation 
+  - `src/scraper/amazon/`: Amazon implementation 
   - `src/scraper/__init__.py`: ScraperFactory & platform registry
 - `src/utils/`: Shared utilities and performance optimization
 
@@ -160,26 +160,43 @@ For detailed architecture information, see [Architecture](docs/architecture.md).
 
 ### Adding New Features
 
-1. **New Pipeline Step**: Extend the pipeline in `producer.py`
+1. **New Pipeline Step**: add it to `step_runners()` and `step_dependencies()` in `src/video/producer/orchestration.py`, and to `VALID_STEPS` in `src/video/producer/state.py`
 2. **New E-Commerce Platform**: Implement `BaseScraper` interface with platform-specific modules
-3. **New Configuration**: Add to `video_config.py` Pydantic models
+3. **New Configuration**: Add to the Pydantic models in `src/video/config/`
 4. **New Provider**: Implement provider interface with fallback support
 5. **New Media Source**: Extend media fetching with attribution tracking
 
 #### **Adding New E-Commerce Platform Example:**
 ```python
-from src.scraper.base.models import BaseScraper, BaseProductData
-from src.scraper.base.config import register_scraper, Platform
+from src.scraper.base.models import (
+    BaseProductData,
+    BaseScraper,
+    BaseSearchParameters,
+    Platform,
+    register_scraper,
+)
 
 @register_scraper(Platform.EBAY)
 class EbayScraper(BaseScraper):
-    async def scrape_products(self, keywords: List[str]) -> List[BaseProductData]:
-        """eBay-specific implementation"""
-        pass
-    
+    # Four abstract members must be implemented, or the class cannot be
+    # instantiated: `platform`, `validate_product_id`, `scrape_products`
+    # and `scrape_single_product`.
+
+    @property
+    def platform(self) -> Platform:
+        return Platform.EBAY
+
     def validate_product_id(self, product_id: str) -> bool:
         """Validate eBay item ID format"""
         return re.match(r'^[0-9]{12}$', product_id) is not None
+
+    def scrape_products(
+        self, keywords: list[str], search_params: BaseSearchParameters
+    ) -> list[BaseProductData]:
+        """eBay-specific implementation"""
+
+    def scrape_single_product(self, product_id: str) -> BaseProductData | None:
+        """Fetch one eBay item by id"""
 ```
 
 **Architecture Requirements:**

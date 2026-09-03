@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.96.4] - 2026-09-03
+
+### Fixed
+- A documentation sweep against the code. About ninety claims were wrong, and the worst told a reader to write config that aborts the whole load: `subtitle_settings.fade_duration_ms`, `animation_probability`, a nested `stock_media_settings.pexels` block, `avoid_generic_tags` as a bool, per-profile `hook_overlay` and `cold_open_variant_pool`. Also corrected: env vars nothing reads (`LATE_TIMEOUT`, `LATE_MAX_RETRIES`, `LATE_STAGGER_*`), config keys the loaders drop silently (per-platform `auto_cleanup`, `conflict_alternatives_count`, `memory_settings`, `download_concurrency`), several wrong defaults, and code samples that raise as written. Closes #336.
+- `docs/architecture.md` no longer carries the scraper CLI reference or the video-processing troubleshooting section. The troubleshooting block moved to `docs/troubleshooting.md`, with the `global_settings:` nesting its YAML examples were missing; the CLI reference was a third copy whose sort values were the internal Amazon tokens rather than the argparse choices, so it is now a pointer to `docs/scraper.md`. Closes #186.
+
+### Added
+- `tests/docs/test_docs_cite_real_files.py`: shipped prose may not name a Python file that does not exist, and may not cite a source file by line number or hand-maintained line count. Both sweeps resolve against the repository and the installed packages, so a reference to a dependency's module needs no exemption. The filename rule found two stale references the manual audit missed.
+
+### Notes
+- Claims that cannot be kept true were deleted rather than corrected, per the issue: module counts, per-file line counts, an exhaustive source tree that had drifted 31 modules behind, and a settings section documenting keys that exist in neither `src/` nor `config/`.
+- Section references from config comments now name the heading rather than its number, which shifts whenever a section is inserted.
+- Seven findings are config or code defects rather than documentation, so the docs now describe what the code does rather than what the config file intends: `api_settings` is a flat model fed nested YAML, so `config/performance.yaml`'s values for it are inert, and `optimization_settings` is set in no config file and loads as `None`, and the six `create_*` debug switches are declared on no model and are dropped at load. Both are recorded on #125.
+
 ## [0.96.3] - 2026-09-03
 
 ### Fixed
