@@ -8,17 +8,12 @@ the Botasaurus framework with built-in anti-detection and performance optimizati
 import argparse
 import logging
 import shutil
+import time
 import warnings
 from pathlib import Path
 from typing import Any
 
 import yaml
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from src.scraper.base.keyword_pillars import (
     pillar_for,
@@ -31,6 +26,12 @@ from ...utils.outputs_paths import get_logs_directory
 from ...utils.url_shortener import load_url_shortener_settings
 from ..base import BaseScraper, Platform, register_scraper
 from ..base.models import BaseProductData, BaseSearchParameters
+from ..base.throttle import (
+    ThrottleSettings,
+    ThrottleTracker,
+    Verdict,
+    is_error_page_failure,
+)
 from .browser_functions import (
     create_batch_browser_function,
     create_dynamic_browser_function,
@@ -183,6 +184,14 @@ class BotasaurusAmazonScraper(BaseScraper):
         # malformed `config/url_shortener.yaml` is reported before a scrape
         # starts instead of after the browser work is paid for.
         self.url_shortener_settings = load_url_shortener_settings()
+        # One tracker per scraper instance, which is one per run. Sharing it
+        # across runs would let an earlier run's successes rule a later run's
+        # first failure a dead query.
+        self.throttle = ThrottleTracker(
+            settings=ThrottleSettings.from_config(
+                self.global_settings.get("rate_limiting")
+            )
+        )
 
         # Override debug mode if specified (CLI takes precedence over config)
         if debug_override is not None:
@@ -388,6 +397,23 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
+                if (
+                    keyword in self.throttle.dead_queries
+                    or keyword in self.throttle.exhausted_inputs
+                ):
+                    # Amazon is answering this query with its error page in a
+                    # run where other inputs got through. Every later page
+                    # re-resolves the same query, costs a fresh Chrome
+                    # session, and gets the same verdict, so paginating buys
+                    # nothing. Same reasoning as the URL gate above: an input
+                    # that cannot work does not get seven attempts at it.
+                    self.logger.warning(
+                        "Stopping pagination for %r: the throttle has given "
+                        "up on it, so each later page would open a browser "
+                        "session straight into the same failure.",
+                        keyword,
+                    )
+                    break
                 # No validated products from this page, so try the next one.
                 # Exhaustion is not detected: `_scrape_single_pass` returns an
                 # empty list both for a page of products that all failed
@@ -982,7 +1008,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 }
             )
 
-        batch_func = create_batch_browser_function(self.debug_mode)
+        batch_func = create_batch_browser_function(self.debug_mode, self.throttle)
         raw_results = batch_func({"items": items})
         return raw_results if raw_results else []
 
@@ -1086,29 +1112,51 @@ class BotasaurusAmazonScraper(BaseScraper):
         """Validate proper ASIN format: B0[A-Z0-9]{8} (requirement #10)"""
         return validate_asin_format(asin)
 
-    @retry(  # type: ignore
-        retry=retry_if_exception_type(RuntimeError),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        reraise=True,
-    )
-    def _scrape_with_retry(self, browser_func, data):
-        """Scrape with retry logic for Amazon error pages"""
-        try:
-            if self.debug_mode:
-                self.logger.debug("[DEBUG] Attempting scrape with retry logic")
-            return browser_func(data)
-        except RuntimeError as e:
-            if "Amazon error page detected" in str(e):
+    def _scrape_with_retry(self, browser_func, data, sleep=time.sleep):
+        """Scrape one input, waiting out a rate limit and skipping a dead query.
+
+        This used to be a fixed tenacity policy: three attempts, at most ten
+        seconds apart. The block it exists for was measured clearing after
+        several minutes, so every attempt landed inside it and the input was
+        lost. Worse, the same policy was spent on a query that returns the
+        error page permanently, which no amount of waiting fixes.
+
+        The tracker decides which of the two it is from what the rest of the
+        run did, so the schedule reaches minutes and a dead query stops
+        consuming it. `sleep` is injectable so a test does not wait.
+        """
+        input_label = str(data.get("keyword") or data.get("input") or "unknown")
+
+        while True:
+            try:
                 if self.debug_mode:
+                    self.logger.debug("[DEBUG] Attempting scrape with retry logic")
+                result = browser_func(data)
+            except RuntimeError as e:
+                if not is_error_page_failure(e):
+                    raise
+
+                verdict = self.throttle.record_error_page(input_label)
+                if verdict is Verdict.RETRY:
+                    wait = self.throttle.backoff_sec(input_label)
                     self.logger.warning(
-                        "[DEBUG] Caught Amazon error " "page, will retry: %s",
-                        e,
+                        "Amazon returned its error page for %r. Nothing else "
+                        "has succeeded since, so treating it as a rate limit "
+                        "and waiting %.0fs before retrying.",
+                        input_label,
+                        wait,
                     )
-                raise  # Will trigger retry
-            else:
-                # Other RuntimeErrors should not retry
+                    sleep(wait)
+                    continue
                 raise
+
+            # Same rule as the batch loop: an empty result is not evidence.
+            # The wrapper returns one for every non-error-page exception, so
+            # a keyword whose page died on a CDP timeout used to become the
+            # run's proof that the connection works.
+            if result:
+                self.throttle.record_success(input_label)
+            return result
 
     def _shorten_affiliate_links(self, products: list[ProductData]) -> None:
         """Shorten affiliate links for products if URL shortening is enabled.
@@ -2079,6 +2127,13 @@ def main():
                 )
             else:
                 logger.info("Products: 0 scraped")
+            # The batch arm reports these through BatchSummary; this one
+            # builds no summary object, so it reads the tracker directly.
+            # Without it the single-keyword run -- which is what the runbook
+            # and the end-to-end cases use -- printed no verdict at all,
+            # while the docs said both were reported at the end of the run.
+            for line in scraper.throttle.summary_lines():
+                logger.warning("%s", line)
             logger.info("---")
 
         if products_scraped == 0:

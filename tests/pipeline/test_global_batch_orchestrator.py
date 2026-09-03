@@ -18,6 +18,7 @@ from src.pipeline.config import (
 from src.pipeline.global_batch import GlobalPipelineOrchestrator
 from src.scraper.amazon.models import ProductData, SearchParameters
 from src.scraper.base.models import Platform
+from src.scraper.base.throttle import ThrottleTracker
 
 # ============================================================================
 # FIXTURES
@@ -124,7 +125,11 @@ async def test_scraping_phase_success(orchestrator, mock_product_data):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         # Set up mock scraper (two-phase approach)
+        # A bare Mock hands back a Mock for `throttle`, and the phase joins its
+        # verdict lists into a log line. Give it the real tracker so the mock
+        # matches the contract rather than the attribute merely existing.
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 
@@ -156,6 +161,7 @@ async def test_scraping_phase_partial_failure(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 
@@ -194,6 +200,7 @@ async def test_scraping_phase_with_fail_fast(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
         mock_scraper.scrape_batch_browser.side_effect = RuntimeError("Scraping failed")
@@ -211,6 +218,7 @@ async def test_scraping_phase_with_exception(orchestrator):
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
         mock_scraper.scrape_batch_browser.side_effect = ValueError("Invalid ASIN")
@@ -636,6 +644,7 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
     ):
         # Mock scraping phase (two-phase approach)
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
         mock_scraper.scrape_batch_browser.return_value = [
@@ -690,6 +699,7 @@ async def test_pipeline_with_no_ready_products(orchestrator, mock_video_config):
         patch("src.video.producer.cli.discover_products_for_batch") as mock_discover,
     ):
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
         mock_scraper.scrape_batch_browser.return_value = [
@@ -871,6 +881,7 @@ async def test_scraping_phase_resolves_a_mixed_case_keywords_pillar(
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
     ) as mock_scraper_class:
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
         mock_scraper.scrape_batch_browser.return_value = [

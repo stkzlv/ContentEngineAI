@@ -580,6 +580,8 @@ def _merge_scraping_summaries(
         failed=sum(s.failed for s in present),
         successful_products=[p for s in present for p in s.successful_products],
         failed_products=[p for s in present for p in s.failed_products],
+        dead_queries=[q for s in present for q in s.dead_queries],
+        throttled_inputs=[i for s in present for i in s.throttled_inputs],
         media_stats=media,
         duration_sec=sum(s.duration_sec for s in present),
     )
@@ -1500,12 +1502,17 @@ class GlobalPipelineOrchestrator:
             duration,
         )
 
+        for line in scraper.throttle.summary_lines():
+            logger.warning("%s", line)
+
         return ScrapingPhaseSummary(
             total_attempted=total_inputs,
             successful=inputs_processed,
             failed=inputs_failed,
             successful_products=successful_products,
             failed_products=failed_inputs,
+            dead_queries=scraper.throttle.dead_queries,
+            throttled_inputs=scraper.throttle.throttled_inputs,
             media_stats=media_stats,
             duration_sec=duration,
         )

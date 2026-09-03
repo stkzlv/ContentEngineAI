@@ -23,6 +23,17 @@ class RateLimitingConfig(BaseModel):
 
     video_validation_delay: list[float] = Field(default=[0.5, 1.5])
     debug_pause_duration: int = Field(default=5, ge=0)
+    # Declared so the section is described in one place, but nothing
+    # constructs this model at runtime: `load_scraper_config_pydantic` has no
+    # callers and the block is read through `ThrottleSettings.from_config`,
+    # which does its own validation. Keep the defaults in step with
+    # `ThrottleSettings` rather than treating either as authoritative.
+    inter_input_delay_sec: list[float] = Field(default=[2.0, 5.0])
+    throttle_backoff_base_sec: float = Field(default=60.0, gt=0)
+    throttle_backoff_max_sec: float = Field(default=600.0, gt=0)
+    throttle_max_attempts: int = Field(default=6, ge=1)
+    throttle_max_total_wait_sec: float = Field(default=3600.0, ge=0)
+    dead_query_after: int = Field(default=3, ge=1)
 
 
 class ImageConfig(BaseModel):

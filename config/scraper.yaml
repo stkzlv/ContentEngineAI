@@ -74,6 +74,43 @@ global_settings:
     # Affects: Debug mode workflow, time to examine browser state
     debug_pause_duration: 5
 
+    # Pause between consecutive inputs in one run [min, max] (seconds)
+    # A random value in this range is waited before each input after the
+    # first, on successful runs too. Back-to-back searches are the pattern
+    # that draws Amazon's block, and the pause costs seconds against a
+    # scrape measured in tens of them.
+    # Affects: batch pacing, how often the run meets an error page at all
+    inter_input_delay_sec: [2.0, 5.0]
+
+    # Rate-limit backoff. Amazon answers a rate limit and a permanently dead
+    # query with the same error page, so these govern only the first case:
+    # an input whose neighbours are succeeding is ruled a dead query and
+    # skipped instead of waited for.
+    # The block was measured clearing when runs were spaced roughly eight
+    # minutes apart, so the ceiling sits above that; a schedule topping out
+    # in seconds retries inside the block every time and loses the input.
+    # Affects: whether a throttled run recovers on its own or is lost
+    # Waits are 60, 120, 240, 480, then 960 capped to the ceiling. Raising
+    # the ceiling alone does nothing unless the attempt count is high enough
+    # to reach it: at 5 attempts the longest wait taken is 480s.
+    throttle_backoff_base_sec: 60
+    throttle_backoff_max_sec: 600
+    throttle_max_attempts: 6
+
+    # Total backoff one run may spend before it stops waiting at all.
+    # Per-input budgets do not compose: five inputs at fifteen minutes each
+    # is over an hour of an unattended run asleep, and by the second input
+    # exhausting its budget with nothing having succeeded the answer is
+    # already known.
+    throttle_max_total_wait_sec: 3600
+
+    # Error pages for one input, in a run where some other input got through,
+    # before that input is called dead rather than throttled. 3 rather than 1
+    # because the two backoffs it implies are the wait that separates the
+    # cases: a rate limit affecting only this input has had several minutes
+    # to clear before the verdict lands.
+    dead_query_after: 3
+
   # ---- Image Processing Configuration ----
   # Controls image quality requirements and validation thresholds
   image_config:

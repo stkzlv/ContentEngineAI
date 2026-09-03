@@ -26,6 +26,7 @@ from src.pipeline.global_batch import GlobalPipelineOrchestrator
 from src.publisher.models import FirstCommentConfig
 from src.scraper.amazon.models import ProductData, SearchParameters
 from src.scraper.base.models import Platform
+from src.scraper.base.throttle import ThrottleTracker
 
 # Test markers
 pytestmark = pytest.mark.integration
@@ -105,7 +106,11 @@ def mock_product_data_factory():
 
 def _setup_scraper_mock(mock_scraper_class, products_per_input):
     """Wire up scraper mock for the two-phase scraping approach."""
+    # A bare Mock hands back a Mock for `throttle`, and the phase joins its
+    # verdict lists into a log line. Give it the real tracker so the mock
+    # matches the contract rather than the attribute merely existing.
     mock_scraper = Mock()
+    mock_scraper.throttle = ThrottleTracker()
     mock_scraper_class.return_value = mock_scraper
     mock_scraper_class.return_value.amazon_config = {}
 
@@ -126,6 +131,7 @@ def _setup_scraper_mock(mock_scraper_class, products_per_input):
 def _setup_scraper_mock_with_error(mock_scraper_class, products_per_input, error_input):
     """Wire up scraper mock where process_raw_products raises on a specific input."""
     mock_scraper = Mock()
+    mock_scraper.throttle = ThrottleTracker()
     mock_scraper_class.return_value = mock_scraper
     mock_scraper_class.return_value.amazon_config = {}
 
@@ -574,6 +580,7 @@ async def test_pipeline_graceful_continuation_on_failures(
         # Mix of success and failure (two-phase approach)
         # B0BAD2 returns empty products from batch browser
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 
@@ -786,6 +793,7 @@ async def test_pipeline_retries_next_page_on_validation_failure(
         mock_producer.return_value = MagicMock(success=False, error_message="skipped")
 
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 
@@ -847,6 +855,7 @@ async def test_pipeline_skips_retry_for_asin_inputs(
         mock_load_config.return_value = mock_video_config
 
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 
@@ -898,6 +907,7 @@ async def test_pipeline_skips_retry_for_url_inputs(
         mock_load_config.return_value = mock_video_config
 
         mock_scraper = Mock()
+        mock_scraper.throttle = ThrottleTracker()
         mock_scraper_class.return_value = mock_scraper
         mock_scraper_class.return_value.amazon_config = {}
 

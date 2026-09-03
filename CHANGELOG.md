@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.99.0] - 2026-09-03
+
+### Added
+- The scraper tells Amazon's rate limit apart from a query that never works. Both return the same error page, so both were logged with the same line and given the same three retries at most ten seconds apart. The block was measured clearing after several minutes, so every retry landed inside it. A run now reads the difference from what its other inputs did: a rate limit blocks the connection, so nothing else gets through either. A throttled input is waited on, doubling from one minute to ten; an input that keeps failing in a run where something else got through is named a dead query and skipped, since no wait fixes it. Both are reported separately at the end of the run. Closes #203.
+- `global_settings.rate_limiting` gains `inter_input_delay_sec`, `throttle_backoff_base_sec`, `throttle_backoff_max_sec`, `throttle_max_attempts`, `throttle_max_total_wait_sec` and `dead_query_after`. Consecutive inputs are paced on the happy path too, on both scraping paths, because back-to-back searches are what draws the block.
+
+### Fixed
+- Amazon's error page was only detected under `--debug`, and the bundled config ships debug off. On a normal run it produced an empty result and no error, so a throttled search was indistinguishable from a keyword with no matches and no retry was ever attempted. One of the two checks was also in the keyword-search branch alone, so a scrape by ASIN or by URL never reached it in either mode. The check now runs after every navigation, in every arm.
+- Three separate places swallowed the error page after it was detected: the keyword arm's navigation handler, the standalone scraper's browser wrapper, and Botasaurus's own `@browser` decorator, which catches everything the decorated function raises, re-runs the whole task `max_retry` times (three, on this config) and returns `None`. The caller then saw no exception and recorded the throttled input as a success, after paying for three more browser launches into a live block. The error page has its own exception type now, named in `must_raise_exceptions`, which is the only thing that decorator honours.
+- An input that succeeded and then got stuck was reported nowhere. Both summary lists filtered on having ever succeeded, so a keyword that delivered on page one and met the error page from page two onward waited out its whole budget in silence. `throttled_inputs` reads the most recent outcome now; `dead_queries` still requires that the input never succeeded, because one that produced products is not a dead query whatever its later pages did.
+- The dead-query decision agreed with neither list: it asked only whether some other input got through, so a keyword that had itself delivered was skipped after two backoffs while the summary called it rate-limited. At `dead_query_after: 1` it was reported in neither list.
+- An empty result counted as evidence that the connection works. Both the impl's navigation handler and the browser wrapper return one for a swallowed failure, so a keyword whose page died on a CDP timeout became the proof that condemned the next keyword.
+- The standalone pagination now stops once the throttle has given up on a keyword, rather than opening a browser session for each of the remaining pages straight back into the block the backoff exists to let cool. It reads the give-up signal, not the summary list an input joins on its first retry.
+- Telling Botasaurus to let the error page through also made it write an Amazon page and a screenshot into the working directory on every raise. It keeps only the newest ten, so this was never unbounded, but they are artifacts of a page the run has already classified. Disabled, as the downloader already does.
+- The batch carried the two verdict lists through its phase summary without ever printing them, so a resumed run stored the dead queries and showed none of them.
+- A `rate_limiting` block written as a list rather than a mapping killed the scraper at startup with `AttributeError` instead of falling back to the defaults.
+
+### Notes
+- A batch of several products now completes without external sleeps, which is what the workaround had been.
+- Waiting is capped for the run as a whole, not only per input. Five blocked inputs at fifteen minutes each is over an hour of an unattended run asleep, and by the second exhaustion with nothing having succeeded the answer is already known. The cap is compared against what the next retry would cost, so it is a ceiling rather than a tripwire, and a success does not reset it — resetting reads fairer and stops it capping anything, measuring eight hours asleep against a configured one on a run where an input in five still got through.
+- One case is deliberately misread: a rate limit beginning partway through a run, after something has already succeeded, gets every later input named a dead query after two backoffs rather than only the first. The summary is then wrong about why most of the run failed, though not about which inputs were lost. Reading it correctly would need a probe request the scrape does not otherwise make.
+- Both scraping paths share the decision. The standalone scraper and the batch's single-session loop re-implement each other, and only the standalone one had any retry at all.
 ## [0.98.0] - 2026-09-03
 
 ### Changed

@@ -449,6 +449,13 @@ class ScrapingPhaseSummary:
     failed_products: list[str]
     media_stats: dict[str, int]
     duration_sec: float
+    # Amazon answers a rate limit and a permanently dead query with the same
+    # error page, and the run can tell them apart from what its other inputs
+    # did. Reported apart from `failed_products` because they call for
+    # different things: a dead query needs the keyword replacing, a throttled
+    # input would have worked with a longer gap.
+    dead_queries: list[str] = field(default_factory=list)
+    throttled_inputs: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -632,6 +639,19 @@ class PipelineSummary:
             lines.append(
                 f"  Failed Products: {', '.join(self.scraping.failed_products)}"
             )
+
+        # Why an input was lost, when the reason was Amazon's error page. The
+        # scraping phase logs these as it goes, but a resumed run rebuilds the
+        # summary from saved state and never enters that phase, so without
+        # them here the verdicts are carried, merged and never shown.
+        from src.scraper.base.throttle import summary_lines_for
+
+        lines.extend(
+            f"  {line}"
+            for line in summary_lines_for(
+                self.scraping.dead_queries, self.scraping.throttled_inputs
+            )
+        )
 
         lines.extend(
             [

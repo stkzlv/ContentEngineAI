@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .scraper import BotasaurusAmazonScraper
 
+from ..base.throttle import summary_lines_for
 from .config import get_batch_logging_config
 from .models import BatchConfig, BatchSummary, ProductData, ProductResult
 from .utils import validate_asin_format
@@ -113,6 +114,14 @@ class BatchController:
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
+            # Pace consecutive inputs, as the batch pipeline's single-session
+            # loop does. Back-to-back searches are the pattern that draws
+            # Amazon's block, and this arm launches a fresh browser per input,
+            # so without it the standalone CLI is the faster way to get
+            # throttled.
+            if i > 1:
+                time.sleep(self.scraper.throttle.inter_input_delay_sec())
+
             # URLs are passed through directly; ASINs are validated
             is_url = product_id.startswith(("http://", "https://"))
             if not is_url and not validate_asin_format(product_id):
@@ -241,6 +250,14 @@ class BatchController:
         )
 
         for i, keyword in enumerate(self.config.keywords, 1):
+            # Pace consecutive inputs, as the batch pipeline's single-session
+            # loop does. Back-to-back searches are the pattern that draws
+            # Amazon's block, and this arm launches a fresh browser per input,
+            # so without it the standalone CLI is the faster way to get
+            # throttled.
+            if i > 1:
+                time.sleep(self.scraper.throttle.inter_input_delay_sec())
+
             self.logger.info(
                 "[%d/%d] Searching keyword: %s", i, len(self.config.keywords), keyword
             )
@@ -397,6 +414,9 @@ class BatchController:
         successful_products = [r.product_id for r in results if r.success]
         failed_products = [r.product_id for r in results if not r.success]
         failed_keywords = list(self._failed_keywords)
+        # The scraper owns the tracker because both of its entry points feed
+        # it; the controller only reads the verdicts out at the end.
+        throttle = self.scraper.throttle
 
         # Calculate media statistics
         total_images = 0
@@ -434,6 +454,8 @@ class BatchController:
             successful_products=successful_products,
             failed_products=failed_products,
             failed_keywords=failed_keywords,
+            dead_queries=throttle.dead_queries,
+            throttled_inputs=throttle.throttled_inputs,
             media_stats=media_stats,
             duration_sec=round(duration_sec, duration_places),
         )
@@ -459,6 +481,13 @@ class BatchController:
 
         if summary.failed_products:
             self.logger.info("Failed Products: %s", ", ".join(summary.failed_products))
+
+        # Named apart from the failures above because they call for different
+        # things. A dead query keeps returning the error page however long
+        # the run waits, so the keyword has to be replaced; a throttled input
+        # would have worked with a longer gap.
+        for line in summary_lines_for(summary.dead_queries, summary.throttled_inputs):
+            self.logger.warning("%s", line)
 
         self.logger.info("\nMedia Collection Statistics:")
         for key, value in summary.media_stats.items():

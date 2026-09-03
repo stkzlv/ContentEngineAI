@@ -323,9 +323,58 @@ Sources: [Botasaurus](https://github.com/omkarcloud/botasaurus),
 ## Troubleshooting
 
 ### Rate Limiting / CAPTCHA
+
+Amazon answers a rate limit and a query that never works with the same page,
+`Sorry! Something went wrong!`, so the run separates them from what its other
+inputs did. A rate limit blocks the connection, so nothing else gets through
+either; a dead query is specific to itself and its neighbours keep working.
+
+The run acts on that. An input whose neighbours are also failing is treated as
+throttled: it waits, doubling from `throttle_backoff_base_sec` up to
+`throttle_backoff_max_sec`, and retries the same input. An input that has
+failed `dead_query_after` times in a run where something else got through,
+and has never itself returned products, is named as a dead query and skipped,
+because no wait fixes it. A keyword that delivered earlier in the run is never
+called dead, whatever its later pages do. Both are reported
+separately at the end of the run, so a keyword that needs replacing is not
+confused with one that needed a longer gap.
+
+Waiting is capped for the run as a whole by `throttle_max_total_wait_sec`, not
+only per input. Per-input budgets do not compose: five blocked inputs at
+fifteen minutes each is over an hour of an unattended run asleep, and by the
+second one exhausting its budget with nothing having succeeded the answer is
+already known. It is compared against what the next retry would cost, so it is
+a ceiling rather than a tripwire, and a success does not reset it: resetting
+reads fairer and stops it capping anything, since a run broken up by
+occasional successes would get a fresh allowance after each one.
+
+Consecutive inputs are also paced by `inter_input_delay_sec` on the happy
+path. Back-to-back searches are the pattern that draws the block, and the
+pause costs seconds against a scrape measured in tens of them.
+
+Defaults are in `config/scraper.yaml` under `global_settings.rate_limiting`.
+The ceiling is 10 minutes because the block was measured clearing when runs
+were spaced roughly 8 minutes apart; a schedule topping out in seconds retries
+inside the block every time and loses the input.
+
+If it still happens:
 1. Run with `--debug` to see the browser.
-2. Increase `rate_limiting` delays in `config/scraper.yaml`.
+2. Raise `throttle_backoff_max_sec` and `inter_input_delay_sec` in
+   `config/scraper.yaml`.
 3. Try a VPN if your IP is blocked.
+
+Raising the ceiling alone does nothing unless `throttle_max_attempts` is high
+enough to reach it. The waits are 60, 120, 240, 480, then 960 capped to the
+ceiling, so the shipped 6 attempts is the first count that gets there.
+
+One case the classification gets wrong, deliberately: a rate limit that begins
+partway through a run, after something has already succeeded. Every input
+after it is waited on for two backoffs and then named a dead query, not just
+the first. The
+verdict is wrong for all of them, so what the summary shows is most of the run
+listed as dead queries rather than one bad keyword. It is misattributed but
+not mistaken about which inputs were lost or how many. Reading it correctly
+would need a probe request the scrape does not otherwise make.
 
 ### Missing Media
 1. Check connection speed.

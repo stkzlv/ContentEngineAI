@@ -11,11 +11,20 @@ import platform
 import re
 import shutil
 import time
+from collections.abc import Callable
 from typing import Any
 
 from botasaurus.browser import Driver, browser
 
 from ..base.display import resolve_debug_display
+from ..base.throttle import (
+    AMAZON_ERROR_PAGE_MESSAGE,
+    AMAZON_ERROR_PAGE_TITLE,
+    AmazonErrorPageError,
+    ThrottleTracker,
+    Verdict,
+    is_error_page_failure,
+)
 from .botasaurus_output import get_browser_config_for_outputs
 from .config import _BROWSER_CONFIG, CONFIG
 from .media_extractor import (
@@ -41,6 +50,27 @@ if "127.0.0.1" not in _NO_PROXY_VALUE:
 
 # Module-level logger for browser functions
 logger = logging.getLogger(__name__)
+
+
+def raise_if_error_page(driver: Driver) -> None:
+    """Raise when Amazon served its error page instead of content.
+
+    Called on every navigation, in every arm, in every mode. Both checks this
+    replaces sat inside `if DEBUG_MODE:` blocks, and the bundled config ships
+    `debug_mode: false`, so on a normal run the error page produced an empty
+    result and no exception at all -- which the batch loop then recorded as a
+    success, making a throttled input into evidence that the connection works.
+    One of them was also in the keyword-search branch only, so a scrape by
+    ASIN or by URL never reached it even with `--debug`.
+    """
+    try:
+        title = driver.title
+    except Exception as exc:  # noqa: BLE001 - a driver that cannot be read
+        logger.debug("Could not read the page title: %s", exc)
+        return
+
+    if title and AMAZON_ERROR_PAGE_TITLE in title:
+        raise AmazonErrorPageError(AMAZON_ERROR_PAGE_MESSAGE)
 
 
 def scrape_amazon_products_browser_impl(
@@ -77,6 +107,7 @@ def scrape_amazon_products_browser_impl(
         # Direct URL navigation — follow redirects (e.g. shortened URLs → Amazon)
         logger.info("Navigating to URL: %s", keyword)
         driver.google_get(keyword, bypass_cloudflare=True)
+        raise_if_error_page(driver)
         driver.short_random_sleep()
 
         # Extract ASIN from the final (redirected) URL
@@ -126,6 +157,7 @@ def scrape_amazon_products_browser_impl(
 
         # Use google_get for organic navigation
         driver.google_get(product_url, bypass_cloudflare=True)
+        raise_if_error_page(driver)
 
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
@@ -261,6 +293,12 @@ def scrape_amazon_products_browser_impl(
             logger.debug("[DEBUG] Traceback: %s", traceback.format_exc())
             return []
 
+        # Outside the handler above, which swallows everything and returns an
+        # empty list. An error page is not a navigation failure -- the page
+        # loaded fine, it just is not the search results -- and swallowing it
+        # is what made a throttled input look like a keyword with no matches.
+        raise_if_error_page(driver)
+
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
             try:
@@ -295,18 +333,6 @@ def scrape_amazon_products_browser_impl(
                 logger.debug("[DEBUG] Current URL: %s", current_url)
                 logger.debug("[DEBUG] Page title: %s", page_title)
 
-                # Check for Amazon error pages
-                if page_title and "Sorry! Something went wrong!" in driver.title:
-                    logger.warning(
-                        "[DEBUG] Detected Amazon error page - triggering retry"
-                    )
-                    raise RuntimeError(
-                        "Amazon error page detected: Sorry! Something went wrong!"
-                    )
-
-            except RuntimeError:
-                # Re-raise the error page detection
-                raise
             except Exception as e:
                 logger.warning("[DEBUG] Could not get page info: %s", e)
 
@@ -937,6 +963,22 @@ def _build_browser_config(debug_mode=False):
     )
     logger.debug("Browser chrome args: %s", " ".join(chrome_args))
 
+    # Botasaurus catches everything the decorated function raises, re-runs the
+    # whole task `max_retry` times and then returns None. So re-raising inside
+    # the function reaches nothing: the caller saw no exception, recorded the
+    # throttled input as a success, and paid for `max_retry` more Chrome
+    # launches into a live block on the way -- three on this config, one under
+    # `--debug`. Naming the type here is the only way out, and it removes
+    # those unwaited retries too: the caller's backoff is the retry.
+    current_config["must_raise_exceptions"] = [AmazonErrorPageError]
+    # The error-page branch writes `error_logs/<timestamp>/` -- an Amazon page
+    # and a screenshot -- into the process working directory before
+    # re-raising. Botasaurus keeps the newest ten, so this is not unbounded;
+    # what it costs is a directory of artifacts for a page the run has already
+    # classified, written where the operator is working. `downloader.py`
+    # disables it for the same reason.
+    current_config["create_error_logs"] = False
+
     return current_config
 
 
@@ -958,6 +1000,15 @@ def create_dynamic_browser_function(debug_mode=False):
 
             return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
+            if is_error_page_failure(e):
+                # Reaches the caller, which is the only place that can tell a
+                # rate limit from a dead query and decide how long to wait.
+                # Swallowing it here returned an empty page indistinguishable
+                # from a keyword with no matches, so the standalone path had
+                # none of the backoff its own retry loop implements -- and
+                # recorded the throttled input as a success, making it
+                # evidence that the connection works.
+                raise
             if DEBUG_MODE:
                 logger.error("[DEBUG] Browser function error: %s", e)
                 import traceback
@@ -968,36 +1019,107 @@ def create_dynamic_browser_function(debug_mode=False):
     return scrape_amazon_products_browser
 
 
-def create_batch_browser_function(debug_mode=False):
-    """Create a browser function that scrapes multiple inputs in one Chrome session.
+def scrape_batch_items(
+    driver: Driver,
+    items: list[dict[str, Any]],
+    tracker: ThrottleTracker | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[dict[str, Any]]:
+    """Scrape every input in one browser session, pacing and retrying.
 
-    Each input is scraped sequentially within the same browser, avoiding the
-    ~15s Chrome startup overhead per keyword that the single-keyword function has.
+    Split out of the decorated function so it can be driven with a fake driver
+    in a test. The Botasaurus `@browser` wrapper is opaque to the test suite,
+    so anything left inside it is only ever exercised against Amazon.
+
+    The loop used to catch every exception, record the message and move on, so
+    a rate limit -- which clears in minutes -- cost the whole run. It now asks
+    the tracker what the failure was: a throttle is waited out and retried on
+    the same input, and a query the run has evidence against is skipped, both
+    with their own message.
     """
-    current_config = _build_browser_config(debug_mode)
+    tracker = tracker or ThrottleTracker()
+    results: list[dict[str, Any]] = []
 
-    @browser(**current_config)
-    def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
-        items = data.get("items", [])
-        results = []
-        for i, item in enumerate(items):
-            input_label = item.get("keyword", f"item-{i}")
+    for i, item in enumerate(items):
+        input_label = item.get("keyword", f"item-{i}")
+
+        # Pace consecutive inputs even when nothing has failed. Back-to-back
+        # searches are the pattern that draws the block in the first place,
+        # and the pause is seconds against a scrape measured in tens of them.
+        if i:
+            sleep(tracker.inter_input_delay_sec())
+
+        while True:
             try:
                 logger.info(
                     "[batch %d/%d] Scraping: %s", i + 1, len(items), input_label
                 )
                 products = scrape_amazon_products_browser_impl(driver, item)
+                # Only a result that carries products is evidence that the
+                # connection works. The impl returns an empty list for a
+                # swallowed navigation failure too, and counting that made a
+                # dead page into the proof that condemned the next input.
+                if products:
+                    tracker.record_success(input_label)
                 results.append({"input": input_label, "products": products or []})
+                break
             except Exception as e:
-                logger.error(
-                    "[batch %d/%d] Failed for %s: %s",
-                    i + 1,
-                    len(items),
-                    input_label,
-                    e,
+                if not is_error_page_failure(e):
+                    logger.error(
+                        "[batch %d/%d] Failed for %s: %s",
+                        i + 1,
+                        len(items),
+                        input_label,
+                        e,
+                    )
+                    results.append(
+                        {"input": input_label, "products": [], "error": str(e)}
+                    )
+                    break
+
+                verdict = tracker.record_error_page(input_label)
+                if verdict is Verdict.RETRY:
+                    wait = tracker.backoff_sec(input_label)
+                    logger.warning(
+                        "[batch %d/%d] Amazon returned its error page for %s. "
+                        "Nothing else has succeeded since, so treating it as a "
+                        "rate limit and waiting %.0fs before retrying.",
+                        i + 1,
+                        len(items),
+                        input_label,
+                        wait,
+                    )
+                    sleep(wait)
+                    continue
+
+                results.append(
+                    {
+                        "input": input_label,
+                        "products": [],
+                        "error": str(e),
+                        "failure_kind": verdict.value,
+                    }
                 )
-                results.append({"input": input_label, "products": [], "error": str(e)})
-        return results
+                break
+
+    return results
+
+
+def create_batch_browser_function(debug_mode=False, tracker=None):
+    """Create a browser function that scrapes multiple inputs in one Chrome session.
+
+    Each input is scraped sequentially within the same browser, avoiding the
+    ~15s Chrome startup overhead per keyword that the single-keyword function has.
+
+    Pass a `ThrottleTracker` to see which inputs were rate-limited and which
+    are dead queries after the run; without one the pacing and backoff still
+    apply, the verdicts are simply not readable afterwards.
+    """
+    current_config = _build_browser_config(debug_mode)
+
+    @browser(**current_config)
+    def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
+        return scrape_batch_items(driver, data.get("items", []), tracker)
 
     return scrape_batch
 
@@ -1017,6 +1139,7 @@ def scrape_single_product(
     # Use google_get for organic navigation
     original_url = product_info["url"]
     driver.google_get(original_url, bypass_cloudflare=True)
+    raise_if_error_page(driver)
 
     # Mute all videos globally to prevent audio during scraping
     with contextlib.suppress(Exception):
@@ -1050,19 +1173,6 @@ def scrape_single_product(
             page_title = driver.title
             logger.info("[DEBUG] Page title: %s", page_title)
 
-            # Check for Amazon error pages
-            if page_title and "Sorry! Something went wrong!" in page_title:
-                logger.warning(
-                    "[DEBUG] Detected Amazon error page in product page - "
-                    "triggering retry"
-                )
-                raise RuntimeError(
-                    "Amazon error page detected: Sorry! Something went wrong!"
-                )
-
-        except RuntimeError:
-            # Re-raise the error page detection
-            raise
         except Exception as e:
             logger.info("[DEBUG] Page title: Unable to get (%s)", e)
 
