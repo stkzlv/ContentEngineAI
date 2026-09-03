@@ -138,6 +138,23 @@ class LLMSettings(BaseModel):
     max_tokens: int = Field(600)  # Matches ai_services.yaml default
     temperature: float = Field(0.7)  # Sensible default, configurable via YAML
     timeout_seconds: int = Field(60)  # Sensible default, configurable via YAML
+    # Gemini only. `0` disables the model's internal reasoning pass; `None`
+    # leaves the model's own default in place.
+    #
+    # The flash tier spends around a thousand thinking tokens on a task whose
+    # visible output is sixteen, which is where the fortyfold gap between the
+    # lite and flash tiers comes from -- not the headline rate. Every
+    # generation this project asks for is short and structured: a script of
+    # about a hundred and twenty words, a caption, a handful of search
+    # phrases. None of them are reasoning problems.
+    #
+    # Applied to the script path as well, deliberately. It is the longest
+    # output here and still not a reasoning task, and leaving it out would
+    # mean a future switch to a flash model quietly costing forty times more
+    # on the one call that runs on every render. That protection holds on the
+    # 2.5 flash tier only; the 3.x flash models ignore the budget and their
+    # lowest thinking level still bills.
+    thinking_budget: int | None = Field(None)
     # Retry settings (used by tenacity in generators)
     retry_attempts: int = Field(3)
     retry_min_wait_sec: int = Field(1)

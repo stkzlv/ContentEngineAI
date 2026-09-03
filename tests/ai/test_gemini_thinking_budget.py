@@ -1,0 +1,198 @@
+"""Thinking is off for Gemini calls, and the SDK is new enough to say so.
+
+The flash tier spends around a thousand thinking tokens on a task whose
+visible output is sixteen. That, not the headline rate, is where the
+fortyfold gap between the lite and flash tiers comes from, and it made the
+stronger models look unaffordable when they are not.
+
+`google-genai` 1.x could not turn it off: its `ThinkingConfig` exposed only
+`include_thoughts`. The pin was a caret on `^1.0`, so the control was
+unreachable until the major version moved.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from src.video.config.llm_settings import LLMSettings
+
+pytestmark = pytest.mark.unit
+
+
+def _settings(**kwargs) -> LLMSettings:
+    return LLMSettings(
+        provider="gemini",
+        api_key_env_var="GEMINI_API_KEY",
+        models=["gemini-2.5-flash-lite"],
+        prompt_template_path="src/ai/prompts/video_script.md",
+        **kwargs,
+    )
+
+
+class TestTheSdkExposesTheControl:
+    def test_thinking_budget_is_a_field(self) -> None:
+        """The installed SDK, which is what the code actually calls.
+
+        Asserted against the resolved environment rather than the pin: the
+        constraint was never the obstacle, the lock was, and a test on the
+        constraint would pass on a lock that predates the field.
+        """
+        from google.genai import types
+
+        assert "thinking_budget" in types.ThinkingConfig.model_fields
+
+    def test_the_lock_resolves_a_version_that_has_it(self) -> None:
+        """The lock is what held 1.2.0 for as long as it did."""
+        import tomllib
+        from pathlib import Path
+
+        repo = Path(__file__).resolve().parents[2]
+        lock = tomllib.loads((repo / "poetry.lock").read_text())
+        version = next(
+            p["version"] for p in lock["package"] if p["name"] == "google-genai"
+        )
+        major, minor, *_ = (int(part) for part in version.split("."))
+
+        assert (major, minor) >= (
+            1,
+            10,
+        ), f"google-genai {version} predates thinking_budget, added in 1.10.0"
+
+
+class TestTheBudgetReachesTheApi:
+    @staticmethod
+    async def _config_sent(settings: LLMSettings):
+        from src.ai import llm_client
+
+        generate = AsyncMock()
+        generate.return_value.text = "some text"
+
+        with patch.object(llm_client.genai, "Client") as client:
+            client.return_value.aio.models.generate_content = generate
+            await llm_client._call_gemini(
+                "prompt", "gemini-2.5-flash-lite", settings, "key"
+            )
+
+        assert generate.await_args is not None, "the SDK was never called"
+        return generate.await_args.kwargs["config"]
+
+    @pytest.mark.asyncio
+    async def test_zero_is_sent(self) -> None:
+        config = await self._config_sent(_settings(thinking_budget=0))
+
+        assert config.thinking_config is not None
+        assert config.thinking_config.thinking_budget == 0
+
+    @pytest.mark.asyncio
+    async def test_unset_sends_no_block_at_all(self) -> None:
+        """Not the same as sending the block with a null budget.
+
+        The field is what the SDK serialises, so an empty block still asks
+        the model to accept a control it may not support.
+        """
+        config = await self._config_sent(_settings(thinking_budget=None))
+
+        assert config.thinking_config is None
+
+    @pytest.mark.asyncio
+    async def test_a_positive_budget_is_passed_through(self) -> None:
+        """The field is a cap, not a boolean; a caller may want some."""
+        config = await self._config_sent(_settings(thinking_budget=512))
+
+        assert config.thinking_config.thinking_budget == 512
+
+
+class TestTheShippedConfigDisablesIt:
+    def test_the_yaml_sets_zero(self) -> None:
+        from pathlib import Path
+
+        import yaml
+
+        repo = Path(__file__).resolve().parents[2]
+        raw = yaml.safe_load((repo / "config" / "ai_services.yaml").read_text())
+
+        assert raw["llm_settings"]["thinking_budget"] == 0
+
+    def test_it_survives_the_model(self) -> None:
+        """A field the loader drops would leave the YAML as decoration."""
+        from pathlib import Path
+
+        import yaml
+
+        repo = Path(__file__).resolve().parents[2]
+        raw = yaml.safe_load((repo / "config" / "ai_services.yaml").read_text())
+        block = dict(raw["llm_settings"])
+        block.pop("fallback_provider", None)
+
+        assert LLMSettings(**block).thinking_budget == 0
+
+
+class TestTheTaggerCallIsCoveredToo:
+    """The pycaps AI word-tagger is the one flash-tier call the pipeline makes.
+
+    `subtitle_settings.pycaps.llm_model` ships as `gemini-2.5-flash`, not a
+    lite model, and `send_message` passed no config at all -- measured at 556
+    thinking tokens to tag a handful of words, on every render drawing a
+    template with an AI rule. So the setting was a no-op everywhere it was
+    free and absent where it cost something.
+    """
+
+    def test_a_budget_reaches_the_request(self) -> None:
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash", thinking_budget=0)
+        config = llm._request_config()
+
+        assert config is not None
+        assert config.thinking_config.thinking_budget == 0
+
+    def test_no_budget_sends_no_block(self) -> None:
+        """A model without the control must not be handed an empty block."""
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash")
+
+        assert llm._request_config() is None
+
+    def test_the_config_reaches_generate_content(self) -> None:
+        from unittest.mock import MagicMock
+
+        from src.video.pycaps_engine import GeminiLlm
+
+        llm = GeminiLlm(api_key="k", model="gemini-2.5-flash", thinking_budget=0)
+        client = MagicMock()
+        client.models.generate_content.return_value.text = "word"
+        llm._client = client
+
+        llm.send_message("tag something")
+
+        sent = client.models.generate_content.call_args.kwargs["config"]
+        assert sent.thinking_config.thinking_budget == 0
+
+    def test_the_builder_passes_the_configured_budget(self) -> None:
+        """Wired from the same `llm_settings` value, not a second default."""
+        import ast
+        from pathlib import Path
+
+        repo = Path(__file__).resolve().parents[2]
+        source = (repo / "src" / "video" / "producer" / "steps.py").read_text()
+        tree = ast.parse(source)
+
+        builder = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_build_gemini_adapter_for_pycaps"
+        )
+        call = next(
+            node
+            for node in ast.walk(builder)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "GeminiLlm"
+        )
+        budget = next(kw.value for kw in call.keywords if kw.arg == "thinking_budget")
+
+        assert ast.unparse(budget) == "ctx.config.llm_settings.thinking_budget"

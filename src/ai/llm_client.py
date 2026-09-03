@@ -89,6 +89,15 @@ async def _call_gemini(
     config = genai.types.GenerateContentConfig(
         max_output_tokens=settings.max_tokens,
         temperature=settings.temperature,
+        # Omitted entirely when unset, so the model's own default stands.
+        # Sending `ThinkingConfig(thinking_budget=None)` is not the same
+        # thing: the field is what the SDK serialises, and a model that does
+        # not support the control rejects the block rather than ignoring it.
+        thinking_config=(
+            genai.types.ThinkingConfig(thinking_budget=settings.thinking_budget)
+            if settings.thinking_budget is not None
+            else None
+        ),
     )
 
     try:

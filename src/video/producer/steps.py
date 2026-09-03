@@ -1530,6 +1530,10 @@ def _build_gemini_adapter_for_pycaps(ctx: PipelineContext, pycaps_settings: Any)
         api_key=api_key,
         model=pycaps_settings.llm_model,
         on_error=pycaps_settings.ai_tagging_on_error,
+        # The same budget the script and caption calls use. This is the only
+        # flash-tier call the pipeline makes, so it is the one that pays for
+        # the default: several hundred thinking tokens to tag a few words.
+        thinking_budget=ctx.config.llm_settings.thinking_budget,
     )
 
 

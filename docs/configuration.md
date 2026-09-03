@@ -815,6 +815,12 @@ llm_settings:
   temperature: 0.7
   max_tokens: 600
   timeout_seconds: 60
+  # Gemini only. 0 disables the model's internal reasoning pass; remove the
+  # key to leave the model's own default. Nothing this pipeline asks for is a
+  # reasoning problem, and the flash tier bills hundreds of thinking tokens
+  # for a handful of visible ones. The knob works on the 2.5 flash tier; 3.x
+  # flash models ignore it.
+  thinking_budget: 0
 
   # Retry configuration
   retry_attempts: 5
