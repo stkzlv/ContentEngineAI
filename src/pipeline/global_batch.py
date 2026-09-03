@@ -23,8 +23,9 @@ Usage:
 import logging
 import re
 import time
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.pipeline.config import (
     GlobalBatchConfig,
@@ -43,7 +44,53 @@ from src.scraper.amazon.models import ProductData
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
 from src.video.config_adapter import load_video_config_modular
 
+if TYPE_CHECKING:
+    from src.publisher.models import PublisherConfig
+
 logger = logging.getLogger(__name__)
+
+
+# Stands in for the provider credential when only the settings are being
+# read. Never sent anywhere: the publishing phase takes its key from the
+# environment and refuses to run without one.
+_NO_CREDENTIAL = "settings-read-no-credential"
+
+
+@lru_cache(maxsize=1)
+def _publisher_settings() -> "PublisherConfig":
+    """The publisher config, typed, loaded once, resolved absolutely.
+
+    Four places in this module used to open `config/publisher.yaml` with a
+    relative path and read raw keys out of it. Two consequences, both silent:
+    a run from anywhere but the repository root got the hardcoded fallbacks,
+    and each site carried its own default, so `immediate_publish` fell back to
+    True here against a shipped false. Reading one typed object also removes
+    the hand-parsing that let `tiktok_settings` go missing from the batch for
+    several releases while `single` had it.
+
+    A config that fails to load is not caught here, deliberately. Swallowing
+    it and returning the dataclass defaults reads like caution and is the
+    opposite: one typo'd platform name would discard the whole file, and the
+    run would then publish on the spot -- to whichever platforms the defaults
+    name, with the first comment, the disclosures, the stagger and the
+    retention policy all silently reverted at the same time. A missing file
+    needs no fallback either: the loader returns an empty mapping for that
+    without raising.
+
+    The one exception is an absent credential, which says nothing about
+    whether the rest of the file is usable. The batch reads settings here and
+    takes its key from `LATE_API_KEY` at publish time, having checked it
+    before the run started. So it retries with a placeholder rather than
+    falling back to defaults, and keeps every configured setting; a typo'd
+    platform still raises out of the second call.
+    """
+    from src.publisher.config import MissingApiKeyError, load_publisher_config
+
+    try:
+        return load_publisher_config()
+    except MissingApiKeyError as exc:
+        logger.debug("No publisher credential while reading settings: %s", exc)
+        return load_publisher_config(cli_overrides={"api_key": _NO_CREDENTIAL})
 
 
 def create_argument_parser():
@@ -704,8 +751,6 @@ class GlobalPipelineOrchestrator:
         """
         import os
 
-        import yaml
-
         separator = "=" * 80
         section = "-" * 40
 
@@ -882,16 +927,10 @@ class GlobalPipelineOrchestrator:
         if self.config.skip_publish:
             print("  Status: SKIPPED (--skip-publish)")
         else:
-            # Load publisher config to show platforms
-            config_path = Path("config/publisher.yaml")
-            publisher_config: dict[str, Any] = {}
-            if config_path.exists():
-                with open(config_path, encoding="utf-8") as f:
-                    publisher_config = yaml.safe_load(f) or {}
-
-            platforms = self.config.platforms or publisher_config.get(
-                "default_platforms", ["youtube", "tiktok", "instagram"]
-            )
+            published = _publisher_settings()
+            platforms = self.config.platforms or [
+                p.value for p in published.default_platforms
+            ]
             print(f"  Platforms: {', '.join(platforms)}")
 
             # Check API key
@@ -905,10 +944,8 @@ class GlobalPipelineOrchestrator:
             if self.config.schedule_time:
                 print(f"  Scheduling: Explicit time ({self.config.schedule_time})")
             else:
-                immediate = publisher_config.get("immediate_publish", True)
-                recurring = publisher_config.get("recurring_schedule", {}).get(
-                    "enabled", False
-                )
+                immediate = published.immediate_publish
+                recurring = published.schedule_config.enabled
                 if not immediate and recurring:
                     print("  Scheduling: Auto-schedule (find next available slot)")
                 else:
@@ -1095,27 +1132,35 @@ class GlobalPipelineOrchestrator:
                 # recoverable. `schedule` and the immediate batch accept any
                 # one render per product by the same rule, so a resume now
                 # answers the question the same way they do.
-                platforms_for_resume = [
-                    platform.lower()
-                    for platform in (self.config.platforms or self._default_platforms())
-                ]
                 dropped = getattr(self, "_skipped_as_published", [])
                 dropped_ids = set(dropped)
                 produced_videos = []
-                for pid in self.state.production_completed_products:
-                    if pid in dropped_ids:
-                        continue
-                    render = sole_render_for_product(
-                        self.config.outputs_dir / pid,
-                        self._publisher_profiles(),
-                        platforms_for_resume[0] if platforms_for_resume else "",
-                    )
-                    if render is None:
-                        logger.warning(
-                            "Resume: no render found for %s, skipping publish", pid
+                # The publishing phase below is gated on the same flag, so
+                # this list is discarded on a `--skip-publish` run. Building
+                # it anyway reads the publisher config, which now raises on a
+                # file it cannot parse -- aborting a resume that had no
+                # intention of publishing, over a file it would not use.
+                if not self.config.skip_publish:
+                    platforms_for_resume = [
+                        platform.lower()
+                        for platform in (
+                            self.config.platforms or self._default_platforms()
                         )
-                        continue
-                    produced_videos.append((render, pid))
+                    ]
+                    for pid in self.state.production_completed_products:
+                        if pid in dropped_ids:
+                            continue
+                        render = sole_render_for_product(
+                            self.config.outputs_dir / pid,
+                            self._publisher_profiles(),
+                            platforms_for_resume[0] if platforms_for_resume else "",
+                        )
+                        if render is None:
+                            logger.warning(
+                                "Resume: no render found for %s, skipping publish", pid
+                            )
+                            continue
+                        produced_videos.append((render, pid))
                 if dropped:
                     # The cached summary predates the drop, so it reports
                     # zero and contradicts the log line above it.
@@ -1692,40 +1737,19 @@ class GlobalPipelineOrchestrator:
         Only used to resolve which cut of a product a resumed publish sends,
         so it has to answer the same question `BatchPublisher` asks.
         """
-        import yaml
-
-        config_path = Path("config/publisher.yaml")
-        if not config_path.exists():
-            return None
-        try:
-            with open(config_path, encoding="utf-8") as handle:
-                publisher_config = yaml.safe_load(handle) or {}
-        except (OSError, yaml.YAMLError):
-            return None
-        profiles = publisher_config.get("profiles")
+        profiles = _publisher_settings().profiles
         return profiles if isinstance(profiles, dict) else None
 
     def _default_platforms(self) -> list[str]:
         """The platforms a publish would target, absent a CLI override.
 
-        Reads `publisher.yaml` first and falls back to the literal, which is
-        what `print_plan` and `_execute_publishing_phase` already do. The
-        duplicate guard has to ask the same question they do, or it decides
-        completeness against platforms this install never publishes to.
+        Reads the loaded config, as the plan printout and the publishing
+        phase do. The duplicate guard has to ask the same question they do, or
+        it decides completeness against platforms this install never publishes
+        to. The literal fallback lives in `PublisherConfig.__post_init__` now,
+        so there is only one of it.
         """
-        import yaml
-
-        config_path = Path("config/publisher.yaml")
-        if config_path.exists():
-            try:
-                with open(config_path, encoding="utf-8") as handle:
-                    publisher_config = yaml.safe_load(handle) or {}
-            except (OSError, yaml.YAMLError):
-                publisher_config = {}
-            configured = publisher_config.get("default_platforms")
-            if configured:
-                return list(configured)
-        return ["youtube", "tiktok", "instagram"]
+        return [p.value for p in _publisher_settings().default_platforms]
 
     async def _execute_production_phase(
         self, products: list[tuple[Path, ProductData]]
@@ -2008,27 +2032,20 @@ class GlobalPipelineOrchestrator:
         import random
         from datetime import datetime
 
-        import yaml
-
         from src.publisher import PublisherProvider, create_publisher
         from src.publisher.models import AffiliateDisclosureConfig, Platform
 
         phase_start = time.time()
 
-        # Load publisher configuration
-        config_path = Path("config/publisher.yaml")
-        publisher_config: dict[str, Any] = {}
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                publisher_config = yaml.safe_load(f) or {}
-            logger.debug("Loaded publisher config from %s", config_path)
-        else:
-            logger.warning("Publisher config not found: %s", config_path)
+        # One typed load. Every section below used to be re-parsed from a
+        # raw dict here, which is how `tiktok_settings` went missing from this
+        # path for several releases while `single` had it.
+        published = _publisher_settings()
 
         # Apply CLI overrides to configuration
-        platforms_to_publish = self.config.platforms or publisher_config.get(
-            "default_platforms", ["youtube", "tiktok", "instagram"]
-        )
+        platforms_to_publish = self.config.platforms or [
+            p.value for p in published.default_platforms
+        ]
         platforms = [Platform(p.lower()) for p in platforms_to_publish]
 
         # Determine scheduling strategy with 3-tier precedence:
@@ -2044,9 +2061,7 @@ class GlobalPipelineOrchestrator:
         auto_schedule_ctx: dict | None = None
 
         # Priority 1: Explicit schedule time from CLI or YAML
-        schedule_time_str = self.config.schedule_time or publisher_config.get(
-            "schedule_time"
-        )
+        schedule_time_str = self.config.schedule_time or published.schedule_time
         if schedule_time_str:
             schedule_time = datetime.fromisoformat(
                 schedule_time_str.replace("Z", "+00:00")
@@ -2054,9 +2069,9 @@ class GlobalPipelineOrchestrator:
             logger.info("Using explicit schedule time: %s", schedule_time)
         else:
             # Priority 2: Auto-schedule if configured
-            immediate_publish = publisher_config.get("immediate_publish", True)
-            recurring_config = publisher_config.get("recurring_schedule", {})
-            recurring_enabled = recurring_config.get("enabled", False)
+            immediate_publish = published.immediate_publish
+            recurring_config = published.schedule_config
+            recurring_enabled = recurring_config.enabled
 
             logger.debug(
                 "Scheduling config: immediate_publish=%s, recurring_enabled=%s",
@@ -2066,14 +2081,12 @@ class GlobalPipelineOrchestrator:
 
             if not immediate_publish and recurring_enabled:
                 # Use recurring schedule to find next available slot
-                from src.publisher.models import RecurringSlot
                 from src.publisher.schedule import ScheduleManager
 
                 logger.info("Auto-scheduling: preparing slot context...")
 
                 # Parse recurring slots from config
-                slots_config = recurring_config.get("slots", [])
-                timezone_str = recurring_config.get("timezone", "UTC")
+                slots_config = recurring_config.slots
 
                 if not slots_config:
                     logger.warning(
@@ -2082,15 +2095,8 @@ class GlobalPipelineOrchestrator:
                     )
                 else:
                     try:
-                        # Convert config slots to RecurringSlot objects
-                        slots = [
-                            RecurringSlot(
-                                day_of_week=s["day_of_week"],
-                                time=s["time"],
-                                timezone=timezone_str,
-                            )
-                            for s in slots_config
-                        ]
+                        # Already RecurringSlot objects off the typed config.
+                        slots = list(slots_config)
 
                         # Initialize schedule manager
                         schedule_manager = ScheduleManager(
@@ -2169,8 +2175,8 @@ class GlobalPipelineOrchestrator:
             else:
                 logger.info("recurring_schedule.enabled=false: Publishing immediately")
 
-        stagger_min = publisher_config.get("stagger_delay_min", 30)
-        stagger_max = publisher_config.get("stagger_delay_max", 60)
+        stagger_min = published.stagger_delay_min
+        stagger_max = published.stagger_delay_max
 
         # Track statistics
         total_attempted = len(produced_videos)
@@ -2197,33 +2203,16 @@ class GlobalPipelineOrchestrator:
                 "set" if vercel_token else "NOT SET",
             )
 
-            # Parse first_comment config from YAML
-            from src.publisher.models import FirstCommentConfig
-
-            fc_section = publisher_config.get("first_comment", {})
-            try:
-                first_comment_config = (
-                    FirstCommentConfig(**fc_section) if fc_section else None
-                )
-            except (ValueError, TypeError):
-                first_comment_config = None
-
-            from src.publisher.config import parse_tiktok_settings
-
             publisher = create_publisher(
                 provider=PublisherProvider.LATE,
                 api_key=api_key,
                 vercel_token=vercel_token,
-                first_comment_config=first_comment_config,
+                first_comment_config=published.first_comment_config,
                 # The batch builds its own publisher rather than reusing the
                 # CLI's, so every setting has to be passed here too or the
                 # same config produces different payloads on the two paths.
-                synthetic_media_disclosure=bool(
-                    publisher_config.get("synthetic_media_disclosure", False)
-                ),
-                tiktok_settings=parse_tiktok_settings(
-                    publisher_config.get("tiktok_settings")
-                ),
+                synthetic_media_disclosure=published.synthetic_media_disclosure,
+                tiktok_settings=published.tiktok_settings,
             )
 
             # Authenticate
@@ -2351,15 +2340,10 @@ class GlobalPipelineOrchestrator:
 
                 platform_specific = (
                     self.config.platform_specific_content
-                    or publisher_config.get("use_platform_specific_content", False)
+                    or published.use_platform_specific_content
                 )
 
-                disc_raw = publisher_config.get("affiliate_disclosure", {}) or {}
-                affiliate_cfg = (
-                    AffiliateDisclosureConfig(**disc_raw)
-                    if disc_raw
-                    else AffiliateDisclosureConfig()
-                )
+                affiliate_cfg = published.affiliate_disclosure_config
                 disclosure_phrase = (
                     affiliate_cfg.phrase if affiliate_cfg.enabled else None
                 )
@@ -2450,30 +2434,18 @@ class GlobalPipelineOrchestrator:
                     from src.publisher.link_in_bio.manager import (
                         update_link_in_bio_safe,
                     )
-                    from src.publisher.models import LinkInBioConfig
 
-                    link_in_bio_cfg = publisher_config.get("link_in_bio", {})
                     await update_link_in_bio_safe(
                         product_id,
                         self.config.outputs_dir,
-                        LinkInBioConfig(
-                            enabled=link_in_bio_cfg.get("enabled", True),
-                            provider=link_in_bio_cfg.get("provider", "lnkbio"),
-                            max_links=link_in_bio_cfg.get("max_links", 0),
-                            max_title_length=link_in_bio_cfg.get(
-                                "max_title_length", 80
-                            ),
-                        ),
+                        published.link_in_bio_config,
                     )
 
                     # Cleanup product directory if configured
-                    cleanup_config = publisher_config.get("cleanup", {})
-                    cleanup_enabled = cleanup_config.get("enabled", False)
+                    cleanup_config = published.cleanup_config
 
-                    if cleanup_enabled:
-                        require_all_platforms = cleanup_config.get(
-                            "require_all_platforms", True
-                        )
+                    if cleanup_config.enabled:
+                        require_all_platforms = cleanup_config.require_all_platforms
 
                         # Only cleanup if published to ALL platforms
                         if require_all_platforms:
@@ -2541,34 +2513,17 @@ class GlobalPipelineOrchestrator:
         if successful > 0:
             from src.publisher.blob_retention import run_blob_retention
             from src.publisher.late.client import LatePublisher
-            from src.publisher.models import BlobRetentionConfig
 
-            br_section = publisher_config.get("blob_retention", {})
-            try:
-                retention_policy = (
-                    BlobRetentionConfig(**br_section) if br_section else None
-                )
-            except (ValueError, TypeError):
-                retention_policy = None
             if isinstance(publisher, LatePublisher):
-                await run_blob_retention(publisher, retention_policy)
+                await run_blob_retention(publisher, published.blob_retention_config)
 
         # Sweep a trailing window for silently-failed legs (non-blocking).
         # Not gated on `successful`: the value is in previous runs' posts.
         # No dry-run guard: main() exits on dry_run before any phase runs.
         from src.publisher.late.client import LatePublisher
-        from src.publisher.models import DeliverySweepConfig
         from src.publisher.partial_post_sweep import run_delivery_sweep
 
-        ds_section = publisher_config.get("delivery_sweep", {})
-        try:
-            sweep_config = (
-                DeliverySweepConfig(**ds_section)
-                if ds_section
-                else DeliverySweepConfig()
-            )
-        except (ValueError, TypeError):
-            sweep_config = DeliverySweepConfig()
+        sweep_config = published.delivery_sweep_config
         if isinstance(publisher, LatePublisher):
             await run_delivery_sweep(publisher, sweep_config)
 
@@ -2712,6 +2667,15 @@ async def main():
         logger.info("Validating configuration...")
         validate_global_batch_config(config, video_config)
 
+        # Read the publisher config here rather than at first use, so an
+        # unreadable one stops the run before anything is paid for. Resolution
+        # is lazy and the first reader depends on the flags: without
+        # `--platforms` it is the handoff filter, after the scrape; with it,
+        # or with `--force`, nothing touches the file until the publishing
+        # phase and every render is already spent.
+        if not config.skip_publish:
+            _publisher_settings()
+
         # Same pre-flight the producer runs: a profile this batch may select
         # drawing every visual from the stock provider, with no key set, is a
         # whole run failing per product on a message that names neither.
@@ -2795,25 +2759,19 @@ async def main():
 
         pipeline_started_at = datetime.now(UTC).isoformat()
 
-        # Load webhook configuration
-        import yaml
-
+        # Webhook configuration, from the already-loaded config rather than a
+        # second relative-path read of the same file.
         from src.pipeline.webhooks import load_webhook_config
 
         webhook_notifier = None
         try:
-            with open("config/pipeline.yaml") as f:
-                yaml_config = yaml.safe_load(f) or {}
-            global_batch_yaml = yaml_config.get("global_batch", {})
-            webhook_config = load_webhook_config(global_batch_yaml)
+            webhook_config = load_webhook_config(config.webhook_yaml)
             if webhook_config.is_configured():
                 webhook_notifier = WebhookNotifier(webhook_config)
                 if webhook_notifier.is_ready():
                     logger.info("Webhook notifications enabled: %s", webhook_config.url)
                 else:
                     logger.warning("Webhook URL configured but invalid")
-        except FileNotFoundError:
-            logger.debug("No pipeline.yaml found - webhooks disabled")
         except Exception as e:
             logger.warning("Failed to load webhook config: %s", e)
 

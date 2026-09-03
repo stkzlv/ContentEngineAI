@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.98.0] - 2026-09-03
+## [0.99.0] - 2026-09-03
 
 ### Added
 - The scraper tells Amazon's rate limit apart from a query that never works. Both return the same error page, so both were logged with the same line and given the same three retries at most ten seconds apart. The block was measured clearing after several minutes, so every retry landed inside it. A run now reads the difference from what its other inputs did: a rate limit blocks the connection, so nothing else gets through either. A throttled input is waited on, doubling from one minute to ten; an input that keeps failing in a run where something else got through is named a dead query and skipped, since no wait fixes it. Both are reported separately at the end of the run. Closes #203.
@@ -29,6 +29,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Waiting is capped for the run as a whole, not only per input. Five blocked inputs at fifteen minutes each is over an hour of an unattended run asleep, and by the second exhaustion with nothing having succeeded the answer is already known. The cap is compared against what the next retry would cost, so it is a ceiling rather than a tripwire, and a success does not reset it — resetting reads fairer and stops it capping anything, measuring eight hours asleep against a configured one on a run where an input in five still got through.
 - One case is deliberately misread: a rate limit beginning partway through a run, after something has already succeeded, gets every later input named a dead query after two backoffs rather than only the first. The summary is then wrong about why most of the run failed, though not about which inputs were lost. Reading it correctly would need a probe request the scrape does not otherwise make.
 - Both scraping paths share the decision. The standalone scraper and the batch's single-session loop re-implement each other, and only the standalone one had any retry at all.
+## [0.98.0] - 2026-09-03
+
+### Changed
+- **Breaking, config: the batch's post-publish cleanup follows `config/publisher.yaml` rather than its own default.** It read the `cleanup` section inline and treated an absent section as off; the shared loader treats it as on, which is what `single` and `schedule` have always done. An install that stops the batch deleting product directories by removing the section will now find them deleted. Set `cleanup.enabled: false` to keep them. The shipped config sets `enabled: true` explicitly and is unaffected.
+- A `config/publisher.yaml` or `config/pipeline.yaml` in the working directory is no longer read at all; the batch takes the ones shipped with the package, which is what the publisher CLI has always done. An install that kept per-directory copies has to move them, and the `pipeline.yaml` half is the quieter one: it carries the keyword pool, the topic list and the per-run limits, so a run would silently scrape keywords nobody configured.
+- A `publisher.yaml` the loader cannot read now stops the batch, and stops it before anything is paid for. A file that will not parse used to become an empty mapping, and the defaults layered on top publish immediately, to the default platforms, with cleanup on. A value the loader refuses took a different route: it reached the publishing phase and ended the run there, after the scrape and every render. An absent provider credential is the exception to both: the batch reads settings from this file and takes its key from the environment, so it keeps the configured settings and defers the credential check to where it already happens.
+
+### Fixed
+- The global batch read `config/publisher.yaml` itself, from a path relative to the working directory, at four call sites. A run whose working directory held the other config files but no `publisher.yaml` fell back to hardcoded values, one of which was wrong: `immediate_publish` defaulted to true against a shipped `false`, so the run published on the spot instead of scheduling. It now reads one typed config resolved from the package, as the publisher CLI already did. Closes #126.
+- `default_platforms` and the keys of `privacy_settings` arrived from YAML as plain strings while both are declared as platform enums. Nothing converted them, so `PublisherConfig.to_dict()` raised on any config loaded from the shipped file, and the type checker could not see it because it believes the annotation. Both are converted where the object is built, and an unknown platform name is refused rather than carried through.
+- A `recurring_schedule` slot missing `day_of_week` or `time` killed the run with a bare `KeyError` or `AttributeError`. The loader's handler catches `ValueError` and `TypeError`, so neither reached it. Once it did reach it, the handler discarded every slot rather than the bad one, and an empty slot list with `enabled: true` is read downstream as publish-immediately — so one typo took a scheduled batch live. Slots are validated one at a time now.
+- Refusing one value in the `cleanup` section reverted the whole section to defaults, and the default is cleanup on. An install that had set `enabled: false` had its product directories deleted, unarchived, because `archive_before_delete` went with it. The two keys that decide whether files are destroyed now survive a rejected sibling.
+- A `schedule_time` written as an unquoted YAML timestamp arrived as a `datetime` while the field is declared as a string, and the consumer calls a string method on it. It is normalised where the object is built.
+
+### Notes
+- Minor rather than patch: the cleanup entry above asks an operator to edit their config, which `docs/versioning.md` does not describe as a bug fix.
+- The stricter loading reaches every publisher CLI subcommand too, not only the batch: `analytics`, `registry` and `verify-comments` now exit 1 on a `publisher.yaml` they cannot parse, where they used to run on defaults.
+- Each publisher section used to be parsed again at the batch's own call site, which is how `tiktok_settings` went missing there for several releases while the single-product path had it. Removing the parsing removes the way that happens.
+- `config/pipeline.yaml` was likewise reopened to read the webhook block after the config had already been loaded; the loaded config carries it now.
 
 ## [0.97.0] - 2026-09-03
 

@@ -16,10 +16,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+import yaml
 
 from src.pipeline.config import GlobalBatchConfig, PublishingPhaseSummary
 from src.pipeline.global_batch import GlobalPipelineOrchestrator
-from src.publisher.models import FirstCommentConfig
+from src.publisher.config import load_publisher_config
+from src.publisher.models import FirstCommentConfig, PublisherConfig
 from src.scraper.amazon.models import SearchParameters
 
 # Test markers
@@ -68,6 +70,28 @@ def mock_publisher_config():
             "require_all_platforms": True,
         },
     }
+
+
+def as_publisher_config(raw: dict) -> PublisherConfig:
+    """Turn a `publisher.yaml` mapping into the object the batch reads.
+
+    The batch used to open the file itself, so these tests fed it a dict by
+    patching `builtins.open` and `yaml.safe_load`. It now loads one typed
+    config from an absolute path, which neither patch can reach, so the seam
+    to drive is the loader's output. Going through `load_publisher_config`
+    rather than building the dataclass directly keeps the fixtures honest: a
+    key the loader does not recognise is dropped here exactly as it would be
+    in production.
+    """
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as handle:
+        yaml.safe_dump(raw, handle)
+        path = Path(handle.name)
+    try:
+        return load_publisher_config(
+            config_path=path, cli_overrides={"api_key": "sk_live_" + "0" * 48}
+        )
+    finally:
+        path.unlink(missing_ok=True)
 
 
 @pytest.fixture
@@ -128,15 +152,9 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
 
     with (
         patch(
-            "builtins.open",
-            side_effect=[
-                tempfile._TemporaryFileWrapper(
-                    tempfile.NamedTemporaryFile(mode="w", delete=False),
-                    name="publisher.yaml",
-                )
-            ],
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
         ),
-        patch("yaml.safe_load", return_value=mock_publisher_config),
         patch.dict(
             "os.environ",
             {
@@ -227,7 +245,10 @@ async def test_auto_scheduling_falls_back_to_immediate_when_all_slots_occupied(
     ]
 
     with (
-        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
         patch.dict(
             "os.environ",
             {
@@ -301,7 +322,10 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
 
     # No occupied slots - both products should get consecutive slots
     with (
-        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
         patch.dict(
             "os.environ",
             {
@@ -389,7 +413,10 @@ async def test_cleanup_removes_directory_after_successful_publish(
     orchestrator = GlobalPipelineOrchestrator(config)
 
     with (
-        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch(
@@ -452,7 +479,10 @@ async def test_cleanup_preserves_directory_on_partial_failure(
     orchestrator = GlobalPipelineOrchestrator(config)
 
     with (
-        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
         patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
         patch("src.publisher.create_publisher") as mock_create_publisher,
         patch(
@@ -521,7 +551,10 @@ async def test_vercel_token_loaded_from_environment(
     orchestrator = GlobalPipelineOrchestrator(config)
 
     with (
-        patch("yaml.safe_load", return_value=mock_publisher_config),
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
         patch.dict(
             "os.environ",
             {
@@ -586,15 +619,9 @@ async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
 
     with (
         patch(
-            "builtins.open",
-            side_effect=[
-                tempfile._TemporaryFileWrapper(
-                    tempfile.NamedTemporaryFile(mode="w", delete=False),
-                    name="publisher.yaml",
-                )
-            ],
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(publisher_config),
         ),
-        patch("yaml.safe_load", return_value=publisher_config),
         patch.dict(
             "os.environ",
             {"LATE_API_KEY": "test_key", "LATE_VERCEL_TOKEN": "test_vercel_token"},
@@ -682,15 +709,9 @@ async def test_batch_publisher_gets_the_configured_tiktok_settings(
 
     with (
         patch(
-            "builtins.open",
-            side_effect=[
-                tempfile._TemporaryFileWrapper(
-                    tempfile.NamedTemporaryFile(mode="w", delete=False),
-                    name="publisher.yaml",
-                )
-            ],
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(publisher_config),
         ),
-        patch("yaml.safe_load", return_value=publisher_config),
         patch.dict(
             "os.environ",
             {"LATE_API_KEY": "test_key", "LATE_VERCEL_TOKEN": "test_vercel_token"},

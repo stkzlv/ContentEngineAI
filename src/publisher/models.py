@@ -534,6 +534,25 @@ class AccountConfig:
         }
 
 
+def _as_platform(value: "Platform | str") -> "Platform":
+    """Return `value` as a Platform, naming the field when it is not one.
+
+    An unknown name is refused rather than dropped. The environment-variable
+    path warns and drops the *whole* override, falling back to the YAML list,
+    so an operator narrowing the platforms from the environment gets every
+    platform the file names instead -- including the ones they were removing.
+    """
+    if isinstance(value, Platform):
+        return value
+    try:
+        return Platform(str(value).lower())
+    except ValueError as exc:
+        known = ", ".join(p.value for p in Platform)
+        raise ValueError(
+            f"unknown platform {value!r}; expected one of: {known}"
+        ) from exc
+
+
 @dataclass
 class PublisherConfig:
     """Configuration for publisher behavior and credentials.
@@ -571,6 +590,12 @@ class PublisherConfig:
     active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
     immediate_publish: bool = False
+    # A YAML timestamp written unquoted arrives as a `datetime`, not a
+    # string, and the consumer calls `.replace("Z", ...)` on it. Normalised in
+    # `__post_init__` rather than widened here: the annotation is what mypy
+    # trusts, and `default_platforms` has already shown what a type that lies
+    # costs.
+    schedule_time: str | None = None
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
     timeout: float = 120.0
@@ -639,6 +664,29 @@ class PublisherConfig:
         # Set default platforms if empty
         if not self.default_platforms:
             self.default_platforms = list(DEFAULT_PLATFORMS)
+
+        # The loader hands YAML through to the dataclass unconverted, so these
+        # two arrive as plain strings while the annotations say Platform. That
+        # is not cosmetic: `to_dict` and every caller reading `.value` off a
+        # platform raised AttributeError on any config loaded from the shipped
+        # file, and mypy could not see it because it believes the annotation.
+        # Coerce here rather than in the loader, so a config built directly in
+        # Python is the same shape as one read from disk.
+        self.default_platforms = [_as_platform(p) for p in self.default_platforms]
+        self.privacy_settings = {
+            _as_platform(p): v for p, v in self.privacy_settings.items()
+        }
+        # Read through `object` so the checker does not prove the branch
+        # unreachable from the annotation. The annotation is the thing being
+        # enforced here, not the thing being trusted: the loader hands YAML
+        # to the dataclass unconverted, and an unquoted timestamp arrives as
+        # a `datetime` while the consumer calls `.replace("Z", ...)` on it.
+        raw_schedule_time: object = self.schedule_time
+        if raw_schedule_time is not None and not isinstance(raw_schedule_time, str):
+            isoformat = getattr(raw_schedule_time, "isoformat", None)
+            self.schedule_time = (
+                isoformat() if callable(isoformat) else str(raw_schedule_time)
+            )
 
     def get_account(self, name: str | None = None) -> AccountConfig | None:
         """Get account configuration by name.
@@ -835,13 +883,20 @@ class RecurringSlot:
             "saturday",
             "sunday",
         }
-        if self.day_of_week.lower() not in valid_days:
+        # `not isinstance(..., str)` rather than `.lower()` straight away: a
+        # slot written `day:` instead of `day_of_week:` leaves this None, and
+        # an AttributeError escapes the loader's handler, which catches only
+        # ValueError and TypeError. The whole run then dies on a bare
+        # traceback instead of dropping one unreadable slot with a warning.
+        if not isinstance(self.day_of_week, str) or (
+            self.day_of_week.lower() not in valid_days
+        ):
             raise ValueError(
                 f"day_of_week must be one of {valid_days}, got '{self.day_of_week}'"
             )
 
         # Validate time format (HH:MM:SS)
-        if not self.time or len(self.time.split(":")) != 3:
+        if not isinstance(self.time, str) or len(self.time.split(":")) != 3:
             raise ValueError(f"time must be in HH:MM:SS format, got '{self.time}'")
 
         try:
@@ -1183,11 +1238,12 @@ class CleanupConfig:
             raise ValueError("keep_published_days must be non-negative")
 
         # Neither settle field raises. The cleanup section is parsed inside a
-        # `except (ValueError, TypeError)` that falls back to a whole default
-        # `CleanupConfig`, so one rejected key discards the operator's
-        # `enabled: false`, `archive_before_delete: true` and
-        # `keep_published_days` along with it -- turning a typo in a wait into
-        # immediate unarchived deletion on an install that had cleanup off.
+        # `except (ValueError, TypeError)` that falls back to a default
+        # `CleanupConfig`. `enabled` and `archive_before_delete` now survive
+        # that fallback, so a typo in a wait no longer deletes anything on an
+        # install that had cleanup off -- but every other key in the section
+        # is still lost, `keep_published_days` included, so an operator's
+        # grace period would become "delete now".
         # A non-positive value in either field means "do not wait", which is
         # the reading `settle_timeout_sec: 0` already has, and
         # `_settle_delays` enforces it.
