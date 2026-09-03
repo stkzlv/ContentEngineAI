@@ -59,12 +59,12 @@ batch:
       - "bluetooth headphones"
     novelty:
       - "smart ring"
-  max_products: 10          # Global cap across all keywords
+  # max_products is read from scrapers.amazon, not from this block
   products_per_keyword: 1   # Limit per individual keyword
 
 scrapers:
   amazon:
-    search_filters:
+    default_search_parameters:
       min_price: 20.0
       max_price: 100.0
       min_rating: 4.0
@@ -200,8 +200,11 @@ poetry run python -m src.video.producer \
 
 **YAML Configuration** (`config/video_production.yaml`):
 ```yaml
+# There is no `profile` key here. The producer requires --batch-profile or
+# --random-profile on the command line; only `profile_pool` is read from YAML.
 batch:
-  profile: slideshow_images1
+  profile_pool:
+    - slideshow_images1
 ```
 
 ### Random Profile Selection
@@ -219,18 +222,18 @@ poetry run python -m src.video.producer \
 poetry run python -m src.video.producer \
   --batch \
   --random-profile \
-  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --profile-pool slideshow_images1 product_video_sequential product_video_mixed \
   --debug
 ```
 
 **YAML Configuration**:
 ```yaml
+# `random_profile` is a CLI flag, not a YAML key.
 batch:
-  random_profile: true
   profile_pool:
     - slideshow_images1
-    - video_sequential
-    - mixed_media
+    - product_video_sequential
+    - product_video_mixed
     # Empty list defaults to all available profiles
 ```
 
@@ -246,22 +249,10 @@ batch:
 Example output after batch completion:
 
 ```
-================================================================================
-BATCH PRODUCTION SUMMARY
-================================================================================
-Products Processed: 15
-  - Successful: 14
-  - Skipped: 1 (insufficient media)
-  - Failed: 0
-
-Profile Distribution:
-  - slideshow_images1: 5 (35.7%)
-  - video_sequential: 4 (28.6%)
-  - mixed_media: 3 (21.4%)
-  - slideshow_images2: 2 (14.3%)
-
-Total Duration: 42.5 seconds
-================================================================================
+--- PRODUCER SUMMARY ---
+Products: 15 attempted, 14 successful, 0 failed, 1 skipped
+Profiles: slideshow_images1: 5, product_video_sequential: 4, product_video_mixed: 3, slideshow_images2: 2
+---
 ```
 
 ---
@@ -392,7 +383,7 @@ picks up the other arm from the config file.
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" "bluetooth speaker" \
   --max-products 5 \
-  --profile video_sequential \
+  --profile product_video_sequential \
   --debug
 ```
 
@@ -404,7 +395,7 @@ poetry run python -m src.pipeline.global_batch \
   --keywords "smart watch" \
   --min-price 20 --max-price 100 \
   --min-rating 4.0 \
-  --profile product_video_hybrid \
+  --profile product_video_primary \
   --debug
 ```
 
@@ -414,7 +405,7 @@ poetry run python -m src.pipeline.global_batch \
 poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" \
   --random-profile \
-  --profile-pool slideshow_images1 video_sequential mixed_media \
+  --profile-pool slideshow_images1 product_video_sequential product_video_mixed \
   --debug
 ```
 
@@ -505,7 +496,7 @@ global_batch:
   random_profile: true        # Random profile mode
   profile_pool:
     - slideshow_images1
-    - video_sequential
+    - product_video_sequential
 
   # Error Handling
   fail_fast: false  # Continue on errors (default)
@@ -614,24 +605,24 @@ VIDEO PRODUCTION PHASE:
 
   Profile Distribution:
     - slideshow_images1: 2 (66.7%)
-    - video_sequential: 1 (33.3%)
+    - product_video_sequential: 1 (33.3%)
   Duration: 87.6s
 
-PUBLISHING PHASE (unified mode: 1 post per product, all platforms):
+PUBLISHING PHASE:
   Total Attempted: 3
   Successful: 3
   Failed: 0
   Skipped: 0
 
   Platform Results:
-    - youtube: 3 successful, 0 failed
-    - tiktok: 3 successful, 0 failed
-    - instagram: 3 successful, 0 failed
+    - Youtube: 3/3 (100.0%)
+    - Tiktok: 3/3 (100.0%)
+    - Instagram: 3/3 (100.0%)
   Duration: 45.2s
 
 END-TO-END RESULTS:
-  Complete Success (scraped + produced + published): 3
-  Partial Success (scraped/produced only): 0
+  Complete Success (scraped + produced): 3
+  Partial Success (scraped only): 0
   Total Failures: 0
 
 Total Pipeline Duration: 158.2s

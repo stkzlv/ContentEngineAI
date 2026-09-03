@@ -91,8 +91,9 @@ Burns motion on any still (2-5 s per image is the cited range); the specific
 industry-sourced number, so tune it by measured retention rather than treating
 it as a spec. 0.2 s is defensible only when burned-in text is on frame 1 (the
 text alone gives the eye a focal point). The
-pipeline's `first_frame_pre_motion: true` + `pre_motion_peak_zoom: 1.10`
-defaults sit at the upper edge of the band; tune `pre_motion_peak_zoom`
+pipeline's `pre_motion_peak_zoom: 1.10` sits at the upper edge of the band.
+`first_frame_pre_motion` defaults to false and is on only for
+`slideshow_short_20s`; tune `pre_motion_peak_zoom`
 between 1.05 and 1.15 to taste.
 
 **Opener fatigue**: identical pattern-interrupt structure for ~3 weeks

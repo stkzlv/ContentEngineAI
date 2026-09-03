@@ -274,9 +274,10 @@ class PycapsSettings(BaseModel):
     template_name: str = Field(
         "explosive",
         description=(
-            "Fixed pycaps preset template name. Used when template_pool is empty "
-            "or has one entry, which is also what `--pycaps-template NAME` "
-            "triggers (the flag clears the pool). Known presets: classic, "
+            "Fixed pycaps preset template name. Used when template_pool is "
+            "empty, which is what `--pycaps-template NAME` produces (the flag "
+            "clears the pool). A one-entry pool returns that entry instead. "
+            "Known presets: classic, "
             "default, explosive, fast, hype, line-focus, minimalist, "
             "neo-minimal, retro-gaming, vibrant, word-focus."
         ),

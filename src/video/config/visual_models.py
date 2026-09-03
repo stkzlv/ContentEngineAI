@@ -18,11 +18,12 @@ from src.video.config.subtitle_models import (
 logger = logging.getLogger(__name__)
 
 
-# Legacy flat field names on VideoProfile (subtitle_*/pycaps_*/two_part_*)
-# mapped to their nested PartialSubtitleSettings field path. Used by the
-# @model_validator on VideoProfile to migrate profile YAML at load time.
-# The values are tuples: (path, value_transform). Path is dotted so
-# "pycaps.template_name" lands inside the nested pycaps dict.
+# Legacy flat subtitle_* field names on VideoProfile, mapped to the nested
+# PartialSubtitleSettings field each one moved to. Used by the
+# @model_validator on VideoProfile to REFUSE that YAML at load time, naming
+# the nested destination in the error rather than migrating it. The values are
+# plain field names; the pycaps_* names live in _LEGACY_PYCAPS_FIELDS below,
+# whose "pycaps." prefix the caller adds.
 _LEGACY_FLAT_TO_NESTED: dict[str, str] = {
     "subtitle_anchor": "anchor",
     "subtitle_margin": "margin",

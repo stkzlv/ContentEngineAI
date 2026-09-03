@@ -118,8 +118,8 @@ LATE_API_KEY=sk_live_your_api_key_here
 LATE_VERCEL_TOKEN=vercel_blob_rw_your_token_here
 
 # Optional: Override default settings
-LATE_TIMEOUT=120.0
-LATE_MAX_RETRIES=3
+PUBLISHER_TIMEOUT=120.0
+PUBLISHER_MAX_RETRIES=3
 ```
 
 **Security Note**: Never commit `.env` to version control. Use `.env.example` as a template.
@@ -167,7 +167,7 @@ Use `--account NAME` CLI flag to switch accounts at runtime:
 poetry run python -m src.publisher.late single B0ABC123 --account staging
 ```
 
-> **Note:** The `backoff_multiplier` key is deprecated and silently ignored. Use `retry_delay` and `retry_max_attempts` instead.
+> **Note:** The `backoff_multiplier` key is deprecated and stripped by the loader. The live keys are `max_retries` and `timeout`; the delay is `2 ** (attempt - 1)` and is not configurable.
 
 See [Configuration](#-configuration) for full options.
 
@@ -679,11 +679,13 @@ export LATE_API_KEY=sk_live_new_key
 ```yaml
 # === Provider Settings ===
 provider: late                      # Publisher provider (only "late" supported)
-api_key: ${LATE_API_KEY}           # API key (use env var for security)
+# api_key: set LATE_API_KEY in the environment instead. There is no
+# variable expansion here, so `${LATE_API_KEY}` would be stored literally
+# and is long enough to pass the key-length check.
 vercel_token: ${LATE_VERCEL_TOKEN} # Vercel token for large files (optional)
 
 # === Publishing Defaults ===
-immediate_publish: true             # Default to immediate vs scheduled
+immediate_publish: false            # Bundled default: schedule rather than publish now
 default_platforms:                  # Platforms to use if none specified
   - youtube
   - tiktok
@@ -698,13 +700,9 @@ stagger_delay_min: 30              # Min delay between batch uploads (seconds)
 stagger_delay_max: 60              # Max delay between batch uploads (seconds)
 
 # === Privacy Settings ===
-privacy_settings:
-  youtube: public                  # public, unlisted, private
-  tiktok: public                   # public, friends, private
-  instagram: everyone              # everyone, followers, close_friends
-  facebook: public                 # public, friends
-  twitter: public                  # public
-  linkedin: public                 # public, connections
+# Loaded onto PublisherConfig, but no publish path reads it today: nothing in
+# the payload builder sets a privacy field. TikTok privacy is set separately,
+# via `tiktok_settings.privacy_level`.
 
 # === Analytics Capture ===
 analytics:
@@ -724,7 +722,7 @@ affiliate_disclosure:
 <details>
 <summary><strong>Environment Variables</strong></summary>
 
-All configuration values can be overridden via environment variables:
+Ten settings have environment overrides. Nothing under `cleanup`, `link_in_bio`, `first_comment`, `blob_retention`, `delivery_sweep`, `affiliate_disclosure`, `analytics`, `tiktok_settings`, `recurring_schedule` or `schedule_validation` does.
 
 ```bash
 # Required
@@ -732,10 +730,9 @@ export LATE_API_KEY=sk_live_your_key
 
 # Optional (for large files >4MB)
 export LATE_VERCEL_TOKEN=vercel_blob_rw_xxx
-export LATE_TIMEOUT=60.0
-export LATE_MAX_RETRIES=5
-export LATE_STAGGER_MIN=10
-export LATE_STAGGER_MAX=30
+export PUBLISHER_TIMEOUT=60.0
+export PUBLISHER_MAX_RETRIES=5
+# The stagger bounds are YAML or CLI only; they have no env override.
 ```
 
 </details>
@@ -1297,13 +1294,13 @@ poetry run python -m src.publisher.late schedule auto \
 **Auto-Scheduling Behavior:**
 1. Loads recurring schedule from configuration
 2. Scans outputs directory for unpublished videos
-3. **Queries the Zernio API** to find occupied slots (8-week lookahead)
+3. **Queries the Zernio API** to find occupied slots (the whole post list; there is no date horizon)
 4. Finds first available unoccupied slot by comparing scheduled times
-5. **Creates separate posts per platform when metadata files exist**
+5. **Creates one unified post**, or one per platform when `use_platform_specific_content` is on (the bundled config ships it off)
    - Reads `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
    - Each platform gets its own post with platform-specific content
    - All platforms for same product scheduled to same time slot
-6. Falls back to immediate publishing if all slots occupied
+6. Raises after the slot-search attempt limit if every slot is occupied; it does not fall back to immediate publishing
 7. Reports scheduled times and slot assignments
 
 ### Schedule Validation
@@ -1312,9 +1309,8 @@ The publisher enforces schedule validation rules:
 
 **Validation Rules:**
 - No duplicate scheduling (same product + platform + time)
-- Minimum spacing between posts on same platform (configurable: 1-24 hours)
+- Minimum spacing between posts (any non-negative value; `0` disables the check)
 - Timezone-aware datetime validation
-- Platform-specific posting hour restrictions (if configured)
 
 **Configuration** (`config/publisher.yaml`):
 
@@ -1324,7 +1320,7 @@ schedule_validation:
   min_post_spacing_hours: 2      # Minimum hours between posts on same platform
   prevent_duplicates: true        # Block duplicate product+platform+time
   allow_past_schedules: false     # Block scheduling in the past
-  max_posts_per_day: 10          # Platform rate limit (per platform)
+  max_posts_per_day: 10          # Counts every entry on the date, across platforms
 ```
 
 </details>
@@ -1358,7 +1354,8 @@ poetry run python -m src.publisher.late.cli schedule auto --platform youtube
 ```yaml
 # === Conflict Resolution ===
 recurring_schedule:
-  conflict_alternatives_count: 5  # Number of alternatives to suggest
+  # Only `enabled`, `timezone` and `slots` are read from this section;
+  # the number of alternatives suggested is fixed at 5.
 ```
 
 **ConflictResolution Response:**
@@ -1390,16 +1387,6 @@ cleanup:
   settle_timeout_sec: 300               # Wait this long for a platform still publishing
   settle_initial_delay_sec: 30          # Delay before the second check; each later one doubles
 
-  # Per-platform cleanup settings
-  platforms:
-    youtube:
-      auto_cleanup: true
-    tiktok:
-      auto_cleanup: true
-    instagram:
-      auto_cleanup: true
-    facebook:
-      auto_cleanup: false               # Keep outputs for Facebook posts
 ```
 
 **Cleanup Behavior:**
@@ -1407,7 +1394,7 @@ cleanup:
 - **Settling**: A platform reporting `publishing` has not finished and has not failed, so the check is repeated on a widening delay until every platform reaches a final status or `settle_timeout_sec` is spent. This matters on `--immediate` runs, where the scheduler takes roughly 30-90s and a single check right after the post is created always reads `publishing`. Waiting stops early once the verdict can no longer change: one failed leg already sinks a `require_all_platforms` run, and one published leg already carries a run that does not require all. A post read as `scheduled` is final on the first read and never waits, and a dry run never waits at all. Set `settle_timeout_sec: 0` (or a non-positive delay) to check once.
 - **Multi-Platform Validation**: Requires successful publication to ALL configured platforms (unless `require_all_platforms: false`)
 - **Audit Logging**: Logs all deleted directories with product IDs, platforms, and post URLs
-- **Selective Cleanup**: Respects per-platform `auto_cleanup` settings
+- **Verification First**: Only removes a directory once every targeted platform reports a final status
 
 **CLI Override:**
 
@@ -1469,7 +1456,7 @@ cleanup:
 
   # Archive before cleanup
   archive_before_delete: false
-  archive_dir: "outputs/archives"
+  archive_dir: "outputs/archive"
 
   # Retention period
   keep_published_days: 0              # 0 = immediate, 7 = keep for 7 days
@@ -1523,7 +1510,7 @@ cleanup:
   verify_before_delete: true      # ALWAYS keep enabled
   require_all_platforms: true     # Only cleanup if ALL platforms succeeded
   archive_before_delete: true     # Backup before deletion
-  archive_dir: "outputs/archives"
+  archive_dir: "outputs/archive"
   keep_published_days: 7          # Keep 7 days before cleanup
 ```
 
@@ -1533,14 +1520,14 @@ cleanup:
 - [ ] Verify `require_all_platforms: true` is set if publishing to multiple platforms
 - [ ] Enable `archive_before_delete` for valuable content
 - [ ] Check Zernio dashboard to confirm posts are live before cleanup
-- [ ] Review `outputs/logs/cleanup_audit.log` after cleanup
+- [ ] Review `outputs/cleanup_audit.json` after cleanup
 - [ ] Keep backups for at least 7 days (`keep_published_days: 7`)
 
 **Recovery Options:**
 
 If cleanup runs accidentally:
-1. Check archive directory: `outputs/archives/`
-2. Review audit log for deleted products: `outputs/logs/cleanup_audit.log`
+1. Check archive directory: `outputs/archive/`
+2. Review the audit log for deleted products: `outputs/cleanup_audit.json`
 3. Re-scrape and reproduce videos if no archive exists
 
 **Never Do:**
@@ -1683,7 +1670,7 @@ first_comment:
   enabled: true
   move_hashtags_to_comment: false  # Move Instagram hashtags to comment too
   platforms:
-    youtube: "Get it here: {affiliate_link}\n\nLike & subscribe for more deals!"
+    youtube: "{closing_line}"   # a URL here renders as inert text on Shorts
     instagram: "{product_title}\n🔗 Link in bio!"
 ```
 
@@ -1694,6 +1681,7 @@ first_comment:
 | `{affiliate_link}` | `shortened_affiliate_link` or `affiliate_link` from data.json |
 | `{product_title}` | `title` from data.json |
 | `{hashtags}` | Hashtags from metadata (only when `move_hashtags_to_comment: true`, Instagram only) |
+| `{closing_line}` | The script's closing line; what the shipped YouTube template uses |
 
 </details>
 
@@ -1752,7 +1740,7 @@ The publisher maintains a persistent registry of all published products in both 
 - `published_products.json` — machine-readable array of product objects
 - `published_products.csv` — spreadsheet-friendly with header row
 
-**Fields**: product ID (ASIN), title, canonical Amazon URL, affiliate URL.
+**Fields**: product ID (ASIN), title, canonical Amazon URL, affiliate URL, and `content_format`, which is the arm `registry --summary` segments on.
 
 <details>
 <summary><strong>Rebuild from Existing Data</strong></summary>
@@ -1934,7 +1922,7 @@ WARNING: No metadata found for youtube, using basic content
 
 2. Increase timeout:
    ```bash
-   export LATE_TIMEOUT=60.0  # Increase to 60 seconds
+   export PUBLISHER_TIMEOUT=60.0  # Increase to 60 seconds
    ```
 
 3. Verify file size and format:
@@ -2169,7 +2157,13 @@ asyncio.run(publish_video())
 from abc import ABC, abstractmethod
 
 class BasePublisher(ABC):
-    """Base interface for all publisher implementations."""
+    """Base interface for all publisher implementations.
+
+    Eight abstract members, not the four sketched below: `provider`,
+    `authenticate`, `get_accounts`, `upload_media`, `publish`, `get_status`,
+    `list_posts` and `delete_post`. A subclass implementing fewer cannot be
+    instantiated.
+    """
 
     @abstractmethod
     async def authenticate(self) -> bool:

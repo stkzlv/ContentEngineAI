@@ -48,7 +48,7 @@ We will:
 
 ### Release Schedule
 
-- **Patch releases**: As needed for bug fixes (weekly/bi-weekly)
+- **Patch releases**: As needed for bug fixes
 - **Minor releases**: Monthly for new features
 - **Major releases**: When significant breaking changes are necessary
 
@@ -130,7 +130,7 @@ After 1.0.0 release:
 ### Current Support Policy
 
 - **Latest Version**: Full support with new features and bug fixes
-- **Previous Minor**: Bug fixes and security patches for 3 months
+- **Previous Minor**: Not maintained. Every release is strictly newer than its predecessors; there are no maintenance branches or backport tags
 - **Pre-1.0.0**: Best-effort support, focus on latest version
 
 ### Post-1.0.0 Support Policy
@@ -143,13 +143,15 @@ After 1.0.0 release:
 
 Each release includes:
 
-- **Summary**: High-level overview of changes
 - **Added**: New features and capabilities
 - **Changed**: Modifications to existing functionality
-- **Deprecated**: Features being phased out
-- **Removed**: Discontinued features (major versions only)
+- **Removed**: Discontinued features (any release while on 0.x; major versions only after 1.0.0)
 - **Fixed**: Bug fixes and performance improvements
 - **Security**: Security-related changes
+- **Notes**: Context a reader needs that is not itself a change
+- **Technical**: Internal changes with no user-facing effect
+- **Documentation**: Documentation-only changes
+- **Dependencies**: Dependency bumps
 
 ## Contributing to Releases
 
@@ -169,9 +171,7 @@ Each release includes:
 
 ### Release Testing
 
-- Beta versions available for testing
-- Community feedback incorporated before final release
-- Release candidates published for major versions
+- No alpha, beta or release-candidate tags are published today
 
 ---
 

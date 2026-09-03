@@ -107,14 +107,14 @@ comments in that file for the active values shipped to users.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty or single-entry, which is also what `--pycaps-template NAME` triggers (the flag clears the pool). |
+| `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty, which is what `--pycaps-template NAME` produces (the flag clears the pool). A one-entry pool returns that entry instead. |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
 | `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
 | `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [subtitle-best-practices.md](subtitle-best-practices.md) rule 6 rejects. Bundled YAML ships `true`. |
-| `max_width_ratio` | float | 0.85 | Max caption width as a fraction of frame width. |
+| `max_width_ratio` | float | 0.80 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
-| `vertical_align_offset` | float \| null | null | Manual override for the derived offset. Range: -1.0 to 1.0. |
+| `vertical_align_offset` | float \| null | -0.20 | Manual override for the derived offset. Range: -1.0 to 1.0. |
 | `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable or the burn fails. `fallback_ffmpeg` = switch to FFmpeg when pycaps is *unavailable*, and burn captions with FFmpeg when a pycaps render fails; a missing transcript or assembled video still aborts. `warn_and_skip` = no subtitles (not recommended). |
 | `enable_ai_tagging` | bool | `false` | Opt into AI word tagging via Gemini. See [AI word tagging](#ai-word-tagging). |
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
@@ -143,7 +143,7 @@ subset chosen for e-commerce product videos.
 
 | Template | Look |
 |---|---|
-| `word-focus` | Word-by-word reveal, white text, soft shadow. Default pick. |
+| `word-focus` | Word-by-word reveal, white text, soft shadow. |
 | `hype` | High-energy pop animations, bold colors. |
 | `minimalist` | Clean sans-serif, no animation fluff. |
 | `vibrant` | Gradient fills, color cycling. |
@@ -162,7 +162,7 @@ installed:
 poetry run pycaps render --input my.mp4 --template hype --transcript my.json
 ```
 
-Drop custom templates under `pycaps-templates/` in your project dir and
+Drop a custom template at `<name>/pycaps.template.json` under the working directory and
 reference them by path.
 
 A casing change does not need a fork: `force_sentence_case` appends
@@ -171,24 +171,24 @@ that uppercases renders the transcript's casing while staying as shipped.
 
 ## Content-aware positioning
 
-Pycaps captions land in the whitespace below the product image because the
-burn step computes the vertical offset from the same `VisualBounds` used by
-the existing FFmpeg path:
+Caption placement is driven by `pycaps.vertical_align_offset`, whose default
+is `-0.20`. `merge_layout_with_template` takes the explicit-offset branch
+whenever that field is not `None`, so on the shipped config it is always the
+explicit branch that runs.
+
+There is a second branch that would derive the offset from the same
+`VisualBounds` the FFmpeg path uses:
 
 ```
 offset = (visual_bottom + margin) - 0.95, clamped to [-0.9, 0]
 ```
 
-Where `visual_bottom = bounds.y + bounds.height` and the 0.95 base matches
-pycaps' internal `LayoutUtils.get_vertical_alignment_position` formula for
-bottom-anchored blocks. Default profiles position the product image at y=0.10
-with height=0.75, so the computed offset is roughly `-0.08` — captions sit
-near the bottom of the frame with a small upward nudge to stay clear of the
-image.
-
-You can override the derived offset with `pycaps.vertical_align_offset`
-(or use a CLI flag if/when we add one), but the default behaviour handles
-all existing profiles automatically.
+It is reached only when `vertical_align_offset` is `None` *and*
+`vertical_align` was explicitly set to `bottom`, and even then it currently
+defers to the template rather than overriding it. `layout_from_visual_bounds`
+implements the formula and is used by the tests. Treat the formula as the
+design intent, not as what a shipped render does: to move the captions, set
+`vertical_align_offset`.
 
 ## Renderer tradeoffs
 
@@ -276,7 +276,7 @@ subtitle_settings:
     ai_tagging_on_error: skip       # default — degrade silently per call
 ```
 
-The `enable_ai_tagging` flag defaults to `false`. Installing pycaps and
+The `enable_ai_tagging` Pydantic default is `false`, but the bundled `config/subtitles.yaml` ships `true`, so on the shipped config they are not separate flips. Installing pycaps and
 turning AI tagging on are deliberately separate flips so a default install
 behaves predictably.
 

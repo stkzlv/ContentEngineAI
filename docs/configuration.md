@@ -149,7 +149,6 @@ llm_settings:
 GEMINI_API_KEY=your-actual-key-here
 
 # CLI override
-poetry run python -m src.video.producer --models "gpt-4"
 ```
 
 ## Configuration Files
@@ -242,7 +241,7 @@ subtitle_settings:
 # Define custom style presets
 style_presets:
   minimal:
-    font_name: "Poppins"
+    font_name: "Montserrat"
     effects: []  # No effects for clean look
     bold: false
   modern:
@@ -250,7 +249,7 @@ style_presets:
     effects: ["karaoke"]
     bold: true
   bold:
-    font_name: "Rubik"
+    font_name: "Gabarito"
     effects: ["fade"]
     bold: true
   animated:
@@ -266,19 +265,15 @@ style_presets:
 Resource limits and optimization:
 
 ```yaml
-optimization_settings:
-  caching:
-    enabled: true
-    ttl_seconds: 3600
-    max_size_mb: 100
-  memory:
-    max_memory_mb: 2048
-
 api_settings:
-  llm:
-    timeout: 90
-    max_retries: 5
+  llm_model_fetch_timeout_sec: 30
+  llm_retry_min_wait_sec: 1
+  llm_retry_multiplier: 2
 ```
+
+Both `ApiSettings` and `OptimizationSettings` are flat models. A nested block
+here is dropped silently rather than rejected, which is why the shipped
+`config/performance.yaml` nests these and the values never take effect.
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings with type-safe Pydantic models:
@@ -490,20 +485,19 @@ video_settings:
   
   # Duration controls
   default_image_duration_sec: 3      # Default duration for images
-  min_visual_segment_duration_sec: 2 # Minimum segment duration
-  total_duration_limit_sec: 60       # Maximum video length
+  min_visual_segment_duration_sec: 0.1 # Minimum segment duration
+  total_duration_limit_sec: 90       # Maximum video length
   
   # Visual positioning
-  image_width_percent: 90            # Image width as % of frame
-  image_top_position_percent: 15     # Top position as % from top
+  image_width_percent: 0.9           # Image width as a fraction of the frame (0.0-1.0)
+  image_top_position_percent: 0.15   # Top edge as a fraction of frame height
   
   # Transitions
-  transition_duration_sec: 1.0       # Crossfade transition duration
-  transition_type: "fade"            # Transition type
+  transition_duration_sec: 0.5       # Crossfade transition duration
   
   # Quality settings
-  min_video_file_size_mb: 1          # Minimum output file size
-  video_duration_tolerance_sec: 2    # Acceptable duration variance
+  min_video_file_size_mb: 0.1        # Minimum output file size
+  video_duration_tolerance_sec: 1.0  # Acceptable duration variance
 ```
 
 </details>
@@ -630,8 +624,8 @@ subtitle_settings:
 
   # Text Formatting
   max_line_length: 38                # Maximum characters per line
-  max_duration: 4.5                  # Maximum duration for subtitle segments (seconds)
-  min_duration: 0.4                  # Minimum duration for subtitle segments (seconds)
+  max_duration: 2.5                  # Maximum duration for subtitle segments (seconds)
+  min_duration: 0.6                  # Minimum duration for subtitle segments (seconds)
 
   # Randomization Options (for 'random' preset)
   randomize_fonts: false             # Use random font selection from curated collection
@@ -658,7 +652,7 @@ subtitle_settings:
 
 #### Style Presets
 
-- **`minimal`**: Clean, simple styling with no effects (Arial font)
+- **`minimal`**: Clean, simple styling with no effects (Montserrat; Arial is only a system fallback)
 - **`modern`**: Contemporary look with karaoke effect (Montserrat font, bold) - **Default**
 - **`bold`**: High contrast styling with fade effect (Gabarito font, bold)
 - **`animated`**: Karaoke highlighting, the strongest of the presets (Gabarito font, bold)
@@ -881,6 +875,10 @@ Platform metadata generation creates platform-specific titles, descriptions/capt
 
 **Configuration:**
 
+`platform_metadata` is a field of `description_settings`, so in
+`config/ai_services.yaml` the block below sits one level in, under
+`description_settings:`.
+
 ```yaml
 platform_metadata:
   enabled: true
@@ -888,10 +886,8 @@ platform_metadata:
 
   # YouTube Shorts Configuration
   youtube:
-    title_length_min: 50
     title_length_max: 60
     description_length_max: 5000
-    description_seo_priority_chars: 150  # First 150 chars are critical for SEO
     hashtag_count_min: 3
     hashtag_count_max: 5
     require_shorts_tag: true              # Always include #Shorts
@@ -905,13 +901,8 @@ platform_metadata:
     hashtag_count_min: 3
     hashtag_count_max: 5
     require_ad_tag: true                  # Always include #ad
-    avoid_generic_tags: true              # Avoid #fyp, #foryoupage, #viral
-    # Generic tags blacklist
-    generic_hashtags:
-      - "#fyp"
-      - "#foryoupage"
-      - "#foryou"
-      - "#viral"
+    # The tags to avoid, as a list. A bool here fails validation.
+    avoid_generic_tags: ["foryoupage", "fyp", "viral", "foryou"]
 
   # Instagram Reels Configuration
   instagram:
@@ -1014,12 +1005,11 @@ When platform metadata generation is enabled, the following files are created in
 
 ```
 outputs/B0ASIN123/
-├── description.txt              # Legacy unified description (backward compatible)
 ├── metadata.json               # Unified metadata
 ├── metadata_youtube.json       # YouTube Shorts metadata
 ├── metadata_tiktok.json        # TikTok metadata
 ├── metadata_instagram.json     # Instagram Reels metadata
-└── UPLOAD_INSTRUCTIONS.txt     # Human-readable upload guide (all platforms)
+└── temp/UPLOAD_INSTRUCTIONS.txt # Human-readable upload guide (all platforms)
 ```
 
 **Human-Readable Upload Instructions (`UPLOAD_INSTRUCTIONS.txt`):**
@@ -1091,7 +1081,7 @@ Validation failures are logged but don't block generation - invalid metadata is 
 
 #### Platform Metadata Enhancement Modules (v0.23.0+)
 
-The platform metadata system includes five enhancement modules for production workflows:
+`PlatformMetadataSettings` carries four sub-sections: `cache`, `batch`, `export` and `trends`. Note that the `platform_metadata_config:` block in `config/ai_services.yaml` is documentation only; the active configuration is `description_settings.platform_metadata`.
 
 **1. Metadata Caching** (`cache`):
 ```yaml
@@ -1296,23 +1286,14 @@ See [Requirements](requirements.md) "Content Pillars" for the behavior contract.
 
 ```yaml
 stock_media_settings:
-  pexels:
-    enabled: true
-    api_key_env_var: "PEXELS_API_KEY"
-    source_name: "Pexels"
-    
-    # Media preferences
-    orientation: "portrait"          # portrait, landscape, square
-    size: "large"                    # small, medium, large
-    
-    # Download settings
-    concurrent_downloads: 3          # Parallel downloads
-    timeout_sec: 30
-    
-    # Quality filters
-    min_width: 1080                  # Minimum image width
-    min_height: 1920                 # Minimum image height
+  pexels_api_key_env_var: "PEXELS_API_KEY"   # required
+  source: "pexels"
 ```
+
+Those are the only two fields. Search terms live on
+`media_settings.stock_media_keywords` and the per-profile
+`stock_media_keywords` override; download concurrency is
+`api_settings.stock_media_concurrent_downloads`.
 
 #### Search phrases from the script
 
@@ -1365,8 +1346,8 @@ audio_settings:
   freesound_max_results: 15
 
   # Timeouts
-  freesound_api_timeout_sec: 30
-  freesound_download_timeout_sec: 300
+  freesound_api_timeout_sec: 15
+  freesound_download_timeout_sec: 60
 ```
 
 **Setup:**
@@ -1561,16 +1542,18 @@ ContentEngineAI uses a circuit breaker pattern to prevent wasting time on unavai
 
 **Configuration:**
 
-Circuit breaker settings are in `src/utils/circuit_breaker.py`:
+Circuit breaker settings are in `config/performance.yaml::circuit_breaker`:
 
 ```python
 freesound_circuit_breaker = CircuitBreaker(
-    failure_threshold=5,        # Open after 5 consecutive failures
+    failure_threshold=3,        # Open after 3 consecutive failures
     timeout=60,                 # Stay open for 60 seconds
-    recovery_timeout=30,        # Test recovery after 30 seconds
-    expected_exception=Exception
+    expected_exceptions=(aiohttp.ClientError,),
 )
 ```
+
+There is no `recovery_timeout` argument; passing one raises `TypeError`. The
+parameter is `expected_exceptions`, and it takes a tuple.
 
 **Tuning Guidelines:**
 
@@ -1578,8 +1561,6 @@ freesound_circuit_breaker = CircuitBreaker(
   - Recommended: 3-5 for production, 10+ for testing
 - **timeout**: How long to skip API after opening
   - Recommended: 60-300 seconds for batch processing
-- **recovery_timeout**: How long before testing API recovery
-  - Recommended: 30-60 seconds
 
 **Monitoring Circuit State:**
 
@@ -1648,8 +1629,7 @@ whisper_settings:
   enabled: true
   model_size: "small"                # tiny, base, small, medium, large
   language: "en"                     # Language code
-  device: "cpu"                      # auto, cpu, cuda
-  model_device: "cpu"                # Device for model inference
+  model_device: "cpu"                # Device for model inference (auto, cpu, cuda)
   model_in_memory: false             # Keep model in memory between uses
   fp16: false                        # Use 16-bit floating point
   beam_size: 5                       # Beam search size
@@ -1689,26 +1669,16 @@ google_cloud_stt_settings:
 
 ```yaml
 ffmpeg_settings:
-  # Executable configuration
-  ffmpeg_path: "ffmpeg"              # Path to FFmpeg executable
-  ffprobe_path: "ffprobe"            # Path to FFprobe executable
-
-  # I/O timeout prevention
-  rw_timeout_microseconds: 30000000  # 30 seconds timeout for file operations
-
-  # Filter options
-  enable_zoompan: false              # Enable zoom/pan effect on images
-  zoompan_duration: 1.0              # Zoom effect duration
-
-  # Debug options
-  save_command: true                 # Save FFmpeg command to log file
-  show_debug_info: false             # Show debug overlay on video
-
-  # Verification settings
-  verify_streams: true               # Verify video/audio streams exist
-  verify_duration: true              # Check final video duration
-  verify_subtitles: true             # Verify subtitle content
+  executable_path: "ffmpeg"           # Path to the FFmpeg executable
+  temp_ffmpeg_dir: "temp"             # Working directory for intermediates
+  intermediate_segment_preset: "fast" # x264 preset for intermediate segments
+  final_assembly_timeout_sec: 600     # Timeout for the final assembly pass
+  rw_timeout_microseconds: 30000000   # I/O timeout for file operations
+  verification_timeout_sec: 60        # Timeout for the post-render ffprobe
 ```
+
+Those six are the whole model. The zoom/pan effect is driven by the
+profile-level `first_frame_pre_motion`, not by an FFmpeg setting.
 
 </details>
 
@@ -1744,7 +1714,8 @@ ContentEngineAI supports multiple video assembly strategies that determine how p
 **Slideshow Profiles** (image-focused, videos ignored):
 
 1. **`slideshow_images1-4`** - Image-only slideshows with different styling
-   - Uses assembly modes: `single_best`, `mixed_media`, or `video_first_fallback`
+   - Set no `video_assembly_mode` at all; those three modes belong to the
+     `product_video_*` profiles
    - **Video handling**: Ignores product videos entirely, uses only images
 
 ```yaml
@@ -1943,24 +1914,24 @@ These enhance functionality but are not required for basic operation.
 |----------|------|---------|-------------|
 | `CONTENT_ENGINE_DEBUG` | bool | false | Enable debug mode (alt: `DEBUG_MODE`) |
 | `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory (alt: `OUTPUTS_DIR`) |
-| `CONTENT_ENGINE_TIMEOUT` | int | 300 | Pipeline timeout in seconds |
+| `CONTENT_ENGINE_TIMEOUT` | int | 900 | Pipeline timeout in seconds |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 
 ### Subtitle Configuration
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `SUBTITLE_ANCHOR` | string | bottom | Anchor: top, center, bottom, above_content, below_content |
-| `SUBTITLE_MARGIN` | float | 0.05 | Margin from anchor (0.0-0.5 fraction of frame height) |
+| `SUBTITLE_ANCHOR` | string | below_content | Anchor: top, center, bottom, above_content, below_content |
+| `SUBTITLE_MARGIN` | float | 0.04 | Margin from anchor (0.0-0.5 fraction of frame height) |
 | `SUBTITLE_CONTENT_AWARE` | bool | true | Enable content-aware positioning |
 | `SUBTITLE_STYLE_PRESET` | string | modern | Style preset: minimal, modern, bold, animated, random |
 | `SUBTITLE_FONT_SIZE_SCALE` | float | 1.0 | Font size multiplier (0.5-2.0) |
 | `SUBTITLE_ALIGNMENT` | string | center | Text alignment: left, center, right |
-| `SUBTITLE_MAX_WIDTH_FRACTION` | float | 0.9 | Max subtitle width (0.0-1.0 fraction) |
-| `SUBTITLE_MAX_LINE_LENGTH` | int | 42 | Maximum characters per line |
-| `SUBTITLE_MAX_WORDS_PER_LINE` | int | 8 | Maximum words per line (0 to disable) |
-| `SUBTITLE_MAX_DURATION` | float | 5.0 | Maximum subtitle duration (seconds) |
-| `SUBTITLE_MIN_DURATION` | float | 1.0 | Minimum subtitle duration (seconds) |
+| `SUBTITLE_MAX_WIDTH_FRACTION` | float | 0.8 | Max subtitle width (0.0-1.0 fraction) |
+| `SUBTITLE_MAX_LINE_LENGTH` | int | 30 | Maximum characters per line |
+| `SUBTITLE_MAX_WORDS_PER_LINE` | int | 3 | Maximum words per line (0 to disable) |
+| `SUBTITLE_MAX_DURATION` | float | 2.5 | Maximum subtitle duration (seconds) |
+| `SUBTITLE_MIN_DURATION` | float | 0.6 | Minimum subtitle duration (seconds) |
 | `SUBTITLE_RANDOMIZE_FONTS` | bool | false | Enable random font selection |
 | `SUBTITLE_RANDOMIZE_COLORS` | bool | false | Enable random color selection |
 | `SUBTITLE_RANDOMIZE_EFFECTS` | bool | false | Enable random effect selection |
@@ -1973,7 +1944,7 @@ These enhance functionality but are not required for basic operation.
 | `PUBLISHER_DEFAULT_PLATFORMS` | string | None | Comma-separated platforms: youtube,tiktok,instagram |
 | `PUBLISHER_IMMEDIATE` | bool | false | Publish immediately without scheduling |
 | `PUBLISHER_MAX_RETRIES` | int | 3 | Maximum retry attempts for failed publishes |
-| `PUBLISHER_TIMEOUT` | int | 300 | Request timeout in seconds |
+| `PUBLISHER_TIMEOUT` | int | 120 | Request timeout in seconds |
 | `PUBLISHER_PROVIDER` | string | late | Publishing service provider |
 | `PUBLISHER_PRIVACY_YOUTUBE` | string | None | YouTube privacy: public, private, unlisted |
 | `PUBLISHER_PRIVACY_TIKTOK` | string | None | TikTok privacy setting |
@@ -1983,9 +1954,6 @@ These enhance functionality but are not required for basic operation.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `OPENROUTER_BASE_URL` | string | https://openrouter.ai/api/v1 | Custom OpenRouter API URL |
-| `PEXELS_BASE_URL` | string | https://api.pexels.com/v1 | Custom Pexels API URL |
-| `SCRAPFLY_PROXY` | string | None | Proxy for scraping (format: http://USER:PASS@host:port) |
 | `COQUI_TTS_GPU` | bool | false | Enable GPU acceleration for Coqui TTS (only applies if you installed coqui-tts yourself) |
 
 ### Environment Variable Validation
@@ -2361,39 +2329,7 @@ asin_patterns:
 
 ### Additional Configuration Settings
 
-The following settings were also added to eliminate magic numbers and improve configurability:
-
-#### Pipeline Settings
-```yaml
-# Duration padding added to prevent audio cutoff in seconds
-# Added to voiceover duration to ensure complete audio playback
-duration_padding_sec: 0.5
-```
-
-#### Video Settings
-```yaml
-video_settings:
-  # Font size limits for subtitle text rendering
-  subtitle_min_font_size: 16    # Minimum readable font size in pixels
-  subtitle_max_font_size: 100   # Maximum font size to prevent overflow
-```
-
-#### Audio Settings
-```yaml
-audio_settings:
-  # User agent string for HTTP requests
-  user_agent: "ContentEngineAI/1.0"
-```
-
-#### Subtitle Settings
-```yaml
-subtitle_settings:
-  # Fade in/out duration for subtitle transitions (milliseconds)
-  fade_duration_ms: 300
-
-  # Probability of applying random animation effects (0.0-1.0)
-  animation_probability: 0.3
-```
+Only the two blocks below are real. The subsections that used to sit here documented keys that exist in neither `src/` nor `config/` (`duration_padding_sec`, `subtitle_min_font_size`, `subtitle_max_font_size`, `memory_threshold_gb`, `default_monitor_width`, `scraper_settings`, and others); they have been removed rather than corrected.
 
 #### CTA Detection Settings
 ```yaml
@@ -2425,48 +2361,21 @@ llm_settings:
     min_words: 50     # Minimum word count for valid scripts
 ```
 
-#### Text Processing
-```yaml
-text_processing:
-  # Speaking rate for subtitle timing estimation (words per second)
-  speaking_rate_words_per_sec: 2.5
-```
-
-#### Optimization Settings
-```yaml
-optimization_settings:
-  # Background task cache TTL (10 minutes)
-  background_processing_cache_ttl_sec: 600
-  
-  # Memory usage threshold for subtitle generation (GB)
-  memory_threshold_gb: 8.0
-```
-
-#### Scraper Settings (New Section)
-```yaml
-scraper_settings:
-  # Default monitor resolution for browser windows
-  default_monitor_width: 1920
-  default_monitor_height: 1080
-  
-  # Browser window positioning timeout (seconds)
-  window_setup_timeout_sec: 10
-```
-
 ### Configuration Usage in Code
 
 For developers working with configurations:
 
 ```python
-# Access configuration values with fallbacks
-duration = ctx.config.duration_padding_sec
-fade_duration = getattr(config, 'fade_duration_ms', 300)
-speaking_rate = (
-    self.config.speaking_rate_words_per_sec
-    if hasattr(self.config, 'speaking_rate_words_per_sec')
-    else 2.5  # Fallback to default
-)
+# Typed access through the merged settings, which is what the runtime uses.
+merged = config.get_profile_merged_settings(profile_name, cli_overrides)
+width = merged.video_settings.image_width_percent
+anchor = merged.subtitle_settings.anchor
 ```
+
+Reach for `getattr(config, name, default)` only where the field is genuinely
+optional. Against a Pydantic model a `hasattr` guard on a field that does not
+exist always takes the fallback branch, which reads as a configurable knob and
+is a constant.
 
 ### Migration Notes
 
@@ -2573,15 +2482,16 @@ print('debug_mode:', mgr.debug_mode, type(mgr.debug_mode))
 poetry run python -c "
 from src.video.config_adapter import load_video_config_modular
 config = load_video_config_modular()
-print('Anchor:', config.subtitle_settings.anchor)
-print('Margin:', config.subtitle_settings.margin)
-print('Content-aware:', config.subtitle_settings.content_aware_positioning)
-print('Max width:', config.subtitle_settings.max_width_fraction)
+s = config.subtitle_settings          # a dict at this layer, not a model
+print('Anchor:', s['anchor'])
+print('Margin:', s['margin'])
+print('Content-aware:', s['content_aware'])
+print('Max width:', s['max_subtitle_width_fraction'])
 "
 ```
 
 **Common subtitle issues**:
-- **Subtitles cut off**: Increase `SUBTITLE_MAX_WIDTH_FRACTION` (default 0.9)
+- **Subtitles cut off**: Increase `SUBTITLE_MAX_WIDTH_FRACTION` (default 0.8)
 - **Text too small/large**: Adjust `SUBTITLE_FONT_SIZE_SCALE` (0.5-2.0)
 - **Wrong position**: Check `SUBTITLE_ANCHOR` value (top/center/bottom/above_content/below_content)
 - **Overlapping content**: Enable `SUBTITLE_CONTENT_AWARE=true`
@@ -2601,7 +2511,7 @@ for k in keys:
 ```
 
 **Common publishing issues**:
-- **Timeout on large files**: Increase `PUBLISHER_TIMEOUT` (default 300 seconds)
+- **Timeout on large files**: Increase `PUBLISHER_TIMEOUT` (default 120 seconds)
 - **Upload fails**: Set `LATE_VERCEL_TOKEN` for Vercel Blob uploads
 - **Wrong platform**: Check `PUBLISHER_DEFAULT_PLATFORMS` value
 

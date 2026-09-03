@@ -335,10 +335,10 @@ either extreme (none / everything)."
 A concrete set of choices that produces a high-retention caption style
 directly implementable in either engine.
 
-**Font**: Montserrat Black (weight 900), loaded via `@font-face` or
+**Font**: Montserrat Bold (weight 700) is what the shipped `font_pool` uses; Montserrat Black (900) is the recipe's ideal. Loaded via `@font-face` or
 embedded as a font file in the project's `static/fonts/` dir.
 
-**Size**: `72 px` on a 1080×1920 canvas (≈7.5% of frame height).
+**Size**: `144 px` on a 1080×1920 canvas (7.5% of frame height, which is 72 pt).
 
 **Case**: sentence case. Terminal punctuation stripped in timing
 post-processing.
@@ -355,7 +355,7 @@ boundaries.
 .word {
   font-family: 'Montserrat Black', sans-serif;
   font-weight: 900;
-  font-size: 72px;
+  font-size: 144px;
   color: #FFFFFF;
   -webkit-text-stroke: 7px #000000;
   text-shadow: 0 4px 10px rgba(0,0,0,0.55);
@@ -374,7 +374,7 @@ boundaries.
 **ASS equivalent** (FFmpeg + libass engine):
 
 ```
-Style: Default,Montserrat,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,7,0,2,90,90,480,1
+Style: Default,Montserrat,144,&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,7,0,2,90,90,480,1
 ```
 
 Fields: `Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding`.

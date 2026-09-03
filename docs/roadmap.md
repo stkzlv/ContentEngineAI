@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-16
+Last updated: 2026-09-03
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
@@ -65,6 +65,8 @@ Add a `non_affiliate: true` flag at the pillar level. When set, the publisher sk
 **Done when:** a video produced under a `non_affiliate: true` pillar publishes with platform-appropriate captions, no affiliate URL, and no bio-link registration, while still naming products in the spoken script.
 
 ### 2.3 Per-profile stock media keywords
+**Shipped in 0.63.0.** `stock_media_keywords` is declared on `VideoProfile`, preferred by the gather step, and used by `slideshow_stock`.
+
 
 `media_settings.stock_media_keywords` is global. It is declared on the settings model but not on `VideoProfile` and not in the `_collect_overrides` map, so a profile-level override is silently dropped (the same silent-drop class documented for other profile fields). That makes it impossible to run two profiles with different stock footage at the same time: a how-to profile searching "router, desk setup" and a product profile searching something else need one global value between them.
 
@@ -73,6 +75,8 @@ Blocks any concurrent comparison of two visual treatments, because the only way 
 **Done when:** a profile can set `stock_media_keywords`, a run under that profile searches those terms, and two profiles with different keyword sets can run back to back without editing global config.
 
 ### 2.4 Topic-driven render input
+**Shipped in 0.79.0.** `--topic` exists on both the producer and the global batch, with `--topics-file` and a configured topic pool.
+
 
 The producer requires a scraped product directory with a `data.json`. How-to content has no product to scrape, so there is no way to render a video about a problem rather than a thing.
 
@@ -139,6 +143,8 @@ After publishing a Reel, the publisher automatically schedules a Story re-share 
 **Done when:** every Reel published triggers an automatic Story re-share with a link sticker, confirmed live on the IG account.
 
 ### 4.2 YouTube engagement-bait pinned comment
+**Shipped in 0.60.0**, except literal pinning, which the SDK does not expose. The shipped YouTube first-comment template is `{closing_line}`.
+
 
 Generate the YouTube first comment from the script's closing fork — the spec-correction or two-option fork phrased as a direct question. Don't pin a "subscribe" CTA; pinned subscribe asks underperform, and the closing 5s of the video already carries a script-level subscribe CTA. End screens are not available on Shorts (long-form only), so the pinned comment is the equivalent placement.
 
@@ -262,7 +268,7 @@ Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via
 
 ## Toward 1.0.0
 
-The current line is `0.58.x`, status pre-production. Most of the feature surface is built. What stands between today and 1.0.0 is consolidation: API stability, test coverage at target, distribution, and proof that the pipeline runs reliably at volume.
+The current line is `0.96.x`, status pre-production. Most of the feature surface is built. What stands between today and 1.0.0 is consolidation: API stability, test coverage at target, distribution, and proof that the pipeline runs reliably at volume.
 
 Concrete gates for the 1.0.0 release:
 
@@ -274,7 +280,7 @@ Concrete gates for the 1.0.0 release:
 
 **Test coverage on the critical paths**
 - Critical-path coverage is the gate, not a global percentage: scraper end-to-end, producer end-to-end, and publisher per-platform each covered by unit + integration tests, at >=80% module-level on those paths.
-- Overall line coverage holds a realistic floor (the CI `--cov-fail-under` gate) and trends up as files get touched. The >=90% global target in README / CONTRIBUTING.md is a post-1.0.0 aspiration, not a release blocker: chasing it across the whole tree is high-effort, low-signal, and would crowd out feature work.
+- Overall line coverage holds a realistic floor (the `--cov-fail-under=50` gate in pytest's `addopts`) and trends up as files get touched. The >=90% target stated in `docs/testing.md` is a post-1.0.0 aspiration, not a release blocker: chasing it across the whole tree is high-effort, low-signal, and would crowd out feature work.
 - One real-API smoke test in CI that exercises scrape → produce → publish on a fixture ASIN with sandbox credentials. Marked optional so forks without secrets stay green.
 
 **Documentation completeness**
@@ -423,7 +429,7 @@ Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather th
 - Phase 0.5 platform-tag audit completed: YouTube `containsSyntheticMedia: true` set on every publish payload alongside the TikTok branded-content flags already wired. Both were narrowed in 0.70.3 — the TikTok flags to renders carrying a material connection, and the YouTube flag to an opt-in config field defaulting off, since YouTube's policy does not cover AI narration or AI-written scripts.
 - Phase 0.6 cross-cutting disclosure regression suite at `tests/test_disclosure_stack.py` covers all four disclosure surfaces with consistency invariants.
 - Phase 0.7 `docs/compliance.md` describes the disclosure stack, regulator coverage, and the per-video manual workarounds for SDK gaps.
-- Phase 2.1 registry side: `pillar` column on the published-products registry; `--rebuild` retroactively tags rows from the producer state file. Backward-compatible loader.
+- Phase 2.1 registry side: a `pillar` column on the published-products registry, since removed in 0.71.0 because nothing read it. `registry --summary` segments on `content_format` instead.
 
 **Affiliate program literal phrase (0.58.1)**
 - Phase 0.3 caption-body rendering of the configured affiliate program identification phrase via `config/publisher.yaml::affiliate_disclosure` (enabled, phrase, program). Defaults to the Amazon Associates text; non-Amazon programs can override the phrase and program name. Closing-frame overlay deferred.

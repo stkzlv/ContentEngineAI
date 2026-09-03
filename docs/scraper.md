@@ -26,7 +26,7 @@ poetry run python -m src.scraper.amazon.scraper --keywords "earbuds" "headphones
 
 ## CLI Reference
 
-Both the standalone scraper and the global batch pipeline accept these flags.
+The standalone scraper accepts all of these. The global batch accepts the common ones but not `--free-shipping`, `--brands`, `--sort`, `--category`, `--input-file`, `--batch-size`, `--output-dir`, `--verbose`, the four debug flags, or `--no-fail-fast`; its output flag is `--outputs-dir`, and its `--fail-fast` is a plain switch with no negated form.
 
 ### Core Arguments
 | Argument | Description | Example |
@@ -71,8 +71,8 @@ Two settings control how many products get scraped:
 | Setting | Config path | Default | CLI override |
 |---------|------------|---------|--------------|
 | `products_per_keyword` | `batch.products_per_keyword` | `1` | `--products-per-keyword N` |
-| `max_products` | `scrapers.amazon.max_products` | `5` code default (bundled `config/scraper.yaml` sets `1`) | `--max-products N` |
-| `max_products_per_search` | `scrapers.amazon.max_products_per_search` | `10` (Pydantic default `5`) | none |
+| `max_products` | `scrapers.amazon.max_products` | `10` code default (bundled `config/scraper.yaml` sets `1`) | `--max-products N` |
+| `max_products_per_search` | `global_settings.browser_config.max_products_per_search` | `10` (Pydantic default `5`) | none |
 
 `max_products` is the total validated-product cap for the run. `max_products_per_search` is the distinct per-page extraction cap (how many products are read from a single search results page).
 
@@ -128,7 +128,7 @@ This applies to keyword searches only. A URL or an ASIN names one product, so ev
 
 ### Config precedence
 
-CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword`; `scrapers.amazon.max_products` is 1 in the bundled `config/scraper.yaml`, with a code default of 5 when unset).
+CLI > YAML > code defaults. If you pass `--products-per-keyword 5` on the command line, it overrides `batch.products_per_keyword` in the YAML. If neither is set, the YAML defaults apply (1 for `products_per_keyword`; `scrapers.amazon.max_products` is 1 in the bundled `config/scraper.yaml`, with a code default of 10 when unset).
 
 ### Examples
 
@@ -152,9 +152,10 @@ Config file: `config/scraper.yaml`. CLI arguments override YAML settings when pr
 scrapers:
   amazon:
     enabled: true
-    headless: true
     max_products: 1  # total validated-product cap for the run
-    max_products_per_search: 10  # per-page extraction cap
+# max_products_per_search lives under global_settings.browser_config.
+# There is no `headless` key: the scraper always runs headful on a virtual
+# display, for the reason in "Why the scraper never runs true headless".
 
 batch:
   keywords: ["smart ring", "mini projector"]  # default keywords when no CLI args

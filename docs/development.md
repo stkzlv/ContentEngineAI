@@ -58,13 +58,15 @@ ContentEngineAI implements **5 major optimization categories**:
 **Implementation:**
 ```python
 class PipelineGraph:
-    def __init__(self, dependencies: Dict[str, List[str]]):
-        self.dependencies = dependencies
-        self.execution_order = self._topological_sort()
-    
-    async def execute_parallel(self, steps: Dict[str, Callable]):
-        """Execute steps in parallel where dependencies allow"""
-        # Implementation enables concurrent subtitle + music download
+    def __init__(self, propagate: tuple[type[BaseException], ...] = ()):
+        # `propagate` names the exception types that reach the caller
+        # unchanged rather than being reported as a failed step.
+        ...
+
+    def add_step(self, name: str, runner, depends_on: set[str]) -> None: ...
+    def compute_execution_order(self) -> list[list[str]]: ...
+    async def execute_level(self, level: list[str], ctx) -> None:
+        """Runs one level's steps concurrently."""
 ```
 
 **Performance Impact:** 1.35x speedup (saves ~87 seconds per run)
@@ -212,8 +214,11 @@ class MyNewStepConfig(BaseModel):
 
 4. **Add Performance Monitoring:**
 ```python
+from src.utils.performance import performance_monitor
+
+
 async def my_new_step(context: PipelineContext) -> PipelineContext:
-    async with context.performance_monitor.track_step('my_new_step'):
+    async with performance_monitor.measure_step('my_new_step'):
         # Implementation
         pass
 ```
@@ -273,13 +278,13 @@ platforms:
 from src.scraper import ScraperFactory
 
 # Automatic platform detection and creation
-ebay_scraper = ScraperFactory.create_scraper('ebay')
-products = await ebay_scraper.scrape_products(['smartphones'])
+ebay_scraper = ScraperFactory.create_scraper(Platform.EBAY)
+products = ebay_scraper.scrape_products(['smartphones'], search_params)
 
 # Multi-platform access
-for platform in ['amazon', 'ebay', 'walmart']:
+for platform in (Platform.AMAZON, Platform.EBAY):
     scraper = ScraperFactory.create_scraper(platform)
-    results = await scraper.scrape_products(['wireless headphones'])
+    results = scraper.scrape_products(['wireless headphones'], search_params)
 ```
 
 ### Adding New Provider Integrations
@@ -382,7 +387,7 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 ## Video Assembly
 
-**📖 Complete video configuration**: [Configuration](configuration.md#video-assembly-settings)
+**📖 Complete video configuration**: [Configuration](configuration.md#video-assembly-modes)
 
 ContentEngineAI supports 4 video assembly modes: `sequential`, `single_best`, `mixed_media`, `video_first_fallback`. See [Configuration](configuration.md) for profile details and CLI overrides.
 
@@ -416,7 +421,7 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 ```python
 # Add performance tracking to your code
 async def my_function():
-    async with performance_monitor.track_operation('my_operation'):
+    async with performance_monitor.measure_step('my_operation'):
         # Your code here
         pass
 ```
@@ -535,7 +540,7 @@ poetry run python -m src.video.producer test_products.json slideshow_images1
 poetry run python -m src.video.producer --batch --batch-profile slideshow_images1
 
 # Compare performance
-poetry run python tools/performance_report.py --compare baseline.json
+poetry run python tools/performance_report.py --report-type comparison
 ```
 
 ## Contributing
@@ -589,7 +594,8 @@ class MyTTSProvider(BaseProvider):
 from src.utils.background_processing import BackgroundProcessor
 
 async def with_background_tasks():
-    async with BackgroundProcessor() as bg:
+    bg = BackgroundProcessor()
+    try:
         # Start background tasks
         task = await bg.start_task(
             task_id="preload_models",
@@ -605,6 +611,9 @@ async def with_background_tasks():
             await bg.wait_for_task(task.task_id)
 
         return result
+    finally:
+        # There is no async context manager; cleanup is explicit.
+        await bg.cleanup(timeout_sec=30)
 ```
 
 ## Configuration Development Guidelines

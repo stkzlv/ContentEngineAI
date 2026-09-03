@@ -71,13 +71,16 @@ Step 4: Create Voiceover (TTS: Gemini primary, Google Cloud fallback)
 ```
 
 **Key Features:**
-- **Parallel Execution**: Steps 5a and 5b run concurrently after step 4
+- **Parallel Execution**: `generate_description` and `create_voiceover` depend only on `generate_script`, so they share an execution level and run concurrently
 - **Dependency Management**: Automatic handling of step dependencies
 - **Resume Capability**: Individual step execution for debugging
 - **Performance Monitoring**: Built-in metrics collection
 
 <details>
 <summary><b>Core Packages Structure</b> (click to expand)</summary>
+
+Principal modules, not an exhaustive listing. Every path named here exists;
+`tests/docs/test_docs_cite_real_files.py` keeps that true.
 
 ```
 src/
@@ -111,6 +114,7 @@ src/
 │   ├── pipeline_graph.py      # Dependency-aware execution framework
 │   ├── result_types.py        # Pipeline result type definitions
 │   ├── stock_media.py         # Stock media fetching (Pexels)
+│   ├── two_part_subtitles.py  # Upper static line + lower synced line
 │   ├── stt_functions.py       # Speech-to-text (Whisper, Google Cloud STT)
 │   ├── subtitle_positioning.py # Subtitle position calculations
 │   ├── subtitle_utils.py      # Subtitle generation utilities
@@ -138,13 +142,13 @@ src/
 │   └── prompts/              # LLM prompt templates
 │
 ├── scraper/                   # Multi-platform data collection architecture
-│   ├── base/                 # Platform-agnostic foundation (5 modules)
+│   ├── base/                 # Platform-agnostic foundation
 │   │   ├── models.py         # Base product data models & registry
 │   │   ├── config.py         # Multi-platform configuration manager
 │   │   ├── utils.py          # Shared utility functions
 │   │   ├── downloader.py     # Base async download logic
 │   │   └── browser_utils.py  # Shared browser utilities
-│   ├── amazon/               # Amazon implementation (12 modules)
+│   ├── amazon/               # Amazon implementation
 │   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
 │   │   ├── batch_controller.py # Batch scraping orchestration
 │   │   ├── browser_functions.py # Browser automation logic
@@ -196,6 +200,9 @@ src/
 │   ├── schedule_validator.py # Schedule validation
 │   ├── tracking.py           # Publish status tracking (atomic writes)
 │   ├── product_registry.py   # Published products registry (JSON + CSV)
+│   ├── analytics.py          # Per-post timeline reads and metrics store
+│   ├── blob_retention.py     # Vercel Blob staging-store retention
+│   ├── partial_post_sweep.py # Sweeps recent posts for failed platform legs
 │   ├── webhooks.py           # Zernio webhook event handling
 │   ├── late/                 # Zernio integration (formerly Late)
 │   │   ├── client.py         # Zernio API client (late-sdk)
@@ -266,13 +273,14 @@ dependencies = {
 **Purpose**: Combines all elements into final MP4 video using FFmpeg with intelligent video assembly strategies.
 
 **Modular Architecture** (refactored from 3,311-line monolith):
-- **`core.py`** - VideoAssembler orchestrator (~690 lines)
-- **`visual_builder.py`** - Visual filter chains (~590 lines)
-- **`subtitle_builder.py`** - Subtitle positioning (~850 lines)
-- **`audio_builder.py`** - Audio filter chains (~130 lines)
-- **`video_strategies.py`** - Video mode strategies (~665 lines)
-- **`media_inspector.py`** - Media file inspection (~170 lines)
-- **`subtitle_utils.py`** - Subtitle parsing/styling (~280 lines)
+- **`core.py`** - VideoAssembler orchestrator
+- **`visual_builder.py`** - Visual filter chains
+- **`subtitle_builder.py`** - Subtitle positioning
+- **`overlay_builder.py`** - Disclosure and hook drawtext overlays
+- **`audio_builder.py`** - Audio filter chains
+- **`video_strategies.py`** - Video mode strategies
+- **`media_inspector.py`** - Media file inspection
+- **`subtitle_utils.py`** - Subtitle parsing/styling
 
 **Core Functionality:**
 - **Media Analysis**: Async extraction of dimensions and durations
@@ -448,7 +456,7 @@ benefit under a voiceover.
 - **Fallback Chain**: Automatic provider switching on failures
 
 **Features:**
-- **Multi-Provider Support**: PicSee (implemented), Bitly/TinyURL (planned)
+- **Multi-Provider Support**: `bare` (the shipped default, a no-op) and PicSee; others planned
 - **Retry Logic**: Exponential backoff with configurable attempts
 - **Response Caching**: TTL-based caching to avoid redundant API calls
 - **Custom Domains**: Branded short domains (BSD) support
@@ -544,7 +552,7 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
 
 #### Video Validation and Quality Filtering
 
-**URL Validation** (`src/scraper/amazon/media_extractor.py:1261-1286`):
+**URL Validation** (`src/scraper/amazon/image_utils.py::validate_video_url_accessibility`):
 - HEAD request validation (1KB range) before full download
 - Amazon CDN domain verification for security
 - Accessibility checks to filter broken links
@@ -558,13 +566,12 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
 
 **Enhanced Validation** (`verify_video_file()`):
 ```python
-def verify_video_file(file_path: Path) -> tuple[bool, str, dict[str, Any]]:
-    """
-    Validate video file and extract metadata.
-
-    Returns:
-        (is_valid, reason, metadata_dict)
-    """
+def verify_video_file(
+    file_path: Path,
+    min_duration: float | None = None,
+    min_dimension: int | None = None,
+) -> MediaValidationResult:
+    """Validate a video file and extract its metadata."""
 ```
 
 Returns validation status, reason, and metadata in single call for efficient pipeline integration.
@@ -650,76 +657,6 @@ rate_limiting:
   video_validation_delay: [0.5, 1.5]  # Random delay range (seconds)
 ```
 
-#### Troubleshooting Video Processing
-
-**Problem**: Videos not detected on product page
-
-**Solutions**:
-1. Enable debug mode to see extraction attempts:
-   ```bash
-   poetry run python -m src.scraper.amazon.scraper --keywords "ASIN" --debug
-   ```
-2. Check if product page actually has videos (not all products have video content)
-3. Review logs for JavaScript parsing errors or ASIN matching issues
-4. Verify network connectivity to Amazon CDN
-
-**Problem**: Video downloads timing out
-
-**Solutions**:
-1. Increase timeout in `config/scraper.yaml`:
-   ```yaml
-   download_config:
-     video_download_timeout: 600  # Increase to 10 minutes
-   ```
-2. Check network speed and stability
-3. Verify retry settings are enabled:
-   ```yaml
-   download_config:
-     retry_video_downloads: 2
-   ```
-
-**Problem**: FFprobe metadata extraction failing
-
-**Solutions**:
-1. Verify FFmpeg/FFprobe installation:
-   ```bash
-   ffprobe -version
-   ```
-2. Check video file integrity:
-   ```bash
-   ffprobe -v error outputs/{ASIN}/videos/video_0.mp4
-   ```
-3. Disable metadata extraction if FFprobe unavailable:
-   ```yaml
-   video_config:
-     enable_metadata_extraction: false
-   ```
-
-**Problem**: Low-quality videos being downloaded
-
-**Solutions**:
-1. Increase quality thresholds:
-   ```yaml
-   video_config:
-     min_dimension: 1280  # Require 720p minimum
-     min_duration: 5.0    # Require longer videos
-   ```
-2. Review validation logs to see why videos passed filtering
-3. Check if higher quality versions available on product page
-
-**Problem**: Video processing errors causing product failures
-
-**Solutions**:
-1. Check error logs for specific failure reasons
-2. Verify graceful degradation is working (product should succeed without videos)
-3. Review retry logic configuration:
-   ```yaml
-   retry_config:
-     default_max_retries: 3
-     base_delay: 1.0
-     backoff_factor: 2.0
-   ```
-
 #### Performance Characteristics
 
 **Video Extraction Performance**:
@@ -735,26 +672,12 @@ rate_limiting:
 
 ### 8. Amazon Scraping Features
 
-#### Search Parameters
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `--min-price` | Minimum price filter | `--min-price 10.99` |
-| `--max-price` | Maximum price filter | `--max-price 99.99` |
-| `--min-rating` | Minimum rating (1-5 stars) | `--min-rating 4` |
-| `--prime-only` | Prime eligible items only | `--prime-only` |
-| `--free-shipping` | Free shipping items only | `--free-shipping` |
-| `--brands` | Filter by brand names | `--brands Apple Samsung Sony` |
-| `--sort` | Sort order | `--sort price-asc-rank` |
-
-#### Sort Options
-
-- `relevanceblender` (default) - Amazon's relevance algorithm
-- `price-asc-rank` - Price low to high
-- `price-desc-rank` - Price high to low
-- `review-rank` - Best reviews first
-- `date-desc-rank` - Newest first
-- `featured-rank` - Featured items first
+The search parameters, filters and sort options are a CLI reference rather
+than architecture, and are documented once in
+[Scraper](scraper.md#filtering), with the config-side equivalents in
+[Configuration](configuration.md). The copy that lived here gave the
+internal Amazon sort tokens as if they were CLI values, which argparse
+rejects.
 
 ### 9. Multi-Platform Web Scraping Architecture
 
@@ -769,8 +692,8 @@ rate_limiting:
 
 ```python
 # Unified platform access
-scraper = ScraperFactory.create_scraper('amazon')
-products = await scraper.scrape_products(['wireless headphones'])
+scraper = ScraperFactory.create_scraper(Platform.AMAZON)
+products = scraper.scrape_products(["wireless headphones"], search_params)
 
 # Platform auto-discovery
 available_platforms = ScraperRegistry.get_available_platforms()
@@ -786,13 +709,24 @@ available_platforms = ScraperRegistry.get_available_platforms()
 **Abstract Interface:**
 ```python
 class BaseScraper(ABC):
+    @property
     @abstractmethod
-    async def scrape_products(self, keywords: List[str]) -> List[BaseProductData]:
-        """Scrape products based on search keywords"""
-        
+    def platform(self) -> Platform:
+        """Which platform this scraper serves"""
+
     @abstractmethod
     def validate_product_id(self, product_id: str) -> bool:
         """Validate platform-specific product identifiers"""
+
+    @abstractmethod
+    def scrape_products(
+        self, keywords: list[str], search_params: BaseSearchParameters
+    ) -> list[BaseProductData]:
+        """Scrape products for the given keywords"""
+
+    @abstractmethod
+    def scrape_single_product(self, product_id: str) -> BaseProductData | None:
+        """Scrape one product by its platform identifier"""
 ```
 
 #### **Amazon Implementation (`src/scraper/amazon/scraper.py`)**
@@ -801,9 +735,9 @@ class BaseScraper(ABC):
 
 **Technical Implementation:**
 - **BaseScraper Extension**: Implements multi-platform interface
-- **Playwright Integration**: Headless browser automation with Botasaurus
+- **Botasaurus Integration**: Browser automation with anti-detection defaults
 - **Stealth Techniques**: Anti-detection measures and browser fingerprinting
-- **11-Module Architecture**: Modular design for maintainability
+- **Modular Architecture**: One module per extraction concern
 - **Media Extraction**: High-resolution images and videos with validation
 - **Advanced Search**: Complex filtering with price, rating, brand, and shipping options
 
@@ -862,7 +796,7 @@ ContentEngineAI uses a **modular configuration architecture** that replaced the 
 
 **Type-Safe Configuration (v0.14.0+):**
 - **Video Pipeline**: Pydantic models in `src/video/config/` (core, audio, visual, subtitle models)
-- **Scraper System**: Pydantic models in `src/scraper/config_models.py` (19 models, 283 lines)
+- **Scraper System**: Pydantic models in `src/scraper/config_models.py`
 - **Validation**: Field constraints ensure type safety and valid ranges at startup
 - **Backward Compatible**: Dict-based config adapter maintains legacy support
 
@@ -896,18 +830,19 @@ The original configuration system is preserved through `config_adapter.py`:
 ### Pipeline Data Context
 
 ```python
-@dataclass
 class PipelineContext:
-    product: ProductData
-    config: VideoConfig
-    profile: VideoProfile
-    temp_dir: Path
-    visuals_info: VisualsInfo
-    script: Optional[str] = None
-    voiceover_path: Optional[Path] = None
-    subtitles_path: Optional[Path] = None
-    music_path: Optional[Path] = None
-    final_video_path: Optional[Path] = None
+    # Constructed with: product, profile, profile_name, config, secrets,
+    # session, run_paths, debug_mode, cli_overrides.
+    # Artifacts the steps fill in as they run:
+    visuals: list[Path]
+    script: str | None
+    description: str | None
+    voiceover_duration: float | None
+    state: dict[str, Any]
+    scraped_images: list[Path]
+    scraped_videos: list[Path]
+    stock_media: list[Path]
+    # Output paths come from `run_paths`, not from fields on the context.
 ```
 
 **State Management:**
@@ -938,7 +873,7 @@ Final Video ← Video Assembly ← Music Download + Subtitle Generation
 **Level 1: Provider Fallbacks**
 - LLM: Gemini (primary) -> OpenRouter (fallback)
 - TTS: Gemini TTS (primary) -> Google Cloud TTS (fallback)
-- STT: Whisper -> script-based fallback
+- STT: Whisper -> Google Cloud STT -> script-based timing estimation
 - Music: Jamendo (primary) -> Freesound -> local files
 
 **Level 2: Retry Logic**
@@ -994,7 +929,7 @@ class BaseProvider(ABC):
 
 **New Pipeline Steps:**
 1. Define step function with async signature
-2. Add to dependency graph in `pipeline_graph.py`
+2. Add it to `step_runners()` and `step_dependencies()` in `src/video/producer/orchestration.py`, and to `VALID_STEPS` in `src/video/producer/state.py`
 3. Update configuration and validation
 4. Add performance monitoring and error handling
 
@@ -1003,7 +938,7 @@ class BaseProvider(ABC):
 - **🐍 Python 3.12**: Modern async/await patterns
 - **🎥 FFmpeg**: Professional video processing
 - **🤖 AI Services**: Gemini (LLM + TTS, primary), OpenRouter and Google Cloud (fallbacks), OpenAI Whisper (STT)
-- **🌐 Web Scraping**: Playwright with stealth techniques (Amazon only today)
+- **🌐 Web Scraping**: Botasaurus with stealth techniques (Amazon only today)
 - **📱 Media APIs**: Jamendo and Freesound (music), Pexels (stock images/videos)
 - **⚙️ Configuration**: YAML + Pydantic validation
 - **🧪 Testing**: Pytest with async support

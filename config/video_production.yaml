@@ -5,7 +5,7 @@
 # FILE NAMING CONVENTIONS
 # ============================================================================
 # Standard filenames for pipeline outputs across all stages of production
-# These patterns are used by producer.py, assembler.py, and other modules
+# These patterns are used by the producer, the assembler, and other modules
 # to locate and save media files consistently throughout the pipeline
 #
 # Pipeline Impact:
@@ -28,7 +28,7 @@ file_naming:
   # NOTE: temp_subtitle removed - system uses subtitles.srt, subtitles.ass, etc. directly
 
   # Video output filenames
-  # Used by assembler.py for final video generation
+  # Used by the assembler for final video generation
   # Placeholders: {product_id} = ASIN/product ID, {profile} = video profile name
   # Example: video_B07BHXYCXQ_slideshow_images1.mp4
   final_video: "video_{product_id}_{profile}.mp4"
@@ -41,7 +41,7 @@ file_naming:
 # ============================================================================
 # VIDEO ENCODING SETTINGS
 # ============================================================================
-# Core video encoding parameters used by assembler.py (FFmpeg wrapper)
+# Core video encoding parameters used by the assembler (FFmpeg wrapper)
 # These settings control output video quality, format, and performance
 #
 # Pipeline Impact:
@@ -52,13 +52,13 @@ file_naming:
 video_settings:
   # Video resolution [width, height]
   # 1080x1920 = vertical/portrait format optimized for TikTok, Instagram Reels
-  # Used by: assembler.py for frame size, subtitle_utils.py for positioning
+  # Used by: the assembler for frame size, subtitle_utils.py for positioning
   resolution: [1080, 1920]
 
   # Video frame rate (frames per second)
   # 30 fps = standard for social media, balances smoothness and file size
   # Higher fps (60) increases file size significantly
-  # Used by: assembler.py FFmpeg encoding
+  # Used by: the assembler FFmpeg encoding
   frame_rate: 30
 
   # Video codec settings
@@ -77,29 +77,29 @@ video_settings:
 
   # Image display duration in seconds (for slideshow profiles)
   # How long each product image is shown on screen
-  # Used by: producer.py to calculate slideshow timing
+  # Used by: the producer to calculate slideshow timing
   # Note: Actual duration may vary if use_dynamic_image_count is enabled
   image_duration: 3.0
 
   # Video constraints and validation
   # Maximum allowed video duration (seconds)
   # Prevents accidentally creating overly long videos
-  # Used by: producer.py validation, may truncate or fail if exceeded
+  # Used by: the producer validation, may truncate or fail if exceeded
   total_duration_limit_sec: 90
 
   # Tolerance for matching video duration to audio (seconds)
   # Allows small timing mismatches between final video and voiceover
-  # Used by: Quality checks in assembler.py
+  # Used by: Quality checks in the assembler
   video_duration_tolerance_sec: 1.0
 
   # Minimum acceptable output video file size (MB)
   # Validation check to ensure video actually contains content
-  # Used by: producer.py post-generation validation
+  # Used by: the producer post-generation validation
   min_video_file_size_mb: 0.1
 
   # Timeout for FFmpeg probe operations (seconds)
   # Maximum time to wait when analyzing media file properties
-  # Used by: assembler.py media duration detection
+  # Used by: the assembler media duration detection
   verification_probe_timeout_sec: 30
 
   # Media validation requirements (MUST match scraper.yaml validation_config)
@@ -117,7 +117,7 @@ video_settings:
   # Default position for product images within the video frame
   # Profiles can override these values for custom layouts
   # Values are fractions of frame dimensions (0.0-1.0)
-  # Used by: producer.py when generating visual content
+  # Used by: the producer when generating visual content
   image_width_percent: 1             # Image width as 100% of frame width
   image_top_position_percent: 0.0    # Top offset (only used when image_vertical_align is "top")
   image_vertical_align: center       # Vertical alignment: "center" or "top"
@@ -136,14 +136,14 @@ video_settings:
 
   # Timing and delays for batch processing
   # Random delays between product videos to avoid detection as automated content
-  # Used by: Batch processing mode in producer.py
+  # Used by: Batch processing mode in the producer
   inter_product_delay_min_sec: 1.5   # Minimum pause between products
   inter_product_delay_max_sec: 4.0   # Maximum pause between products
   min_visual_segment_duration_sec: 0.1  # Minimum length for any visual clip
   dynamic_image_count_limit: 25         # Maximum images to use in dynamic mode
 
   # Assembler-specific settings (FFmpeg subtitle rendering)
-  # Used by: assembler.py when generating embedded subtitles
+  # Used by: the assembler when generating embedded subtitles
   # Note: Modern workflow uses external ASS files, these are legacy fallbacks
   default_max_chars_per_line: 20      # Character limit for subtitle wrapping
   subtitle_box_border_width: 5        # Border thickness around subtitle box
@@ -431,7 +431,7 @@ audio_settings:
   freesound_token_refresh_buffer_sec: 60
 
   # --- Retry and Backoff Configuration ---
-  # Used by: src/audio/freesound_client.py (lines 349-418)
+  # Used by: src/audio/freesound_client.py
   # Controls how many times to retry failed operations and delay between attempts
 
   # Token refresh retry configuration
@@ -480,14 +480,14 @@ audio_settings:
   # Background music settings
   background_music:
     enabled: true
-    # NOTE: fade_in_duration and fade_out_duration are configured above (lines 170-171)
+    # NOTE: the fades are `music_fade_in_duration` and `music_fade_out_duration`,
     # NOTE: Background music always loops to match video duration
 
 # ============================================================================
 # MEDIA GATHERING
 # ============================================================================
 # Configuration for collecting and filtering media assets (images and videos)
-# Used by: producer.py and media_extractor.py for stock media integration
+# Used by: the producer and media_extractor.py for stock media integration
 #
 # Pipeline Impact:
 # - temp_media_dir: Stores downloaded Pexels/stock assets during production
@@ -528,7 +528,7 @@ media_settings:
 # STOCK MEDIA SETTINGS
 # ============================================================================
 # Configuration for third-party stock media providers (Pexels for images/videos)
-# Used by: Stock media integration in producer.py
+# Used by: Stock media integration in the producer
 #
 # Usage:
 # - Enable per-profile using use_stock_images and use_stock_videos flags
@@ -1122,7 +1122,7 @@ cta_detection:
 # FORMAT NORMALIZATION SETTINGS
 # ============================================================================
 # Controls video format normalization to ensure compatibility across all content
-# Used by: src/video/assembler.py normalize_video_format() method (lines 801-850)
+# Used by: src/video/assembler/core.py::_normalize_video_format
 #
 # Pipeline Impact:
 # - Ensures all videos use consistent frame rate, codec, and pixel format
@@ -1158,15 +1158,17 @@ format_normalization:
 # ASPECT RATIO HANDLING
 # ============================================================================
 # Controls how aspect ratio differences are handled in smart-scale mode
-# Used by: src/video/assembler.py _apply_smart_scale_mode() method (line 1718)
+# Used by: src/video/the assembler _apply_smart_scale_mode() method (line 1718)
 #
 # Pipeline Impact:
 # - Determines when to crop vs blur-fill content to match target aspect ratio
 # - Affects visual appearance and how much content is visible
 #
-# Visual Examples:
-# - tolerance=0.10: 16:9 video in 16:9 frame = crop (within 10%)
-# - tolerance=0.05: 4:3 video in 16:9 frame = blur-fill (exceeds 5%)
+# The tolerance is a window around the TARGET aspect, and this pipeline
+# renders 9:16, so a landscape source can never reach the crop branch:
+# - 16:9 source in a 9:16 frame: difference 2.16 against a 0.10 tolerance,
+#   so blur-fill. A 1:1 source is 0.78, also blur-fill.
+# - 1080x1800 source: difference 0.067, so crop.
 aspect_ratio:
   # Tolerance for aspect ratio similarity (fraction, not percentage)
   # If content aspect ratio is within this tolerance of target, use crop-to-fit
@@ -1182,7 +1184,7 @@ aspect_ratio:
 # TIMING CONSTRAINTS
 # ============================================================================
 # Minimum duration constraints for video segments and subtitle display
-# Used by: src/video/subtitle_positioning.py and assembler.py
+# Used by: src/video/subtitle_positioning.py and the assembler
 #
 # Pipeline Impact:
 # - Prevents too-short clips that feel jarring or fail to render

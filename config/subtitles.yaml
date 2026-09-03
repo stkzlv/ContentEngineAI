@@ -51,9 +51,10 @@ subtitle_settings:
   # layer.
   #
   # All defaults here track the starter recipe in
-  # docs/subtitle-best-practices.md section 9 (Starter recipe).
+  # docs/subtitle-best-practices.md, "Starter recipe".
   pycaps:
-    # Fixed template name. Used when template_pool is empty or single-entry,
+    # Fixed template name. Used when template_pool is empty; a single-entry
+    # pool is used as the pool, so its one entry wins over this,
     # which is also what `--pycaps-template NAME` triggers (the flag clears
     # the pool to force this template).
     # explosive: bold orange-yellow gradient text, thick black outline,
@@ -115,7 +116,7 @@ subtitle_settings:
     vertical_align_offset: -0.20
 
     # On render failure or when pycaps is not installed:
-    #   "fallback_ffmpeg" (default) = silently use the FFmpeg subtitle path,
+    #   "fallback_ffmpeg" (shipped in this file) = silently use the FFmpeg subtitle path,
     #     so forks without the optional pycaps group still produce videos.
     #   "raise" = abort the pipeline (use when you want to surface install
     #     drift loudly).
@@ -144,7 +145,7 @@ subtitle_settings:
   # Post-processes raw Whisper word timestamps before they reach either
   # the FFmpeg or pycaps subtitle engine. Fixes flickering, short-word
   # flashes, and uneven segment durations from vanilla Whisper.
-  # See docs/subtitle-best-practices.md section 5 for the research.
+  # See docs/subtitle-best-practices.md, "Timing and reading", for the research.
   timing_smoothing:
     enabled: true
     # Rule 1: minimum word duration (seconds). Words shorter than this
@@ -245,14 +246,14 @@ subtitle_settings:
   # Prevents subtitles from spanning too wide and becoming hard to read
   # Best practice target: 0.80 (80%) — leaves ~90px left/right margin on a
   # 1080-wide frame which is inside all three platform safe zones.
-  # See docs/subtitle-best-practices.md section 3 (Layout and positioning).
+  # See docs/subtitle-best-practices.md, "Layout and positioning".
   max_subtitle_width_fraction: 0.80
 
   # Maximum duration for any subtitle segment (seconds)
   # Segments longer than this will be split into multiple subtitles
   # Best practice target: 2.5s max — beyond this the viewer has already
   # read and scanned ahead, making the caption feel stale. See
-  # docs/subtitle-best-practices.md section 4 (Timing and reading).
+  # docs/subtitle-best-practices.md, "Timing and reading".
   max_duration: 2.5
 
   # Minimum duration for any subtitle segment (seconds)
