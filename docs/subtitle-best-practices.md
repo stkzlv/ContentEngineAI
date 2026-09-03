@@ -338,7 +338,7 @@ directly implementable in either engine.
 **Font**: Montserrat Bold (weight 700) is what the shipped `font_pool` uses; Montserrat Black (900) is the recipe's ideal. Loaded via `@font-face` or
 embedded as a font file in the project's `static/fonts/` dir.
 
-**Size**: `144 px` on a 1080×1920 canvas (7.5% of frame height, which is 72 pt).
+**Size**: `144 px` on a 1080×1920 canvas, which is 7.5% of frame height.
 
 **Case**: sentence case. Terminal punctuation stripped in timing
 post-processing.

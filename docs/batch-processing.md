@@ -251,7 +251,12 @@ Example output after batch completion:
 ```
 --- PRODUCER SUMMARY ---
 Products: 15 attempted, 14 successful, 0 failed, 1 skipped
-Profiles: slideshow_images1: 5, product_video_sequential: 4, product_video_mixed: 3, slideshow_images2: 2
+Profiles: Profile Distribution:
+  - slideshow_images1: 5 (35.7%)
+  - product_video_sequential: 4 (28.6%)
+  - product_video_mixed: 3 (21.4%)
+  - slideshow_images2: 2 (14.3%)
+Duration: 42.5s (avg 2.8s/product)
 ---
 ```
 

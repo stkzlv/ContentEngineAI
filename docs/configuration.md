@@ -271,9 +271,10 @@ api_settings:
   llm_retry_multiplier: 2
 ```
 
-Both `ApiSettings` and `OptimizationSettings` are flat models. A nested block
-here is dropped silently rather than rejected, which is why the shipped
-`config/performance.yaml` nests these and the values never take effect.
+`ApiSettings` is a flat model, and the shipped `config/performance.yaml`
+nests these under `llm:`, `tts:` and `stock_media:`, so a nested block is
+dropped silently rather than rejected and none of those values takes effect.
+`optimization_settings` is set in no config file at all and loads as `None`.
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings with type-safe Pydantic models:
@@ -614,7 +615,7 @@ subtitle_settings:
 
   # Unified Positioning
   anchor: "below_content"            # Positioning anchor: top, center, bottom, above_content, below_content
-  margin: 0.1                        # Margin as fraction of frame height (0.0-0.5)
+  margin: 0.04                       # Margin as fraction of frame height (0.0-0.5)
   content_aware: true                # Automatically adjust position based on visual content
   horizontal_alignment: "center"     # Text alignment: left, center, right
 
@@ -623,7 +624,7 @@ subtitle_settings:
   font_size_scale: 1.0              # Font size multiplier (0.5-2.0)
 
   # Text Formatting
-  max_line_length: 38                # Maximum characters per line
+  max_line_length: 30                # Maximum characters per line
   max_duration: 2.5                  # Maximum duration for subtitle segments (seconds)
   min_duration: 0.6                  # Minimum duration for subtitle segments (seconds)
 
@@ -890,31 +891,27 @@ platform_metadata:
     description_length_max: 5000
     hashtag_count_min: 3
     hashtag_count_max: 5
-    require_shorts_tag: true              # Always include #Shorts
-    require_ad_tag: true                  # Always include #ad
+    include_shorts_tag: true              # Append #Shorts
+    seo_keywords: true
 
   # TikTok Configuration
   tiktok:
-    caption_length_optimal_min: 100
-    caption_length_optimal_max: 300
+    caption_length_optimal: 300
     caption_length_max: 2200              # Hard limit
     hashtag_count_min: 3
     hashtag_count_max: 5
-    require_ad_tag: true                  # Always include #ad
+    seo_focused: true
     # The tags to avoid, as a list. A bool here fails validation.
     avoid_generic_tags: ["foryoupage", "fyp", "viral", "foryou"]
 
   # Instagram Reels Configuration
   instagram:
     caption_style: "seo"                  # Options: "short" (3-5 words) or "seo" (100-200 chars)
-    caption_length_short_min: 3           # For short style (word count)
-    caption_length_short_max: 5
-    caption_length_seo_min: 100           # For SEO style (character count)
-    caption_length_seo_max: 200
+    caption_length_short: 5               # For short style (word count)
+    caption_length_seo: 200               # For SEO style (character count)
     hashtag_count_min: 15
     hashtag_count_max: 30
-    hashtags_in_caption: true             # CRITICAL: Hashtags must be in caption, not comments (2024+ algorithm)
-    require_ad_tag: true                  # Always include #ad
+    emoji_enabled: true
     emoji_enabled: true                   # Allow emojis in captions
 ```
 
@@ -1093,31 +1090,18 @@ platform_metadata:
     max_entries: 1000          # LRU eviction when exceeded
 ```
 
-**2. A/B Testing** (`ab_testing`):
+**2. Batch Generation** (`batch`):
 ```yaml
-platform_metadata_config:
-  ab_testing:
-    enabled: false
-    youtube:
-      enabled: true
-      variants:
-        - name: "control"
-          template_path: "src/ai/prompts/youtube_metadata.md"
-          weight: 50
-```
-
-**3. Batch Generation** (`batch`):
-```yaml
-platform_metadata_config:
+platform_metadata:   # under description_settings
   batch:
     enabled: true
     max_concurrent: 3          # Parallel product processing (1-20)
     log_progress: true         # [N/total] format logging
 ```
 
-**4. Multi-Format Export** (`export`):
+**3. Multi-Format Export** (`export`):
 ```yaml
-platform_metadata_config:
+platform_metadata:   # under description_settings
   export:
     enabled: true
     default_format: "json"     # json, csv, youtube_csv, tiktok, instagram
@@ -1126,9 +1110,9 @@ platform_metadata_config:
     csv_encoding: "utf-8-sig"  # Excel compatibility
 ```
 
-**5. Trend-Aware Hashtags** (`trends`):
+**4. Trend-Aware Hashtags** (`trends`):
 ```yaml
-platform_metadata_config:
+platform_metadata:   # under description_settings
   trends:
     enabled: false
     provider: "static"         # static, mock (future: external APIs)
@@ -1548,7 +1532,7 @@ Circuit breaker settings are in `config/performance.yaml::circuit_breaker`:
 freesound_circuit_breaker = CircuitBreaker(
     failure_threshold=3,        # Open after 3 consecutive failures
     timeout=60,                 # Stay open for 60 seconds
-    expected_exceptions=(aiohttp.ClientError,),
+    expected_exceptions=(ConnectionError, TimeoutError, OSError),
 )
 ```
 

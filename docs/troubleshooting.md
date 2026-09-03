@@ -372,7 +372,7 @@ for voice in voices.voices[:5]:
    tts_config:
      google_cloud:
        voice_selection_criteria:
-         name_contains: "Wavenet"   # narrow the candidate voices
+         - { language_code: "en-US", name_contains: "Wavenet" }
    ```
 
 2. **Fall back to Coqui TTS.** It is not a project dependency, so it has to be
@@ -429,7 +429,7 @@ for voice in voices.voices[:5]:
    ```yaml
    whisper_settings:
      model_size: "medium"  # Try a larger model; the default is already "small"
-     device: "cpu"        # Force CPU if GPU issues
+     model_device: "cpu"  # Force CPU if GPU issues
    
    google_cloud_stt_settings:
      enabled: true        # Enable as fallback
@@ -640,12 +640,8 @@ make perf-report
 
 **Solutions:**
 1. **Reduce Memory Usage:**
-   ```yaml
-   memory:
-     mmap_threshold_bytes: 10485760   # Use memory mapping above this size
-   ```
-
-   There is no memory-cap setting. The cap is the `make *-lowpri` cgroup.
+   There is no memory-cap setting to tune. The cap is the `make *-lowpri`
+   cgroup, which is what keeps a render from taking the session down with it.
 
 2. **Process Fewer Items:**
    ```bash
@@ -854,7 +850,6 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    global_settings:
      retry_config:
        default_max_retries: 5   # More attempts before giving up
-     retries: 1              # Reduce retry attempts
    ```
 
 2. **Use Different User Agents:**

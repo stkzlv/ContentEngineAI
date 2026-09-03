@@ -63,10 +63,16 @@ class PipelineGraph:
         # unchanged rather than being reported as a failed step.
         ...
 
-    def add_step(self, name: str, runner, depends_on: set[str]) -> None: ...
+    def add_step(
+        self, name: str, function: Callable, dependencies: set[str] | None = None
+    ) -> None: ...
+
     def compute_execution_order(self) -> list[list[str]]: ...
-    async def execute_level(self, level: list[str], ctx) -> None:
-        """Runs one level's steps concurrently."""
+
+    async def execute_level(
+        self, step_names: list[str], context: Any
+    ) -> list[StepResult]:
+        """Runs one level's steps concurrently and returns their results."""
 ```
 
 **Performance Impact:** 1.35x speedup (saves ~87 seconds per run)

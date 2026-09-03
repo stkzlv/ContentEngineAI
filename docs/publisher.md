@@ -682,7 +682,7 @@ provider: late                      # Publisher provider (only "late" supported)
 # api_key: set LATE_API_KEY in the environment instead. There is no
 # variable expansion here, so `${LATE_API_KEY}` would be stored literally
 # and is long enough to pass the key-length check.
-vercel_token: ${LATE_VERCEL_TOKEN} # Vercel token for large files (optional)
+# vercel_token: set LATE_VERCEL_TOKEN in the environment, for the same reason # Vercel token for large files (optional)
 
 # === Publishing Defaults ===
 immediate_publish: false            # Bundled default: schedule rather than publish now
@@ -1300,7 +1300,7 @@ poetry run python -m src.publisher.late schedule auto \
    - Reads `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
    - Each platform gets its own post with platform-specific content
    - All platforms for same product scheduled to same time slot
-6. Raises after the slot-search attempt limit if every slot is occupied; it does not fall back to immediate publishing
+6. Counts the product failed after the slot-search attempt limit and moves to the next; it does not fall back to immediate publishing
 7. Reports scheduled times and slot assignments
 
 ### Schedule Validation
@@ -1309,7 +1309,7 @@ The publisher enforces schedule validation rules:
 
 **Validation Rules:**
 - No duplicate scheduling (same product + platform + time)
-- Minimum spacing between posts (any non-negative value; `0` disables the check)
+- Minimum spacing between posts on the same platform (any non-negative value; `0` disables the check)
 - Timezone-aware datetime validation
 
 **Configuration** (`config/publisher.yaml`):

@@ -1158,7 +1158,7 @@ format_normalization:
 # ASPECT RATIO HANDLING
 # ============================================================================
 # Controls how aspect ratio differences are handled in smart-scale mode
-# Used by: src/video/the assembler _apply_smart_scale_mode() method (line 1718)
+# Used by: src/video/assembler/visual_builder.py, the smart-scale branch
 #
 # Pipeline Impact:
 # - Determines when to crop vs blur-fill content to match target aspect ratio
