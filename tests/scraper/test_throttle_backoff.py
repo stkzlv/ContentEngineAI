@@ -12,6 +12,9 @@ driver and an injected sleep, so nothing here waits or opens a browser.
 
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
+
 import pytest
 
 from src.scraper.base.throttle import (
@@ -692,14 +695,31 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
 
 
 class _StubDriver:
-    """Enough of a Botasaurus driver for the decorator's own bookkeeping."""
+    """Enough of a Botasaurus driver for the decorator's own bookkeeping.
 
-    config = None
+    Substituted for the `Driver` the decorator constructs, not passed as
+    `create_driver`: that argument is accepted by the signature and never
+    called, so the tests were launching real Chrome and writing screenshots
+    into `error_logs/`.
+    """
+
+    page_source = "<html></html>"
+
+    def __init__(self):
+        # The decorator writes `driver.config.is_last_retry` before each
+        # attempt, so this has to be an object with settable attributes.
+        self.config = SimpleNamespace(is_last_retry=False)
 
     def close(self):
         return None
 
     def quit(self):
+        return None
+
+    def save_screenshot(self, *args, **kwargs):
+        return None
+
+    def get_bot_detected_by(self):
         return None
 
 
@@ -717,20 +737,28 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
     @staticmethod
     def _inner(monkeypatch, impl):
         """The real decorator, with a stub driver instead of Chrome."""
+        # The REAL decorator, with Chrome replaced. A pass-through double is
+        # worthless here: Botasaurus catches everything the decorated
+        # function raises, re-runs the whole task `max_retry` times and
+        # returns None, so a double that propagates asserts the opposite of
+        # what production does. The escape is `must_raise_exceptions`, which
+        # only the real decorator honours.
+        #
+        # `create_driver` is accepted by the decorator's signature and never
+        # called, so setting it launched real Chrome and left screenshots in
+        # `error_logs/`. The construction it actually performs is
+        # `Driver(...)` in its own module, so that is what gets replaced.
+        import botasaurus.browser_decorator as decorator
+
         from src.scraper.amazon import browser_functions
 
-        # The REAL decorator, with a stub driver factory. A pass-through
-        # double is worthless here: Botasaurus catches everything the
-        # decorated function raises, re-runs the whole task `max_retry` times
-        # and returns None, so a double that propagates asserts the opposite
-        # of what production does. The escape is `must_raise_exceptions`,
-        # which only the real decorator honours.
         monkeypatch.setattr(
             browser_functions, "scrape_amazon_products_browser_impl", impl
         )
+        monkeypatch.setattr(decorator, "Driver", lambda *a, **kw: _StubDriver())
         config = browser_functions._build_browser_config(False)
-        config["create_driver"] = lambda *a, **kw: _StubDriver()
         config["parallel"] = 1
+        config["create_error_logs"] = False
         monkeypatch.setattr(
             browser_functions,
             "_build_browser_config",
@@ -844,6 +872,39 @@ class TestAnInputThatSucceededThenStuckIsStillReported:
         assert tracker.dead_queries == []
         assert tracker.throttled_inputs == ["usb hub"]
 
+    def test_the_verdict_agrees_with_the_summary(self) -> None:
+        """They disagreed, and the verdict is the one that costs waiting.
+
+        The decision asked only whether another input got through, while the
+        list also excluded anything that had succeeded itself. So a keyword
+        that delivered page one and was then blocked got skipped as a dead
+        query after two backoffs, while the summary called it rate-limited.
+        """
+        tracker = _tracker(dead_query_after=2, max_attempts=6)
+
+        tracker.record_success("other keyword")
+        tracker.record_success("usb hub")
+        verdicts = [tracker.record_error_page("usb hub") for _ in range(3)]
+
+        assert Verdict.DEAD_QUERY not in verdicts
+        assert tracker.dead_queries == []
+        assert tracker.throttled_inputs == ["usb hub"]
+
+    def test_it_never_falls_out_of_both_lists(self) -> None:
+        """`dead_query_after: 1` is a legal value and used to lose it.
+
+        A verdict of DEAD_QUERY on the first failure meant the input never
+        reached the throttled list, and the dead list excluded it for having
+        succeeded, so it was reported nowhere.
+        """
+        tracker = _tracker(dead_query_after=1, max_attempts=6)
+
+        tracker.record_success("other keyword")
+        tracker.record_success("usb hub")
+        tracker.record_error_page("usb hub")
+
+        assert tracker.summary_lines(), "the input was lost from both lists"
+
     def test_a_recovery_after_the_failures_clears_it_again(self) -> None:
         tracker = _tracker(max_attempts=3)
 
@@ -887,6 +948,66 @@ class TestAnInputThatSucceededThenStuckIsStillReported:
             f"the run committed {tracker.total_wait_sec / 60:.0f} minutes "
             "against a five-minute cap"
         )
+
+
+class TestAnEmptyResultIsNotEvidence:
+    """The impl and the wrapper both return `[]` for a swallowed failure.
+
+    Counting that as a success let a keyword whose page died on a CDP
+    timeout become the run's proof that the connection works, which then
+    condemned the next keyword as a dead query.
+    """
+
+    def test_the_batch_loop_does_not_record_an_empty_page(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.scraper.amazon import browser_functions
+
+        monkeypatch.setattr(
+            browser_functions,
+            "scrape_amazon_products_browser_impl",
+            lambda driver, item: [],
+        )
+        tracker = _tracker()
+
+        browser_functions.scrape_batch_items(
+            driver=object(),
+            items=[{"keyword": "usb hub"}],
+            tracker=tracker,
+            sleep=lambda _: None,
+        )
+
+        assert not tracker._another_input_got_through("wifi extender")
+
+    def test_the_standalone_path_does_not_either(self) -> None:
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.debug_mode = False
+        scraper.logger = logging.getLogger("test")
+        scraper.throttle = _tracker()
+
+        scraper._scrape_with_retry(
+            lambda data: [], {"keyword": "usb hub"}, sleep=lambda _: None
+        )
+
+        assert not scraper.throttle._another_input_got_through("wifi extender")
+
+    def test_a_real_result_still_counts(self) -> None:
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        scraper.debug_mode = False
+        scraper.logger = logging.getLogger("test")
+        scraper.throttle = _tracker()
+
+        scraper._scrape_with_retry(
+            lambda data: [{"asin": "B0TEST0001"}],
+            {"keyword": "usb hub"},
+            sleep=lambda _: None,
+        )
+
+        assert scraper.throttle._another_input_got_through("wifi extender")
 
 
 class TestAMalformedRateLimitingBlock:

@@ -397,7 +397,10 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
-                if keyword in self.throttle.dead_queries:
+                if (
+                    keyword in self.throttle.dead_queries
+                    or keyword in self.throttle.throttled_inputs
+                ):
                     # Amazon is answering this query with its error page in a
                     # run where other inputs got through. Every later page
                     # re-resolves the same query, costs a fresh Chrome
@@ -405,8 +408,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                     # nothing. Same reasoning as the URL gate above: an input
                     # that cannot work does not get seven attempts at it.
                     self.logger.warning(
-                        "Stopping pagination for %r: named a dead query, so "
-                        "later pages would repeat the same failure.",
+                        "Stopping pagination for %r: the throttle has given "
+                        "up on it, so each later page would open a browser "
+                        "session straight into the same failure.",
                         keyword,
                     )
                     break
@@ -1146,7 +1150,12 @@ class BotasaurusAmazonScraper(BaseScraper):
                     continue
                 raise
 
-            self.throttle.record_success(input_label)
+            # Same rule as the batch loop: an empty result is not evidence.
+            # The wrapper returns one for every non-error-page exception, so
+            # a keyword whose page died on a CDP timeout used to become the
+            # run's proof that the connection works.
+            if result:
+                self.throttle.record_success(input_label)
             return result
 
     def _shorten_affiliate_links(self, products: list[ProductData]) -> None:

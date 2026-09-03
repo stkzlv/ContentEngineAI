@@ -248,7 +248,13 @@ class ThrottleTracker:
     # -- outcomes -----------------------------------------------------------
 
     def record_success(self, input_label: str) -> None:
-        """Note that an input got through.
+        """Note that an input got through, having produced something.
+
+        Call this only for a result that carries products. An empty list is
+        not evidence that the connection works: the impl's navigation handler
+        and the browser wrapper both return one for a swallowed failure, so
+        counting it let a keyword whose page died on a CDP timeout become the
+        proof that condemned the next keyword as a dead query.
 
         The succeeding input's own failures are cleared: a run that was
         throttled and recovered should not carry them into a later decision
@@ -287,8 +293,16 @@ class ThrottleTracker:
         # page one and was blocked from page two onward.
         state.recovered = False
 
-        if state.error_pages >= self.settings.dead_query_after and (
-            self._another_input_got_through(input_label)
+        # `not in self._succeeded` matches what `dead_queries` reports. The
+        # decision used to omit it, so an input that delivered earlier in the
+        # run was skipped as a dead query while the summary -- correctly --
+        # called it rate-limited. With `dead_query_after: 1` it also landed
+        # in neither list, which is the regression this pass exists to keep
+        # closed.
+        if (
+            state.error_pages >= self.settings.dead_query_after
+            and self._another_input_got_through(input_label)
+            and input_label not in self._succeeded
         ):
             if input_label not in self._dead:
                 self._dead.append(input_label)

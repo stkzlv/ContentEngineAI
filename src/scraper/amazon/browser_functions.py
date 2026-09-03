@@ -966,10 +966,10 @@ def _build_browser_config(debug_mode=False):
     # Botasaurus catches everything the decorated function raises, re-runs the
     # whole task `max_retry` times and then returns None. So re-raising inside
     # the function reaches nothing: the caller saw no exception, recorded the
-    # throttled input as a success, and paid for four more Chrome launches
-    # into a live block on the way. Naming the type here is the only way out,
-    # and it also removes those four unwaited retries -- the caller's backoff
-    # is the retry.
+    # throttled input as a success, and paid for `max_retry` more Chrome
+    # launches into a live block on the way -- three on this config, one under
+    # `--debug`. Naming the type here is the only way out, and it removes
+    # those unwaited retries too: the caller's backoff is the retry.
     current_config["must_raise_exceptions"] = [AmazonErrorPageError]
 
     return current_config
@@ -1048,7 +1048,12 @@ def scrape_batch_items(
                     "[batch %d/%d] Scraping: %s", i + 1, len(items), input_label
                 )
                 products = scrape_amazon_products_browser_impl(driver, item)
-                tracker.record_success(input_label)
+                # Only a result that carries products is evidence that the
+                # connection works. The impl returns an empty list for a
+                # swallowed navigation failure too, and counting that made a
+                # dead page into the proof that condemned the next input.
+                if products:
+                    tracker.record_success(input_label)
                 results.append({"input": input_label, "products": products or []})
                 break
             except Exception as e:
