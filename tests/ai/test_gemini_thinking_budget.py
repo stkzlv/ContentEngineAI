@@ -33,22 +33,32 @@ def _settings(**kwargs) -> LLMSettings:
 
 class TestTheSdkExposesTheControl:
     def test_thinking_budget_is_a_field(self) -> None:
-        """The whole reason the pin had to move."""
+        """The installed SDK, which is what the code actually calls.
+
+        Asserted against the resolved environment rather than the pin: the
+        constraint was never the obstacle, the lock was, and a test on the
+        constraint would pass on a lock that predates the field.
+        """
         from google.genai import types
 
         assert "thinking_budget" in types.ThinkingConfig.model_fields
 
-    def test_the_pin_allows_it(self) -> None:
+    def test_the_lock_resolves_a_version_that_has_it(self) -> None:
+        """The lock is what held 1.2.0 for as long as it did."""
         import tomllib
         from pathlib import Path
 
         repo = Path(__file__).resolve().parents[2]
-        pinned = tomllib.loads((repo / "pyproject.toml").read_text())
-        constraint = pinned["tool"]["poetry"]["dependencies"]["google-genai"]
+        lock = tomllib.loads((repo / "poetry.lock").read_text())
+        version = next(
+            p["version"] for p in lock["package"] if p["name"] == "google-genai"
+        )
+        major, minor, *_ = (int(part) for part in version.split("."))
 
-        assert not constraint.startswith(
-            "^1."
-        ), "a caret on 1.x forbids 2.x, where thinking_budget lives"
+        assert (major, minor) >= (
+            1,
+            10,
+        ), f"google-genai {version} predates thinking_budget, added in 1.10.0"
 
 
 class TestTheBudgetReachesTheApi:

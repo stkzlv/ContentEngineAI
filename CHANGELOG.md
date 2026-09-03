@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.100.0] - 2026-09-03
 
-### Changed
+### Dependencies
 - `google-genai` moves from `^1.0` to `^2.0`, and `httpx` from `^0.27` to `^0.28.1`, which is the floor the newer SDK requires. The 2.x breaking changes are confined to an Interactions API this project does not use; nothing here depends on what httpx 0.28 removed. Closes #340.
 
 ### Added
