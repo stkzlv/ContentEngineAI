@@ -65,6 +65,7 @@ class TestTheBudgetReachesTheApi:
                 "prompt", "gemini-2.5-flash-lite", settings, "key"
             )
 
+        assert generate.await_args is not None, "the SDK was never called"
         return generate.await_args.kwargs["config"]
 
     @pytest.mark.asyncio
