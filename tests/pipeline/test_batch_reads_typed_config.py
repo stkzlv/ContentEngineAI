@@ -53,6 +53,121 @@ class TestNoInlineConfigReadRemains:
 
 
 @pytest.mark.unit
+class TestABadConfigIsNotSwallowed:
+    """The fallback read like caution and was the opposite.
+
+    One unusable value discarded the entire file, and the run then published
+    immediately to whichever platforms the dataclass defaults name, with the
+    first comment, the disclosures, the stagger and the retention policy all
+    silently reverted at the same time. Before this branch the same config
+    aborted the publishing phase outright.
+    """
+
+    def test_an_unusable_value_reaches_the_caller(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.pipeline import global_batch
+        from src.publisher import config as publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "default_platforms:\n  - instgram\n"
+        )
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+        monkeypatch.setattr(publisher_config, "DEFAULT_PUBLISHER_CONFIG_PATH", path)
+        global_batch._publisher_settings.cache_clear()
+
+        with pytest.raises(ValueError, match="instgram"):
+            global_batch._publisher_settings()
+
+    def test_an_absent_credential_still_yields_the_configured_settings(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The one case that is not about the file being unusable.
+
+        The batch reads settings here and takes its key from the environment
+        at publish time. Falling back to the dataclass defaults would discard
+        the operator's schedule and platforms over a credential this code
+        path never reads.
+        """
+        from src.pipeline import global_batch
+        from src.publisher import config as publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "default_platforms:\n  - youtube\n"
+            "immediate_publish: true\n"
+        )
+        monkeypatch.delenv("LATE_API_KEY", raising=False)
+        monkeypatch.setattr(publisher_config, "DEFAULT_PUBLISHER_CONFIG_PATH", path)
+        global_batch._publisher_settings.cache_clear()
+
+        settings = global_batch._publisher_settings()
+
+        assert [p.value for p in settings.default_platforms] == ["youtube"]
+        assert settings.immediate_publish is True
+
+    def test_the_placeholder_credential_is_never_a_real_key(self) -> None:
+        """It exists so the dataclass will construct, and for nothing else."""
+        from src.pipeline import global_batch
+
+        source = BATCH.read_text()
+        marker = global_batch._NO_CREDENTIAL
+
+        assert (
+            source.count(marker) == 1
+        ), "the placeholder is referenced somewhere other than the fallback"
+        assert "api_key" not in source.split(marker)[1].split("\n")[0]
+
+    def test_a_malformed_slot_names_the_field(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """It used to escape the loader's own handler as a bare KeyError."""
+        from src.publisher.config import load_publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "recurring_schedule:\n"
+            "  enabled: true\n"
+            "  slots:\n"
+            "    - day: monday\n"
+            "      time: '10:00:00'\n"
+        )
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+
+        config = load_publisher_config(path)
+
+        assert config.schedule_config.slots == [], (
+            "a slot the loader cannot read is dropped with a warning, not "
+            "raised as a KeyError out of the handler meant to catch it"
+        )
+
+
+@pytest.mark.unit
+class TestScheduleTimeIsNormalised:
+    def test_an_unquoted_yaml_timestamp_becomes_a_string(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The consumer calls `.replace("Z", ...)` on it."""
+        from src.publisher.config import load_publisher_config
+
+        path = tmp_path / "publisher.yaml"
+        path.write_text(
+            "late:\n  api_key_env_var: LATE_API_KEY\n"
+            "schedule_time: 2026-09-05 10:00:00\n"
+        )
+        monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
+
+        config = load_publisher_config(path)
+
+        assert isinstance(config.schedule_time, str)
+        assert config.schedule_time.startswith("2026-09-05")
+
+
+@pytest.mark.unit
 class TestTheLoadersResolveFromAnyDirectory:
     """The defect one level down: both loaders defaulted to a relative path."""
 
@@ -224,10 +339,41 @@ class TestTheWebhookComesFromTheLoadedConfig:
         ), "the webhook slice is not carried on the config"
         assert 'open("config/pipeline.yaml")' not in source
 
-    def test_the_loader_carries_the_slice(self) -> None:
+    def test_a_configured_url_survives_the_round_trip(self, tmp_path: Path) -> None:
+        """YAML -> loader -> the object `main` hands to the notifier.
+
+        Asserting only that the dataclass declares the field would pass with
+        the loader never populating it, which is silent: webhooks would simply
+        stop firing for every batch run and nothing would fail.
+        """
         import argparse
 
-        from src.pipeline.config import GlobalBatchConfig
+        import yaml
 
-        assert "webhook_yaml" in GlobalBatchConfig.__dataclass_fields__
-        assert isinstance(argparse.Namespace(), argparse.Namespace)
+        from src.pipeline.config import load_global_batch_config
+        from src.pipeline.webhooks import load_webhook_config
+
+        url = "https://hooks.example.test/abc"
+        path = tmp_path / "pipeline.yaml"
+        path.write_text(
+            yaml.safe_dump({"global_batch": {"webhook": {"url": url, "enabled": True}}})
+        )
+
+        config = load_global_batch_config(argparse.Namespace(), config_path=path)
+
+        assert load_webhook_config(config.webhook_yaml).url == url
+
+    def test_an_absent_webhook_section_configures_nothing(self, tmp_path: Path) -> None:
+        import argparse
+
+        import yaml
+
+        from src.pipeline.config import load_global_batch_config
+        from src.pipeline.webhooks import load_webhook_config
+
+        path = tmp_path / "pipeline.yaml"
+        path.write_text(yaml.safe_dump({"global_batch": {}}))
+
+        config = load_global_batch_config(argparse.Namespace(), config_path=path)
+
+        assert not load_webhook_config(config.webhook_yaml).is_configured()

@@ -589,6 +589,11 @@ class PublisherConfig:
     active_account: str | None = None
     default_platforms: list[Platform] = field(default_factory=list)
     immediate_publish: bool = False
+    # A YAML timestamp written unquoted arrives as a `datetime`, not a
+    # string, and the consumer calls `.replace("Z", ...)` on it. Normalised in
+    # `__post_init__` rather than widened here: the annotation is what mypy
+    # trusts, and `default_platforms` has already shown what a type that lies
+    # costs.
     schedule_time: str | None = None
     privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
@@ -670,6 +675,17 @@ class PublisherConfig:
         self.privacy_settings = {
             _as_platform(p): v for p, v in self.privacy_settings.items()
         }
+        # Read through `object` so the checker does not prove the branch
+        # unreachable from the annotation. The annotation is the thing being
+        # enforced here, not the thing being trusted: the loader hands YAML
+        # to the dataclass unconverted, and an unquoted timestamp arrives as
+        # a `datetime` while the consumer calls `.replace("Z", ...)` on it.
+        raw_schedule_time: object = self.schedule_time
+        if raw_schedule_time is not None and not isinstance(raw_schedule_time, str):
+            isoformat = getattr(raw_schedule_time, "isoformat", None)
+            self.schedule_time = (
+                isoformat() if callable(isoformat) else str(raw_schedule_time)
+            )
 
     def get_account(self, name: str | None = None) -> AccountConfig | None:
         """Get account configuration by name.
@@ -866,13 +882,20 @@ class RecurringSlot:
             "saturday",
             "sunday",
         }
-        if self.day_of_week.lower() not in valid_days:
+        # `not isinstance(..., str)` rather than `.lower()` straight away: a
+        # slot written `day:` instead of `day_of_week:` leaves this None, and
+        # an AttributeError escapes the loader's handler, which catches only
+        # ValueError and TypeError. The whole run then dies on a bare
+        # traceback instead of dropping one unreadable slot with a warning.
+        if not isinstance(self.day_of_week, str) or (
+            self.day_of_week.lower() not in valid_days
+        ):
             raise ValueError(
                 f"day_of_week must be one of {valid_days}, got '{self.day_of_week}'"
             )
 
         # Validate time format (HH:MM:SS)
-        if not self.time or len(self.time.split(":")) != 3:
+        if not isinstance(self.time, str) or len(self.time.split(":")) != 3:
             raise ValueError(f"time must be in HH:MM:SS format, got '{self.time}'")
 
         try:

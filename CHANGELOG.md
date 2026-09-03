@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.97.1] - 2026-09-03
 
+### Changed
+- **The batch's post-publish cleanup follows `config/publisher.yaml` rather than its own default.** It read the `cleanup` section inline and treated an absent section as off; the shared loader treats it as on, which is what `single` and `schedule` have always done. An install that stops the batch deleting product directories by removing the section will now find them deleted. Set `cleanup.enabled: false` to keep them. The shipped config sets `enabled: true` explicitly and is unaffected.
+- A `publisher.yaml` the loader cannot read now stops the batch instead of being replaced by defaults. Previously an unusable value aborted only the publishing phase, after the scrape and the renders were paid for. An absent provider credential is the exception: the batch reads settings from this file and takes its key from the environment, so it keeps the configured settings and defers the credential check to where it already happened.
+
 ### Fixed
 - The global batch read `config/publisher.yaml` itself, from a path relative to the working directory, at four call sites. A run started from anywhere but the repository root found no file and fell back to hardcoded values, one of which was wrong: `immediate_publish` defaulted to true against a shipped `false`, so the run published on the spot instead of scheduling. It now reads one typed config resolved from the package, as the publisher CLI already did. Closes #126.
-- `default_platforms` and the keys of `privacy_settings` arrived from YAML as plain strings while both are declared as platform enums. Nothing converted them, so `PublisherConfig.to_dict()` raised on any config loaded from the shipped file, and the type checker could not see it because it believes the annotation. They are converted where the object is built, and an unknown platform name is now refused at load instead of being dropped.
+- `default_platforms` and the keys of `privacy_settings` arrived from YAML as plain strings while both are declared as platform enums. Nothing converted them, so `PublisherConfig.to_dict()` raised on any config loaded from the shipped file, and the type checker could not see it because it believes the annotation. Both are converted where the object is built, and an unknown platform name is refused rather than carried through.
+- A `recurring_schedule` slot missing `day_of_week` or `time` killed the run with a bare `KeyError` or `AttributeError`. The loader's handler catches `ValueError` and `TypeError`, so neither reached it. An unreadable slot is dropped with a warning, as intended.
+- A `schedule_time` written as an unquoted YAML timestamp arrived as a `datetime` while the field is declared as a string, and the consumer calls a string method on it. It is normalised where the object is built.
 
 ### Notes
 - Each publisher section used to be parsed again at the batch's own call site, which is how `tiktok_settings` went missing there for several releases while the single-product path had it. Removing the parsing removes the way that happens.

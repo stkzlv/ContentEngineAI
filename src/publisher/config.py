@@ -34,10 +34,25 @@ from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
 
+
 # Anchored on the package rather than the working directory. A relative
 # default made every caller outside the repository root fall through to the
 # dataclass defaults in silence, which is how the batch ended up defaulting
 # `immediate_publish` to True against a shipped `false`.
+class MissingApiKeyError(ValueError):
+    """No usable provider credential was supplied.
+
+    Named apart from every other configuration error so a caller that needs
+    only the settings can tell the two cases apart. The batch is that caller:
+    it takes its credential from the environment at publish time and checks it
+    before the run starts, so an absent key here says nothing about whether
+    the rest of the file is usable. Every other error means the file itself
+    cannot be trusted and must reach the operator.
+
+    A subclass of `ValueError` so existing handlers keep working.
+    """
+
+
 DEFAULT_PUBLISHER_CONFIG_PATH = (
     Path(__file__).resolve().parents[2] / "config" / "publisher.yaml"
 )
@@ -231,9 +246,13 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             slots = []
             for slot_dict in slots_data:
                 default_tz = recurring_schedule.get("timezone", "UTC")
+                # `.get` rather than `[...]`: a KeyError escapes the handler
+                # below, so a slot written `day:` instead of `day_of_week:`
+                # aborted the caller with a bare KeyError. RecurringSlot
+                # refuses None with a message naming the field.
                 slot = RecurringSlot(
-                    day_of_week=slot_dict["day_of_week"],
-                    time=slot_dict["time"],
+                    day_of_week=slot_dict.get("day_of_week"),
+                    time=slot_dict.get("time"),
                     timezone=slot_dict.get("timezone", default_tz),
                 )
                 slots.append(slot)
@@ -811,7 +830,7 @@ def _validate_required_fields(config: dict[str, Any]) -> None:
 
     # Validate API key
     if "api_key" not in config or not config["api_key"]:
-        raise ValueError(
+        raise MissingApiKeyError(
             "Missing required field: 'api_key'. "
             "Set via YAML (api_key: sk_live_...), env var (LATE_API_KEY=sk_live_...), "
             "or CLI argument (--api-key sk_live_...)"
@@ -820,7 +839,7 @@ def _validate_required_fields(config: dict[str, Any]) -> None:
     # Validate API key format (basic check)
     api_key = config["api_key"]
     if not isinstance(api_key, str) or len(api_key) < LATE_API_KEY_MIN_LENGTH:
-        raise ValueError(
+        raise MissingApiKeyError(
             f"Invalid API key format: must be string with at least "
             f"{LATE_API_KEY_MIN_LENGTH} characters "
             f"(got {len(api_key) if isinstance(api_key, str) else 'non-string'})"

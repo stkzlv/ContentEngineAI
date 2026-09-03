@@ -50,6 +50,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Stands in for the provider credential when only the settings are being
+# read. Never sent anywhere: the publishing phase takes its key from the
+# environment and refuses to run without one.
+_NO_CREDENTIAL = "settings-read-no-credential"
+
+
 @lru_cache(maxsize=1)
 def _publisher_settings() -> "PublisherConfig":
     """The publisher config, typed, loaded once, resolved absolutely.
@@ -62,22 +68,29 @@ def _publisher_settings() -> "PublisherConfig":
     the hand-parsing that let `tiktok_settings` go missing from the batch for
     several releases while `single` had it.
 
-    Falls back to the dataclass defaults rather than raising, because a plan
-    printout and a dry run must work without a usable key, and because that is
-    what the old inline read did when the file was not where it looked. The
-    placeholder credential exists only so the dataclass will construct: the
-    publishing phase takes its key from `LATE_API_KEY` and never reads this
-    field, and a run that reaches Zernio with the placeholder has already
-    failed the environment check above it.
+    A config that fails to load is not caught here, deliberately. Swallowing
+    it and returning the dataclass defaults reads like caution and is the
+    opposite: one typo'd platform name would discard the whole file, and the
+    run would then publish on the spot -- to whichever platforms the defaults
+    name, with the first comment, the disclosures, the stagger and the
+    retention policy all silently reverted at the same time. A missing file
+    needs no fallback either: the loader returns an empty mapping for that
+    without raising.
+
+    The one exception is an absent credential, which says nothing about
+    whether the rest of the file is usable. The batch reads settings here and
+    takes its key from `LATE_API_KEY` at publish time, having checked it
+    before the run started. So it retries with a placeholder rather than
+    falling back to defaults, and keeps every configured setting; a typo'd
+    platform still raises out of the second call.
     """
-    from src.publisher.config import load_publisher_config
-    from src.publisher.models import PublisherConfig
+    from src.publisher.config import MissingApiKeyError, load_publisher_config
 
     try:
         return load_publisher_config()
-    except (OSError, ValueError) as exc:
-        logger.warning("Could not load publisher config (%s); using defaults", exc)
-        return PublisherConfig(provider="late", api_key="unconfigured")
+    except MissingApiKeyError as exc:
+        logger.debug("No publisher credential while reading settings: %s", exc)
+        return load_publisher_config(cli_overrides={"api_key": _NO_CREDENTIAL})
 
 
 def create_argument_parser():
@@ -735,8 +748,6 @@ class GlobalPipelineOrchestrator:
 
         """
         import os
-
-        import yaml
 
         separator = "=" * 80
         section = "-" * 40
@@ -2005,8 +2016,6 @@ class GlobalPipelineOrchestrator:
         import random
         from datetime import datetime
 
-        import yaml
-
         from src.publisher import PublisherProvider, create_publisher
         from src.publisher.models import AffiliateDisclosureConfig, Platform
 
@@ -2739,8 +2748,6 @@ async def main():
                     logger.info("Webhook notifications enabled: %s", webhook_config.url)
                 else:
                     logger.warning("Webhook URL configured but invalid")
-        except FileNotFoundError:
-            logger.debug("No pipeline.yaml found - webhooks disabled")
         except Exception as e:
             logger.warning("Failed to load webhook config: %s", e)
 
