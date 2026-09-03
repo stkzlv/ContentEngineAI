@@ -131,20 +131,33 @@ class TestABadConfigIsNotSwallowed:
         ]
 
         assert keys, "no create_publisher call passes an api_key"
-        for value in keys:
-            expression = ast.unparse(value)
-            # The placeholder is itself a bare Name, so requiring a Name was
-            # no guard at all: it accepted the exact wiring it exists to
-            # refuse, while rejecting a correct `os.environ[...]` read.
-            assert "_NO_CREDENTIAL" not in expression, (
-                f"create_publisher(api_key={expression}) sends the settings-"
-                "read placeholder to the provider"
-            )
-        source = BATCH.read_text()
-        assert 'os.getenv("LATE_API_KEY")' in source, (
-            "the credential no longer comes from the environment the run "
-            "already validated"
+
+        # Reading the call site alone is not enough: assigning the
+        # placeholder to `api_key` a few lines above and passing that name
+        # through defeats it, and a run then authenticates with the
+        # placeholder. Requiring every mention of the constant to sit inside
+        # the one function that may use it kills both forms.
+        settings_fn = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+            and node.name == "_publisher_settings"
         )
+        mentions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name)
+            and node.id == "_NO_CREDENTIAL"
+            # Its own module-level definition is a Store, not a use.
+            and isinstance(node.ctx, ast.Load)
+        ]
+        assert mentions, "the placeholder constant is gone; update this test"
+        for node in mentions:
+            assert settings_fn.lineno <= node.lineno <= (settings_fn.end_lineno or 0), (
+                f"_NO_CREDENTIAL is referenced at line {node.lineno}, outside "
+                "_publisher_settings; it exists only so the dataclass will "
+                "construct while the settings are read"
+            )
 
     def test_a_malformed_slot_names_the_field(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

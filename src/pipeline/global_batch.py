@@ -1130,27 +1130,35 @@ class GlobalPipelineOrchestrator:
                 # recoverable. `schedule` and the immediate batch accept any
                 # one render per product by the same rule, so a resume now
                 # answers the question the same way they do.
-                platforms_for_resume = [
-                    platform.lower()
-                    for platform in (self.config.platforms or self._default_platforms())
-                ]
                 dropped = getattr(self, "_skipped_as_published", [])
                 dropped_ids = set(dropped)
                 produced_videos = []
-                for pid in self.state.production_completed_products:
-                    if pid in dropped_ids:
-                        continue
-                    render = sole_render_for_product(
-                        self.config.outputs_dir / pid,
-                        self._publisher_profiles(),
-                        platforms_for_resume[0] if platforms_for_resume else "",
-                    )
-                    if render is None:
-                        logger.warning(
-                            "Resume: no render found for %s, skipping publish", pid
+                # The publishing phase below is gated on the same flag, so
+                # this list is discarded on a `--skip-publish` run. Building
+                # it anyway reads the publisher config, which now raises on a
+                # file it cannot parse -- aborting a resume that had no
+                # intention of publishing, over a file it would not use.
+                if not self.config.skip_publish:
+                    platforms_for_resume = [
+                        platform.lower()
+                        for platform in (
+                            self.config.platforms or self._default_platforms()
                         )
-                        continue
-                    produced_videos.append((render, pid))
+                    ]
+                    for pid in self.state.production_completed_products:
+                        if pid in dropped_ids:
+                            continue
+                        render = sole_render_for_product(
+                            self.config.outputs_dir / pid,
+                            self._publisher_profiles(),
+                            platforms_for_resume[0] if platforms_for_resume else "",
+                        )
+                        if render is None:
+                            logger.warning(
+                                "Resume: no render found for %s, skipping publish", pid
+                            )
+                            continue
+                        produced_videos.append((render, pid))
                 if dropped:
                     # The cached summary predates the drop, so it reports
                     # zero and contradicts the log line above it.
