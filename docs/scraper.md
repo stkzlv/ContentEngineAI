@@ -323,9 +323,40 @@ Sources: [Botasaurus](https://github.com/omkarcloud/botasaurus),
 ## Troubleshooting
 
 ### Rate Limiting / CAPTCHA
+
+Amazon answers a rate limit and a query that never works with the same page,
+`Sorry! Something went wrong!`, so the run separates them from what its other
+inputs did. A rate limit blocks the connection, so nothing else gets through
+either; a dead query is specific to itself and its neighbours keep working.
+
+The run acts on that. An input whose neighbours are also failing is treated as
+throttled: it waits, doubling from `throttle_backoff_base_sec` up to
+`throttle_backoff_max_sec`, and retries the same input. An input that has
+failed `dead_query_after` times in a run where something else got through is
+named as a dead query and skipped, because no wait fixes it. Both are reported
+separately at the end of the run, so a keyword that needs replacing is not
+confused with one that needed a longer gap.
+
+Consecutive inputs are also paced by `inter_input_delay_sec` on the happy
+path. Back-to-back searches are the pattern that draws the block, and the
+pause costs seconds against a scrape measured in tens of them.
+
+Defaults are in `config/scraper.yaml` under `global_settings.rate_limiting`.
+The ceiling is 10 minutes because the block was measured clearing when runs
+were spaced roughly 8 minutes apart; a schedule topping out in seconds retries
+inside the block every time and loses the input.
+
+If it still happens:
 1. Run with `--debug` to see the browser.
-2. Increase `rate_limiting` delays in `config/scraper.yaml`.
+2. Raise `throttle_backoff_max_sec` and `inter_input_delay_sec` in
+   `config/scraper.yaml`.
 3. Try a VPN if your IP is blocked.
+
+One case the classification gets wrong, deliberately: a rate limit that begins
+partway through a run and blocks only the tail. Its first tail input is waited
+on and then named a dead query. That costs the label, not the run, because
+every later input is throttled too and the summary reports a run that mostly
+failed rather than one bad keyword.
 
 ### Missing Media
 1. Check connection speed.

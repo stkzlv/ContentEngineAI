@@ -19,6 +19,7 @@ from src.scraper.amazon.models import (
     SearchParameters,
 )
 from src.scraper.base import Platform
+from src.scraper.base.throttle import ThrottleTracker
 
 pytestmark = pytest.mark.unit
 
@@ -28,6 +29,10 @@ def mock_scraper():
     """Create mock BotasaurusAmazonScraper instance."""
     scraper = Mock()
     scraper.logger = logging.getLogger("test")
+    # A bare Mock returns a Mock for `throttle`, and the summary joins its
+    # verdict lists into a log line. The mock has to match the contract, not
+    # merely have the attribute.
+    scraper.throttle = ThrottleTracker()
     return scraper
 
 
@@ -1416,6 +1421,7 @@ class TestLostKeywordsAreRecorded:
         from src.scraper.amazon.models import BatchConfig, SearchParameters
 
         scraper = MagicMock()
+        scraper.throttle = ThrottleTracker()
         config = BatchConfig(
             product_ids=[],
             keywords=keywords,

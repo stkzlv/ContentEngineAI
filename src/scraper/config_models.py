@@ -23,6 +23,14 @@ class RateLimitingConfig(BaseModel):
 
     video_validation_delay: list[float] = Field(default=[0.5, 1.5])
     debug_pause_duration: int = Field(default=5, ge=0)
+    # Read at runtime through `ThrottleSettings.from_config`, which is where
+    # the defaults that matter live. Declared here so the block validates
+    # rather than reporting these as unknown keys.
+    inter_input_delay_sec: list[float] = Field(default=[2.0, 5.0])
+    throttle_backoff_base_sec: float = Field(default=60.0, gt=0)
+    throttle_backoff_max_sec: float = Field(default=600.0, gt=0)
+    throttle_max_attempts: int = Field(default=5, ge=1)
+    dead_query_after: int = Field(default=3, ge=1)
 
 
 class ImageConfig(BaseModel):

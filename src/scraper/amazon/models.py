@@ -260,6 +260,12 @@ class BatchSummary:
     # is a lost input with no ASIN to name it by, and folding it into
     # `failed_products` would put a search phrase in a list of identifiers.
     failed_keywords: list[str] = field(default_factory=list)
+    # Why an input was lost, when the reason was Amazon's error page. That
+    # page means two different things and the run can tell them apart from
+    # what its other inputs did, so the summary reports which: a dead query
+    # needs the keyword replacing, a rate limit needs only a longer gap.
+    dead_queries: list[str] = field(default_factory=list)
+    throttled_inputs: list[str] = field(default_factory=list)
 
 
 @dataclass

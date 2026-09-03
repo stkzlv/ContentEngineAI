@@ -397,6 +397,9 @@ class BatchController:
         successful_products = [r.product_id for r in results if r.success]
         failed_products = [r.product_id for r in results if not r.success]
         failed_keywords = list(self._failed_keywords)
+        # The scraper owns the tracker because both of its entry points feed
+        # it; the controller only reads the verdicts out at the end.
+        throttle = self.scraper.throttle
 
         # Calculate media statistics
         total_images = 0
@@ -434,6 +437,8 @@ class BatchController:
             successful_products=successful_products,
             failed_products=failed_products,
             failed_keywords=failed_keywords,
+            dead_queries=throttle.dead_queries,
+            throttled_inputs=throttle.throttled_inputs,
             media_stats=media_stats,
             duration_sec=round(duration_sec, duration_places),
         )
@@ -459,6 +464,22 @@ class BatchController:
 
         if summary.failed_products:
             self.logger.info("Failed Products: %s", ", ".join(summary.failed_products))
+
+        # Named apart from the failures above because they call for different
+        # things. A dead query keeps returning the error page however long
+        # the run waits, so the keyword has to be replaced; a throttled input
+        # would have worked with a longer gap.
+        if summary.dead_queries:
+            self.logger.warning(
+                "Dead queries (Amazon's error page while other inputs "
+                "succeeded): %s",
+                ", ".join(summary.dead_queries),
+            )
+        if summary.throttled_inputs:
+            self.logger.warning(
+                "Rate-limited and not recovered within the retry budget: %s",
+                ", ".join(summary.throttled_inputs),
+            )
 
         self.logger.info("\nMedia Collection Statistics:")
         for key, value in summary.media_stats.items():

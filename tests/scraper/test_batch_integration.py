@@ -23,6 +23,7 @@ from src.scraper.amazon.batch_controller import BatchController
 from src.scraper.amazon.config import load_batch_config
 from src.scraper.amazon.models import BatchConfig, ProductData, SearchParameters
 from src.scraper.base import Platform
+from src.scraper.base.throttle import ThrottleTracker
 
 # Test markers
 pytestmark = pytest.mark.integration
@@ -55,6 +56,10 @@ def mock_scraper_with_products():
     """Create mock scraper that returns realistic product data."""
     scraper = Mock()
     scraper.logger = Mock()
+    # A bare Mock returns a Mock for `throttle`, and the summary joins its
+    # verdict lists into a log line. The mock has to match the contract, not
+    # merely have the attribute.
+    scraper.throttle = ThrottleTracker()
 
     def create_product(asin, title, keyword="test"):
         return ProductData(

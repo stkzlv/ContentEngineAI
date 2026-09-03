@@ -11,11 +11,19 @@ import platform
 import re
 import shutil
 import time
+from collections.abc import Callable
 from typing import Any
 
 from botasaurus.browser import Driver, browser
 
 from ..base.display import resolve_debug_display
+from ..base.throttle import (
+    AMAZON_ERROR_PAGE_MESSAGE,
+    AMAZON_ERROR_PAGE_TITLE,
+    ThrottleTracker,
+    Verdict,
+    is_error_page_failure,
+)
 from .botasaurus_output import get_browser_config_for_outputs
 from .config import _BROWSER_CONFIG, CONFIG
 from .media_extractor import (
@@ -296,13 +304,11 @@ def scrape_amazon_products_browser_impl(
                 logger.debug("[DEBUG] Page title: %s", page_title)
 
                 # Check for Amazon error pages
-                if page_title and "Sorry! Something went wrong!" in driver.title:
+                if page_title and AMAZON_ERROR_PAGE_TITLE in driver.title:
                     logger.warning(
                         "[DEBUG] Detected Amazon error page - triggering retry"
                     )
-                    raise RuntimeError(
-                        "Amazon error page detected: Sorry! Something went wrong!"
-                    )
+                    raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
 
             except RuntimeError:
                 # Re-raise the error page detection
@@ -968,36 +974,102 @@ def create_dynamic_browser_function(debug_mode=False):
     return scrape_amazon_products_browser
 
 
-def create_batch_browser_function(debug_mode=False):
-    """Create a browser function that scrapes multiple inputs in one Chrome session.
+def scrape_batch_items(
+    driver: Driver,
+    items: list[dict[str, Any]],
+    tracker: ThrottleTracker | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[dict[str, Any]]:
+    """Scrape every input in one browser session, pacing and retrying.
 
-    Each input is scraped sequentially within the same browser, avoiding the
-    ~15s Chrome startup overhead per keyword that the single-keyword function has.
+    Split out of the decorated function so it can be driven with a fake driver
+    in a test. The Botasaurus `@browser` wrapper is opaque to the test suite,
+    so anything left inside it is only ever exercised against Amazon.
+
+    The loop used to catch every exception, record the message and move on, so
+    a rate limit -- which clears in minutes -- cost the whole run. It now asks
+    the tracker what the failure was: a throttle is waited out and retried on
+    the same input, and a query the run has evidence against is skipped, both
+    with their own message.
     """
-    current_config = _build_browser_config(debug_mode)
+    tracker = tracker or ThrottleTracker()
+    results: list[dict[str, Any]] = []
 
-    @browser(**current_config)
-    def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
-        items = data.get("items", [])
-        results = []
-        for i, item in enumerate(items):
-            input_label = item.get("keyword", f"item-{i}")
+    for i, item in enumerate(items):
+        input_label = item.get("keyword", f"item-{i}")
+
+        # Pace consecutive inputs even when nothing has failed. Back-to-back
+        # searches are the pattern that draws the block in the first place,
+        # and the pause is seconds against a scrape measured in tens of them.
+        if i:
+            sleep(tracker.inter_input_delay_sec())
+
+        while True:
             try:
                 logger.info(
                     "[batch %d/%d] Scraping: %s", i + 1, len(items), input_label
                 )
                 products = scrape_amazon_products_browser_impl(driver, item)
+                tracker.record_success(input_label)
                 results.append({"input": input_label, "products": products or []})
+                break
             except Exception as e:
-                logger.error(
-                    "[batch %d/%d] Failed for %s: %s",
-                    i + 1,
-                    len(items),
-                    input_label,
-                    e,
+                if not is_error_page_failure(e):
+                    logger.error(
+                        "[batch %d/%d] Failed for %s: %s",
+                        i + 1,
+                        len(items),
+                        input_label,
+                        e,
+                    )
+                    results.append(
+                        {"input": input_label, "products": [], "error": str(e)}
+                    )
+                    break
+
+                verdict = tracker.record_error_page(input_label)
+                if verdict is Verdict.RETRY:
+                    wait = tracker.backoff_sec(input_label)
+                    logger.warning(
+                        "[batch %d/%d] Amazon returned its error page for %s. "
+                        "Nothing else has succeeded since, so treating it as a "
+                        "rate limit and waiting %.0fs before retrying.",
+                        i + 1,
+                        len(items),
+                        input_label,
+                        wait,
+                    )
+                    sleep(wait)
+                    continue
+
+                results.append(
+                    {
+                        "input": input_label,
+                        "products": [],
+                        "error": str(e),
+                        "failure_kind": verdict.value,
+                    }
                 )
-                results.append({"input": input_label, "products": [], "error": str(e)})
-        return results
+                break
+
+    return results
+
+
+def create_batch_browser_function(debug_mode=False, tracker=None):
+    """Create a browser function that scrapes multiple inputs in one Chrome session.
+
+    Each input is scraped sequentially within the same browser, avoiding the
+    ~15s Chrome startup overhead per keyword that the single-keyword function has.
+
+    Pass a `ThrottleTracker` to see which inputs were rate-limited and which
+    are dead queries after the run; without one the pacing and backoff still
+    apply, the verdicts are simply not readable afterwards.
+    """
+    current_config = _build_browser_config(debug_mode)
+
+    @browser(**current_config)
+    def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
+        return scrape_batch_items(driver, data.get("items", []), tracker)
 
     return scrape_batch
 
@@ -1051,14 +1123,12 @@ def scrape_single_product(
             logger.info("[DEBUG] Page title: %s", page_title)
 
             # Check for Amazon error pages
-            if page_title and "Sorry! Something went wrong!" in page_title:
+            if page_title and AMAZON_ERROR_PAGE_TITLE in page_title:
                 logger.warning(
                     "[DEBUG] Detected Amazon error page in product page - "
                     "triggering retry"
                 )
-                raise RuntimeError(
-                    "Amazon error page detected: Sorry! Something went wrong!"
-                )
+                raise RuntimeError(AMAZON_ERROR_PAGE_MESSAGE)
 
         except RuntimeError:
             # Re-raise the error page detection

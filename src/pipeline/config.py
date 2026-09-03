@@ -445,6 +445,13 @@ class ScrapingPhaseSummary:
     failed_products: list[str]
     media_stats: dict[str, int]
     duration_sec: float
+    # Amazon answers a rate limit and a permanently dead query with the same
+    # error page, and the run can tell them apart from what its other inputs
+    # did. Reported apart from `failed_products` because they call for
+    # different things: a dead query needs the keyword replacing, a throttled
+    # input would have worked with a longer gap.
+    dead_queries: list[str] = field(default_factory=list)
+    throttled_inputs: list[str] = field(default_factory=list)
 
 
 @dataclass
