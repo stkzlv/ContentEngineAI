@@ -32,11 +32,17 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 # Openers of the channel-wide CTA lines the narrator profile allows. The
 # engagement-bait beat sits immediately before the CTA, so the CTA has to be
 # stripped from the tail before the beat can be read off the end.
+# One marker per configured CTA line, product and topic. The publisher does
+# not load the video config, so this list is hand-kept and a test asserts
+# every `script_templates.cta_options*` entry matches one -- a CTA this misses
+# is not stripped, and the YouTube first comment becomes the CTA itself.
 _CTA_MARKERS = (
     "link in bio",
     "follow for more",
     "drop a comment",
     "share with someone",
+    "share it with",
+    "save this",
     "check the link",
 )
 

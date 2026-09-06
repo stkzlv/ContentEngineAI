@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.101.0] - 2026-09-06
+
+### Fixed
+- No rendered script ended with a call to action. Five of five scheduled posts closed on the template's engagement beat -- a spec claim or a two-option question -- and never reached a CTA, so no video told the viewer where to go. The cause was structural: the four CTAs lived as prose in the narrator profile, forty lines from the task, while fifteen of eighteen templates owned the closing beat with an imperative that named the CTA only as a position. The nearer imperative won every time. Closes #367.
+
+### Added
+- `script_templates.cta_options` and `cta_options_topic`: the closing lines a script may end on, structured rather than prose, with a separate list for topic renders that have nothing to buy. Every template renders them into a `{CTA_RULE}` placed immediately after its closing-beat rule, and the generator refuses a script whose final sentence is not one of them verbatim, re-entering the existing retry loop. If every attempt misses, the first otherwise-complete script gets the first option appended, with a warning.
+
+### Notes
+- All four attempt paths in script generation -- primary model, fallback provider, discovered free model -- now validate through one closure, so the rule cannot be applied at one site and skipped at another.
+- The first-comment extractor strips trailing CTAs by a hand-kept marker list, and that list missed the topic CTAs, so a topic render's YouTube first comment would have been the CTA itself. A test now asserts every configured option matches a marker.
+- The narrator profiles keep their voice examples, which end on a CTA; an example that agrees with the rule reinforces it. The `Options:` lists are gone from the prose, so there is one source.
+
 ## [0.100.1] - 2026-09-06
 
 ### Fixed

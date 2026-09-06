@@ -43,6 +43,22 @@ class ScriptTemplateConfig(BaseModel):
     # topic script inherits an affiliate call to action it has no basis for.
     # Empty string falls back to narrator_profile.
     narrator_profile_topic: str = ""
+    # The closing calls to action, one of which every script must end on.
+    # Structured rather than prose inside the narrator profile, because prose
+    # forty lines from the task did not bind: five of five scheduled renders
+    # ended on the template's closing beat and never reached a CTA. These are
+    # rendered into `{CTA_RULE}` inside each template's Rules, adjacent to the
+    # closing-beat rule, and the validator refuses a script that does not end
+    # on one of them. The topic list exists because the product list implies
+    # something to buy.
+    cta_options: list[str] = Field(default_factory=list)
+    cta_options_topic: list[str] = Field(default_factory=list)
+
+    def cta_options_for(self, is_topic: bool) -> list[str]:
+        """The CTA lines a render may close on, by the same rule as the voice."""
+        if is_topic and self.cta_options_topic:
+            return self.cta_options_topic
+        return self.cta_options
 
     def narrator_for(self, is_topic: bool) -> str:
         """The narrator profile a render should use.
