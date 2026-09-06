@@ -1229,7 +1229,9 @@ llm_settings:
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
-| `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, whose call-to-action list points at something to buy. |
+| `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
+| `cta_options` | list[str] | The closing lines a product script may end on, verbatim. Rendered into every template's `{CTA_RULE}` immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of them. |
+| `cta_options_topic` | list[str] | Topic counterpart, none of which implies something to buy. Empty list falls back to `cta_options`. |
 | `pillar_preambles_topic` | dict[str, str] | Topic counterpart to `pillar_preambles`, using the same pillar keys. Read instead of the product map on a topic render. **Empty dict falls back to the product map**, which describes a product fixing an annoyance and lands above the topic prompt's rule against naming one. |
 | `pillar_audiences_topic` | dict[str, str] | Topic counterpart to `pillar_audiences`, same keys. Empty dict falls back to the product map, which describes buyers and shoppers. |
 
@@ -1244,7 +1246,8 @@ llm_settings:
 [template content]      <- selected template, with {FULL_PRODUCT_NAME},
                            {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION},
                            {AUDIENCE} substituted. Topic templates use
-                           {TOPIC_TITLE} and {TOPIC_DETAIL}; all six are
+                           {TOPIC_TITLE} and {TOPIC_DETAIL}; {CTA_RULE} is
+                           the rendered closing-CTA rule. All seven are
                            always passed, and a template uses what it names.
 ```
 

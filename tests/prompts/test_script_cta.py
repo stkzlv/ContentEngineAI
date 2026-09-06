@@ -83,6 +83,17 @@ class TestTheRuleSitsNextToTheBeat:
             assert f'"{cta}"' in rule
         assert "very last sentence" in rule
 
+    def test_the_topic_tail_does_not_point_at_a_beat_rule(self) -> None:
+        """Topic templates have no closing-beat rule above the placeholder;
+        the line above is an honest-limit rule, and "the closing beat above"
+        would point the model at that.
+        """
+        assert "closing beat above" in render_cta_rule(PRODUCT_CTAS)
+        assert "closing beat above" not in render_cta_rule(PRODUCT_CTAS, is_topic=True)
+        assert "closing line the template asks for" in render_cta_rule(
+            PRODUCT_CTAS, is_topic=True
+        )
+
     def test_no_options_renders_nothing(self) -> None:
         assert render_cta_rule([]) == ""
 
@@ -109,6 +120,27 @@ class TestTheValidatorRefusesAScriptWithoutOne:
         script = f"{BODY} Link in bio if you want one{ending}"
 
         assert ends_with_cta(script, PRODUCT_CTAS)
+
+    @pytest.mark.parametrize(
+        "cta", ["Link in bio\nif you want one.", "Link in bio  if you want one."]
+    )
+    def test_whitespace_drift_is_tolerated(self, cta: str) -> None:
+        """A wrapped or double-spaced CTA is the same CTA, not a paid retry."""
+        assert ends_with_cta(f"{BODY} {cta}", PRODUCT_CTAS)
+
+    def test_an_option_with_an_internal_full_stop_validates(self) -> None:
+        options = ["Link in bio. Seriously."]
+
+        assert ends_with_cta(f"{BODY} Link in bio. Seriously.", options)
+
+    def test_a_suffix_of_a_cta_is_not_a_cta(self) -> None:
+        assert not ends_with_cta(f"{BODY} Unlink in bio if you want one.", PRODUCT_CTAS)
+
+    def test_an_empty_option_is_refused_at_load(self) -> None:
+        from src.video.config.llm_settings import ScriptTemplateConfig
+
+        with pytest.raises(ValueError, match="no words"):
+            ScriptTemplateConfig(cta_options=["Link in bio.", "..."])
 
     def test_a_spec_claim_ending_is_refused(self) -> None:
         """The shipped failure: the closing beat with nothing after it."""
@@ -171,10 +203,73 @@ class TestTheGeneratorAppliesItEverywhere:
         assert len(direct) == 1, "only the closure may call the validator"
         assert len(wrapped) == 4
 
-    def test_the_last_resort_appends_the_first_option(self) -> None:
-        source = (REPO / "src" / "ai" / "script_generator.py").read_text()
+    @staticmethod
+    async def _run(monkeypatch, responses: list[str]) -> tuple[str | None, int]:
+        """Drive the real generator with only the LLM call patched."""
+        from unittest.mock import AsyncMock
 
-        assert 'near_miss["script"].rstrip() + " " + cta_options[0]' in source
+        from src.ai import script_generator
+        from src.video.config import load_video_config_modular
+
+        settings = load_video_config_modular().llm_settings
+        calls = AsyncMock(side_effect=responses)
+        monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", calls)
+        monkeypatch.setattr(
+            script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
+        )
+        script, _ = await script_generator.generate_script(
+            _product(),
+            settings,
+            {settings.api_key_env_var: "k"},
+            None,
+            {},
+            False,
+            product_id="B0TEST0001",
+        )
+        return script, calls.await_count
+
+    @pytest.mark.asyncio
+    async def test_a_response_ending_on_a_cta_is_taken_first_time(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        good = f"{BODY} {PRODUCT_CTAS[1]}"
+
+        script, calls = await self._run(monkeypatch, [good] * 4)
+
+        assert script == good
+        assert calls == 1
+
+    @pytest.mark.asyncio
+    async def test_a_missing_cta_is_retried_then_appended(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The retry is real; the append is the last resort after it."""
+        bare = f"{BODY} These bulbs have a 25,000-hour lifespan."
+
+        script, calls = await self._run(monkeypatch, [bare] * 4)
+
+        assert calls >= 2, "no retry happened"
+        assert script is not None
+        assert script.endswith(PRODUCT_CTAS[0])
+        assert "25,000-hour lifespan." in script
+
+    @pytest.mark.asyncio
+    async def test_a_paraphrased_cta_is_replaced_not_doubled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Two calls to action back to back read wrong, and the paraphrase
+        would become the YouTube first comment.
+        """
+        from src.publisher.first_comment import extract_closing_line
+
+        para = f"{BODY} The link is in my bio if you want it."
+
+        script, _ = await self._run(monkeypatch, [para] * 4)
+
+        assert script is not None
+        assert script.endswith(PRODUCT_CTAS[0])
+        assert "in my bio if you want it" not in script
+        assert extract_closing_line(script) == "Team magnetic or team plug-in?"
 
 
 @pytest.mark.unit
@@ -191,8 +286,24 @@ class TestTheFirstCommentStillFindsTheBeat:
         for kind, options in shipped_ctas.items():
             for cta in options:
                 assert any(
-                    m in cta.lower() for m in _CTA_MARKERS
-                ), f"{kind} CTA {cta!r} matches no extractor marker"
+                    cta.lower().startswith(m) for m in _CTA_MARKERS
+                ), f"{kind} CTA {cta!r} does not open with an extractor marker"
+
+    def test_a_beat_that_contains_a_marker_word_survives(self) -> None:
+        """Matched at the start of the sentence, not anywhere in it.
+
+        A substring match popped a two-option beat that merely contained a
+        marker phrase, and the sentence before it became the first comment.
+        A beat that *opens* with one -- "Save this or skip it?" -- is not a
+        shape the templates ask for, and is the one case anchoring cannot
+        separate from the CTA.
+        """
+        from src.publisher.first_comment import extract_closing_line
+
+        beat = "Would you share it with a friend or keep it?"
+        script = f"{BODY} {beat} Follow for more finds like this."
+
+        assert extract_closing_line(script) == beat
 
     @pytest.mark.parametrize("kind", ["product", "topic"])
     def test_the_beat_survives_stripping(self, shipped_ctas, kind: str) -> None:
