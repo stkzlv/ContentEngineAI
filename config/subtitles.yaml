@@ -144,6 +144,14 @@ subtitle_settings:
       absolute praise words (amazing, incredible). Around 15% of the words,
       and never a whole sentence
 
+    # Drop the sound effects a template ships. `explosive` plays a `ding` on
+    # every word tagged `highlighted`, and the recipe above widens that tag to
+    # around 15% of the words -- 10-17 dings in a 30-second render, roughly one
+    # every two to three seconds. The 15% is a visual-highlighting figure from
+    # docs/subtitle-best-practices.md; nothing chose it as a rate for audio,
+    # and the two share one tag only by accident. Set to false to hear them.
+    mute_template_sound_effects: true
+
     # Gemini model used by the adapter. Default gemini-2.5-flash is cheap
     # and fast; switch to gemini-2.5-pro for higher-quality tagging at
     # higher cost/latency.

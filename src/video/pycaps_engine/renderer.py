@@ -184,6 +184,28 @@ def _force_sentence_case(builder: Any) -> None:
     add(_SENTENCE_CASE_CSS)
 
 
+def _mute_template_sound_effects(builder: Any) -> None:
+    """Drop the sound effects the loaded template registered.
+
+    `CapsPipeline._sound_effects` is a plain list the template loader appends
+    to, so this reaches them the same way the CSS append and the AI-tag
+    rewrite reach their targets. Cleared rather than filtered: a template's
+    effects are its own choice, and the caller is overriding all of them.
+
+    Called after the template is loaded and after the renderer is wired, for
+    the same reason the CSS append is -- the effects live on the pipeline, so
+    the renderer swap does not disturb them, but keeping the overrides
+    together keeps the ordering rule in one place.
+    """
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    effects = getattr(pipeline, "_sound_effects", None)
+    if not effects:
+        logger.debug("template registers no sound effects; nothing to mute")
+        return
+    logger.debug("muting %d template sound effect(s)", len(effects))
+    effects.clear()
+
+
 def _override_ai_tag_prompt(builder: Any, instruction: str) -> None:
     """Replace the instruction every AI tagging rule carries.
 
@@ -548,4 +570,6 @@ class PycapsRenderer:
             _force_sentence_case(builder)
         if settings.ai_tag_prompt_override:
             _override_ai_tag_prompt(builder, settings.ai_tag_prompt_override)
+        if settings.mute_template_sound_effects:
+            _mute_template_sound_effects(builder)
         return builder, custom_renderer

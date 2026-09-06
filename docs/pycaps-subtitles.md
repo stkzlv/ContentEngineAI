@@ -120,6 +120,7 @@ comments in that file for the active values shipped to users.
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
 | `ai_tag_prompt_override` | str \| null | null | Replaces the instruction every AI rule in the template carries. `null` keeps the template's own. Bundled YAML ships a recipe. |
 | `ai_tagging_on_error` | `skip` \| `raise` | `skip` | Per-call AI failure handling. `skip` swallows the error and drops the tag for that segment; `raise` propagates to `fallback_policy`. |
+| `mute_template_sound_effects` | bool | `false` | Drop the sound effects a template registers. `explosive` plays a `ding` on every word tagged `highlighted`, and `ai_tag_prompt_override` widens that tag to ~15% of words. Bundled YAML ships `true`. |
 
 ### CLI override dotted keys
 
@@ -300,12 +301,20 @@ template defines, so no template fork is needed. The bundled config ships a
 recipe naming what to tag and, more usefully, what never to. A template with
 no AI rule, such as `word-focus`, is unaffected.
 
-**The recipe is an audio decision on `explosive`.** That template gates a
-`ding` sound effect on the `highlighted` tag, so the number of tagged words is
-the number of dings. Measured on one 30s script across five runs, the stock
-instruction tagged one to five spans and the recipe ten to seventeen. Lower
-the coverage the recipe asks for, or drop the override on that template, if
-that is too busy.
+**The recipe used to be an audio decision on `explosive`.** That template
+gates a `ding` sound effect on the `highlighted` tag, and the effect fires
+once per word inside a tagged span, so the word count was the ding count.
+Measured on one 30s script across five runs, the stock instruction tagged one
+to five spans and the recipe ten to seventeen — and since `explosive` asks for
+"the most important phrase or word", a span is usually more than one word, so
+those span figures are a floor on the dings rather than the count.
+
+The bundled config now sets `mute_template_sound_effects: true`, so no ding
+plays and the two decisions are separate. **Do not lower the recipe's coverage
+to quiet a render** — that trades away the visual highlighting
+`docs/subtitle-best-practices.md` prescribes in order to fix audio that is
+already off. Set `mute_template_sound_effects: false` to hear a template's
+effects.
 
 ### Built-in templates with AI rules
 
