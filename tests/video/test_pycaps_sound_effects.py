@@ -145,9 +145,17 @@ class TestTheEffectsAreMuted:
         `template_pool` that excludes `explosive` — the only bundled preset
         that ships a sound effect — so there is nothing there to mute.
         """
+        from src.video.pycaps_engine.renderer import select_template_for_product
+
         assert PycapsSettings().mute_template_sound_effects is False
         assert PycapsSettings().enable_ai_tagging is False
-        assert "explosive" not in PycapsSettings().template_pool
+        # Asserted through the selector, not `"explosive" not in pool`: an
+        # empty pool falls through to `template_name`, whose default is
+        # `explosive`, so the membership check would pass while the property
+        # it stands for was false.
+        assert (
+            select_template_for_product("any-product", PycapsSettings()) != "explosive"
+        )
 
     def test_a_builder_without_the_attribute_is_left_alone(self) -> None:
         """The branch that exists for a pycaps upgrade renaming the list.

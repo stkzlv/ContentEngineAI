@@ -302,10 +302,12 @@ recipe naming what to tag and, more usefully, what never to. A template with
 no AI rule, such as `word-focus`, is unaffected.
 
 **The recipe used to be an audio decision on `explosive`.** That template
-gates a `ding` sound effect on the `highlighted` tag, so the number of tagged
-spans was the number of dings: measured on one 30s script across five runs,
-the stock instruction tagged one to five spans and the recipe ten to
-seventeen, and the effect fires per word rather than per span.
+gates a `ding` sound effect on the `highlighted` tag, and the effect fires
+once per word inside a tagged span, so the word count was the ding count.
+Measured on one 30s script across five runs, the stock instruction tagged one
+to five spans and the recipe ten to seventeen — and since `explosive` asks for
+"the most important phrase or word", a span is usually more than one word, so
+those span figures are a floor on the dings rather than the count.
 
 The bundled config now sets `mute_template_sound_effects: true`, so no ding
 plays and the two decisions are separate. **Do not lower the recipe's coverage
