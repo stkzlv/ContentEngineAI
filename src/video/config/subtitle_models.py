@@ -394,6 +394,20 @@ class PycapsSettings(BaseModel):
             "no AI rule, such as `word-focus`."
         ),
     )
+    mute_template_sound_effects: bool = Field(
+        True,
+        description=(
+            "Drop the sound effects a template ships. `explosive` plays a "
+            "`ding` on every word tagged `highlighted`, and that tag is what "
+            "`ai_tag_prompt_override` widens: the recipe asks for around 15% "
+            "of the words, which is 10-17 dings in a 30-second render. That "
+            "15% is a recommendation about visual highlighting from "
+            "docs/subtitle-best-practices.md; nothing chose it as a rate for "
+            "a sound effect, and the two decisions share one tag only by "
+            "accident. Clearing the effects keeps the highlighting where the "
+            "doc puts it and stops the audio. Set to False to hear them."
+        ),
+    )
     ai_tagging_on_error: Literal["raise", "skip"] = Field(
         "skip",
         description=(

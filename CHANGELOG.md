@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.100.1] - 2026-09-06
+
+### Fixed
+- The `explosive` caption template played a `ding` on every word tagged `highlighted`, and `ai_tag_prompt_override` widens that tag to around 15% of the words — 10 to 17 dings in a 30-second render, roughly one every two to three seconds. That 15% is a recommendation about visual highlighting from `docs/subtitle-best-practices.md`; nothing chose it as a rate for a sound effect, and the two decisions share one tag by accident. `subtitle_settings.pycaps.mute_template_sound_effects` (shipped on) drops a template's sound effects after it loads, so the highlighting stays where the doc puts it and the audio stops. Closes #369.
+
+### Notes
+- Reached the same way the sentence-case CSS append and the AI-tag rewrite are: `_sound_effects` is a plain list the template loader appends to. Set the flag to false to hear a template's own effects.
+- `word-focus`, the other entry in the shipped pool, registers no sound effects and is unaffected.
+
 ## [0.100.0] - 2026-09-03
 
 ### Dependencies
