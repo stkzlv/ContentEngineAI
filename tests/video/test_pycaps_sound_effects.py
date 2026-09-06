@@ -141,11 +141,28 @@ class TestTheEffectsAreMuted:
     def test_a_bare_model_leaves_the_template_alone(self) -> None:
         """Like its siblings: the YAML carries the opinion, not the model.
 
-        A configless install also has no `ai_tag_prompt_override`, so
-        `explosive` tags the one to five words its own instruction asks for
-        rather than the fifteen percent that made this worth fixing.
+        Safe because such a model has AI tagging off and a default
+        `template_pool` that excludes `explosive` — the only bundled preset
+        that ships a sound effect — so there is nothing there to mute.
         """
         assert PycapsSettings().mute_template_sound_effects is False
+        assert PycapsSettings().enable_ai_tagging is False
+        assert "explosive" not in PycapsSettings().template_pool
+
+    def test_a_builder_without_the_attribute_is_left_alone(self) -> None:
+        """The branch that exists for a pycaps upgrade renaming the list.
+
+        Dropping the `getattr` default would raise inside `_build_pipeline`,
+        which `render` turns into `success=False` — and on the bundled
+        `fallback_policy: fallback_ffmpeg` that degrades to FFmpeg captions
+        silently. Both sibling overrides pin the same branch.
+        """
+        from src.video.pycaps_engine.renderer import _mute_template_sound_effects
+
+        class _Old:
+            """A pipeline from a version that named the list something else."""
+
+        _mute_template_sound_effects(_Old())
 
 
 @pytest.mark.unit

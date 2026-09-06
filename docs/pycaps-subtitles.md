@@ -301,12 +301,18 @@ template defines, so no template fork is needed. The bundled config ships a
 recipe naming what to tag and, more usefully, what never to. A template with
 no AI rule, such as `word-focus`, is unaffected.
 
-**The recipe is an audio decision on `explosive`.** That template gates a
-`ding` sound effect on the `highlighted` tag, so the number of tagged words is
-the number of dings. Measured on one 30s script across five runs, the stock
-instruction tagged one to five spans and the recipe ten to seventeen. Lower
-the coverage the recipe asks for, or drop the override on that template, if
-that is too busy.
+**The recipe used to be an audio decision on `explosive`.** That template
+gates a `ding` sound effect on the `highlighted` tag, so the number of tagged
+spans was the number of dings: measured on one 30s script across five runs,
+the stock instruction tagged one to five spans and the recipe ten to
+seventeen, and the effect fires per word rather than per span.
+
+The bundled config now sets `mute_template_sound_effects: true`, so no ding
+plays and the two decisions are separate. **Do not lower the recipe's coverage
+to quiet a render** — that trades away the visual highlighting
+`docs/subtitle-best-practices.md` prescribes in order to fix audio that is
+already off. Set `mute_template_sound_effects: false` to hear a template's
+effects.
 
 ### Built-in templates with AI rules
 
