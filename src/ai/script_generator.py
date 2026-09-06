@@ -118,7 +118,39 @@ def _short_product_name(full_title: str) -> str:
     return short or "this product"
 
 
-def format_prompt(template: str, product: ProductData, audience: str) -> str:
+def render_cta_rule(cta_options: list[str], is_topic: bool = False) -> str:
+    """The rule a template carries about how the script must end.
+
+    Rendered into `{CTA_RULE}` next to the template's closing-beat rule rather
+    than stated once in the narrator profile, because adjacency is what binds:
+    the profile's version sat forty lines from the task and lost to the
+    nearer imperative every time. The options are quoted verbatim so the
+    model copies one rather than paraphrasing it into something the validator
+    and the first-comment extractor no longer recognise.
+    """
+    if not cta_options:
+        return ""
+    quoted = " / ".join(f'"{line}"' for line in cta_options)
+    # The referent differs by family. Product templates carry a closing-beat
+    # rule directly above this line; topic templates state their close in
+    # the body, and the rule above this one there is an honest-limit rule,
+    # which "the closing beat above" would point at instead.
+    after = (
+        "It comes after the closing line the template asks for"
+        if is_topic
+        else "It comes after the closing beat above"
+    )
+    return (
+        "- **The very last sentence of the script is a call to action, and it "
+        "is exactly one of these lines, word for word:** "
+        f"{quoted} Pick the one that fits. {after}, never instead of it, and "
+        "nothing follows it."
+    )
+
+
+def format_prompt(
+    template: str, product: ProductData, audience: str, cta_rule: str = ""
+) -> str:
     """Format the prompt template with product data and audience information.
 
     Replaces placeholders in the template with actual product data. The template
@@ -138,6 +170,9 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
         template: The prompt template string
         product: Product data object containing title and description
         audience: Target audience for the video
+        cta_rule: The rendered closing-CTA rule for `{CTA_RULE}`, from
+            `render_cta_rule`. Empty when no CTAs are configured, which
+            leaves the placeholder blank rather than failing the format.
 
     Returns:
     -------
@@ -173,6 +208,7 @@ def format_prompt(template: str, product: ProductData, audience: str) -> str:
             # harmless: `str.format` ignores keys a template does not use.
             TOPIC_TITLE=full_name,
             TOPIC_DETAIL=description,
+            CTA_RULE=cta_rule,
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
@@ -665,8 +701,65 @@ async def _call_llm_api(
         raise ScriptGenerationError(str(e)) from e
 
 
+NO_CTA_REASON = "Script does not end on a configured CTA"
+
+
+def _normalise_line(text: str) -> str:
+    """Lower-case, and drop punctuation and surrounding quotes.
+
+    The model copies a CTA verbatim most of the time and not always: a
+    dropped full stop or an added exclamation mark is the same CTA.
+    """
+    return " ".join(re.sub(r"[^a-z0-9\s]+", "", text.lower()).split())
+
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+def ends_with_cta(script: str, cta_options: list[str]) -> bool:
+    """Whether the script ends on one of the configured CTAs, verbatim.
+
+    Compares the normalised tail of the whole script rather than its last
+    split sentence, so an option that itself contains a full stop still
+    validates. A word boundary before the match keeps "...and link in bio if
+    you want one" from passing on a suffix.
+    """
+    if not cta_options:
+        return True
+    tail = _normalise_line(script)
+    if not tail:
+        return False
+    for cta in cta_options:
+        target = _normalise_line(cta)
+        if tail == target or tail.endswith(" " + target):
+            return True
+    return False
+
+
+def _looks_like_cta_attempt(sentence: str, cta_options: list[str]) -> bool:
+    """A last sentence the model meant as a CTA and got wrong.
+
+    A paraphrase -- "the link is in my bio if you want it" -- fails the
+    verbatim check by design, and appending the real CTA after it would put
+    two calls to action back to back and hand the paraphrase to the YouTube
+    first comment, which strips only what it recognises. So the append
+    replaces a sentence that opens like any option or mentions the bio.
+    """
+    text = _normalise_line(sentence)
+    if "bio" in text.split():
+        return True
+    for cta in cta_options:
+        opener = " ".join(_normalise_line(cta).split()[:2])
+        if opener and text.startswith(opener):
+            return True
+    return False
+
+
 def validate_script_completeness(
-    script: str, min_chars: int = 200, min_words: int = 50
+    script: str,
+    min_chars: int = 200,
+    min_words: int = 50,
+    cta_options: list[str] | None = None,
 ) -> tuple[bool, str]:
     """Validate if a script appears complete and well-formed.
 
@@ -675,6 +768,10 @@ def validate_script_completeness(
         script: The generated script text
         min_chars: Minimum character count for a valid script
         min_words: Minimum word count for a valid script
+        cta_options: When given, the script must end on one of these lines.
+            A miss fails validation and re-enters the retry loop, the same
+            way a truncated script does: an ending without a CTA is a script
+            that stopped one beat early.
 
     Returns:
     -------
@@ -734,6 +831,9 @@ def validate_script_completeness(
     words = script.split()
     if len(words) < min_words:
         return False, f"Script too few words ({len(words)}, minimum {min_words})"
+
+    if cta_options and not ends_with_cta(script, cta_options):
+        return False, NO_CTA_REASON
 
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
@@ -810,9 +910,30 @@ async def generate_script(
     audience = _resolve_audience(pillar, settings, is_topic)
     try:
         template = load_prompt_template(template_path)
-        prompt = format_prompt(template, product, audience)
+        cta_options = settings.script_templates.cta_options_for(is_topic)
+        prompt = format_prompt(
+            template,
+            product,
+            audience,
+            cta_rule=render_cta_rule(cta_options, is_topic=is_topic),
+        )
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
+
+    # Every attempt below -- the primary provider and the fallback one, each
+    # with its free-model discovery, four sites -- validates through this one
+    # closure, so the CTA rule cannot be applied
+    # at one site and skipped at another. It also keeps the first script whose
+    # only defect was the ending, for the last resort at the bottom.
+    near_miss: dict[str, str] = {}
+
+    def _validate(script: str) -> tuple[bool, str]:
+        ok, reason = validate_script_completeness(
+            script, sv_min_chars, sv_min_words, cta_options
+        )
+        if not ok and reason == NO_CTA_REASON and "script" not in near_miss:
+            near_miss["script"] = script
+        return ok, reason
 
     prompt = apply_prompt_preambles(
         prompt,
@@ -843,9 +964,7 @@ async def generate_script(
                 clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
 
                 # Validate script completeness
-                is_complete, validation_reason = validate_script_completeness(
-                    clean_script, sv_min_chars, sv_min_words
-                )
+                is_complete, validation_reason = _validate(clean_script)
                 if is_complete:
                     logger.info(
                         f"Script successfully generated with model: {model} - "
@@ -913,9 +1032,7 @@ async def generate_script(
                     prompt, model, settings, api_key, session, api_settings
                 )
                 clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
-                is_complete, validation_reason = validate_script_completeness(
-                    clean_script, sv_min_chars, sv_min_words
-                )
+                is_complete, validation_reason = _validate(clean_script)
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
                     return clean_script, template_name
@@ -952,9 +1069,7 @@ async def generate_script(
                         prompt, model, fb, fb_api_key, session, api_settings
                     )
                     clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
-                    is_complete, reason = validate_script_completeness(
-                        clean_script, sv_min_chars, sv_min_words
-                    )
+                    is_complete, reason = _validate(clean_script)
                     if is_complete:
                         logger.info("Fallback success with %s - %s", model, reason)
                         return clean_script, template_name
@@ -977,9 +1092,7 @@ async def generate_script(
                             prompt, model, fb, fb_api_key, session, api_settings
                         )
                         clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
-                        is_complete, reason = validate_script_completeness(
-                            clean_script, sv_min_chars, sv_min_words
-                        )
+                        is_complete, reason = _validate(clean_script)
                         if is_complete:
                             logger.info(
                                 "Fallback discovery success with %s - %s",
@@ -997,6 +1110,30 @@ async def generate_script(
                 "Fallback provider configured but API key %s not found",
                 fb.api_key_env_var,
             )
+
+    if near_miss and cta_options:
+        # A script that was complete in every respect but its ending. Losing
+        # the render over that is the worse outcome; a bolted-on closing line
+        # is the price, and the warning is what makes it visible.
+        script = near_miss["script"].rstrip()
+        sentences = [s for s in _SENTENCE_SPLIT.split(script) if s.strip()]
+        if sentences and _looks_like_cta_attempt(sentences[-1], cta_options):
+            # The model tried and paraphrased. Two CTAs back to back reads
+            # wrong, and the paraphrase would become the first comment.
+            logger.warning(
+                "No attempt ended on a configured CTA; replacing the closing "
+                "line %r with %r",
+                sentences[-1],
+                cta_options[0],
+            )
+            script = " ".join(sentences[:-1])
+        else:
+            logger.warning(
+                "No attempt ended on a configured CTA; appending %r to an "
+                "otherwise complete script",
+                cta_options[0],
+            )
+        return script.rstrip() + " " + cta_options[0], template_name
 
     logger.error("All models failed to generate a script.")
     return None, None

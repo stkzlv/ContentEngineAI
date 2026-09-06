@@ -26,6 +26,7 @@ End with one CTA per the narrator profile. One line.
 - Name one thing the viewer might blame that is usually not the cause. Correcting
   a wrong assumption is the most useful thing a short help video does.
 - Include one honest limit: the case where this diagnosis is wrong.
+{CTA_RULE}
 
 ## Topic
 

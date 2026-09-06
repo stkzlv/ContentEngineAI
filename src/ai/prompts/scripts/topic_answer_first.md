@@ -34,6 +34,7 @@ End with one CTA per the narrator profile. One line.
   solve. One sentence.
 - No numbered list read aloud ("step one, step two"). Narrate it the way you
   would tell someone over the phone.
+{CTA_RULE}
 
 ## Topic
 

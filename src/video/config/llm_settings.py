@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.video.config.constants import MIN_PHRASE_WORDS
 
@@ -43,6 +44,36 @@ class ScriptTemplateConfig(BaseModel):
     # topic script inherits an affiliate call to action it has no basis for.
     # Empty string falls back to narrator_profile.
     narrator_profile_topic: str = ""
+    # The closing calls to action, one of which every script must end on.
+    # Structured rather than prose inside the narrator profile, because prose
+    # forty lines from the task did not bind: five of five scheduled renders
+    # ended on the template's closing beat and never reached a CTA. These are
+    # rendered into `{CTA_RULE}` inside each template's Rules, adjacent to the
+    # closing-beat rule, and the validator refuses a script that does not end
+    # on one of them. The topic list exists because the product list implies
+    # something to buy.
+    cta_options: list[str] = Field(default_factory=list)
+    cta_options_topic: list[str] = Field(default_factory=list)
+
+    @field_validator("cta_options", "cta_options_topic")
+    @classmethod
+    def _each_option_carries_words(cls, options: list[str]) -> list[str]:
+        """Refuse an option the ending check could never match sensibly.
+
+        An empty or punctuation-only entry would match every script tail or
+        none of them; either way the tenth paid render is the wrong place to
+        find out. Fail at load.
+        """
+        for option in options:
+            if not re.sub(r"[^a-z0-9]", "", option.lower()):
+                raise ValueError(f"CTA option carries no words: {option!r}")
+        return options
+
+    def cta_options_for(self, is_topic: bool) -> list[str]:
+        """The CTA lines a render may close on, by the same rule as the voice."""
+        if is_topic and self.cta_options_topic:
+            return self.cta_options_topic
+        return self.cta_options
 
     def narrator_for(self, is_topic: bool) -> str:
         """The narrator profile a render should use.

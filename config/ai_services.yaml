@@ -157,7 +157,7 @@ llm_settings:
 
       Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
 
-      CTA: pick one CTA, not a list. Options: "Link in bio if you want one." / "Follow for more finds like this." / "Drop a comment if you've tried it." / "Share with someone who needs this." Pick whichever fits the script.
+      CTA: the script ends on exactly one call to action, from the list the template gives you. Pick whichever fits the script.
 
       Things to avoid because they read as AI:
       - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting", "It's important to note".
@@ -181,6 +181,25 @@ llm_settings:
       - Do not mention the product price.
       - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
       - If the product description contains any banned phrase or marketing fluff, paraphrase the underlying feature in your own words. Don't quote it.
+    # The closing calls to action. Every script ends on exactly one of these,
+    # verbatim. They live here rather than as prose in the narrator profile
+    # because prose forty lines from the task did not bind: five of five
+    # scheduled renders ended on the template's closing beat and never reached
+    # a CTA. Each template renders these into its own Rules, next to the beat
+    # that precedes them, and the generator refuses a script that does not end
+    # on one. Edit the list, not the templates.
+    cta_options:
+      - "Link in bio if you want one."
+      - "Follow for more finds like this."
+      - "Drop a comment if you've tried it."
+      - "Share with someone who needs this."
+    # For topic renders, which have nothing to buy.
+    cta_options_topic:
+      - "Follow for more fixes like this."
+      - "Drop a comment if this worked."
+      - "Share it with whoever needs it."
+      - "Save this for the next time it happens."
+
     # Templates used when the record came from a topic rather than a scraped
     # product. These replace the pool rather than narrowing it: every other
     # template is written to pitch a product, so leaving one reachable means a
@@ -205,7 +224,7 @@ llm_settings:
 
       Imperfection: contractions and sentence fragments are fine. Vary sentence length. One mild filler word per script at most.
 
-      CTA: pick one, and never one that implies something to buy. Options: "Follow for more fixes like this." / "Drop a comment if this worked." / "Share it with whoever needs it." / "Save this for the next time it happens."
+      CTA: the script ends on exactly one call to action, from the list the template gives you, and never one that implies something to buy.
 
       Things to avoid because they read as AI:
       - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting".
