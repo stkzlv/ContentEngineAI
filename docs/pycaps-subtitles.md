@@ -120,6 +120,7 @@ comments in that file for the active values shipped to users.
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
 | `ai_tag_prompt_override` | str \| null | null | Replaces the instruction every AI rule in the template carries. `null` keeps the template's own. Bundled YAML ships a recipe. |
 | `ai_tagging_on_error` | `skip` \| `raise` | `skip` | Per-call AI failure handling. `skip` swallows the error and drops the tag for that segment; `raise` propagates to `fallback_policy`. |
+| `mute_template_sound_effects` | bool | `false` | Drop the sound effects a template registers. `explosive` plays a `ding` on every word tagged `highlighted`, and `ai_tag_prompt_override` widens that tag to ~15% of words. Bundled YAML ships `true`. |
 
 ### CLI override dotted keys
 

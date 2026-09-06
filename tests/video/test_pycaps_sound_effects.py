@@ -89,10 +89,6 @@ def _fake_pycaps(monkeypatch, builder: _RecordingBuilder) -> None:
 def _build(monkeypatch, tmp_path: Path, effects: list, **settings):
     from src.video.pycaps_engine.renderer import PycapsRenderer
 
-    # `_build_pipeline` checks the input exists before it does anything else.
-    (tmp_path / "in.mp4").write_bytes(b"")
-    (tmp_path / "t.json").write_text("{}")
-
     builder = _RecordingBuilder(effects)
     _fake_pycaps(monkeypatch, builder)
     monkeypatch.setattr(
@@ -142,8 +138,14 @@ class TestTheEffectsAreMuted:
 
         assert builder.sound_effects == []
 
-    def test_it_is_on_by_default(self) -> None:
-        assert PycapsSettings().mute_template_sound_effects is True
+    def test_a_bare_model_leaves_the_template_alone(self) -> None:
+        """Like its siblings: the YAML carries the opinion, not the model.
+
+        A configless install also has no `ai_tag_prompt_override`, so
+        `explosive` tags the one to five words its own instruction asks for
+        rather than the fifteen percent that made this worth fixing.
+        """
+        assert PycapsSettings().mute_template_sound_effects is False
 
 
 @pytest.mark.unit
@@ -166,3 +168,50 @@ class TestTheShippedConfigMutesThem:
         raw = yaml.safe_load((repo / "config" / "subtitles.yaml").read_text())
 
         assert "explosive" in raw["subtitle_settings"]["pycaps"]["template_pool"]
+
+
+@pytest.mark.unit
+class TestAgainstTheRealTemplate:
+    """The fake supplies whatever attribute name the code asks for.
+
+    So the unit tests above pass even if pycaps renames or relocates
+    `_sound_effects`, while the helper takes its `getattr(..., None)` path,
+    logs at DEBUG and returns — and the dings come back on half of renders.
+    Both halves of the premise are checked against the installed library:
+    that `explosive` still ships an effect, and that clearing it works.
+    """
+
+    @pytest.fixture
+    def pycaps(self):
+        return pytest.importorskip(
+            "pycaps",
+            reason="optional group not installed (poetry install --with pycaps)",
+        )
+
+    def test_explosive_still_ships_a_sound_effect(self, pycaps):
+        """If upstream drops it, this setting and its guard can go."""
+        from pycaps.template import TemplateFactory, TemplateLoader
+
+        builder = TemplateLoader(TemplateFactory().create("explosive")).load(False)
+
+        assert (
+            builder._caps_pipeline._sound_effects
+        ), "explosive registers no sound effect; #369 no longer applies"
+
+    def test_the_helper_empties_a_real_pipeline(self, pycaps):
+        from pycaps.template import TemplateFactory, TemplateLoader
+
+        from src.video.pycaps_engine.renderer import _mute_template_sound_effects
+
+        builder = TemplateLoader(TemplateFactory().create("explosive")).load(False)
+        _mute_template_sound_effects(builder)
+
+        assert builder._caps_pipeline._sound_effects == []
+
+    def test_word_focus_registers_none(self, pycaps):
+        """The other pool entry, unaffected either way."""
+        from pycaps.template import TemplateFactory, TemplateLoader
+
+        builder = TemplateLoader(TemplateFactory().create("word-focus")).load(False)
+
+        assert builder._caps_pipeline._sound_effects == []

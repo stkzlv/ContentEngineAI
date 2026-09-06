@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - Reached the same way the sentence-case CSS append and the AI-tag rewrite are: `_sound_effects` is a plain list the template loader appends to. Set the flag to false to hear a template's own effects.
+- The Pydantic default is off, like its sibling overrides: a bare model leaves a template as its author shipped it. A configless install has no prompt override either, so `explosive` tags the one to five words its own instruction asks for and needs no muting.
 - `word-focus`, the other entry in the shipped pool, registers no sound effects and is unaffected.
 
 ## [0.100.0] - 2026-09-03

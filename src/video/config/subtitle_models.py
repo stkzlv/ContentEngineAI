@@ -395,9 +395,14 @@ class PycapsSettings(BaseModel):
         ),
     )
     mute_template_sound_effects: bool = Field(
-        True,
+        False,
         description=(
-            "Drop the sound effects a template ships. `explosive` plays a "
+            "Drop the sound effects a template ships. Defaults off, like its "
+            "sibling overrides: a bare model leaves a template as its author "
+            "shipped it, and the bundled YAML carries the project's opinion. "
+            "A configless install also has no `ai_tag_prompt_override`, so "
+            "`explosive` tags the one to five words its own instruction asks "
+            "for, which is a rate nobody objected to. `explosive` plays a "
             "`ding` on every word tagged `highlighted`, and that tag is what "
             "`ai_tag_prompt_override` widens: the recipe asks for around 15% "
             "of the words, which is 10-17 dings in a 30-second render. That "
